@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* Typography */
+  --font-display: var(--font-syne);
+  --font-sans: var(--font-dm-sans);
+
+  /* Brand — Cherry Red */
+  --color-brand: #CD0000;
+  --color-brand-dark: #A50000;
+  --color-brand-soft: #FDEAEA;
+  --color-brand-muted: #F0D0D0;
+
+  /* Surfaces */
+  --color-cream: #EFEDE6;
+  --color-cream-dark: #E3E0D8;
+  --color-card: #FFFFFF;
+
+  /* Ink / Text */
+  --color-ink: #111111;
+  --color-ink-2: #3D3D3D;
+  --color-ink-muted: #7A7874;
+
+  /* Borders */
+  --color-border: #DDD9D0;
+  --color-border-dark: #C5C0B5;
+
+  /* Sidebar */
+  --color-sidebar: #111111;
+  --color-sidebar-hover: #1C1C1C;
+  --color-sidebar-active: #2A0A0A;
+  --color-sidebar-text: #C8C5C0;
+
+  /* Functional */
+  --color-success: #166534;
+  --color-success-bg: #F0FDF4;
+  --color-warning: #92400E;
+  --color-warning-bg: #FFFBEB;
+}
+
+body {
+  background-color: #EFEDE6;
+  color: #111111;
+  font-family: var(--font-dm-sans), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Premium scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #EFEDE6;
+}
+::-webkit-scrollbar-thumb {
+  background: #DDD9D0;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #CD0000;
+}

@@ -29,7 +29,7 @@ export async function loginAction(
     return { error: 'Invalid credentials. Check your Employee ID, email and password.' }
   }
 
-  redirect('/')
+  redirect('/admin/dashboard')
 }
 
 export async function logoutAction(): Promise<void> {

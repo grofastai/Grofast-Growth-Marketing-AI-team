@@ -2,15 +2,6 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-function parseJwtClaims(accessToken: string): Record<string, string> {
-  try {
-    const payload = accessToken.split('.')[1]
-    return JSON.parse(atob(payload))
-  } catch {
-    return {}
-  }
-}
-
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -33,36 +24,21 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
-
+  const { data: { session } } = await supabase.auth.getSession()
   const pathname = request.nextUrl.pathname
 
+  // Always allow static files and API routes
   if (pathname.startsWith('/api/')) return supabaseResponse
 
+  // No session — only allow /login
   if (!session) {
     if (pathname === '/login') return supabaseResponse
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  const claims = parseJwtClaims(session.access_token)
-  const role = claims.role as string | undefined
-
-  // Redirect away from login/root based on role
-  if (pathname === '/login' || pathname === '/') {
-    const dest = role === 'MEMBER' ? '/member/dashboard' : '/admin/dashboard'
-    return NextResponse.redirect(new URL(dest, request.url))
-  }
-
-  // Only enforce role routing when role claim exists in JWT
-  if (role) {
-    if (pathname.startsWith('/admin') && role !== 'ADMIN') {
-      return NextResponse.redirect(new URL('/member/dashboard', request.url))
-    }
-    if (pathname.startsWith('/member') && role !== 'MEMBER') {
-      return NextResponse.redirect(new URL('/admin/dashboard', request.url))
-    }
+  // Has session — redirect away from login
+  if (pathname === '/login') {
+    return NextResponse.redirect(new URL('/admin/dashboard', request.url))
   }
 
   return supabaseResponse

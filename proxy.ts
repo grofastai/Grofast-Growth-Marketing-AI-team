@@ -14,7 +14,9 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          cookiesToSet.forEach(({ name, value, options }) =>
+            request.cookies.set(name, value)
+          )
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
@@ -24,21 +26,25 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  // getUser() refreshes the session cookie — required for SSR
+  const { data: { user } } = await supabase.auth.getUser()
+
   const pathname = request.nextUrl.pathname
 
-  // Always allow static files and API routes
   if (pathname.startsWith('/api/')) return supabaseResponse
 
-  // No session — only allow /login
-  if (!session) {
+  if (!user) {
     if (pathname === '/login') return supabaseResponse
-    return NextResponse.redirect(new URL('/login', request.url))
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
   }
 
-  // Has session — redirect away from login
-  if (pathname === '/login') {
-    return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+  // Logged-in user hitting login page — send to dashboard
+  if (pathname === '/login' || pathname === '/') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/admin/dashboard'
+    return NextResponse.redirect(url)
   }
 
   return supabaseResponse

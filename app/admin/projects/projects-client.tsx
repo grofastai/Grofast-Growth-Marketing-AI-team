@@ -151,6 +151,7 @@ function ProjectSheet({ open, onClose, project }: SheetProps) {
                 value={form.service_type}
                 onChange={set("service_type")}
                 className={`${inputCls} appearance-none pr-10 cursor-pointer`}
+                style={{ colorScheme: "light", color: "#111827", background: "#ffffff" }}
               >
                 <option value="">Select a service…</option>
                 {SERVICES.map((s) => (
@@ -371,6 +372,7 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
             value={serviceFilter}
             onChange={(e) => setServiceFilter(e.target.value)}
             className="appearance-none bg-card border border-border rounded-xl pl-8 pr-8 py-2.5 text-[12px] font-sans text-ink outline-none focus-visible:ring-2 focus-visible:ring-brand/20 transition-all cursor-pointer min-w-[200px]"
+            style={{ colorScheme: "light", color: "#111827", background: "#ffffff" }}
           >
             <option value="">All Services</option>
             {SERVICES.map((s) => (

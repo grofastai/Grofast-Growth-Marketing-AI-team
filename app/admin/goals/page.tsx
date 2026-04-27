@@ -1,10 +1,14 @@
-export default function GoalsPage() {
-  return (
-    <div className="p-8">
-      <h1 className="text-[32px] font-bold text-ink" style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 800 }}>
-        Goals
-      </h1>
-      <p className="text-ink-muted text-sm mt-1">Track team goals and task board.</p>
-    </div>
-  )
+import { createServerClient } from "@/lib/supabase/server"
+import GoalsClient from "./goals-client"
+
+export default async function GoalsPage() {
+  const supabase = await createServerClient()
+
+  const [{ data: tasks }, { data: members }, { data: projects }] = await Promise.all([
+    supabase.from("tasks").select("*, users(id, name, employee_id), projects(business_name)").order("created_at", { ascending: false }),
+    supabase.from("users").select("id, name, employee_id").eq("role", "MEMBER").order("name"),
+    supabase.from("projects").select("id, business_name").eq("status", "active").order("business_name"),
+  ])
+
+  return <GoalsClient tasks={tasks ?? []} members={members ?? []} projects={projects ?? []} />
 }

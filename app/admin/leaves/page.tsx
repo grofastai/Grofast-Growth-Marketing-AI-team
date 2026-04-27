@@ -1,10 +1,26 @@
-export default function LeavesPage() {
-  return (
-    <div className="p-8">
-      <h1 className="text-[32px] font-bold text-ink" style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 800 }}>
-        Leaves
-      </h1>
-      <p className="text-ink-muted text-sm mt-1">Review and approve leave requests.</p>
-    </div>
-  )
+import { createServerClient } from "@/lib/supabase/server"
+import LeavesClient from "./leaves-client"
+
+export default async function LeavesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>
+}) {
+  const params = await searchParams
+  const supabase = await createServerClient()
+  const statusFilter = params.status ?? "pending"
+
+  let query = supabase
+    .from("leaves")
+    .select("*, users(id, name, employee_id, phone)")
+    .order("created_at", { ascending: false })
+
+  if (statusFilter !== "all") {
+    const s = statusFilter as "pending" | "approved" | "rejected"
+    query = query.eq("status", s)
+  }
+
+  const { data: leaves } = await query
+
+  return <LeavesClient leaves={leaves ?? []} statusFilter={statusFilter} />
 }

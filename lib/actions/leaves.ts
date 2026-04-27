@@ -22,7 +22,7 @@ function parseCompanyId(accessToken: string): string | null {
 }
 
 export async function submitLeaveRequest(
-  _prev: { error: string } | null,
+  _prev: { error: string } | { success: true } | null,
   formData: FormData
 ): Promise<{ error: string } | { success: true }> {
   const raw = {

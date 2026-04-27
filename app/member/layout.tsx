@@ -1,17 +1,26 @@
-export default function MemberLayout({ children }: { children: React.ReactNode }) {
+import { redirect } from "next/navigation"
+import { createServerClient } from "@/lib/supabase/server"
+import MemberSidebar from "@/components/member/sidebar"
+
+export default async function MemberLayout({ children }: { children: React.ReactNode }) {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("name, employee_id, role")
+    .eq("id", user.id)
+    .single()
+
+  if (profile?.role === "ADMIN") redirect("/admin/dashboard")
+
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Top nav bar */}
-      <nav className="fixed top-0 inset-x-0 z-40 bg-zinc-900 border-b border-zinc-800 h-14 flex items-center px-4 gap-3">
-        <span
-          className="text-lg font-bold text-white"
-          style={{ fontFamily: 'var(--font-jakarta)' }}
-        >
-          Gro<span className="text-yellow-400">Fast</span>
-        </span>
-        <span className="text-zinc-600 text-sm ml-auto">Team Portal</span>
-      </nav>
-      <main className="pt-14 min-h-screen">{children}</main>
+    <div className="flex min-h-screen" style={{ background: "#0B0F14" }}>
+      <MemberSidebar name={profile?.name ?? "Member"} employeeId={profile?.employee_id ?? ""} />
+      <main className="flex-1 ml-[240px] min-h-screen overflow-x-hidden">
+        {children}
+      </main>
     </div>
   )
 }

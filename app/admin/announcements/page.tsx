@@ -1,10 +1,14 @@
-export default function AnnouncementsPage() {
-  return (
-    <div className="p-8">
-      <h1 className="text-[32px] font-bold text-ink" style={{ fontFamily: 'var(--font-jakarta)', fontWeight: 800 }}>
-        Announcements
-      </h1>
-      <p className="text-ink-muted text-sm mt-1">Post updates and notices to your team.</p>
-    </div>
-  )
+import { createServerClient } from "@/lib/supabase/server"
+import AnnouncementsClient from "./announcements-client"
+
+export default async function AnnouncementsPage() {
+  const supabase = await createServerClient()
+
+  const { data: announcements } = await supabase
+    .from("announcements")
+    .select("*, users(name)")
+    .order("pinned", { ascending: false })
+    .order("created_at", { ascending: false })
+
+  return <AnnouncementsClient announcements={announcements ?? []} />
 }

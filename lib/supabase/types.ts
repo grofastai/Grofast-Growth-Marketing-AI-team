@@ -35,6 +35,64 @@ export interface Database {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          id: string; company_id: string; business_name: string
+          client_name: string | null; location: string | null
+          status: string; deadline: string | null; progress_pct: number | null
+          service_type: string | null; created_at: string
+        }
+        Insert: {
+          id?: string; company_id: string; business_name: string
+          client_name?: string | null; location?: string | null
+          status?: string; deadline?: string | null; progress_pct?: number | null
+          service_type?: string | null; created_at?: string
+        }
+        Update: {
+          business_name?: string; client_name?: string | null; location?: string | null
+          status?: string; deadline?: string | null; progress_pct?: number | null
+          service_type?: string | null
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          id: string; company_id: string; project_id: string | null
+          assigned_to: string | null; title: string; description: string | null
+          status: 'todo' | 'in_progress' | 'completed'
+          priority: 'low' | 'medium' | 'high'
+          due_date: string | null; created_at: string
+        }
+        Insert: {
+          id?: string; company_id: string; project_id?: string | null
+          assigned_to?: string | null; title: string; description?: string | null
+          status?: 'todo' | 'in_progress' | 'completed'
+          priority?: 'low' | 'medium' | 'high'
+          due_date?: string | null; created_at?: string
+        }
+        Update: {
+          project_id?: string | null; assigned_to?: string | null
+          title?: string; description?: string | null
+          status?: 'todo' | 'in_progress' | 'completed'
+          priority?: 'low' | 'medium' | 'high'
+          due_date?: string | null
+        }
+        Relationships: []
+      }
+      announcements: {
+        Row: {
+          id: string; company_id: string; title: string; message: string
+          pinned: boolean; created_by: string | null; created_at: string
+        }
+        Insert: {
+          id?: string; company_id: string; title: string; message: string
+          pinned?: boolean; created_by?: string | null; created_at?: string
+        }
+        Update: {
+          title?: string; message?: string; pinned?: boolean; created_by?: string | null
+        }
+        Relationships: []
+      }
       daily_updates: {
         Row: {
           id: string; company_id: string; user_id: string; date: string

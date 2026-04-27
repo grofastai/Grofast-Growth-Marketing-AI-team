@@ -1,0 +1,92 @@
+'use server'
+
+import { createServerClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache'
+import { z } from 'zod'
+
+const taskSchema = z.object({
+  title: z.string().min(1, 'Title required'),
+  description: z.string().optional(),
+  project_id: z.string().uuid().optional().nullable(),
+  assigned_to: z.string().uuid().optional().nullable(),
+  priority: z.enum(['low', 'medium', 'high']).default('medium'),
+  due_date: z.string().optional().nullable(),
+})
+
+function parseJwt(token: string) {
+  try { return JSON.parse(atob(token.split('.')[1])) } catch { return null }
+}
+
+export async function createTask(
+  _prev: { error: string } | { success: true } | null,
+  formData: FormData
+): Promise<{ error: string } | { success: true }> {
+  const raw = {
+    title: formData.get('title') as string,
+    description: (formData.get('description') as string) || undefined,
+    project_id: (formData.get('project_id') as string) || null,
+    assigned_to: (formData.get('assigned_to') as string) || null,
+    priority: (formData.get('priority') as string) || 'medium',
+    due_date: (formData.get('due_date') as string) || null,
+  }
+
+  const parsed = taskSchema.safeParse(raw)
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const supabase = await createServerClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { error: 'Not authenticated' }
+
+  const claims = parseJwt(session.access_token)
+  if (!claims?.company_id) return { error: 'Missing company claim' }
+
+  const { error } = await supabase.from('tasks').insert({
+    company_id: claims.company_id,
+    title: parsed.data.title,
+    description: parsed.data.description || null,
+    project_id: parsed.data.project_id || null,
+    assigned_to: parsed.data.assigned_to || null,
+    priority: parsed.data.priority,
+    due_date: parsed.data.due_date || null,
+    status: 'todo',
+  })
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/admin/goals')
+  revalidatePath('/member/tasks')
+  return { success: true }
+}
+
+export async function updateTaskStatus(
+  taskId: string,
+  status: 'todo' | 'in_progress' | 'completed'
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { error } = await supabase.from('tasks').update({ status }).eq('id', taskId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/admin/goals')
+  revalidatePath('/member/tasks')
+  return { success: true }
+}
+
+export async function deleteTask(id: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { error } = await supabase.from('tasks').delete().eq('id', id)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/admin/goals')
+  revalidatePath('/member/tasks')
+  return { success: true }
+}
+
+export async function updateTask(
+  id: string,
+  updates: { title?: string; description?: string; priority?: 'low' | 'medium' | 'high'; due_date?: string | null; assigned_to?: string | null }
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { error } = await supabase.from('tasks').update(updates).eq('id', id)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/admin/goals')
+  revalidatePath('/member/tasks')
+  return { success: true }
+}

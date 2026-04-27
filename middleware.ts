@@ -26,32 +26,23 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // getUser() refreshes the session cookie — required for SSR
   const { data: { user } } = await supabase.auth.getUser()
-
-  const pathname = request.nextUrl.pathname
+  const { pathname } = request.nextUrl
 
   if (pathname.startsWith('/api/')) return supabaseResponse
 
   if (!user) {
     if (pathname === '/login') return supabaseResponse
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Logged-in user hitting login page — send to dashboard
   if (pathname === '/login' || pathname === '/') {
-    const url = request.nextUrl.clone()
-    url.pathname = '/admin/dashboard'
-    return NextResponse.redirect(url)
+    return NextResponse.redirect(new URL('/admin/dashboard', request.url))
   }
 
   return supabaseResponse
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 }

@@ -85,90 +85,101 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
   return (
     <>
       <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-[420px] bg-card z-50 shadow-2xl flex flex-col">
-        <div className="px-6 py-5 border-b border-border flex items-center justify-between flex-shrink-0">
+      <div className="fixed right-0 top-0 h-full w-[420px] z-50 shadow-2xl flex flex-col" style={{ background: "#111827", borderLeft: "1px solid rgba(255,255,255,0.08)" }}>
+        <div className="px-6 py-5 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
           <div>
-            <h2 className="text-ink text-[17px]" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 700 }}>
+            <h2 className="text-[17px]" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 700, color: "#E6EDF3" }}>
               {isEdit ? "Edit Member" : "Add New Member"}
             </h2>
-            <p className="text-[12px] text-ink-muted font-sans mt-0.5">
+            <p className="text-[12px] font-sans mt-0.5" style={{ color: "#6B7280" }}>
               {isEdit ? "Update member details" : "Create a new team member account"}
             </p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-cream transition-colors">
-            <X size={15} className="text-ink-muted" />
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.06)" }}>
+            <X size={15} style={{ color: "#9CA3AF" }} />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+
+          {/* Full Name */}
           <div>
-            <label className="block text-[11px] font-semibold font-sans text-ink-2 uppercase tracking-wider mb-1.5">Full Name *</label>
+            <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>Full Name *</label>
             <input value={form.name} onChange={set("name")} placeholder="e.g. Priya Sharma"
-              className="w-full bg-cream rounded-xl px-4 py-3 text-[13px] font-sans text-ink placeholder:text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-brand/30 focus-visible:bg-white transition-all" />
+              className="w-full rounded-xl px-4 py-3 text-[13px] font-sans outline-none transition-all"
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#E6EDF3" }} />
           </div>
 
+          {/* Employee ID */}
           {!isEdit && (
             <div>
-              <label className="block text-[11px] font-semibold font-sans text-ink-2 uppercase tracking-wider mb-1.5">Employee ID *</label>
+              <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>Employee ID *</label>
               <input value={form.employee_id} onChange={set("employee_id")} placeholder="e.g. GF002"
-                className="w-full bg-cream rounded-xl px-4 py-3 text-[13px] font-sans text-ink placeholder:text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-brand/30 focus-visible:bg-white transition-all" />
-              <p className="text-[11px] text-ink-muted font-sans mt-1">Used to log in. Cannot be changed later.</p>
+                className="w-full rounded-xl px-4 py-3 text-[13px] font-sans outline-none transition-all"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#E6EDF3" }} />
+              <p className="text-[11px] font-sans mt-1" style={{ color: "#6B7280" }}>Unique ID. Cannot be changed later.</p>
             </div>
           )}
 
+          {/* Email */}
           <div>
-            <label className="block text-[11px] font-semibold font-sans text-ink-2 uppercase tracking-wider mb-1.5">Email Address *</label>
-            <input
-              type="email"
-              value={form.email}
-              onChange={set("email")}
-              placeholder="e.g. priya@gmail.com"
-              className="w-full bg-cream rounded-xl px-4 py-3 text-[13px] font-sans text-ink placeholder:text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-brand/30 focus-visible:bg-white transition-all"
-            />
-            <p className="text-[11px] text-ink-muted font-sans mt-1">Used to log in to the app.</p>
+            <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>Email Address *</label>
+            <input type="email" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com"
+              className="w-full rounded-xl px-4 py-3 text-[13px] font-sans outline-none transition-all"
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#E6EDF3" }} />
+            <p className="text-[11px] font-sans mt-1" style={{ color: "#6B7280" }}>Used to log in to the app.</p>
           </div>
 
+          {/* Phone */}
           <div>
-            <label className="block text-[11px] font-semibold font-sans text-ink-2 uppercase tracking-wider mb-1.5">Phone</label>
+            <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>Phone</label>
             <input value={form.phone} onChange={set("phone")} placeholder="e.g. 919876543210"
-              className="w-full bg-cream rounded-xl px-4 py-3 text-[13px] font-sans text-ink placeholder:text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-brand/30 focus-visible:bg-white transition-all" />
+              className="w-full rounded-xl px-4 py-3 text-[13px] font-sans outline-none transition-all"
+              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#E6EDF3" }} />
           </div>
 
+          {/* Role */}
           <div>
-            <label className="block text-[11px] font-semibold font-sans text-ink-2 uppercase tracking-wider mb-1.5">Role *</label>
+            <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Role *</label>
             <div className="flex gap-3">
               {(["MEMBER", "ADMIN"] as const).map((r) => (
                 <button key={r} type="button" onClick={() => setForm((prev) => ({ ...prev, role: r }))}
-                  className={`flex-1 py-3 rounded-xl text-[13px] font-semibold font-sans border transition-all ${
-                    form.role === r ? "bg-brand border-brand text-white" : "bg-cream border-cream-dark text-ink hover:border-brand/40"
-                  }`}>
+                  className="flex-1 py-3 rounded-xl text-[13px] font-semibold font-sans transition-all"
+                  style={form.role === r
+                    ? { background: "linear-gradient(135deg, #6D5DF6, #5547D4)", color: "#fff", border: "1px solid #6D5DF6" }
+                    : { background: "rgba(255,255,255,0.04)", color: "#9CA3AF", border: "1px solid rgba(255,255,255,0.1)" }
+                  }>
                   {r === "ADMIN" ? "Admin" : "Member"}
                 </button>
               ))}
             </div>
           </div>
 
+          {/* Temporary Password */}
           {!isEdit && (
             <div>
-              <label className="block text-[11px] font-semibold font-sans text-ink-2 uppercase tracking-wider mb-1.5">Temporary Password *</label>
+              <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>Temporary Password *</label>
               <input type="password" value={form.password} onChange={set("password")} placeholder="Min 6 characters"
-                className="w-full bg-cream rounded-xl px-4 py-3 text-[13px] font-sans text-ink placeholder:text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-brand/30 focus-visible:bg-white transition-all" />
-              <p className="text-[11px] text-ink-muted font-sans mt-1">Share this temporary password with the employee. They can change it after logging in.</p>
+                className="w-full rounded-xl px-4 py-3 text-[13px] font-sans outline-none transition-all"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#E6EDF3" }} />
+              <p className="text-[11px] font-sans mt-1" style={{ color: "#6B7280" }}>Share this with the employee. They can change it after logging in.</p>
             </div>
           )}
 
           {error && (
-            <p className="text-red-500 text-[12px] bg-red-50 border border-red-200 rounded-xl px-4 py-3 font-sans">{error}</p>
+            <p className="text-[12px] font-sans rounded-xl px-4 py-3" style={{ background: "rgba(255,107,87,0.1)", color: "#FF6B57", border: "1px solid rgba(255,107,87,0.2)" }}>{error}</p>
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-border flex items-center gap-3 flex-shrink-0">
+        <div className="px-6 py-4 flex items-center gap-3 flex-shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
           <button onClick={onClose}
-            className="flex-1 py-3 rounded-xl bg-cream text-ink text-[13px] font-semibold font-sans hover:bg-cream-dark transition-colors">
+            className="flex-1 py-3 rounded-xl text-[13px] font-semibold font-sans transition-all"
+            style={{ background: "rgba(255,255,255,0.06)", color: "#9CA3AF", border: "1px solid rgba(255,255,255,0.1)" }}>
             Cancel
           </button>
           <button onClick={handleSubmit} disabled={isPending}
-            className="flex-1 py-3 rounded-xl bg-brand text-white text-[13px] font-semibold font-sans hover:bg-brand-dark transition-colors shadow-sm shadow-brand/20 disabled:opacity-60 flex items-center justify-center gap-2">
+            className="flex-1 py-3 rounded-xl text-[13px] font-semibold font-sans text-white flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
+            style={{ background: "linear-gradient(135deg, #6D5DF6, #5547D4)", boxShadow: "0 4px 16px rgba(109,93,246,0.3)" }}>
             {isPending && <Loader2 size={13} className="animate-spin" />}
             {isEdit ? "Save Changes" : "Add Member"}
           </button>

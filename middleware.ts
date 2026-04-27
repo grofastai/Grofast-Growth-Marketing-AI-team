@@ -14,7 +14,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
           supabaseResponse = NextResponse.next({ request })
@@ -26,18 +26,24 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // getSession reads from cookie — no network call, much faster than getUser()
+  const { data: { session } } = await supabase.auth.getSession()
   const { pathname } = request.nextUrl
 
   if (pathname.startsWith('/api/')) return supabaseResponse
 
-  if (!user) {
+  if (!session) {
     if (pathname === '/login') return supabaseResponse
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   if (pathname === '/login' || pathname === '/') {
-    return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+    let role: string | null = null
+    try {
+      role = JSON.parse(atob(session.access_token.split('.')[1])).role ?? null
+    } catch { /* ignore */ }
+    const dest = role === 'MEMBER' ? '/member/dashboard' : '/admin/dashboard'
+    return NextResponse.redirect(new URL(dest, request.url))
   }
 
   return supabaseResponse

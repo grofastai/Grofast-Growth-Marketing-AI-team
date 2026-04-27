@@ -1,3 +1,5 @@
+export const revalidate = 30
+
 import { createServerClient } from "@/lib/supabase/server"
 import GoalsClient from "./goals-client"
 

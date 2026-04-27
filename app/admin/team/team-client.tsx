@@ -117,7 +117,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           )}
 
           <div>
-            <label className="block text-[11px] font-semibold font-sans text-ink-2 uppercase tracking-wider mb-1.5">Email Address</label>
+            <label className="block text-[11px] font-semibold font-sans text-ink-2 uppercase tracking-wider mb-1.5">Email Address *</label>
             <input
               type="email"
               value={form.email}
@@ -125,7 +125,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
               placeholder="e.g. priya@gmail.com"
               className="w-full bg-cream rounded-xl px-4 py-3 text-[13px] font-sans text-ink placeholder:text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-brand/30 focus-visible:bg-white transition-all"
             />
-            <p className="text-[11px] text-ink-muted font-sans mt-1">Personal email — used for notifications.</p>
+            <p className="text-[11px] text-ink-muted font-sans mt-1">Used to log in to the app.</p>
           </div>
 
           <div>
@@ -153,7 +153,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
               <label className="block text-[11px] font-semibold font-sans text-ink-2 uppercase tracking-wider mb-1.5">Temporary Password *</label>
               <input type="password" value={form.password} onChange={set("password")} placeholder="Min 6 characters"
                 className="w-full bg-cream rounded-xl px-4 py-3 text-[13px] font-sans text-ink placeholder:text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-brand/30 focus-visible:bg-white transition-all" />
-              <p className="text-[11px] text-ink-muted font-sans mt-1">Share this with the employee to log in.</p>
+              <p className="text-[11px] text-ink-muted font-sans mt-1">Share this temporary password with the employee. They can change it after logging in.</p>
             </div>
           )}
 

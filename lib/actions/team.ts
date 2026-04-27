@@ -30,8 +30,11 @@ export async function createMember(input: {
   role: 'ADMIN' | 'MEMBER'
   password: string
 }): Promise<{ success: boolean; error?: string }> {
-  if (!input.name || !input.employee_id || !input.password) {
-    return { success: false, error: 'Name, Employee ID and Password are required' }
+  if (!input.name || !input.employee_id || !input.email || !input.password) {
+    return { success: false, error: 'Name, Employee ID, Email and Password are required' }
+  }
+  if (input.password.length < 6) {
+    return { success: false, error: 'Password must be at least 6 characters' }
   }
 
   const supabase = await createServerClient()
@@ -40,30 +43,28 @@ export async function createMember(input: {
 
   const admin = adminSupabase()
 
-  // Try JWT claim first; fall back to looking up by slug directly
   let company_id = parseCompanyId(session.access_token)
-  let companySlug = 'grofast'
 
-  if (company_id) {
-    const { data: c } = await admin.from('companies').select('slug').eq('id', company_id).single()
-    if (c) companySlug = c.slug
-  } else {
-    // JWT hook not set up yet — look up by hardcoded slug
-    const { data: c } = await admin.from('companies').select('id, slug').eq('slug', 'grofast').single()
-    if (!c) return { success: false, error: 'Company not found. Run the seed SQL to create the grofast company.' }
+  if (!company_id) {
+    const { data: c } = await admin.from('companies').select('id').eq('slug', 'grofast').single()
+    if (!c) return { success: false, error: 'Company not found' }
     company_id = c.id
-    companySlug = c.slug
   }
 
-  const email = `${input.employee_id.toLowerCase()}@${companySlug}.internal`
-
+  // Use the real email for Supabase Auth — this is what the member logs in with
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email,
+    email: input.email,
     password: input.password,
     email_confirm: true,
+    user_metadata: { name: input.name },
   })
 
-  if (authError) return { success: false, error: authError.message }
+  if (authError) {
+    if (authError.message.includes('already registered')) {
+      return { success: false, error: 'This email is already registered' }
+    }
+    return { success: false, error: authError.message }
+  }
 
   const { error: insertError } = await admin.from('users').insert({
     id: authData.user.id,
@@ -72,7 +73,7 @@ export async function createMember(input: {
     role: input.role,
     name: input.name,
     phone: input.phone || null,
-    email: input.email || null,
+    email: input.email,
     status: 'active',
   })
 

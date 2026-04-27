@@ -20,7 +20,7 @@ export async function loginAction(
   }
 
   const supabase = await createServerClient()
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: parsed.data.email,
     password: parsed.data.password,
   })
@@ -29,7 +29,17 @@ export async function loginAction(
     return { error: 'Invalid credentials. Check your Employee ID, email and password.' }
   }
 
-  redirect('/admin/dashboard')
+  // Read role from JWT claims injected by the custom_access_token_hook
+  const jwt = data.session?.access_token
+  let role = 'ADMIN'
+  if (jwt) {
+    try {
+      const payload = JSON.parse(atob(jwt.split('.')[1]))
+      role = payload.role ?? 'ADMIN'
+    } catch {}
+  }
+
+  redirect(role === 'MEMBER' ? '/member/dashboard' : '/admin/dashboard')
 }
 
 export async function logoutAction(): Promise<void> {

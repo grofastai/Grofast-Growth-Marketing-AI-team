@@ -11,7 +11,7 @@ function parseJwtClaims(accessToken: string): Record<string, string> {
   }
 }
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -39,7 +39,6 @@ export async function proxy(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Public routes
   if (pathname.startsWith('/api/')) return supabaseResponse
 
   if (!session) {
@@ -50,7 +49,6 @@ export async function proxy(request: NextRequest) {
   const claims = parseJwtClaims(session.access_token)
   const role = claims.role as string | undefined
 
-  // Redirect logged-in users away from login
   if (pathname === '/login' || pathname === '/') {
     const dest = role === 'ADMIN' ? '/admin/dashboard' : '/member/dashboard'
     return NextResponse.redirect(new URL(dest, request.url))

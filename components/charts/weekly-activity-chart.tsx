@@ -68,7 +68,7 @@ export default function WeeklyActivityChart() {
           tick={{
             fill: "#7A7874",
             fontSize: 11,
-            fontFamily: "var(--font-dm-sans)",
+            fontFamily: "var(--font-jakarta)",
           }}
           dy={8}
         />
@@ -79,7 +79,7 @@ export default function WeeklyActivityChart() {
           tick={{
             fill: "#7A7874",
             fontSize: 11,
-            fontFamily: "var(--font-dm-sans)",
+            fontFamily: "var(--font-jakarta)",
           }}
         />
 
@@ -88,7 +88,7 @@ export default function WeeklyActivityChart() {
             backgroundColor: "#FFFFFF",
             border: "1px solid #DDD9D0",
             borderRadius: "10px",
-            fontFamily: "var(--font-dm-sans)",
+            fontFamily: "var(--font-jakarta)",
             fontSize: "12px",
             color: "#111111",
             boxShadow: "0 4px 16px rgba(0,0,0,0.08)",

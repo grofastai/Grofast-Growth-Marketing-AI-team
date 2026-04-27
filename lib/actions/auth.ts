@@ -10,7 +10,7 @@ export async function loginAction(
 ): Promise<{ error: string } | null> {
   const raw = {
     employee_id: formData.get('employee_id') as string,
-    company_slug: formData.get('company_slug') as string,
+    email: formData.get('email') as string,
     password: formData.get('password') as string,
   }
 
@@ -26,7 +26,7 @@ export async function loginAction(
   })
 
   if (error) {
-    return { error: 'Invalid Employee ID or password' }
+    return { error: 'Invalid credentials. Check your Employee ID, email and password.' }
   }
 
   redirect('/')

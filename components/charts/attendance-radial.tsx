@@ -35,7 +35,7 @@ export default function AttendanceRadial() {
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <span
             className="text-ink leading-none"
-            style={{ fontFamily: "var(--font-syne)", fontWeight: 800, fontSize: "38px" }}
+            style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: "38px" }}
           >
             {pct}%
           </span>
@@ -50,7 +50,7 @@ export default function AttendanceRadial() {
         <div className="text-center">
           <p
             className="text-ink leading-none"
-            style={{ fontFamily: "var(--font-syne)", fontWeight: 700, fontSize: "22px" }}
+            style={{ fontFamily: "var(--font-jakarta)", fontWeight: 700, fontSize: "22px" }}
           >
             {present}
           </p>
@@ -59,7 +59,7 @@ export default function AttendanceRadial() {
         <div className="text-center">
           <p
             className="text-brand leading-none"
-            style={{ fontFamily: "var(--font-syne)", fontWeight: 700, fontSize: "22px" }}
+            style={{ fontFamily: "var(--font-jakarta)", fontWeight: 700, fontSize: "22px" }}
           >
             {total - present}
           </p>

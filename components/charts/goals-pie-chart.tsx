@@ -39,7 +39,7 @@ export default function GoalsPieChart() {
                 backgroundColor: "#FFFFFF",
                 border: "1px solid #DDD9D0",
                 borderRadius: "10px",
-                fontFamily: "var(--font-dm-sans)",
+                fontFamily: "var(--font-jakarta)",
                 fontSize: "12px",
                 color: "#111111",
                 boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
@@ -53,7 +53,7 @@ export default function GoalsPieChart() {
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <span
             className="text-brand leading-none"
-            style={{ fontFamily: "var(--font-syne)", fontWeight: 800, fontSize: "32px" }}
+            style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, fontSize: "32px" }}
           >
             {completedPct}%
           </span>

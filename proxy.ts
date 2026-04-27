@@ -49,17 +49,20 @@ export async function proxy(request: NextRequest) {
   const claims = parseJwtClaims(session.access_token)
   const role = claims.role as string | undefined
 
+  // Redirect away from login/root based on role
   if (pathname === '/login' || pathname === '/') {
-    const dest = role === 'ADMIN' ? '/admin/dashboard' : '/member/dashboard'
+    const dest = role === 'MEMBER' ? '/member/dashboard' : '/admin/dashboard'
     return NextResponse.redirect(new URL(dest, request.url))
   }
 
-  if (pathname.startsWith('/admin') && role !== 'ADMIN') {
-    return NextResponse.redirect(new URL('/member/dashboard', request.url))
-  }
-
-  if (pathname.startsWith('/member') && role !== 'MEMBER') {
-    return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+  // Only enforce role routing when role claim exists in JWT
+  if (role) {
+    if (pathname.startsWith('/admin') && role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/member/dashboard', request.url))
+    }
+    if (pathname.startsWith('/member') && role !== 'MEMBER') {
+      return NextResponse.redirect(new URL('/admin/dashboard', request.url))
+    }
   }
 
   return supabaseResponse

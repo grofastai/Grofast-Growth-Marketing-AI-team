@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, ClipboardList, Target, CalendarOff, Megaphone, User, LogOut,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { logoutAction } from "@/lib/actions/auth"
 
 const navItems = [
@@ -24,74 +23,56 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
   return (
     <aside
       className="fixed left-0 top-0 h-screen w-[240px] flex flex-col z-50 select-none"
-      style={{
-        background: 'linear-gradient(180deg, #0C0A1E 0%, #110E28 100%)',
-        borderRight: '1px solid rgba(109,93,246,0.12)',
-      }}
+      style={{ background: "#0D0D0D", borderRight: "1px solid #1A1A1A" }}
     >
-      {/* Subtle dot grid texture */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          backgroundImage: 'radial-gradient(rgba(109,93,246,0.06) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-        }}
-      />
-
       {/* Logo */}
-      <div className="relative z-10 px-5 py-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-5 py-[18px]" style={{ borderBottom: "1px solid #1A1A1A" }}>
         <div className="flex items-center gap-3">
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{
-              background: 'linear-gradient(135deg, #FF5A35, #FF8060)',
-              boxShadow: '0 4px 16px rgba(255,90,53,0.45)',
-            }}
+            className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+            style={{ background: "#A3E635" }}
           >
-            <span className="text-white text-base font-black" style={{ fontFamily: 'var(--font-jakarta)' }}>G</span>
+            <span className="text-[15px] font-black" style={{ color: "#0D0D0D", fontFamily: "var(--font-jakarta)" }}>G</span>
           </div>
           <div>
-            <p className="text-white text-[14px] tracking-[0.08em] font-black" style={{ fontFamily: 'var(--font-jakarta)' }}>GROFAST</p>
-            <p className="text-[9px] tracking-[0.2em] uppercase font-medium mt-0.5" style={{ color: 'rgba(255,255,255,0.28)' }}>Member Portal</p>
+            <p className="text-[13px] tracking-[0.12em] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+              GROFAST
+            </p>
+            <p className="text-[9px] tracking-[0.2em] uppercase font-medium mt-0.5" style={{ color: "rgba(255,255,255,0.25)" }}>
+              Member Portal
+            </p>
           </div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav className="relative z-10 flex-1 px-3 pt-5 pb-2 overflow-y-auto">
-        <p className="text-[9px] tracking-[0.22em] uppercase px-3 pb-3 font-semibold" style={{ color: 'rgba(255,255,255,0.2)' }}>
-          Navigation
+      <nav className="flex-1 px-3 pt-5 pb-2 overflow-y-auto">
+        <p className="text-[9px] tracking-[0.28em] uppercase px-3 pb-3 font-bold" style={{ color: "rgba(255,255,255,0.15)" }}>
+          Menu
         </p>
-        <div className="space-y-0.5">
+        <div className="space-y-[2px]">
           {navItems.map(({ label, href, icon: Icon }) => {
             const isActive = pathname === href || (href !== "/member/dashboard" && pathname.startsWith(href))
             return (
               <Link
                 key={href}
                 href={href}
-                className={cn(
-                  "relative flex items-center gap-3 px-3 py-[9px] rounded-xl transition-all duration-150",
-                  isActive ? "text-white" : "text-white/40 hover:text-white/70 hover:bg-white/[0.04]"
-                )}
-                style={isActive ? {
-                  background: 'rgba(255,90,53,0.15)',
-                  border: '1px solid rgba(255,90,53,0.25)',
-                } : { border: '1px solid transparent' }}
+                className="relative flex items-center gap-3 px-3 py-[9px] rounded-lg transition-all duration-150"
+                style={isActive
+                  ? { background: "rgba(163,230,53,0.08)", color: "#A3E635" }
+                  : { color: "rgba(255,255,255,0.32)" }
+                }
+                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.7)" }}
+                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.32)" }}
               >
                 {isActive && (
                   <span
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full"
-                    style={{ background: '#FF8060', boxShadow: '0 0 8px rgba(255,128,96,0.6)' }}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full"
+                    style={{ height: "18px", background: "#A3E635" }}
                   />
                 )}
-                <Icon size={15} className="flex-shrink-0" style={isActive ? { color: '#FF8060' } : {}} />
+                <Icon size={15} className="flex-shrink-0" />
                 <span className="text-[13px] font-medium">{label}</span>
-                {isActive && (
-                  <span
-                    className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
-                    style={{ background: '#FF8060', boxShadow: '0 0 6px rgba(255,128,96,0.7)' }}
-                  />
-                )}
               </Link>
             )
           })}
@@ -99,30 +80,27 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
       </nav>
 
       {/* User + Logout */}
-      <div className="relative z-10 px-3 pb-4 pt-3 space-y-1" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl">
+      <div className="px-3 pb-4 pt-3" style={{ borderTop: "1px solid #1A1A1A" }}>
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{
-              background: 'rgba(255,90,53,0.15)',
-              border: '1.5px solid rgba(255,90,53,0.3)',
-            }}
+            style={{ background: "rgba(163,230,53,0.1)", border: "1px solid rgba(163,230,53,0.2)" }}
           >
-            <span className="text-[11px] font-bold" style={{ fontFamily: 'var(--font-jakarta)', color: '#FF8060' }}>{initials}</span>
+            <span className="text-[11px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#A3E635" }}>{initials}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold text-white leading-none truncate">{name}</p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.28)' }}>#{employeeId}</p>
+            <p className="text-[13px] font-semibold leading-none truncate" style={{ color: "#FFFFFF" }}>{name}</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.22)" }}>#{employeeId}</p>
           </div>
         </div>
         <form action={logoutAction}>
           <button
             type="submit"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors w-full hover:bg-white/[0.05]"
-            style={{ color: 'rgba(255,255,255,0.35)' }}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all w-full hover:bg-white/[0.03]"
+            style={{ color: "rgba(255,255,255,0.28)" }}
           >
             <LogOut size={14} />
-            <span className="text-[13px]">Sign Out</span>
+            <span className="text-[13px] font-medium">Sign Out</span>
           </button>
         </form>
       </div>

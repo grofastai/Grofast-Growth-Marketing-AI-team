@@ -85,7 +85,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
   return (
     <>
       <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-[420px] z-50 shadow-2xl flex flex-col" style={{ background: "#111827", borderLeft: "1px solid rgba(255,255,255,0.08)" }}>
+      <div className="fixed right-0 top-0 h-full w-[420px] z-50 shadow-2xl flex flex-col" style={{ background: "#0D0D0D", borderLeft: "1px solid rgba(255,255,255,0.08)" }}>
         <div className="px-6 py-5 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
           <div>
             <h2 className="text-[17px]" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 700, color: "#E6EDF3" }}>
@@ -146,7 +146,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
                 <button key={r} type="button" onClick={() => setForm((prev) => ({ ...prev, role: r }))}
                   className="flex-1 py-3 rounded-xl text-[13px] font-semibold font-sans transition-all"
                   style={form.role === r
-                    ? { background: "linear-gradient(135deg, #6D5DF6, #5547D4)", color: "#fff", border: "1px solid #6D5DF6" }
+                    ? { background: "#A3E635", color: "#0D0D0D", border: "1px solid #A3E635" }
                     : { background: "rgba(255,255,255,0.04)", color: "#9CA3AF", border: "1px solid rgba(255,255,255,0.1)" }
                   }>
                   {r === "ADMIN" ? "Admin" : "Member"}
@@ -179,7 +179,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           </button>
           <button onClick={handleSubmit} disabled={isPending}
             className="flex-1 py-3 rounded-xl text-[13px] font-semibold font-sans text-white flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
-            style={{ background: "linear-gradient(135deg, #6D5DF6, #5547D4)", boxShadow: "0 4px 16px rgba(109,93,246,0.3)" }}>
+            style={{ background: "#A3E635" }}>
             {isPending && <Loader2 size={13} className="animate-spin" />}
             {isEdit ? "Save Changes" : "Add Member"}
           </button>
@@ -247,7 +247,8 @@ export default function TeamClient({ members }: { members: Member[] }) {
           <p className="text-ink-muted font-sans text-sm mt-1.5">Manage your employees and their access</p>
         </div>
         <button onClick={() => { setEditMember(null); setSheetOpen(true) }}
-          className="flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-xl text-[13px] font-semibold font-sans hover:bg-brand-dark transition-colors mt-2 shadow-sm shadow-brand/20">
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all mt-2"
+          style={{ background: "#A3E635", color: "#0D0D0D" }}>
           <Plus size={15} /> Add Member
         </button>
       </div>
@@ -282,7 +283,7 @@ export default function TeamClient({ members }: { members: Member[] }) {
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1">
           {(["ALL", "MEMBER", "ADMIN"] as const).map((r) => (
             <button key={r} onClick={() => setRoleFilter(r)}
-              className={`px-3.5 py-1.5 rounded-lg text-[12px] font-semibold font-sans transition-all ${roleFilter === r ? "bg-brand text-white shadow-sm" : "text-ink-muted hover:text-ink"}`}>
+              className={`px-3.5 py-1.5 rounded-lg text-[12px] font-semibold font-sans transition-all ${roleFilter === r ? "font-bold" : "text-ink-muted hover:text-ink"}`}>
               {r === "ALL" ? "All Roles" : r === "MEMBER" ? "Members" : "Admins"}
             </button>
           ))}
@@ -290,7 +291,7 @@ export default function TeamClient({ members }: { members: Member[] }) {
         <div className="flex items-center gap-1 bg-card border border-border rounded-xl p-1">
           {(["ALL", "active", "inactive"] as const).map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)}
-              className={`px-3.5 py-1.5 rounded-lg text-[12px] font-semibold font-sans transition-all ${statusFilter === s ? "bg-brand text-white shadow-sm" : "text-ink-muted hover:text-ink"}`}>
+              className={`px-3.5 py-1.5 rounded-lg text-[12px] font-semibold font-sans transition-all ${statusFilter === s ? "font-bold" : "text-ink-muted hover:text-ink"}`}>
               {s === "ALL" ? "All" : s === "active" ? "Active" : "Inactive"}
             </button>
           ))}
@@ -394,7 +395,7 @@ export default function TeamClient({ members }: { members: Member[] }) {
         <>
           <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-40" onClick={() => setConfirmDelete(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-[380px] rounded-2xl shadow-2xl flex flex-col" style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <div className="w-full max-w-[380px] rounded-2xl shadow-2xl flex flex-col" style={{ background: "#0D0D0D", border: "1px solid rgba(255,255,255,0.1)" }}>
               <div className="px-6 pt-6 pb-4 flex flex-col items-center text-center gap-3">
                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(239,68,68,0.12)" }}>
                   <AlertTriangle size={22} style={{ color: "#EF4444" }} />
@@ -417,7 +418,7 @@ export default function TeamClient({ members }: { members: Member[] }) {
                 </button>
                 <button onClick={handleDeleteConfirm} disabled={isPending}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold font-sans text-white flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
-                  style={{ background: "linear-gradient(135deg, #EF4444, #DC2626)" }}>
+                  style={{ background: "#EF4444", color: "#FFFFFF" }}>
                   {isPending && <Loader2 size={13} className="animate-spin" />}
                   Delete
                 </button>

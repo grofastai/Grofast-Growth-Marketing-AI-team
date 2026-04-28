@@ -46,45 +46,45 @@ export default async function AttendancePage() {
   const logMap = new Map<string, Log>()
   for (const l of (logs ?? []) as Log[]) logMap.set(l.user_id, l)
 
-  const clockedInNow = (members ?? []).filter((m) => {
-    const l = logMap.get(m.id)
-    return l?.clock_in && !l?.clock_out
-  }).length
-  const clockedOut = (members ?? []).filter((m) => {
-    const l = logMap.get(m.id)
-    return l?.clock_in && l?.clock_out
-  }).length
-  const notClocked = (members ?? []).filter((m) => !logMap.has(m.id)).length
+  const clockedInNow = (members ?? []).filter((m) => { const l = logMap.get(m.id); return l?.clock_in && !l?.clock_out }).length
+  const clockedOut   = (members ?? []).filter((m) => { const l = logMap.get(m.id); return l?.clock_in && l?.clock_out }).length
+  const notClocked   = (members ?? []).filter((m) => !logMap.has(m.id)).length
 
   return (
     <div className="p-8 max-w-[1200px]">
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#E6EDF3" }}>
+          <h1 className="text-[30px] leading-tight font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
             Attendance
           </h1>
-          <p className="text-sm mt-1 font-sans" style={{ color: "#6B7280" }}>{todayDisplay}</p>
+          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{todayDisplay}</p>
         </div>
       </div>
 
       {/* Summary chips */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-3 mb-5">
         {[
-          { label: "Clocked In Now", value: clockedInNow, color: "#10B981", bg: "rgba(16,185,129,0.08)", border: "rgba(16,185,129,0.15)", icon: LogIn },
-          { label: "Clocked Out", value: clockedOut, color: "#6D5DF6", bg: "rgba(109,93,246,0.08)", border: "rgba(109,93,246,0.15)", icon: LogOut },
-          { label: "Not Clocked In", value: notClocked, color: "#F59E0B", bg: "rgba(245,158,11,0.08)", border: "rgba(245,158,11,0.15)", icon: Users },
+          { label: "Clocked In Now",  value: clockedInNow, icon: LogIn,  lime: true },
+          { label: "Clocked Out",     value: clockedOut,   icon: LogOut, lime: false },
+          { label: "Not Clocked In",  value: notClocked,   icon: Users,  lime: false },
         ].map((s) => {
           const Icon = s.icon
           return (
-            <div key={s.label} className="rounded-2xl p-5 flex items-center gap-4"
-              style={{ background: s.bg, border: `1px solid ${s.border}` }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.06)" }}>
-                <Icon size={18} style={{ color: s.color }} />
+            <div key={s.label} className="rounded-xl p-5 flex items-center gap-4"
+              style={{
+                background: "#262626",
+                border: s.lime ? "1px solid rgba(163,230,53,0.2)" : "1px solid #2A2A2A",
+              }}>
+              <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+                style={{ background: s.lime ? "rgba(163,230,53,0.08)" : "rgba(255,255,255,0.04)" }}>
+                <Icon size={17} style={{ color: s.lime ? "#A3E635" : "rgba(255,255,255,0.35)" }} />
               </div>
               <div>
-                <p className="text-[28px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#E6EDF3" }}>{s.value}</p>
-                <p className="text-[12px] font-sans mt-0.5" style={{ color: "#6B7280" }}>{s.label}</p>
+                <p className="text-[32px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: s.lime ? "#A3E635" : "#FFFFFF" }}>
+                  {s.value}
+                </p>
+                <p className="text-[11px] font-medium mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{s.label}</p>
               </div>
             </div>
           )
@@ -92,64 +92,63 @@ export default async function AttendancePage() {
       </div>
 
       {/* Member table */}
-      <div className="rounded-2xl overflow-hidden" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-        <div className="px-5 py-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+      <div className="rounded-xl overflow-hidden" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+        <div className="px-5 py-4" style={{ borderBottom: "1px solid #2A2A2A" }}>
           <div className="flex items-center gap-2">
-            <Clock size={15} style={{ color: "#6D5DF6" }} />
-            <h3 className="text-[14px] font-bold font-sans" style={{ color: "#E6EDF3" }}>Team Attendance — Today</h3>
+            <Clock size={14} style={{ color: "#A3E635" }} />
+            <h3 className="text-[13px] font-bold" style={{ color: "#FFFFFF" }}>Team Attendance — Today</h3>
           </div>
         </div>
 
         {!members || members.length === 0 ? (
           <div className="flex flex-col items-center py-16 gap-2">
-            <Users size={36} style={{ color: "rgba(255,255,255,0.1)" }} />
-            <p className="text-[13px] font-sans" style={{ color: "#6B7280" }}>No team members found</p>
+            <Users size={32} style={{ color: "#2A2A2A" }} />
+            <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.2)" }}>No team members found</p>
           </div>
         ) : (
-          <div className="divide-y" style={{ borderColor: "rgba(255,255,255,0.04)" }}>
+          <div>
             {(members ?? []).map((m) => {
               const log = logMap.get(m.id)
-              const isIn = !!(log?.clock_in && !log?.clock_out)
+              const isIn  = !!(log?.clock_in && !log?.clock_out)
               const isDone = !!(log?.clock_in && log?.clock_out)
               const dur = calcDuration(log?.clock_in ?? null, log?.clock_out ?? null)
 
-              let statusColor = "#6B7280"
-              let statusBg = "rgba(107,114,128,0.1)"
               let statusLabel = "Not clocked in"
-              if (isIn) { statusColor = "#10B981"; statusBg = "rgba(16,185,129,0.1)"; statusLabel = "Clocked in" }
-              if (isDone) { statusColor = "#6D5DF6"; statusBg = "rgba(109,93,246,0.1)"; statusLabel = "Done" }
+              let statusLime = false
+              if (isIn)   { statusLabel = "Working";  statusLime = true }
+              if (isDone) { statusLabel = "Done" }
 
               return (
-                <div key={m.id} className="flex items-center gap-4 px-5 py-3.5">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(109,93,246,0.12)" }}>
-                    <span className="text-[12px] font-bold" style={{ color: "#6D5DF6" }}>{m.name[0]}</span>
+                <div key={m.id} className="flex items-center gap-4 px-5 py-3.5"
+                  style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: "rgba(163,230,53,0.08)" }}>
+                    <span className="text-[11px] font-bold" style={{ color: "#A3E635" }}>{m.name[0]}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold font-sans" style={{ color: "#E6EDF3" }}>{m.name}</p>
-                    <p className="text-[11px] font-sans" style={{ color: "#6B7280" }}>#{m.employee_id}</p>
+                    <p className="text-[13px] font-semibold" style={{ color: "#FFFFFF" }}>{m.name}</p>
+                    <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>#{m.employee_id}</p>
                   </div>
                   <div className="flex items-center gap-6 text-right">
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider font-sans mb-0.5" style={{ color: "#6B7280" }}>Clock In</p>
-                      <p className="text-[13px] font-semibold font-sans" style={{ color: "#E6EDF3" }}>
-                        {fmtTime(log?.clock_in ?? null)}
-                      </p>
+                      <p className="text-[9px] uppercase tracking-wider font-bold mb-0.5" style={{ color: "rgba(255,255,255,0.2)" }}>Clock In</p>
+                      <p className="text-[13px] font-semibold" style={{ color: "#FFFFFF" }}>{fmtTime(log?.clock_in ?? null)}</p>
                     </div>
                     <div>
-                      <p className="text-[10px] uppercase tracking-wider font-sans mb-0.5" style={{ color: "#6B7280" }}>Clock Out</p>
-                      <p className="text-[13px] font-semibold font-sans" style={{ color: "#E6EDF3" }}>
-                        {fmtTime(log?.clock_out ?? null)}
-                      </p>
+                      <p className="text-[9px] uppercase tracking-wider font-bold mb-0.5" style={{ color: "rgba(255,255,255,0.2)" }}>Clock Out</p>
+                      <p className="text-[13px] font-semibold" style={{ color: "#FFFFFF" }}>{fmtTime(log?.clock_out ?? null)}</p>
                     </div>
                     {dur && (
                       <div>
-                        <p className="text-[10px] uppercase tracking-wider font-sans mb-0.5" style={{ color: "#6B7280" }}>Duration</p>
-                        <p className="text-[13px] font-semibold font-sans" style={{ color: "#E6EDF3" }}>{dur}</p>
+                        <p className="text-[9px] uppercase tracking-wider font-bold mb-0.5" style={{ color: "rgba(255,255,255,0.2)" }}>Duration</p>
+                        <p className="text-[13px] font-semibold" style={{ color: "#FFFFFF" }}>{dur}</p>
                       </div>
                     )}
-                    <span className="text-[11px] font-semibold font-sans px-2.5 py-1 rounded-full min-w-[100px] text-center"
-                      style={{ background: statusBg, color: statusColor }}>
+                    <span className="text-[10px] font-bold px-2.5 py-1 rounded-full min-w-[90px] text-center"
+                      style={statusLime
+                        ? { background: "rgba(163,230,53,0.1)", color: "#A3E635" }
+                        : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }
+                      }>
                       {statusLabel}
                     </span>
                   </div>

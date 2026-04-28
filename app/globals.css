@@ -1,112 +1,91 @@
 @import "tailwindcss";
 
 @theme inline {
-  /* Typography */
   --font-display: var(--font-jakarta);
   --font-sans: var(--font-jakarta);
 
-  /* Primary — Deep Midnight (structure, sidebar, headings) */
-  --color-primary: #0C0A1E;
-  --color-primary-light: #1A1735;
-  --color-primary-soft: #EEEEFF;
+  /* ── 3-Color System ───────────────────────────────── */
+  --color-base:           #0D0D0D;
+  --color-card:           #262626;
+  --color-lime:           #A3E635;
+  --color-lime-dark:      #8FC82E;
+  --color-lime-dim:       rgba(163,230,53,0.1);
+  --color-lime-border:    rgba(163,230,53,0.22);
 
-  /* Secondary / Accent — Electric Violet (interactive, active, CTA) */
-  --color-accent: #6D5DF6;
-  --color-accent-dark: #5547D4;
-  --color-accent-soft: #EEEDFF;
+  /* Text scale */
+  --color-text:           #FFFFFF;
+  --color-text-muted:     rgba(255,255,255,0.45);
+  --color-text-dim:       rgba(255,255,255,0.2);
 
-  /* Brand — Coral (keep for action buttons) */
-  --color-brand: #FF5A35;
-  --color-brand-dark: #E84A25;
-  --color-brand-soft: #FFF1EE;
-  --color-brand-muted: #FFD6CC;
+  /* Structural borders */
+  --color-border:         #2A2A2A;
+  --color-border-strong:  #383838;
 
-  /* Surfaces — White dominant */
-  --color-bg: #F4F5FB;
-  --color-card: #FFFFFF;
-  --color-card-hover: #FAFAFF;
+  /* Legacy aliases — keeps existing Tailwind utility classes working */
+  --color-primary:        #0D0D0D;
+  --color-primary-light:  #1A1A1A;
+  --color-primary-soft:   rgba(163,230,53,0.08);
+  --color-accent:         #A3E635;
+  --color-accent-dark:    #8FC82E;
+  --color-accent-soft:    rgba(163,230,53,0.08);
+  --color-brand:          #A3E635;
+  --color-brand-dark:     #8FC82E;
+  --color-brand-soft:     rgba(163,230,53,0.08);
+  --color-brand-muted:    rgba(163,230,53,0.15);
+  --color-bg:             #0D0D0D;
+  --color-card-hover:     #2E2E2E;
+  --color-cream:          #1C1C1C;
+  --color-cream-dark:     #262626;
+  --color-ink:            #FFFFFF;
+  --color-ink-2:          rgba(255,255,255,0.75);
+  --color-ink-muted:      rgba(255,255,255,0.4);
+  --color-ink-light:      rgba(255,255,255,0.22);
+  --color-border-dark:    #383838;
+  --color-sidebar:        #0D0D0D;
+  --color-sidebar-hover:  rgba(163,230,53,0.06);
+  --color-sidebar-active: rgba(163,230,53,0.1);
+  --color-sidebar-text:   rgba(255,255,255,0.38);
 
-  /* Input / Hover fill */
-  --color-cream: #F0F1F9;
-  --color-cream-dark: #E4E5F5;
-
-  /* Ink / Text */
-  --color-ink: #0C0A1E;
-  --color-ink-2: #2C2A44;
-  --color-ink-muted: #6B6B8E;
-  --color-ink-light: #9898B8;
-
-  /* Borders */
-  --color-border: #E4E5F0;
-  --color-border-dark: #CCCDE0;
-
-  /* Sidebar — Stays deep midnight for premium contrast */
-  --color-sidebar: #0C0A1E;
-  --color-sidebar-hover: rgba(109,93,246,0.1);
-  --color-sidebar-active: rgba(109,93,246,0.18);
-  --color-sidebar-text: rgba(255,255,255,0.5);
-
-  /* Functional */
-  --color-success: #10B981;
-  --color-success-bg: #ECFDF5;
-  --color-warning: #F59E0B;
-  --color-warning-bg: #FFFBEB;
-  --color-danger: #EF4444;
-  --color-danger-bg: #FEF2F2;
+  /* Functional (restrained) */
+  --color-success:        #A3E635;
+  --color-success-bg:     rgba(163,230,53,0.08);
+  --color-warning:        #F59E0B;
+  --color-warning-bg:     rgba(245,158,11,0.08);
+  --color-danger:         #FF4444;
+  --color-danger-bg:      rgba(255,68,68,0.08);
 }
 
 body {
-  background-color: #F4F5FB;
-  color: #0C0A1E;
+  background-color: #0D0D0D;
+  color: #FFFFFF;
   font-family: var(--font-jakarta), sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Premium card for light mode */
-.glass {
-  background: rgba(255,255,255,0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(109,93,246,0.08);
-  box-shadow: 0 2px 12px rgba(12,10,30,0.06);
-}
-
-.glass:hover {
-  border-color: rgba(109,93,246,0.2);
-  box-shadow: 0 4px 24px rgba(109,93,246,0.1), 0 2px 8px rgba(12,10,30,0.06);
-}
-
-/* Dot grid background texture */
-.dot-grid {
-  background-image: radial-gradient(rgba(109,93,246,0.06) 1px, transparent 1px);
-  background-size: 28px 28px;
-}
-
-/* Smooth transitions standard */
 * {
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: #F4F5FB; }
-::-webkit-scrollbar-thumb { background: #CCCDE0; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #6D5DF6; }
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: #0D0D0D; }
+::-webkit-scrollbar-thumb { background: #2A2A2A; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #A3E635; }
 
-/* Sidebar scrollbar stays dark */
-aside::-webkit-scrollbar-track { background: #0C0A1E; }
-aside::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
+aside::-webkit-scrollbar-track { background: #0D0D0D; }
+aside::-webkit-scrollbar-thumb { background: #1E1E1E; }
+aside::-webkit-scrollbar-thumb:hover { background: rgba(163,230,53,0.4); }
 
-/* Glow pulse for active indicator */
-@keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 6px rgba(109,93,246,0.5); }
-  50%       { box-shadow: 0 0 14px rgba(109,93,246,0.85); }
-}
-
-/* Fade in utility */
+/* Animations */
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.fade-up { animation: fade-up 0.35s ease forwards; }
+.fade-up { animation: fade-up 0.3s ease forwards; }
+
+@keyframes lime-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+.lime-pulse { animation: lime-pulse 2s ease-in-out infinite; }

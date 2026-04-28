@@ -1,5 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server"
-import { ClipboardList, Target, CalendarOff, Megaphone, CheckCircle2, Clock } from "lucide-react"
+import { ClipboardList, Target, CalendarOff, Megaphone, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import ClockWidget from "@/components/member/clock-widget"
 
@@ -45,32 +45,25 @@ export default async function MemberDashboardPage() {
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
   const dateStr = now.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
 
-  const PRIORITY_COLORS = {
-    low:    { color: "#6B6B8E", bg: "rgba(107,107,142,0.1)" },
-    medium: { color: "#D97706", bg: "rgba(217,119,6,0.1)" },
-    high:   { color: "#FF5A35", bg: "rgba(255,90,53,0.1)" },
-  }
-
-  const ATTENDANCE_COLORS: Record<string, { color: string; bg: string; label: string }> = {
-    present: { color: "#059669", bg: "rgba(5,150,105,0.1)",    label: "Present" },
-    absent:  { color: "#DC2626", bg: "rgba(220,38,38,0.1)",    label: "Absent" },
-    holiday: { color: "#D97706", bg: "rgba(217,119,6,0.1)",    label: "Holiday" },
-    outside: { color: "#5B4FD4", bg: "rgba(91,79,212,0.1)",    label: "Outside" },
+  const PRIORITY_STYLE: Record<string, { color: string; bg: string }> = {
+    low:    { color: "rgba(255,255,255,0.4)",  bg: "rgba(255,255,255,0.04)" },
+    medium: { color: "#F59E0B",                bg: "rgba(245,158,11,0.08)" },
+    high:   { color: "#A3E635",                bg: "rgba(163,230,53,0.08)" },
   }
 
   return (
     <div className="p-8 max-w-[1200px]">
       {/* Header */}
-      <div className="flex items-start justify-between mb-8">
+      <div className="flex items-start justify-between mb-7">
         <div>
-          <h1 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#0C0A1E" }}>
-            {greeting}, {profile?.name?.split(" ")[0] ?? "there"} 👋
+          <h1 className="text-[30px] leading-tight font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+            {greeting}, {profile?.name?.split(" ")[0] ?? "there"}
           </h1>
-          <p className="text-sm mt-1 font-sans" style={{ color: "#6B6B8E" }}>{dateStr}</p>
+          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{dateStr}</p>
         </div>
         <div className="text-right mt-1">
-          <p className="text-[10px] uppercase tracking-widest font-sans mb-0.5" style={{ color: "#9898B8" }}>Employee ID</p>
-          <p className="text-[15px]" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 700, color: "#0C0A1E" }}>#{profile?.employee_id}</p>
+          <p className="text-[9px] uppercase tracking-[0.2em] font-bold mb-1" style={{ color: "rgba(255,255,255,0.2)" }}>Employee ID</p>
+          <p className="text-[15px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#A3E635" }}>#{profile?.employee_id}</p>
         </div>
       </div>
 
@@ -83,42 +76,40 @@ export default async function MemberDashboardPage() {
       </div>
 
       {/* Today's Update Status */}
-      <div className="rounded-2xl p-5 mb-6" style={{
-        background: "#FFFFFF",
-        border: todayUpdate ? "1px solid rgba(16,185,129,0.25)" : "1px solid rgba(255,90,53,0.25)",
-        boxShadow: todayUpdate ? "0 2px 12px rgba(16,185,129,0.08)" : "0 2px 12px rgba(255,90,53,0.08)",
+      <div className="rounded-xl p-5 mb-5" style={{
+        background: "#262626",
+        border: todayUpdate ? "1px solid rgba(163,230,53,0.2)" : "1px solid #2A2A2A",
       }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: todayUpdate ? "rgba(16,185,129,0.1)" : "rgba(255,90,53,0.1)" }}>
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center"
+              style={{ background: todayUpdate ? "rgba(163,230,53,0.08)" : "rgba(255,255,255,0.04)" }}>
               {todayUpdate
-                ? <CheckCircle2 size={20} style={{ color: "#10B981" }} />
-                : <ClipboardList size={20} style={{ color: "#FF5A35" }} />
+                ? <CheckCircle2 size={18} style={{ color: "#A3E635" }} />
+                : <ClipboardList size={18} style={{ color: "rgba(255,255,255,0.35)" }} />
               }
             </div>
             <div>
-              <p className="text-[14px] font-bold font-sans" style={{ color: "#0C0A1E" }}>
+              <p className="text-[14px] font-bold" style={{ color: "#FFFFFF" }}>
                 {todayUpdate ? "Daily update submitted ✓" : "Daily update not submitted yet"}
               </p>
               {todayUpdate ? (
                 <div className="flex items-center gap-3 mt-0.5">
-                  {(() => {
-                    const sc = ATTENDANCE_COLORS[todayUpdate.attendance_status] ?? ATTENDANCE_COLORS.present
-                    return <span className="text-[12px] font-semibold font-sans px-2 py-0.5 rounded-full" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
-                  })()}
-                  {todayUpdate.working_hours && <span className="text-[12px] font-sans" style={{ color: "#6B6B8E" }}>{todayUpdate.working_hours}h work</span>}
-                  {todayUpdate.learning_hours > 0 && <span className="text-[12px] font-sans" style={{ color: "#6B6B8E" }}>{todayUpdate.learning_hours}h learning</span>}
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                    style={{ background: "rgba(163,230,53,0.1)", color: "#A3E635" }}>
+                    {todayUpdate.attendance_status}
+                  </span>
+                  {todayUpdate.working_hours && <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.38)" }}>{todayUpdate.working_hours}h work</span>}
                 </div>
               ) : (
-                <p className="text-[12px] font-sans mt-0.5" style={{ color: "#9898B8" }}>Submit your daily update to track your progress.</p>
+                <p className="text-[12px] mt-0.5" style={{ color: "rgba(255,255,255,0.28)" }}>Submit your daily update to track your progress.</p>
               )}
             </div>
           </div>
           {!todayUpdate && (
             <Link href="/member/update"
-              className="px-5 py-2.5 rounded-xl text-[13px] font-semibold font-sans text-white"
-              style={{ background: "linear-gradient(135deg, #6D5DF6, #9B8FFF)", boxShadow: "0 4px 16px rgba(109,93,246,0.3)" }}>
+              className="px-5 py-2.5 rounded-lg text-[13px] font-bold transition-all"
+              style={{ background: "#A3E635", color: "#0D0D0D" }}>
               Submit Update
             </Link>
           )}
@@ -126,23 +117,23 @@ export default async function MemberDashboardPage() {
       </div>
 
       {/* Quick stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-3 mb-5">
         {[
-          { label: "Active Tasks",     value: myTasksCount ?? 0,      color: "#6D5DF6", bg: "rgba(109,93,246,0.08)", border: "rgba(109,93,246,0.18)", icon: Target,     href: "/member/tasks" },
-          { label: "Pending Leaves",   value: pendingLeavesCount ?? 0, color: "#D97706", bg: "rgba(217,119,6,0.08)", border: "rgba(217,119,6,0.18)",  icon: CalendarOff, href: "/member/leaves" },
-          { label: "Announcements",    value: announcements?.length ?? 0, color: "#FF5A35", bg: "rgba(255,90,53,0.08)", border: "rgba(255,90,53,0.18)", icon: Megaphone,  href: "/member/announcements" },
+          { label: "Active Tasks",   value: myTasksCount ?? 0,          icon: Target,     href: "/member/tasks" },
+          { label: "Pending Leaves", value: pendingLeavesCount ?? 0,    icon: CalendarOff, href: "/member/leaves" },
+          { label: "Announcements",  value: announcements?.length ?? 0, icon: Megaphone,  href: "/member/announcements" },
         ].map((stat) => {
           const Icon = stat.icon
           return (
             <Link key={stat.label} href={stat.href}
-              className="rounded-2xl p-5 flex items-center gap-4 transition-all hover:-translate-y-0.5"
-              style={{ background: "#FFFFFF", border: `1px solid ${stat.border}`, boxShadow: `0 2px 12px ${stat.bg}` }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: stat.bg }}>
-                <Icon size={18} style={{ color: stat.color }} />
+              className="rounded-xl p-5 flex items-center gap-4 transition-all hover:-translate-y-0.5"
+              style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: "rgba(163,230,53,0.08)" }}>
+                <Icon size={16} style={{ color: "#A3E635" }} />
               </div>
               <div>
-                <p className="text-[28px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#0C0A1E" }}>{stat.value}</p>
-                <p className="text-[12px] font-semibold font-sans mt-0.5" style={{ color: stat.color }}>{stat.label}</p>
+                <p className="text-[30px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#A3E635" }}>{stat.value}</p>
+                <p className="text-[11px] font-medium mt-1" style={{ color: "rgba(255,255,255,0.38)" }}>{stat.label}</p>
               </div>
             </Link>
           )
@@ -152,29 +143,31 @@ export default async function MemberDashboardPage() {
       {/* My Tasks + Announcements */}
       <div className="grid grid-cols-2 gap-4">
         {/* My Tasks */}
-        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E4E5F0", boxShadow: "0 1px 8px rgba(12,10,30,0.05)" }}>
+        <div className="rounded-xl p-5" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Target size={15} style={{ color: "#6D5DF6" }} />
-              <h3 className="text-[14px] font-bold font-sans" style={{ color: "#0C0A1E" }}>My Tasks</h3>
+              <Target size={14} style={{ color: "#A3E635" }} />
+              <h3 className="text-[13px] font-bold" style={{ color: "#FFFFFF" }}>My Tasks</h3>
             </div>
-            <Link href="/member/tasks" className="text-[12px] font-semibold font-sans" style={{ color: "#6D5DF6" }}>View all →</Link>
+            <Link href="/member/tasks" className="text-[12px] font-semibold" style={{ color: "#A3E635" }}>View all →</Link>
           </div>
           {!myTasks || myTasks.length === 0 ? (
             <div className="flex flex-col items-center py-8 gap-2">
-              <Target size={28} style={{ color: "#E4E5F0" }} />
-              <p className="text-[13px] font-sans" style={{ color: "#9898B8" }}>No active tasks</p>
+              <Target size={26} style={{ color: "#2A2A2A" }} />
+              <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.2)" }}>No active tasks</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {myTasks.map((task) => {
-                const pr = PRIORITY_COLORS[task.priority as keyof typeof PRIORITY_COLORS] ?? PRIORITY_COLORS.medium
+                const pr = PRIORITY_STYLE[task.priority] ?? PRIORITY_STYLE.medium
                 return (
-                  <div key={task.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: "#F4F5FB" }}>
+                  <div key={task.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
+                    style={{ background: "rgba(255,255,255,0.03)" }}>
                     <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: pr.color }} />
-                    <p className="flex-1 text-[13px] font-sans truncate" style={{ color: "#0C0A1E" }}>{task.title}</p>
-                    {task.due_date && <span className="text-[11px] font-sans flex-shrink-0" style={{ color: "#9898B8" }}>{task.due_date}</span>}
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: pr.bg, color: pr.color }}>
+                    <p className="flex-1 text-[13px] truncate" style={{ color: "#FFFFFF" }}>{task.title}</p>
+                    {task.due_date && <span className="text-[11px] flex-shrink-0" style={{ color: "rgba(255,255,255,0.28)" }}>{task.due_date}</span>}
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
+                      style={{ background: pr.bg, color: pr.color }}>
                       {task.priority.toUpperCase()}
                     </span>
                   </div>
@@ -185,28 +178,30 @@ export default async function MemberDashboardPage() {
         </div>
 
         {/* Latest Announcements */}
-        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E4E5F0", boxShadow: "0 1px 8px rgba(12,10,30,0.05)" }}>
+        <div className="rounded-xl p-5" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <Megaphone size={15} style={{ color: "#FF5A35" }} />
-              <h3 className="text-[14px] font-bold font-sans" style={{ color: "#0C0A1E" }}>Announcements</h3>
+              <Megaphone size={14} style={{ color: "#A3E635" }} />
+              <h3 className="text-[13px] font-bold" style={{ color: "#FFFFFF" }}>Announcements</h3>
             </div>
-            <Link href="/member/announcements" className="text-[12px] font-semibold font-sans" style={{ color: "#6D5DF6" }}>View all →</Link>
+            <Link href="/member/announcements" className="text-[12px] font-semibold" style={{ color: "#A3E635" }}>View all →</Link>
           </div>
           {!announcements || announcements.length === 0 ? (
             <div className="flex flex-col items-center py-8 gap-2">
-              <Megaphone size={28} style={{ color: "#E4E5F0" }} />
-              <p className="text-[13px] font-sans" style={{ color: "#9898B8" }}>No announcements</p>
+              <Megaphone size={26} style={{ color: "#2A2A2A" }} />
+              <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.2)" }}>No announcements</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {announcements.map((ann) => (
-                <div key={ann.id} className="px-3 py-2.5 rounded-xl" style={{ background: "#F4F5FB" }}>
+                <div key={ann.id} className="px-3 py-2.5 rounded-lg" style={{ background: "rgba(255,255,255,0.03)" }}>
                   <div className="flex items-center gap-2 mb-0.5">
-                    {ann.pinned && <span className="text-[10px] font-semibold" style={{ color: "#6D5DF6" }}>📌</span>}
-                    <p className="text-[13px] font-semibold font-sans truncate" style={{ color: "#0C0A1E" }}>{ann.title}</p>
+                    {ann.pinned && (
+                      <span className="text-[10px] font-bold" style={{ color: "#A3E635" }}>PIN</span>
+                    )}
+                    <p className="text-[13px] font-semibold truncate" style={{ color: "#FFFFFF" }}>{ann.title}</p>
                   </div>
-                  <p className="text-[12px] font-sans truncate" style={{ color: "#9898B8" }}>{ann.message}</p>
+                  <p className="text-[12px] truncate" style={{ color: "rgba(255,255,255,0.3)" }}>{ann.message}</p>
                 </div>
               ))}
             </div>

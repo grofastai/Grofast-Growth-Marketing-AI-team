@@ -36,7 +36,7 @@ interface Project {
   business_name: string
   client_name: string
   location: string | null
-  service_type: string | null
+  service_types: string[]
   status: "active" | "completed" | "on_hold"
   deadline: string | null
   progress_pct: number
@@ -71,7 +71,7 @@ const EMPTY_FORM = {
   business_name: "",
   client_name: "",
   location: "",
-  service_type: "",
+  service_types: [] as string[],
   status: "active" as const,
   deadline: "",
   progress_pct: 0,
@@ -85,7 +85,7 @@ function ProjectSheet({ open, onClose, project }: SheetProps) {
           business_name: project.business_name,
           client_name: project.client_name,
           location: project.location ?? "",
-          service_type: project.service_type ?? "",
+          service_types: project.service_types ?? [],
           status: project.status,
           deadline: project.deadline ?? "",
           progress_pct: project.progress_pct,
@@ -98,14 +98,23 @@ function ProjectSheet({ open, onClose, project }: SheetProps) {
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }))
 
+  function toggleService(s: string) {
+    setForm((prev) => ({
+      ...prev,
+      service_types: prev.service_types.includes(s)
+        ? prev.service_types.filter((x) => x !== s)
+        : [...prev.service_types, s],
+    }))
+  }
+
   function handleSubmit() {
-    if (!form.business_name.trim()) { setError("Project / Business name is required"); return }
+    if (!form.business_name.trim()) { setError("Business name is required"); return }
     if (!form.client_name.trim()) { setError("Client name is required"); return }
     setError("")
     startTransition(async () => {
       const payload = {
         ...form,
-        service_type: form.service_type || null,
+        service_types: form.service_types,
         deadline: form.deadline || null,
         progress_pct: Number(form.progress_pct),
       }
@@ -129,10 +138,10 @@ function ProjectSheet({ open, onClose, project }: SheetProps) {
         <div className="px-6 py-5 border-b border-border flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-ink text-[17px]" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 700 }}>
-              {isEdit ? "Edit Project" : "Add New Project"}
+              {isEdit ? "Edit Client" : "Add New Client"}
             </h2>
             <p className="text-[12px] text-ink-muted font-sans mt-0.5">
-              {isEdit ? "Update project details" : "Create and track a new client project"}
+              {isEdit ? "Update client details" : "Create and track a new client engagement"}
             </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-cream transition-colors">
@@ -144,27 +153,37 @@ function ProjectSheet({ open, onClose, project }: SheetProps) {
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
           <div>
             <label className="block text-[11px] font-semibold font-sans text-ink-2 uppercase tracking-wider mb-1.5">
-              Service *
+              Services {form.service_types.length > 0 && <span className="ml-1 text-brand">({form.service_types.length} selected)</span>}
             </label>
-            <div className="relative">
-              <select
-                value={form.service_type}
-                onChange={set("service_type")}
-                className={`${inputCls} appearance-none pr-10 cursor-pointer`}
-                style={{ colorScheme: "light", color: "#111827", background: "#ffffff" }}
-              >
-                <option value="">Select a service…</option>
-                {SERVICES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-              <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
+            <div className="flex flex-wrap gap-1.5 max-h-[160px] overflow-y-auto p-1">
+              {SERVICES.map((s) => {
+                const active = form.service_types.includes(s)
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => toggleService(s)}
+                    className="text-[11px] font-semibold font-sans px-2.5 py-1 rounded-lg transition-all border"
+                    style={active ? {
+                      background: "rgba(109,93,246,0.18)",
+                      borderColor: "rgba(109,93,246,0.4)",
+                      color: "#a394ff",
+                    } : {
+                      background: "rgba(255,255,255,0.04)",
+                      borderColor: "rgba(255,255,255,0.1)",
+                      color: "#9CA3AF",
+                    }}
+                  >
+                    {active && "✓ "}{s}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
           <div>
             <label className="block text-[11px] font-semibold font-sans text-ink-2 uppercase tracking-wider mb-1.5">
-              Project / Business Name *
+              Business Name *
             </label>
             <input value={form.business_name} onChange={set("business_name")}
               placeholder="e.g. Krishna Saree House" className={inputCls} />
@@ -239,7 +258,7 @@ function ProjectSheet({ open, onClose, project }: SheetProps) {
           <button onClick={handleSubmit} disabled={isPending}
             className="flex-1 py-3 rounded-xl bg-brand text-white text-[13px] font-semibold font-sans hover:bg-brand-dark transition-colors shadow-sm shadow-brand/20 disabled:opacity-60 flex items-center justify-center gap-2">
             {isPending && <Loader2 size={13} className="animate-spin" />}
-            {isEdit ? "Save Changes" : "Add Project"}
+            {isEdit ? "Save Client" : "Add Project"}
           </button>
         </div>
       </div>
@@ -268,7 +287,7 @@ function DeleteConfirm({ project, onCancel }: { project: Project; onCancel: () =
             <Trash2 size={18} className="text-red-500" />
           </div>
           <h3 className="text-ink text-[16px] mb-1" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 700 }}>
-            Delete Project?
+            Delete Client?
           </h3>
           <p className="text-[13px] text-ink-muted font-sans mb-6">
             <strong className="text-ink">{project.business_name}</strong> will be permanently removed. This cannot be undone.
@@ -306,7 +325,7 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
     return projects.filter((p) => {
       const matchSearch = !q || p.business_name.toLowerCase().includes(q) || p.client_name.toLowerCase().includes(q) || (p.location ?? "").toLowerCase().includes(q)
       const matchStatus = statusFilter === "ALL" || p.status === statusFilter
-      const matchService = !serviceFilter || p.service_type === serviceFilter
+      const matchService = !serviceFilter || (p.service_types ?? []).includes(serviceFilter)
       return matchSearch && matchStatus && matchService
     })
   }, [search, statusFilter, serviceFilter, projects])
@@ -324,22 +343,22 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-[38px] leading-tight text-ink" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800 }}>
-            Projects
+            Clients
           </h1>
-          <p className="text-ink-muted font-sans text-sm mt-1.5">Track and manage all client projects</p>
+          <p className="text-ink-muted font-sans text-sm mt-1.5">Track and manage all client engagements</p>
         </div>
         <button
           onClick={() => { setEditProject(null); setSheetOpen(true) }}
-          className="flex items-center gap-2 bg-brand text-white px-5 py-2.5 rounded-xl text-[13px] font-semibold font-sans hover:bg-brand-dark transition-colors mt-2 shadow-sm shadow-brand/20"
+          className="flex items-center gap-2 bg-accent text-white px-5 py-2.5 rounded-xl text-[13px] font-semibold font-sans hover:bg-accent-dark transition-colors mt-2 shadow-sm shadow-accent/20"
         >
-          <Plus size={15} /> Add Project
+          <Plus size={15} /> Add Client
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "Total Projects", value: stats.total, icon: FolderOpen, bg: "bg-cream-dark", color: "text-ink" },
+          { label: "Total Clients", value: stats.total, icon: FolderOpen, bg: "bg-cream-dark", color: "text-ink" },
           { label: "Active", value: stats.active, icon: Clock, bg: "bg-[#e6f4f1]", color: "text-[#006b65]" },
           { label: "Completed", value: stats.completed, icon: CheckCircle2, bg: "bg-success-bg", color: "text-success" },
           { label: "On Hold", value: stats.on_hold, icon: PauseCircle, bg: "bg-warning-bg", color: "text-warning" },
@@ -361,7 +380,7 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
         <div className="relative flex-1 min-w-[200px] max-w-[300px]">
           <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none" />
           <input value={search} onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search project or client…"
+            placeholder="Search client or business…"
             className="w-full bg-card border border-border rounded-xl pl-9 pr-4 py-2.5 text-[13px] font-sans text-ink placeholder:text-ink-muted outline-none focus-visible:ring-2 focus-visible:ring-brand/20 transition-all" />
         </div>
 
@@ -392,7 +411,7 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
             </button>
           ))}
         </div>
-        <span className="ml-auto text-[12px] text-ink-muted font-sans">{filtered.length} of {projects.length} projects</span>
+        <span className="ml-auto text-[12px] text-ink-muted font-sans">{filtered.length} of {projects.length} clients</span>
       </div>
 
       {/* Project Cards Grid */}
@@ -402,16 +421,16 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
             <FolderOpen size={24} className="text-ink-muted" />
           </div>
           <h3 className="text-[16px] font-bold mb-2 text-ink" style={{ fontFamily: "var(--font-jakarta)" }}>
-            {projects.length === 0 ? "No projects yet" : "No projects match your filter"}
+            {projects.length === 0 ? "No clients yet" : "No clients match your filter"}
           </h3>
           <p className="text-[13px] text-ink-muted font-sans max-w-xs">
-            {projects.length === 0 ? "Add your first client project to start tracking progress." : "Try clearing the search or changing the filters."}
+            {projects.length === 0 ? "Add your first client to start tracking engagements." : "Try clearing the search or changing the filters."}
           </p>
           {projects.length === 0 && (
             <button onClick={() => { setEditProject(null); setSheetOpen(true) }}
               className="mt-6 px-5 py-2.5 rounded-xl text-[13px] font-semibold font-sans text-white"
               style={{ background: "linear-gradient(135deg, #ee0039, #c8002f)", boxShadow: "0 3px 10px rgba(238,0,57,0.3)" }}>
-              Add First Project
+              Add First Client
             </button>
           )}
         </div>
@@ -440,11 +459,20 @@ export default function ProjectsClient({ projects }: { projects: Project[] }) {
                     <h3 className="text-[15px] text-ink mt-1.5 leading-snug truncate" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 700 }}>
                       {project.business_name}
                     </h3>
-                    {project.service_type && (
-                      <span className="inline-flex items-center gap-1 mt-1 text-[10px] font-semibold font-sans px-2 py-0.5 rounded-full bg-[#f0f0ff] text-[#5a4fcf]">
-                        <Briefcase size={9} />
-                        {project.service_type}
-                      </span>
+                    {project.service_types && project.service_types.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {project.service_types.slice(0, 2).map((s) => (
+                          <span key={s} className="inline-flex items-center gap-1 text-[10px] font-semibold font-sans px-2 py-0.5 rounded-full bg-[#f0f0ff] text-[#5a4fcf]">
+                            <Briefcase size={9} />
+                            {s}
+                          </span>
+                        ))}
+                        {project.service_types.length > 2 && (
+                          <span className="text-[10px] font-semibold font-sans px-2 py-0.5 rounded-full bg-[#f0f0ff] text-[#5a4fcf]">
+                            +{project.service_types.length - 2} more
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                   <div className="relative ml-2 flex-shrink-0">

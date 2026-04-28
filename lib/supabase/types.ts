@@ -40,18 +40,32 @@ export interface Database {
           id: string; company_id: string; business_name: string
           client_name: string | null; location: string | null
           status: string; deadline: string | null; progress_pct: number | null
-          service_type: string | null; created_at: string
+          service_type: string | null; service_types: string[]; created_at: string
         }
         Insert: {
           id?: string; company_id: string; business_name: string
           client_name?: string | null; location?: string | null
           status?: string; deadline?: string | null; progress_pct?: number | null
-          service_type?: string | null; created_at?: string
+          service_type?: string | null; service_types?: string[]; created_at?: string
         }
         Update: {
           business_name?: string; client_name?: string | null; location?: string | null
           status?: string; deadline?: string | null; progress_pct?: number | null
-          service_type?: string | null
+          service_type?: string | null; service_types?: string[]
+        }
+        Relationships: []
+      }
+      attendance_logs: {
+        Row: {
+          id: string; company_id: string; user_id: string; date: string
+          clock_in: string | null; clock_out: string | null; created_at: string
+        }
+        Insert: {
+          id?: string; company_id: string; user_id: string; date?: string
+          clock_in?: string | null; clock_out?: string | null; created_at?: string
+        }
+        Update: {
+          clock_in?: string | null; clock_out?: string | null
         }
         Relationships: []
       }

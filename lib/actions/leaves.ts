@@ -92,8 +92,14 @@ export async function updateLeaveStatus(
   status: 'approved' | 'rejected'
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
   const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { success: false, error: 'Not authenticated' }
+  const claims = session?.access_token
+    ? (() => { try { return JSON.parse(atob(session.access_token.split('.')[1])) } catch { return null } })()
+    : null
+  if (claims?.role !== 'ADMIN') return { success: false, error: 'Admin only' }
 
   type LeaveWithUser = {
     from_date: string

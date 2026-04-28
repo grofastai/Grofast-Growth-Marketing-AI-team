@@ -51,6 +51,8 @@ export async function createAnnouncement(
 
 export async function deleteAnnouncement(id: string): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
   const { error } = await supabase.from('announcements').delete().eq('id', id)
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/announcements')
@@ -60,6 +62,8 @@ export async function deleteAnnouncement(id: string): Promise<{ success: boolean
 
 export async function togglePin(id: string, pinned: boolean): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
   const { error } = await supabase.from('announcements').update({ pinned }).eq('id', id)
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/announcements')

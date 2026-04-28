@@ -16,7 +16,7 @@ export default async function MemberLayout({ children }: { children: React.React
   if (profile?.role === "ADMIN") redirect("/admin/dashboard")
 
   return (
-    <div className="flex min-h-screen" style={{ background: "#0B0F14" }}>
+    <div className="flex min-h-screen bg-bg">
       <MemberSidebar name={profile?.name ?? "Member"} employeeId={profile?.employee_id ?? ""} />
       <main className="flex-1 ml-[240px] min-h-screen overflow-x-hidden">
         {children}

@@ -5,79 +5,81 @@
   --font-display: var(--font-jakarta);
   --font-sans: var(--font-jakarta);
 
-  /* CTA / Action — Warm Coral */
-  --color-brand: #FF6B57;
-  --color-brand-dark: #E85A45;
-  --color-brand-soft: #2D0A07;
-  --color-brand-muted: #4A1511;
+  /* Primary — Deep Midnight (structure, sidebar, headings) */
+  --color-primary: #0C0A1E;
+  --color-primary-light: #1A1735;
+  --color-primary-soft: #EEEEFF;
 
-  /* Accent — Muted Violet */
+  /* Secondary / Accent — Electric Violet (interactive, active, CTA) */
   --color-accent: #6D5DF6;
-  --color-accent-soft: #1E1A4A;
+  --color-accent-dark: #5547D4;
+  --color-accent-soft: #EEEDFF;
 
-  /* Primary — Deep Teal */
-  --color-primary: #0E3B3B;
-  --color-primary-light: #123F3F;
-  --color-primary-soft: #0A1F1F;
+  /* Brand — Coral (keep for action buttons) */
+  --color-brand: #FF5A35;
+  --color-brand-dark: #E84A25;
+  --color-brand-soft: #FFF1EE;
+  --color-brand-muted: #FFD6CC;
 
-  /* Surfaces — Dark */
-  --color-bg: #0B0F14;
-  --color-card: #111827;
-  --color-card-hover: #141E2E;
+  /* Surfaces — White dominant */
+  --color-bg: #F4F5FB;
+  --color-card: #FFFFFF;
+  --color-card-hover: #FAFAFF;
 
-  /* Input / Hover bg */
-  --color-cream: #141D2B;
-  --color-cream-dark: #1A2437;
+  /* Input / Hover fill */
+  --color-cream: #F0F1F9;
+  --color-cream-dark: #E4E5F5;
 
   /* Ink / Text */
-  --color-ink: #E6EDF3;
-  --color-ink-2: #C9D1D9;
-  --color-ink-muted: #9CA3AF;
-  --color-ink-light: #6B7280;
+  --color-ink: #0C0A1E;
+  --color-ink-2: #2C2A44;
+  --color-ink-muted: #6B6B8E;
+  --color-ink-light: #9898B8;
 
   /* Borders */
-  --color-border: #1F2937;
-  --color-border-dark: #374151;
+  --color-border: #E4E5F0;
+  --color-border-dark: #CCCDE0;
 
-  /* Sidebar — Deep Dark Teal */
-  --color-sidebar: #071515;
-  --color-sidebar-hover: rgba(109,93,246,0.08);
-  --color-sidebar-active: rgba(109,93,246,0.15);
-  --color-sidebar-text: rgba(255,255,255,0.45);
+  /* Sidebar — Stays deep midnight for premium contrast */
+  --color-sidebar: #0C0A1E;
+  --color-sidebar-hover: rgba(109,93,246,0.1);
+  --color-sidebar-active: rgba(109,93,246,0.18);
+  --color-sidebar-text: rgba(255,255,255,0.5);
 
   /* Functional */
-  --color-success: #22C55E;
-  --color-success-bg: #052E16;
+  --color-success: #10B981;
+  --color-success-bg: #ECFDF5;
   --color-warning: #F59E0B;
-  --color-warning-bg: #1C0A00;
+  --color-warning-bg: #FFFBEB;
   --color-danger: #EF4444;
-  --color-danger-bg: #1F0B0B;
+  --color-danger-bg: #FEF2F2;
 }
 
 body {
-  background-color: #0B0F14;
-  color: #E6EDF3;
+  background-color: #F4F5FB;
+  color: #0C0A1E;
   font-family: var(--font-jakarta), sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Premium glass card */
+/* Premium card for light mode */
 .glass {
-  background: rgba(255,255,255,0.03);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(109,93,246,0.08);
+  box-shadow: 0 2px 12px rgba(12,10,30,0.06);
 }
 
 .glass:hover {
   border-color: rgba(109,93,246,0.2);
-  box-shadow: 0 0 30px rgba(109,93,246,0.08), 0 8px 32px rgba(0,0,0,0.3);
+  box-shadow: 0 4px 24px rgba(109,93,246,0.1), 0 2px 8px rgba(12,10,30,0.06);
 }
 
 /* Dot grid background texture */
 .dot-grid {
-  background-image: radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-image: radial-gradient(rgba(109,93,246,0.06) 1px, transparent 1px);
   background-size: 28px 28px;
 }
 
@@ -88,12 +90,23 @@ body {
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: #0B0F14; }
-::-webkit-scrollbar-thumb { background: #1F2937; border-radius: 10px; }
+::-webkit-scrollbar-track { background: #F4F5FB; }
+::-webkit-scrollbar-thumb { background: #CCCDE0; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: #6D5DF6; }
+
+/* Sidebar scrollbar stays dark */
+aside::-webkit-scrollbar-track { background: #0C0A1E; }
+aside::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
 
 /* Glow pulse for active indicator */
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 6px rgba(109,93,246,0.4); }
-  50%       { box-shadow: 0 0 12px rgba(109,93,246,0.7); }
+  0%, 100% { box-shadow: 0 0 6px rgba(109,93,246,0.5); }
+  50%       { box-shadow: 0 0 14px rgba(109,93,246,0.85); }
 }
+
+/* Fade in utility */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fade-up 0.35s ease forwards; }

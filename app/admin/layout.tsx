@@ -7,8 +7,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single()
+
+  if (profile?.role !== "ADMIN") redirect("/member/dashboard")
+
   return (
-    <div className="flex min-h-screen" style={{ background: "#0B0F14" }}>
+    <div className="flex min-h-screen bg-bg">
       <Sidebar />
       <main className="flex-1 ml-[240px] min-h-screen overflow-x-hidden">
         {children}

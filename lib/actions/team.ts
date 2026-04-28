@@ -38,18 +38,19 @@ export async function createMember(input: {
   }
 
   const supabase = await createServerClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { success: false, error: 'Not authenticated' }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
 
-  let company_id = parseCompanyId(session.access_token)
-
-  if (!company_id) {
-    const { data: c } = await admin.from('companies').select('id').eq('slug', 'grofast').single()
-    if (!c) return { success: false, error: 'Company not found' }
-    company_id = c.id
-  }
+  // Look up company_id from users table — reliable regardless of JWT hook setup
+  const { data: adminProfile } = await admin
+    .from('users')
+    .select('company_id')
+    .eq('id', user.id)
+    .single()
+  if (!adminProfile?.company_id) return { success: false, error: 'Admin profile not found — contact support' }
+  const company_id = adminProfile.company_id
 
   // Use the real email for Supabase Auth — this is what the member logs in with
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
@@ -94,15 +95,33 @@ export async function updateMember(input: {
   role: 'ADMIN' | 'MEMBER'
 }): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { success: false, error: 'Not authenticated' }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
 
-  const { error } = await supabase
+  const admin = adminSupabase()
+  const { error } = await admin
     .from('users')
     .update({ name: input.name, email: input.email || null, phone: input.phone || null, role: input.role })
     .eq('id', input.id)
 
   if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/team')
+  return { success: true }
+}
+
+export async function deleteMember(id: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+
+  const { error: dbError } = await admin.from('users').delete().eq('id', id)
+  if (dbError) return { success: false, error: dbError.message }
+
+  const { error: authError } = await admin.auth.admin.deleteUser(id)
+  if (authError) return { success: false, error: authError.message }
 
   revalidatePath('/admin/team')
   return { success: true }

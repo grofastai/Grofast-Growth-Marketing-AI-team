@@ -26,23 +26,26 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // getSession reads from cookie — no network call, much faster than getUser()
-  const { data: { session } } = await supabase.auth.getSession()
   const { pathname } = request.nextUrl
 
   if (pathname.startsWith('/api/')) return supabaseResponse
 
-  if (!session) {
+  // getUser() verifies the JWT with Supabase servers — catches stale/forged cookies
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
     if (pathname === '/login') return supabaseResponse
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   if (pathname === '/login' || pathname === '/') {
+    // Session is valid (user verified above), read role claim from JWT
+    const { data: { session } } = await supabase.auth.getSession()
     let role: string | null = null
     try {
-      role = JSON.parse(atob(session.access_token.split('.')[1])).role ?? null
+      role = JSON.parse(atob(session!.access_token.split('.')[1])).role ?? null
     } catch { /* ignore */ }
-    const dest = role === 'MEMBER' ? '/member/dashboard' : '/admin/dashboard'
+    const dest = role === 'ADMIN' ? '/admin/dashboard' : '/member/dashboard'
     return NextResponse.redirect(new URL(dest, request.url))
   }
 

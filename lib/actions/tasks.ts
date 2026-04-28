@@ -63,6 +63,8 @@ export async function updateTaskStatus(
   status: 'todo' | 'in_progress' | 'completed'
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
   const { error } = await supabase.from('tasks').update({ status }).eq('id', taskId)
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/goals')
@@ -72,6 +74,10 @@ export async function updateTaskStatus(
 
 export async function deleteTask(id: string): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+  const claims = parseJwt((await supabase.auth.getSession()).data.session?.access_token ?? '')
+  if (claims?.role !== 'ADMIN') return { success: false, error: 'Admin only' }
   const { error } = await supabase.from('tasks').delete().eq('id', id)
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/goals')
@@ -84,6 +90,8 @@ export async function updateTask(
   updates: { title?: string; description?: string; priority?: 'low' | 'medium' | 'high'; due_date?: string | null; assigned_to?: string | null }
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
   const { error } = await supabase.from('tasks').update(updates).eq('id', id)
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/goals')

@@ -25,7 +25,7 @@ export async function createProject(input: {
   business_name: string
   client_name: string
   location: string
-  service_type: string | null
+  service_types: string[]
   status: 'active' | 'completed' | 'on_hold'
   deadline: string | null
   progress_pct: number
@@ -39,7 +39,7 @@ export async function createProject(input: {
     business_name: input.business_name,
     client_name: input.client_name,
     location: input.location || null,
-    service_type: input.service_type || null,
+    service_types: input.service_types,
     status: input.status,
     deadline: input.deadline || null,
     progress_pct: input.progress_pct,
@@ -47,6 +47,7 @@ export async function createProject(input: {
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/projects')
+  revalidatePath('/admin/clients')
   return { success: true }
 }
 
@@ -55,7 +56,7 @@ export async function updateProject(input: {
   business_name: string
   client_name: string
   location: string
-  service_type: string | null
+  service_types: string[]
   status: 'active' | 'completed' | 'on_hold'
   deadline: string | null
   progress_pct: number
@@ -69,7 +70,7 @@ export async function updateProject(input: {
       business_name: input.business_name,
       client_name: input.client_name,
       location: input.location || null,
-      service_type: input.service_type || null,
+      service_types: input.service_types,
       status: input.status,
       deadline: input.deadline || null,
       progress_pct: input.progress_pct,
@@ -79,6 +80,7 @@ export async function updateProject(input: {
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/projects')
+  revalidatePath('/admin/clients')
   return { success: true }
 }
 

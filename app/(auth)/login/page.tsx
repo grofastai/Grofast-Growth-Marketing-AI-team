@@ -8,56 +8,104 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{ background: '#0B0F14' }}
-    >
-      {/* Subtle violet glow behind card */}
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: 'radial-gradient(ellipse 60% 50% at 50% 40%, rgba(109,93,246,0.08) 0%, transparent 70%)',
-        }}
-      />
+    <div className="min-h-screen flex" style={{ background: '#F4F5FB' }}>
 
-      <div className="w-full max-w-sm relative">
+      {/* ── Left brand panel ─────────────────────────────────────────── */}
+      <div
+        className="hidden lg:flex flex-col justify-between w-[42%] p-12 relative overflow-hidden"
+        style={{ background: '#0C0A1E' }}
+      >
+        {/* Subtle geometric grid */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: 'radial-gradient(rgba(109,93,246,0.12) 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
+          }}
+        />
+        {/* Violet glow */}
+        <div
+          className="absolute top-0 left-0 w-[400px] h-[400px] pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, rgba(109,93,246,0.18) 0%, transparent 65%)',
+            transform: 'translate(-30%, -30%)',
+          }}
+        />
+
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div
-            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
-            style={{
-              background: 'linear-gradient(135deg, #6D5DF6, #0E3B3B)',
-              boxShadow: '0 8px 28px rgba(109,93,246,0.4)',
-            }}
-          >
-            <span className="text-white text-2xl font-black" style={{ fontFamily: 'var(--font-jakarta)' }}>G</span>
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-12">
+            <div
+              className="w-10 h-10 rounded-2xl flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, #6D5DF6, #9B8FFF)',
+                boxShadow: '0 8px 24px rgba(109,93,246,0.45)',
+              }}
+            >
+              <span className="text-white text-lg font-black" style={{ fontFamily: 'var(--font-jakarta)' }}>G</span>
+            </div>
+            <div>
+              <p className="text-white text-[15px] tracking-[0.1em] font-black" style={{ fontFamily: 'var(--font-jakarta)' }}>GROFAST</p>
+              <p className="text-[10px] tracking-[0.2em] uppercase" style={{ color: 'rgba(255,255,255,0.3)' }}>Growth Marketing</p>
+            </div>
           </div>
-          <h1 className="text-2xl font-black tracking-tight" style={{ color: '#E6EDF3', fontFamily: 'var(--font-jakarta)' }}>
-            GROFAST
+
+          <h1 className="text-[38px] font-black leading-[1.15] mb-5" style={{ color: '#FFFFFF', fontFamily: 'var(--font-jakarta)' }}>
+            Run your team<br />
+            <span style={{ color: '#9B8FFF' }}>with precision.</span>
           </h1>
-          <p className="text-sm mt-1" style={{ color: '#6B7280' }}>Team Tracking Platform</p>
+          <p className="text-[15px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            Track attendance, manage tasks, and keep every project on time — all in one place.
+          </p>
         </div>
 
-        {/* Card */}
-        <div
-          className="rounded-2xl p-8"
-          style={{
-            background: '#111827',
-            border: '1px solid #1F2937',
-            boxShadow: '0 0 40px rgba(109,93,246,0.08), 0 4px 24px rgba(0,0,0,0.4)',
-          }}
-        >
-          <h2 className="font-bold text-lg mb-1" style={{ color: '#E6EDF3', fontFamily: 'var(--font-jakarta)' }}>
-            Welcome back
-          </h2>
-          <p className="text-xs mb-6" style={{ color: '#6B7280' }}>
-            Sign in with your Employee ID, email and password
-          </p>
+        {/* Bottom features */}
+        <div className="relative z-10 space-y-3">
+          {[
+            { icon: '⚡', label: 'Real-time team tracking' },
+            { icon: '📋', label: 'Daily update submissions' },
+            { icon: '📊', label: 'Project & client management' },
+          ].map(({ icon, label }) => (
+            <div key={label} className="flex items-center gap-3">
+              <span className="text-[15px]">{icon}</span>
+              <span className="text-[13px]" style={{ color: 'rgba(255,255,255,0.45)' }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Right form panel ──────────────────────────────────────────── */}
+      <div className="flex-1 flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-[380px]">
+
+          {/* Mobile logo */}
+          <div className="flex items-center gap-2.5 mb-10 lg:hidden">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #6D5DF6, #9B8FFF)', boxShadow: '0 4px 16px rgba(109,93,246,0.4)' }}
+            >
+              <span className="text-white font-black" style={{ fontFamily: 'var(--font-jakarta)' }}>G</span>
+            </div>
+            <span className="text-[16px] font-black tracking-wide" style={{ color: '#0C0A1E', fontFamily: 'var(--font-jakarta)' }}>GROFAST</span>
+          </div>
+
+          {/* Heading */}
+          <div className="mb-8">
+            <h2 className="text-[30px] font-black leading-tight mb-2" style={{ color: '#0C0A1E', fontFamily: 'var(--font-jakarta)' }}>
+              Welcome back
+            </h2>
+            <p className="text-[14px]" style={{ color: '#6B6B8E' }}>
+              Sign in with your Employee ID and password
+            </p>
+          </div>
 
           <form action={action} className="space-y-4">
             {/* Employee ID */}
             <div>
-              <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wider" style={{ color: '#9CA3AF' }}>
+              <label
+                className="block text-[11px] font-bold uppercase tracking-[0.12em] mb-2"
+                style={{ color: '#6B6B8E' }}
+              >
                 Employee ID
               </label>
               <input
@@ -66,42 +114,30 @@ export default function LoginPage() {
                 placeholder="e.g. GF001"
                 required
                 autoComplete="username"
-                className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all"
+                className="w-full rounded-xl px-4 py-3.5 text-[14px] outline-none transition-all"
                 style={{
-                  background: '#141D2B',
-                  border: '1.5px solid #1F2937',
-                  color: '#E6EDF3',
+                  background: '#FFFFFF',
+                  border: '1.5px solid #E4E5F0',
+                  color: '#0C0A1E',
+                  boxShadow: '0 1px 3px rgba(12,10,30,0.05)',
                 }}
-                onFocus={e => (e.currentTarget.style.borderColor = '#6D5DF6')}
-                onBlur={e => (e.currentTarget.style.borderColor = '#1F2937')}
-              />
-            </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wider" style={{ color: '#9CA3AF' }}>
-                Email
-              </label>
-              <input
-                name="email"
-                type="email"
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-                className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all"
-                style={{
-                  background: '#141D2B',
-                  border: '1.5px solid #1F2937',
-                  color: '#E6EDF3',
+                onFocus={e => {
+                  e.currentTarget.style.borderColor = '#6D5DF6'
+                  e.currentTarget.style.boxShadow = '0 0 0 3px rgba(109,93,246,0.1)'
                 }}
-                onFocus={e => (e.currentTarget.style.borderColor = '#6D5DF6')}
-                onBlur={e => (e.currentTarget.style.borderColor = '#1F2937')}
+                onBlur={e => {
+                  e.currentTarget.style.borderColor = '#E4E5F0'
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(12,10,30,0.05)'
+                }}
               />
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-semibold mb-1.5 uppercase tracking-wider" style={{ color: '#9CA3AF' }}>
+              <label
+                className="block text-[11px] font-bold uppercase tracking-[0.12em] mb-2"
+                style={{ color: '#6B6B8E' }}
+              >
                 Password
               </label>
               <div className="relative">
@@ -111,21 +147,28 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   required
                   autoComplete="current-password"
-                  className="w-full rounded-xl px-4 py-3 pr-11 text-sm outline-none transition-all"
+                  className="w-full rounded-xl px-4 py-3.5 pr-12 text-[14px] outline-none transition-all"
                   style={{
-                    background: '#141D2B',
-                    border: '1.5px solid #1F2937',
-                    color: '#E6EDF3',
+                    background: '#FFFFFF',
+                    border: '1.5px solid #E4E5F0',
+                    color: '#0C0A1E',
+                    boxShadow: '0 1px 3px rgba(12,10,30,0.05)',
                   }}
-                  onFocus={e => (e.currentTarget.style.borderColor = '#6D5DF6')}
-                  onBlur={e => (e.currentTarget.style.borderColor = '#1F2937')}
+                  onFocus={e => {
+                    e.currentTarget.style.borderColor = '#6D5DF6'
+                    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(109,93,246,0.1)'
+                  }}
+                  onBlur={e => {
+                    e.currentTarget.style.borderColor = '#E4E5F0'
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(12,10,30,0.05)'
+                  }}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(v => !v)}
                   tabIndex={-1}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
-                  style={{ color: '#6B7280' }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 transition-colors"
+                  style={{ color: '#9898B8' }}
                 >
                   {showPassword ? (
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -146,10 +189,11 @@ export default function LoginPage() {
             {/* Error */}
             {state?.error && (
               <div
-                className="text-sm rounded-xl px-4 py-3"
-                style={{ background: '#1F0B0B', border: '1px solid rgba(239,68,68,0.3)', color: '#F87171' }}
+                className="flex items-start gap-3 rounded-xl px-4 py-3 text-sm"
+                style={{ background: '#FEF2F2', border: '1px solid rgba(239,68,68,0.25)', color: '#DC2626' }}
               >
-                {state.error}
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span>{state.error}</span>
               </div>
             )}
 
@@ -157,22 +201,22 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={pending}
-              className="w-full font-semibold rounded-xl py-3 text-sm transition-all mt-1"
+              className="w-full font-bold rounded-xl py-3.5 text-[14px] transition-all mt-2"
               style={{
-                background: pending ? '#374151' : 'linear-gradient(135deg, #FF6B57, #E85A45)',
-                color: '#fff',
-                boxShadow: pending ? 'none' : '0 4px 20px rgba(255,107,87,0.35)',
+                background: pending ? '#CCCDE0' : '#0C0A1E',
+                color: '#FFFFFF',
+                boxShadow: pending ? 'none' : '0 4px 20px rgba(12,10,30,0.25)',
                 cursor: pending ? 'not-allowed' : 'pointer',
               }}
             >
-              {pending ? 'Signing in…' : 'Sign in'}
+              {pending ? 'Signing in…' : 'Sign in →'}
             </button>
           </form>
-        </div>
 
-        <p className="text-center text-xs mt-5" style={{ color: '#374151' }}>
-          Contact your admin if you forgot your password
-        </p>
+          <p className="text-center text-[12px] mt-8" style={{ color: '#9898B8' }}>
+            Forgot your password? Contact your admin.
+          </p>
+        </div>
       </div>
     </div>
   )

@@ -4,9 +4,9 @@ import { useState, useMemo, useTransition } from "react"
 import {
   Search, Plus, Users, Shield, UserCheck, UserX,
   MoreVertical, Phone, CalendarDays, X, Pencil,
-  Ban, RotateCcw, User, Loader2,
+  Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle,
 } from "lucide-react"
-import { createMember, updateMember, toggleMemberStatus } from "@/lib/actions/team"
+import { createMember, updateMember, toggleMemberStatus, deleteMember } from "@/lib/actions/team"
 
 interface Member {
   id: string
@@ -127,7 +127,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
             <input type="email" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com"
               className="w-full rounded-xl px-4 py-3 text-[13px] font-sans outline-none transition-all"
               style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#E6EDF3" }} />
-            <p className="text-[11px] font-sans mt-1" style={{ color: "#6B7280" }}>Used to log in to the app.</p>
+            <p className="text-[11px] font-sans mt-1" style={{ color: "#6B7280" }}>Used for account creation (not shown on login page).</p>
           </div>
 
           {/* Phone */}
@@ -198,6 +198,8 @@ export default function TeamClient({ members }: { members: Member[] }) {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<Member | null>(null)
+  const [deleteError, setDeleteError] = useState("")
   const [isPending, startTransition] = useTransition()
 
   const filtered = useMemo(() => {
@@ -221,6 +223,19 @@ export default function TeamClient({ members }: { members: Member[] }) {
     setOpenDropdown(null)
     const newStatus = member.status === "active" ? "inactive" : "active"
     startTransition(async () => { await toggleMemberStatus(member.id, newStatus) })
+  }
+
+  function handleDeleteConfirm() {
+    if (!confirmDelete) return
+    setDeleteError("")
+    startTransition(async () => {
+      const result = await deleteMember(confirmDelete.id)
+      if (result.success) {
+        setConfirmDelete(null)
+      } else {
+        setDeleteError(result.error ?? "Failed to delete member")
+      }
+    })
   }
 
   return (
@@ -350,6 +365,11 @@ export default function TeamClient({ members }: { members: Member[] }) {
                           className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-sans transition-colors ${member.status === "active" ? "text-warning hover:bg-warning-bg" : "text-success hover:bg-success-bg"}`}>
                           {member.status === "active" ? <><Ban size={12} /> Deactivate</> : <><RotateCcw size={12} /> Reactivate</>}
                         </button>
+                        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", margin: "2px 0" }} />
+                        <button onClick={() => { setConfirmDelete(member); setOpenDropdown(null) }}
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-sans text-red-400 hover:bg-red-500/10 transition-colors">
+                          <Trash2 size={12} /> Delete
+                        </button>
                       </div>
                     )}
                   </div>
@@ -368,6 +388,44 @@ export default function TeamClient({ members }: { members: Member[] }) {
       </div>
 
       {openDropdown && <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />}
+
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <>
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-40" onClick={() => setConfirmDelete(null)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-[380px] rounded-2xl shadow-2xl flex flex-col" style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.1)" }}>
+              <div className="px-6 pt-6 pb-4 flex flex-col items-center text-center gap-3">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(239,68,68,0.12)" }}>
+                  <AlertTriangle size={22} style={{ color: "#EF4444" }} />
+                </div>
+                <div>
+                  <h3 className="text-[16px] font-bold font-sans" style={{ color: "#E6EDF3" }}>Delete Member</h3>
+                  <p className="text-[13px] font-sans mt-1" style={{ color: "#6B7280" }}>
+                    This will permanently delete <strong style={{ color: "#E6EDF3" }}>{confirmDelete.name}</strong> and remove their login access. This cannot be undone.
+                  </p>
+                </div>
+                {deleteError && (
+                  <p className="text-[12px] font-sans rounded-xl px-4 py-2.5 w-full" style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.2)" }}>{deleteError}</p>
+                )}
+              </div>
+              <div className="px-6 pb-6 flex gap-3">
+                <button onClick={() => { setConfirmDelete(null); setDeleteError("") }}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold font-sans transition-all"
+                  style={{ background: "rgba(255,255,255,0.06)", color: "#9CA3AF", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  Cancel
+                </button>
+                <button onClick={handleDeleteConfirm} disabled={isPending}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold font-sans text-white flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
+                  style={{ background: "linear-gradient(135deg, #EF4444, #DC2626)" }}>
+                  {isPending && <Loader2 size={13} className="animate-spin" />}
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} />
     </div>

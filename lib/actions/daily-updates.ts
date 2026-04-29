@@ -1,18 +1,17 @@
 'use server'
 
 import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { dailyUpdateSchema, type DailyUpdateInput } from '@/lib/validations/daily-update'
 import { sendNotification } from '@/lib/notifications/send'
 
-function parseCompanyId(accessToken: string): string | null {
-  try {
-    const payload = accessToken.split('.')[1]
-    const claims = JSON.parse(atob(payload))
-    return claims.company_id ?? null
-  } catch {
-    return null
-  }
+function adminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 }
 
 export async function submitDailyUpdate(
@@ -24,29 +23,26 @@ export async function submitDailyUpdate(
   }
 
   const supabase = await createServerClient()
-  const {
-    data: { session },
-  } = await supabase.auth.getSession()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
 
-  if (!session) return { success: false, error: 'Not authenticated' }
-
-  const company_id = parseCompanyId(session.access_token)
-  if (!company_id) return { success: false, error: 'Missing company claim — re-login required' }
-
-  const today = new Date().toISOString().split('T')[0]
-
-  // Fetch the user's profile for notification data
-  const { data: profile } = await supabase
+  const admin = adminSupabase()
+  const { data: profile } = await admin
     .from('users')
-    .select('name, employee_id, phone')
-    .eq('id', session.user.id)
+    .select('company_id, name, employee_id, phone')
+    .eq('id', user.id)
     .single()
 
-  const { data: update, error: updateError } = await supabase
+  if (!profile?.company_id) return { success: false, error: 'Profile not found — re-login required' }
+
+  const today = new Date().toISOString().split('T')[0]
+  const company_id = profile.company_id
+
+  const { data: update, error: updateError } = await admin
     .from('daily_updates')
     .insert({
       company_id,
-      user_id: session.user.id,
+      user_id: user.id,
       date: today,
       attendance_status: parsed.data.attendance_status,
       work_type: parsed.data.work_type ?? null,
@@ -54,6 +50,7 @@ export async function submitDailyUpdate(
       learning_hours: parsed.data.learning_hours,
       shoot_count: parsed.data.shoot_count,
       notes: parsed.data.notes ?? null,
+      task_id: parsed.data.task_id ?? null,
     })
     .select('id')
     .single()
@@ -66,10 +63,10 @@ export async function submitDailyUpdate(
   }
 
   if (parsed.data.shoot_entries.length > 0) {
-    const { error: shootError } = await supabase.from('shoot_entries').insert(
+    const { error: shootError } = await admin.from('shoot_entries').insert(
       parsed.data.shoot_entries.map((entry) => ({
         company_id,
-        user_id: session.user.id,
+        user_id: user.id,
         daily_update_id: update.id,
         client_name: entry.client_name,
         shoot_type: entry.shoot_type,
@@ -81,10 +78,10 @@ export async function submitDailyUpdate(
   }
 
   if (parsed.data.editing_entries.length > 0) {
-    const { error: editError } = await supabase.from('editing_entries').insert(
+    const { error: editError } = await admin.from('editing_entries').insert(
       parsed.data.editing_entries.map((entry) => ({
         company_id,
-        user_id: session.user.id,
+        user_id: user.id,
         daily_update_id: update.id,
         client_name: entry.client_name,
         editing_hours: entry.editing_hours,
@@ -95,8 +92,8 @@ export async function submitDailyUpdate(
   }
 
   // Fire WhatsApp notification to admin (non-blocking)
-  if (profile && parsed.data.working_hours != null) {
-    const { data: adminPhone } = await supabase
+  if (parsed.data.working_hours != null) {
+    const { data: adminPhone } = await admin
       .from('users')
       .select('phone')
       .eq('company_id', company_id)
@@ -105,29 +102,28 @@ export async function submitDailyUpdate(
       .single()
 
     if (adminPhone?.phone) {
-      // Alert if underperformance
-      if (parsed.data.working_hours < 9 && parsed.data.attendance_status === 'present') {
-        sendNotification({
-          event: 'hours.underperformance',
-          employee_name: profile.name,
-          employee_id: profile.employee_id,
-          date: today,
-          working_hours: parsed.data.working_hours,
-          expected_hours: 9,
-          admin_phone: adminPhone.phone,
-        }).catch(console.error)
-      } else {
-        sendNotification({
-          event: 'daily_update.submitted',
-          employee_name: profile.name,
-          employee_id: profile.employee_id,
-          date: today,
-          attendance_status: parsed.data.attendance_status,
-          working_hours: parsed.data.working_hours,
-          shoot_count: parsed.data.shoot_count,
-          admin_phone: adminPhone.phone,
-        }).catch(console.error)
-      }
+      const isLowHours = parsed.data.working_hours < 6 && parsed.data.attendance_status === 'present'
+      sendNotification(isLowHours
+        ? {
+            event: 'hours.underperformance',
+            employee_name: profile.name,
+            employee_id: profile.employee_id,
+            date: today,
+            working_hours: parsed.data.working_hours,
+            expected_hours: 6,
+            admin_phone: adminPhone.phone,
+          }
+        : {
+            event: 'daily_update.submitted',
+            employee_name: profile.name,
+            employee_id: profile.employee_id,
+            date: today,
+            attendance_status: parsed.data.attendance_status,
+            working_hours: parsed.data.working_hours,
+            shoot_count: parsed.data.shoot_count,
+            admin_phone: adminPhone.phone,
+          }
+      ).catch(console.error)
     }
   }
 
@@ -138,9 +134,7 @@ export async function submitDailyUpdate(
 
 export async function getTodayUpdate() {
   const supabase = await createServerClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
   const today = new Date().toISOString().split('T')[0]

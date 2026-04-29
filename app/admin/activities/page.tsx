@@ -13,7 +13,7 @@ export default async function ActivitiesPage({
 
   let query = supabase
     .from("daily_updates")
-    .select("*, users(id, name, employee_id, role)")
+    .select("*, users(id, name, employee_id, role), tasks(title)")
     .eq("date", dateFilter)
     .order("created_at", { ascending: false })
 

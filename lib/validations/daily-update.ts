@@ -21,6 +21,7 @@ export const dailyUpdateSchema = z
     learning_hours: z.number().min(0).max(24).default(0),
     shoot_count: z.number().int().min(0).default(0),
     notes: z.string().optional(),
+    task_id: z.string().uuid().optional().nullable(),
     shoot_entries: z.array(shootEntrySchema).optional().default([]),
     editing_entries: z.array(editingEntrySchema).optional().default([]),
   })

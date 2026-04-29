@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter, usePathname } from "next/navigation"
-import { Activity, Clock, Camera, BookOpen, Filter } from "lucide-react"
+import { Activity, Clock, Camera, BookOpen, Filter, AlertTriangle, UserX, Target } from "lucide-react"
 
 interface Update {
   id: string
@@ -12,30 +12,41 @@ interface Update {
   learning_hours: number
   shoot_count: number
   notes: string | null
+  task_id: string | null
   users: { id: string; name: string; employee_id: string; role: string } | null
+  tasks: { title: string } | null
 }
 
-interface Member {
-  id: string
-  name: string
-  employee_id: string
+interface Member { id: string; name: string; employee_id: string }
+
+const ATTENDANCE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
+  present: { bg: "rgba(163,230,53,0.1)",  color: "#A3E635", label: "Present" },
+  absent:  { bg: "rgba(255,107,87,0.1)",  color: "#FF6B57", label: "Absent" },
+  holiday: { bg: "rgba(245,158,11,0.1)",  color: "#F59E0B", label: "Holiday" },
+  outside: { bg: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", label: "Outside" },
 }
 
-const STATUS = {
-  present: { bg: "rgba(16,185,129,0.12)", text: "#10B981", label: "Present" },
-  absent: { bg: "rgba(255,107,87,0.12)", text: "#FF6B57", label: "Absent" },
-  holiday: { bg: "rgba(245,158,11,0.12)", text: "#F59E0B", label: "Holiday" },
-  outside: { bg: "rgba(109,93,246,0.12)", text: "#6D5DF6", label: "Outside" },
-}
-
-const WORK_TYPE = {
-  office: "Office",
-  outside: "Outside",
-  wfh: "WFH",
-}
+const WORK_TYPE: Record<string, string> = { office: "Office", outside: "Outside", wfh: "WFH" }
 
 function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+}
+
+function ControlFlag({ hours, attendance }: { hours: number | null; attendance: string }) {
+  if (attendance !== "present") return null
+  if (hours == null) return (
+    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+      style={{ background: "rgba(255,107,87,0.1)", color: "#FF6B57" }}>
+      No hours logged
+    </span>
+  )
+  if (hours < 6) return (
+    <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+      style={{ background: "rgba(245,158,11,0.1)", color: "#F59E0B" }}>
+      <AlertTriangle size={9} /> Low ({hours}h)
+    </span>
+  )
+  return null
 }
 
 export default function ActivitiesClient({
@@ -59,55 +70,64 @@ export default function ActivitiesClient({
     router.push(`${pathname}?${params.toString()}`)
   }
 
+  const submittedIds = new Set(updates.map((u) => {
+    const user = Array.isArray(u.users) ? u.users[0] : u.users
+    return user?.id
+  }))
+  const notUpdated = memberFilter ? [] : members.filter((m) => !submittedIds.has(m.id))
+
   const presentCount = updates.filter((u) => u.attendance_status === "present").length
-  const absentCount = updates.filter((u) => u.attendance_status === "absent").length
-  const totalHours = updates.reduce((sum, u) => sum + (u.working_hours ?? 0), 0)
+  const absentCount  = updates.filter((u) => u.attendance_status === "absent").length
+  const totalHours   = updates.reduce((sum, u) => sum + (u.working_hours ?? 0), 0)
+  const lowHoursCount = updates.filter((u) => u.attendance_status === "present" && (u.working_hours ?? 0) < 6).length
 
   return (
-    <div className="p-8 max-w-[1400px]">
+    <div className="p-8 max-w-[1200px]">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <h1 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#E6EDF3" }}>
-            Activities
-          </h1>
-          <p className="text-sm mt-1 font-sans" style={{ color: "#6B7280" }}>Daily updates from all team members.</p>
-        </div>
+      <div className="mb-6">
+        <h1 className="text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+          Activities
+        </h1>
+        <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>Daily updates from all team members.</p>
       </div>
 
       {/* Summary chips */}
-      <div className="flex gap-3 mb-6">
+      <div className="flex flex-wrap gap-3 mb-6">
         {[
-          { label: "Updates", value: updates.length, color: "#6D5DF6", bg: "rgba(109,93,246,0.1)" },
-          { label: "Present", value: presentCount, color: "#10B981", bg: "rgba(16,185,129,0.1)" },
-          { label: "Absent", value: absentCount, color: "#FF6B57", bg: "rgba(255,107,87,0.1)" },
-          { label: "Total Hours", value: `${totalHours.toFixed(1)}h`, color: "#F59E0B", bg: "rgba(245,158,11,0.1)" },
+          { label: "Updates",    value: updates.length,          color: "#FFFFFF",  bg: "#262626", border: "#2A2A2A" },
+          { label: "Present",    value: presentCount,            color: "#A3E635",  bg: "rgba(163,230,53,0.06)",  border: "rgba(163,230,53,0.15)" },
+          { label: "Absent",     value: absentCount,             color: "#FF6B57",  bg: "rgba(255,107,87,0.06)",  border: "rgba(255,107,87,0.15)" },
+          { label: "Total Hours",value: `${totalHours.toFixed(1)}h`, color: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
+          { label: "Not Updated",value: notUpdated.length,        color: notUpdated.length > 0 ? "#FF6B57" : "rgba(255,255,255,0.3)", bg: notUpdated.length > 0 ? "rgba(255,107,87,0.06)" : "#262626", border: notUpdated.length > 0 ? "rgba(255,107,87,0.15)" : "#2A2A2A" },
         ].map((chip) => (
-          <div key={chip.label} className="flex items-center gap-2 px-4 py-2 rounded-xl" style={{ background: chip.bg }}>
-            <span className="text-[14px] font-bold font-sans" style={{ color: chip.color }}>{chip.value}</span>
-            <span className="text-[12px] font-sans" style={{ color: chip.color, opacity: 0.7 }}>{chip.label}</span>
+          <div key={chip.label} className="flex items-center gap-2 px-4 py-2 rounded-lg"
+            style={{ background: chip.bg, border: `1px solid ${chip.border}` }}>
+            <span className="text-[15px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: chip.color }}>{chip.value}</span>
+            <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>{chip.label}</span>
           </div>
         ))}
+        {lowHoursCount > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2 rounded-lg"
+            style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)" }}>
+            <AlertTriangle size={13} style={{ color: "#F59E0B" }} />
+            <span className="text-[11px] font-bold" style={{ color: "#F59E0B" }}>{lowHoursCount} low productivity</span>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
       <div className="flex gap-3 mb-6">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)" }}>
-          <Filter size={13} style={{ color: "#6B7280" }} />
-          <input
-            type="date"
-            value={dateFilter}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
+          style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+          <Filter size={12} style={{ color: "rgba(255,255,255,0.3)" }} />
+          <input type="date" value={dateFilter}
             onChange={(e) => navigate(e.target.value, memberFilter)}
-            className="bg-transparent text-[13px] font-sans outline-none"
-            style={{ color: "#E6EDF3", colorScheme: "dark" }}
-          />
+            className="bg-transparent text-[13px] outline-none"
+            style={{ color: "#FFFFFF", colorScheme: "dark" }} />
         </div>
-        <select
-          value={memberFilter}
-          onChange={(e) => navigate(dateFilter, e.target.value)}
-          className="px-3 py-2 rounded-xl text-[13px] font-sans outline-none"
-          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", color: "#E6EDF3", colorScheme: "dark" }}
-        >
+        <select value={memberFilter} onChange={(e) => navigate(dateFilter, e.target.value)}
+          className="px-3 py-2 rounded-lg text-[13px] outline-none"
+          style={{ background: "#262626", border: "1px solid #2A2A2A", color: "#FFFFFF", colorScheme: "dark" }}>
           <option value="">All Members</option>
           {members.map((m) => (
             <option key={m.id} value={m.id}>{m.name} ({m.employee_id})</option>
@@ -115,62 +135,102 @@ export default function ActivitiesClient({
         </select>
       </div>
 
-      {/* List */}
+      {/* Not updated members */}
+      {notUpdated.length > 0 && (
+        <div className="rounded-xl p-4 mb-5" style={{ background: "rgba(255,107,87,0.04)", border: "1px solid rgba(255,107,87,0.15)" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <UserX size={13} style={{ color: "#FF6B57" }} />
+            <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: "#FF6B57" }}>
+              Not Updated ({notUpdated.length})
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {notUpdated.map((m) => (
+              <span key={m.id} className="text-[12px] font-semibold px-3 py-1 rounded-full"
+                style={{ background: "rgba(255,107,87,0.1)", color: "#FF6B57" }}>
+                {m.name} <span style={{ opacity: 0.6 }}>#{m.employee_id}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Updates list */}
       {updates.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 rounded-2xl" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <Activity size={40} style={{ color: "rgba(255,255,255,0.1)" }} className="mb-3" />
-          <p className="text-[14px] font-semibold font-sans" style={{ color: "#6B7280" }}>No updates for this date</p>
-          <p className="text-[12px] font-sans mt-1" style={{ color: "#4B5563" }}>Team members haven't submitted their daily update yet.</p>
+        <div className="flex flex-col items-center justify-center py-24 rounded-xl"
+          style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+          <Activity size={36} style={{ color: "rgba(255,255,255,0.08)" }} className="mb-3" />
+          <p className="text-[14px] font-semibold" style={{ color: "rgba(255,255,255,0.3)" }}>No updates for this date</p>
+          <p className="text-[12px] mt-1" style={{ color: "rgba(255,255,255,0.18)" }}>Team members haven't submitted yet.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {updates.map((u) => {
-            const sc = STATUS[u.attendance_status as keyof typeof STATUS] ?? STATUS.present
-            const wt = u.work_type ? WORK_TYPE[u.work_type as keyof typeof WORK_TYPE] : null
+            const sc = ATTENDANCE_STYLE[u.attendance_status] ?? ATTENDANCE_STYLE.present
+            const wt = u.work_type ? WORK_TYPE[u.work_type] : null
             const user = Array.isArray(u.users) ? u.users[0] : u.users
+            const task = Array.isArray(u.tasks) ? u.tasks[0] : u.tasks
+
             return (
-              <div key={u.id} className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+              <div key={u.id} className="rounded-xl p-5"
+                style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
                 <div className="flex items-start gap-4">
                   {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "rgba(109,93,246,0.12)", border: "1.5px solid rgba(109,93,246,0.2)" }}>
-                    <span className="text-[12px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#6D5DF6" }}>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: "rgba(163,230,53,0.08)", border: "1px solid rgba(163,230,53,0.15)" }}>
+                    <span className="text-[11px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#A3E635" }}>
                       {user?.name ? getInitials(user.name) : "?"}
                     </span>
                   </div>
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-2">
-                      <p className="text-[14px] font-bold font-sans" style={{ color: "#E6EDF3" }}>{user?.name ?? "Unknown"}</p>
-                      <span className="text-[11px] font-sans" style={{ color: "#6B7280" }}>#{user?.employee_id}</span>
-                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full ml-auto" style={{ background: sc.bg, color: sc.text }}>{sc.label}</span>
+                    <div className="flex items-center flex-wrap gap-2 mb-2">
+                      <p className="text-[14px] font-bold" style={{ color: "#FFFFFF" }}>{user?.name ?? "Unknown"}</p>
+                      <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>#{user?.employee_id}</span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full ml-auto"
+                        style={{ background: sc.bg, color: sc.color }}>
+                        {sc.label}
+                      </span>
                       {wt && (
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", color: "#9CA3AF" }}>{wt}</span>
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                          style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.45)" }}>
+                          {wt}
+                        </span>
                       )}
+                      <ControlFlag hours={u.working_hours} attendance={u.attendance_status} />
                     </div>
 
-                    {/* Stats row */}
-                    <div className="flex gap-4 mb-2">
+                    {/* Stats */}
+                    <div className="flex flex-wrap gap-4 mb-2">
                       <div className="flex items-center gap-1.5">
-                        <Clock size={12} style={{ color: "#6B7280" }} />
-                        <span className="text-[12px] font-sans" style={{ color: "#9CA3AF" }}>
+                        <Clock size={11} style={{ color: "rgba(255,255,255,0.25)" }} />
+                        <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>
                           {u.working_hours != null ? `${u.working_hours}h work` : "—"}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <BookOpen size={12} style={{ color: "#6B7280" }} />
-                        <span className="text-[12px] font-sans" style={{ color: "#9CA3AF" }}>{u.learning_hours}h learning</span>
+                        <BookOpen size={11} style={{ color: "rgba(255,255,255,0.25)" }} />
+                        <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>{u.learning_hours}h learning</span>
                       </div>
                       {u.shoot_count > 0 && (
                         <div className="flex items-center gap-1.5">
-                          <Camera size={12} style={{ color: "#6B7280" }} />
-                          <span className="text-[12px] font-sans" style={{ color: "#9CA3AF" }}>{u.shoot_count} shoots</span>
+                          <Camera size={11} style={{ color: "rgba(255,255,255,0.25)" }} />
+                          <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>{u.shoot_count} shoots</span>
                         </div>
                       )}
                     </div>
 
+                    {/* Task link */}
+                    {task && (
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <Target size={11} style={{ color: "#A3E635" }} />
+                        <span className="text-[12px] font-semibold" style={{ color: "rgba(163,230,53,0.8)" }}>{task.title}</span>
+                      </div>
+                    )}
+
                     {u.notes && (
-                      <p className="text-[12px] font-sans px-3 py-2 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", color: "#9CA3AF" }}>
+                      <p className="text-[12px] px-3 py-2 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.45)" }}>
                         {u.notes}
                       </p>
                     )}

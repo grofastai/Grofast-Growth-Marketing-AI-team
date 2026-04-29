@@ -15,17 +15,16 @@ interface Task {
 }
 
 const PRIORITY = {
-  low: { color: "#6B7280", bg: "rgba(107,114,128,0.1)", label: "Low" },
-  medium: { color: "#F59E0B", bg: "rgba(245,158,11,0.1)", label: "Medium" },
-  high: { color: "#FF6B57", bg: "rgba(255,107,87,0.1)", label: "High" },
+  low:    { color: "rgba(255,255,255,0.35)", bg: "rgba(255,255,255,0.05)", label: "Low" },
+  medium: { color: "#F59E0B",               bg: "rgba(245,158,11,0.1)",   label: "Medium" },
+  high:   { color: "#FF6B57",               bg: "rgba(255,107,87,0.1)",   label: "High" },
 }
 
-const STATUS_TABS = [
-  { key: "all", label: "All" },
-  { key: "todo", label: "To Do" },
-  { key: "in_progress", label: "In Progress" },
-  { key: "completed", label: "Completed" },
-]
+const STATUS_DISPLAY = {
+  todo:        { icon: Circle,       color: "rgba(255,255,255,0.35)", label: "To Do" },
+  in_progress: { icon: Clock,        color: "#F59E0B",               label: "In Progress" },
+  completed:   { icon: CheckCircle2, color: "#A3E635",               label: "Done" },
+}
 
 const NEXT_STATUS: Record<string, "todo" | "in_progress" | "completed"> = {
   todo: "in_progress",
@@ -33,17 +32,18 @@ const NEXT_STATUS: Record<string, "todo" | "in_progress" | "completed"> = {
   completed: "todo",
 }
 
-const STATUS_DISPLAY = {
-  todo: { icon: Circle, color: "#6B7280", label: "To Do" },
-  in_progress: { icon: Clock, color: "#F59E0B", label: "In Progress" },
-  completed: { icon: CheckCircle2, color: "#10B981", label: "Done" },
-}
+const STATUS_TABS = [
+  { key: "all",        label: "All" },
+  { key: "todo",       label: "To Do" },
+  { key: "in_progress", label: "In Progress" },
+  { key: "completed",  label: "Completed" },
+]
 
 export default function MemberTasksClient({ tasks: initialTasks }: { tasks: Task[] }) {
   const [tasks, setTasks] = useState(initialTasks)
   const [filter, setFilter] = useState("all")
   const [movingId, setMovingId] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
 
   const displayed = filter === "all" ? tasks : tasks.filter((t) => t.status === filter)
 
@@ -57,84 +57,116 @@ export default function MemberTasksClient({ tasks: initialTasks }: { tasks: Task
     })
   }
 
+  const counts = {
+    todo:        tasks.filter(t => t.status === "todo").length,
+    in_progress: tasks.filter(t => t.status === "in_progress").length,
+    completed:   tasks.filter(t => t.status === "completed").length,
+  }
+
   return (
     <div className="p-8 max-w-[800px]">
+      {/* Header */}
       <div className="mb-6">
-        <h1 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#E6EDF3" }}>My Tasks</h1>
-        <p className="text-sm mt-1 font-sans" style={{ color: "#6B7280" }}>Tasks assigned to you across all projects.</p>
+        <h1 className="text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>My Tasks</h1>
+        <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>Tasks assigned to you. Click the icon to advance status.</p>
+      </div>
+
+      {/* Summary chips */}
+      <div className="flex gap-3 mb-6">
+        <div className="px-3 py-1.5 rounded-lg" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+          <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>To Do </span>
+          <span className="text-[13px] font-black" style={{ color: "#FFFFFF" }}>{counts.todo}</span>
+        </div>
+        <div className="px-3 py-1.5 rounded-lg" style={{ background: "#262626", border: "1px solid rgba(245,158,11,0.2)" }}>
+          <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>In Progress </span>
+          <span className="text-[13px] font-black" style={{ color: "#F59E0B" }}>{counts.in_progress}</span>
+        </div>
+        <div className="px-3 py-1.5 rounded-lg" style={{ background: "#262626", border: "1px solid rgba(163,230,53,0.2)" }}>
+          <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>Done </span>
+          <span className="text-[13px] font-black" style={{ color: "#A3E635" }}>{counts.completed}</span>
+        </div>
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-2 mb-6">
-        {STATUS_TABS.map((tab) => (
-          <button key={tab.key} onClick={() => setFilter(tab.key)}
-            className="px-4 py-2 rounded-xl text-[13px] font-semibold font-sans transition-all"
-            style={filter === tab.key
-              ? { background: "rgba(109,93,246,0.12)", color: "#6D5DF6", border: "1px solid rgba(109,93,246,0.2)" }
-              : { background: "rgba(255,255,255,0.03)", color: "#6B7280", border: "1px solid rgba(255,255,255,0.06)" }
-            }>
-            {tab.label}
-            {tab.key !== "all" && (
-              <span className="ml-1.5 text-[11px]">({tasks.filter((t) => tab.key === "all" || t.status === tab.key).length})</span>
-            )}
-          </button>
-        ))}
+      <div className="flex gap-2 mb-5">
+        {STATUS_TABS.map((tab) => {
+          const isActive = filter === tab.key
+          return (
+            <button key={tab.key} onClick={() => setFilter(tab.key)}
+              className="px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
+              style={isActive
+                ? { background: "rgba(163,230,53,0.1)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.2)" }
+                : { background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.06)" }
+              }>
+              {tab.label}
+              {tab.key !== "all" && tab.key in counts && (
+                <span className="ml-1.5 text-[11px]">({counts[tab.key as keyof typeof counts]})</span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
       {displayed.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
-          style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <Target size={40} style={{ color: "rgba(255,255,255,0.1)" }} className="mb-3" />
-          <p className="text-[14px] font-semibold font-sans" style={{ color: "#6B7280" }}>No tasks found</p>
+        <div className="flex flex-col items-center justify-center py-24 rounded-xl"
+          style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+          <Target size={36} style={{ color: "rgba(255,255,255,0.08)" }} className="mb-3" />
+          <p className="text-[14px] font-semibold" style={{ color: "rgba(255,255,255,0.3)" }}>No tasks found</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {displayed.map((task) => {
             const pr = PRIORITY[task.priority]
             const st = STATUS_DISPLAY[task.status]
             const StatusIcon = st.icon
             const project = Array.isArray(task.projects) ? task.projects[0] : task.projects
             const isMoving = movingId === task.id
+            const isDone = task.status === "completed"
 
             return (
-              <div key={task.id} className="rounded-2xl p-4 flex items-center gap-4 group"
+              <div key={task.id}
+                className="rounded-xl p-4 flex items-center gap-4 transition-all"
                 style={{
-                  background: task.status === "completed" ? "rgba(16,185,129,0.04)" : "rgba(255,255,255,0.02)",
-                  border: task.status === "completed" ? "1px solid rgba(16,185,129,0.12)" : "1px solid rgba(255,255,255,0.06)",
+                  background: isDone ? "rgba(163,230,53,0.03)" : "#262626",
+                  border: isDone ? "1px solid rgba(163,230,53,0.12)" : "1px solid #2A2A2A",
                 }}>
                 {/* Status toggle */}
                 <button onClick={() => advance(task)} disabled={isMoving}
-                  className="flex-shrink-0 transition-all hover:scale-110">
-                  {isMoving ? <Loader2 size={20} className="animate-spin" style={{ color: st.color }} /> : <StatusIcon size={20} style={{ color: st.color }} />}
+                  className="flex-shrink-0 transition-all hover:scale-110 active:scale-95">
+                  {isMoving
+                    ? <Loader2 size={20} className="animate-spin" style={{ color: st.color }} />
+                    : <StatusIcon size={20} style={{ color: st.color }} />
+                  }
                 </button>
 
                 {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <p className={`text-[14px] font-semibold font-sans ${task.status === "completed" ? "line-through" : ""}`}
-                    style={{ color: task.status === "completed" ? "#6B7280" : "#E6EDF3" }}>
+                  <p className={`text-[14px] font-semibold ${isDone ? "line-through" : ""}`}
+                    style={{ color: isDone ? "rgba(255,255,255,0.3)" : "#FFFFFF" }}>
                     {task.title}
                   </p>
                   {task.description && (
-                    <p className="text-[12px] font-sans mt-0.5 truncate" style={{ color: "#6B7280" }}>{task.description}</p>
+                    <p className="text-[12px] mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.3)" }}>{task.description}</p>
                   )}
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-3 mt-1">
                     {project && (
-                      <span className="text-[11px] font-sans" style={{ color: "#6B7280" }}>{project.business_name}</span>
+                      <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.28)" }}>{project.business_name}</span>
                     )}
                     {task.due_date && (
-                      <span className="flex items-center gap-1 text-[11px] font-sans" style={{ color: "#6B7280" }}>
+                      <span className="flex items-center gap-1 text-[11px]" style={{ color: "rgba(255,255,255,0.28)" }}>
                         <Calendar size={10} />{task.due_date}
                       </span>
                     )}
                   </div>
                 </div>
 
-                {/* Priority + Status */}
+                {/* Priority + status badges */}
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded" style={{ background: pr.bg, color: pr.color }}>
-                    {pr.label}
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: pr.bg, color: pr.color }}>
+                    {pr.label.toUpperCase()}
                   </span>
-                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.05)", color: st.color }}>
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                    style={{ background: "rgba(255,255,255,0.04)", color: st.color }}>
                     {st.label}
                   </span>
                 </div>

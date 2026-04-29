@@ -1,8 +1,17 @@
 'use server'
 
 import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+
+function adminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 const taskSchema = z.object({
   title: z.string().min(1, 'Title required'),
@@ -12,10 +21,6 @@ const taskSchema = z.object({
   priority: z.enum(['low', 'medium', 'high']).default('medium'),
   due_date: z.string().optional().nullable(),
 })
-
-function parseJwt(token: string) {
-  try { return JSON.parse(atob(token.split('.')[1])) } catch { return null }
-}
 
 export async function createTask(
   _prev: { error: string } | { success: true } | null,
@@ -34,14 +39,15 @@ export async function createTask(
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const supabase = await createServerClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { error: 'Not authenticated' }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
 
-  const claims = parseJwt(session.access_token)
-  if (!claims?.company_id) return { error: 'Missing company claim' }
+  const admin = adminSupabase()
+  const { data: profile } = await admin.from('users').select('company_id').eq('id', user.id).single()
+  if (!profile?.company_id) return { error: 'Profile not found — contact support' }
 
-  const { error } = await supabase.from('tasks').insert({
-    company_id: claims.company_id,
+  const { error } = await admin.from('tasks').insert({
+    company_id: profile.company_id,
     title: parsed.data.title,
     description: parsed.data.description || null,
     project_id: parsed.data.project_id || null,
@@ -65,8 +71,11 @@ export async function updateTaskStatus(
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
-  const { error } = await supabase.from('tasks').update({ status }).eq('id', taskId)
+
+  const admin = adminSupabase()
+  const { error } = await admin.from('tasks').update({ status }).eq('id', taskId)
   if (error) return { success: false, error: error.message }
+
   revalidatePath('/admin/goals')
   revalidatePath('/member/tasks')
   return { success: true }
@@ -76,10 +85,14 @@ export async function deleteTask(id: string): Promise<{ success: boolean; error?
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
-  const claims = parseJwt((await supabase.auth.getSession()).data.session?.access_token ?? '')
-  if (claims?.role !== 'ADMIN') return { success: false, error: 'Admin only' }
-  const { error } = await supabase.from('tasks').delete().eq('id', id)
+
+  const admin = adminSupabase()
+  const { data: profile } = await admin.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'ADMIN') return { success: false, error: 'Admin only' }
+
+  const { error } = await admin.from('tasks').delete().eq('id', id)
   if (error) return { success: false, error: error.message }
+
   revalidatePath('/admin/goals')
   revalidatePath('/member/tasks')
   return { success: true }
@@ -92,8 +105,11 @@ export async function updateTask(
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
-  const { error } = await supabase.from('tasks').update(updates).eq('id', id)
+
+  const admin = adminSupabase()
+  const { error } = await admin.from('tasks').update(updates).eq('id', id)
   if (error) return { success: false, error: error.message }
+
   revalidatePath('/admin/goals')
   revalidatePath('/member/tasks')
   return { success: true }

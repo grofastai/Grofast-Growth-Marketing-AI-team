@@ -1,3 +1,5 @@
+export const revalidate = 60
+
 import { createServerClient } from "@/lib/supabase/server"
 import { ClipboardList, Target, CalendarOff, Megaphone, CheckCircle2 } from "lucide-react"
 import Link from "next/link"

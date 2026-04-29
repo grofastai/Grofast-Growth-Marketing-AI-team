@@ -27,34 +27,62 @@ export async function loginAction(
     return { error: parsed.error.issues[0].message }
   }
 
-  // Look up email + role by employee_id — service role bypasses RLS entirely
-  const admin = adminSupabase()
-  const { data: userRecord, error: lookupError } = await admin
-    .from('users')
-    .select('email, role')
-    .eq('employee_id', parsed.data.employee_id)
-    .maybeSingle()
+  const empId = parsed.data.employee_id.toLowerCase()
+  const email = `${empId}@grofast.local`
 
-  if (lookupError || !userRecord) {
-    return { error: 'Employee ID not found. Check with your admin.' }
-  }
-  if (!userRecord.email) {
-    return { error: 'Account not fully set up. Contact your admin.' }
-  }
-
-  // Sign in with Supabase Auth
   const supabase = await createServerClient()
-  const { error: authError } = await supabase.auth.signInWithPassword({
-    email: userRecord.email,
+
+  // Try @grofast.local first (new pattern)
+  let authError: unknown = null
+  let signedIn = false
+
+  const { error: err1 } = await supabase.auth.signInWithPassword({
+    email,
     password: parsed.data.password,
   })
 
-  if (authError) {
-    return { error: 'Incorrect password. Please try again.' }
+  if (!err1) {
+    signedIn = true
+  } else {
+    // Backwards compat: fall back to real email stored in users table
+    const admin = adminSupabase()
+    const { data: userRecord } = await admin
+      .from('users')
+      .select('email')
+      .eq('employee_id', parsed.data.employee_id)
+      .maybeSingle()
+
+    if (userRecord?.email && userRecord.email !== email) {
+      const { error: err2 } = await supabase.auth.signInWithPassword({
+        email: userRecord.email,
+        password: parsed.data.password,
+      })
+      if (!err2) {
+        signedIn = true
+      } else {
+        authError = err2
+      }
+    } else {
+      authError = err1
+    }
   }
 
-  // Use role from DB — reliable even without the JWT custom hook
-  redirect(userRecord.role === 'MEMBER' ? '/member/dashboard' : '/admin/dashboard')
+  if (!signedIn) {
+    return { error: 'Incorrect Employee ID or password. Please try again.' }
+  }
+
+  // Read role from DB — reliable without JWT custom hook
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Session error. Please try again.' }
+
+  const admin = adminSupabase()
+  const { data: profile } = await admin
+    .from('users')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  redirect(profile?.role === 'MEMBER' ? '/member/dashboard' : '/admin/dashboard')
 }
 
 export async function logoutAction(): Promise<void> {

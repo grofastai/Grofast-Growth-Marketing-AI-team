@@ -52,9 +52,10 @@ export async function createMember(input: {
   if (!adminProfile?.company_id) return { success: false, error: 'Admin profile not found — contact support' }
   const company_id = adminProfile.company_id
 
-  // Use the real email for Supabase Auth — this is what the member logs in with
+  // Auth email uses @grofast.local so login works with Employee ID directly
+  const authEmail = `${input.employee_id.toLowerCase().trim()}@grofast.local`
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email: input.email,
+    email: authEmail,
     password: input.password,
     email_confirm: true,
     user_metadata: { name: input.name },
@@ -62,7 +63,7 @@ export async function createMember(input: {
 
   if (authError) {
     if (authError.message.includes('already registered')) {
-      return { success: false, error: 'This email is already registered' }
+      return { success: false, error: 'Employee ID already has an account' }
     }
     return { success: false, error: authError.message }
   }

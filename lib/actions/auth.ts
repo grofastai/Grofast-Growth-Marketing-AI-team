@@ -18,7 +18,7 @@ export async function loginAction(
   formData: FormData
 ): Promise<{ error: string } | null> {
   const raw = {
-    employee_id: formData.get('employee_id') as string,
+    employee_id: (formData.get('employee_id') as string)?.trim(),
     password: formData.get('password') as string,
   }
 
@@ -27,39 +27,34 @@ export async function loginAction(
     return { error: parsed.error.issues[0].message }
   }
 
-  // Look up the member's email by employee_id (service role bypasses RLS for login)
+  // Look up email + role by employee_id — service role bypasses RLS entirely
   const admin = adminSupabase()
-  const { data: userRecord } = await admin
+  const { data: userRecord, error: lookupError } = await admin
     .from('users')
-    .select('email')
+    .select('email, role')
     .eq('employee_id', parsed.data.employee_id)
-    .single()
+    .maybeSingle()
 
-  if (!userRecord?.email) {
-    return { error: `Employee ID "${parsed.data.employee_id}" not found or has no email. Contact your admin.` }
+  if (lookupError || !userRecord) {
+    return { error: 'Employee ID not found. Check with your admin.' }
+  }
+  if (!userRecord.email) {
+    return { error: 'Account not fully set up. Contact your admin.' }
   }
 
+  // Sign in with Supabase Auth
   const supabase = await createServerClient()
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { error: authError } = await supabase.auth.signInWithPassword({
     email: userRecord.email,
     password: parsed.data.password,
   })
 
-  if (error) {
-    return { error: `Login failed: ${error.message}` }
+  if (authError) {
+    return { error: 'Incorrect password. Please try again.' }
   }
 
-  // Read role from JWT claims injected by the custom_access_token_hook
-  const jwt = data.session?.access_token
-  let role = 'ADMIN'
-  if (jwt) {
-    try {
-      const payload = JSON.parse(atob(jwt.split('.')[1]))
-      role = payload.role ?? 'ADMIN'
-    } catch {}
-  }
-
-  redirect(role === 'MEMBER' ? '/member/dashboard' : '/admin/dashboard')
+  // Use role from DB — reliable even without the JWT custom hook
+  redirect(userRecord.role === 'MEMBER' ? '/member/dashboard' : '/admin/dashboard')
 }
 
 export async function logoutAction(): Promise<void> {

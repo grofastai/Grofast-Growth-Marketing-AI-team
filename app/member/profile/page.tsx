@@ -1,108 +1,133 @@
+export const revalidate = 60
+
 import { createServerClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
-import { Mail, Phone, Briefcase, Calendar, Shield } from "lucide-react"
-
-type ProfileRow = {
-  name: string
-  employee_id: string
-  role: string
-  email: string | null
-  phone: string | null
-  status: string
-  created_at: string
-}
+import ProfileClient from "./profile-client"
 
 export default async function ProfilePage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
+  // ── Date helpers ─────────────────────────────────────────────
+  const todayDt  = new Date()
+  const today    = todayDt.toISOString().split("T")[0]
+
+  // Last 7 days inclusive (today-6 … today)
+  const day7Start = new Date(todayDt)
+  day7Start.setDate(day7Start.getDate() - 6)
+  const sevenDaysAgo = day7Start.toISOString().split("T")[0]
+
+  // This week Mon → today
+  const dow = todayDt.getDay() // 0=Sun
+  const diffMon = dow === 0 ? -6 : 1 - dow
+  const weekMon = new Date(todayDt)
+  weekMon.setDate(todayDt.getDate() + diffMon)
+  const weekStart = weekMon.toISOString().split("T")[0]
+
+  // ── Types ─────────────────────────────────────────────────────
+  type ProfileRow = {
+    name: string; employee_id: string; role: string
+    email: string | null; phone: string | null
+    status: string; created_at: string
+  }
+  type UpdateRow  = { date: string; working_hours: number | null; shoot_count: number | null }
+
+  // ── Parallel queries ──────────────────────────────────────────
   const [
     { data: profileRaw },
-    { count: totalUpdates },
+    { data: allUpdatesRaw },
+    { count: totalCompleted },
     { count: totalLeaves },
+    { data: recentUpdatesRaw },
   ] = await Promise.all([
-    supabase.from("users").select("name, employee_id, role, email, phone, status, created_at").eq("id", user.id).single(),
-    supabase.from("daily_updates").select("*", { count: "exact", head: true }).eq("user_id", user.id),
-    supabase.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", user.id),
+    supabase
+      .from("users")
+      .select("name, employee_id, role, email, phone, status, created_at")
+      .eq("id", user.id)
+      .single(),
+    supabase
+      .from("daily_updates")
+      .select("date, working_hours, shoot_count")
+      .eq("user_id", user.id)
+      .gte("date", sevenDaysAgo)
+      .order("date", { ascending: true }),
+    supabase
+      .from("tasks")
+      .select("*", { count: "exact", head: true })
+      .eq("assigned_to", user.id)
+      .eq("status", "completed"),
+    supabase
+      .from("leaves")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id),
+    supabase
+      .from("daily_updates")
+      .select("date, working_hours, shoot_count")
+      .eq("user_id", user.id)
+      .order("date", { ascending: false })
+      .limit(5),
   ])
 
-  const profile = profileRaw as unknown as ProfileRow | null
+  const profile       = profileRaw as unknown as ProfileRow | null
+  const allUpdates    = (allUpdatesRaw ?? []) as unknown as UpdateRow[]
+  const recentUpdates = (recentUpdatesRaw ?? []) as unknown as UpdateRow[]
+
+  // ── Derived stats ─────────────────────────────────────────────
+
+  // 7-day chart data: build array for each of last 7 days
+  const sevenDayChart = Array.from({ length: 7 }).map((_, i) => {
+    const dt = new Date(day7Start)
+    dt.setDate(day7Start.getDate() + i)
+    const dateStr  = dt.toISOString().split("T")[0]
+    const dayLabel = dt.toLocaleDateString("en-US", { weekday: "short" })
+    const entry    = allUpdates.find(u => u.date === dateStr)
+    return { date: dateStr, label: dayLabel, hours: entry?.working_hours ?? 0, isFuture: dateStr > today }
+  })
+
+  // This-week updates (weekStart … today)
+  const weekUpdates = allUpdates.filter(u => u.date >= weekStart && u.date <= today)
+  const weekHours   = weekUpdates.reduce((s, u) => s + (u.working_hours ?? 0), 0)
+  const weekUpdatesDone = weekUpdates.length
+
+  // Days from weekStart to today inclusive
+  const weekDayCount = Math.round(
+    (todayDt.getTime() - weekMon.getTime()) / 86400000
+  ) + 1
+  const weekMissed = Math.max(0, weekDayCount - weekUpdatesDone)
+
+  // All-time avg hours/day (from all 7-day window that have hours logged)
+  const updatesWithHours = allUpdates.filter(u => u.working_hours != null && u.working_hours > 0)
+  const avgHours = updatesWithHours.length > 0
+    ? Math.round((updatesWithHours.reduce((s, u) => s + (u.working_hours ?? 0), 0) / updatesWithHours.length) * 10) / 10
+    : 0
 
   const joined = profile?.created_at
     ? new Date(profile.created_at).toLocaleDateString("en-US", { day: "numeric", month: "long", year: "numeric" })
     : "—"
 
   return (
-    <div className="p-8 max-w-[1100px]">
-      <div className="mb-6">
-        <h1 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#FFFFFF" }}>
-          My Profile
-        </h1>
-        <p className="text-sm mt-1 font-sans" style={{ color: "rgba(255,255,255,0.55)" }}>Your account details and activity summary.</p>
-      </div>
-
-      {/* Avatar + Name */}
-      <div className="rounded-2xl p-6 mb-4 flex items-center gap-5"
-        style={{ background: "rgba(255,107,87,0.06)", border: "1px solid rgba(255,107,87,0.15)" }}>
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0"
-          style={{ background: "rgba(255,107,87,0.15)", border: "2px solid rgba(255,107,87,0.3)" }}>
-          <span className="text-2xl font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#FF6B57" }}>
-            {profile?.name?.charAt(0)?.toUpperCase() ?? "?"}
-          </span>
-        </div>
-        <div>
-          <h2 className="text-[22px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>{profile?.name ?? "—"}</h2>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-[12px] font-semibold font-sans px-2.5 py-0.5 rounded-full"
-              style={{ background: "rgba(109,93,246,0.15)", color: "#6D5DF6" }}>
-              #{profile?.employee_id}
-            </span>
-            <span className="text-[12px] font-semibold font-sans px-2.5 py-0.5 rounded-full"
-              style={{ background: "rgba(16,185,129,0.12)", color: "#10B981" }}>
-              {profile?.role ?? "MEMBER"}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        {[
-          { label: "Daily Updates", value: totalUpdates ?? 0, color: "#6D5DF6", bg: "rgba(109,93,246,0.08)" },
-          { label: "Leave Requests", value: totalLeaves ?? 0, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
-          { label: "Status", value: profile?.status ?? "active", color: "#10B981", bg: "rgba(16,185,129,0.08)" },
-        ].map((stat) => (
-          <div key={stat.label} className="rounded-xl p-4 text-center" style={{ background: stat.bg }}>
-            <p className="text-[24px] font-black capitalize" style={{ fontFamily: "var(--font-jakarta)", color: stat.color }}>{stat.value}</p>
-            <p className="text-[11px] font-sans mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>{stat.label}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Details card */}
-      <div className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-        <h3 className="text-[13px] font-bold font-sans uppercase tracking-wider mb-4" style={{ color: "rgba(255,255,255,0.55)" }}>Account Details</h3>
-        <div className="space-y-3">
-          {[
-            { icon: Mail, label: "Email", value: profile?.email ?? user?.email ?? "—" },
-            { icon: Phone, label: "Phone", value: profile?.phone ?? "—" },
-            { icon: Briefcase, label: "Employee ID", value: `#${profile?.employee_id ?? "—"}` },
-            { icon: Shield, label: "Role", value: profile?.role ?? "MEMBER" },
-            { icon: Calendar, label: "Joined", value: joined },
-          ].map(({ icon: Icon, label, value }) => (
-            <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: "rgba(255,255,255,0.02)" }}>
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.05)" }}>
-                <Icon size={14} style={{ color: "rgba(255,255,255,0.55)" }} />
-              </div>
-              <div className="flex-1">
-                <p className="text-[10px] uppercase tracking-wider font-sans" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</p>
-                <p className="text-[13px] font-semibold font-sans capitalize" style={{ color: "#FFFFFF" }}>{value}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+    <ProfileClient
+      profile={profile ? {
+        id:          user.id,
+        name:        profile.name,
+        employee_id: profile.employee_id,
+        role:        profile.role,
+        email:       profile.email ?? user.email ?? "",
+        phone:       profile.phone ?? "",
+        status:      profile.status,
+        joined,
+      } : null}
+      stats={{
+        weekHours:    Math.round(weekHours * 10) / 10,
+        weekMissed,
+        totalCompleted: totalCompleted ?? 0,
+        totalLeaves:    totalLeaves ?? 0,
+        avgHoursPerDay: avgHours,
+      }}
+      chartData={sevenDayChart}
+      recentUpdates={recentUpdates}
+      authEmail={user.email ?? ""}
+    />
   )
 }

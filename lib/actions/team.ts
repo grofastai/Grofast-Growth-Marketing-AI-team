@@ -205,6 +205,28 @@ export async function deleteMember(id: string): Promise<{ success: boolean; erro
   return { success: true }
 }
 
+export async function updateOwnProfile(input: {
+  name: string
+  phone: string
+}): Promise<{ success: boolean; error?: string }> {
+  if (!input.name.trim()) return { success: false, error: 'Name is required' }
+
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { error } = await admin
+    .from('users')
+    .update({ name: input.name.trim(), phone: input.phone.trim() || null })
+    .eq('id', user.id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/member/profile')
+  return { success: true }
+}
+
 export async function toggleMemberStatus(
   id: string,
   status: 'active' | 'inactive'

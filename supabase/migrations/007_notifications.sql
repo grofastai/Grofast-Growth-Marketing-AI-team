@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 -- Admins can read their own company's logs; only service role can write.
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "admin_read_notifications" ON notifications;
 CREATE POLICY "admin_read_notifications" ON notifications
   FOR SELECT USING (
     company_id = (auth.jwt() ->> 'company_id')::uuid

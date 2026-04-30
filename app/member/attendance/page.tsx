@@ -9,39 +9,46 @@ export default async function AttendancePage() {
 
   const today = new Date().toISOString().split("T")[0]
 
+  // Week range: Monday → Saturday of current week
+  const nowDate  = new Date()
+  const dow      = nowDate.getDay() // 0=Sun
+  const monday   = new Date(nowDate)
+  monday.setDate(nowDate.getDate() - (dow === 0 ? 6 : dow - 1))
+  const saturday = new Date(monday)
+  saturday.setDate(monday.getDate() + 5)
+  const weekStart = monday.toISOString().split("T")[0]
+  const weekEnd   = saturday.toISOString().split("T")[0]
+
   type AttLog = {
-    id: string
-    date: string
-    clock_in: string | null
-    clock_out: string | null
-    work_type: string | null
-    status: string
+    id: string; date: string
+    clock_in: string | null; clock_out: string | null
+    work_type: string | null; status: string
+  }
+  type DailyUpdate = {
+    working_hours: number | null
+    learning_hours: number | null
+    shoot_count: number | null
   }
 
-  const [{ data: todayLogRaw }, { data: historyRaw }] = await Promise.all([
-    supabase
-      .from("attendance_logs")
+  const [{ data: todayLogRaw }, { data: weekLogsRaw }, { data: todayUpdateRaw }] = await Promise.all([
+    supabase.from("attendance_logs")
       .select("id, date, clock_in, clock_out, work_type, status")
-      .eq("user_id", user.id)
-      .eq("date", today)
-      .maybeSingle(),
-    supabase
-      .from("attendance_logs")
+      .eq("user_id", user.id).eq("date", today).maybeSingle(),
+    supabase.from("attendance_logs")
       .select("id, date, clock_in, clock_out, work_type, status")
-      .eq("user_id", user.id)
-      .neq("date", today)
-      .order("date", { ascending: false })
-      .limit(14),
+      .eq("user_id", user.id).gte("date", weekStart).lte("date", weekEnd),
+    supabase.from("daily_updates")
+      .select("working_hours, learning_hours, shoot_count")
+      .eq("user_id", user.id).eq("date", today).maybeSingle(),
   ])
-
-  const todayLog = todayLogRaw as unknown as AttLog | null
-  const history = (historyRaw ?? []) as unknown as AttLog[]
 
   return (
     <AttendanceClient
-      todayLog={todayLog}
-      history={history}
+      todayLog={todayLogRaw as unknown as AttLog | null}
+      weekLogs={(weekLogsRaw ?? []) as unknown as AttLog[]}
+      todayUpdate={todayUpdateRaw as unknown as DailyUpdate | null}
       today={today}
+      weekStart={weekStart}
     />
   )
 }

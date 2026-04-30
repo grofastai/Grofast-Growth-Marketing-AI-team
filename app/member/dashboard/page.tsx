@@ -77,7 +77,7 @@ export default async function MemberDashboardPage() {
   }
 
   return (
-    <div className="p-8 max-w-[860px]">
+    <div className="p-8 max-w-[1100px]">
 
       {/* ── 1. Header ── */}
       <div className="mb-7">

@@ -15,13 +15,13 @@ interface Task {
 }
 
 const PRIORITY = {
-  low:    { color: "rgba(255,255,255,0.35)", bg: "rgba(255,255,255,0.05)", label: "Low" },
+  low:    { color: "rgba(255,255,255,0.55)", bg: "rgba(255,255,255,0.05)", label: "Low" },
   medium: { color: "#F59E0B",               bg: "rgba(245,158,11,0.1)",   label: "Medium" },
   high:   { color: "#FF6B57",               bg: "rgba(255,107,87,0.1)",   label: "High" },
 }
 
 const STATUS_DISPLAY = {
-  todo:        { icon: Circle,       color: "rgba(255,255,255,0.35)", label: "To Do" },
+  todo:        { icon: Circle,       color: "rgba(255,255,255,0.55)", label: "To Do" },
   in_progress: { icon: Clock,        color: "#F59E0B",               label: "In Progress" },
   completed:   { icon: CheckCircle2, color: "#A3E635",               label: "Done" },
 }
@@ -64,25 +64,25 @@ export default function MemberTasksClient({ tasks: initialTasks }: { tasks: Task
   }
 
   return (
-    <div className="p-8 max-w-[800px]">
+    <div className="p-8 max-w-[1100px]">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>My Tasks</h1>
-        <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>Tasks assigned to you. Click the icon to advance status.</p>
+        <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.55)" }}>Tasks assigned to you. Click the icon to advance status.</p>
       </div>
 
       {/* Summary chips */}
       <div className="flex gap-3 mb-6">
         <div className="px-3 py-1.5 rounded-lg" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
-          <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>To Do </span>
+          <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.55)" }}>To Do </span>
           <span className="text-[13px] font-black" style={{ color: "#FFFFFF" }}>{counts.todo}</span>
         </div>
         <div className="px-3 py-1.5 rounded-lg" style={{ background: "#262626", border: "1px solid rgba(245,158,11,0.2)" }}>
-          <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>In Progress </span>
+          <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.55)" }}>In Progress </span>
           <span className="text-[13px] font-black" style={{ color: "#F59E0B" }}>{counts.in_progress}</span>
         </div>
         <div className="px-3 py-1.5 rounded-lg" style={{ background: "#262626", border: "1px solid rgba(163,230,53,0.2)" }}>
-          <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>Done </span>
+          <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.55)" }}>Done </span>
           <span className="text-[13px] font-black" style={{ color: "#A3E635" }}>{counts.completed}</span>
         </div>
       </div>
@@ -150,10 +150,10 @@ export default function MemberTasksClient({ tasks: initialTasks }: { tasks: Task
                   )}
                   <div className="flex items-center gap-3 mt-1">
                     {project && (
-                      <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.28)" }}>{project.business_name}</span>
+                      <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>{project.business_name}</span>
                     )}
                     {task.due_date && (
-                      <span className="flex items-center gap-1 text-[11px]" style={{ color: "rgba(255,255,255,0.28)" }}>
+                      <span className="flex items-center gap-1 text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>
                         <Calendar size={10} />{task.due_date}
                       </span>
                     )}

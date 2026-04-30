@@ -34,12 +34,12 @@ export default async function ProfilePage() {
     : "—"
 
   return (
-    <div className="p-8 max-w-[700px]">
+    <div className="p-8 max-w-[1100px]">
       <div className="mb-6">
-        <h1 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#E6EDF3" }}>
+        <h1 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#FFFFFF" }}>
           My Profile
         </h1>
-        <p className="text-sm mt-1 font-sans" style={{ color: "#6B7280" }}>Your account details and activity summary.</p>
+        <p className="text-sm mt-1 font-sans" style={{ color: "rgba(255,255,255,0.55)" }}>Your account details and activity summary.</p>
       </div>
 
       {/* Avatar + Name */}
@@ -52,7 +52,7 @@ export default async function ProfilePage() {
           </span>
         </div>
         <div>
-          <h2 className="text-[22px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#E6EDF3" }}>{profile?.name ?? "—"}</h2>
+          <h2 className="text-[22px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>{profile?.name ?? "—"}</h2>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-[12px] font-semibold font-sans px-2.5 py-0.5 rounded-full"
               style={{ background: "rgba(109,93,246,0.15)", color: "#6D5DF6" }}>
@@ -75,14 +75,14 @@ export default async function ProfilePage() {
         ].map((stat) => (
           <div key={stat.label} className="rounded-xl p-4 text-center" style={{ background: stat.bg }}>
             <p className="text-[24px] font-black capitalize" style={{ fontFamily: "var(--font-jakarta)", color: stat.color }}>{stat.value}</p>
-            <p className="text-[11px] font-sans mt-0.5" style={{ color: "#6B7280" }}>{stat.label}</p>
+            <p className="text-[11px] font-sans mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>{stat.label}</p>
           </div>
         ))}
       </div>
 
       {/* Details card */}
       <div className="rounded-2xl p-5" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-        <h3 className="text-[13px] font-bold font-sans uppercase tracking-wider mb-4" style={{ color: "#6B7280" }}>Account Details</h3>
+        <h3 className="text-[13px] font-bold font-sans uppercase tracking-wider mb-4" style={{ color: "rgba(255,255,255,0.55)" }}>Account Details</h3>
         <div className="space-y-3">
           {[
             { icon: Mail, label: "Email", value: profile?.email ?? user?.email ?? "—" },
@@ -93,11 +93,11 @@ export default async function ProfilePage() {
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: "rgba(255,255,255,0.02)" }}>
               <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.05)" }}>
-                <Icon size={14} style={{ color: "#6B7280" }} />
+                <Icon size={14} style={{ color: "rgba(255,255,255,0.55)" }} />
               </div>
               <div className="flex-1">
-                <p className="text-[10px] uppercase tracking-wider font-sans" style={{ color: "#4B5563" }}>{label}</p>
-                <p className="text-[13px] font-semibold font-sans capitalize" style={{ color: "#E6EDF3" }}>{value}</p>
+                <p className="text-[10px] uppercase tracking-wider font-sans" style={{ color: "rgba(255,255,255,0.4)" }}>{label}</p>
+                <p className="text-[13px] font-semibold font-sans capitalize" style={{ color: "#FFFFFF" }}>{value}</p>
               </div>
             </div>
           ))}

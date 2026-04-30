@@ -30,20 +30,20 @@ export default async function MemberAnnouncementsPage() {
   const announcements = (raw ?? []) as unknown as AnnouncementRow[]
 
   return (
-    <div className="p-8 max-w-[800px]">
+    <div className="p-8 max-w-[1100px]">
       <div className="mb-6">
-        <h1 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#E6EDF3" }}>
+        <h1 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#FFFFFF" }}>
           Announcements
         </h1>
-        <p className="text-sm mt-1 font-sans" style={{ color: "#6B7280" }}>Updates and notices from your team.</p>
+        <p className="text-sm mt-1 font-sans" style={{ color: "rgba(255,255,255,0.55)" }}>Updates and notices from your team.</p>
       </div>
 
       {announcements.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
           style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
           <Megaphone size={40} style={{ color: "rgba(255,255,255,0.1)" }} className="mb-3" />
-          <p className="text-[14px] font-semibold font-sans" style={{ color: "#6B7280" }}>No announcements yet</p>
-          <p className="text-[12px] font-sans mt-1" style={{ color: "#4B5563" }}>Your admin will post updates here.</p>
+          <p className="text-[14px] font-semibold font-sans" style={{ color: "rgba(255,255,255,0.55)" }}>No announcements yet</p>
+          <p className="text-[12px] font-sans mt-1" style={{ color: "rgba(255,255,255,0.38)" }}>Your admin will post updates here.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -68,10 +68,10 @@ export default async function MemberAnnouncementsPage() {
                           <Pin size={9} /> Pinned
                         </span>
                       )}
-                      <h3 className="text-[15px] font-bold font-sans" style={{ color: "#E6EDF3" }}>{ann.title}</h3>
+                      <h3 className="text-[15px] font-bold font-sans" style={{ color: "#FFFFFF" }}>{ann.title}</h3>
                     </div>
-                    <p className="text-[13px] font-sans leading-relaxed mb-2" style={{ color: "#9CA3AF" }}>{ann.message}</p>
-                    <p className="text-[11px] font-sans" style={{ color: "#6B7280" }}>
+                    <p className="text-[13px] font-sans leading-relaxed mb-2" style={{ color: "rgba(255,255,255,0.65)" }}>{ann.message}</p>
+                    <p className="text-[11px] font-sans" style={{ color: "rgba(255,255,255,0.55)" }}>
                       By {creator?.name ?? "Admin"} · {timeAgo(ann.created_at)}
                     </p>
                   </div>

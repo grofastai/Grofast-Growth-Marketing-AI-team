@@ -16,7 +16,7 @@ export default async function MemberDashboardPage() {
   type UpdateRow = { attendance_status: string; work_type: string | null; working_hours: number | null; learning_hours: number }
   type AnnRow = { id: string; title: string; message: string; pinned: boolean; created_at: string }
   type TaskRow = { id: string; title: string; status: string; priority: string; due_date: string | null }
-  type AttLog = { clock_in: string | null; clock_out: string | null }
+  type AttLog = { clock_in: string | null; clock_out: string | null; work_type: string | null; status: string }
 
   const [
     { data: profileRaw },
@@ -33,7 +33,7 @@ export default async function MemberDashboardPage() {
     supabase.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "pending"),
     supabase.from("announcements").select("id, title, message, pinned, created_at").order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(3),
     supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", user.id).neq("status", "completed").order("due_date", { ascending: true }).limit(5),
-    supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", user.id).eq("date", today).maybeSingle(),
+    supabase.from("attendance_logs").select("clock_in, clock_out, work_type, status").eq("user_id", user.id).eq("date", today).maybeSingle(),
   ])
 
   const profile = profileRaw as unknown as ProfileRow | null
@@ -74,6 +74,8 @@ export default async function MemberDashboardPage() {
         <ClockWidget
           clockInTime={clockLog?.clock_in ?? null}
           clockOutTime={clockLog?.clock_out ?? null}
+          workType={(clockLog?.work_type as 'wfh' | 'office' | null) ?? null}
+          attendanceStatus={(clockLog?.status as 'present' | 'absent' | null) ?? null}
         />
       </div>
 

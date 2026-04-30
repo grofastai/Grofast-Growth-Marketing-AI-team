@@ -22,14 +22,13 @@ async function getUserContext() {
   return { userId: user.id, companyId: data.company_id as string }
 }
 
-export async function clockIn(): Promise<{ success: boolean; error?: string }> {
+export async function clockIn(workType: 'wfh' | 'office'): Promise<{ success: boolean; error?: string }> {
   const ctx = await getUserContext()
   if (!ctx) return { success: false, error: 'Not authenticated' }
 
   const today = new Date().toISOString().split('T')[0]
   const admin = adminSupabase()
 
-  // Prevent double clock-in
   const { data: existing } = await admin
     .from('attendance_logs')
     .select('id')
@@ -38,13 +37,45 @@ export async function clockIn(): Promise<{ success: boolean; error?: string }> {
     .eq('date', today)
     .single()
 
-  if (existing) return { success: false, error: 'Already clocked in today' }
+  if (existing) return { success: false, error: 'Already logged attendance today' }
 
   const { error } = await admin.from('attendance_logs').insert({
     company_id: ctx.companyId,
     user_id: ctx.userId,
     date: today,
     clock_in: new Date().toISOString(),
+    work_type: workType,
+    status: 'present',
+  })
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/dashboard')
+  revalidatePath('/admin/attendance')
+  return { success: true }
+}
+
+export async function markAbsent(): Promise<{ success: boolean; error?: string }> {
+  const ctx = await getUserContext()
+  if (!ctx) return { success: false, error: 'Not authenticated' }
+
+  const today = new Date().toISOString().split('T')[0]
+  const admin = adminSupabase()
+
+  const { data: existing } = await admin
+    .from('attendance_logs')
+    .select('id')
+    .eq('company_id', ctx.companyId)
+    .eq('user_id', ctx.userId)
+    .eq('date', today)
+    .single()
+
+  if (existing) return { success: false, error: 'Already logged attendance today' }
+
+  const { error } = await admin.from('attendance_logs').insert({
+    company_id: ctx.companyId,
+    user_id: ctx.userId,
+    date: today,
+    status: 'absent',
   })
 
   if (error) return { success: false, error: error.message }

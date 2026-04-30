@@ -3,12 +3,13 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  LayoutDashboard, ClipboardList, Target, CalendarOff, Megaphone, User, LogOut,
+  LayoutDashboard, ClipboardList, Target, CalendarOff, Megaphone, User, LogOut, Clock,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
 const navItems = [
   { label: "Dashboard",     href: "/member/dashboard",      icon: LayoutDashboard },
+  { label: "Attendance",    href: "/member/attendance",     icon: Clock },
   { label: "Daily Update",  href: "/member/update",         icon: ClipboardList },
   { label: "My Tasks",      href: "/member/tasks",          icon: Target },
   { label: "Leaves",        href: "/member/leaves",         icon: CalendarOff },

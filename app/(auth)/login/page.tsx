@@ -87,7 +87,7 @@ export default function LoginPage() {
               Welcome back
             </h2>
             <p className="text-[13px]" style={{ color: 'rgba(255,255,255,0.38)' }}>
-              Sign in with your Employee ID and password
+              Sign in with your email and password
             </p>
           </div>
 
@@ -98,19 +98,19 @@ export default function LoginPage() {
 
           <form action={action} className="space-y-4">
 
-            {/* Employee ID */}
+            {/* Email */}
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
                 style={{ color: 'rgba(255,255,255,0.3)' }}>
-                Employee ID
+                Email
               </label>
               <input
                 className="login-input"
-                name="employee_id"
-                type="text"
-                placeholder="e.g. GF001"
+                name="email"
+                type="email"
+                placeholder="you@example.com"
                 required
-                autoComplete="username"
+                autoComplete="email"
                 autoCapitalize="none"
                 style={inputStyle}
               />

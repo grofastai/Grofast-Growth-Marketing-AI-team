@@ -1,8 +1,19 @@
 export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
-import { Users, FolderOpen, Target, CalendarCheck, Clock, CheckCircle2 } from "lucide-react"
+import { createClient } from "@supabase/supabase-js"
+import { Users, FolderOpen, Target, CalendarCheck, Clock, CheckCircle2, AlertTriangle, ExternalLink } from "lucide-react"
 import Link from "next/link"
+import { getAlerts } from "@/lib/alerts"
+import type { AlertSummary } from "@/lib/alerts"
+
+function adminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 type UpdateRow = {
   attendance_status: string
@@ -17,9 +28,83 @@ type LeaveRow = {
   users: { name: string; employee_id: string } | null
 }
 
+// ── Alert Strip ─────────────────────────────────────────────────────────────
+
+function AlertStrip({ alerts, updatedAt }: { alerts: AlertSummary; updatedAt: string }) {
+  if (alerts.total === 0) return null
+
+  // Severity order: projects (critical) → tasks (critical) → members (warning)
+  const chips: { label: string; color: string; bg: string; border: string; href: string }[] = []
+
+  if (alerts.overdueProjectCount > 0) {
+    chips.push({
+      label: `${alerts.overdueProjectCount} project${alerts.overdueProjectCount !== 1 ? "s" : ""} delayed`,
+      color: "#FF6B57",
+      bg: "rgba(255,107,87,0.08)",
+      border: "rgba(255,107,87,0.2)",
+      href: "/admin/projects",
+    })
+  }
+
+  if (alerts.overdueTaskCount > 0) {
+    chips.push({
+      label: `${alerts.overdueTaskCount} task${alerts.overdueTaskCount !== 1 ? "s" : ""} overdue`,
+      color: "#FF6B57",
+      bg: "rgba(255,107,87,0.08)",
+      border: "rgba(255,107,87,0.2)",
+      href: "/admin/goals",
+    })
+  }
+
+  if (alerts.notUpdatedCount > 0) {
+    const names = alerts.notUpdatedNames.join(", ")
+    const extra = alerts.notUpdatedCount > 3 ? ` +${alerts.notUpdatedCount - 3} more` : ""
+    chips.push({
+      label: `${alerts.notUpdatedCount} didn't update — ${names}${extra}`,
+      color: "#F59E0B",
+      bg: "rgba(245,158,11,0.08)",
+      border: "rgba(245,158,11,0.2)",
+      href: "/admin/activities",
+    })
+  }
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap mb-6 px-4 py-3 rounded-xl"
+      style={{ background: "#1A1A1A", border: "1px solid #2A2A2A" }}>
+      <AlertTriangle size={13} style={{ color: "#F59E0B", flexShrink: 0 }} />
+      <span className="text-[11px] font-bold uppercase tracking-wider mr-1"
+        style={{ color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>
+        Alerts
+      </span>
+      {chips.map((chip) => (
+        <Link key={chip.href} href={chip.href}
+          className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold transition-opacity hover:opacity-80"
+          style={{ background: chip.bg, border: `1px solid ${chip.border}`, color: chip.color }}>
+          {chip.label}
+        </Link>
+      ))}
+      <span className="ml-auto text-[10px] flex-shrink-0" style={{ color: "rgba(255,255,255,0.18)" }}>
+        Updated {updatedAt}
+      </span>
+    </div>
+  )
+}
+
+// ── Page ────────────────────────────────────────────────────────────────────
+
 export default async function DashboardPage() {
   const supabase = await createServerClient()
   const today = new Date().toISOString().split("T")[0]
+
+  // Get company_id for the alert queries
+  const { data: { user } } = await supabase.auth.getUser()
+  const admin = adminSupabase()
+  const { data: profile } = await admin
+    .from("users")
+    .select("company_id")
+    .eq("id", user!.id)
+    .single()
+  const companyId = profile?.company_id as string | undefined
 
   const [
     { count: presentToday },
@@ -28,6 +113,7 @@ export default async function DashboardPage() {
     { count: pendingLeaves },
     { data: recentUpdatesRaw },
     { data: recentLeavesRaw },
+    alerts,
   ] = await Promise.all([
     supabase.from("daily_updates").select("*", { count: "exact", head: true }).eq("date", today).eq("attendance_status", "present"),
     supabase.from("tasks").select("*", { count: "exact", head: true }).neq("status", "completed"),
@@ -35,6 +121,7 @@ export default async function DashboardPage() {
     supabase.from("leaves").select("*", { count: "exact", head: true }).eq("status", "pending"),
     supabase.from("daily_updates").select("attendance_status, work_type, working_hours, users(name, employee_id)").eq("date", today).order("created_at", { ascending: false }).limit(5),
     supabase.from("leaves").select("from_date, to_date, reason, status, users(name, employee_id)").eq("status", "pending").order("created_at", { ascending: false }).limit(5),
+    companyId ? getAlerts(companyId) : Promise.resolve({ notUpdatedCount: 0, notUpdatedNames: [], overdueTaskCount: 0, overdueProjectCount: 0, total: 0 }),
   ])
 
   const recentUpdates = (recentUpdatesRaw ?? []) as unknown as UpdateRow[]
@@ -44,6 +131,7 @@ export default async function DashboardPage() {
   const hour = now.getHours()
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
   const dateStr = now.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+  const updatedAt = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
 
   const metrics = [
     { label: "Present Today",  value: presentToday ?? 0,  icon: Users },
@@ -75,6 +163,9 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* Alert Strip */}
+      <AlertStrip alerts={alerts} updatedAt={updatedAt} />
 
       {/* Metrics */}
       <div className="grid grid-cols-4 gap-3 mb-5">

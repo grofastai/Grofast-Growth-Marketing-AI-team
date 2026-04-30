@@ -4,22 +4,64 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 
-function parseCompanyId(accessToken: string): string | null {
-  try {
-    const payload = accessToken.split('.')[1]
-    const claims = JSON.parse(atob(payload))
-    return claims.company_id ?? null
-  } catch {
-    return null
-  }
-}
-
 function adminSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
+}
+
+async function notifyWhatsApp(
+  payload: { name: string; email: string; employee_id: string; phone: string; loginLink: string },
+  meta: { companyId: string; userId: string }
+) {
+  const url = process.env.N8N_WEBHOOK_URL
+  if (!url) return
+
+  const admin = adminSupabase()
+  let status: 'sent' | 'failed' = 'sent'
+  let providerRef: string | null = null
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(process.env.N8N_WEBHOOK_SECRET
+          ? { 'x-webhook-secret': process.env.N8N_WEBHOOK_SECRET }
+          : {}),
+      },
+      body: JSON.stringify(payload),
+    })
+    if (!res.ok) {
+      status = 'failed'
+    } else {
+      // Capture provider reference (e.g. n8n execution ID) for delivery tracing
+      try {
+        const json = await res.json()
+        providerRef = json?.executionId ?? json?.id ?? null
+      } catch { /* response body not required */ }
+    }
+  } catch (err) {
+    status = 'failed'
+    console.error('[notifyWhatsApp] fetch failed:', err)
+  }
+
+  // Log attempt + stamp type-specific cooldown column
+  await Promise.all([
+    admin.from('notifications').insert({
+      company_id: meta.companyId,
+      user_id: meta.userId,
+      type: 'whatsapp_onboarding',
+      status,
+      phone: payload.phone,
+      provider_ref: providerRef,
+    }),
+    admin.from('users')
+      .update({ last_onboarding_notified_at: new Date().toISOString() })
+      .eq('id', meta.userId),
+  ])
 }
 
 export async function createMember(input: {
@@ -52,10 +94,8 @@ export async function createMember(input: {
   if (!adminProfile?.company_id) return { success: false, error: 'Admin profile not found — contact support' }
   const company_id = adminProfile.company_id
 
-  // Auth email uses @grofast.local so login works with Employee ID directly
-  const authEmail = `${input.employee_id.toLowerCase().trim()}@grofast.local`
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
-    email: authEmail,
+    email: input.email,
     password: input.password,
     email_confirm: true,
     user_metadata: { name: input.name },
@@ -63,7 +103,7 @@ export async function createMember(input: {
 
   if (authError) {
     if (authError.message.includes('already registered')) {
-      return { success: false, error: 'Employee ID already has an account' }
+      return { success: false, error: 'This email is already registered' }
     }
     return { success: false, error: authError.message }
   }
@@ -77,11 +117,48 @@ export async function createMember(input: {
     phone: input.phone || null,
     email: input.email,
     status: 'active',
+    must_change_password: true,
   })
 
   if (insertError) {
     await admin.auth.admin.deleteUser(authData.user.id)
     return { success: false, error: insertError.message }
+  }
+
+  // Per-type cooldown: skip if an onboarding notification was sent in the last 60 seconds
+  const { data: existingUser } = await admin
+    .from('users')
+    .select('last_onboarding_notified_at')
+    .eq('id', authData.user.id)
+    .single()
+
+  const lastNotified = existingUser?.last_onboarding_notified_at
+    ? new Date(existingUser.last_onboarding_notified_at).getTime()
+    : 0
+  const recentlySent = Date.now() - lastNotified < 60_000
+
+  if (input.phone && !recentlySent) {
+    // Server-only env — never exposed to the browser
+    const appUrl = process.env.APP_BASE_URL?.replace(/\/$/, '') ?? ''
+    let loginLink = `${appUrl}/login`
+
+    try {
+      const { data: linkData } = await admin.auth.admin.generateLink({
+        type: 'magiclink',
+        email: input.email,
+      })
+      if (linkData?.properties?.action_link) {
+        loginLink = linkData.properties.action_link
+      }
+    } catch {
+      // non-fatal: falls back to plain login URL
+    }
+
+    const cleanPhone = input.phone.replace(/\D/g, '')
+    notifyWhatsApp(
+      { name: input.name, email: input.email, employee_id: input.employee_id, phone: cleanPhone, loginLink },
+      { companyId: company_id, userId: authData.user.id }
+    ).catch(() => {})
   }
 
   revalidatePath('/admin/team')

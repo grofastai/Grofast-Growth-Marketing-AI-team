@@ -3,7 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
-import { loginSchema } from '@/lib/validations/auth'
+import { loginSchema, changePasswordSchema } from '@/lib/validations/auth'
 
 function adminSupabase() {
   return createClient(
@@ -18,7 +18,7 @@ export async function loginAction(
   formData: FormData
 ): Promise<{ error: string } | null> {
   const raw = {
-    employee_id: (formData.get('employee_id') as string)?.trim(),
+    email: (formData.get('email') as string)?.trim(),
     password: formData.get('password') as string,
   }
 
@@ -27,62 +27,63 @@ export async function loginAction(
     return { error: parsed.error.issues[0].message }
   }
 
-  const empId = parsed.data.employee_id.toLowerCase()
-  const email = `${empId}@grofast.local`
-
   const supabase = await createServerClient()
 
-  // Try @grofast.local first (new pattern)
-  let authError: unknown = null
-  let signedIn = false
-
-  const { error: err1 } = await supabase.auth.signInWithPassword({
-    email,
+  const { error } = await supabase.auth.signInWithPassword({
+    email: parsed.data.email,
     password: parsed.data.password,
   })
 
-  if (!err1) {
-    signedIn = true
-  } else {
-    // Backwards compat: fall back to real email stored in users table
-    const admin = adminSupabase()
-    const { data: userRecord } = await admin
-      .from('users')
-      .select('email')
-      .eq('employee_id', parsed.data.employee_id)
-      .maybeSingle()
-
-    if (userRecord?.email && userRecord.email !== email) {
-      const { error: err2 } = await supabase.auth.signInWithPassword({
-        email: userRecord.email,
-        password: parsed.data.password,
-      })
-      if (!err2) {
-        signedIn = true
-      } else {
-        authError = err2
-      }
-    } else {
-      authError = err1
-    }
+  if (error) {
+    return { error: 'Invalid email or password. Please try again.' }
   }
 
-  if (!signedIn) {
-    return { error: 'Incorrect Employee ID or password. Please try again.' }
-  }
-
-  // Read role from DB — reliable without JWT custom hook
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Session error. Please try again.' }
 
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users')
-    .select('role')
+    .select('role, must_change_password')
     .eq('id', user.id)
     .maybeSingle()
 
+  if (profile?.must_change_password) {
+    redirect('/change-password')
+  }
+
   redirect(profile?.role === 'MEMBER' ? '/member/dashboard' : '/admin/dashboard')
+}
+
+export async function changePasswordAction(
+  _prev: { error: string } | null,
+  formData: FormData
+): Promise<{ error: string } | null> {
+  const raw = {
+    password: formData.get('password') as string,
+    confirm: formData.get('confirm') as string,
+  }
+
+  const parsed = changePasswordSchema.safeParse(raw)
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message }
+  }
+
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const { error: pwError } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  })
+  if (pwError) return { error: pwError.message }
+
+  const admin = adminSupabase()
+  await admin.from('users').update({ must_change_password: false }).eq('id', user.id)
+
+  // Sign out so the next login starts a clean session with the new password
+  await supabase.auth.signOut()
+  redirect('/login')
 }
 
 export async function logoutAction(): Promise<void> {

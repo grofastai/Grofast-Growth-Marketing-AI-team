@@ -19,11 +19,12 @@ export default async function MemberLayout({ children }: { children: React.React
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from("users")
-    .select("name, employee_id, role")
+    .select("name, employee_id, role, must_change_password")
     .eq("id", user.id)
     .single()
 
   if (profile?.role === "ADMIN") redirect("/admin/dashboard")
+  if (profile?.must_change_password) redirect("/change-password")
 
   return (
     <div className="flex min-h-screen bg-bg">

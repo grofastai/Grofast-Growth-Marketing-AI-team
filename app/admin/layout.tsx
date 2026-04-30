@@ -19,11 +19,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from("users")
-    .select("role")
+    .select("role, must_change_password")
     .eq("id", user.id)
     .single()
 
   if (profile?.role !== "ADMIN") redirect("/member/dashboard")
+  if (profile?.must_change_password) redirect("/change-password")
 
   return (
     <div className="flex min-h-screen bg-bg">

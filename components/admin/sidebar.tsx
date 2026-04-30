@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, Users, Clock, Target, Activity,
-  CalendarOff, Megaphone, Briefcase, LogOut,
+  CalendarOff, Megaphone, Briefcase, LogOut, BarChart2,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
@@ -15,6 +15,7 @@ const navItems = [
   { label: "Tasks",         href: "/admin/goals",         icon: Target },
   { label: "Clients",       href: "/admin/clients",       icon: Briefcase },
   { label: "Activities",    href: "/admin/activities",    icon: Activity },
+  { label: "Reports",       href: "/admin/reports",       icon: BarChart2 },
   { label: "Leaves",        href: "/admin/leaves",        icon: CalendarOff },
   { label: "Announcements", href: "/admin/announcements", icon: Megaphone },
 ]

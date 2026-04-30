@@ -1,10 +1,11 @@
 "use client"
 
 import { useState, useMemo, useTransition } from "react"
+import Link from "next/link"
 import {
   Search, Plus, FolderOpen, CheckCircle2, Clock, PauseCircle,
   MoreVertical, MapPin, CalendarDays, X, Pencil, Trash2,
-  Loader2, User, Briefcase, ChevronDown, Target, AlertTriangle,
+  Loader2, User, Briefcase, ChevronDown, Target, AlertTriangle, ArrowRight,
 } from "lucide-react"
 import { createProject, updateProject, deleteProject } from "@/lib/actions/projects"
 
@@ -521,6 +522,13 @@ export default function ProjectsClient({
                     />
                   </div>
                 </div>
+
+                {/* View Details */}
+                <Link href={`/admin/clients/${project.id}`}
+                  className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg text-[12px] font-semibold transition-all hover:opacity-80"
+                  style={{ background: "rgba(163,230,53,0.07)", border: "1px solid rgba(163,230,53,0.15)", color: "#A3E635" }}>
+                  View Details <ArrowRight size={12} />
+                </Link>
               </div>
             )
           })}

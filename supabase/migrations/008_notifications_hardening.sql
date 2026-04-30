@@ -8,7 +8,25 @@ ALTER TABLE users
 ALTER TABLE notifications
   ADD COLUMN IF NOT EXISTS provider_ref text;
 
--- 3. Deduplication index — prevents double-inserts within the same minute for the same user+type
---    (safe to create even if 007 migration already added some rows)
+-- 3. Deduplication via minute_bucket column + unique index.
+--    date_trunc('minute', timestamptz) is STABLE (timezone-dependent), not IMMUTABLE,
+--    so it cannot be used directly in an index expression. Instead we store the truncated
+--    value in a plain column populated by a BEFORE INSERT trigger.
+ALTER TABLE notifications
+  ADD COLUMN IF NOT EXISTS minute_bucket timestamptz;
+
+CREATE OR REPLACE FUNCTION notifications_set_minute_bucket()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  NEW.minute_bucket := date_trunc('minute', NEW.created_at);
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS set_minute_bucket ON notifications;
+CREATE TRIGGER set_minute_bucket
+  BEFORE INSERT ON notifications
+  FOR EACH ROW EXECUTE FUNCTION notifications_set_minute_bucket();
+
 CREATE UNIQUE INDEX IF NOT EXISTS uniq_notifications_dedupe
-  ON notifications (user_id, type, date_trunc('minute', created_at));
+  ON notifications (user_id, type, minute_bucket);

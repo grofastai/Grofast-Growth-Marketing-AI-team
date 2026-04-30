@@ -10,10 +10,20 @@ export default async function UpdatePage() {
 
   const today = new Date().toISOString().split("T")[0]
 
-  const [{ data: existing }, { data: myTasks }] = await Promise.all([
+  type ExistingUpdate = {
+    attendance_status: string | null
+    working_hours: number | null
+    learning_hours: number | null
+    shoot_count: number | null
+    tasks: { title: string } | null
+  }
+
+  const [{ data: existingRaw }, { data: myTasks }] = await Promise.all([
     supabase.from("daily_updates").select("attendance_status, working_hours, learning_hours, shoot_count, tasks(title)").eq("user_id", user.id).eq("date", today).maybeSingle(),
     supabase.from("tasks").select("id, title, status").eq("assigned_to", user.id).neq("status", "completed").order("status"),
   ])
+
+  const existing = existingRaw as ExistingUpdate | null
 
   const dateStr = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
 

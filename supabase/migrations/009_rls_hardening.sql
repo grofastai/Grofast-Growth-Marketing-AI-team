@@ -6,7 +6,11 @@
 -- ============================================================
 
 -- ── tasks ─────────────────────────────────────────────────────
-DROP POLICY IF EXISTS "tenant_tasks" ON tasks;
+DROP POLICY IF EXISTS "tenant_tasks"  ON tasks;
+DROP POLICY IF EXISTS "tasks_select"  ON tasks;
+DROP POLICY IF EXISTS "tasks_insert"  ON tasks;
+DROP POLICY IF EXISTS "tasks_update"  ON tasks;
+DROP POLICY IF EXISTS "tasks_delete"  ON tasks;
 
 -- Everyone in the company can read tasks
 CREATE POLICY "tasks_select" ON tasks
@@ -37,7 +41,11 @@ CREATE POLICY "tasks_update" ON tasks
   );
 
 -- ── projects ──────────────────────────────────────────────────
-DROP POLICY IF EXISTS "tenant_projects" ON projects;
+DROP POLICY IF EXISTS "tenant_projects"  ON projects;
+DROP POLICY IF EXISTS "projects_select"  ON projects;
+DROP POLICY IF EXISTS "projects_write"   ON projects;
+DROP POLICY IF EXISTS "projects_update"  ON projects;
+DROP POLICY IF EXISTS "projects_delete"  ON projects;
 
 -- All tenant users can read projects
 CREATE POLICY "projects_select" ON projects
@@ -63,7 +71,11 @@ CREATE POLICY "projects_delete" ON projects
   );
 
 -- ── announcements ─────────────────────────────────────────────
-DROP POLICY IF EXISTS "tenant_announcements" ON announcements;
+DROP POLICY IF EXISTS "tenant_announcements"   ON announcements;
+DROP POLICY IF EXISTS "announcements_select"   ON announcements;
+DROP POLICY IF EXISTS "announcements_write"    ON announcements;
+DROP POLICY IF EXISTS "announcements_update"   ON announcements;
+DROP POLICY IF EXISTS "announcements_delete"   ON announcements;
 
 -- All tenant users can read announcements
 CREATE POLICY "announcements_select" ON announcements

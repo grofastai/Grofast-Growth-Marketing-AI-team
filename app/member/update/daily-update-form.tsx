@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   Plus, Trash2, Loader2, Clock, BookOpen, Briefcase,
   Camera, Film, Upload, Layers, Link2, ChevronDown,
@@ -67,14 +67,23 @@ const LABEL: React.CSSProperties = {
 
 export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
   const router = useRouter()
+  const params = useSearchParams()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
   // Tab
   const [tab, setTab] = useState<"working" | "learning">("working")
 
+  // Pre-fill from "Log Work" navigation (client_id, client_name, task_title)
+  const prefillEntry: WorkEntryInput = {
+    ...newEntry(),
+    client_id:   params.get("client_id") ?? null,
+    client_name: params.get("client_name") ?? "",
+    title:       params.get("task_title") ?? "",
+  }
+
   // Working tab state
-  const [entries, setEntries] = useState<WorkEntryInput[]>([newEntry()])
+  const [entries, setEntries] = useState<WorkEntryInput[]>([prefillEntry])
   const [links, setLinks] = useState<string[]>([])
   const [newLink, setNewLink] = useState("")
   // Media stats

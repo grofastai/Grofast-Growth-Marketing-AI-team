@@ -1,7 +1,8 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
+import { Suspense } from "react"
 import DailyUpdateForm from "./daily-update-form"
-import { CheckCircle2 } from "lucide-react"
+import { CheckCircle2, Loader2 } from "lucide-react"
 
 export default async function UpdatePage() {
   const supabase = await createServerClient()
@@ -84,7 +85,13 @@ export default async function UpdatePage() {
           </div>
         </div>
       ) : (
-        <DailyUpdateForm projects={projects} />
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-16">
+            <Loader2 size={20} className="animate-spin" style={{ color: "rgba(255,255,255,0.3)" }} />
+          </div>
+        }>
+          <DailyUpdateForm projects={projects} />
+        </Suspense>
       )}
     </div>
   )

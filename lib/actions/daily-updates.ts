@@ -81,7 +81,7 @@ export async function submitDailyUpdate(
       .single()
 
     if (adminPhone?.phone && d.active_tab === 'working') {
-      const isLowHours = roundedHours < 6
+      const isLowHours = roundedHours < 9
       sendNotification(isLowHours
         ? {
             event: 'hours.underperformance',
@@ -89,7 +89,7 @@ export async function submitDailyUpdate(
             employee_id:    profile.employee_id,
             date:           today,
             working_hours:  roundedHours,
-            expected_hours: 6,
+            expected_hours: 9,
             admin_phone:    adminPhone.phone,
           }
         : {

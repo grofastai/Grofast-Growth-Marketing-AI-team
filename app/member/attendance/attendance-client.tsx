@@ -52,6 +52,13 @@ function fmtHoursShort(h: number): string {
   return `${hrs}h ${mins}m`
 }
 
+// Adds N days to a YYYY-MM-DD string without timezone conversion
+function addDays(dateStr: string, n: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number)
+  const dt = new Date(y, m - 1, d + n)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`
+}
+
 // ── Live timer (isolated so only it re-renders every second) ─────────────────
 function LiveTimer({ clockInIso }: { clockInIso: string }) {
   const [secs, setSecs] = useState(() =>
@@ -133,12 +140,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     })
   }
 
-  // Week grid — build Mon–Sat array from weekStart
-  const weekDates = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(weekStart + "T00:00:00")
-    d.setDate(d.getDate() + i)
-    return d.toISOString().split("T")[0]
-  })
+  // Week grid — build Mon–Sat without timezone conversion
+  const weekDates = Array.from({ length: 6 }, (_, i) => addDays(weekStart, i))
   const logByDate = Object.fromEntries(weekLogs.map(l => [l.date, l]))
 
   // Productivity alert
@@ -150,7 +153,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   }
 
   return (
-    <div className="p-8 max-w-[700px]">
+    <div className="p-8 max-w-[1100px]">
 
       {/* ── 1. Header ── */}
       <div className="flex items-start justify-between mb-7">
@@ -171,8 +174,10 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         </div>
       </div>
 
-      {/* ── 2. Main Action Card ── */}
-      <div className="rounded-xl p-6 mb-4"
+      {/* ── 2+4+5 Grid: Action | Status + Week ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+      {/* LEFT — Main Action Card */}
+      <div className="rounded-xl p-6"
         style={{
           background: "#262626",
           border: isIn
@@ -296,6 +301,90 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         )}
       </div>
 
+      {/* RIGHT — Today Status + Week Summary stacked */}
+      <div className="space-y-4">
+
+      {/* ── 4. Today Status Card ── */}
+      <div className="rounded-xl p-5" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+        <p className="text-[10px] uppercase tracking-[0.2em] font-bold mb-3"
+          style={{ color: "rgba(255,255,255,0.4)" }}>Today Status</p>
+        <div className="space-y-2.5">
+          {[
+            { label: "Status",    value: isAbsent ? "Absent" : (isIn || isDone) ? "Present" : "Not Logged",
+              color: isAbsent ? "#FF6464" : (isIn || isDone) ? "#A3E635" : "rgba(255,255,255,0.45)" },
+            { label: "Work Mode", value: todayLog?.work_type
+                ? (todayLog.work_type === "wfh" ? "Work From Home" : "Office") : "—" },
+            { label: "Check-in",  value: fmtTime(todayLog?.clock_in ?? null) },
+            { label: "Check-out", value: fmtTime(todayLog?.clock_out ?? null) },
+            { label: "Hours",     value: hoursWorked > 0 ? fmtHoursShort(hoursWorked) : "—" },
+          ].map(row => (
+            <div key={row.label} className="flex items-center justify-between">
+              <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>{row.label}</span>
+              <span className="text-[13px] font-semibold"
+                style={{ color: (row as { color?: string }).color ?? "#FFFFFF" }}>
+                {row.value}
+              </span>
+            </div>
+          ))}
+        </div>
+        {productivity && (
+          <div className="flex items-center gap-2 mt-4 pt-3"
+            style={{ borderTop: "1px solid #1A1A1A" }}>
+            {productivity.icon === "fire"
+              ? <Flame size={13} style={{ color: productivity.color }} />
+              : <AlertTriangle size={13} style={{ color: productivity.color }} />}
+            <p className="text-[12px] font-semibold" style={{ color: productivity.color }}>
+              {productivity.text}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ── 5. Week Summary ── */}
+      <div className="rounded-xl p-5" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+        <p className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4"
+          style={{ color: "rgba(255,255,255,0.4)" }}>This Week</p>
+        <div className="space-y-1.5">
+          {weekDates.map((date, i) => {
+            const log        = logByDate[date]
+            const isFuture   = date > today
+            const isToday    = date === today
+            const present    = log?.status === "present"
+            const absent     = log?.status === "absent"
+            const incomplete = present && !!log?.clock_in && !log?.clock_out && !isToday
+            const h = log?.clock_in ? calcHours(log.clock_in, log.clock_out) : 0
+
+            let dot   = "#444"
+            let label = "No record"
+            let color = "rgba(255,255,255,0.35)"
+
+            if (isFuture)        { dot = "#333";    label = "—";       color = "rgba(255,255,255,0.2)" }
+            else if (absent)     { dot = "#FF6464"; label = "Absent";  color = "#FF6464" }
+            else if (incomplete) { dot = "#F59E0B"; label = `${fmtHoursShort(h)} (incomplete)`; color = "#F59E0B" }
+            else if (present)    { dot = "#A3E635"; label = `Present · ${fmtHoursShort(h)}`; color = "#A3E635" }
+
+            return (
+              <div key={date}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg"
+                style={{
+                  background: isToday ? "rgba(163,230,53,0.06)" : "transparent",
+                  border: isToday ? "1px solid rgba(163,230,53,0.15)" : "1px solid transparent",
+                }}>
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dot }} />
+                <span className="text-[12px] font-bold w-8 flex-shrink-0"
+                  style={{ color: isToday ? "#A3E635" : "rgba(255,255,255,0.55)" }}>
+                  {WEEK_DAYS[i]}
+                </span>
+                <span className="text-[12px]" style={{ color }}>{label}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      </div>{/* end right col */}
+      </div>{/* end grid */}
+
       {/* ── Absent confirmation dialog ── */}
       {confirmAbsent && (
         <div className="rounded-xl p-5 mb-4"
@@ -324,92 +413,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         </div>
       )}
 
-      {/* ── 4. Today Status Card ── */}
-      {(isIn || isDone || isAbsent) && (
-        <div className="rounded-xl p-5 mb-4" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
-          <p className="text-[10px] uppercase tracking-[0.2em] font-bold mb-3"
-            style={{ color: "rgba(255,255,255,0.25)" }}>Today Status</p>
-          <div className="space-y-2">
-            {[
-              { label: "Status",    value: isAbsent ? "Absent" : "Present",
-                color: isAbsent ? "#FF6464" : "#A3E635" },
-              { label: "Work Mode", value: todayLog?.work_type
-                ? (todayLog.work_type === "wfh" ? "Work From Home" : "Office") : "—" },
-              { label: "Check-in",  value: fmtTime(todayLog?.clock_in ?? null) },
-              { label: "Check-out", value: fmtTime(todayLog?.clock_out ?? null) },
-              { label: "Hours",     value: hoursWorked > 0 ? fmtHoursShort(hoursWorked) : "—" },
-            ].map(row => (
-              <div key={row.label} className="flex items-center justify-between">
-                <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>
-                  {row.label}
-                </span>
-                <span className="text-[13px] font-semibold"
-                  style={{ color: (row as { color?: string }).color ?? "#FFFFFF" }}>
-                  {row.value}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Productivity alert inside status card */}
-          {productivity && (
-            <div className="flex items-center gap-2 mt-4 pt-4"
-              style={{ borderTop: "1px solid #1A1A1A" }}>
-              {productivity.icon === "fire"
-                ? <Flame size={13} style={{ color: productivity.color }} />
-                : <AlertTriangle size={13} style={{ color: productivity.color }} />
-              }
-              <p className="text-[12px] font-semibold" style={{ color: productivity.color }}>
-                {productivity.text}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── 5. Week Summary ── */}
-      <div className="rounded-xl p-5 mb-4" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
-        <p className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4"
-          style={{ color: "rgba(255,255,255,0.25)" }}>This Week</p>
-        <div className="space-y-2">
-          {weekDates.map((date, i) => {
-            const log       = logByDate[date]
-            const isFuture  = date > today
-            const isToday   = date === today
-            const present   = log?.status === "present"
-            const absent    = log?.status === "absent"
-            const incomplete = present && !!log?.clock_in && !log?.clock_out && !isToday
-            const h = log?.clock_in ? calcHours(log.clock_in, log.clock_out) : 0
-
-            let dot   = "#333"
-            let label = "—"
-            let color = "rgba(255,255,255,0.2)"
-
-            if (isFuture)       { dot = "#333";     label = "—";       color = "rgba(255,255,255,0.18)" }
-            else if (absent)    { dot = "#FF6464";  label = "Absent";  color = "#FF6464" }
-            else if (incomplete){ dot = "#F59E0B";  label = `${fmtHoursShort(h)} (incomplete)`; color = "#F59E0B" }
-            else if (present)   { dot = "#A3E635";  label = `Present (${fmtHoursShort(h)})`; color = "#A3E635" }
-            else if (!isFuture) { dot = "#333";     label = "No record"; color = "rgba(255,255,255,0.18)" }
-
-            return (
-              <div key={date}
-                className="flex items-center gap-3 px-3 py-2 rounded-lg"
-                style={{
-                  background: isToday ? "rgba(163,230,53,0.04)" : "transparent",
-                  border: isToday ? "1px solid rgba(163,230,53,0.1)" : "1px solid transparent",
-                }}>
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dot }} />
-                <span className="text-[12px] font-bold w-8 flex-shrink-0"
-                  style={{ color: isToday ? "#A3E635" : "rgba(255,255,255,0.4)" }}>
-                  {WEEK_DAYS[i]}
-                  {isToday && <span className="text-[9px] ml-1" style={{ color: "#A3E635" }}>•</span>}
-                </span>
-                <span className="text-[12px] font-medium" style={{ color }}>{label}</span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
 
       {/* ── 6. Work Breakdown (from daily update) ── */}
       {todayUpdate && (todayUpdate.working_hours || todayUpdate.learning_hours) && (

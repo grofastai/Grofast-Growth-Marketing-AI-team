@@ -2,26 +2,48 @@
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
-import { Loader2, Plus, Trash2 } from "lucide-react"
+import {
+  Plus, Trash2, Loader2, Clock, BookOpen, Briefcase,
+  Camera, Film, Upload, Layers, Link2, ChevronDown,
+} from "lucide-react"
 import { submitDailyUpdate } from "@/lib/actions/daily-updates"
-import type { ShootEntryInput, EditingEntryInput } from "@/lib/validations/daily-update"
+import type { WorkEntryInput } from "@/lib/validations/daily-update"
 
-interface Task { id: string; title: string; status: string }
+interface Project { id: string; business_name: string }
 
-const ATTENDANCE = [
-  { value: "present", label: "Present",  color: "#A3E635", bg: "rgba(163,230,53,0.1)",  border: "rgba(163,230,53,0.3)" },
-  { value: "absent",  label: "Absent",   color: "#FF6B57", bg: "rgba(255,107,87,0.1)",  border: "rgba(255,107,87,0.3)" },
-  { value: "holiday", label: "Holiday",  color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.3)" },
-  { value: "outside", label: "Outside",  color: "rgba(255,255,255,0.7)", bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.15)" },
-]
+const TASK_TYPES = [
+  { value: "shoot",  label: "Shoot",  icon: Camera },
+  { value: "edit",   label: "Edit",   icon: Film   },
+  { value: "upload", label: "Upload", icon: Upload  },
+  { value: "other",  label: "Other",  icon: Layers  },
+] as const
 
-const WORK_TYPES = [
-  { value: "office",  label: "Office" },
-  { value: "wfh",    label: "WFH" },
-  { value: "outside", label: "Outside" },
-]
+type TaskType = (typeof TASK_TYPES)[number]["value"]
 
-const inputStyle: React.CSSProperties = {
+// HH:MM string → fractional hours
+function calcDuration(start: string, end: string): number {
+  if (!start || !end) return 0
+  const [sh, sm] = start.split(":").map(Number)
+  const [eh, em] = end.split(":").map(Number)
+  const mins = eh * 60 + em - (sh * 60 + sm)
+  return mins <= 0 ? 0 : Math.round((mins / 60) * 10) / 10
+}
+
+function newEntry(): WorkEntryInput {
+  return {
+    id:             crypto.randomUUID(),
+    client_id:      null,
+    client_name:    "",
+    task_type:      "other",
+    title:          "",
+    start_time:     "",
+    end_time:       "",
+    duration_hours: 0,
+    notes:          "",
+  }
+}
+
+const IS: React.CSSProperties = {
   background: "#1A1A1A",
   border: "1px solid #2E2E2E",
   color: "#FFFFFF",
@@ -30,72 +52,94 @@ const inputStyle: React.CSSProperties = {
   fontSize: "13px",
   outline: "none",
   width: "100%",
-  fontFamily: "inherit",
   colorScheme: "dark",
 }
 
-const labelStyle: React.CSSProperties = {
+const LABEL: React.CSSProperties = {
   display: "block",
   fontSize: "10px",
   fontWeight: 700,
   textTransform: "uppercase",
   letterSpacing: "0.16em",
-  marginBottom: "8px",
+  marginBottom: "6px",
   color: "rgba(255,255,255,0.3)",
 }
 
-export default function DailyUpdateForm({ tasks }: { tasks: Task[] }) {
+export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
+  const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
-  const [attendance, setAttendance] = useState("present")
-  const [workType, setWorkType] = useState("office")
-  const [workingHours, setWorkingHours] = useState("")
-  const [learningHours, setLearningHours] = useState("0")
-  const [shootCount, setShootCount] = useState("0")
-  const [notes, setNotes] = useState("")
-  const [taskId, setTaskId] = useState("")
-  const [shootEntries, setShootEntries] = useState<ShootEntryInput[]>([])
-  const [editingEntries, setEditingEntries] = useState<EditingEntryInput[]>([])
+  // Tab
+  const [tab, setTab] = useState<"working" | "learning">("working")
 
-  const isPresent = attendance === "present"
+  // Working tab state
+  const [entries, setEntries] = useState<WorkEntryInput[]>([newEntry()])
+  const [links, setLinks] = useState<string[]>([])
+  const [newLink, setNewLink] = useState("")
+  // Media stats
+  const [showMedia, setShowMedia] = useState(false)
+  const [shootCount, setShootCount] = useState(0)
+  const [editingCount, setEditingCount] = useState(0)
+  const [shootTimeH, setShootTimeH] = useState("")
+  const [editingTimeH, setEditingTimeH] = useState("")
 
-  function addShootEntry() {
-    setShootEntries((prev) => [...prev, { client_name: "", shoot_type: "", video_count: 1, notes: "" }])
-  }
-  function updateShoot(i: number, field: keyof ShootEntryInput, value: string | number) {
-    setShootEntries((prev) => prev.map((e, idx) => idx === i ? { ...e, [field]: value } : e))
-  }
-  function removeShoot(i: number) {
-    setShootEntries((prev) => prev.filter((_, idx) => idx !== i))
+  // Learning tab state
+  const [learningTopic, setLearningTopic] = useState("")
+  const [learningHours, setLearningHours] = useState("")
+  const [learningNotes, setLearningNotes] = useState("")
+
+  // ── entry helpers ──────────────────────────────────────────
+  function updateEntry(i: number, patch: Partial<WorkEntryInput>) {
+    setEntries((prev) => {
+      const next = [...prev]
+      const updated = { ...next[i], ...patch }
+      // auto-calc duration whenever start/end changes
+      if ("start_time" in patch || "end_time" in patch) {
+        updated.duration_hours = calcDuration(updated.start_time, updated.end_time)
+      }
+      next[i] = updated
+      return next
+    })
   }
 
-  function addEditEntry() {
-    setEditingEntries((prev) => [...prev, { client_name: "", editing_hours: 1, folder_link: "" }])
-  }
-  function updateEdit(i: number, field: keyof EditingEntryInput, value: string | number) {
-    setEditingEntries((prev) => prev.map((e, idx) => idx === i ? { ...e, [field]: value } : e))
-  }
-  function removeEdit(i: number) {
-    setEditingEntries((prev) => prev.filter((_, idx) => idx !== i))
+  function removeEntry(i: number) {
+    setEntries((prev) => prev.filter((_, idx) => idx !== i))
   }
 
+  function addEntry() {
+    setEntries((prev) => [...prev, newEntry()])
+  }
+
+  function selectClient(i: number, projectId: string) {
+    const proj = projects.find((p) => p.id === projectId)
+    updateEntry(i, { client_id: projectId || null, client_name: proj?.business_name ?? "" })
+  }
+
+  function addLink() {
+    const v = newLink.trim()
+    if (v) { setLinks((prev) => [...prev, v]); setNewLink("") }
+  }
+
+  // ── submit ─────────────────────────────────────────────────
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+
     startTransition(async () => {
       const result = await submitDailyUpdate({
-        attendance_status: attendance as "present" | "absent" | "holiday" | "outside",
-        work_type: isPresent ? (workType as "office" | "wfh" | "outside") : undefined,
-        working_hours: isPresent && workingHours ? parseFloat(workingHours) : undefined,
-        learning_hours: parseFloat(learningHours) || 0,
-        shoot_count: parseInt(shootCount) || 0,
-        notes: notes || undefined,
-        task_id: taskId || null,
-        shoot_entries: shootEntries,
-        editing_entries: editingEntries,
+        active_tab:          tab,
+        work_entries:        tab === "working" ? entries : [],
+        links,
+        shoot_count:         shootCount,
+        editing_count:       editingCount,
+        shoot_time_hours:    shootTimeH ? parseFloat(shootTimeH) : undefined,
+        editing_time_hours:  editingTimeH ? parseFloat(editingTimeH) : undefined,
+        learning_topic:      learningTopic || undefined,
+        learning_hours:      parseFloat(learningHours) || 0,
+        learning_notes:      learningNotes || undefined,
       })
+
       if (result.success) {
         router.push("/member/dashboard")
         router.refresh()
@@ -105,163 +149,295 @@ export default function DailyUpdateForm({ tasks }: { tasks: Task[] }) {
     })
   }
 
+  const totalHours = entries.reduce((s, e) => s + e.duration_hours, 0)
+  const roundedTotal = Math.round(totalHours * 10) / 10
+
   return (
     <>
       <style>{`
-        .du-input::placeholder { color: rgba(255,255,255,0.2); }
-        .du-input:focus { border-color: rgba(163,230,53,0.4) !important; }
+        .du::placeholder { color: rgba(255,255,255,0.18); }
+        .du:focus { border-color: rgba(163,230,53,0.4) !important; box-shadow: 0 0 0 2px rgba(163,230,53,0.06); }
+        .du-sel { appearance: none; }
       `}</style>
+
+      {/* ── Tab switcher ────────────────────────────────────── */}
+      <div className="flex gap-2 mb-6 p-1 rounded-xl" style={{ background: "#1A1A1A", border: "1px solid #2A2A2A" }}>
+        {(["working", "learning"] as const).map((t) => {
+          const Icon = t === "working" ? Briefcase : BookOpen
+          const active = tab === t
+          return (
+            <button key={t} type="button" onClick={() => setTab(t)}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] font-bold capitalize transition-all"
+              style={active
+                ? { background: "#262626", color: "#FFFFFF", border: "1px solid #333" }
+                : { background: "transparent", color: "rgba(255,255,255,0.35)", border: "1px solid transparent" }
+              }>
+              <Icon size={14} style={{ color: active ? "#A3E635" : "rgba(255,255,255,0.35)" }} />
+              {t === "working" ? "Working" : "Learning"}
+            </button>
+          )
+        })}
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
 
-        {/* Attendance */}
-        <div>
-          <label style={labelStyle}>Attendance Status *</label>
-          <div className="grid grid-cols-4 gap-2">
-            {ATTENDANCE.map((opt) => (
-              <button key={opt.value} type="button" onClick={() => setAttendance(opt.value)}
-                className="py-2.5 rounded-lg text-[13px] font-bold transition-all"
-                style={attendance === opt.value
-                  ? { background: opt.bg, color: opt.color, border: `1px solid ${opt.border}` }
-                  : { background: "#1A1A1A", color: "rgba(255,255,255,0.35)", border: "1px solid #2E2E2E" }
-                }>
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Work Type (when present) */}
-        {isPresent && (
-          <div>
-            <label style={labelStyle}>Work Type *</label>
-            <div className="grid grid-cols-3 gap-2">
-              {WORK_TYPES.map((opt) => (
-                <button key={opt.value} type="button" onClick={() => setWorkType(opt.value)}
-                  className="py-2.5 rounded-lg text-[13px] font-bold transition-all"
-                  style={workType === opt.value
-                    ? { background: "rgba(163,230,53,0.1)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.25)" }
-                    : { background: "#1A1A1A", color: "rgba(255,255,255,0.35)", border: "1px solid #2E2E2E" }
-                  }>
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Task link */}
-        {tasks.length > 0 && (
-          <div>
-            <label style={labelStyle}>Task Worked On</label>
-            <select value={taskId} onChange={(e) => setTaskId(e.target.value)}
-              className="du-input" style={inputStyle}>
-              <option value="">No specific task</option>
-              {tasks.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.title} ({t.status === "in_progress" ? "In Progress" : "To Do"})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Hours */}
-        <div className={`grid gap-3 ${isPresent ? "grid-cols-3" : "grid-cols-2"}`}>
-          {isPresent && (
+        {/* ════════════════════════════════════════════════════
+            WORKING TAB
+        ════════════════════════════════════════════════════ */}
+        {tab === "working" && (
+          <>
+            {/* Work entries */}
             <div>
-              <label style={labelStyle}>Working Hours</label>
-              <input type="number" min="0" max="24" step="0.5" value={workingHours}
-                onChange={(e) => setWorkingHours(e.target.value)} placeholder="e.g. 8"
-                className="du-input" style={inputStyle} />
-            </div>
-          )}
-          <div>
-            <label style={labelStyle}>Learning Hours</label>
-            <input type="number" min="0" max="24" step="0.5" value={learningHours}
-              onChange={(e) => setLearningHours(e.target.value)}
-              className="du-input" style={inputStyle} />
-          </div>
-          <div>
-            <label style={labelStyle}>Shoot Count</label>
-            <input type="number" min="0" value={shootCount}
-              onChange={(e) => setShootCount(e.target.value)}
-              className="du-input" style={inputStyle} />
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div>
-          <label style={labelStyle}>Notes</label>
-          <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)}
-            placeholder="What did you work on? Any blockers?"
-            className="du-input resize-none" style={inputStyle} />
-        </div>
-
-        {/* Shoot Entries */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label style={{ ...labelStyle, marginBottom: 0 }}>Shoot Details</label>
-            <button type="button" onClick={addShootEntry}
-              className="flex items-center gap-1.5 text-[12px] font-bold px-3 py-1.5 rounded-lg"
-              style={{ background: "rgba(163,230,53,0.1)", color: "#A3E635" }}>
-              <Plus size={12} /> Add
-            </button>
-          </div>
-          {shootEntries.map((entry, i) => (
-            <div key={i} className="rounded-xl p-4 mb-2 grid grid-cols-3 gap-3"
-              style={{ background: "#1A1A1A", border: "1px solid #2E2E2E" }}>
-              <input placeholder="Client name" value={entry.client_name}
-                onChange={(e) => updateShoot(i, "client_name", e.target.value)}
-                className="du-input px-3 py-2 rounded-lg text-[12px] outline-none" style={{ ...inputStyle, padding: "8px 12px" }} />
-              <input placeholder="Shoot type" value={entry.shoot_type}
-                onChange={(e) => updateShoot(i, "shoot_type", e.target.value)}
-                className="du-input px-3 py-2 rounded-lg text-[12px] outline-none" style={{ ...inputStyle, padding: "8px 12px" }} />
-              <div className="flex gap-2">
-                <input type="number" min="1" placeholder="Videos" value={entry.video_count}
-                  onChange={(e) => updateShoot(i, "video_count", parseInt(e.target.value) || 1)}
-                  className="du-input flex-1 rounded-lg text-[12px] outline-none" style={{ ...inputStyle, padding: "8px 12px" }} />
-                <button type="button" onClick={() => removeShoot(i)}
-                  className="px-2.5 rounded-lg" style={{ background: "rgba(255,107,87,0.1)" }}>
-                  <Trash2 size={12} style={{ color: "#FF6B57" }} />
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p style={{ ...LABEL, marginBottom: 2 }}>Work Entries</p>
+                  {roundedTotal > 0 && (
+                    <p className="text-[11px]" style={{ color: "#A3E635" }}>
+                      Total: {roundedTotal}h
+                    </p>
+                  )}
+                </div>
+                <button type="button" onClick={addEntry}
+                  className="flex items-center gap-1.5 text-[12px] font-bold px-3 py-1.5 rounded-lg"
+                  style={{ background: "rgba(163,230,53,0.08)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.15)" }}>
+                  <Plus size={12} /> Add Entry
                 </button>
               </div>
-            </div>
-          ))}
-        </div>
 
-        {/* Editing Entries */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label style={{ ...labelStyle, marginBottom: 0 }}>Editing Details</label>
-            <button type="button" onClick={addEditEntry}
-              className="flex items-center gap-1.5 text-[12px] font-bold px-3 py-1.5 rounded-lg"
-              style={{ background: "rgba(163,230,53,0.1)", color: "#A3E635" }}>
-              <Plus size={12} /> Add
-            </button>
-          </div>
-          {editingEntries.map((entry, i) => (
-            <div key={i} className="rounded-xl p-4 mb-2 grid grid-cols-3 gap-3"
-              style={{ background: "#1A1A1A", border: "1px solid #2E2E2E" }}>
-              <input placeholder="Client name" value={entry.client_name}
-                onChange={(e) => updateEdit(i, "client_name", e.target.value)}
-                className="du-input rounded-lg text-[12px] outline-none" style={{ ...inputStyle, padding: "8px 12px" }} />
-              <input type="number" min="0.5" step="0.5" placeholder="Hours" value={entry.editing_hours}
-                onChange={(e) => updateEdit(i, "editing_hours", parseFloat(e.target.value) || 0.5)}
-                className="du-input rounded-lg text-[12px] outline-none" style={{ ...inputStyle, padding: "8px 12px" }} />
-              <div className="flex gap-2">
-                <input placeholder="Folder URL (opt.)" value={entry.folder_link ?? ""}
-                  onChange={(e) => updateEdit(i, "folder_link", e.target.value)}
-                  className="du-input flex-1 rounded-lg text-[12px] outline-none" style={{ ...inputStyle, padding: "8px 12px" }} />
-                <button type="button" onClick={() => removeEdit(i)}
-                  className="px-2.5 rounded-lg" style={{ background: "rgba(255,107,87,0.1)" }}>
-                  <Trash2 size={12} style={{ color: "#FF6B57" }} />
-                </button>
+              <div className="space-y-3">
+                {entries.map((entry, i) => (
+                  <div key={entry.id} className="rounded-xl p-4 space-y-3"
+                    style={{ background: "#1E1E1E", border: "1px solid #2A2A2A" }}>
+
+                    {/* Row 1: task type chips */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {TASK_TYPES.map(({ value, label, icon: Icon }) => (
+                        <button key={value} type="button"
+                          onClick={() => updateEntry(i, { task_type: value as TaskType })}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
+                          style={entry.task_type === value
+                            ? { background: "rgba(163,230,53,0.1)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.25)" }
+                            : { background: "#262626", color: "rgba(255,255,255,0.4)", border: "1px solid #333" }
+                          }>
+                          <Icon size={11} /> {label}
+                        </button>
+                      ))}
+                      <button type="button" onClick={() => removeEntry(i)}
+                        className="ml-auto p-1.5 rounded-lg"
+                        style={{ background: "rgba(255,107,87,0.08)", border: "1px solid rgba(255,107,87,0.15)" }}>
+                        <Trash2 size={13} style={{ color: "#FF6B57" }} />
+                      </button>
+                    </div>
+
+                    {/* Row 2: client + title */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label style={LABEL}>Client</label>
+                        {projects.length > 0 ? (
+                          <div className="relative">
+                            <select
+                              value={entry.client_id ?? ""}
+                              onChange={(e) => selectClient(i, e.target.value)}
+                              className="du du-sel" style={IS}>
+                              <option value="">Select client…</option>
+                              {projects.map((p) => (
+                                <option key={p.id} value={p.id}>{p.business_name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                              style={{ color: "rgba(255,255,255,0.3)" }} />
+                          </div>
+                        ) : (
+                          <input
+                            className="du" style={IS}
+                            placeholder="Client name"
+                            value={entry.client_name}
+                            onChange={(e) => updateEntry(i, { client_name: e.target.value })} />
+                        )}
+                      </div>
+                      <div>
+                        <label style={LABEL}>Title *</label>
+                        <input className="du" style={IS}
+                          placeholder={`e.g. ${entry.task_type === "shoot" ? "Product photoshoot" : entry.task_type === "edit" ? "Reel edit" : "Work title"}`}
+                          value={entry.title}
+                          onChange={(e) => updateEntry(i, { title: e.target.value })} />
+                      </div>
+                    </div>
+
+                    {/* Row 3: start / end / auto duration */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label style={LABEL}>Start Time *</label>
+                        <input type="time" className="du" style={IS}
+                          value={entry.start_time}
+                          onChange={(e) => updateEntry(i, { start_time: e.target.value })} />
+                      </div>
+                      <div>
+                        <label style={LABEL}>End Time *</label>
+                        <input type="time" className="du" style={IS}
+                          value={entry.end_time}
+                          onChange={(e) => updateEntry(i, { end_time: e.target.value })} />
+                      </div>
+                      <div>
+                        <label style={LABEL}>Duration</label>
+                        <div className="flex items-center justify-center h-[42px] rounded-[10px] text-[14px] font-black"
+                          style={{ background: "#262626", border: "1px solid #333",
+                            color: entry.duration_hours > 0 ? "#A3E635" : "rgba(255,255,255,0.2)" }}>
+                          {entry.duration_hours > 0 ? `${entry.duration_hours}h` : "—"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Row 4: notes */}
+                    <div>
+                      <label style={LABEL}>Notes</label>
+                      <textarea rows={2} className="du resize-none" style={IS}
+                        placeholder="What was done? Any output or blockers…"
+                        value={entry.notes ?? ""}
+                        onChange={(e) => updateEntry(i, { notes: e.target.value })} />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
 
+            {/* ── Media Stats (optional) ───────────────────── */}
+            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid #2A2A2A" }}>
+              <button type="button"
+                onClick={() => setShowMedia((v) => !v)}
+                className="w-full flex items-center justify-between px-4 py-3"
+                style={{ background: "#1E1E1E" }}>
+                <div className="flex items-center gap-2">
+                  <Camera size={13} style={{ color: "#A3E635" }} />
+                  <span className="text-[12px] font-bold uppercase tracking-wider"
+                    style={{ color: "rgba(255,255,255,0.55)" }}>Media Stats</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded"
+                    style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.3)" }}>optional</span>
+                </div>
+                <ChevronDown size={14} className={`transition-transform ${showMedia ? "rotate-180" : ""}`}
+                  style={{ color: "rgba(255,255,255,0.3)" }} />
+              </button>
+
+              {showMedia && (
+                <div className="px-4 pb-4 pt-3 grid grid-cols-2 gap-3"
+                  style={{ background: "#1A1A1A", borderTop: "1px solid #2A2A2A" }}>
+                  <div>
+                    <label style={LABEL}>Shoot Count</label>
+                    <input type="number" min="0" className="du" style={IS}
+                      value={shootCount || ""}
+                      onChange={(e) => setShootCount(parseInt(e.target.value) || 0)}
+                      placeholder="0" />
+                  </div>
+                  <div>
+                    <label style={LABEL}>Editing Count</label>
+                    <input type="number" min="0" className="du" style={IS}
+                      value={editingCount || ""}
+                      onChange={(e) => setEditingCount(parseInt(e.target.value) || 0)}
+                      placeholder="0" />
+                  </div>
+                  <div>
+                    <label style={LABEL}>Shoot Hours</label>
+                    <input type="number" min="0" step="0.5" className="du" style={IS}
+                      value={shootTimeH}
+                      onChange={(e) => setShootTimeH(e.target.value)}
+                      placeholder="0" />
+                  </div>
+                  <div>
+                    <label style={LABEL}>Editing Hours</label>
+                    <input type="number" min="0" step="0.5" className="du" style={IS}
+                      value={editingTimeH}
+                      onChange={(e) => setEditingTimeH(e.target.value)}
+                      placeholder="0" />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Attachment Links ─────────────────────────── */}
+            <div>
+              <label style={LABEL}>Attachment Links</label>
+              <div className="flex gap-2 mb-2">
+                <input className="du flex-1" style={IS}
+                  placeholder="Paste Drive / Figma / GitHub link…"
+                  value={newLink}
+                  onChange={(e) => setNewLink(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addLink())} />
+                <button type="button" onClick={addLink}
+                  className="px-3 rounded-lg text-[12px] font-bold"
+                  style={{ background: "rgba(163,230,53,0.08)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.15)" }}>
+                  <Plus size={14} />
+                </button>
+              </div>
+              {links.length > 0 && (
+                <div className="space-y-1.5">
+                  {links.map((lnk, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                      style={{ background: "#1E1E1E", border: "1px solid #2A2A2A" }}>
+                      <Link2 size={12} style={{ color: "rgba(255,255,255,0.3)" }} />
+                      <span className="flex-1 text-[12px] truncate" style={{ color: "rgba(255,255,255,0.6)" }}>{lnk}</span>
+                      <button type="button" onClick={() => setLinks((prev) => prev.filter((_, idx) => idx !== i))}>
+                        <Trash2 size={11} style={{ color: "rgba(255,107,87,0.6)" }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* ════════════════════════════════════════════════════
+            LEARNING TAB
+        ════════════════════════════════════════════════════ */}
+        {tab === "learning" && (
+          <div className="space-y-4">
+            <div className="rounded-xl p-5 space-y-4"
+              style={{ background: "#1E1E1E", border: "1px solid #2A2A2A" }}>
+              <div>
+                <label style={LABEL}>Topic *</label>
+                <input className="du" style={IS}
+                  placeholder="e.g. Meta Ads strategy, Color grading, React hooks…"
+                  value={learningTopic}
+                  onChange={(e) => setLearningTopic(e.target.value)} />
+              </div>
+              <div>
+                <label style={LABEL}>Time Spent (hours) *</label>
+                <input type="number" min="0.5" max="24" step="0.5" className="du" style={{ ...IS, maxWidth: 160 }}
+                  placeholder="e.g. 1.5"
+                  value={learningHours}
+                  onChange={(e) => setLearningHours(e.target.value)} />
+              </div>
+              <div>
+                <label style={LABEL}>Notes</label>
+                <textarea rows={4} className="du resize-none" style={IS}
+                  placeholder="What did you learn? Key takeaways, resources used…"
+                  value={learningNotes}
+                  onChange={(e) => setLearningNotes(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg"
+              style={{ background: "rgba(109,93,246,0.06)", border: "1px solid rgba(109,93,246,0.15)" }}>
+              <BookOpen size={13} style={{ color: "#6D5DF6" }} />
+              <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+                Learning hours count toward your daily productivity score.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* ── Total hours summary bar ──────────────────────── */}
+        {tab === "working" && roundedTotal > 0 && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
+            style={{ background: "rgba(163,230,53,0.05)", border: "1px solid rgba(163,230,53,0.15)" }}>
+            <Clock size={14} style={{ color: "#A3E635" }} />
+            <p className="text-[13px] font-semibold" style={{ color: "#A3E635" }}>
+              {roundedTotal}h total across {entries.length} entr{entries.length === 1 ? "y" : "ies"}
+            </p>
+          </div>
+        )}
+
+        {/* ── Error ────────────────────────────────────────── */}
         {error && (
           <div className="flex items-center gap-2.5 px-4 py-3 rounded-lg"
             style={{ background: "rgba(255,107,87,0.07)", border: "1px solid rgba(255,107,87,0.18)", color: "#FF6B57" }}>
@@ -269,11 +445,16 @@ export default function DailyUpdateForm({ tasks }: { tasks: Task[] }) {
           </div>
         )}
 
-        <button type="submit" disabled={isPending}
-          className="w-full py-3.5 rounded-lg text-[14px] font-bold flex items-center justify-center gap-2 transition-all"
-          style={{ background: "#A3E635", color: "#0D0D0D", opacity: isPending ? 0.65 : 1, cursor: isPending ? "not-allowed" : "pointer" }}>
-          {isPending && <Loader2 size={16} className="animate-spin" />}
-          {isPending ? "Submitting…" : "Submit Daily Update →"}
+        {/* ── Submit ───────────────────────────────────────── */}
+        <button type="submit" disabled={pending}
+          className="w-full py-3.5 rounded-xl text-[14px] font-black flex items-center justify-center gap-2 transition-all"
+          style={{
+            background: pending ? "rgba(163,230,53,0.5)" : "#A3E635",
+            color: "#0D0D0D",
+            cursor: pending ? "not-allowed" : "pointer",
+          }}>
+          {pending && <Loader2 size={16} className="animate-spin" />}
+          {pending ? "Submitting…" : "Submit Daily Update →"}
         </button>
       </form>
     </>

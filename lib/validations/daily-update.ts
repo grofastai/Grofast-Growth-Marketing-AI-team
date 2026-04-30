@@ -1,40 +1,67 @@
 import { z } from 'zod'
 
-export const shootEntrySchema = z.object({
-  client_name: z.string().min(1, 'Client name required'),
-  shoot_type: z.string().min(1, 'Shoot type required'),
-  video_count: z.number().int().min(1),
-  notes: z.string().optional(),
+// ── Work entry (one time block per client/task) ────────────────
+export const workEntrySchema = z.object({
+  id:            z.string(),
+  client_id:     z.string().nullable().optional(),
+  client_name:   z.string().min(1, 'Client name required'),
+  task_type:     z.enum(['shoot', 'edit', 'upload', 'other']),
+  title:         z.string().min(1, 'Entry title required'),
+  start_time:    z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM format'),
+  end_time:      z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM format'),
+  duration_hours: z.number().min(0),
+  notes:         z.string().optional(),
 })
 
-export const editingEntrySchema = z.object({
-  client_name: z.string().min(1, 'Client name required'),
-  editing_hours: z.number().min(0.5).max(24),
-  folder_link: z.string().url('Must be a valid URL').optional().or(z.literal('')),
-})
-
+// ── Main schema ────────────────────────────────────────────────
 export const dailyUpdateSchema = z
   .object({
-    attendance_status: z.enum(['present', 'absent', 'holiday', 'outside']),
-    work_type: z.enum(['office', 'outside', 'wfh']).optional(),
-    working_hours: z.number().min(0).max(24).optional(),
+    // Which top-level tab was active
+    active_tab:   z.enum(['working', 'learning']),
+
+    // Working tab
+    work_entries: z.array(workEntrySchema).optional().default([]),
+    links:        z.array(z.string()).optional().default([]),
+    // Media-team extras
+    shoot_count:       z.number().int().min(0).default(0),
+    editing_count:     z.number().int().min(0).default(0),
+    shoot_time_hours:  z.number().min(0).optional(),
+    editing_time_hours: z.number().min(0).optional(),
+
+    // Learning tab
+    learning_topic: z.string().optional(),
     learning_hours: z.number().min(0).max(24).default(0),
-    shoot_count: z.number().int().min(0).default(0),
-    notes: z.string().optional(),
-    task_id: z.string().uuid().optional().nullable(),
-    shoot_entries: z.array(shootEntrySchema).optional().default([]),
-    editing_entries: z.array(editingEntrySchema).optional().default([]),
+    learning_notes: z.string().optional(),
   })
   .superRefine((val, ctx) => {
-    if (val.attendance_status === 'present' && !val.work_type) {
+    if (val.active_tab === 'working' && val.work_entries.length === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Work type required when present',
-        path: ['work_type'],
+        message: 'Add at least one work entry',
+        path: ['work_entries'],
       })
+    }
+    if (val.active_tab === 'learning') {
+      if (!val.learning_topic?.trim()) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Learning topic is required',
+          path: ['learning_topic'],
+        })
+      }
+      if (!val.learning_hours || val.learning_hours <= 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Time spent is required',
+          path: ['learning_hours'],
+        })
+      }
     }
   })
 
-export type DailyUpdateInput = z.infer<typeof dailyUpdateSchema>
-export type ShootEntryInput = z.infer<typeof shootEntrySchema>
-export type EditingEntryInput = z.infer<typeof editingEntrySchema>
+export type DailyUpdateInput  = z.infer<typeof dailyUpdateSchema>
+export type WorkEntryInput    = z.infer<typeof workEntrySchema>
+
+// Keep old types exported so admin code that imports them doesn't break
+export type ShootEntryInput   = { client_name: string; shoot_type: string; video_count: number; notes?: string }
+export type EditingEntryInput = { client_name: string; editing_hours: number; folder_link?: string }

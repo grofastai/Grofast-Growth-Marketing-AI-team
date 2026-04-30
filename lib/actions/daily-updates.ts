@@ -36,98 +36,78 @@ export async function submitDailyUpdate(
   if (!profile?.company_id) return { success: false, error: 'Profile not found — re-login required' }
 
   const today = new Date().toISOString().split('T')[0]
-  const company_id = profile.company_id
+  const d = parsed.data
 
-  const { data: update, error: updateError } = await admin
+  // Total working hours = sum of all entry durations
+  const totalWorkHours = d.work_entries.reduce((sum, e) => sum + e.duration_hours, 0)
+  const roundedHours = Math.round(totalWorkHours * 10) / 10
+
+  const { error: insertError } = await admin
     .from('daily_updates')
     .insert({
-      company_id,
-      user_id: user.id,
-      date: today,
-      attendance_status: parsed.data.attendance_status,
-      work_type: parsed.data.work_type ?? null,
-      working_hours: parsed.data.working_hours ?? null,
-      learning_hours: parsed.data.learning_hours,
-      shoot_count: parsed.data.shoot_count,
-      notes: parsed.data.notes ?? null,
-      task_id: parsed.data.task_id ?? null,
+      company_id:          profile.company_id,
+      user_id:             user.id,
+      date:                today,
+      attendance_status:   'present',
+      working_hours:       d.active_tab === 'working' ? roundedHours : null,
+      learning_hours:      d.learning_hours,
+      shoot_count:         d.shoot_count,
+      notes:               null,
+      // v2 columns
+      work_entries:        d.work_entries,
+      learning_topic:      d.learning_topic ?? null,
+      learning_notes:      d.learning_notes ?? null,
+      links:               d.links,
+      editing_count:       d.editing_count,
+      shoot_time_hours:    d.shoot_time_hours ?? null,
+      editing_time_hours:  d.editing_time_hours ?? null,
     })
-    .select('id')
-    .single()
 
-  if (updateError) {
-    if (updateError.code === '23505') {
+  if (insertError) {
+    if (insertError.code === '23505') {
       return { success: false, error: 'Already submitted today' }
     }
-    return { success: false, error: updateError.message }
+    return { success: false, error: insertError.message }
   }
 
-  if (parsed.data.shoot_entries.length > 0) {
-    const { error: shootError } = await admin.from('shoot_entries').insert(
-      parsed.data.shoot_entries.map((entry) => ({
-        company_id,
-        user_id: user.id,
-        daily_update_id: update.id,
-        client_name: entry.client_name,
-        shoot_type: entry.shoot_type,
-        video_count: entry.video_count,
-        notes: entry.notes ?? null,
-      }))
-    )
-    if (shootError) return { success: false, error: shootError.message }
-  }
-
-  if (parsed.data.editing_entries.length > 0) {
-    const { error: editError } = await admin.from('editing_entries').insert(
-      parsed.data.editing_entries.map((entry) => ({
-        company_id,
-        user_id: user.id,
-        daily_update_id: update.id,
-        client_name: entry.client_name,
-        editing_hours: entry.editing_hours,
-        folder_link: entry.folder_link || null,
-      }))
-    )
-    if (editError) return { success: false, error: editError.message }
-  }
-
-  // Fire WhatsApp notification to admin (non-blocking)
-  if (parsed.data.working_hours != null) {
+  // WhatsApp notification to admin
+  try {
     const { data: adminPhone } = await admin
       .from('users')
       .select('phone')
-      .eq('company_id', company_id)
+      .eq('company_id', profile.company_id)
       .eq('role', 'ADMIN')
       .limit(1)
       .single()
 
-    if (adminPhone?.phone) {
-      const isLowHours = parsed.data.working_hours < 6 && parsed.data.attendance_status === 'present'
+    if (adminPhone?.phone && d.active_tab === 'working') {
+      const isLowHours = roundedHours < 6
       sendNotification(isLowHours
         ? {
             event: 'hours.underperformance',
-            employee_name: profile.name,
-            employee_id: profile.employee_id,
-            date: today,
-            working_hours: parsed.data.working_hours,
+            employee_name:  profile.name,
+            employee_id:    profile.employee_id,
+            date:           today,
+            working_hours:  roundedHours,
             expected_hours: 6,
-            admin_phone: adminPhone.phone,
+            admin_phone:    adminPhone.phone,
           }
         : {
-            event: 'daily_update.submitted',
-            employee_name: profile.name,
-            employee_id: profile.employee_id,
-            date: today,
-            attendance_status: parsed.data.attendance_status,
-            working_hours: parsed.data.working_hours,
-            shoot_count: parsed.data.shoot_count,
-            admin_phone: adminPhone.phone,
+            event:             'daily_update.submitted',
+            employee_name:     profile.name,
+            employee_id:       profile.employee_id,
+            date:              today,
+            attendance_status: 'present',
+            working_hours:     roundedHours,
+            shoot_count:       d.shoot_count,
+            admin_phone:       adminPhone.phone,
           }
       ).catch(console.error)
     }
-  }
+  } catch { /* notifications are non-blocking */ }
 
   revalidatePath('/member/update')
+  revalidatePath('/member/dashboard')
   revalidatePath('/admin/activities')
   return { success: true }
 }
@@ -140,7 +120,7 @@ export async function getTodayUpdate() {
   const today = new Date().toISOString().split('T')[0]
   const { data } = await supabase
     .from('daily_updates')
-    .select('*, shoot_entries(*), editing_entries(*)')
+    .select('*')
     .eq('user_id', user.id)
     .eq('date', today)
     .single()

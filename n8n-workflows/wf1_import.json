@@ -1,0 +1,148 @@
+{
+  "name": "WF1 — 9:30 AM Member Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 4 * * 1-6" }]
+        }
+      },
+      "id": "wf1-n01",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            { "id": "c1", "name": "SUPABASE_URL", "value": "YOUR_SUPABASE_URL_HERE", "type": "string" },
+            { "id": "c2", "name": "SUPABASE_SERVICE_ROLE_KEY", "value": "YOUR_SERVICE_ROLE_KEY_HERE", "type": "string" },
+            { "id": "c3", "name": "COMPANY_ID", "value": "YOUR_COMPANY_UUID_HERE", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf1-n02",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.SUPABASE_URL }}/rest/v1/users?company_id=eq.{{ $('Config').item.json.COMPANY_ID }}&status=eq.active&select=id,name,employee_id,phone,role",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $('Config').item.json.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $('Config').item.json.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf1-n03",
+      "name": "Get Users",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.SUPABASE_URL }}/rest/v1/attendance_logs?date=eq.{{ $now.format('yyyy-MM-dd') }}&select=user_id,clock_in",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $('Config').item.json.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $('Config').item.json.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf1-n04",
+      "name": "Get Today Logs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.SUPABASE_URL }}/rest/v1/attendance_logs?date=gte.{{ $now.format('yyyy-MM') }}-01&date=lte.{{ $now.format('yyyy-MM-dd') }}&select=user_id,clock_in",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $('Config').item.json.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $('Config').item.json.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf1-n05",
+      "name": "Get Month Logs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const LATE_CUTOFF = '09:30'\nconst MAX_PASSES  = 5\n\nconst users     = $('Get Users').first().json\nconst todayLogs = $('Get Today Logs').first().json\nconst monthLogs = $('Get Month Logs').first().json\n\nconst loggedInToday = new Set(todayLogs.map(l => l.user_id))\n\nconst lateThisMonth = {}\nfor (const log of monthLogs) {\n  if (!log.clock_in) continue\n  const dt = new Date(log.clock_in)\n  const hh = dt.getHours().toString().padStart(2, '0')\n  const mm = dt.getMinutes().toString().padStart(2, '0')\n  const timeHHMM = `${hh}:${mm}`\n  if (timeHHMM > LATE_CUTOFF) {\n    lateThisMonth[log.user_id] = (lateThisMonth[log.user_id] || 0) + 1\n  }\n}\n\nconst missing = users.filter(u =>\n  u.role !== 'ADMIN' &&\n  u.phone &&\n  !loggedInToday.has(u.id)\n)\n\nreturn missing.map(member => {\n  const lateCount  = lateThisMonth[member.id] || 0\n  const passesLeft = Math.max(0, MAX_PASSES - lateCount)\n  const allUsed    = passesLeft === 0\n\n  const message = allUsed\n    ? `\\uD83D\\uDEA8 Hey ${member.name.split(' ')[0]}, you haven't clocked in yet.\\n\\n` +\n      `You've used all ${MAX_PASSES} late passes this month.\\n\\n` +\n      `Please log in immediately or apply for leave.\\n` +\n      `\\uD83D\\uDC49 grofastteam.vercel.app/member/attendance`\n    : `\\u23F0 Hey ${member.name.split(' ')[0]}, you haven't clocked in yet.\\n\\n` +\n      `Late passes remaining: ${passesLeft} of ${MAX_PASSES} this month\\n\\n` +\n      `Please clock in as soon as possible.\\n` +\n      `\\uD83D\\uDC49 grofastteam.vercel.app/member/attendance`\n\n  return {\n    json: {\n      name:        member.name,\n      phone:       member.phone,\n      employee_id: member.employee_id,\n      lateCount,\n      passesLeft,\n      allUsed,\n      message\n    }\n  }\n})"
+      },
+      "id": "wf1-n06",
+      "name": "Build Member Alerts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "wf1-n07",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "recipientPhoneNumber": "={{ $json.phone }}",
+        "messageType": "text",
+        "textBody": "={{ $json.message }}"
+      },
+      "credentials": {
+        "whatsAppApi": { "id": "1", "name": "WhatsApp account" }
+      },
+      "id": "wf1-n08",
+      "name": "WhatsApp",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [1780, 300]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": { "main": [[{ "node": "Config", "type": "main", "index": 0 }]] },
+    "Config": { "main": [[{ "node": "Get Users", "type": "main", "index": 0 }]] },
+    "Get Users": { "main": [[{ "node": "Get Today Logs", "type": "main", "index": 0 }]] },
+    "Get Today Logs": { "main": [[{ "node": "Get Month Logs", "type": "main", "index": 0 }]] },
+    "Get Month Logs": { "main": [[{ "node": "Build Member Alerts", "type": "main", "index": 0 }]] },
+    "Build Member Alerts": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] },
+    "Loop Over Items": {
+      "main": [
+        [{ "node": "WhatsApp", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "WhatsApp": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

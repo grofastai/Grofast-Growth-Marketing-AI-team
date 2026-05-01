@@ -1,0 +1,88 @@
+{
+  "name": "WF5 — Weekly Monday Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "30 3 * * 1" }]
+        }
+      },
+      "id": "wf5-n01",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            { "id": "c1", "name": "APP_URL", "value": "YOUR_APP_URL_HERE", "type": "string" },
+            { "id": "c2", "name": "INTERNAL_WEBHOOK_SECRET", "value": "YOUR_INTERNAL_SECRET_HERE", "type": "string" },
+            { "id": "c3", "name": "COMPANY_ID", "value": "YOUR_COMPANY_UUID_HERE", "type": "string" },
+            { "id": "c4", "name": "ADMIN_PHONE", "value": "91XXXXXXXXXX", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf5-n02",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.APP_URL }}/api/weekly-report?company_id={{ $('Config').item.json.COMPANY_ID }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "x-webhook-secret", "value": "={{ $('Config').item.json.INTERNAL_WEBHOOK_SECRET }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf5-n03",
+      "name": "Get Weekly Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $input.first().json\nconst config = $('Config').item.json\nlet msg =\n  `\\uD83D\\uDCCA Weekly Report \\u2014 ${b.periodLabel}\\n\\n` +\n  `\\u23F1 Total Hours   : ${b.totalHours}h\\n` +\n  `\\uD83D\\uDCF8 Total Shoots  : ${b.totalShoots}\\n`\nif (b.topPerformer) {\n  msg += `\\uD83C\\uDFC6 Top Performer : ${b.topPerformer.name} \\u2014 ${b.topPerformer.hours}h, ${b.topPerformer.shoots} shoots\\n`\n}\nmsg += '\\n'\nif (b.overdueTaskCount > 0) msg += `\\u26A0\\uFE0F Overdue Tasks   : ${b.overdueTaskCount}\\n`\nif (b.overdueProjectCount > 0) msg += `\\u26A0\\uFE0F Overdue Projects: ${b.overdueProjectCount}\\n`\nif (b.missedUpdateDays > 0) msg += `\\uD83D\\uDCED Missed Update Days: ${b.missedUpdateDays}\\n`\nmsg += `\\n\\uD83D\\uDC49 ${b.dashboardUrl}\\n\\u2014 GroFast System`\nreturn [{ json: { phone: config.ADMIN_PHONE, message: msg } }]"
+      },
+      "id": "wf5-n04",
+      "name": "Format Weekly Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [920, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "recipientPhoneNumber": "={{ $json.phone }}",
+        "messageType": "text",
+        "textBody": "={{ $json.message }}"
+      },
+      "credentials": { "whatsAppApi": { "id": "1", "name": "WhatsApp account" } },
+      "id": "wf5-n05",
+      "name": "WA Admin Weekly",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [1160, 300]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": { "main": [[{ "node": "Config", "type": "main", "index": 0 }]] },
+    "Config": { "main": [[{ "node": "Get Weekly Report", "type": "main", "index": 0 }]] },
+    "Get Weekly Report": { "main": [[{ "node": "Format Weekly Report", "type": "main", "index": 0 }]] },
+    "Format Weekly Report": { "main": [[{ "node": "WA Admin Weekly", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

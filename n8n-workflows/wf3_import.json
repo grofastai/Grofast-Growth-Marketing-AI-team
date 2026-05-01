@@ -1,0 +1,194 @@
+{
+  "name": "WF3 — 9:00 PM Update Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "30 15 * * 1-6" }]
+        }
+      },
+      "id": "wf3-n01",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            { "id": "c1", "name": "SUPABASE_URL", "value": "YOUR_SUPABASE_URL_HERE", "type": "string" },
+            { "id": "c2", "name": "SUPABASE_SERVICE_ROLE_KEY", "value": "YOUR_SERVICE_ROLE_KEY_HERE", "type": "string" },
+            { "id": "c3", "name": "COMPANY_ID", "value": "YOUR_COMPANY_UUID_HERE", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf3-n02",
+      "name": "Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.SUPABASE_URL }}/rest/v1/users?company_id=eq.{{ $('Config').item.json.COMPANY_ID }}&status=eq.active&select=id,name,employee_id,phone,role",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $('Config').item.json.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $('Config').item.json.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf3-n03",
+      "name": "Get Users",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.SUPABASE_URL }}/rest/v1/attendance_logs?date=eq.{{ $now.format('yyyy-MM-dd') }}&select=user_id,clock_in",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $('Config').item.json.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $('Config').item.json.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf3-n04",
+      "name": "Get Today Att Logs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $('Config').item.json.SUPABASE_URL }}/rest/v1/daily_updates?date=eq.{{ $now.format('yyyy-MM-dd') }}&select=user_id,working_hours",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "apikey", "value": "={{ $('Config').item.json.SUPABASE_SERVICE_ROLE_KEY }}" },
+            { "name": "Authorization", "value": "=Bearer {{ $('Config').item.json.SUPABASE_SERVICE_ROLE_KEY }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "wf3-n05",
+      "name": "Get Today Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const REQUIRED_HOURS = 9\n\nconst users      = $('Get Users').first().json\nconst attLogs    = $('Get Today Att Logs').first().json\nconst dayUpdates = $('Get Today Updates').first().json\n\nconst clockedInToday = new Set(attLogs.map(l => l.user_id))\n\nconst updatesMap = {}\nfor (const upd of dayUpdates) {\n  updatesMap[upd.user_id] = upd\n}\n\nconst output = []\n\nfor (const member of users) {\n  if (member.role === 'ADMIN' || !member.phone) continue\n\n  const wasPresent = clockedInToday.has(member.id)\n  const update     = updatesMap[member.id]\n  const firstName  = member.name.split(' ')[0]\n\n  if (wasPresent && !update) {\n    output.push({\n      json: {\n        name:    member.name,\n        phone:   member.phone,\n        type:    'no_update',\n        message: `\\uD83D\\uDCCB Hey ${firstName}, your daily update is pending.\\n\\n` +\n                 `Minimum required: ${REQUIRED_HOURS} hours/day\\n\\n` +\n                 `Please submit before midnight.\\n` +\n                 `\\uD83D\\uDC49 grofastteam.vercel.app/member/update`\n      }\n    })\n  } else if (update && update.working_hours != null && update.working_hours < REQUIRED_HOURS) {\n    const shortfall = Math.round((REQUIRED_HOURS - update.working_hours) * 10) / 10\n    output.push({\n      json: {\n        name:     member.name,\n        phone:    member.phone,\n        type:     'low_hours',\n        hours:    update.working_hours,\n        shortfall,\n        message: `\\u26A0\\uFE0F Hey ${firstName}, you logged ${update.working_hours}h today.\\n\\n` +\n                 `Required : ${REQUIRED_HOURS} hours/day\\n` +\n                 `Shortfall: ${shortfall} hours\\n\\n` +\n                 `If you worked more, please update your report.\\n` +\n                 `\\uD83D\\uDC49 grofastteam.vercel.app/member/update`\n      }\n    })\n  }\n}\n\nreturn output"
+      },
+      "id": "wf3-n06",
+      "name": "Build Reminders",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "wf3-n07",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "cond-1",
+              "leftValue": "={{ $json.type }}",
+              "rightValue": "no_update",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "wf3-n08",
+      "name": "Check Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "recipientPhoneNumber": "={{ $json.phone }}",
+        "messageType": "text",
+        "textBody": "={{ $json.message }}"
+      },
+      "credentials": {
+        "whatsAppApi": { "id": "1", "name": "WhatsApp account" }
+      },
+      "id": "wf3-n09",
+      "name": "WhatsApp No Update",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "recipientPhoneNumber": "={{ $json.phone }}",
+        "messageType": "text",
+        "textBody": "={{ $json.message }}"
+      },
+      "credentials": {
+        "whatsAppApi": { "id": "1", "name": "WhatsApp account" }
+      },
+      "id": "wf3-n10",
+      "name": "WhatsApp Low Hours",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [2000, 420]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": { "main": [[{ "node": "Config", "type": "main", "index": 0 }]] },
+    "Config": { "main": [[{ "node": "Get Users", "type": "main", "index": 0 }]] },
+    "Get Users": { "main": [[{ "node": "Get Today Att Logs", "type": "main", "index": 0 }]] },
+    "Get Today Att Logs": { "main": [[{ "node": "Get Today Updates", "type": "main", "index": 0 }]] },
+    "Get Today Updates": { "main": [[{ "node": "Build Reminders", "type": "main", "index": 0 }]] },
+    "Build Reminders": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] },
+    "Loop Over Items": {
+      "main": [
+        [{ "node": "Check Type", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "Check Type": {
+      "main": [
+        [{ "node": "WhatsApp No Update", "type": "main", "index": 0 }],
+        [{ "node": "WhatsApp Low Hours", "type": "main", "index": 0 }]
+      ]
+    },
+    "WhatsApp No Update": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] },
+    "WhatsApp Low Hours": { "main": [[{ "node": "Loop Over Items", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": []
+}

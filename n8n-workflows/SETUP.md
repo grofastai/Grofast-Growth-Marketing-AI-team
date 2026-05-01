@@ -11,9 +11,9 @@ Settings → Variables → Create:
 
 ---
 
-## Step 2 — HTTP Request Headers (used in ALL workflows)
+## Step 2 — HTTP Request Headers (used in WF1, WF2, WF3)
 
-Add these to every HTTP Request node:
+Add these to every Supabase HTTP Request node:
 | Header        | Value                                       |
 |--------------|---------------------------------------------|
 | apikey        | {{ $vars.SUPABASE_SERVICE_ROLE_KEY }}       |
@@ -21,7 +21,7 @@ Add these to every HTTP Request node:
 
 ---
 
-## Step 3 — HTTP Request URLs
+## Step 3 — HTTP Request URLs (WF1, WF2, WF3)
 
 ### Get Users
 ```
@@ -46,7 +46,7 @@ GET {{ $vars.SUPABASE_URL }}/rest/v1/attendance_logs
     &select=user_id,clock_in
 ```
 
-### Get Today Daily Updates (Workflow 3 only)
+### Get Today Daily Updates (WF3 only)
 ```
 GET {{ $vars.SUPABASE_URL }}/rest/v1/daily_updates
     ?date=eq.{{ $now.format('yyyy-MM-dd') }}
@@ -57,37 +57,58 @@ GET {{ $vars.SUPABASE_URL }}/rest/v1/daily_updates
 
 ## Step 4 — Schedule Triggers
 
-| Workflow | Cron Expression | Human Time       |
-|---------|----------------|------------------|
-| WF 1    | 0 9 30 * * 1-6  | 9:30 AM Mon–Sat  |
-| WF 2    | 0 10 0 * * 1-6  | 10:00 AM Mon–Sat |
-| WF 3    | 0 21 0 * * 1-6  | 9:00 PM Mon–Sat  |
+| Workflow | Cron (UTC)      | IST Time           |
+|---------|-----------------|--------------------|
+| WF1     | 0 4 * * 1-6     | 9:30 AM Mon–Sat    |
+| WF2     | 30 4 * * 1-6    | 10:00 AM Mon–Sat   |
+| WF3     | 30 15 * * 1-6   | 9:00 PM Mon–Sat    |
+| WF5     | 30 3 * * 1      | 9:00 AM Monday     |
 
-> n8n cron uses UTC. India (IST) = UTC+5:30
-> 9:30 AM IST  = 4:00 AM UTC  → cron: 0 4 * * 1-6
-> 10:00 AM IST = 4:30 AM UTC  → cron: 30 4 * * 1-6
-> 9:00 PM IST  = 3:30 PM UTC  → cron: 30 15 * * 1-6
+> IST = UTC+5:30 | India uses UTC+5:30 year-round (no DST)
 
 ---
 
-## Step 5 — Workflow 4 Webhook URL
+## Step 5 — WF4 Webhook URL (Event Router)
 
-After creating the Webhook node in n8n, copy its URL.
-Add it to your Vercel environment variables:
+WF4 receives ALL real-time events from the app — leave requests, leave decisions, low hours alerts, and daily update notifications. One webhook handles all of them via IF routing.
+
+After creating the Webhook node in n8n, copy its URL and add it to Vercel environment variables:
 
 ```
-N8N_WEBHOOK_URL=https://your-n8n-instance.app/webhook/grofast/low-hours
+N8N_WEBHOOK_URL=https://your-n8n-instance.app/webhook/grofast/events
+N8N_WEBHOOK_SECRET=some-random-secret-string
+INTERNAL_WEBHOOK_SECRET=same-secret-or-different-one
+```
+
+The app sends `x-webhook-secret` header with every POST. The n8n Webhook node does not validate this by default — your n8n instance should be behind auth or a private URL. If you want header auth in n8n: open the Webhook node → Authentication → Header Auth → set name `x-webhook-secret` and value matching `N8N_WEBHOOK_SECRET`.
+
+---
+
+## Step 6 — WF5 Config Node (Weekly Report)
+
+Open the Config node in WF5 and fill in:
+
+| Field                    | Value                                      |
+|-------------------------|--------------------------------------------|
+| APP_URL                 | https://grofastteam.vercel.app             |
+| INTERNAL_WEBHOOK_SECRET | same value as your Vercel env var          |
+| COMPANY_ID              | your-company-uuid-from-db                  |
+| ADMIN_PHONE             | 91XXXXXXXXXX (WhatsApp number with country code) |
+
+Also add to Vercel environment variables:
+```
+APP_BASE_URL=https://grofastteam.vercel.app
 ```
 
 ---
 
-## Step 6 — WhatsApp Business Node Config
+## Step 7 — WhatsApp Business Node Config
 
 For all workflows:
 - Credential  : your connected WhatsApp Business account
 - Resource     : Message
 - Operation    : Send
-- To           : {{ $json.phone }} (or {{ $json.adminPhone }} for admin messages)
+- To           : {{ $json.phone }} (or {{ $json.adminPhone }} where noted)
 - Message Type : Text
 - Text Body    : {{ $json.message }}
 
@@ -95,33 +116,53 @@ For all workflows:
 
 ## Final Workflow Structures
 
-### WF1 (9:30 AM Member Alert)
-Schedule Trigger
-→ Get Users (HTTP)
-→ Get Today Logs (HTTP)
-→ Get Month Logs (HTTP)
-→ Build Member Alerts (Code — workflow1 file)
-→ Loop Over Items
-→ WhatsApp Business
+### WF1 (9:30 AM Member Alert) — sends to each member not clocked in
+```
+Schedule Trigger → Config → Get Users → Get Today Logs → Get Month Logs
+→ Build Member Alerts (Code) → Loop Over Items → WhatsApp
+```
 
-### WF2 (10:00 AM Admin Report)
-Schedule Trigger
-→ Get Users (HTTP)
-→ Get Today Logs (HTTP)
-→ Get Month Logs (HTTP)
-→ Build Admin Report (Code — workflow2 file)
-→ WhatsApp Business
+### WF2 (10:00 AM Admin Report) — sends one message to admin
+```
+Schedule Trigger → Config → Get Users → Get Today Logs → Get Month Logs
+→ Build Admin Report (Code) → WhatsApp Admin
+```
 
-### WF3 (9:00 PM Update Reminder)
-Schedule Trigger
-→ Get Users (HTTP)
-→ Get Today Att Logs (HTTP)
-→ Get Today Updates (HTTP)
-→ Build Reminders (Code — workflow3 file)
-→ Loop Over Items
-→ WhatsApp Business
+### WF3 (9:00 PM Update Reminder) — sends to members with missing/low-hours update
+```
+Schedule Trigger → Config → Get Users → Get Today Att Logs → Get Today Updates
+→ Build Reminders (Code) → Loop Over Items → Check Type (IF)
+  → [no_update] WhatsApp No Update
+  → [low_hours]  WhatsApp Low Hours
+```
 
-### WF4 (Instant Low Hours — Webhook)
-Webhook Trigger (POST)
-→ Format Alert (Code — workflow4 file)
-→ WhatsApp Business
+### WF4 (Real-time Event Router) — webhook, fires instantly from the app
+```
+Webhook (POST /grofast/events)
+→ IF leave.submitted
+    [True]  → Format Leave Submitted → WA Admin
+    [False] → IF leave.approved OR leave.rejected
+                [True]  → Format Leave Status → WA Employee
+                [False] → IF hours.underperformance
+                            [True]  → Format Hours Alert → WA Admin
+                            [False] → IF daily_update.submitted
+                                        [True]  → Format Daily Update → WA Admin
+```
+
+### WF5 (Monday 9 AM Weekly Report) — sends one message to admin
+```
+Schedule Trigger → Config → GET /api/weekly-report
+→ Format Weekly Report (Code) → WhatsApp Admin
+```
+
+---
+
+## Events handled by WF4
+
+| Event                    | Trigger                              | Recipient |
+|-------------------------|--------------------------------------|-----------|
+| `leave.submitted`        | Member applies for leave             | Admin     |
+| `leave.approved`         | Admin approves leave                 | Employee  |
+| `leave.rejected`         | Admin rejects leave                  | Employee  |
+| `hours.underperformance` | Member submits daily update < 9h     | Admin     |
+| `daily_update.submitted` | Member submits daily update >= 9h    | Admin     |

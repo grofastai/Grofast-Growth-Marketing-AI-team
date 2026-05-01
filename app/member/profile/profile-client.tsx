@@ -200,9 +200,9 @@ export default function ProfileClient({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h2 className="text-[20px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-[20px] font-black truncate" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
                         {profile?.name ?? authEmail.split("@")[0]}
                       </h2>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -225,7 +225,7 @@ export default function ProfileClient({
                     </div>
                     <button onClick={() => setEditing(true)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold flex-shrink-0"
-                      style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", border: "1px solid #333" }}>
+                      style={{ background: "rgba(163,230,53,0.08)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.2)" }}>
                       <Edit2 size={11} /> Edit
                     </button>
                   </div>

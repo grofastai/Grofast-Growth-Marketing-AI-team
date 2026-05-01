@@ -1,3 +1,5 @@
+export const revalidate = 0
+
 import { createServerClient } from "@/lib/supabase/server"
 import ActivitiesClient from "./activities-client"
 

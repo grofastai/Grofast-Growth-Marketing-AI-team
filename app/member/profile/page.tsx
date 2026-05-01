@@ -39,7 +39,6 @@ export default async function ProfilePage() {
     { data: allUpdatesRaw },
     { count: totalCompleted },
     { count: totalLeaves },
-    { data: recentUpdatesRaw },
   ] = await Promise.all([
     supabase
       .from("users")
@@ -61,17 +60,12 @@ export default async function ProfilePage() {
       .from("leaves")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id),
-    supabase
-      .from("daily_updates")
-      .select("date, working_hours, shoot_count")
-      .eq("user_id", user.id)
-      .order("date", { ascending: false })
-      .limit(5),
   ])
 
-  const profile       = profileRaw as unknown as ProfileRow | null
-  const allUpdates    = (allUpdatesRaw ?? []) as unknown as UpdateRow[]
-  const recentUpdates = (recentUpdatesRaw ?? []) as unknown as UpdateRow[]
+  const profile    = profileRaw as unknown as ProfileRow | null
+  const allUpdates = (allUpdatesRaw ?? []) as unknown as UpdateRow[]
+  // Derive recent activity from the same fetch — sorted desc, capped at 5
+  const recentUpdates = [...allUpdates].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
 
   // ── Derived stats ─────────────────────────────────────────────
 

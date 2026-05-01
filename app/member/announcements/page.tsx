@@ -1,3 +1,5 @@
+export const revalidate = 60
+
 import { createServerClient } from "@/lib/supabase/server"
 import { Megaphone, Pin } from "lucide-react"
 

@@ -30,21 +30,21 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith('/api/')) return supabaseResponse
 
-  // getUser() verifies the JWT with Supabase servers — catches stale/forged cookies
-  const { data: { user } } = await supabase.auth.getUser()
+  // getSession() reads JWT from cookie — no Supabase network round-trip.
+  // Layouts re-verify with getUser() as the security layer.
+  const { data: { session } } = await supabase.auth.getSession()
 
-  if (!user) {
+  if (!session) {
     if (pathname === '/login') return supabaseResponse
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   if (pathname === '/login' || pathname === '/') {
-    // Session is valid (user verified above), read role claim from JWT
-    const { data: { session } } = await supabase.auth.getSession()
+    // Decode role from JWT payload locally — no extra network call
     let role: string | null = null
     try {
-      role = JSON.parse(atob(session!.access_token.split('.')[1])).role ?? null
-    } catch { /* ignore */ }
+      role = JSON.parse(atob(session.access_token.split('.')[1])).role ?? null
+    } catch { /* ignore malformed token */ }
     const dest = role === 'ADMIN' ? '/admin/dashboard' : '/member/dashboard'
     return NextResponse.redirect(new URL(dest, request.url))
   }

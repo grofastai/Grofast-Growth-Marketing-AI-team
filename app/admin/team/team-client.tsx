@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import {
   Search, Plus, Users, Shield, UserCheck, UserX,
   MoreVertical, Phone, CalendarDays, X, Pencil,
@@ -73,6 +74,8 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }))
 
+  const router = useRouter()
+
   function handleSubmit() {
     setError("")
     startTransition(async () => {
@@ -81,6 +84,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
         : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, password: form.password })
 
       if (result.success) {
+        router.refresh()
         onClose()
       } else {
         setError(result.error ?? "Something went wrong")
@@ -435,7 +439,16 @@ export default function TeamClient({ members }: { members: Member[] }) {
                 </td>
 
                 <td className="px-4 py-3.5">
-                  <div className="relative flex justify-end">
+                  <div className="relative flex items-center justify-end gap-1">
+                    {/* Direct Edit button */}
+                    <button onClick={() => { setEditMember(member); setSheetOpen(true) }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
+                      style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.15)" }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.15)"}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.08)"}>
+                      <Pencil size={11} /> Edit
+                    </button>
+
                     <button onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
                       className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
                       style={{ color: "#9CA3AF" }}
@@ -447,13 +460,6 @@ export default function TeamClient({ members }: { members: Member[] }) {
                     {openDropdown === member.id && (
                       <div className="absolute right-0 top-9 w-44 rounded-xl shadow-2xl z-20 overflow-hidden py-1"
                         style={{ background: "#F8F9FA", border: "1px solid #E5E7EB" }}>
-                        <button onClick={() => { setEditMember(member); setSheetOpen(true); setOpenDropdown(null) }}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
-                          style={{ color: "#374151" }}
-                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.04)"}
-                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
-                          <Pencil size={12} style={{ color: "#9CA3AF" }} /> Edit
-                        </button>
                         <button onClick={() => handleToggleStatus(member)} disabled={isPending}
                           className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
                           style={{ color: member.status === "active" ? "#F59E0B" : "#22C55E" }}
@@ -461,7 +467,7 @@ export default function TeamClient({ members }: { members: Member[] }) {
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                           {member.status === "active" ? <><Ban size={12} /> Deactivate</> : <><RotateCcw size={12} /> Reactivate</>}
                         </button>
-                        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", margin: "2px 0" }} />
+                        <div style={{ borderTop: "1px solid #E5E7EB", margin: "2px 0" }} />
                         <button onClick={() => { setConfirmDelete(member); setOpenDropdown(null) }}
                           className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
                           style={{ color: "#FF6B57" }}

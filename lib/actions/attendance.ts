@@ -12,15 +12,20 @@ function adminSupabase() {
   )
 }
 
-async function getUserContext() {
+async function getUserContext(): Promise<{ userId: string; companyId: string } | { error: string }> {
   const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (!user) return { error: authError ? `Auth error: ${authError.message}` : 'No session — please log in again' }
 
   // Try users table first (service-role query)
   const admin = adminSupabase()
-  const { data } = await admin.from('users').select('company_id').eq('id', user.id).single()
+  const { data, error: dbError } = await admin.from('users').select('company_id').eq('id', user.id).single()
   if (data?.company_id) return { userId: user.id, companyId: data.company_id as string }
+
+  if (dbError && dbError.code !== 'PGRST116') {
+    // PGRST116 = row not found; any other error means DB/key issue
+    return { error: `Database error: ${dbError.message}` }
+  }
 
   // Fallback: decode company_id from JWT claims (set by Supabase Edge Function hook)
   try {
@@ -31,12 +36,13 @@ async function getUserContext() {
     }
   } catch {}
 
-  return null
+  return { error: 'Account not linked to a company — contact your admin to re-create your account' }
 }
 
 export async function clockIn(workType: 'wfh' | 'office'): Promise<{ success: boolean; error?: string }> {
-  const ctx = await getUserContext()
-  if (!ctx) return { success: false, error: 'Not authenticated' }
+  const ctxResult = await getUserContext()
+  if ('error' in ctxResult) return { success: false, error: ctxResult.error }
+  const ctx = ctxResult
 
   const today = new Date().toISOString().split('T')[0]
   const admin = adminSupabase()
@@ -67,8 +73,9 @@ export async function clockIn(workType: 'wfh' | 'office'): Promise<{ success: bo
 }
 
 export async function markAbsent(): Promise<{ success: boolean; error?: string }> {
-  const ctx = await getUserContext()
-  if (!ctx) return { success: false, error: 'Not authenticated' }
+  const ctxResult = await getUserContext()
+  if ('error' in ctxResult) return { success: false, error: ctxResult.error }
+  const ctx = ctxResult
 
   const today = new Date().toISOString().split('T')[0]
   const admin = adminSupabase()
@@ -97,8 +104,9 @@ export async function markAbsent(): Promise<{ success: boolean; error?: string }
 }
 
 export async function clockOut(): Promise<{ success: boolean; error?: string }> {
-  const ctx = await getUserContext()
-  if (!ctx) return { success: false, error: 'Not authenticated' }
+  const ctxResult = await getUserContext()
+  if ('error' in ctxResult) return { success: false, error: ctxResult.error }
+  const ctx = ctxResult
 
   const today = new Date().toISOString().split('T')[0]
   const admin = adminSupabase()

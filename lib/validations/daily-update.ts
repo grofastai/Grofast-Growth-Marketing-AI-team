@@ -2,30 +2,33 @@ import { z } from 'zod'
 
 // ── Work entry (one time block per client/task) ────────────────
 export const workEntrySchema = z.object({
-  id:            z.string(),
-  client_id:     z.string().nullable().optional(),
-  client_name:   z.string().min(1, 'Client name required'),
-  task_type:     z.enum(['shoot', 'edit', 'upload', 'other']),
-  title:         z.string().min(1, 'Entry title required'),
-  start_time:    z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM format'),
-  end_time:      z.string().regex(/^\d{2}:\d{2}$/, 'Use HH:MM format'),
-  duration_hours: z.number().min(0),
-  notes:         z.string().optional(),
+  id:              z.string(),
+  client_id:       z.string().nullable().optional(),
+  client_name:     z.string().min(1, 'Client name required'),
+  task_type:       z.enum(['shoot', 'edit', 'upload', 'other']),
+  title:           z.string().min(1, 'Entry title required'),
+  start_time:      z.string().optional().default(''),
+  end_time:        z.string().optional().default(''),
+  duration_hours:  z.number().min(0),
+  notes:           z.string().optional(),
+  // Shoot-specific
+  video_uploaded:  z.boolean().nullable().optional(),
+  screenshot_url:  z.string().optional(),
+  // Edit-specific
+  video_link:      z.string().optional(),
 })
 
 // ── Main schema ────────────────────────────────────────────────
 export const dailyUpdateSchema = z
   .object({
-    // Which top-level tab was active
     active_tab:   z.enum(['working', 'learning']),
 
     // Working tab
-    work_entries: z.array(workEntrySchema).optional().default([]),
-    links:        z.array(z.string()).optional().default([]),
-    // Media-team extras
-    shoot_count:       z.number().int().min(0).default(0),
-    editing_count:     z.number().int().min(0).default(0),
-    shoot_time_hours:  z.number().min(0).optional(),
+    work_entries:       z.array(workEntrySchema).optional().default([]),
+    links:              z.array(z.string()).optional().default([]),
+    shoot_count:        z.number().int().min(0).default(0),
+    editing_count:      z.number().int().min(0).default(0),
+    shoot_time_hours:   z.number().min(0).optional(),
     editing_time_hours: z.number().min(0).optional(),
 
     // Learning tab
@@ -35,26 +38,14 @@ export const dailyUpdateSchema = z
   })
   .superRefine((val, ctx) => {
     if (val.active_tab === 'working' && val.work_entries.length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Add at least one work entry',
-        path: ['work_entries'],
-      })
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Add at least one work entry', path: ['work_entries'] })
     }
     if (val.active_tab === 'learning') {
       if (!val.learning_topic?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Learning topic is required',
-          path: ['learning_topic'],
-        })
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Learning topic is required', path: ['learning_topic'] })
       }
       if (!val.learning_hours || val.learning_hours <= 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Time spent is required',
-          path: ['learning_hours'],
-        })
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Time spent is required', path: ['learning_hours'] })
       }
     }
   })

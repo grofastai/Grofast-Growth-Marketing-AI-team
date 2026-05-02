@@ -47,11 +47,11 @@ export default async function UpdatePage() {
   return (
     <div className="p-6 md:p-8 max-w-[760px]">
       <div className="mb-7">
-        <h1 className="text-[30px] font-black leading-tight"
-          style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+        <h1 className="gradient-heading text-[30px] font-black leading-tight"
+          style={{ fontFamily: "var(--font-jakarta)" }}>
           Daily Update
         </h1>
-        <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{dateStr}</p>
+        <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>{dateStr}</p>
       </div>
 
       {existing ? (
@@ -66,7 +66,7 @@ export default async function UpdatePage() {
               style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
               Update submitted
             </h2>
-            <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+            <p className="text-[13px]" style={{ color: "#6B7280" }}>
               You&apos;ve already submitted your daily update for today.
             </p>
           </div>
@@ -76,10 +76,10 @@ export default async function UpdatePage() {
               { label: "Work Entries",  value: entryCount },
               { label: "Learning",      value: existing.learning_hours ? `${existing.learning_hours}h` : "—" },
             ].map((item) => (
-              <div key={item.label} className="rounded-lg p-3" style={{ background: "#262626" }}>
+              <div key={item.label} className="rounded-lg p-3" style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
                 <p className="text-[9px] uppercase tracking-[0.18em] font-bold mb-1"
-                  style={{ color: "rgba(255,255,255,0.3)" }}>{item.label}</p>
-                <p className="text-[13px] font-bold capitalize" style={{ color: "#FFFFFF" }}>{item.value}</p>
+                  style={{ color: "#9CA3AF" }}>{item.label}</p>
+                <p className="text-[13px] font-bold capitalize" style={{ color: "#111827" }}>{item.value}</p>
               </div>
             ))}
           </div>
@@ -87,7 +87,7 @@ export default async function UpdatePage() {
       ) : (
         <Suspense fallback={
           <div className="flex items-center justify-center py-16">
-            <Loader2 size={20} className="animate-spin" style={{ color: "rgba(255,255,255,0.3)" }} />
+            <Loader2 size={20} className="animate-spin" style={{ color: "#DC2626" }} />
           </div>
         }>
           <DailyUpdateForm projects={projects} />

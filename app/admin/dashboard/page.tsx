@@ -203,17 +203,17 @@ export default async function DashboardPage() {
             <h1 className="text-[28px] leading-tight font-black text-white">
               {greeting} 👋
             </h1>
-            <p className="text-sm mt-1" style={{ color: "#6B7280" }}>{dateStr}</p>
+            <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>{dateStr}</p>
           </div>
           <div className="flex items-center gap-2 mt-1 flex-shrink-0">
             <Link href="/admin/team"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90"
-              style={{ background: "rgba(0,0,0,0.06)", border: "1px solid rgba(255,255,255,0.2)", color: "#111111" }}>
+              style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#FFFFFF" }}>
               <Plus size={14} /> Add Member
             </Link>
             <Link href="/admin/announcements"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90"
-              style={{ background: "rgba(0,0,0,0.06)", border: "1px solid rgba(255,255,255,0.2)", color: "#111111" }}>
+              style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#FFFFFF" }}>
               <Megaphone size={14} /> Announcement
             </Link>
             <Link href="/admin/goals"
@@ -230,7 +230,7 @@ export default async function DashboardPage() {
         {stats.map(({ label, value, icon: Icon, href, trendLabel, trendDir, accent, accentBg }) => (
           <Link key={label} href={href}
             className="rounded-2xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md group"
-            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+            style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
             <div className="flex items-center justify-between mb-4">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: accentBg }}>
                 <Icon size={16} style={{ color: accent }} />
@@ -255,7 +255,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── 7-Day Analytics ────────────────────────────────────── */}
-      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center"
@@ -281,7 +281,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Action Required ────────────────────────────────────── */}
-      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
         <div className="flex items-center gap-2.5 mb-4">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center"
             style={{ background: actionItems.length > 0 ? "rgba(220,38,38,0.1)" : "rgba(22,163,74,0.1)" }}>
@@ -326,7 +326,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-3 gap-4">
 
         {/* Team Status */}
-        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
           <div className="flex items-center gap-2 mb-4">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(220,38,38,0.1)" }}>
               <Users size={14} style={{ color: "#DC2626" }} />
@@ -411,7 +411,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Today's Updates ────────────────────────────────────── */}
-      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(220,38,38,0.1)" }}>

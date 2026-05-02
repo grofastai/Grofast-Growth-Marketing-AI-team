@@ -68,7 +68,7 @@ function TaskCard({
 
   return (
     <div className="rounded-xl p-3.5 group"
-      style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+      style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
 
       {/* Title + delete */}
       <div className="flex items-start justify-between gap-2 mb-2">
@@ -228,7 +228,7 @@ export default function GoalsClient({
       {/* ── Header ───────────────────────────────────────────── */}
       <div className="flex items-start justify-between mb-5">
         <div>
-          <h1 className="text-[28px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>
+          <h1 className="gradient-heading text-[28px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
             Task Board
           </h1>
           <p className="text-sm mt-1" style={{ color: "rgba(17,24,39,0.4)" }}>
@@ -272,7 +272,7 @@ export default function GoalsClient({
           { label: "Total",       count: tasks.length,              icon: Target,      color: "#DC2626", bg: "rgba(220,38,38,0.1)" },
         ].map(({ label, count, icon: Icon, color, bg }) => (
           <div key={label} className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
-            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+            style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: bg }}>
               <Icon size={13} style={{ color }} />
             </div>
@@ -285,24 +285,31 @@ export default function GoalsClient({
       {/* ── Create Task Modal ─────────────────────────────────── */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}>
+          style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)" }}>
           <div className="w-full max-w-lg rounded-2xl p-6 mx-4"
-            style={{ background: "#F8F9FA", border: "1px solid rgba(255,255,255,0.1)" }}>
+            style={{ background: "#FFFFFF", boxShadow: "0 20px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08)" }}>
 
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-[18px] font-black text-white" style={{ fontFamily: "var(--font-jakarta)" }}>
-                Create Task
-              </h2>
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+                  style={{ background: "rgba(220,38,38,0.1)" }}>
+                  <Target size={16} style={{ color: "#DC2626" }} />
+                </div>
+                <h2 className="text-[18px] font-black" style={{ color: "#111827", fontFamily: "var(--font-jakarta)" }}>
+                  Create Task
+                </h2>
+              </div>
               <button onClick={() => { setShowForm(false); setSelectedMembers([]) }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-gray-100"
                 style={{ color: "#9CA3AF" }}>
-                <X size={18} />
+                <X size={16} />
               </button>
             </div>
 
             <style>{`
-              .task-input { outline: none; }
-              .task-input::placeholder { color: rgba(255,255,255,0.2); }
-              .task-input:focus { border-color: rgba(220,38,38,0.5) !important; }
+              .task-input { outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
+              .task-input::placeholder { color: #9CA3AF; }
+              .task-input:focus { border-color: rgba(220,38,38,0.5) !important; box-shadow: 0 0 0 3px rgba(220,38,38,0.06) !important; }
             `}</style>
 
             <form action={(fd) => {
@@ -313,41 +320,37 @@ export default function GoalsClient({
               })
             }} className="space-y-4">
 
-              {/* Title */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
-                  style={{ color: "#9CA3AF" }}>Title *</label>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-1.5"
+                  style={{ color: "#374151" }}>Title *</label>
                 <input name="title" required placeholder="Task title…"
-                  className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px] text-white"
-                  style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }} />
+                  className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px]"
+                  style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111827", fontFamily: "inherit" }} />
               </div>
 
-              {/* Description */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
-                  style={{ color: "#9CA3AF" }}>Description</label>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-1.5"
+                  style={{ color: "#374151" }}>Description</label>
                 <textarea name="description" rows={2} placeholder="Optional details…"
-                  className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px] text-white resize-none"
-                  style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }} />
+                  className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px] resize-none"
+                  style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111827", fontFamily: "inherit" }} />
               </div>
 
-              {/* Assign to — multi-member toggle pills */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
-                  style={{ color: "#9CA3AF" }}>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-1.5"
+                  style={{ color: "#374151" }}>
                   Assign To
                   {selectedMembers.length > 0 && (
-                    <span className="ml-2 normal-case text-[10px]" style={{ color: "#F87171" }}>
+                    <span className="ml-2 normal-case text-[10px]" style={{ color: "#DC2626" }}>
                       ({selectedMembers.length} selected)
                     </span>
                   )}
                 </label>
-                {/* Hidden inputs for form submission */}
                 {selectedMembers.map(id => (
                   <input key={id} type="hidden" name="assigned_to" value={id} />
                 ))}
                 {members.length === 0 ? (
-                  <p className="text-[12px] py-2" style={{ color: "#D1D5DB" }}>
+                  <p className="text-[12px] py-2" style={{ color: "#9CA3AF" }}>
                     No team members yet — add members in Team settings
                   </p>
                 ) : (
@@ -358,13 +361,13 @@ export default function GoalsClient({
                         <button key={m.id} type="button" onClick={() => toggleMember(m.id)}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all"
                           style={selected
-                            ? { background: "rgba(220,38,38,0.2)", border: "1px solid rgba(220,38,38,0.5)", color: "#F87171" }
-                            : { background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#6B7280" }
+                            ? { background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.35)", color: "#DC2626" }
+                            : { background: "#F3F4F6", border: "1px solid #E5E7EB", color: "#6B7280" }
                           }>
                           <span className="w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center flex-shrink-0"
                             style={selected
-                              ? { background: "rgba(220,38,38,0.3)", color: "#F87171" }
-                              : { background: "#2E2E2E", color: "#9CA3AF" }}>
+                              ? { background: "rgba(220,38,38,0.15)", color: "#DC2626" }
+                              : { background: "#E5E7EB", color: "#6B7280" }}>
                             {m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                           </span>
                           {m.name.split(" ")[0]}
@@ -375,25 +378,24 @@ export default function GoalsClient({
                 )}
               </div>
 
-              {/* Priority + Project */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
-                    style={{ color: "#9CA3AF" }}>Priority</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-1.5"
+                    style={{ color: "#374151" }}>Priority</label>
                   <select name="priority" defaultValue="medium"
-                    className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px] text-white"
-                    style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }}>
+                    className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px]"
+                    style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111827", fontFamily: "inherit" }}>
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
-                    style={{ color: "#9CA3AF" }}>Client / Project</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-1.5"
+                    style={{ color: "#374151" }}>Client / Project</label>
                   <select name="project_id"
-                    className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px] text-white"
-                    style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }}>
+                    className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px]"
+                    style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111827", fontFamily: "inherit" }}>
                     <option value="">No project</option>
                     {projects.map(p => (
                       <option key={p.id} value={p.id}>
@@ -404,27 +406,26 @@ export default function GoalsClient({
                 </div>
               </div>
 
-              {/* Due date */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
-                  style={{ color: "#9CA3AF" }}>Due Date</label>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-1.5"
+                  style={{ color: "#374151" }}>Due Date</label>
                 <input name="due_date" type="date"
-                  className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px] text-white"
-                  style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }} />
+                  className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px]"
+                  style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111827", fontFamily: "inherit" }} />
               </div>
 
               {state && 'error' in state && (
-                <p className="text-[12px]" style={{ color: "#F87171" }}>{state.error}</p>
+                <p className="text-[12px] font-medium" style={{ color: "#DC2626" }}>{state.error}</p>
               )}
 
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => { setShowForm(false); setSelectedMembers([]) }}
-                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
-                  style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#6B7280" }}>
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-colors hover:bg-gray-50"
+                  style={{ background: "#F3F4F6", border: "1px solid #E5E7EB", color: "#6B7280" }}>
                   Cancel
                 </button>
                 <button type="submit" disabled={formPending}
-                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 transition-opacity hover:opacity-90"
                   style={{ background: "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)", color: "#FFFFFF", opacity: formPending ? 0.65 : 1 }}>
                   {formPending && <Loader2 size={13} className="animate-spin" />}
                   {selectedMembers.length > 1
@@ -446,7 +447,8 @@ export default function GoalsClient({
                 style={{
                   width: 280,
                   background: "#FFFFFF",
-                  border: "1px solid #E5E7EB",
+                  border: "1px solid #F0F0F0",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)",
                   minHeight: 480,
                 }}>
 
@@ -505,7 +507,7 @@ export default function GoalsClient({
         <div className="grid grid-cols-3 gap-4">
           {statusColumns.map((col) => (
             <div key={col.key} className="rounded-2xl p-4 flex flex-col"
-              style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", minHeight: 480 }}>
+              style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", minHeight: 480 }}>
 
               {/* Column header */}
               <div className="flex items-center justify-between mb-4 pb-3"

@@ -51,7 +51,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#111111" }}>
+          <h1 className="gradient-heading text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800 }}>
             Announcements
           </h1>
           <p className="text-sm mt-1 font-sans" style={{ color: "#6B7280" }}>Post updates and notices to your team.</p>

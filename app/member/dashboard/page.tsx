@@ -80,8 +80,8 @@ export default async function MemberDashboardPage() {
       <div className="mb-7">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-[28px] md:text-[32px] leading-tight font-black"
-              style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+            <h1 className="gradient-heading text-[28px] md:text-[32px] leading-tight font-black"
+              style={{ fontFamily: "var(--font-jakarta)" }}>
               {greeting}, {firstName}
             </h1>
             <p className="text-[13px] mt-1" style={{ color: "#9CA3AF" }}>{dateStr}</p>
@@ -248,7 +248,7 @@ export default async function MemberDashboardPage() {
                 { label: "Shoots",    value: shootCount },
               ].map((item) => (
                 <div key={item.label} className="rounded-lg p-3 text-center"
-                  style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #1A1A1A" }}>
+                  style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
                   <p className="text-[22px] font-black leading-none mb-1"
                     style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
                     {item.value}

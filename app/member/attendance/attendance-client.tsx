@@ -158,8 +158,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
       {/* ── 1. Header ── */}
       <div className="flex items-start justify-between mb-7">
         <div>
-          <h1 className="text-[30px] font-black leading-tight"
-            style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+          <h1 className="gradient-heading text-[30px] font-black leading-tight"
+            style={{ fontFamily: "var(--font-jakarta)" }}>
             Attendance
           </h1>
           <p className="text-[13px] mt-1" style={{ color: "#9CA3AF" }}>{dateStr}</p>
@@ -426,7 +426,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               { label: "Shoots",        value: todayUpdate.shoot_count    ? `${todayUpdate.shoot_count}`      : "—" },
             ].map(item => (
               <div key={item.label} className="rounded-lg p-3 text-center"
-                style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #1A1A1A" }}>
+                style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
                 <p className="text-[22px] font-black mb-0.5"
                   style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
                   {item.value}

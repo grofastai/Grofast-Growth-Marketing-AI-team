@@ -274,8 +274,8 @@ export default function TeamClient({ members }: { members: Member[] }) {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-[30px] leading-tight font-black"
-            style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>Team</h1>
+          <h1 className="gradient-heading text-[30px] leading-tight font-black"
+            style={{ fontFamily: "var(--font-jakarta)" }}>Team</h1>
           <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>Manage your employees and their access</p>
         </div>
         <button onClick={() => { setEditMember(null); setSheetOpen(true) }}
@@ -316,12 +316,12 @@ export default function TeamClient({ members }: { members: Member[] }) {
           <input value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or ID…"
             className="w-full rounded-xl pl-9 pr-4 py-2.5 text-[13px] outline-none"
-            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#111111" }} />
+            style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", color: "#111111" }} />
           <style>{`.search-input::placeholder{color:rgba(255,255,255,0.25)}`}</style>
         </div>
 
         <div className="flex items-center gap-1 rounded-xl p-1"
-          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+          style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
           {(["ALL", "MEMBER", "ADMIN"] as const).map((r) => (
             <button key={r} onClick={() => setRoleFilter(r)}
               className="px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
@@ -335,7 +335,7 @@ export default function TeamClient({ members }: { members: Member[] }) {
         </div>
 
         <div className="flex items-center gap-1 rounded-xl p-1"
-          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+          style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
           {(["ALL", "active", "inactive"] as const).map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)}
               className="px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"

@@ -114,7 +114,36 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(220,38,38,0.5); }
   to   { background-position: 200% 0; }
 }
 .shimmer {
-  background: linear-gradient(90deg, #111111 25%, #1A1A1A 50%, #111111 75%);
+  background: linear-gradient(90deg, #F3F4F6 25%, #E9EAEC 50%, #F3F4F6 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+}
+
+/* Premium card elevation */
+.card-elevated {
+  background: #FFFFFF;
+  border: 1px solid #F0F0F0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  border-radius: 16px;
+}
+.card-elevated:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 8px 24px rgba(0,0,0,0.06);
+  transform: translateY(-1px);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+/* Red accent underline for section headers */
+.section-accent {
+  position: relative;
+  display: inline-block;
+}
+.section-accent::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 32px;
+  height: 2px;
+  background: linear-gradient(90deg, #C90D16, transparent);
+  border-radius: 2px;
 }

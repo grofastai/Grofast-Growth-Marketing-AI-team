@@ -383,7 +383,7 @@ export default function ProjectsClient({
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-[28px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>
+          <h1 className="gradient-heading text-[28px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
             Clients
           </h1>
           <p className="text-sm mt-1" style={{ color: "rgba(17,24,39,0.4)" }}>Track and manage all client engagements.</p>
@@ -424,14 +424,14 @@ export default function ProjectsClient({
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search client, business, package…"
             className="w-full pl-9 pr-4 py-2.5 rounded-xl text-[13px] outline-none"
-            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#111827" }} />
+            style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", color: "#111827" }} />
         </div>
         <div className="relative">
           <Briefcase size={12} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
             style={{ color: "#9CA3AF" }} />
           <select value={serviceFilter} onChange={e => setServiceFilter(e.target.value)}
             className="appearance-none pl-8 pr-8 py-2.5 rounded-xl text-[12px] outline-none min-w-[190px]"
-            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#374151" }}>
+            style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", color: "#374151" }}>
             <option value="">All Services</option>
             {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -459,7 +459,7 @@ export default function ProjectsClient({
       {/* Cards */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
-          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+          style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
           <FolderOpen size={36} style={{ color: "#E5E7EB" }} className="mb-3" />
           <p className="text-[14px] font-semibold" style={{ color: "#9CA3AF" }}>
             {projects.length === 0 ? "No clients yet" : "No clients match your filter"}
@@ -492,7 +492,7 @@ export default function ProjectsClient({
             return (
               <div key={project.id}
                 className="rounded-2xl p-5 flex flex-col gap-4 transition-all hover:-translate-y-0.5 hover:shadow-md"
-                style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+                style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
 
                 {/* Header */}
                 <div className="flex items-start justify-between">
@@ -539,7 +539,7 @@ export default function ProjectsClient({
                     </button>
                     {openDropdown === project.id && (
                       <div className="absolute right-0 top-9 w-36 rounded-xl overflow-hidden py-1 z-20"
-                        style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+                        style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
                         <button onClick={() => { setEditProject(project); setSheetOpen(true); setOpenDropdown(null) }}
                           className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all hover:bg-gray-50"
                           style={{ color: "#374151" }}>

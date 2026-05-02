@@ -137,8 +137,8 @@ export default function ReportsClient({
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-[30px] font-black leading-tight"
-            style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+          <h1 className="gradient-heading text-[30px] font-black leading-tight"
+            style={{ fontFamily: "var(--font-jakarta)" }}>
             Daily Intelligence
           </h1>
           <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>

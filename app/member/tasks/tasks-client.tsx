@@ -21,7 +21,7 @@ interface Task {
 const PRIORITY = {
   low:    { color: "#6B7280", bg: "rgba(0,0,0,0.04)", label: "Low"    },
   medium: { color: "#F59E0B",               bg: "rgba(245,158,11,0.1)",   label: "Medium" },
-  high:   { color: "#FF6B57",               bg: "rgba(255,107,87,0.1)",   label: "High"   },
+  high:   { color: "#DC2626",               bg: "rgba(255,107,87,0.1)",   label: "High"   },
 }
 
 const STATUS_META = {
@@ -41,7 +41,7 @@ function dueDateLabel(due: string | null, today: string): { text: string; color:
   if (!due) return null
   if (due < today) {
     const days = Math.round((new Date(today).getTime() - new Date(due).getTime()) / 86400000)
-    return { text: days === 1 ? "Yesterday" : `${days}d overdue`, color: "#FF6B57" }
+    return { text: days === 1 ? "Yesterday" : `${days}d overdue`, color: "#DC2626" }
   }
   if (due === today) return { text: "Due Today",     color: "#F59E0B" }
   const days = Math.round((new Date(due).getTime() - new Date(today).getTime()) / 86400000)
@@ -128,11 +128,11 @@ export default function MemberTasksClient({
       {/* ── Header ── */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-[30px] font-black leading-tight"
-            style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>My Tasks</h1>
+          <h1 className="gradient-heading text-[30px] font-black leading-tight"
+            style={{ fontFamily: "var(--font-jakarta)" }}>My Tasks</h1>
           <p className="text-[13px] mt-1" style={{ color: "#9CA3AF" }}>
             {active.length > 0
-              ? <>{active.length} active task{active.length !== 1 ? "s" : ""}{overdue.length > 0 && <span style={{ color: "#FF6B57" }}> · {overdue.length} overdue ⚠</span>}</>
+              ? <>{active.length} active task{active.length !== 1 ? "s" : ""}{overdue.length > 0 && <span style={{ color: "#DC2626" }}> · {overdue.length} overdue ⚠</span>}</>
               : "You're all caught up 🎉"
             }
           </p>
@@ -157,7 +157,7 @@ export default function MemberTasksClient({
           <div className="w-px h-8" style={{ background: "#E5E7EB" }} />
           <div className="text-center">
             <p className="text-[18px] font-black leading-none"
-              style={{ fontFamily: "var(--font-jakarta)", color: overdue.length > 0 ? "#FF6B57" : "#9CA3AF" }}>
+              style={{ fontFamily: "var(--font-jakarta)", color: overdue.length > 0 ? "#DC2626" : "#9CA3AF" }}>
               {overdue.length}
             </p>
             <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>Overdue</p>
@@ -171,8 +171,8 @@ export default function MemberTasksClient({
           style={{ border: "1px solid rgba(255,107,87,0.25)" }}>
           <div className="flex items-center gap-2 px-4 py-2.5"
             style={{ background: "rgba(255,107,87,0.06)" }}>
-            <AlertTriangle size={13} style={{ color: "#FF6B57" }} />
-            <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#FF6B57" }}>
+            <AlertTriangle size={13} style={{ color: "#DC2626" }} />
+            <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#DC2626" }}>
               {overdue.length} Overdue Task{overdue.length !== 1 ? "s" : ""}
             </p>
           </div>
@@ -197,7 +197,7 @@ export default function MemberTasksClient({
               className="px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
               style={isActive
                 ? { background: "rgba(220,38,38,0.1)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }
-                : { background: "rgba(0,0,0,0.02)", color: "#9CA3AF", border: "1px solid rgba(255,255,255,0.06)" }
+                : { background: "rgba(0,0,0,0.02)", color: "#9CA3AF", border: "1px solid #F0F0F0" }
               }>
               {tab.label}
               <span className="ml-1.5 text-[11px] opacity-70">({count})</span>
@@ -296,7 +296,7 @@ function TaskCard({
           <div className="flex items-center gap-2 mt-2 flex-wrap">
             {project && (
               <span className="text-[11px] px-2 py-0.5 rounded font-medium"
-                style={{ background: "rgba(109,93,246,0.1)", color: "#9D8DF4" }}>
+                style={{ background: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
                 {project.business_name}
               </span>
             )}
@@ -340,14 +340,14 @@ function TaskCard({
           {/* Log Work → pre-fills daily update */}
           <button onClick={onLogWork}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
-            style={{ background: "rgba(109,93,246,0.08)", color: "#9D8DF4", border: "1px solid rgba(109,93,246,0.15)" }}>
+            style={{ background: "rgba(109,93,246,0.08)", color: "#B91C1C", border: "1px solid rgba(220,38,38,0.15)" }}>
             <FileEdit size={11} /> Log Work
           </button>
 
           {/* If overdue: nudge to learn */}
           {isOverdue && (
             <span className="ml-auto flex items-center gap-1 text-[11px] font-medium"
-              style={{ color: "#FF6B57" }}>
+              style={{ color: "#DC2626" }}>
               <AlertTriangle size={11} /> Overdue
             </span>
           )}

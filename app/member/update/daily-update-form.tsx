@@ -234,7 +234,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                       <button type="button" onClick={() => removeEntry(i)}
                         className="ml-auto p-1.5 rounded-lg"
                         style={{ background: "rgba(255,107,87,0.08)", border: "1px solid rgba(255,107,87,0.15)" }}>
-                        <Trash2 size={13} style={{ color: "#FF6B57" }} />
+                        <Trash2 size={13} style={{ color: "#DC2626" }} />
                       </button>
                     </div>
 
@@ -426,8 +426,8 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
             </div>
 
             <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg"
-              style={{ background: "rgba(109,93,246,0.06)", border: "1px solid rgba(109,93,246,0.15)" }}>
-              <BookOpen size={13} style={{ color: "#6D5DF6" }} />
+              style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.15)" }}>
+              <BookOpen size={13} style={{ color: "#DC2626" }} />
               <p className="text-[12px]" style={{ color: "#6B7280" }}>
                 Learning hours count toward your daily productivity score.
               </p>
@@ -449,7 +449,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
         {/* ── Error ────────────────────────────────────────── */}
         {error && (
           <div className="flex items-center gap-2.5 px-4 py-3 rounded-lg"
-            style={{ background: "rgba(255,107,87,0.07)", border: "1px solid rgba(255,107,87,0.18)", color: "#FF6B57" }}>
+            style={{ background: "rgba(255,107,87,0.07)", border: "1px solid rgba(255,107,87,0.18)", color: "#DC2626" }}>
             <span className="text-[13px]">{error}</span>
           </div>
         )}

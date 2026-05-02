@@ -147,8 +147,8 @@ export default function ProfileClient({
 
       {/* ── Page title ── */}
       <div className="mb-6">
-        <h1 className="text-[30px] font-black leading-tight"
-          style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>My Profile</h1>
+        <h1 className="gradient-heading text-[30px] font-black leading-tight"
+          style={{ fontFamily: "var(--font-jakarta)" }}>My Profile</h1>
         <p className="text-[13px] mt-1" style={{ color: "#9CA3AF" }}>
           Your identity, performance, and account settings.
         </p>
@@ -184,7 +184,7 @@ export default function ProfileClient({
                     <input className="pf-in" style={IS}
                       value={editPhone} onChange={(e) => setEditPhone(e.target.value)}
                       placeholder="Phone number" />
-                    {editError && <p className="text-[12px]" style={{ color: "#FF6B57" }}>{editError}</p>}
+                    {editError && <p className="text-[12px]" style={{ color: "#DC2626" }}>{editError}</p>}
                     <div className="flex gap-2">
                       <button onClick={handleSave} disabled={savePending}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
@@ -211,13 +211,13 @@ export default function ProfileClient({
                           {profile?.role ?? "MEMBER"}
                         </span>
                         <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
-                          style={{ background: "rgba(109,93,246,0.1)", color: "#9D8DF4" }}>
+                          style={{ background: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
                           #{profile?.employee_id ?? "—"}
                         </span>
                         <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
                           style={{
                             background: profile?.status === "active" ? "rgba(16,185,129,0.1)" : "rgba(255,107,87,0.1)",
-                            color: profile?.status === "active" ? "#10B981" : "#FF6B57",
+                            color: profile?.status === "active" ? "#10B981" : "#DC2626",
                           }}>
                           {profile?.status ?? "active"}
                         </span>
@@ -298,18 +298,18 @@ export default function ProfileClient({
             <div className="space-y-2">
               <button onClick={() => router.push("/change-password")}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
-                style={{ background: "rgba(109,93,246,0.06)", border: "1px solid rgba(109,93,246,0.15)" }}>
-                <KeyRound size={15} style={{ color: "#9D8DF4" }} />
-                <span className="text-[13px] font-semibold" style={{ color: "#9D8DF4" }}>Change Password</span>
+                style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.15)" }}>
+                <KeyRound size={15} style={{ color: "#B91C1C" }} />
+                <span className="text-[13px] font-semibold" style={{ color: "#B91C1C" }}>Change Password</span>
               </button>
               <button onClick={handleLogout} disabled={logoutPending}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
                 style={{ background: "rgba(255,107,87,0.06)", border: "1px solid rgba(255,107,87,0.15)" }}>
                 {logoutPending
-                  ? <Loader2 size={15} className="animate-spin" style={{ color: "#FF6B57" }} />
-                  : <LogOut size={15} style={{ color: "#FF6B57" }} />
+                  ? <Loader2 size={15} className="animate-spin" style={{ color: "#DC2626" }} />
+                  : <LogOut size={15} style={{ color: "#DC2626" }} />
                 }
-                <span className="text-[13px] font-semibold" style={{ color: "#FF6B57" }}>
+                <span className="text-[13px] font-semibold" style={{ color: "#DC2626" }}>
                   {logoutPending ? "Signing out…" : "Sign Out"}
                 </span>
               </button>

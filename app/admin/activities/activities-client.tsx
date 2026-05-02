@@ -85,7 +85,7 @@ export default function ActivitiesClient({
     <div className="p-8 max-w-[1200px]">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+        <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
           Activities
         </h1>
         <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>Daily updates from all team members.</p>
@@ -118,16 +118,16 @@ export default function ActivitiesClient({
       {/* Filters */}
       <div className="flex gap-3 mb-6">
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
-          style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
+          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
           <Filter size={12} style={{ color: "#9CA3AF" }} />
           <input type="date" value={dateFilter}
             onChange={(e) => navigate(e.target.value, memberFilter)}
             className="bg-transparent text-[13px] outline-none"
-            style={{ color: "#111111", colorScheme: "dark" }} />
+            style={{ color: "#111111", colorScheme: "light" }} />
         </div>
         <select value={memberFilter} onChange={(e) => navigate(dateFilter, e.target.value)}
           className="px-3 py-2 rounded-lg text-[13px] outline-none"
-          style={{ background: "#FFFFFF", border: "1px solid #2A2A2A", color: "#111111", colorScheme: "dark" }}>
+          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#111111", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
           <option value="">All Members</option>
           {members.map((m) => (
             <option key={m.id} value={m.id}>{m.name} ({m.employee_id})</option>

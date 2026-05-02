@@ -29,7 +29,7 @@ export default function PendingApprovalsCard({ leaves }: { leaves: LeaveRow[] })
     new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
 
   return (
-    <div className="rounded-2xl p-5 h-full" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+    <div className="rounded-2xl p-5 h-full" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(220,38,38,0.1)" }}>

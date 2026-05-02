@@ -107,18 +107,20 @@ export async function createMember(input: {
     }
 
     // Auth user exists — check if public.users record is missing (broken account)
-    const { data: { users: existingAuthUsers } } = await admin.auth.admin.listUsers()
-    const existingAuthUser = existingAuthUsers.find(u => u.email === input.email)
-    if (!existingAuthUser) return { success: false, error: 'This email is already registered' }
+    // Query public.users by email first (faster than paginating auth users)
+    const { data: existingProfileByEmail } = await admin
+      .from('users').select('id').eq('email', input.email).maybeSingle()
 
-    const { data: existingProfile } = await admin
-      .from('users').select('id').eq('id', existingAuthUser.id).single()
-
-    if (existingProfile) {
+    if (existingProfileByEmail) {
       return { success: false, error: 'This email is already registered' }
     }
 
-    // Repair: insert the missing public.users record and update the password
+    // Profile is missing — find the auth user ID by paginating with high perPage
+    const { data: { users: existingAuthUsers } } = await admin.auth.admin.listUsers({ perPage: 1000 })
+    const existingAuthUser = existingAuthUsers.find(u => u.email === input.email)
+    if (!existingAuthUser) return { success: false, error: 'This email is already registered' }
+
+    // Repair: reset their password and create the missing profile
     await admin.auth.admin.updateUserById(existingAuthUser.id, { password: input.password })
     authUserId = existingAuthUser.id
   } else {

@@ -19,7 +19,7 @@ export default function AppleIcon() {
       >
         <span
           style={{
-            color: '#A3E635',
+            color: '#DC2626',
             fontSize: 74,
             fontWeight: 800,
             letterSpacing: '-2px',

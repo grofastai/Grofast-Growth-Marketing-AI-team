@@ -48,7 +48,7 @@ export default function PwaInstallPrompt() {
     >
       <div
         className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center font-bold text-sm"
-        style={{ background: '#A3E635', color: '#0D0D0D' }}
+        style={{ background: '#DC2626', color: '#FFFFFF' }}
       >
         GF
       </div>
@@ -74,7 +74,7 @@ export default function PwaInstallPrompt() {
         <button
           onClick={install}
           className="px-3 py-1.5 rounded-lg text-xs font-semibold"
-          style={{ background: '#A3E635', color: '#0D0D0D' }}
+          style={{ background: '#DC2626', color: '#FFFFFF' }}
         >
           Install
         </button>

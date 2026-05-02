@@ -70,7 +70,7 @@ function LiveTimer({ clockInIso }: { clockInIso: string }) {
   }, [clockInIso])
   return (
     <span className="font-mono text-[32px] font-black tracking-tight"
-      style={{ fontFamily: "var(--font-jakarta)", color: "#A3E635" }}>
+      style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
       {fmtDuration(secs)}
     </span>
   )
@@ -92,7 +92,7 @@ function ProgressBar({ hoursWorked }: { hoursWorked: number }) {
     <div className="space-y-1.5">
       <div className="flex gap-0.5">
         {Array.from({ length: filled }).map((_, i) => (
-          <div key={i} className="h-2 flex-1 rounded-sm" style={{ background: "#A3E635" }} />
+          <div key={i} className="h-2 flex-1 rounded-sm" style={{ background: "#DC2626" }} />
         ))}
         {Array.from({ length: empty }).map((_, i) => (
           <div key={i} className="h-2 flex-1 rounded-sm" style={{ background: "rgba(255,255,255,0.08)" }} />
@@ -128,8 +128,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
   // Status badge
   const statusLabel = isAbsent ? "Absent" : (isIn || isDone) ? "Present" : "Not Logged"
-  const statusColor = isAbsent ? "#FF6464" : (isIn || isDone) ? "#A3E635" : "rgba(255,255,255,0.3)"
-  const statusDot   = isAbsent ? "#FF6464" : (isIn || isDone) ? "#A3E635" : "#555"
+  const statusColor = isAbsent ? "#FF6464" : (isIn || isDone) ? "#DC2626" : "rgba(255,255,255,0.3)"
+  const statusDot   = isAbsent ? "#FF6464" : (isIn || isDone) ? "#DC2626" : "#555"
 
   function handle(fn: () => Promise<{ success: boolean; error?: string }>) {
     setError(null)
@@ -147,7 +147,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   // Productivity alert
   let productivity: { icon: "fire" | "warn"; text: string; color: string } | null = null
   if (hoursWorked >= SHIFT_HOURS) {
-    productivity = { icon: "fire", text: "You have completed today's work 🔥", color: "#A3E635" }
+    productivity = { icon: "fire", text: "You have completed today's work 🔥", color: "#DC2626" }
   } else if (isIn && hoursWorked > 0 && hoursWorked < SHIFT_HOURS * 0.5) {
     productivity = { icon: "warn", text: `You are below expected ${SHIFT_HOURS} hours`, color: "#F59E0B" }
   }
@@ -181,8 +181,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         style={{
           background: "#262626",
           border: isIn
-            ? "1px solid rgba(163,230,53,0.25)"
-            : isDone ? "1px solid rgba(163,230,53,0.15)"
+            ? "1px solid rgba(220,38,38,0.25)"
+            : isDone ? "1px solid rgba(220,38,38,0.15)"
             : isAbsent ? "1px solid rgba(255,100,100,0.2)"
             : "1px solid #2A2A2A",
         }}>
@@ -201,7 +201,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     <button key={mode} onClick={() => setSelectedMode(mode)} disabled={isPending}
                       className="flex items-center gap-2 px-5 py-3 rounded-xl text-[13px] font-bold transition-all"
                       style={{
-                        background: active ? "#A3E635" : "rgba(255,255,255,0.04)",
+                        background: active ? "#DC2626" : "rgba(255,255,255,0.04)",
                         color: active ? "#0D0D0D" : "rgba(255,255,255,0.4)",
                         border: active ? "none" : "1px solid #2A2A2A",
                       }}>
@@ -217,7 +217,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 onClick={() => handle(() => clockIn(selectedMode))}
                 disabled={isPending}
                 className="flex items-center gap-2 px-7 py-3 rounded-xl text-[14px] font-bold disabled:opacity-50 transition-all"
-                style={{ background: "#A3E635", color: "#0D0D0D" }}>
+                style={{ background: "#DC2626", color: "#FFFFFF" }}>
                 {isPending ? <Loader2 size={14} className="animate-spin" /> : <LogIn size={14} />}
                 Clock In
               </button>
@@ -238,7 +238,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
           <div className="space-y-5">
             <div>
               <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-1"
-                style={{ color: "#A3E635" }}>
+                style={{ color: "#DC2626" }}>
                 Checked in at {fmtTime(todayLog.clock_in)}
               </p>
               <p className="text-[12px] mb-3" style={{ color: "rgba(255,255,255,0.3)" }}>Working for</p>
@@ -261,8 +261,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         {isDone && todayLog?.clock_in && todayLog?.clock_out && (
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(163,230,53,0.1)" }}>
-              <CheckCircle2 size={20} style={{ color: "#A3E635" }} />
+              style={{ background: "rgba(220,38,38,0.1)" }}>
+              <CheckCircle2 size={20} style={{ color: "#DC2626" }} />
             </div>
             <div>
               <p className="text-[15px] font-bold mb-3" style={{ color: "#FFFFFF" }}>
@@ -311,7 +311,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         <div className="space-y-2.5">
           {[
             { label: "Status",    value: isAbsent ? "Absent" : (isIn || isDone) ? "Present" : "Not Logged",
-              color: isAbsent ? "#FF6464" : (isIn || isDone) ? "#A3E635" : "rgba(255,255,255,0.45)" },
+              color: isAbsent ? "#FF6464" : (isIn || isDone) ? "#DC2626" : "rgba(255,255,255,0.45)" },
             { label: "Work Mode", value: todayLog?.work_type
                 ? (todayLog.work_type === "wfh" ? "Work From Home" : "Office") : "—" },
             { label: "Check-in",  value: fmtTime(todayLog?.clock_in ?? null) },
@@ -361,18 +361,18 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             if (isFuture)        { dot = "#333";    label = "—";       color = "rgba(255,255,255,0.2)" }
             else if (absent)     { dot = "#FF6464"; label = "Absent";  color = "#FF6464" }
             else if (incomplete) { dot = "#F59E0B"; label = `${fmtHoursShort(h)} (incomplete)`; color = "#F59E0B" }
-            else if (present)    { dot = "#A3E635"; label = `Present · ${fmtHoursShort(h)}`; color = "#A3E635" }
+            else if (present)    { dot = "#DC2626"; label = `Present · ${fmtHoursShort(h)}`; color = "#DC2626" }
 
             return (
               <div key={date}
                 className="flex items-center gap-3 px-3 py-2 rounded-lg"
                 style={{
-                  background: isToday ? "rgba(163,230,53,0.06)" : "transparent",
-                  border: isToday ? "1px solid rgba(163,230,53,0.15)" : "1px solid transparent",
+                  background: isToday ? "rgba(220,38,38,0.06)" : "transparent",
+                  border: isToday ? "1px solid rgba(220,38,38,0.15)" : "1px solid transparent",
                 }}>
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dot }} />
                 <span className="text-[12px] font-bold w-8 flex-shrink-0"
-                  style={{ color: isToday ? "#A3E635" : "rgba(255,255,255,0.55)" }}>
+                  style={{ color: isToday ? "#DC2626" : "rgba(255,255,255,0.55)" }}>
                   {WEEK_DAYS[i]}
                 </span>
                 <span className="text-[12px]" style={{ color }}>{label}</span>

@@ -20,7 +20,7 @@ interface Update {
 interface Member { id: string; name: string; employee_id: string }
 
 const ATTENDANCE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  present: { bg: "rgba(163,230,53,0.1)",  color: "#A3E635", label: "Present" },
+  present: { bg: "rgba(220,38,38,0.1)",  color: "#DC2626", label: "Present" },
   absent:  { bg: "rgba(255,107,87,0.1)",  color: "#FF6B57", label: "Absent" },
   holiday: { bg: "rgba(245,158,11,0.1)",  color: "#F59E0B", label: "Holiday" },
   outside: { bg: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", label: "Outside" },
@@ -95,7 +95,7 @@ export default function ActivitiesClient({
       <div className="flex flex-wrap gap-3 mb-6">
         {[
           { label: "Updates",    value: updates.length,          color: "#FFFFFF",  bg: "#262626", border: "#2A2A2A" },
-          { label: "Present",    value: presentCount,            color: "#A3E635",  bg: "rgba(163,230,53,0.06)",  border: "rgba(163,230,53,0.15)" },
+          { label: "Present",    value: presentCount,            color: "#DC2626",  bg: "rgba(220,38,38,0.06)",  border: "rgba(220,38,38,0.15)" },
           { label: "Absent",     value: absentCount,             color: "#FF6B57",  bg: "rgba(255,107,87,0.06)",  border: "rgba(255,107,87,0.15)" },
           { label: "Total Hours",value: `${totalHours.toFixed(1)}h`, color: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
           { label: "Not Updated",value: notUpdated.length,        color: notUpdated.length > 0 ? "#FF6B57" : "rgba(255,255,255,0.3)", bg: notUpdated.length > 0 ? "rgba(255,107,87,0.06)" : "#262626", border: notUpdated.length > 0 ? "rgba(255,107,87,0.15)" : "#2A2A2A" },
@@ -177,8 +177,8 @@ export default function ActivitiesClient({
                 <div className="flex items-start gap-4">
                   {/* Avatar */}
                   <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(163,230,53,0.08)", border: "1px solid rgba(163,230,53,0.15)" }}>
-                    <span className="text-[11px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#A3E635" }}>
+                    style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}>
+                    <span className="text-[11px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
                       {user?.name ? getInitials(user.name) : "?"}
                     </span>
                   </div>
@@ -224,8 +224,8 @@ export default function ActivitiesClient({
                     {/* Task link */}
                     {task && (
                       <div className="flex items-center gap-1.5 mb-2">
-                        <Target size={11} style={{ color: "#A3E635" }} />
-                        <span className="text-[12px] font-semibold" style={{ color: "rgba(163,230,53,0.8)" }}>{task.title}</span>
+                        <Target size={11} style={{ color: "#DC2626" }} />
+                        <span className="text-[12px] font-semibold" style={{ color: "rgba(220,38,38,0.8)" }}>{task.title}</span>
                       </div>
                     )}
 

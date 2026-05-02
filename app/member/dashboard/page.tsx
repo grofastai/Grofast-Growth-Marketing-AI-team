@@ -61,7 +61,7 @@ export default async function MemberDashboardPage() {
   let productivitySignal: { icon: "zap" | "warn"; text: string; color: string } | null = null
   if (clockLog?.clock_in) {
     if (todayHours >= 6) {
-      productivitySignal = { icon: "zap",  text: "You're on track today",        color: "#A3E635" }
+      productivitySignal = { icon: "zap",  text: "You're on track today",        color: "#DC2626" }
     } else if (todayHours < 4) {
       productivitySignal = { icon: "warn", text: "You are below expected hours", color: "#F59E0B" }
     }
@@ -90,7 +90,7 @@ export default async function MemberDashboardPage() {
             <p className="text-[9px] uppercase tracking-[0.2em] font-bold mb-1"
               style={{ color: "rgba(255,255,255,0.18)" }}>Employee ID</p>
             <p className="text-[14px] font-black"
-              style={{ fontFamily: "var(--font-jakarta)", color: "#A3E635" }}>
+              style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
               {profile?.employee_id ? `#${profile.employee_id}` : "—"}
             </p>
           </div>
@@ -98,7 +98,7 @@ export default async function MemberDashboardPage() {
         {activeTasks > 0 && (
           <p className="text-[12px] mt-2 font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
             Today&apos;s focus:&nbsp;
-            <span style={{ color: "#A3E635" }}>{activeTasks} task{activeTasks > 1 ? "s" : ""} pending</span>
+            <span style={{ color: "#DC2626" }}>{activeTasks} task{activeTasks > 1 ? "s" : ""} pending</span>
           </p>
         )}
       </div>
@@ -112,14 +112,14 @@ export default async function MemberDashboardPage() {
           {/* Daily Update block */}
           <div className="rounded-xl p-5" style={{
             background: "#262626",
-            border: todayUpdate ? "1px solid rgba(163,230,53,0.2)" : "1px solid rgba(245,158,11,0.25)",
+            border: todayUpdate ? "1px solid rgba(220,38,38,0.2)" : "1px solid rgba(245,158,11,0.25)",
           }}>
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: todayUpdate ? "rgba(163,230,53,0.08)" : "rgba(245,158,11,0.08)" }}>
+                  style={{ background: todayUpdate ? "rgba(220,38,38,0.08)" : "rgba(245,158,11,0.08)" }}>
                   {todayUpdate
-                    ? <CheckCircle2 size={18} style={{ color: "#A3E635" }} />
+                    ? <CheckCircle2 size={18} style={{ color: "#DC2626" }} />
                     : <AlertCircle  size={18} style={{ color: "#F59E0B" }} />
                   }
                 </div>
@@ -137,7 +137,7 @@ export default async function MemberDashboardPage() {
               {!todayUpdate && (
                 <Link href="/member/update"
                   className="px-5 py-2.5 rounded-lg text-[13px] font-bold flex-shrink-0 transition-all"
-                  style={{ background: "#A3E635", color: "#0D0D0D" }}>
+                  style={{ background: "#DC2626", color: "#FFFFFF" }}>
                   Submit Update
                 </Link>
               )}
@@ -148,7 +148,7 @@ export default async function MemberDashboardPage() {
           <div className="rounded-xl p-5" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Target size={14} style={{ color: "#A3E635" }} />
+                <Target size={14} style={{ color: "#DC2626" }} />
                 <h3 className="text-[13px] font-bold" style={{ color: "#FFFFFF" }}>My Tasks</h3>
                 {todayOverdue.length > 0 && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
@@ -158,7 +158,7 @@ export default async function MemberDashboardPage() {
                 )}
               </div>
               <Link href="/member/tasks" className="text-[12px] font-semibold"
-                style={{ color: "#A3E635" }}>View all →</Link>
+                style={{ color: "#DC2626" }}>View all →</Link>
             </div>
 
             {myTasks.length === 0 ? (
@@ -211,9 +211,9 @@ export default async function MemberDashboardPage() {
 
           {/* Quick Stats — stacked vertically */}
           {[
-            { label: "Active Tasks",   value: activeTasks,                             icon: Target,      href: "/member/tasks",      accent: "#A3E635" },
-            { label: "Today's Hours",  value: todayHours > 0 ? `${todayHours}h` : "—", icon: Clock,       href: "/member/attendance", accent: "#A3E635" },
-            { label: "Pending Leaves", value: pendingLeavesCount ?? 0,                 icon: CalendarOff, href: "/member/leaves",     accent: "#A3E635" },
+            { label: "Active Tasks",   value: activeTasks,                             icon: Target,      href: "/member/tasks",      accent: "#DC2626" },
+            { label: "Today's Hours",  value: todayHours > 0 ? `${todayHours}h` : "—", icon: Clock,       href: "/member/attendance", accent: "#DC2626" },
+            { label: "Pending Leaves", value: pendingLeavesCount ?? 0,                 icon: CalendarOff, href: "/member/leaves",     accent: "#DC2626" },
           ].map((stat) => {
             const Icon = stat.icon
             return (
@@ -221,7 +221,7 @@ export default async function MemberDashboardPage() {
                 className="rounded-xl p-4 flex items-center gap-4 transition-all hover:-translate-y-0.5"
                 style={{ background: "#262626", border: "1px solid #2A2A2A", display: "flex" }}>
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(163,230,53,0.08)" }}>
+                  style={{ background: "rgba(220,38,38,0.08)" }}>
                   <Icon size={16} style={{ color: stat.accent }} />
                 </div>
                 <div className="flex-1">

@@ -176,7 +176,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
                 <button key={r} type="button" onClick={() => setForm((prev) => ({ ...prev, role: r }))}
                   className="flex-1 py-3 rounded-xl text-[13px] font-semibold font-sans transition-all"
                   style={form.role === r
-                    ? { background: "#A3E635", color: "#0D0D0D", border: "1px solid #A3E635" }
+                    ? { background: "#DC2626", color: "#FFFFFF", border: "1px solid #DC2626" }
                     : { background: "rgba(0,0,0,0.04)", color: "#6B7280", border: "1px solid rgba(0,0,0,0.1)" }
                   }>
                   {r === "ADMIN" ? "Admin" : "Member"}
@@ -209,7 +209,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           </button>
           <button onClick={handleSubmit} disabled={isPending}
             className="flex-1 py-3 rounded-xl text-[13px] font-semibold font-sans flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
-            style={{ background: "#A3E635", color: "#0D0D0D" }}>
+            style={{ background: "#DC2626", color: "#FFFFFF" }}>
             {isPending && <Loader2 size={13} className="animate-spin" />}
             {isEdit ? "Save Changes" : "Add Member"}
           </button>
@@ -278,7 +278,7 @@ export default function TeamClient({ members }: { members: Member[] }) {
         </div>
         <button onClick={() => { setEditMember(null); setSheetOpen(true) }}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all mt-2"
-          style={{ background: "#A3E635", color: "#0D0D0D" }}>
+          style={{ background: "#DC2626", color: "#FFFFFF" }}>
           <Plus size={15} /> Add Member
         </button>
       </div>

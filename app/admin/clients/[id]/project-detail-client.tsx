@@ -45,7 +45,7 @@ interface DailyUpdate {
 const TASK_STATUS = {
   todo:        { label: "To Do",       color: "rgba(255,255,255,0.5)", bg: "rgba(255,255,255,0.05)", border: "rgba(255,255,255,0.08)", Icon: Circle },
   in_progress: { label: "In Progress", color: "#F59E0B",               bg: "rgba(245,158,11,0.08)",  border: "rgba(245,158,11,0.18)",  Icon: Clock },
-  completed:   { label: "Done",        color: "#A3E635",               bg: "rgba(163,230,53,0.08)",  border: "rgba(163,230,53,0.18)",  Icon: CheckCircle2 },
+  completed:   { label: "Done",        color: "#DC2626",               bg: "rgba(220,38,38,0.08)",  border: "rgba(220,38,38,0.18)",  Icon: CheckCircle2 },
 } as const
 
 const PRIORITY_CONFIG = {
@@ -55,7 +55,7 @@ const PRIORITY_CONFIG = {
 } as const
 
 const PROJECT_STATUS = {
-  active:    { label: "Active",    color: "#A3E635", bg: "rgba(163,230,53,0.1)",  border: "rgba(163,230,53,0.2)" },
+  active:    { label: "Active",    color: "#DC2626", bg: "rgba(220,38,38,0.1)",  border: "rgba(220,38,38,0.2)" },
   completed: { label: "Completed", color: "#FFFFFF", bg: "rgba(255,255,255,0.06)", border: "rgba(255,255,255,0.1)" },
   on_hold:   { label: "On Hold",   color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  border: "rgba(245,158,11,0.2)" },
 } as const
@@ -112,7 +112,7 @@ function Section({ title, icon: Icon, count, children }: {
   return (
     <div className="rounded-xl overflow-hidden" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
       <div className="flex items-center gap-2.5 px-5 py-4" style={{ borderBottom: "1px solid #1A1A1A" }}>
-        <Icon size={14} style={{ color: "#A3E635" }} />
+        <Icon size={14} style={{ color: "#DC2626" }} />
         <h2 className="text-[13px] font-black uppercase tracking-wider"
           style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>{title}</h2>
         {count != null && (
@@ -252,7 +252,7 @@ export default function ProjectDetailClient({
       {/* ── Stats Row ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <StatChip label="Total Tasks"  value={stats.totalTasks}  />
-        <StatChip label="Completed"    value={stats.completed}   color="#A3E635" bg="rgba(163,230,53,0.05)" border="rgba(163,230,53,0.15)" />
+        <StatChip label="Completed"    value={stats.completed}   color="#DC2626" bg="rgba(220,38,38,0.05)" border="rgba(220,38,38,0.15)" />
         <StatChip label="Hours Logged" value={`${stats.totalHours.toFixed(1)}h`} color="#F59E0B" bg="rgba(245,158,11,0.05)" border="rgba(245,158,11,0.15)" />
         <StatChip label="Shoots"       value={stats.totalShoots} color="rgba(255,255,255,0.7)" />
       </div>
@@ -300,8 +300,8 @@ export default function ProjectDetailClient({
                       {member ? (
                         <>
                           <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-                            style={{ background: "rgba(163,230,53,0.1)", border: "1px solid rgba(163,230,53,0.15)" }}>
-                            <span className="text-[9px] font-bold" style={{ color: "#A3E635" }}>
+                            style={{ background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.15)" }}>
+                            <span className="text-[9px] font-bold" style={{ color: "#DC2626" }}>
                               {getInitials(member.name)}
                             </span>
                           </div>
@@ -366,8 +366,8 @@ export default function ProjectDetailClient({
                     {/* Employee */}
                     <div className="flex items-center gap-2 min-w-0">
                       <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-                        style={{ background: "rgba(163,230,53,0.08)", border: "1px solid rgba(163,230,53,0.12)" }}>
-                        <span className="text-[9px] font-bold" style={{ color: "#A3E635" }}>
+                        style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.12)" }}>
+                        <span className="text-[9px] font-bold" style={{ color: "#DC2626" }}>
                           {u ? getInitials(u.name) : "?"}
                         </span>
                       </div>
@@ -385,7 +385,7 @@ export default function ProjectDetailClient({
                     {/* Task */}
                     <div className="min-w-0">
                       {taskRow ? (
-                        <span className="text-[12px] font-medium truncate block" style={{ color: "rgba(163,230,53,0.8)" }}>
+                        <span className="text-[12px] font-medium truncate block" style={{ color: "rgba(220,38,38,0.8)" }}>
                           {taskRow.title}
                         </span>
                       ) : (
@@ -443,7 +443,7 @@ export default function ProjectDetailClient({
                 {
                   label: "Active Days",
                   value: stats.activeDates,
-                  color: "#A3E635",
+                  color: "#DC2626",
                   icon: CalendarDays,
                 },
                 {
@@ -478,11 +478,11 @@ export default function ProjectDetailClient({
                       <div key={emp.employee_id} className="flex items-center gap-3">
                         <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
                           style={{
-                            background: idx === 0 ? "rgba(163,230,53,0.1)" : "rgba(255,255,255,0.04)",
-                            border: `1px solid ${idx === 0 ? "rgba(163,230,53,0.2)" : "rgba(255,255,255,0.06)"}`,
+                            background: idx === 0 ? "rgba(220,38,38,0.1)" : "rgba(255,255,255,0.04)",
+                            border: `1px solid ${idx === 0 ? "rgba(220,38,38,0.2)" : "rgba(255,255,255,0.06)"}`,
                           }}>
                           <span className="text-[9px] font-bold"
-                            style={{ color: idx === 0 ? "#A3E635" : "rgba(255,255,255,0.4)" }}>
+                            style={{ color: idx === 0 ? "#DC2626" : "rgba(255,255,255,0.4)" }}>
                             {getInitials(emp.name)}
                           </span>
                         </div>
@@ -507,8 +507,8 @@ export default function ProjectDetailClient({
           <Section title="Problems Detected" icon={AlertTriangle} count={problemCount > 0 ? problemCount : undefined}>
             {problemCount === 0 ? (
               <div className="flex flex-col items-center justify-center py-14">
-                <CheckCircle2 size={28} style={{ color: "rgba(163,230,53,0.2)" }} className="mb-2" />
-                <p className="text-[13px] font-semibold" style={{ color: "rgba(163,230,53,0.6)" }}>All clear</p>
+                <CheckCircle2 size={28} style={{ color: "rgba(220,38,38,0.2)" }} className="mb-2" />
+                <p className="text-[13px] font-semibold" style={{ color: "rgba(220,38,38,0.6)" }}>All clear</p>
                 <p className="text-[12px] mt-1" style={{ color: "rgba(255,255,255,0.2)" }}>No issues detected</p>
               </div>
             ) : (

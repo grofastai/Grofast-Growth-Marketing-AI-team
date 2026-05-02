@@ -76,7 +76,7 @@ function WeekChart({ data }: { data: ChartDay[] }) {
                 {hasHours && (
                   <div className="absolute -top-5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     <span className="text-[10px] font-bold whitespace-nowrap px-1.5 py-0.5 rounded"
-                      style={{ background: "#333", color: "#A3E635" }}>{day.hours}h</span>
+                      style={{ background: "#333", color: "#DC2626" }}>{day.hours}h</span>
                   </div>
                 )}
                 <div className="w-full rounded-t-sm" style={{
@@ -90,16 +90,16 @@ function WeekChart({ data }: { data: ChartDay[] }) {
                     background: day.isFuture
                       ? "transparent"
                       : isToday
-                      ? "#A3E635"
+                      ? "#DC2626"
                       : hasHours
-                      ? "rgba(163,230,53,0.4)"
+                      ? "rgba(220,38,38,0.4)"
                       : "rgba(255,255,255,0.06)",
                     border: day.isFuture ? "none" : "none",
                   }} />
                 </div>
               </div>
               <span className="text-[10px] font-medium" style={{
-                color: isToday ? "#A3E635" : "rgba(255,255,255,0.3)",
+                color: isToday ? "#DC2626" : "rgba(255,255,255,0.3)",
               }}>{day.label}</span>
             </div>
           )
@@ -143,7 +143,7 @@ export default function ProfileClient({
 
   return (
     <div className="p-6 md:p-8 max-w-[1100px]">
-      <style>{`.pf-in::placeholder{color:rgba(255,255,255,0.18);} .pf-in:focus{border-color:rgba(163,230,53,0.4)!important;}`}</style>
+      <style>{`.pf-in::placeholder{color:rgba(255,255,255,0.18);} .pf-in:focus{border-color:rgba(220,38,38,0.4)!important;}`}</style>
 
       {/* ── Page title ── */}
       <div className="mb-6">
@@ -166,10 +166,10 @@ export default function ProfileClient({
               {/* Avatar */}
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-[26px]"
                 style={{
-                  background: "linear-gradient(135deg, rgba(163,230,53,0.2), rgba(163,230,53,0.06))",
-                  border: "2px solid rgba(163,230,53,0.3)",
+                  background: "linear-gradient(135deg, rgba(220,38,38,0.2), rgba(220,38,38,0.06))",
+                  border: "2px solid rgba(220,38,38,0.3)",
                   fontFamily: "var(--font-jakarta)",
-                  color: "#A3E635",
+                  color: "#DC2626",
                 }}>
                 {initial}
               </div>
@@ -188,7 +188,7 @@ export default function ProfileClient({
                     <div className="flex gap-2">
                       <button onClick={handleSave} disabled={savePending}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
-                        style={{ background: "rgba(163,230,53,0.1)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.2)" }}>
+                        style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
                         {savePending ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
                         Save
                       </button>
@@ -207,7 +207,7 @@ export default function ProfileClient({
                       </h2>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full"
-                          style={{ background: "rgba(163,230,53,0.1)", color: "#A3E635" }}>
+                          style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
                           {profile?.role ?? "MEMBER"}
                         </span>
                         <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
@@ -225,7 +225,7 @@ export default function ProfileClient({
                     </div>
                     <button onClick={() => setEditing(true)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold flex-shrink-0"
-                      style={{ background: "rgba(163,230,53,0.08)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.2)" }}>
+                      style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
                       <Edit2 size={11} /> Edit
                     </button>
                   </div>
@@ -238,8 +238,8 @@ export default function ProfileClient({
               <div className="grid grid-cols-2 gap-3 mt-4 pt-4" style={{ borderTop: "1px solid #2A2A2A" }}>
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{ background: "rgba(163,230,53,0.08)" }}>
-                    <Zap size={13} style={{ color: "#A3E635" }} />
+                    style={{ background: "rgba(220,38,38,0.08)" }}>
+                    <Zap size={13} style={{ color: "#DC2626" }} />
                   </div>
                   <div>
                     <p className="text-[16px] font-black leading-none" style={{ color: "#FFFFFF" }}>
@@ -250,8 +250,8 @@ export default function ProfileClient({
                 </div>
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{ background: "rgba(163,230,53,0.08)" }}>
-                    <Target size={13} style={{ color: "#A3E635" }} />
+                    style={{ background: "rgba(220,38,38,0.08)" }}>
+                    <Target size={13} style={{ color: "#DC2626" }} />
                   </div>
                   <div>
                     <p className="text-[16px] font-black leading-none" style={{ color: "#FFFFFF" }}>
@@ -329,11 +329,11 @@ export default function ProfileClient({
               {[
                 {
                   icon: Clock, label: "Hours Worked", value: stats.weekHours > 0 ? `${stats.weekHours}h` : "—",
-                  color: "#A3E635", bg: "rgba(163,230,53,0.08)",
+                  color: "#DC2626", bg: "rgba(220,38,38,0.08)",
                 },
                 {
                   icon: Target, label: "Tasks Completed", value: stats.totalCompleted,
-                  color: "#A3E635", bg: "rgba(163,230,53,0.08)",
+                  color: "#DC2626", bg: "rgba(220,38,38,0.08)",
                 },
                 {
                   icon: AlertCircle, label: "Missed Updates", value: stats.weekMissed,
@@ -377,7 +377,7 @@ export default function ProfileClient({
                 {recentUpdates.map((upd) => (
                   <div key={upd.date} className="flex items-start gap-3">
                     <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
-                      style={{ background: "#A3E635" }} />
+                      style={{ background: "#DC2626" }} />
                     <div className="flex-1">
                       <p className="text-[12px] font-semibold" style={{ color: "#FFFFFF" }}>
                         {relativeDate(upd.date)}

@@ -27,7 +27,7 @@ const PRIORITY = {
 const STATUS_META = {
   todo:        { icon: Circle,       color: "rgba(255,255,255,0.55)", label: "To Do",       next: "in_progress" as const },
   in_progress: { icon: Clock,        color: "#F59E0B",               label: "In Progress", next: "completed"   as const },
-  completed:   { icon: CheckCircle2, color: "#A3E635",               label: "Done",        next: "todo"        as const },
+  completed:   { icon: CheckCircle2, color: "#DC2626",               label: "Done",        next: "todo"        as const },
 }
 
 const FILTER_TABS = [
@@ -45,7 +45,7 @@ function dueDateLabel(due: string | null, today: string): { text: string; color:
   }
   if (due === today) return { text: "Due Today",     color: "#F59E0B" }
   const days = Math.round((new Date(due).getTime() - new Date(today).getTime()) / 86400000)
-  if (days === 1)  return { text: "Due Tomorrow",    color: "#A3E635" }
+  if (days === 1)  return { text: "Due Tomorrow",    color: "#DC2626" }
   if (days <= 7)   return { text: `${days}d left`,   color: "rgba(255,255,255,0.45)" }
   return { text: due, color: "rgba(255,255,255,0.3)" }
 }
@@ -60,12 +60,12 @@ function ProgressBar({ done, total }: { done: number; total: number }) {
         <span className="text-[11px] font-bold uppercase tracking-wider"
           style={{ color: "rgba(255,255,255,0.25)" }}>Today&apos;s Progress</span>
         <span className="text-[12px] font-black"
-          style={{ color: pct === 100 ? "#A3E635" : "#FFFFFF" }}>{done}/{total} tasks</span>
+          style={{ color: pct === 100 ? "#DC2626" : "#FFFFFF" }}>{done}/{total} tasks</span>
       </div>
       <div className="flex gap-1">
         {Array.from({ length: blocks }).map((_, i) => (
           <div key={i} className="flex-1 h-2 rounded-full"
-            style={{ background: i < filled ? "#A3E635" : "rgba(255,255,255,0.08)" }} />
+            style={{ background: i < filled ? "#DC2626" : "rgba(255,255,255,0.08)" }} />
         ))}
       </div>
       <p className="text-[11px] mt-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>
@@ -143,7 +143,7 @@ export default function MemberTasksClient({
           style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
           <div className="text-center">
             <p className="text-[18px] font-black leading-none"
-              style={{ fontFamily: "var(--font-jakarta)", color: todayHours > 0 ? "#A3E635" : "rgba(255,255,255,0.3)" }}>
+              style={{ fontFamily: "var(--font-jakarta)", color: todayHours > 0 ? "#DC2626" : "rgba(255,255,255,0.3)" }}>
               {todayHours > 0 ? `${todayHours}h` : "—"}
             </p>
             <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>Worked</p>
@@ -196,7 +196,7 @@ export default function MemberTasksClient({
             <button key={tab.key} onClick={() => setFilter(tab.key)}
               className="px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
               style={isActive
-                ? { background: "rgba(163,230,53,0.1)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.2)" }
+                ? { background: "rgba(220,38,38,0.1)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }
                 : { background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.06)" }
               }>
               {tab.label}
@@ -261,11 +261,11 @@ function TaskCard({
   return (
     <div className="rounded-xl p-4"
       style={{
-        background: isOverdue ? "rgba(255,107,87,0.03)" : isDone ? "rgba(163,230,53,0.02)" : "#1E1E1E",
+        background: isOverdue ? "rgba(255,107,87,0.03)" : isDone ? "rgba(220,38,38,0.02)" : "#1E1E1E",
         border: isOverdue
           ? "1px solid rgba(255,107,87,0.15)"
           : isDone
-          ? "1px solid rgba(163,230,53,0.1)"
+          ? "1px solid rgba(220,38,38,0.1)"
           : "1px solid #2A2A2A",
       }}>
 
@@ -327,7 +327,7 @@ function TaskCard({
           <button onClick={onAdvance} disabled={isMoving}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
             style={task.status === "todo"
-              ? { background: "rgba(163,230,53,0.08)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.15)" }
+              ? { background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.15)" }
               : { background: "rgba(245,158,11,0.08)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.15)" }
             }>
             {isMoving
@@ -356,7 +356,7 @@ function TaskCard({
           {task.status === "in_progress" && (
             <button onClick={() => {/* already handled by advance */}}
               className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
-              style={{ background: "rgba(163,230,53,0.08)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.12)" }}>
+              style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.12)" }}>
               <BookOpen size={11} /> Also Learning?
             </button>
           )}

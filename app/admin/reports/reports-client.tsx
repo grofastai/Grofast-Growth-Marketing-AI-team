@@ -55,7 +55,7 @@ function getLongDate(dateStr: string) {
 
 // ── Section Shell ──────────────────────────────────────────────────────────────
 
-function Section({ title, icon: Icon, iconColor = "#A3E635", children }: {
+function Section({ title, icon: Icon, iconColor = "#DC2626", children }: {
   title: string
   icon: React.ElementType
   iconColor?: string
@@ -145,7 +145,7 @@ export default function ReportsClient({
             {getLongDate(date)}
             {isToday && (
               <span className="ml-2 text-[11px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(163,230,53,0.1)", color: "#A3E635" }}>
+                style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
                 Today
               </span>
             )}
@@ -173,7 +173,7 @@ export default function ReportsClient({
           {!isToday && (
             <button onClick={() => go(today)}
               className="px-3 py-2 rounded-lg text-[12px] font-bold transition-all"
-              style={{ background: "rgba(163,230,53,0.1)", border: "1px solid rgba(163,230,53,0.2)", color: "#A3E635" }}>
+              style={{ background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.2)", color: "#DC2626" }}>
               Today
             </button>
           )}
@@ -186,7 +186,7 @@ export default function ReportsClient({
           { label: "Hours Worked",  value: `${totalHours.toFixed(1)}h`,    color: "#F59E0B", bg: "rgba(245,158,11,0.05)",  border: "rgba(245,158,11,0.15)",  icon: Clock },
           { label: "Shoots",        value: totalShoots,                     color: "#FFFFFF",  bg: "#262626",               border: "#2A2A2A",                 icon: Camera },
           { label: "Learning Hrs",  value: `${totalLearning.toFixed(1)}h`, color: "rgba(255,255,255,0.55)", bg: "#262626", border: "#2A2A2A",                 icon: BookOpen },
-          { label: "Present",       value: presentCount,                    color: "#A3E635",  bg: "rgba(163,230,53,0.05)", border: "rgba(163,230,53,0.15)",  icon: Users },
+          { label: "Present",       value: presentCount,                    color: "#DC2626",  bg: "rgba(220,38,38,0.05)", border: "rgba(220,38,38,0.15)",  icon: Users },
           { label: "Absent",        value: absentCount,                     color: absentCount > 0 ? "#FF6B57" : "rgba(255,255,255,0.3)", bg: absentCount > 0 ? "rgba(255,107,87,0.05)" : "#262626", border: absentCount > 0 ? "rgba(255,107,87,0.15)" : "#2A2A2A", icon: UserX },
           { label: "Not Updated",   value: notUpdatedMembers.length,        color: notUpdatedMembers.length > 0 ? "#FF6B57" : "rgba(255,255,255,0.3)", bg: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.05)" : "#262626", border: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.15)" : "#2A2A2A", icon: AlertTriangle },
         ].map(({ label, value, color, bg, border, icon: Icon }) => (
@@ -235,24 +235,24 @@ export default function ReportsClient({
                       <div key={p.employee_id}
                         className="flex items-center gap-4 px-3 py-3.5 rounded-xl mb-1"
                         style={isTop
-                          ? { background: "rgba(163,230,53,0.05)", border: "1px solid rgba(163,230,53,0.1)" }
+                          ? { background: "rgba(220,38,38,0.05)", border: "1px solid rgba(220,38,38,0.1)" }
                           : {}
                         }>
                         {/* Rank */}
                         <div className="w-6 text-center flex-shrink-0">
                           {isTop
-                            ? <Zap size={14} style={{ color: "#A3E635" }} />
+                            ? <Zap size={14} style={{ color: "#DC2626" }} />
                             : <span className="text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.25)" }}>#{i + 1}</span>
                           }
                         </div>
                         {/* Avatar */}
                         <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                           style={{
-                            background: isTop ? "rgba(163,230,53,0.12)" : "rgba(255,255,255,0.05)",
-                            border: `1px solid ${isTop ? "rgba(163,230,53,0.2)" : "rgba(255,255,255,0.08)"}`,
+                            background: isTop ? "rgba(220,38,38,0.12)" : "rgba(255,255,255,0.05)",
+                            border: `1px solid ${isTop ? "rgba(220,38,38,0.2)" : "rgba(255,255,255,0.08)"}`,
                           }}>
                           <span className="text-[10px] font-bold"
-                            style={{ color: isTop ? "#A3E635" : "rgba(255,255,255,0.5)" }}>
+                            style={{ color: isTop ? "#DC2626" : "rgba(255,255,255,0.5)" }}>
                             {getInitials(p.name)}
                           </span>
                         </div>
@@ -261,7 +261,7 @@ export default function ReportsClient({
                           <p className="text-[13px] font-semibold truncate" style={{ color: "#FFFFFF" }}>{p.name}</p>
                           <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: "#1A1A1A" }}>
                             <div className="h-full rounded-full transition-all"
-                              style={{ width: `${barPct}%`, background: isTop ? "#A3E635" : "rgba(255,255,255,0.2)" }} />
+                              style={{ width: `${barPct}%`, background: isTop ? "#DC2626" : "rgba(255,255,255,0.2)" }} />
                           </div>
                         </div>
                         {/* Stats */}
@@ -286,11 +286,11 @@ export default function ReportsClient({
             <Section
               title={totalProblems > 0 ? `Problems — ${totalProblems} flagged` : "Problems"}
               icon={AlertTriangle}
-              iconColor={totalProblems > 0 ? "#F59E0B" : "#A3E635"}>
+              iconColor={totalProblems > 0 ? "#F59E0B" : "#DC2626"}>
               {totalProblems === 0 ? (
                 <div className="flex flex-col items-center py-12">
-                  <CheckCircle2 size={28} style={{ color: "rgba(163,230,53,0.2)" }} className="mb-2" />
-                  <p className="text-[13px] font-semibold" style={{ color: "rgba(163,230,53,0.6)" }}>All clear</p>
+                  <CheckCircle2 size={28} style={{ color: "rgba(220,38,38,0.2)" }} className="mb-2" />
+                  <p className="text-[13px] font-semibold" style={{ color: "rgba(220,38,38,0.6)" }}>All clear</p>
                   <p className="text-[12px] mt-1" style={{ color: "rgba(255,255,255,0.2)" }}>
                     No issues detected for this date
                   </p>
@@ -331,7 +331,7 @@ export default function ReportsClient({
                     { label: "Active Tasks",    value: totalActiveTasks,        color: "#FFFFFF",  bg: "#1A1A1A",                   border: "#2A2A2A" },
                     { label: "Overdue Tasks",   value: overdueTasks.length,     color: overdueTasks.length > 0 ? "#FF6B57" : "rgba(255,255,255,0.3)", bg: overdueTasks.length > 0 ? "rgba(255,107,87,0.08)" : "#1A1A1A", border: overdueTasks.length > 0 ? "rgba(255,107,87,0.18)" : "#2A2A2A" },
                     { label: "No Activity",     value: tasksNoActivity.length,  color: tasksNoActivity.length > 0 ? "#F59E0B" : "rgba(255,255,255,0.3)", bg: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.08)" : "#1A1A1A", border: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.18)" : "#2A2A2A" },
-                    { label: "Completion Rate", value: totalActiveTasks > 0 ? "—" : "100%", color: "#A3E635", bg: "#1A1A1A", border: "#2A2A2A" },
+                    { label: "Completion Rate", value: totalActiveTasks > 0 ? "—" : "100%", color: "#DC2626", bg: "#1A1A1A", border: "#2A2A2A" },
                   ].map(({ label, value, color, bg, border }) => (
                     <div key={label} className="rounded-xl px-4 py-3"
                       style={{ background: bg, border: `1px solid ${border}` }}>
@@ -363,9 +363,9 @@ export default function ReportsClient({
               <div className="p-5 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { label: "Active Projects",   value: activeProjects,          color: "#A3E635",  bg: "rgba(163,230,53,0.05)", border: "rgba(163,230,53,0.12)" },
+                    { label: "Active Projects",   value: activeProjects,          color: "#DC2626",  bg: "rgba(220,38,38,0.05)", border: "rgba(220,38,38,0.12)" },
                     { label: "Overdue Projects",  value: overdueProjects.length,  color: overdueProjects.length > 0 ? "#FF6B57" : "rgba(255,255,255,0.3)", bg: overdueProjects.length > 0 ? "rgba(255,107,87,0.08)" : "#1A1A1A", border: overdueProjects.length > 0 ? "rgba(255,107,87,0.18)" : "#2A2A2A" },
-                    { label: "On Track",          value: activeProjects - overdueProjects.length, color: "#A3E635", bg: "#1A1A1A", border: "#2A2A2A" },
+                    { label: "On Track",          value: activeProjects - overdueProjects.length, color: "#DC2626", bg: "#1A1A1A", border: "#2A2A2A" },
                     { label: "Health Score",      value: activeProjects > 0 ? `${Math.round(((activeProjects - overdueProjects.length) / activeProjects) * 100)}%` : "—", color: "#FFFFFF", bg: "#1A1A1A", border: "#2A2A2A" },
                   ].map(({ label, value, color, bg, border }) => (
                     <div key={label} className="rounded-xl px-4 py-3"

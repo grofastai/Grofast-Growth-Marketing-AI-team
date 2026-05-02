@@ -56,14 +56,14 @@ export default async function UpdatePage() {
 
       {existing ? (
         <div className="rounded-xl p-8 flex flex-col items-center gap-5 text-center"
-          style={{ background: "rgba(163,230,53,0.04)", border: "1px solid rgba(163,230,53,0.2)" }}>
+          style={{ background: "rgba(220,38,38,0.04)", border: "1px solid rgba(220,38,38,0.2)" }}>
           <div className="w-14 h-14 rounded-full flex items-center justify-center"
-            style={{ background: "rgba(163,230,53,0.1)" }}>
-            <CheckCircle2 size={28} style={{ color: "#A3E635" }} />
+            style={{ background: "rgba(220,38,38,0.1)" }}>
+            <CheckCircle2 size={28} style={{ color: "#DC2626" }} />
           </div>
           <div>
             <h2 className="text-[18px] font-black mb-1"
-              style={{ fontFamily: "var(--font-jakarta)", color: "#A3E635" }}>
+              style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
               Update submitted
             </h2>
             <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.35)" }}>

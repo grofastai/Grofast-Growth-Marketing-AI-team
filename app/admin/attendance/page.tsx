@@ -74,14 +74,14 @@ export default async function AttendancePage() {
             <div key={s.label} className="rounded-xl p-5 flex items-center gap-4"
               style={{
                 background: "#262626",
-                border: s.lime ? "1px solid rgba(163,230,53,0.2)" : "1px solid #2A2A2A",
+                border: s.lime ? "1px solid rgba(220,38,38,0.2)" : "1px solid #2A2A2A",
               }}>
               <div className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ background: s.lime ? "rgba(163,230,53,0.08)" : "rgba(255,255,255,0.04)" }}>
-                <Icon size={17} style={{ color: s.lime ? "#A3E635" : "rgba(255,255,255,0.35)" }} />
+                style={{ background: s.lime ? "rgba(220,38,38,0.08)" : "rgba(255,255,255,0.04)" }}>
+                <Icon size={17} style={{ color: s.lime ? "#DC2626" : "rgba(255,255,255,0.35)" }} />
               </div>
               <div>
-                <p className="text-[32px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: s.lime ? "#A3E635" : "#FFFFFF" }}>
+                <p className="text-[32px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: s.lime ? "#DC2626" : "#FFFFFF" }}>
                   {s.value}
                 </p>
                 <p className="text-[11px] font-medium mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{s.label}</p>
@@ -95,7 +95,7 @@ export default async function AttendancePage() {
       <div className="rounded-xl overflow-hidden" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
         <div className="px-5 py-4" style={{ borderBottom: "1px solid #2A2A2A" }}>
           <div className="flex items-center gap-2">
-            <Clock size={14} style={{ color: "#A3E635" }} />
+            <Clock size={14} style={{ color: "#DC2626" }} />
             <h3 className="text-[13px] font-bold" style={{ color: "#FFFFFF" }}>Team Attendance — Today</h3>
           </div>
         </div>
@@ -122,8 +122,8 @@ export default async function AttendancePage() {
                 <div key={m.id} className="flex items-center gap-4 px-5 py-3.5"
                   style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
                   <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(163,230,53,0.08)" }}>
-                    <span className="text-[11px] font-bold" style={{ color: "#A3E635" }}>{m.name[0]}</span>
+                    style={{ background: "rgba(220,38,38,0.08)" }}>
+                    <span className="text-[11px] font-bold" style={{ color: "#DC2626" }}>{m.name[0]}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold" style={{ color: "#FFFFFF" }}>{m.name}</p>
@@ -146,7 +146,7 @@ export default async function AttendancePage() {
                     )}
                     <span className="text-[10px] font-bold px-2.5 py-1 rounded-full min-w-[90px] text-center"
                       style={statusLime
-                        ? { background: "rgba(163,230,53,0.1)", color: "#A3E635" }
+                        ? { background: "rgba(220,38,38,0.1)", color: "#DC2626" }
                         : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }
                       }>
                       {statusLabel}

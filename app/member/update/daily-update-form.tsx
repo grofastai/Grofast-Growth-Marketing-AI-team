@@ -165,7 +165,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
     <>
       <style>{`
         .du::placeholder { color: rgba(255,255,255,0.18); }
-        .du:focus { border-color: rgba(163,230,53,0.4) !important; box-shadow: 0 0 0 2px rgba(163,230,53,0.06); }
+        .du:focus { border-color: rgba(220,38,38,0.4) !important; box-shadow: 0 0 0 2px rgba(220,38,38,0.06); }
         .du-sel { appearance: none; }
       `}</style>
 
@@ -181,7 +181,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                 ? { background: "#262626", color: "#FFFFFF", border: "1px solid #333" }
                 : { background: "transparent", color: "rgba(255,255,255,0.35)", border: "1px solid transparent" }
               }>
-              <Icon size={14} style={{ color: active ? "#A3E635" : "rgba(255,255,255,0.35)" }} />
+              <Icon size={14} style={{ color: active ? "#DC2626" : "rgba(255,255,255,0.35)" }} />
               {t === "working" ? "Working" : "Learning"}
             </button>
           )
@@ -201,14 +201,14 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                 <div>
                   <p style={{ ...LABEL, marginBottom: 2 }}>Work Entries</p>
                   {roundedTotal > 0 && (
-                    <p className="text-[11px]" style={{ color: "#A3E635" }}>
+                    <p className="text-[11px]" style={{ color: "#DC2626" }}>
                       Total: {roundedTotal}h
                     </p>
                   )}
                 </div>
                 <button type="button" onClick={addEntry}
                   className="flex items-center gap-1.5 text-[12px] font-bold px-3 py-1.5 rounded-lg"
-                  style={{ background: "rgba(163,230,53,0.08)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.15)" }}>
+                  style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.15)" }}>
                   <Plus size={12} /> Add Entry
                 </button>
               </div>
@@ -225,7 +225,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                           onClick={() => updateEntry(i, { task_type: value as TaskType })}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
                           style={entry.task_type === value
-                            ? { background: "rgba(163,230,53,0.1)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.25)" }
+                            ? { background: "rgba(220,38,38,0.1)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.25)" }
                             : { background: "#262626", color: "rgba(255,255,255,0.4)", border: "1px solid #333" }
                           }>
                           <Icon size={11} /> {label}
@@ -291,7 +291,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                         <label style={LABEL}>Duration</label>
                         <div className="flex items-center justify-center h-[42px] rounded-[10px] text-[14px] font-black"
                           style={{ background: "#262626", border: "1px solid #333",
-                            color: entry.duration_hours > 0 ? "#A3E635" : "rgba(255,255,255,0.2)" }}>
+                            color: entry.duration_hours > 0 ? "#DC2626" : "rgba(255,255,255,0.2)" }}>
                           {entry.duration_hours > 0 ? `${entry.duration_hours}h` : "—"}
                         </div>
                       </div>
@@ -317,7 +317,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                 className="w-full flex items-center justify-between px-4 py-3"
                 style={{ background: "#1E1E1E" }}>
                 <div className="flex items-center gap-2">
-                  <Camera size={13} style={{ color: "#A3E635" }} />
+                  <Camera size={13} style={{ color: "#DC2626" }} />
                   <span className="text-[12px] font-bold uppercase tracking-wider"
                     style={{ color: "rgba(255,255,255,0.55)" }}>Media Stats</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded"
@@ -373,7 +373,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                   onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addLink())} />
                 <button type="button" onClick={addLink}
                   className="px-3 rounded-lg text-[12px] font-bold"
-                  style={{ background: "rgba(163,230,53,0.08)", color: "#A3E635", border: "1px solid rgba(163,230,53,0.15)" }}>
+                  style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.15)" }}>
                   <Plus size={14} />
                 </button>
               </div>
@@ -438,9 +438,9 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
         {/* ── Total hours summary bar ──────────────────────── */}
         {tab === "working" && roundedTotal > 0 && (
           <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
-            style={{ background: "rgba(163,230,53,0.05)", border: "1px solid rgba(163,230,53,0.15)" }}>
-            <Clock size={14} style={{ color: "#A3E635" }} />
-            <p className="text-[13px] font-semibold" style={{ color: "#A3E635" }}>
+            style={{ background: "rgba(220,38,38,0.05)", border: "1px solid rgba(220,38,38,0.15)" }}>
+            <Clock size={14} style={{ color: "#DC2626" }} />
+            <p className="text-[13px] font-semibold" style={{ color: "#DC2626" }}>
               {roundedTotal}h total across {entries.length} entr{entries.length === 1 ? "y" : "ies"}
             </p>
           </div>
@@ -458,7 +458,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
         <button type="submit" disabled={pending}
           className="w-full py-3.5 rounded-xl text-[14px] font-black flex items-center justify-center gap-2 transition-all"
           style={{
-            background: pending ? "rgba(163,230,53,0.5)" : "#A3E635",
+            background: pending ? "rgba(220,38,38,0.5)" : "#DC2626",
             color: "#0D0D0D",
             cursor: pending ? "not-allowed" : "pointer",
           }}>

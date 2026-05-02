@@ -27,14 +27,14 @@ export default function LoginPage() {
         style={{ borderRight: '1px solid #1A1A1A' }}>
 
         {/* Lime accent left bar */}
-        <div className="absolute top-0 left-0 w-[3px] h-full" style={{ background: '#A3E635' }} />
+        <div className="absolute top-0 left-0 w-[3px] h-full" style={{ background: '#DC2626' }} />
 
         <div className="pl-3">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-16">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: '#A3E635' }}>
-              <span className="text-[17px] font-black" style={{ color: '#0D0D0D', fontFamily: 'var(--font-jakarta)' }}>G</span>
+              style={{ background: '#DC2626' }}>
+              <span className="text-[17px] font-black" style={{ color: '#FFFFFF', fontFamily: 'var(--font-jakarta)' }}>G</span>
             </div>
             <div>
               <p className="text-[14px] tracking-[0.12em] font-black"
@@ -47,7 +47,7 @@ export default function LoginPage() {
           <h1 className="text-[40px] font-black leading-[1.1] mb-5"
             style={{ color: '#FFFFFF', fontFamily: 'var(--font-jakarta)' }}>
             Run your team<br />
-            <span style={{ color: '#A3E635' }}>with precision.</span>
+            <span style={{ color: '#DC2626' }}>with precision.</span>
           </h1>
           <p className="text-[14px] leading-relaxed"
             style={{ color: 'rgba(255,255,255,0.35)' }}>
@@ -59,7 +59,7 @@ export default function LoginPage() {
         <div className="pl-3 space-y-4">
           {['Real-time team tracking', 'Daily update submissions', 'Project & client management'].map(label => (
             <div key={label} className="flex items-center gap-3">
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#A3E635' }} />
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#DC2626' }} />
               <span className="text-[13px]" style={{ color: 'rgba(255,255,255,0.4)' }}>{label}</span>
             </div>
           ))}
@@ -73,8 +73,8 @@ export default function LoginPage() {
           {/* Mobile logo */}
           <div className="flex items-center gap-2.5 mb-10 lg:hidden">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center"
-              style={{ background: '#A3E635' }}>
-              <span className="font-black text-[15px]" style={{ color: '#0D0D0D', fontFamily: 'var(--font-jakarta)' }}>G</span>
+              style={{ background: '#DC2626' }}>
+              <span className="font-black text-[15px]" style={{ color: '#FFFFFF', fontFamily: 'var(--font-jakarta)' }}>G</span>
             </div>
             <span className="text-[16px] font-black tracking-wide"
               style={{ color: '#FFFFFF', fontFamily: 'var(--font-jakarta)' }}>GROFAST</span>
@@ -93,7 +93,7 @@ export default function LoginPage() {
 
           <style>{`
             .login-input::placeholder { color: rgba(255,255,255,0.22); }
-            .login-input:focus { border-color: rgba(163,230,53,0.5) !important; background: #1E1E1E !important; }
+            .login-input:focus { border-color: rgba(220,38,38,0.5) !important; background: #1E1E1E !important; }
           `}</style>
 
           <form action={action} className="space-y-4">
@@ -172,8 +172,8 @@ export default function LoginPage() {
               disabled={pending}
               className="w-full font-bold rounded-lg py-3.5 text-[14px] transition-all"
               style={{
-                background: '#A3E635',
-                color: '#0D0D0D',
+                background: '#DC2626',
+                color: '#FFFFFF',
                 opacity: pending ? 0.65 : 1,
                 cursor: pending ? 'not-allowed' : 'pointer',
                 marginTop: '8px',

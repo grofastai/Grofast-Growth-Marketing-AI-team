@@ -33,8 +33,8 @@ export default async function ChangePasswordPage() {
       <div className="w-full max-w-[380px]">
 
         <div className="flex items-center gap-2.5 mb-10">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: '#A3E635' }}>
-            <span className="font-black text-[15px]" style={{ color: '#0D0D0D', fontFamily: 'var(--font-jakarta)' }}>G</span>
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: '#DC2626' }}>
+            <span className="font-black text-[15px]" style={{ color: '#FFFFFF', fontFamily: 'var(--font-jakarta)' }}>G</span>
           </div>
           <span className="text-[16px] font-black tracking-wide" style={{ color: '#FFFFFF', fontFamily: 'var(--font-jakarta)' }}>GROFAST</span>
         </div>

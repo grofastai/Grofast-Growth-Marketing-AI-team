@@ -59,7 +59,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
         <button
           onClick={() => setShowForm(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold font-sans text-white transition-all"
-          style={{ background: "linear-gradient(135deg, #FF6B57, #E85A45)", boxShadow: "0 4px 16px rgba(255,107,87,0.25)" }}
+          style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", boxShadow: "0 4px 16px rgba(220,38,38,0.25)" }}
         >
           <Plus size={15} />
           New Announcement
@@ -69,7 +69,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
       {/* Create Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
-          <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: "#111111", border: "1px solid rgba(220,38,38,0.15)" }}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-[18px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#E6EDF3" }}>New Announcement</h2>
               <button onClick={() => setShowForm(false)}><X size={18} style={{ color: "#6B7280" }} /></button>
@@ -97,7 +97,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
               <label className="flex items-center gap-3 cursor-pointer">
                 <div className="relative">
                   <input type="checkbox" className="sr-only" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
-                  <div className="w-10 h-5 rounded-full transition-all" style={{ background: pinned ? "#6D5DF6" : "rgba(255,255,255,0.1)" }}>
+                  <div className="w-10 h-5 rounded-full transition-all" style={{ background: pinned ? "#DC2626" : "rgba(255,255,255,0.1)" }}>
                     <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all" style={{ transform: pinned ? "translateX(20px)" : "translateX(0)" }} />
                   </div>
                 </div>
@@ -116,7 +116,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
                 </button>
                 <button type="submit" disabled={formPending}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold font-sans text-white flex items-center justify-center gap-2"
-                  style={{ background: "linear-gradient(135deg, #FF6B57, #E85A45)" }}>
+                  style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)" }}>
                   {formPending ? <Loader2 size={14} className="animate-spin" /> : null}
                   Post Announcement
                 </button>
@@ -140,18 +140,18 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
             return (
               <div key={ann.id} className="rounded-2xl p-5"
                 style={{
-                  background: ann.pinned ? "rgba(109,93,246,0.06)" : "rgba(255,255,255,0.02)",
-                  border: ann.pinned ? "1px solid rgba(109,93,246,0.2)" : "1px solid rgba(255,255,255,0.06)",
+                  background: ann.pinned ? "rgba(220,38,38,0.06)" : "rgba(255,255,255,0.02)",
+                  border: ann.pinned ? "1px solid rgba(220,38,38,0.2)" : "1px solid rgba(255,255,255,0.06)",
                 }}>
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                    style={{ background: ann.pinned ? "rgba(109,93,246,0.15)" : "rgba(255,107,87,0.1)" }}>
-                    <Megaphone size={15} style={{ color: ann.pinned ? "#6D5DF6" : "#FF6B57" }} />
+                    style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}>
+                    <Megaphone size={15} style={{ color: "#DC2626" }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       {ann.pinned && (
-                        <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(109,93,246,0.15)", color: "#6D5DF6" }}>
+                        <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(220,38,38,0.15)", color: "#DC2626" }}>
                           <Pin size={10} /> Pinned
                         </span>
                       )}
@@ -169,7 +169,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
                       className="w-8 h-8 rounded-lg flex items-center justify-center transition-all hover:bg-white/5"
                       title={ann.pinned ? "Unpin" : "Pin"}
                     >
-                      <Pin size={14} style={{ color: ann.pinned ? "#6D5DF6" : "#6B7280" }} />
+                      <Pin size={14} style={{ color: ann.pinned ? "#DC2626" : "#6B7280" }} />
                     </button>
                     <button
                       onClick={() => handleDelete(ann.id)}

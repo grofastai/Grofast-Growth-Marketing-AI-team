@@ -41,8 +41,8 @@ export default function Sidebar() {
       <aside
         className="hidden lg:flex fixed left-0 top-0 h-screen w-[240px] flex-col z-50 select-none"
         style={{
-          background: "linear-gradient(180deg, #0D0D0D 0%, #1A1A1A 100%)",
-          borderRight: "1px solid rgba(255,255,255,0.06)",
+          background: "linear-gradient(180deg, #0B0B0B 0%, #2A0D0D 100%)",
+          borderRight: "1px solid rgba(220,38,38,0.08)",
         }}
       >
         {/* Logo */}
@@ -128,8 +128,8 @@ export default function Sidebar() {
       <header
         className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
         style={{
-          background: "linear-gradient(90deg, #0D0D0D 0%, #1A1A1A 100%)",
-          borderBottom: "1px solid rgba(255,255,255,0.07)",
+          background: "linear-gradient(90deg, #0B0B0B 0%, #2A0D0D 100%)",
+          borderBottom: "1px solid rgba(220,38,38,0.08)",
         }}
       >
         <div className="flex items-center gap-2.5">
@@ -153,8 +153,8 @@ export default function Sidebar() {
       <nav
         className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2"
         style={{
-          background: "#0D0D0D",
-          borderTop: "1px solid rgba(255,255,255,0.08)",
+          background: "#0B0B0B",
+          borderTop: "1px solid rgba(220,38,38,0.1)",
           height: "64px",
           paddingBottom: "env(safe-area-inset-bottom)",
         }}

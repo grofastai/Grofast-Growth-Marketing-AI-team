@@ -16,10 +16,22 @@ async function getUserContext() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+
+  // Try users table first (service-role query)
   const admin = adminSupabase()
   const { data } = await admin.from('users').select('company_id').eq('id', user.id).single()
-  if (!data) return null
-  return { userId: user.id, companyId: data.company_id as string }
+  if (data?.company_id) return { userId: user.id, companyId: data.company_id as string }
+
+  // Fallback: decode company_id from JWT claims (set by Supabase Edge Function hook)
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.access_token) {
+      const payload = JSON.parse(atob(session.access_token.split('.')[1]))
+      if (payload?.company_id) return { userId: user.id, companyId: payload.company_id as string }
+    }
+  } catch {}
+
+  return null
 }
 
 export async function clockIn(workType: 'wfh' | 'office'): Promise<{ success: boolean; error?: string }> {

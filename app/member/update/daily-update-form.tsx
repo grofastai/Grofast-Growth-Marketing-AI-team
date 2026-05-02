@@ -3,7 +3,7 @@
 import { useState, useTransition, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
-  Plus, Trash2, Loader2, Clock, BookOpen, Briefcase,
+  Plus, Trash2, Loader2, BookOpen, Briefcase,
   Camera, Film, Upload, Layers, Link2, ChevronDown,
   CheckCircle2, XCircle, ImageIcon, Video, AlertCircle,
   FolderOpen, ExternalLink,
@@ -790,14 +790,17 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<"working" | "learning">("working")
 
+  const prefillType = (params.get("task_type") ?? "shoot") as "shoot" | "edit"
   const prefillEntry: WorkEntryInput = {
     ...newEntry(),
+    task_type:   prefillType,
+    title:       prefillType === "edit" ? "Editing Session" : "Shoot Session",
     client_id:   params.get("client_id") ?? null,
     client_name: params.get("client_name") ?? "",
-    title:       params.get("task_title") ?? "Shoot Session",
   }
 
   const [entries, setEntries] = useState<WorkEntryInput[]>([prefillEntry])
+  const [showTypePicker, setShowTypePicker] = useState(false)
   const [links, setLinks] = useState<string[]>([])
   const [newLink, setNewLink] = useState("")
   const [learningTopic, setLearningTopic] = useState("")
@@ -816,8 +819,12 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
     setEntries((prev) => prev.filter((_, idx) => idx !== i))
   }
 
-  function addEntry() {
-    setEntries((prev) => [...prev, newEntry()])
+  function addEntry(type: "shoot" | "edit") {
+    setEntries((prev) => [...prev, {
+      ...newEntry(),
+      task_type: type,
+      title: type === "shoot" ? "Shoot Session" : "Editing Session",
+    }])
   }
 
   function addLink() {
@@ -918,23 +925,8 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
         {tab === "working" && (
           <>
             <div>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p style={{ ...LABEL, marginBottom: 2 }}>Work Entries</p>
-                  {totalHours > 0 && (
-                    <p className="text-[11px] font-semibold" style={{ color: "#DC2626" }}>
-                      Total: {totalHours}h
-                    </p>
-                  )}
-                </div>
-                <button type="button" onClick={addEntry}
-                  className="flex items-center gap-1.5 text-[12px] font-bold px-3 py-1.5 rounded-lg"
-                  style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.15)" }}>
-                  <Plus size={12} /> Add Entry
-                </button>
-              </div>
-
-              <div className="space-y-4">
+              {/* Entry list */}
+              <div className="space-y-4 mb-4">
                 {entries.map((entry, i) => {
                   const sharedProps = { entry, i, projects, onChange: (p: Partial<WorkEntryInput>) => updateEntry(i, p), onRemove: () => removeEntry(i) }
                   if (entry.task_type === "shoot") return <ShootCard key={entry.id} {...sharedProps} />
@@ -942,6 +934,67 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                   return <GenericCard key={entry.id} {...sharedProps} />
                 })}
               </div>
+
+              {/* Type picker */}
+              {showTypePicker ? (
+                <div className="rounded-2xl overflow-hidden"
+                  style={{ border: "1px solid #E5E7EB", background: "#FAFAFA" }}>
+                  <div className="px-4 py-3 flex items-center justify-between"
+                    style={{ borderBottom: "1px solid #F3F4F6" }}>
+                    <span className="text-[11px] font-black uppercase tracking-[0.15em]"
+                      style={{ color: "#6B7280" }}>What did you work on?</span>
+                    <button type="button" onClick={() => setShowTypePicker(false)}
+                      className="text-[11px] px-2 py-1 rounded-lg"
+                      style={{ color: "#9CA3AF", border: "1px solid #E5E7EB" }}>Cancel</button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 p-4">
+                    <button type="button"
+                      onClick={() => { addEntry("shoot"); setShowTypePicker(false) }}
+                      className="flex flex-col items-center gap-3 py-5 rounded-xl transition-all"
+                      style={{ background: "rgba(220,38,38,0.05)", border: "2px solid rgba(220,38,38,0.2)" }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.1)"}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.05)"}>
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center"
+                        style={{ background: "rgba(220,38,38,0.12)" }}>
+                        <Camera size={22} style={{ color: "#DC2626" }} />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[13px] font-black" style={{ color: "#DC2626" }}>Shoot</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>Client · Timing · Upload</p>
+                      </div>
+                    </button>
+                    <button type="button"
+                      onClick={() => { addEntry("edit"); setShowTypePicker(false) }}
+                      className="flex flex-col items-center gap-3 py-5 rounded-xl transition-all"
+                      style={{ background: "rgba(99,102,241,0.05)", border: "2px solid rgba(99,102,241,0.2)" }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.1)"}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.05)"}>
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center"
+                        style={{ background: "rgba(99,102,241,0.12)" }}>
+                        <Film size={22} style={{ color: "#6366F1" }} />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[13px] font-black" style={{ color: "#6366F1" }}>Editing</p>
+                        <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>Videos · Drive · Log</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setShowTypePicker(true)}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-bold transition-all"
+                  style={{ background: "rgba(220,38,38,0.06)", color: "#DC2626", border: "2px dashed rgba(220,38,38,0.25)" }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.1)"}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.06)"}>
+                  <Plus size={14} /> Add Entry
+                </button>
+              )}
+
+              {totalHours > 0 && (
+                <p className="text-[11px] font-semibold mt-2 text-center" style={{ color: "#DC2626" }}>
+                  Total: {totalHours}h across {entries.length} entr{entries.length === 1 ? "y" : "ies"}
+                </p>
+              )}
             </div>
 
             {/* Attachment links */}
@@ -1014,16 +1067,6 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
           </div>
         )}
 
-        {/* Total hours bar */}
-        {tab === "working" && totalHours > 0 && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
-            style={{ background: "rgba(220,38,38,0.05)", border: "1px solid rgba(220,38,38,0.15)" }}>
-            <Clock size={14} style={{ color: "#DC2626" }} />
-            <p className="text-[13px] font-semibold" style={{ color: "#DC2626" }}>
-              {totalHours}h total across {entries.length} entr{entries.length === 1 ? "y" : "ies"}
-            </p>
-          </div>
-        )}
 
         {/* Error */}
         {error && (

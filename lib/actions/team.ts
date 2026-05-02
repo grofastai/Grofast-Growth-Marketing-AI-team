@@ -99,15 +99,34 @@ export async function createMember(input: {
     user_metadata: { name: input.name },
   })
 
+  let authUserId: string
+
   if (authError) {
-    if (authError.message.includes('already registered')) {
+    if (!authError.message.includes('already registered')) {
+      return { success: false, error: authError.message }
+    }
+
+    // Auth user exists — check if public.users record is missing (broken account)
+    const { data: { users: existingAuthUsers } } = await admin.auth.admin.listUsers()
+    const existingAuthUser = existingAuthUsers.find(u => u.email === input.email)
+    if (!existingAuthUser) return { success: false, error: 'This email is already registered' }
+
+    const { data: existingProfile } = await admin
+      .from('users').select('id').eq('id', existingAuthUser.id).single()
+
+    if (existingProfile) {
       return { success: false, error: 'This email is already registered' }
     }
-    return { success: false, error: authError.message }
+
+    // Repair: insert the missing public.users record and update the password
+    await admin.auth.admin.updateUserById(existingAuthUser.id, { password: input.password })
+    authUserId = existingAuthUser.id
+  } else {
+    authUserId = authData.user.id
   }
 
   const { error: insertError } = await admin.from('users').insert({
-    id: authData.user.id,
+    id: authUserId,
     company_id,
     employee_id: input.employee_id,
     role: input.role,
@@ -120,7 +139,7 @@ export async function createMember(input: {
   })
 
   if (insertError) {
-    await admin.auth.admin.deleteUser(authData.user.id)
+    if (!authError) await admin.auth.admin.deleteUser(authUserId)
     return { success: false, error: insertError.message }
   }
 
@@ -128,7 +147,7 @@ export async function createMember(input: {
   const { data: existingUser } = await admin
     .from('users')
     .select('last_onboarding_notified_at')
-    .eq('id', authData.user.id)
+    .eq('id', authUserId)
     .single()
 
   const lastNotified = existingUser?.last_onboarding_notified_at
@@ -163,7 +182,7 @@ export async function createMember(input: {
         password: input.password,
         team: input.team || '',
       },
-      { companyId: company_id, userId: authData.user.id }
+      { companyId: company_id, userId: authUserId }
     ).catch(() => {})
   }
 

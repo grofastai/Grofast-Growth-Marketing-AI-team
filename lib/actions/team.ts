@@ -13,7 +13,7 @@ function adminSupabase() {
 }
 
 async function notifyWhatsApp(
-  payload: { name: string; email: string; employee_id: string; phone: string; loginLink: string },
+  payload: { name: string; email: string; employee_id: string; phone: string; loginLink: string; password: string; team: string },
   meta: { companyId: string; userId: string }
 ) {
   const url = process.env.N8N_WEBHOOK_URL
@@ -37,7 +37,6 @@ async function notifyWhatsApp(
     if (!res.ok) {
       status = 'failed'
     } else {
-      // Capture provider reference (e.g. n8n execution ID) for delivery tracing
       try {
         const json = await res.json()
         providerRef = json?.executionId ?? json?.id ?? null
@@ -48,7 +47,6 @@ async function notifyWhatsApp(
     console.error('[notifyWhatsApp] fetch failed:', err)
   }
 
-  // Log attempt + stamp type-specific cooldown column
   await Promise.all([
     admin.from('notifications').insert({
       company_id: meta.companyId,
@@ -70,6 +68,7 @@ export async function createMember(input: {
   email: string
   phone: string
   role: 'ADMIN' | 'MEMBER'
+  team: string
   password: string
 }): Promise<{ success: boolean; error?: string }> {
   if (!input.name || !input.employee_id || !input.email || !input.password) {
@@ -85,7 +84,6 @@ export async function createMember(input: {
 
   const admin = adminSupabase()
 
-  // Look up company_id from users table — reliable regardless of JWT hook setup
   const { data: adminProfile } = await admin
     .from('users')
     .select('company_id')
@@ -116,6 +114,7 @@ export async function createMember(input: {
     name: input.name,
     phone: input.phone || null,
     email: input.email,
+    team: input.team || null,
     status: 'active',
     must_change_password: true,
   })
@@ -138,7 +137,6 @@ export async function createMember(input: {
   const recentlySent = Date.now() - lastNotified < 60_000
 
   if (input.phone && !recentlySent) {
-    // Server-only env — never exposed to the browser
     const appUrl = process.env.APP_BASE_URL?.replace(/\/$/, '') ?? ''
     let loginLink = `${appUrl}/login`
 
@@ -156,7 +154,15 @@ export async function createMember(input: {
 
     const cleanPhone = input.phone.replace(/\D/g, '')
     notifyWhatsApp(
-      { name: input.name, email: input.email, employee_id: input.employee_id, phone: cleanPhone, loginLink },
+      {
+        name: input.name,
+        email: input.email,
+        employee_id: input.employee_id,
+        phone: cleanPhone,
+        loginLink,
+        password: input.password,
+        team: input.team || '',
+      },
       { companyId: company_id, userId: authData.user.id }
     ).catch(() => {})
   }
@@ -171,6 +177,7 @@ export async function updateMember(input: {
   email: string
   phone: string
   role: 'ADMIN' | 'MEMBER'
+  team: string
 }): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -179,7 +186,7 @@ export async function updateMember(input: {
   const admin = adminSupabase()
   const { error } = await admin
     .from('users')
-    .update({ name: input.name, email: input.email || null, phone: input.phone || null, role: input.role })
+    .update({ name: input.name, email: input.email || null, phone: input.phone || null, role: input.role, team: input.team || null })
     .eq('id', input.id)
 
   if (error) return { success: false, error: error.message }

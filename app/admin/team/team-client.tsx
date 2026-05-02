@@ -4,9 +4,17 @@ import { useState, useMemo, useTransition } from "react"
 import {
   Search, Plus, Users, Shield, UserCheck, UserX,
   MoreVertical, Phone, CalendarDays, X, Pencil,
-  Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle,
+  Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown,
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember } from "@/lib/actions/team"
+
+const TEAMS = [
+  "Media Team",
+  "Tech & Operation Team",
+  "Tech & Media Team",
+  "Freelancing",
+  "Script Team",
+] as const
 
 interface Member {
   id: string
@@ -16,6 +24,7 @@ interface Member {
   email: string | null
   phone: string | null
   status: "active" | "inactive"
+  team: string | null
   created_at: string
 }
 
@@ -23,9 +32,9 @@ const AVATAR_PALETTE = [
   "bg-brand-soft text-brand",
   "bg-success-bg text-success",
   "bg-warning-bg text-warning",
-  "bg-[#0A1628] text-[#60A5FA]",
+  "bg-[#EFF6FF] text-[#2563EB]",
   "bg-accent-soft text-accent",
-  "bg-primary-soft text-[#4AADAD]",
+  "bg-primary-soft text-[#0D9488]",
 ]
 
 function getInitials(name: string) {
@@ -57,20 +66,21 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
     email: member?.email ?? "",
     phone: member?.phone ?? "",
     role: (member?.role ?? "MEMBER") as "ADMIN" | "MEMBER",
+    team: member?.team ?? "",
     password: "",
   })
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
 
-  const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }))
 
   function handleSubmit() {
     setError("")
     startTransition(async () => {
       const result = isEdit
-        ? await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role })
-        : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, password: form.password })
+        ? await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team })
+        : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, password: form.password })
 
       if (result.success) {
         onClose()
@@ -84,19 +94,19 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-[420px] z-50 shadow-2xl flex flex-col" style={{ background: "#0D0D0D", borderLeft: "1px solid rgba(255,255,255,0.08)" }}>
-        <div className="px-6 py-5 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+      <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-40" onClick={onClose} />
+      <div className="fixed right-0 top-0 h-full w-[420px] z-50 shadow-2xl flex flex-col" style={{ background: "#FFFFFF", borderLeft: "1px solid #E5E7EB" }}>
+        <div className="px-6 py-5 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid #E5E7EB" }}>
           <div>
-            <h2 className="text-[17px]" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 700, color: "#E6EDF3" }}>
+            <h2 className="text-[17px]" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 700, color: "#111827" }}>
               {isEdit ? "Edit Member" : "Add New Member"}
             </h2>
             <p className="text-[12px] font-sans mt-0.5" style={{ color: "#6B7280" }}>
               {isEdit ? "Update member details" : "Create a new team member account"}
             </p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(255,255,255,0.06)" }}>
-            <X size={15} style={{ color: "#9CA3AF" }} />
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "rgba(0,0,0,0.05)" }}>
+            <X size={15} style={{ color: "#6B7280" }} />
           </button>
         </div>
 
@@ -104,50 +114,70 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
 
           {/* Full Name */}
           <div>
-            <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>Full Name *</label>
+            <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Full Name *</label>
             <input value={form.name} onChange={set("name")} placeholder="e.g. Priya Sharma"
               className="w-full rounded-xl px-4 py-3 text-[13px] font-sans outline-none transition-all"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#E6EDF3" }} />
+              style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.1)", color: "#111827" }} />
           </div>
 
           {/* Employee ID */}
           {!isEdit && (
             <div>
-              <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>Employee ID *</label>
+              <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Employee ID *</label>
               <input value={form.employee_id} onChange={set("employee_id")} placeholder="e.g. GF002"
                 className="w-full rounded-xl px-4 py-3 text-[13px] font-sans outline-none transition-all"
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#E6EDF3" }} />
-              <p className="text-[11px] font-sans mt-1" style={{ color: "#6B7280" }}>Unique ID. Cannot be changed later.</p>
+                style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.1)", color: "#111827" }} />
+              <p className="text-[11px] font-sans mt-1" style={{ color: "#9CA3AF" }}>Unique ID. Cannot be changed later.</p>
             </div>
           )}
 
           {/* Email */}
           <div>
-            <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>Email Address *</label>
+            <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Email Address *</label>
             <input type="email" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com"
               className="w-full rounded-xl px-4 py-3 text-[13px] font-sans outline-none transition-all"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#E6EDF3" }} />
-            <p className="text-[11px] font-sans mt-1" style={{ color: "#6B7280" }}>Used for account creation (not shown on login page).</p>
+              style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.1)", color: "#111827" }} />
+            <p className="text-[11px] font-sans mt-1" style={{ color: "#9CA3AF" }}>Used for account creation (not shown on login page).</p>
           </div>
 
           {/* Phone */}
           <div>
-            <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>Phone</label>
+            <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>WhatsApp Number</label>
             <input value={form.phone} onChange={set("phone")} placeholder="e.g. 919876543210"
               className="w-full rounded-xl px-4 py-3 text-[13px] font-sans outline-none transition-all"
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#E6EDF3" }} />
+              style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.1)", color: "#111827" }} />
+            <p className="text-[11px] font-sans mt-1" style={{ color: "#9CA3AF" }}>Credentials will be sent here after account creation.</p>
+          </div>
+
+          {/* Team */}
+          <div>
+            <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Team *</label>
+            <div className="relative">
+              <select
+                value={form.team}
+                onChange={set("team")}
+                className="w-full rounded-xl px-4 py-3 text-[13px] font-sans outline-none transition-all appearance-none"
+                style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.1)", color: form.team ? "#111827" : "#9CA3AF" }}
+              >
+                <option value="">Select a team…</option>
+                {TEAMS.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#9CA3AF" }} />
+            </div>
           </div>
 
           {/* Role */}
           <div>
-            <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Role *</label>
+            <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-2" style={{ color: "#6B7280" }}>Role *</label>
             <div className="flex gap-3">
               {(["MEMBER", "ADMIN"] as const).map((r) => (
                 <button key={r} type="button" onClick={() => setForm((prev) => ({ ...prev, role: r }))}
                   className="flex-1 py-3 rounded-xl text-[13px] font-semibold font-sans transition-all"
                   style={form.role === r
                     ? { background: "#A3E635", color: "#0D0D0D", border: "1px solid #A3E635" }
-                    : { background: "rgba(255,255,255,0.04)", color: "#9CA3AF", border: "1px solid rgba(255,255,255,0.1)" }
+                    : { background: "rgba(0,0,0,0.04)", color: "#6B7280", border: "1px solid rgba(0,0,0,0.1)" }
                   }>
                   {r === "ADMIN" ? "Admin" : "Member"}
                 </button>
@@ -158,28 +188,28 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {/* Temporary Password */}
           {!isEdit && (
             <div>
-              <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>Temporary Password *</label>
-              <input type="password" value={form.password} onChange={set("password")} placeholder="Min 6 characters"
+              <label className="block text-[11px] font-semibold font-sans uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Temporary Password *</label>
+              <input type="text" value={form.password} onChange={set("password")} placeholder="Min 6 characters"
                 className="w-full rounded-xl px-4 py-3 text-[13px] font-sans outline-none transition-all"
-                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#E6EDF3" }} />
-              <p className="text-[11px] font-sans mt-1" style={{ color: "#6B7280" }}>Share this with the employee. They can change it after logging in.</p>
+                style={{ background: "rgba(0,0,0,0.04)", border: "1px solid rgba(0,0,0,0.1)", color: "#111827" }} />
+              <p className="text-[11px] font-sans mt-1" style={{ color: "#9CA3AF" }}>Will be sent via WhatsApp. Employee can change it after login.</p>
             </div>
           )}
 
           {error && (
-            <p className="text-[12px] font-sans rounded-xl px-4 py-3" style={{ background: "rgba(255,107,87,0.1)", color: "#FF6B57", border: "1px solid rgba(255,107,87,0.2)" }}>{error}</p>
+            <p className="text-[12px] font-sans rounded-xl px-4 py-3" style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>{error}</p>
           )}
         </div>
 
-        <div className="px-6 py-4 flex items-center gap-3 flex-shrink-0" style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}>
+        <div className="px-6 py-4 flex items-center gap-3 flex-shrink-0" style={{ borderTop: "1px solid #E5E7EB" }}>
           <button onClick={onClose}
             className="flex-1 py-3 rounded-xl text-[13px] font-semibold font-sans transition-all"
-            style={{ background: "rgba(255,255,255,0.06)", color: "#9CA3AF", border: "1px solid rgba(255,255,255,0.1)" }}>
+            style={{ background: "rgba(0,0,0,0.05)", color: "#6B7280", border: "1px solid rgba(0,0,0,0.1)" }}>
             Cancel
           </button>
           <button onClick={handleSubmit} disabled={isPending}
-            className="flex-1 py-3 rounded-xl text-[13px] font-semibold font-sans text-white flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
-            style={{ background: "#A3E635" }}>
+            className="flex-1 py-3 rounded-xl text-[13px] font-semibold font-sans flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
+            style={{ background: "#A3E635", color: "#0D0D0D" }}>
             {isPending && <Loader2 size={13} className="animate-spin" />}
             {isEdit ? "Save Changes" : "Add Member"}
           </button>
@@ -304,7 +334,7 @@ export default function TeamClient({ members }: { members: Member[] }) {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-cream/50">
-              {["Employee", "ID", "Role", "Phone", "Status", "Joined", ""].map((h) => (
+              {["Employee", "ID", "Team", "Role", "Phone", "Status", "Joined", ""].map((h) => (
                 <th key={h} className="text-left px-5 py-3.5 text-[10px] font-semibold font-sans text-ink-muted uppercase tracking-widest last:w-12">{h}</th>
               ))}
             </tr>
@@ -325,6 +355,9 @@ export default function TeamClient({ members }: { members: Member[] }) {
                 </td>
                 <td className="px-5 py-3.5">
                   <span className="text-[12px] font-mono font-medium text-ink-2 bg-cream px-2.5 py-1 rounded-lg">{member.employee_id}</span>
+                </td>
+                <td className="px-5 py-3.5">
+                  <span className="text-[12px] font-sans text-ink-2">{member.team ?? "—"}</span>
                 </td>
                 <td className="px-5 py-3.5">
                   <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold font-sans px-2.5 py-1 rounded-full ${member.role === "ADMIN" ? "bg-brand-soft text-brand" : "bg-cream-dark text-ink-2"}`}>
@@ -366,9 +399,9 @@ export default function TeamClient({ members }: { members: Member[] }) {
                           className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-sans transition-colors ${member.status === "active" ? "text-warning hover:bg-warning-bg" : "text-success hover:bg-success-bg"}`}>
                           {member.status === "active" ? <><Ban size={12} /> Deactivate</> : <><RotateCcw size={12} /> Reactivate</>}
                         </button>
-                        <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", margin: "2px 0" }} />
+                        <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", margin: "2px 0" }} />
                         <button onClick={() => { setConfirmDelete(member); setOpenDropdown(null) }}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-sans text-red-400 hover:bg-red-500/10 transition-colors">
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-sans text-red-500 hover:bg-red-50 transition-colors">
                           <Trash2 size={12} /> Delete
                         </button>
                       </div>
@@ -379,7 +412,7 @@ export default function TeamClient({ members }: { members: Member[] }) {
             ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-16 text-center">
+                <td colSpan={8} className="px-5 py-16 text-center">
                   <p className="text-ink-muted font-sans text-[13px]">No members found</p>
                 </td>
               </tr>
@@ -393,32 +426,32 @@ export default function TeamClient({ members }: { members: Member[] }) {
       {/* Delete confirmation modal */}
       {confirmDelete && (
         <>
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-40" onClick={() => setConfirmDelete(null)} />
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] z-40" onClick={() => setConfirmDelete(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-[380px] rounded-2xl shadow-2xl flex flex-col" style={{ background: "#0D0D0D", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <div className="w-full max-w-[380px] rounded-2xl shadow-2xl flex flex-col" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
               <div className="px-6 pt-6 pb-4 flex flex-col items-center text-center gap-3">
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(239,68,68,0.12)" }}>
-                  <AlertTriangle size={22} style={{ color: "#EF4444" }} />
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: "rgba(220,38,38,0.1)" }}>
+                  <AlertTriangle size={22} style={{ color: "#DC2626" }} />
                 </div>
                 <div>
-                  <h3 className="text-[16px] font-bold font-sans" style={{ color: "#E6EDF3" }}>Delete Member</h3>
+                  <h3 className="text-[16px] font-bold font-sans" style={{ color: "#111827" }}>Delete Member</h3>
                   <p className="text-[13px] font-sans mt-1" style={{ color: "#6B7280" }}>
-                    This will permanently delete <strong style={{ color: "#E6EDF3" }}>{confirmDelete.name}</strong> and remove their login access. This cannot be undone.
+                    This will permanently delete <strong style={{ color: "#111827" }}>{confirmDelete.name}</strong> and remove their login access. This cannot be undone.
                   </p>
                 </div>
                 {deleteError && (
-                  <p className="text-[12px] font-sans rounded-xl px-4 py-2.5 w-full" style={{ background: "rgba(239,68,68,0.1)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.2)" }}>{deleteError}</p>
+                  <p className="text-[12px] font-sans rounded-xl px-4 py-2.5 w-full" style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>{deleteError}</p>
                 )}
               </div>
               <div className="px-6 pb-6 flex gap-3">
                 <button onClick={() => { setConfirmDelete(null); setDeleteError("") }}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold font-sans transition-all"
-                  style={{ background: "rgba(255,255,255,0.06)", color: "#9CA3AF", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  style={{ background: "rgba(0,0,0,0.05)", color: "#6B7280", border: "1px solid rgba(0,0,0,0.1)" }}>
                   Cancel
                 </button>
                 <button onClick={handleDeleteConfirm} disabled={isPending}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold font-sans text-white flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
-                  style={{ background: "#EF4444", color: "#FFFFFF" }}>
+                  style={{ background: "#DC2626", color: "#FFFFFF" }}>
                   {isPending && <Loader2 size={13} className="animate-spin" />}
                   Delete
                 </button>

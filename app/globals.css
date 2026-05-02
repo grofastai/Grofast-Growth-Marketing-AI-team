@@ -5,59 +5,59 @@
   --font-sans: var(--font-jakarta);
 
   /* ── 3-Color System ───────────────────────────────── */
-  --color-base:           #0D0D0D;
-  --color-card:           #262626;
+  --color-base:           #FFFFFF;
+  --color-card:           #F5F5F7;
   --color-lime:           #A3E635;
   --color-lime-dark:      #8FC82E;
-  --color-lime-dim:       rgba(163,230,53,0.1);
-  --color-lime-border:    rgba(163,230,53,0.22);
+  --color-lime-dim:       rgba(163,230,53,0.12);
+  --color-lime-border:    rgba(163,230,53,0.3);
 
   /* Text scale */
-  --color-text:           #FFFFFF;
-  --color-text-muted:     rgba(255,255,255,0.45);
-  --color-text-dim:       rgba(255,255,255,0.2);
+  --color-text:           #111827;
+  --color-text-muted:     rgba(17,24,39,0.55);
+  --color-text-dim:       rgba(17,24,39,0.25);
 
   /* Structural borders */
-  --color-border:         #2A2A2A;
-  --color-border-strong:  #383838;
+  --color-border:         #E5E7EB;
+  --color-border-strong:  #D1D5DB;
 
   /* Legacy aliases — keeps existing Tailwind utility classes working */
-  --color-primary:        #0D0D0D;
-  --color-primary-light:  #1A1A1A;
+  --color-primary:        #FFFFFF;
+  --color-primary-light:  #F5F5F7;
   --color-primary-soft:   rgba(163,230,53,0.08);
   --color-accent:         #A3E635;
   --color-accent-dark:    #8FC82E;
   --color-accent-soft:    rgba(163,230,53,0.08);
   --color-brand:          #A3E635;
   --color-brand-dark:     #8FC82E;
-  --color-brand-soft:     rgba(163,230,53,0.08);
+  --color-brand-soft:     rgba(163,230,53,0.1);
   --color-brand-muted:    rgba(163,230,53,0.15);
-  --color-bg:             #0D0D0D;
-  --color-card-hover:     #2E2E2E;
-  --color-cream:          #1C1C1C;
-  --color-cream-dark:     #262626;
-  --color-ink:            #FFFFFF;
-  --color-ink-2:          rgba(255,255,255,0.75);
-  --color-ink-muted:      rgba(255,255,255,0.4);
-  --color-ink-light:      rgba(255,255,255,0.22);
-  --color-border-dark:    #383838;
-  --color-sidebar:        #0D0D0D;
-  --color-sidebar-hover:  rgba(163,230,53,0.06);
-  --color-sidebar-active: rgba(163,230,53,0.1);
-  --color-sidebar-text:   rgba(255,255,255,0.38);
+  --color-bg:             #FFFFFF;
+  --color-card-hover:     #EEEFF2;
+  --color-cream:          #F8F9FA;
+  --color-cream-dark:     #F0F1F3;
+  --color-ink:            #111827;
+  --color-ink-2:          rgba(17,24,39,0.75);
+  --color-ink-muted:      rgba(17,24,39,0.45);
+  --color-ink-light:      rgba(17,24,39,0.22);
+  --color-border-dark:    #D1D5DB;
+  --color-sidebar:        #FFFFFF;
+  --color-sidebar-hover:  rgba(163,230,53,0.08);
+  --color-sidebar-active: rgba(163,230,53,0.12);
+  --color-sidebar-text:   rgba(17,24,39,0.45);
 
   /* Functional (restrained) */
-  --color-success:        #A3E635;
-  --color-success-bg:     rgba(163,230,53,0.08);
-  --color-warning:        #F59E0B;
-  --color-warning-bg:     rgba(245,158,11,0.08);
-  --color-danger:         #FF4444;
-  --color-danger-bg:      rgba(255,68,68,0.08);
+  --color-success:        #6BBF23;
+  --color-success-bg:     rgba(107,191,35,0.1);
+  --color-warning:        #D97706;
+  --color-warning-bg:     rgba(217,119,6,0.1);
+  --color-danger:         #DC2626;
+  --color-danger-bg:      rgba(220,38,38,0.1);
 }
 
 body {
-  background-color: #0D0D0D;
-  color: #FFFFFF;
+  background-color: #FFFFFF;
+  color: #111827;
   font-family: var(--font-jakarta), sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -69,13 +69,13 @@ body {
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: #0D0D0D; }
-::-webkit-scrollbar-thumb { background: #2A2A2A; border-radius: 10px; }
+::-webkit-scrollbar-track { background: #F5F5F7; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: #A3E635; }
 
-aside::-webkit-scrollbar-track { background: #0D0D0D; }
-aside::-webkit-scrollbar-thumb { background: #1E1E1E; }
-aside::-webkit-scrollbar-thumb:hover { background: rgba(163,230,53,0.4); }
+aside::-webkit-scrollbar-track { background: #F5F5F7; }
+aside::-webkit-scrollbar-thumb { background: #E5E7EB; }
+aside::-webkit-scrollbar-thumb:hover { background: rgba(163,230,53,0.6); }
 
 /* Animations */
 @keyframes fade-up {

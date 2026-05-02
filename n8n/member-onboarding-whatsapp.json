@@ -1,0 +1,67 @@
+{
+  "name": "GroFast — Member Onboarding WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "grofast-member-onboarding",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "grofast-member-onboarding"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "recipientPhoneNumber": "={{ $json.body.phone }}",
+        "messageType": "template",
+        "templateName": "grofast_member_welcome",
+        "templateLanguage": "en",
+        "headerParametersUi": {},
+        "bodyParametersUi": {
+          "parameter": [
+            { "index": "1", "type": "text", "value": "={{ $json.body.name }}" },
+            { "index": "2", "type": "text", "value": "={{ $json.body.employee_id }}" },
+            { "index": "3", "type": "text", "value": "={{ $json.body.email }}" },
+            { "index": "4", "type": "text", "value": "={{ $json.body.password }}" },
+            { "index": "5", "type": "text", "value": "={{ $json.body.team }}" },
+            { "index": "6", "type": "text", "value": "={{ $json.body.loginLink }}" }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0002-0002-0002-000000000002",
+      "name": "WhatsApp Business Cloud",
+      "type": "n8n-nodes-base.whatsApp",
+      "typeVersion": 1,
+      "position": [480, 300],
+      "credentials": {
+        "whatsAppTriggerApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "WhatsApp account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "WhatsApp Business Cloud",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

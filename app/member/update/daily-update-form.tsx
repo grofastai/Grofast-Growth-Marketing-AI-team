@@ -790,17 +790,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<"working" | "learning">("working")
 
-  const prefillType = (params.get("task_type") ?? "shoot") as "shoot" | "edit"
-  const prefillEntry: WorkEntryInput = {
-    ...newEntry(),
-    task_type:   prefillType,
-    title:       prefillType === "edit" ? "Editing Session" : "Shoot Session",
-    client_id:   params.get("client_id") ?? null,
-    client_name: params.get("client_name") ?? "",
-  }
-
-  const [entries, setEntries] = useState<WorkEntryInput[]>([prefillEntry])
-  const [showTypePicker, setShowTypePicker] = useState(false)
+  const [entries, setEntries] = useState<WorkEntryInput[]>([])
   const [links, setLinks] = useState<string[]>([])
   const [newLink, setNewLink] = useState("")
   const [learningTopic, setLearningTopic] = useState("")
@@ -890,7 +880,9 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
     })
   }
 
-  const totalHours = Math.round(entries.reduce((s, e) => s + e.duration_hours, 0) * 10) / 10
+  const totalHours  = Math.round(entries.reduce((s, e) => s + e.duration_hours, 0) * 10) / 10
+  const shootCount  = entries.filter(e => e.task_type === "shoot").length
+  const editCount   = entries.filter(e => e.task_type === "edit").length
 
   return (
     <>
@@ -924,9 +916,56 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
         {/* ── Working tab ──────────────────────────────── */}
         {tab === "working" && (
           <>
-            <div>
-              {/* Entry list */}
-              <div className="space-y-4 mb-4">
+            {/* ── Session type buttons (always visible) ── */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Shoot button */}
+              <button type="button" onClick={() => addEntry("shoot")}
+                className="flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all"
+                style={{ background: "rgba(220,38,38,0.06)", border: "2px solid rgba(220,38,38,0.2)" }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.12)"}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.06)"}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(220,38,38,0.15)" }}>
+                  <Camera size={18} style={{ color: "#DC2626" }} />
+                </div>
+                <div className="text-left">
+                  <p className="text-[13px] font-black" style={{ color: "#DC2626" }}>Shoot</p>
+                  <p className="text-[10px]" style={{ color: "#9CA3AF" }}>
+                    {shootCount > 0 ? `${shootCount} added · tap for more` : "Tap to add"}
+                  </p>
+                </div>
+                {shootCount > 0 && (
+                  <span className="ml-auto w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0"
+                    style={{ background: "#DC2626", color: "#FFFFFF" }}>{shootCount}</span>
+                )}
+              </button>
+
+              {/* Editing button */}
+              <button type="button" onClick={() => addEntry("edit")}
+                className="flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all"
+                style={{ background: "rgba(99,102,241,0.06)", border: "2px solid rgba(99,102,241,0.2)" }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.12)"}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(99,102,241,0.15)" }}>
+                  <Film size={18} style={{ color: "#6366F1" }} />
+                </div>
+                <div className="text-left">
+                  <p className="text-[13px] font-black" style={{ color: "#6366F1" }}>Editing</p>
+                  <p className="text-[10px]" style={{ color: "#9CA3AF" }}>
+                    {editCount > 0 ? `${editCount} added · tap for more` : "Tap to add"}
+                  </p>
+                </div>
+                {editCount > 0 && (
+                  <span className="ml-auto w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0"
+                    style={{ background: "#6366F1", color: "#FFFFFF" }}>{editCount}</span>
+                )}
+              </button>
+            </div>
+
+            {/* ── Entry forms ── */}
+            {entries.length > 0 && (
+              <div className="space-y-4">
                 {entries.map((entry, i) => {
                   const sharedProps = { entry, i, projects, onChange: (p: Partial<WorkEntryInput>) => updateEntry(i, p), onRemove: () => removeEntry(i) }
                   if (entry.task_type === "shoot") return <ShootCard key={entry.id} {...sharedProps} />
@@ -934,68 +973,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                   return <GenericCard key={entry.id} {...sharedProps} />
                 })}
               </div>
-
-              {/* Type picker */}
-              {showTypePicker ? (
-                <div className="rounded-2xl overflow-hidden"
-                  style={{ border: "1px solid #E5E7EB", background: "#FAFAFA" }}>
-                  <div className="px-4 py-3 flex items-center justify-between"
-                    style={{ borderBottom: "1px solid #F3F4F6" }}>
-                    <span className="text-[11px] font-black uppercase tracking-[0.15em]"
-                      style={{ color: "#6B7280" }}>What did you work on?</span>
-                    <button type="button" onClick={() => setShowTypePicker(false)}
-                      className="text-[11px] px-2 py-1 rounded-lg"
-                      style={{ color: "#9CA3AF", border: "1px solid #E5E7EB" }}>Cancel</button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 p-4">
-                    <button type="button"
-                      onClick={() => { addEntry("shoot"); setShowTypePicker(false) }}
-                      className="flex flex-col items-center gap-3 py-5 rounded-xl transition-all"
-                      style={{ background: "rgba(220,38,38,0.05)", border: "2px solid rgba(220,38,38,0.2)" }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.1)"}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.05)"}>
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center"
-                        style={{ background: "rgba(220,38,38,0.12)" }}>
-                        <Camera size={22} style={{ color: "#DC2626" }} />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[13px] font-black" style={{ color: "#DC2626" }}>Shoot</p>
-                        <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>Client · Timing · Upload</p>
-                      </div>
-                    </button>
-                    <button type="button"
-                      onClick={() => { addEntry("edit"); setShowTypePicker(false) }}
-                      className="flex flex-col items-center gap-3 py-5 rounded-xl transition-all"
-                      style={{ background: "rgba(99,102,241,0.05)", border: "2px solid rgba(99,102,241,0.2)" }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.1)"}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.05)"}>
-                      <div className="w-12 h-12 rounded-xl flex items-center justify-center"
-                        style={{ background: "rgba(99,102,241,0.12)" }}>
-                        <Film size={22} style={{ color: "#6366F1" }} />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[13px] font-black" style={{ color: "#6366F1" }}>Editing</p>
-                        <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>Videos · Drive · Log</p>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button type="button" onClick={() => setShowTypePicker(true)}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-bold transition-all"
-                  style={{ background: "rgba(220,38,38,0.06)", color: "#DC2626", border: "2px dashed rgba(220,38,38,0.25)" }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.1)"}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.06)"}>
-                  <Plus size={14} /> Add Entry
-                </button>
-              )}
-
-              {totalHours > 0 && (
-                <p className="text-[11px] font-semibold mt-2 text-center" style={{ color: "#DC2626" }}>
-                  Total: {totalHours}h across {entries.length} entr{entries.length === 1 ? "y" : "ies"}
-                </p>
-              )}
-            </div>
+            )}
 
             {/* Attachment links */}
             <div>

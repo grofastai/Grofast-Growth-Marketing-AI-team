@@ -1,5 +1,21 @@
 import { z } from 'zod'
 
+// ── Per-video editing log row ──────────────────────────────────
+export const editingVideoSchema = z.object({
+  id:             z.string(),
+  date_given:     z.string().optional().default(''),
+  date_finished:  z.string().optional().default(''),
+  video_name:     z.string().default(''),
+  client_id:      z.string().nullable().optional(),
+  client_name:    z.string().default(''),
+  duration:       z.string().optional().default(''),   // final video length e.g. "0:30"
+  video_type:     z.string().default(''),
+  time_taken:     z.number().min(0).default(0),        // editing hours
+  drive_updated:  z.boolean().default(false),
+  drive_link:     z.string().optional().default(''),
+  revisions:      z.number().int().min(0).default(0),
+})
+
 // ── Work entry (one time block per client/task) ────────────────
 export const workEntrySchema = z.object({
   id:              z.string(),
@@ -14,8 +30,11 @@ export const workEntrySchema = z.object({
   // Shoot-specific
   video_uploaded:  z.boolean().nullable().optional(),
   screenshot_url:  z.string().optional(),
+  petrol_expense:  z.number().min(0).optional(),
+  travel_time:     z.string().optional(),
   // Edit-specific
   video_link:      z.string().optional(),
+  editing_videos:  z.array(editingVideoSchema).optional().default([]),
 })
 
 // ── Main schema ────────────────────────────────────────────────
@@ -23,7 +42,6 @@ export const dailyUpdateSchema = z
   .object({
     active_tab:   z.enum(['working', 'learning']),
 
-    // Working tab
     work_entries:       z.array(workEntrySchema).optional().default([]),
     links:              z.array(z.string()).optional().default([]),
     shoot_count:        z.number().int().min(0).default(0),
@@ -31,7 +49,6 @@ export const dailyUpdateSchema = z
     shoot_time_hours:   z.number().min(0).optional(),
     editing_time_hours: z.number().min(0).optional(),
 
-    // Learning tab
     learning_topic: z.string().optional(),
     learning_hours: z.number().min(0).max(24).default(0),
     learning_notes: z.string().optional(),
@@ -52,6 +69,7 @@ export const dailyUpdateSchema = z
 
 export type DailyUpdateInput  = z.infer<typeof dailyUpdateSchema>
 export type WorkEntryInput    = z.infer<typeof workEntrySchema>
+export type EditingVideo      = z.infer<typeof editingVideoSchema>
 
 // Keep old types exported so admin code that imports them doesn't break
 export type ShootEntryInput   = { client_name: string; shoot_type: string; video_count: number; notes?: string }

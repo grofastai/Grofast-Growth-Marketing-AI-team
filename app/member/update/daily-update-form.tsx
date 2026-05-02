@@ -9,7 +9,7 @@ import {
   FolderOpen, ExternalLink,
 } from "lucide-react"
 import { submitDailyUpdate } from "@/lib/actions/daily-updates"
-import type { WorkEntryInput } from "@/lib/validations/daily-update"
+import type { WorkEntryInput, EditingVideo } from "@/lib/validations/daily-update"
 
 interface Project { id: string; business_name: string }
 
@@ -29,20 +29,42 @@ function calcDuration(start: string, end: string): number {
   return mins <= 0 ? 0 : Math.round((mins / 60) * 10) / 10
 }
 
+const VIDEO_TYPES = ["Reel", "YouTube Video", "TikTok", "Ad / Commercial", "Short Film", "Documentary", "Story", "Other"] as const
+
+function newEditingVideo(): EditingVideo {
+  return {
+    id: crypto.randomUUID(),
+    date_given: "",
+    date_finished: "",
+    video_name: "",
+    client_id: null,
+    client_name: "",
+    duration: "",
+    video_type: "",
+    time_taken: 0,
+    drive_updated: false,
+    drive_link: "",
+    revisions: 0,
+  }
+}
+
 function newEntry(): WorkEntryInput {
   return {
-    id:             crypto.randomUUID(),
-    client_id:      null,
-    client_name:    "",
-    task_type:      "shoot",
-    title:          "Shoot Session",
-    start_time:     "",
-    end_time:       "",
-    duration_hours: 0,
-    notes:          "",
-    video_uploaded: null,
-    screenshot_url: "",
-    video_link:     "",
+    id:              crypto.randomUUID(),
+    client_id:       null,
+    client_name:     "",
+    task_type:       "shoot",
+    title:           "Shoot Session",
+    start_time:      "",
+    end_time:        "",
+    duration_hours:  0,
+    notes:           "",
+    video_uploaded:  null,
+    screenshot_url:  "",
+    petrol_expense:  undefined,
+    travel_time:     "",
+    video_link:      "",
+    editing_videos:  [],
   }
 }
 
@@ -228,6 +250,24 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
           </div>
         )}
 
+        {/* Petrol + Travel */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label style={LABEL}>Petrol Expense (₹)</label>
+            <input type="number" min="0" step="1" className="du" style={FIELD}
+              placeholder="e.g. 250"
+              value={entry.petrol_expense ?? ""}
+              onChange={(e) => onChange({ petrol_expense: parseFloat(e.target.value) || undefined })} />
+          </div>
+          <div>
+            <label style={LABEL}>Travel Time</label>
+            <input className="du" style={FIELD}
+              placeholder="e.g. 45 mins, 1.5 hrs"
+              value={entry.travel_time ?? ""}
+              onChange={(e) => onChange({ travel_time: e.target.value })} />
+          </div>
+        </div>
+
         {/* Notes */}
         <div>
           <label style={LABEL}>Notes</label>
@@ -399,15 +439,192 @@ function VideoUploader({ clientName, onLink }: { clientName: string; onLink: (li
   )
 }
 
+// ── Single video row inside EditCard ──────────────────────────
+function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
+  video: EditingVideo
+  index: number
+  projects: Project[]
+  onChange: (patch: Partial<EditingVideo>) => void
+  onRemove: () => void
+}) {
+  return (
+    <div className="rounded-xl p-4 space-y-3"
+      style={{ background: "#F8F9FA", border: "1px solid #E5E7EB" }}>
+
+      {/* Row header */}
+      <div className="flex items-center justify-between">
+        <span className="text-[11px] font-black uppercase tracking-[0.15em]"
+          style={{ color: "#6366F1" }}>Video {index + 1}</span>
+        <button type="button" onClick={onRemove}
+          className="w-6 h-6 rounded-lg flex items-center justify-center"
+          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}>
+          <Trash2 size={10} style={{ color: "#DC2626" }} />
+        </button>
+      </div>
+
+      {/* Row 1: Video Name | Client | Video Type */}
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <label style={LABEL}>Video Name *</label>
+          <input className="du" style={FIELD} placeholder="e.g. Promo Reel"
+            value={video.video_name}
+            onChange={(e) => onChange({ video_name: e.target.value })} />
+        </div>
+        <div>
+          <label style={LABEL}>Client *</label>
+          {projects.length > 0 ? (
+            <div className="relative">
+              <select value={video.client_id ?? ""}
+                onChange={(e) => {
+                  const proj = projects.find((p) => p.id === e.target.value)
+                  onChange({ client_id: e.target.value || null, client_name: proj?.business_name ?? "" })
+                }}
+                style={{ ...FIELD, appearance: "none", paddingRight: "28px" }} className="du-sel">
+                <option value="">Select…</option>
+                {projects.map((p) => <option key={p.id} value={p.id}>{p.business_name}</option>)}
+              </select>
+              <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                style={{ color: "#9CA3AF" }} />
+            </div>
+          ) : (
+            <input className="du" style={FIELD} placeholder="Client name"
+              value={video.client_name}
+              onChange={(e) => onChange({ client_name: e.target.value })} />
+          )}
+        </div>
+        <div>
+          <label style={LABEL}>Video Type *</label>
+          <div className="relative">
+            <select value={video.video_type}
+              onChange={(e) => onChange({ video_type: e.target.value })}
+              style={{ ...FIELD, appearance: "none", paddingRight: "28px" }} className="du-sel">
+              <option value="">Select…</option>
+              {VIDEO_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: "#9CA3AF" }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Row 2: Date Given | Date Finished | Duration */}
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <label style={LABEL}>Date Given</label>
+          <input type="date" className="du" style={FIELD}
+            value={video.date_given}
+            onChange={(e) => onChange({ date_given: e.target.value })} />
+        </div>
+        <div>
+          <label style={LABEL}>Date Finished</label>
+          <input type="date" className="du" style={FIELD}
+            value={video.date_finished}
+            onChange={(e) => onChange({ date_finished: e.target.value })} />
+        </div>
+        <div>
+          <label style={LABEL}>Video Duration</label>
+          <input className="du" style={FIELD} placeholder="e.g. 0:30, 2:15"
+            value={video.duration}
+            onChange={(e) => onChange({ duration: e.target.value })} />
+        </div>
+      </div>
+
+      {/* Row 3: Time Taken | Revisions | Drive Updated */}
+      <div className="grid grid-cols-3 gap-2">
+        <div>
+          <label style={LABEL}>Time Taken (hrs) *</label>
+          <input type="number" min="0.5" step="0.5" className="du" style={FIELD}
+            placeholder="e.g. 3"
+            value={video.time_taken || ""}
+            onChange={(e) => onChange({ time_taken: parseFloat(e.target.value) || 0 })} />
+        </div>
+        <div>
+          <label style={LABEL}>No. of Revisions</label>
+          <input type="number" min="0" step="1" className="du" style={FIELD}
+            placeholder="0"
+            value={video.revisions || ""}
+            onChange={(e) => onChange({ revisions: parseInt(e.target.value) || 0 })} />
+        </div>
+        <div>
+          <label style={LABEL}>Drive Updated?</label>
+          <div className="flex gap-1.5">
+            <button type="button"
+              onClick={() => onChange({ drive_updated: true })}
+              className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all"
+              style={video.drive_updated
+                ? { background: "rgba(34,197,94,0.12)", color: "#16A34A", border: "1.5px solid rgba(34,197,94,0.4)" }
+                : { background: "#FFFFFF", color: "#9CA3AF", border: "1px solid #E5E7EB" }}>
+              <CheckCircle2 size={11} /> Yes
+            </button>
+            <button type="button"
+              onClick={() => onChange({ drive_updated: false, drive_link: "" })}
+              className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all"
+              style={!video.drive_updated
+                ? { background: "rgba(239,68,68,0.08)", color: "#DC2626", border: "1.5px solid rgba(220,38,38,0.25)" }
+                : { background: "#FFFFFF", color: "#9CA3AF", border: "1px solid #E5E7EB" }}>
+              <XCircle size={11} /> No
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Drive upload — shown only when drive_updated = true */}
+      {video.drive_updated && (
+        <div className="space-y-1.5">
+          <label style={{ ...LABEL, color: "#16A34A", marginBottom: 2 }}>
+            <FolderOpen size={10} style={{ display: "inline", marginRight: 4 }} />
+            Upload to Drive <span style={{ color: "#DC2626" }}>*</span>
+          </label>
+          {video.drive_link ? (
+            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+              style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)" }}>
+              <CheckCircle2 size={14} style={{ color: "#16A34A" }} />
+              <span className="flex-1 text-[11px] truncate" style={{ color: "#374151" }}>{video.drive_link}</span>
+              <a href={video.drive_link} target="_blank" rel="noreferrer"
+                className="text-[11px] font-semibold px-2 py-1 rounded-lg"
+                style={{ color: "#16A34A", border: "1px solid rgba(34,197,94,0.3)" }}>
+                <ExternalLink size={11} />
+              </a>
+              <button type="button" onClick={() => onChange({ drive_link: "" })}
+                className="text-[11px] px-2 py-1 rounded-lg"
+                style={{ color: "#9CA3AF", border: "1px solid #E5E7EB" }}>Replace</button>
+            </div>
+          ) : (
+            <VideoUploader
+              clientName={video.client_name}
+              onLink={(link) => onChange({ drive_link: link })}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Edit entry card ────────────────────────────────────────────
-function EditCard({ entry, i, projects, onChange, onRemove }: {
+function EditCard({ entry, projects, onChange, onRemove }: {
   entry: WorkEntryInput
-  i: number
   projects: Project[]
   onChange: (patch: Partial<WorkEntryInput>) => void
   onRemove: () => void
 }) {
-  const [useTimeRange, setUseTimeRange] = useState(true)
+  const videos = entry.editing_videos ?? []
+  const totalTime = Math.round(videos.reduce((s, v) => s + v.time_taken, 0) * 10) / 10
+
+  function updateVideo(idx: number, patch: Partial<EditingVideo>) {
+    const next = [...videos]
+    next[idx] = { ...next[idx], ...patch }
+    onChange({ editing_videos: next, duration_hours: Math.round(next.reduce((s, v) => s + v.time_taken, 0) * 10) / 10 })
+  }
+
+  function removeVideo(idx: number) {
+    const next = videos.filter((_, i) => i !== idx)
+    onChange({ editing_videos: next, duration_hours: Math.round(next.reduce((s, v) => s + v.time_taken, 0) * 10) / 10 })
+  }
+
+  function addVideo() {
+    onChange({ editing_videos: [...videos, newEditingVideo()] })
+  }
 
   return (
     <div className="rounded-2xl overflow-hidden"
@@ -424,6 +641,12 @@ function EditCard({ entry, i, projects, onChange, onRemove }: {
           <span className="text-[13px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#6366F1" }}>
             EDITING SESSION
           </span>
+          {videos.length > 0 && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: "rgba(99,102,241,0.15)", color: "#6366F1" }}>
+              {videos.length} video{videos.length > 1 ? "s" : ""} · {totalTime}h
+            </span>
+          )}
         </div>
         <button type="button" onClick={onRemove}
           className="w-7 h-7 rounded-lg flex items-center justify-center"
@@ -432,99 +655,39 @@ function EditCard({ entry, i, projects, onChange, onRemove }: {
         </button>
       </div>
 
-      <div className="p-4 space-y-4" style={{ background: "#FFFFFF" }}>
-
-        {/* Client */}
-        <ClientSelect
-          projects={projects}
-          value={entry.client_id ?? ""}
-          onChange={(id, name) => onChange({ client_id: id || null, client_name: name })}
-          required
-        />
-
-        {/* Video title */}
-        <div>
-          <label style={LABEL}>Video Title <span style={{ color: "#DC2626" }}>*</span></label>
-          <input className="du" style={FIELD}
-            placeholder="e.g. Promo Reel, BTS Cut, Product Ad…"
-            value={entry.title}
-            onChange={(e) => onChange({ title: e.target.value })} />
-        </div>
-
-        {/* Hours worked */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label style={{ ...LABEL, marginBottom: 0 }}>
-              Hours Worked <span style={{ color: "#DC2626" }}>*</span>
-            </label>
-            <button type="button"
-              onClick={() => { setUseTimeRange((v) => !v); onChange({ start_time: "", end_time: "" }) }}
-              className="text-[11px] font-semibold px-2.5 py-1 rounded-lg"
-              style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.2)" }}>
-              {useTimeRange ? "Enter hours directly" : "Use time range"}
-            </button>
+      <div className="p-4 space-y-3" style={{ background: "#FFFFFF" }}>
+        {videos.length === 0 && (
+          <div className="text-center py-6 rounded-xl"
+            style={{ border: "2px dashed rgba(99,102,241,0.2)", background: "rgba(99,102,241,0.02)" }}>
+            <Film size={22} className="mx-auto mb-2" style={{ color: "rgba(99,102,241,0.3)" }} />
+            <p className="text-[12px]" style={{ color: "#9CA3AF" }}>No videos logged yet</p>
           </div>
+        )}
 
-          {useTimeRange ? (
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label style={LABEL}>Start</label>
-                <input type="time" className="du" style={FIELD}
-                  value={entry.start_time}
-                  onChange={(e) => {
-                    const dur = calcDuration(e.target.value, entry.end_time)
-                    onChange({ start_time: e.target.value, duration_hours: dur })
-                  }} />
-              </div>
-              <div>
-                <label style={LABEL}>End</label>
-                <input type="time" className="du" style={FIELD}
-                  value={entry.end_time}
-                  onChange={(e) => {
-                    const dur = calcDuration(entry.start_time, e.target.value)
-                    onChange({ end_time: e.target.value, duration_hours: dur })
-                  }} />
-              </div>
-              <div>
-                <label style={LABEL}>Duration</label>
-                <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
-                  style={{ height: "42px", background: "#F8F9FA", border: "1px solid #E5E7EB",
-                    color: entry.duration_hours > 0 ? "#6366F1" : "#D1D5DB" }}>
-                  {entry.duration_hours > 0 ? `${entry.duration_hours}h` : "—"}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <input type="number" min="0.5" max="24" step="0.5" className="du" style={{ ...FIELD, maxWidth: 140 }}
-                placeholder="e.g. 2.5"
-                value={entry.duration_hours || ""}
-                onChange={(e) => onChange({ duration_hours: parseFloat(e.target.value) || 0 })} />
-              <span className="text-[13px]" style={{ color: "#6B7280" }}>hours</span>
-            </div>
-          )}
-        </div>
-
-        {/* Video upload — goes straight to Drive */}
-        <div className="space-y-2">
-          <label style={LABEL}>
-            <FolderOpen size={10} style={{ display: "inline", marginRight: 4 }} />
-            Upload Edited Video <span style={{ color: "#DC2626" }}>*</span>
-          </label>
-          <VideoUploader
-            clientName={entry.client_name}
-            onLink={(link) => onChange({ video_link: link })}
+        {videos.map((video, idx) => (
+          <EditingVideoRow
+            key={video.id}
+            video={video}
+            index={idx}
+            projects={projects}
+            onChange={(patch) => updateVideo(idx, patch)}
+            onRemove={() => removeVideo(idx)}
           />
-          {entry.video_link && (
-            <input type="hidden" value={entry.video_link} readOnly />
-          )}
-        </div>
+        ))}
+
+        <button type="button" onClick={addVideo}
+          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-bold transition-all"
+          style={{ background: "rgba(99,102,241,0.06)", color: "#6366F1", border: "1.5px dashed rgba(99,102,241,0.3)" }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.1)"}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"}>
+          <Plus size={13} /> Add Video
+        </button>
 
         {/* Notes */}
         <div>
-          <label style={LABEL}>Notes</label>
+          <label style={LABEL}>Session Notes</label>
           <textarea rows={2} className="du resize-none" style={FIELD}
-            placeholder="Software used, effects, client feedback…"
+            placeholder="Software used, general feedback, blockers…"
             value={entry.notes ?? ""}
             onChange={(e) => onChange({ notes: e.target.value })} />
         </div>
@@ -675,9 +838,16 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
         if (e.video_uploaded === true && !e.screenshot_url?.trim()) return `Entry ${n}: Please paste the screenshot URL of uploaded clips`
       }
       if (e.task_type === "edit") {
-        if (!e.client_id && !e.client_name) return `Entry ${n}: Client is required for editing`
-        if (e.duration_hours <= 0) return `Entry ${n}: Hours worked is required for editing`
-        if (!e.video_link?.trim()) return `Entry ${n}: Edited video link is required before submitting`
+        const vids = e.editing_videos ?? []
+        if (vids.length === 0) return `Entry ${n}: Add at least one video to the editing session`
+        for (let v = 0; v < vids.length; v++) {
+          const vid = vids[v]
+          const vn = v + 1
+          if (!vid.video_name.trim()) return `Entry ${n} · Video ${vn}: Video name is required`
+          if (!vid.video_type) return `Entry ${n} · Video ${vn}: Video type is required`
+          if (vid.time_taken <= 0) return `Entry ${n} · Video ${vn}: Time taken is required`
+          if (vid.drive_updated && !vid.drive_link?.trim()) return `Entry ${n} · Video ${vn}: Upload to Drive or uncheck Drive Updated`
+        }
       }
     }
     return null
@@ -766,10 +936,10 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
 
               <div className="space-y-4">
                 {entries.map((entry, i) => {
-                  const props = { entry, i, projects, onChange: (p: Partial<WorkEntryInput>) => updateEntry(i, p), onRemove: () => removeEntry(i) }
-                  if (entry.task_type === "shoot") return <ShootCard key={entry.id} {...props} />
-                  if (entry.task_type === "edit")  return <EditCard  key={entry.id} {...props} />
-                  return <GenericCard key={entry.id} {...props} />
+                  const sharedProps = { entry, i, projects, onChange: (p: Partial<WorkEntryInput>) => updateEntry(i, p), onRemove: () => removeEntry(i) }
+                  if (entry.task_type === "shoot") return <ShootCard key={entry.id} {...sharedProps} />
+                  if (entry.task_type === "edit")  return <EditCard  key={entry.id} entry={entry} projects={projects} onChange={(p) => updateEntry(i, p)} onRemove={() => removeEntry(i)} />
+                  return <GenericCard key={entry.id} {...sharedProps} />
                 })}
               </div>
             </div>

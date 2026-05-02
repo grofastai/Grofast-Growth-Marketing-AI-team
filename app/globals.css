@@ -4,13 +4,22 @@
   --font-display: var(--font-jakarta);
   --font-sans: var(--font-jakarta);
 
-  /* ── 3-Color System ───────────────────────────────── */
-  --color-base:           #FFFFFF;
+  /* ── Red + Black Premium Theme ───────────────────────── */
+  --color-base:           #FAFAFA;
   --color-card:           #F5F5F7;
-  --color-lime:           #A3E635;
-  --color-lime-dark:      #8FC82E;
-  --color-lime-dim:       rgba(163,230,53,0.12);
-  --color-lime-border:    rgba(163,230,53,0.3);
+
+  /* Primary red accent */
+  --color-red:            #DC2626;
+  --color-red-dark:       #B91C1C;
+  --color-red-darker:     #991B1B;
+  --color-red-dim:        rgba(220,38,38,0.12);
+  --color-red-border:     rgba(220,38,38,0.28);
+
+  /* Keep lime aliases pointing to red for backward compat */
+  --color-lime:           #DC2626;
+  --color-lime-dark:      #B91C1C;
+  --color-lime-dim:       rgba(220,38,38,0.12);
+  --color-lime-border:    rgba(220,38,38,0.28);
 
   /* Text scale */
   --color-text:           #111827;
@@ -21,18 +30,18 @@
   --color-border:         #E5E7EB;
   --color-border-strong:  #D1D5DB;
 
-  /* Legacy aliases — keeps existing Tailwind utility classes working */
-  --color-primary:        #FFFFFF;
+  /* Legacy aliases */
+  --color-primary:        #FAFAFA;
   --color-primary-light:  #F5F5F7;
-  --color-primary-soft:   rgba(163,230,53,0.08);
-  --color-accent:         #A3E635;
-  --color-accent-dark:    #8FC82E;
-  --color-accent-soft:    rgba(163,230,53,0.08);
-  --color-brand:          #A3E635;
-  --color-brand-dark:     #8FC82E;
-  --color-brand-soft:     rgba(163,230,53,0.1);
-  --color-brand-muted:    rgba(163,230,53,0.15);
-  --color-bg:             #FFFFFF;
+  --color-primary-soft:   rgba(220,38,38,0.08);
+  --color-accent:         #DC2626;
+  --color-accent-dark:    #B91C1C;
+  --color-accent-soft:    rgba(220,38,38,0.08);
+  --color-brand:          #DC2626;
+  --color-brand-dark:     #B91C1C;
+  --color-brand-soft:     rgba(220,38,38,0.1);
+  --color-brand-muted:    rgba(220,38,38,0.15);
+  --color-bg:             #FAFAFA;
   --color-card-hover:     #EEEFF2;
   --color-cream:          #F8F9FA;
   --color-cream-dark:     #F0F1F3;
@@ -41,14 +50,16 @@
   --color-ink-muted:      rgba(17,24,39,0.45);
   --color-ink-light:      rgba(17,24,39,0.22);
   --color-border-dark:    #D1D5DB;
-  --color-sidebar:        #FFFFFF;
-  --color-sidebar-hover:  rgba(163,230,53,0.08);
-  --color-sidebar-active: rgba(163,230,53,0.12);
-  --color-sidebar-text:   rgba(17,24,39,0.45);
 
-  /* Functional (restrained) */
-  --color-success:        #6BBF23;
-  --color-success-bg:     rgba(107,191,35,0.1);
+  /* Sidebar — dark theme */
+  --color-sidebar:        #0D0D0D;
+  --color-sidebar-hover:  rgba(220,38,38,0.1);
+  --color-sidebar-active: rgba(220,38,38,0.15);
+  --color-sidebar-text:   rgba(255,255,255,0.45);
+
+  /* Functional */
+  --color-success:        #16A34A;
+  --color-success-bg:     rgba(22,163,74,0.1);
   --color-warning:        #D97706;
   --color-warning-bg:     rgba(217,119,6,0.1);
   --color-danger:         #DC2626;
@@ -56,7 +67,7 @@
 }
 
 body {
-  background-color: #FFFFFF;
+  background-color: #FAFAFA;
   color: #111827;
   font-family: var(--font-jakarta), sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -71,11 +82,11 @@ body {
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: #F5F5F7; }
 ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #A3E635; }
+::-webkit-scrollbar-thumb:hover { background: #DC2626; }
 
-aside::-webkit-scrollbar-track { background: #F5F5F7; }
-aside::-webkit-scrollbar-thumb { background: #E5E7EB; }
-aside::-webkit-scrollbar-thumb:hover { background: rgba(163,230,53,0.6); }
+aside::-webkit-scrollbar-track { background: rgba(255,255,255,0.04); }
+aside::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
+aside::-webkit-scrollbar-thumb:hover { background: rgba(220,38,38,0.6); }
 
 /* Animations */
 @keyframes fade-up {
@@ -84,8 +95,8 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(163,230,53,0.6); }
 }
 .fade-up { animation: fade-up 0.3s ease forwards; }
 
-@keyframes lime-pulse {
+@keyframes red-pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.6; }
 }
-.lime-pulse { animation: lime-pulse 2s ease-in-out infinite; }
+.red-pulse { animation: red-pulse 2s ease-in-out infinite; }

@@ -5,11 +5,12 @@ import { createClient } from "@supabase/supabase-js"
 import {
   Users, FolderOpen, Target, CalendarCheck, Clock, CheckCircle2,
   AlertTriangle, Plus, Megaphone, ChevronRight, TrendingUp, TrendingDown,
-  Minus, ArrowRight, ListTodo,
+  Minus, ArrowRight, ListTodo, BarChart2,
 } from "lucide-react"
 import Link from "next/link"
 import { getAlerts } from "@/lib/alerts"
 import PendingApprovalsCard from "./pending-approvals"
+import AnalyticsChart, { type ChartPoint } from "./analytics-chart"
 
 function adminSupabase() {
   return createClient(
@@ -41,6 +42,13 @@ export default async function DashboardPage() {
   const today = now.toISOString().split("T")[0]
   const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
 
+  // Last 7 days for analytics
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(Date.now() - (6 - i) * 86400000)
+    return d.toISOString().split("T")[0]
+  })
+  const sevenDaysAgo = last7Days[0]
+
   const { data: { user } } = await supabase.auth.getUser()
   const admin = adminSupabase()
   const { data: profile } = await admin
@@ -59,6 +67,7 @@ export default async function DashboardPage() {
     { count: pendingLeaves },
     { data: todayUpdatesRaw },
     { data: pendingLeavesRaw },
+    { data: analyticsRaw },
     alerts,
   ] = await Promise.all([
     admin.from("daily_updates").select("*", { count: "exact", head: true })
@@ -78,11 +87,25 @@ export default async function DashboardPage() {
       .select("id, from_date, to_date, reason, users(name, employee_id)")
       .eq("company_id", cid).eq("status", "pending")
       .order("created_at", { ascending: false }).limit(5),
+    admin.from("daily_updates")
+      .select("date, attendance_status")
+      .eq("company_id", cid)
+      .gte("date", sevenDaysAgo),
     cid ? getAlerts(cid) : Promise.resolve({ notUpdatedCount: 0, notUpdatedNames: [], overdueTaskCount: 0, overdueProjectCount: 0, total: 0 }),
   ])
 
   const recentUpdates = (todayUpdatesRaw ?? []) as unknown as UpdateRow[]
   const pendingLeavesList = (pendingLeavesRaw ?? []) as unknown as LeaveRow[]
+
+  // Build 7-day chart data
+  const chartData: ChartPoint[] = last7Days.map(day => {
+    const rows = (analyticsRaw ?? []).filter((r: any) => r.date === day)
+    return {
+      day: new Date(day + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" }),
+      present: rows.filter((r: any) => r.attendance_status === "present").length,
+      absent: rows.filter((r: any) => r.attendance_status === "absent").length,
+    }
+  })
 
   const presentTodayN = presentToday ?? 0
   const presentYesterdayN = presentYesterday ?? 0
@@ -114,7 +137,7 @@ export default async function DashboardPage() {
     actionItems.push({
       label: `${pendingLeaves} leave request${(pendingLeaves ?? 0) > 1 ? "s" : ""} waiting for approval`,
       href: "/admin/leaves", emoji: "📝",
-      color: "#7C3AED", bg: "rgba(124,58,237,0.06)", border: "rgba(124,58,237,0.15)",
+      color: "#DC2626", bg: "rgba(220,38,38,0.06)", border: "rgba(220,38,38,0.15)",
     })
   }
   if (alerts.overdueProjectCount > 0) {
@@ -131,61 +154,74 @@ export default async function DashboardPage() {
       href: "/admin/attendance",
       trendLabel: presentDiff > 0 ? `+${presentDiff} from yesterday` : presentDiff < 0 ? `${presentDiff} from yesterday` : "Same as yesterday",
       trendDir: presentDiff,
-      accent: "#6BBF23", accentBg: "rgba(107,191,35,0.1)",
+      accent: "#16A34A", accentBg: "rgba(22,163,74,0.1)",
     },
     {
       label: "Active Tasks", value: activeTasks ?? 0, icon: Target,
       href: "/admin/goals",
       trendLabel: alerts.overdueTaskCount > 0 ? `${alerts.overdueTaskCount} overdue` : "All on track",
       trendDir: null,
-      accent: alerts.overdueTaskCount > 0 ? "#D97706" : "#6BBF23",
-      accentBg: alerts.overdueTaskCount > 0 ? "rgba(217,119,6,0.1)" : "rgba(107,191,35,0.1)",
+      accent: alerts.overdueTaskCount > 0 ? "#D97706" : "#DC2626",
+      accentBg: alerts.overdueTaskCount > 0 ? "rgba(217,119,6,0.1)" : "rgba(220,38,38,0.1)",
     },
     {
       label: "Active Clients", value: activeClients ?? 0, icon: FolderOpen,
       href: "/admin/clients",
       trendLabel: alerts.overdueProjectCount > 0 ? `${alerts.overdueProjectCount} delayed` : "All on track",
       trendDir: null,
-      accent: alerts.overdueProjectCount > 0 ? "#DC2626" : "#6BBF23",
-      accentBg: alerts.overdueProjectCount > 0 ? "rgba(220,38,38,0.1)" : "rgba(107,191,35,0.1)",
+      accent: alerts.overdueProjectCount > 0 ? "#DC2626" : "#DC2626",
+      accentBg: "rgba(220,38,38,0.1)",
     },
     {
       label: "Pending Leaves", value: pendingLeaves ?? 0, icon: CalendarCheck,
       href: "/admin/leaves",
       trendLabel: (pendingLeaves ?? 0) > 0 ? "Action needed" : "No pending",
       trendDir: null,
-      accent: (pendingLeaves ?? 0) > 0 ? "#7C3AED" : "#6BBF23",
-      accentBg: (pendingLeaves ?? 0) > 0 ? "rgba(124,58,237,0.1)" : "rgba(107,191,35,0.1)",
+      accent: "#DC2626",
+      accentBg: "rgba(220,38,38,0.1)",
     },
   ]
+
+  // Analytics summary
+  const totalPresent = chartData.reduce((s, d) => s + d.present, 0)
+  const peakDay = chartData.reduce((a, b) => a.present >= b.present ? a : b, chartData[0])
 
   return (
     <div className="p-8 max-w-[1400px] space-y-5">
 
-      {/* ── Header ─────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-[30px] leading-tight font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>
-            {greeting}
-          </h1>
-          <p className="text-sm mt-1" style={{ color: "rgba(17,24,39,0.4)" }}>{dateStr}</p>
-        </div>
-        <div className="flex items-center gap-2 mt-1">
-          <Link href="/admin/team"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:bg-gray-100"
-            style={{ background: "rgba(0,0,0,0.04)", border: "1px solid #E5E7EB", color: "#374151" }}>
-            <Plus size={14} /> Add Member
-          </Link>
-          <Link href="/admin/announcements"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:bg-gray-100"
-            style={{ background: "rgba(0,0,0,0.04)", border: "1px solid #E5E7EB", color: "#374151" }}>
-            <Megaphone size={14} /> Announcement
-          </Link>
-          <Link href="/admin/goals"
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all"
-            style={{ background: "#A3E635", color: "#0D0D0D" }}>
-            <ListTodo size={14} /> Assign Task
-          </Link>
+      {/* ── Red Gradient Header ─────────────────────────────── */}
+      <div className="rounded-2xl p-6 relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg, #B91C1C 0%, #7F1D1D 60%, #450A0A 100%)" }}>
+        {/* Decorative circles */}
+        <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 pointer-events-none"
+          style={{ background: "radial-gradient(circle, #FFFFFF 0%, transparent 70%)", transform: "translate(30%, -40%)" }} />
+        <div className="absolute bottom-0 left-1/3 w-40 h-40 rounded-full opacity-5 pointer-events-none"
+          style={{ background: "radial-gradient(circle, #FFFFFF 0%, transparent 70%)", transform: "translateY(50%)" }} />
+
+        <div className="relative flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[28px] leading-tight font-black text-white">
+              {greeting} 👋
+            </h1>
+            <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.55)" }}>{dateStr}</p>
+          </div>
+          <div className="flex items-center gap-2 mt-1 flex-shrink-0">
+            <Link href="/admin/team"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90"
+              style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#FFFFFF" }}>
+              <Plus size={14} /> Add Member
+            </Link>
+            <Link href="/admin/announcements"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90"
+              style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#FFFFFF" }}>
+              <Megaphone size={14} /> Announcement
+            </Link>
+            <Link href="/admin/goals"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
+              style={{ background: "#FFFFFF", color: "#B91C1C" }}>
+              <ListTodo size={14} /> Assign Task
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -218,14 +254,40 @@ export default async function DashboardPage() {
         ))}
       </div>
 
+      {/* ── 7-Day Analytics ────────────────────────────────────── */}
+      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background: "rgba(220,38,38,0.1)" }}>
+              <BarChart2 size={14} style={{ color: "#DC2626" }} />
+            </div>
+            <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>7-Day Attendance Trend</h3>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-[11px] font-medium" style={{ color: "#9CA3AF" }}>Total present</p>
+              <p className="text-[15px] font-black" style={{ color: "#DC2626" }}>{totalPresent}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[11px] font-medium" style={{ color: "#9CA3AF" }}>Peak day</p>
+              <p className="text-[15px] font-black" style={{ color: "#111827" }}>
+                {peakDay?.day ?? "—"} <span style={{ color: "#DC2626" }}>({peakDay?.present ?? 0})</span>
+              </p>
+            </div>
+          </div>
+        </div>
+        <AnalyticsChart data={chartData} />
+      </div>
+
       {/* ── Action Required ────────────────────────────────────── */}
       <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
         <div className="flex items-center gap-2.5 mb-4">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: actionItems.length > 0 ? "rgba(220,38,38,0.1)" : "rgba(107,191,35,0.1)" }}>
+            style={{ background: actionItems.length > 0 ? "rgba(220,38,38,0.1)" : "rgba(22,163,74,0.1)" }}>
             {actionItems.length > 0
               ? <AlertTriangle size={14} style={{ color: "#DC2626" }} />
-              : <CheckCircle2 size={14} style={{ color: "#6BBF23" }} />
+              : <CheckCircle2 size={14} style={{ color: "#16A34A" }} />
             }
           </div>
           <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Action Required</h3>
@@ -238,7 +300,7 @@ export default async function DashboardPage() {
         </div>
         {actionItems.length === 0 ? (
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={15} style={{ color: "#6BBF23" }} />
+            <CheckCircle2 size={15} style={{ color: "#16A34A" }} />
             <p className="text-[13px] font-medium" style={{ color: "#6B7280" }}>
               All clear — no actions required right now.
             </p>
@@ -266,19 +328,19 @@ export default async function DashboardPage() {
         {/* Team Status */}
         <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(163,230,53,0.1)" }}>
-              <Users size={14} style={{ color: "#5A9E1A" }} />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(220,38,38,0.1)" }}>
+              <Users size={14} style={{ color: "#DC2626" }} />
             </div>
             <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Today's Team</h3>
           </div>
 
           {/* Counts */}
           <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="text-center py-3 rounded-xl" style={{ background: "rgba(107,191,35,0.08)" }}>
-              <p className="text-[26px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#5A9E1A" }}>
+            <div className="text-center py-3 rounded-xl" style={{ background: "rgba(22,163,74,0.08)" }}>
+              <p className="text-[26px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#16A34A" }}>
                 {presentTodayN}
               </p>
-              <p className="text-[10px] font-semibold mt-1" style={{ color: "#5A9E1A" }}>Present</p>
+              <p className="text-[10px] font-semibold mt-1" style={{ color: "#16A34A" }}>Present</p>
             </div>
             <div className="text-center py-3 rounded-xl" style={{ background: "rgba(220,38,38,0.06)" }}>
               <p className="text-[26px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
@@ -303,16 +365,16 @@ export default async function DashboardPage() {
               return (
                 <div key={i} className="flex items-center gap-2.5 py-1.5">
                   <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
-                    style={{ background: "rgba(163,230,53,0.1)", color: "#5A9E1A" }}>
+                    style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
                     {(m?.name ?? "?")[0].toUpperCase()}
                   </div>
                   <p className="text-[12px] font-medium flex-1 truncate" style={{ color: "#374151" }}>
                     {m?.name ?? "—"}
                   </p>
                   <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={
-                    isPresent ? { background: "rgba(107,191,35,0.1)", color: "#5A9E1A" } :
-                    isAbsent  ? { background: "rgba(220,38,38,0.1)",  color: "#DC2626" } :
-                                { background: "rgba(217,119,6,0.1)",  color: "#D97706" }
+                    isPresent ? { background: "rgba(22,163,74,0.1)", color: "#16A34A" } :
+                    isAbsent  ? { background: "rgba(220,38,38,0.1)", color: "#DC2626" } :
+                                { background: "rgba(217,119,6,0.1)", color: "#D97706" }
                   }>
                     {u.attendance_status}
                   </span>
@@ -352,20 +414,20 @@ export default async function DashboardPage() {
       <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(163,230,53,0.1)" }}>
-              <Clock size={14} style={{ color: "#5A9E1A" }} />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(220,38,38,0.1)" }}>
+              <Clock size={14} style={{ color: "#DC2626" }} />
             </div>
             <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Today's Updates</h3>
             {recentUpdates.length > 0 && (
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(107,191,35,0.1)", color: "#5A9E1A" }}>
+                style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
                 {recentUpdates.length} submitted
               </span>
             )}
           </div>
           <Link href="/admin/activities"
             className="text-[12px] font-semibold flex items-center gap-1 transition-opacity hover:opacity-70"
-            style={{ color: "#5A9E1A" }}>
+            style={{ color: "#DC2626" }}>
             View All <ArrowRight size={12} />
           </Link>
         </div>
@@ -384,7 +446,7 @@ export default async function DashboardPage() {
               return (
                 <div key={i} className="flex items-center gap-4 py-3">
                   <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-[12px] font-bold"
-                    style={{ background: "rgba(163,230,53,0.1)", color: "#5A9E1A" }}>
+                    style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
                     {(m?.name ?? "?")[0].toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -396,7 +458,7 @@ export default async function DashboardPage() {
                   <p className="text-[11px] flex-shrink-0" style={{ color: "#9CA3AF" }}>{time}</p>
                   <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full flex-shrink-0" style={
                     isPresent
-                      ? { background: "rgba(107,191,35,0.1)", color: "#5A9E1A" }
+                      ? { background: "rgba(22,163,74,0.1)", color: "#16A34A" }
                       : { background: "rgba(220,38,38,0.08)", color: "#DC2626" }
                   }>
                     {u.attendance_status}

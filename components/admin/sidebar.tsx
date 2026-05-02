@@ -40,20 +40,23 @@ export default function Sidebar() {
       {/* ── Desktop Sidebar (lg+) ─────────────────────────── */}
       <aside
         className="hidden lg:flex fixed left-0 top-0 h-screen w-[240px] flex-col z-50 select-none"
-        style={{ background: "#FFFFFF", borderRight: "1px solid #E5E7EB" }}
+        style={{
+          background: "linear-gradient(180deg, #0D0D0D 0%, #1A1A1A 100%)",
+          borderRight: "1px solid rgba(255,255,255,0.06)",
+        }}
       >
         {/* Logo */}
-        <div className="px-5 py-[18px]" style={{ borderBottom: "1px solid #E5E7EB" }}>
+        <div className="px-5 py-[18px]" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
           <div className="flex items-center gap-3">
             <div
               className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: "#A3E635" }}
+              style={{ background: "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)" }}
             >
-              <span className="text-[15px] font-black" style={{ color: "#0D0D0D" }}>G</span>
+              <span className="text-[15px] font-black" style={{ color: "#FFFFFF" }}>G</span>
             </div>
             <div>
-              <p className="text-[13px] tracking-[0.12em] font-black" style={{ color: "#111827" }}>GROFAST</p>
-              <p className="text-[9px] tracking-[0.2em] uppercase font-medium mt-0.5" style={{ color: "rgba(17,24,39,0.4)" }}>
+              <p className="text-[13px] tracking-[0.12em] font-black" style={{ color: "#FFFFFF" }}>GROFAST</p>
+              <p className="text-[9px] tracking-[0.2em] uppercase font-medium mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
                 Admin Portal
               </p>
             </div>
@@ -62,7 +65,7 @@ export default function Sidebar() {
 
         {/* Nav */}
         <nav className="flex-1 px-3 pt-5 pb-2 overflow-y-auto">
-          <p className="text-[9px] tracking-[0.28em] uppercase px-3 pb-3 font-bold" style={{ color: "rgba(17,24,39,0.3)" }}>
+          <p className="text-[9px] tracking-[0.28em] uppercase px-3 pb-3 font-bold" style={{ color: "rgba(255,255,255,0.22)" }}>
             Menu
           </p>
           <div className="space-y-[2px]">
@@ -74,16 +77,16 @@ export default function Sidebar() {
                   href={href}
                   className="relative flex items-center gap-3 px-3 py-[9px] rounded-lg transition-all duration-150"
                   style={active
-                    ? { background: "rgba(163,230,53,0.1)", color: "#5A9E1A" }
-                    : { color: "rgba(17,24,39,0.5)" }
+                    ? { background: "rgba(220,38,38,0.15)", color: "#F87171" }
+                    : { color: "rgba(255,255,255,0.42)" }
                   }
-                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(17,24,39,0.85)" }}
-                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(17,24,39,0.5)" }}
+                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.85)" }}
+                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.42)" }}
                 >
                   {active && (
                     <span
                       className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full"
-                      style={{ height: "18px", background: "#A3E635" }}
+                      style={{ height: "18px", background: "#DC2626" }}
                     />
                   )}
                   <Icon size={15} className="flex-shrink-0" />
@@ -95,24 +98,24 @@ export default function Sidebar() {
         </nav>
 
         {/* Logout */}
-        <div className="px-3 pb-4 pt-3" style={{ borderTop: "1px solid #E5E7EB" }}>
+        <div className="px-3 pb-4 pt-3" style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
           <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-0.5">
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(163,230,53,0.12)", border: "1px solid rgba(163,230,53,0.3)" }}
+              style={{ background: "rgba(220,38,38,0.2)", border: "1px solid rgba(220,38,38,0.35)" }}
             >
-              <span className="text-[11px] font-bold" style={{ color: "#5A9E1A" }}>AD</span>
+              <span className="text-[11px] font-bold" style={{ color: "#F87171" }}>AD</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-semibold leading-none" style={{ color: "#111827" }}>Admin</p>
-              <p className="text-[10px] mt-0.5" style={{ color: "rgba(17,24,39,0.4)" }}>Administrator</p>
+              <p className="text-[13px] font-semibold leading-none" style={{ color: "#FFFFFF" }}>Admin</p>
+              <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>Administrator</p>
             </div>
           </div>
           <form action={logoutAction}>
             <button
               type="submit"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all w-full"
-              style={{ color: "rgba(17,24,39,0.45)" }}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all w-full hover:opacity-80"
+              style={{ color: "rgba(255,255,255,0.32)" }}
             >
               <LogOut size={14} />
               <span className="text-[13px] font-medium">Sign Out</span>
@@ -124,20 +127,23 @@ export default function Sidebar() {
       {/* ── Mobile Top Bar (< lg) ─────────────────────────── */}
       <header
         className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
-        style={{ background: "#FFFFFF", borderBottom: "1px solid #E5E7EB" }}
+        style={{
+          background: "linear-gradient(90deg, #0D0D0D 0%, #1A1A1A 100%)",
+          borderBottom: "1px solid rgba(255,255,255,0.07)",
+        }}
       >
         <div className="flex items-center gap-2.5">
           <div
             className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "#A3E635" }}
+            style={{ background: "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)" }}
           >
-            <span className="text-[12px] font-black" style={{ color: "#0D0D0D" }}>G</span>
+            <span className="text-[12px] font-black" style={{ color: "#FFFFFF" }}>G</span>
           </div>
-          <span className="text-[13px] tracking-[0.1em] font-black" style={{ color: "#111827" }}>GROFAST</span>
+          <span className="text-[13px] tracking-[0.1em] font-black" style={{ color: "#FFFFFF" }}>GROFAST</span>
         </div>
         <div
           className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold"
-          style={{ background: "rgba(163,230,53,0.12)", border: "1px solid rgba(163,230,53,0.3)", color: "#5A9E1A" }}
+          style={{ background: "rgba(220,38,38,0.2)", border: "1px solid rgba(220,38,38,0.35)", color: "#F87171" }}
         >
           AD
         </div>
@@ -147,8 +153,8 @@ export default function Sidebar() {
       <nav
         className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2"
         style={{
-          background: "#FFFFFF",
-          borderTop: "1px solid #E5E7EB",
+          background: "#0D0D0D",
+          borderTop: "1px solid rgba(255,255,255,0.08)",
           height: "64px",
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
@@ -160,7 +166,7 @@ export default function Sidebar() {
               key={href}
               href={href}
               className="flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl transition-all"
-              style={active ? { color: "#5A9E1A" } : { color: "rgba(17,24,39,0.4)" }}
+              style={active ? { color: "#F87171" } : { color: "rgba(255,255,255,0.32)" }}
             >
               <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
               <span className="text-[10px] font-medium leading-none">{label}</span>

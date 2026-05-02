@@ -32,19 +32,19 @@ export default function PendingApprovalsCard({ leaves }: { leaves: LeaveRow[] })
     <div className="rounded-2xl p-5 h-full" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(124,58,237,0.1)" }}>
-            <CalendarCheck size={14} style={{ color: "#7C3AED" }} />
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(220,38,38,0.1)" }}>
+            <CalendarCheck size={14} style={{ color: "#DC2626" }} />
           </div>
           <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Pending Approvals</h3>
           {leaves.length > 0 && (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(124,58,237,0.1)", color: "#7C3AED" }}>
+              style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
               {leaves.length}
             </span>
           )}
         </div>
         <Link href="/admin/leaves" className="text-[12px] font-semibold flex items-center gap-1 transition-opacity hover:opacity-70"
-          style={{ color: "#7C3AED" }}>
+          style={{ color: "#DC2626" }}>
           Manage <ArrowRight size={12} />
         </Link>
       </div>
@@ -68,7 +68,7 @@ export default function PendingApprovalsCard({ leaves }: { leaves: LeaveRow[] })
                 className="flex items-center gap-3 p-3 rounded-xl"
                 style={{ background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
                 <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
-                  style={{ background: "rgba(124,58,237,0.1)", color: "#7C3AED" }}>
+                  style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
                   {(member?.name ?? "?")[0].toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -87,7 +87,7 @@ export default function PendingApprovalsCard({ leaves }: { leaves: LeaveRow[] })
                     onClick={() => handleAction(leave.id, "approved")}
                     disabled={isPending}
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold disabled:opacity-50 transition-all hover:scale-[1.02]"
-                    style={{ background: "rgba(107,191,35,0.12)", color: "#5A9E1A", border: "1px solid rgba(107,191,35,0.25)" }}>
+                    style={{ background: "rgba(22,163,74,0.1)", color: "#16A34A", border: "1px solid rgba(22,163,74,0.25)" }}>
                     {isProcessing ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
                     Approve
                   </button>
@@ -95,7 +95,7 @@ export default function PendingApprovalsCard({ leaves }: { leaves: LeaveRow[] })
                     onClick={() => handleAction(leave.id, "rejected")}
                     disabled={isPending}
                     className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold disabled:opacity-50 transition-all hover:scale-[1.02]"
-                    style={{ background: "rgba(220,38,38,0.07)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.15)" }}>
+                    style={{ background: "rgba(220,38,38,0.07)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
                     {isProcessing ? <Loader2 size={10} className="animate-spin" /> : <X size={10} />}
                     Reject
                   </button>

@@ -48,7 +48,9 @@ async function notifyWhatsApp(
                   parameters: [
                     { type: 'text', text: payload.name },
                     { type: 'text', text: payload.employee_id },
+                    { type: 'text', text: payload.email },
                     { type: 'text', text: payload.password },
+                    { type: 'text', text: payload.team || 'Team' },
                     { type: 'text', text: payload.loginLink },
                   ],
                 },
@@ -219,7 +221,10 @@ export async function createMember(input: {
       // non-fatal: falls back to plain login URL
     }
 
-    const cleanPhone = input.phone.replace(/\D/g, '')
+    let cleanPhone = input.phone.replace(/\D/g, '')
+    // Auto-add India country code for 10-digit numbers
+    if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone
+    else if (cleanPhone.startsWith('0') && cleanPhone.length === 11) cleanPhone = '91' + cleanPhone.slice(1)
     notifyWhatsApp(
       {
         name: input.name,

@@ -539,7 +539,7 @@ export default function ProjectsClient({
                     </button>
                     {openDropdown === project.id && (
                       <div className="absolute right-0 top-9 w-36 rounded-xl overflow-hidden py-1 z-20"
-                        style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+                        style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
                         <button onClick={() => { setEditProject(project); setSheetOpen(true); setOpenDropdown(null) }}
                           className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all hover:bg-gray-50"
                           style={{ color: "#374151" }}>

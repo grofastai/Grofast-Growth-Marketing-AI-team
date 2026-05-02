@@ -68,7 +68,7 @@ function TaskCard({
 
   return (
     <div className="rounded-xl p-3.5 group"
-      style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+      style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
 
       {/* Title + delete */}
       <div className="flex items-start justify-between gap-2 mb-2">

@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
   Plus, Trash2, Loader2, Clock, BookOpen, Briefcase,
   Camera, Film, Upload, Layers, Link2, ChevronDown,
   CheckCircle2, XCircle, ImageIcon, Video, AlertCircle,
+  FolderOpen, ExternalLink,
 } from "lucide-react"
 import { submitDailyUpdate } from "@/lib/actions/daily-updates"
 import type { WorkEntryInput } from "@/lib/validations/daily-update"
@@ -240,6 +241,164 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
   )
 }
 
+// ── Video uploader (used inside EditCard) ─────────────────────
+type UploadState = 'idle' | 'preparing' | 'uploading' | 'done' | 'error'
+
+function VideoUploader({ clientName, onLink }: { clientName: string; onLink: (link: string) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [state, setState] = useState<UploadState>('idle')
+  const [progress, setProgress] = useState(0)
+  const [fileName, setFileName] = useState('')
+  const [link, setLink] = useState('')
+  const [errMsg, setErrMsg] = useState('')
+
+  async function handleFile(file: File) {
+    if (!file) return
+    setFileName(file.name)
+    setState('preparing')
+    setErrMsg('')
+
+    try {
+      // Step 1 — get resumable upload URL from our server
+      const prepRes = await fetch('/api/drive/prepare', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName: clientName || 'Uncategorized',
+          fileName: file.name,
+          mimeType: file.type || 'video/mp4',
+          fileSize: file.size,
+        }),
+      })
+      const prepData = await prepRes.json()
+      if (!prepRes.ok) throw new Error(prepData.error ?? 'Failed to prepare upload')
+
+      // Step 2 — upload directly from browser to Google Drive (bypass Vercel size limit)
+      setState('uploading')
+      const fileId = await new Promise<string>((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('PUT', prepData.uploadUrl)
+        xhr.setRequestHeader('Content-Type', file.type || 'video/mp4')
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100))
+        }
+
+        xhr.onload = () => {
+          if (xhr.status === 200 || xhr.status === 201) {
+            const data = JSON.parse(xhr.responseText)
+            resolve(data.id)
+          } else {
+            reject(new Error(`Upload failed (${xhr.status})`))
+          }
+        }
+        xhr.onerror = () => reject(new Error('Network error during upload'))
+        xhr.send(file)
+      })
+
+      // Step 3 — make public, get shareable link
+      const completeRes = await fetch('/api/drive/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId }),
+      })
+      const completeData = await completeRes.json()
+      if (!completeRes.ok) throw new Error(completeData.error ?? 'Failed to finalise upload')
+
+      setLink(completeData.driveLink)
+      onLink(completeData.driveLink)
+      setState('done')
+    } catch (err: unknown) {
+      setErrMsg(err instanceof Error ? err.message : 'Upload failed')
+      setState('error')
+    }
+  }
+
+  if (state === 'done') {
+    return (
+      <div className="rounded-xl p-3 flex items-center gap-3"
+        style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)" }}>
+        <CheckCircle2 size={18} style={{ color: "#16A34A", flexShrink: 0 }} />
+        <div className="flex-1 min-w-0">
+          <p className="text-[12px] font-bold" style={{ color: "#16A34A" }}>Uploaded to Drive</p>
+          <p className="text-[11px] truncate" style={{ color: "#6B7280" }}>{fileName}</p>
+        </div>
+        <a href={link} target="_blank" rel="noreferrer"
+          className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg"
+          style={{ background: "rgba(34,197,94,0.12)", color: "#16A34A", border: "1px solid rgba(34,197,94,0.2)" }}>
+          <ExternalLink size={11} /> View
+        </a>
+        <button type="button" onClick={() => { setState('idle'); setLink(''); setFileName(''); setProgress(0) }}
+          className="text-[11px] px-2 py-1.5 rounded-lg"
+          style={{ color: "#9CA3AF", border: "1px solid #E5E7EB" }}>
+          Replace
+        </button>
+      </div>
+    )
+  }
+
+  if (state === 'uploading') {
+    return (
+      <div className="rounded-xl p-3 space-y-2"
+        style={{ background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.15)" }}>
+        <div className="flex items-center gap-2">
+          <Loader2 size={14} className="animate-spin" style={{ color: "#6366F1" }} />
+          <span className="text-[12px] font-semibold" style={{ color: "#6366F1" }}>
+            Uploading to Google Drive… {progress}%
+          </span>
+        </div>
+        <div className="rounded-full overflow-hidden" style={{ background: "#E5E7EB", height: 6 }}>
+          <div className="h-full rounded-full transition-all"
+            style={{ width: `${progress}%`, background: "linear-gradient(90deg, #6366F1, #8B5CF6)" }} />
+        </div>
+        <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{fileName}</p>
+      </div>
+    )
+  }
+
+  if (state === 'preparing') {
+    return (
+      <div className="rounded-xl p-3 flex items-center gap-2"
+        style={{ background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.15)" }}>
+        <Loader2 size={14} className="animate-spin" style={{ color: "#6366F1" }} />
+        <span className="text-[12px]" style={{ color: "#6366F1" }}>Setting up Drive folder…</span>
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <input ref={fileRef} type="file" accept="video/*" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+
+      {state === 'error' && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-2"
+          style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)" }}>
+          <AlertCircle size={13} style={{ color: "#DC2626" }} />
+          <span className="text-[12px]" style={{ color: "#DC2626" }}>{errMsg}</span>
+        </div>
+      )}
+
+      <button type="button" onClick={() => fileRef.current?.click()}
+        className="w-full flex flex-col items-center justify-center gap-2 py-6 rounded-xl transition-all"
+        style={{ border: "2px dashed rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.03)" }}
+        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.07)"}
+        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.03)"}>
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+          style={{ background: "rgba(99,102,241,0.12)" }}>
+          <Upload size={18} style={{ color: "#6366F1" }} />
+        </div>
+        <div className="text-center">
+          <p className="text-[13px] font-bold" style={{ color: "#6366F1" }}>Click to upload video</p>
+          <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>
+            Saves to Drive: MediaUploads / {new Date().getFullYear()} / {new Date().toLocaleString('en-US', { month: 'long' })} / {clientName || "Client"}
+          </p>
+        </div>
+      </button>
+    </div>
+  )
+}
+
 // ── Edit entry card ────────────────────────────────────────────
 function EditCard({ entry, i, projects, onChange, onRemove }: {
   entry: WorkEntryInput
@@ -267,13 +426,14 @@ function EditCard({ entry, i, projects, onChange, onRemove }: {
           </span>
         </div>
         <button type="button" onClick={onRemove}
-          className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+          className="w-7 h-7 rounded-lg flex items-center justify-center"
           style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)" }}>
           <Trash2 size={12} style={{ color: "#6366F1" }} />
         </button>
       </div>
 
       <div className="p-4 space-y-4" style={{ background: "#FFFFFF" }}>
+
         {/* Client */}
         <ClientSelect
           projects={projects}
@@ -282,6 +442,15 @@ function EditCard({ entry, i, projects, onChange, onRemove }: {
           required
         />
 
+        {/* Video title */}
+        <div>
+          <label style={LABEL}>Video Title <span style={{ color: "#DC2626" }}>*</span></label>
+          <input className="du" style={FIELD}
+            placeholder="e.g. Promo Reel, BTS Cut, Product Ad…"
+            value={entry.title}
+            onChange={(e) => onChange({ title: e.target.value })} />
+        </div>
+
         {/* Hours worked */}
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -289,13 +458,8 @@ function EditCard({ entry, i, projects, onChange, onRemove }: {
               Hours Worked <span style={{ color: "#DC2626" }}>*</span>
             </label>
             <button type="button"
-              onClick={() => {
-                setUseTimeRange((v) => !v)
-                if (useTimeRange) {
-                  onChange({ start_time: "", end_time: "" })
-                }
-              }}
-              className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all"
+              onClick={() => { setUseTimeRange((v) => !v); onChange({ start_time: "", end_time: "" }) }}
+              className="text-[11px] font-semibold px-2.5 py-1 rounded-lg"
               style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.2)" }}>
               {useTimeRange ? "Enter hours directly" : "Use time range"}
             </button>
@@ -324,10 +488,8 @@ function EditCard({ entry, i, projects, onChange, onRemove }: {
               <div>
                 <label style={LABEL}>Duration</label>
                 <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
-                  style={{
-                    height: "42px", background: "#F8F9FA", border: "1px solid #E5E7EB",
-                    color: entry.duration_hours > 0 ? "#6366F1" : "#D1D5DB",
-                  }}>
+                  style={{ height: "42px", background: "#F8F9FA", border: "1px solid #E5E7EB",
+                    color: entry.duration_hours > 0 ? "#6366F1" : "#D1D5DB" }}>
                   {entry.duration_hours > 0 ? `${entry.duration_hours}h` : "—"}
                 </div>
               </div>
@@ -343,27 +505,26 @@ function EditCard({ entry, i, projects, onChange, onRemove }: {
           )}
         </div>
 
-        {/* Edited video link — required */}
-        <div className="rounded-xl p-3 space-y-2"
-          style={{ background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.15)" }}>
-          <label style={{ ...LABEL, color: "#6366F1", marginBottom: 4 }}>
-            <Video size={10} style={{ display: "inline", marginRight: 4 }} />
-            Edited video link <span style={{ color: "#DC2626" }}>*</span>
+        {/* Video upload — goes straight to Drive */}
+        <div className="space-y-2">
+          <label style={LABEL}>
+            <FolderOpen size={10} style={{ display: "inline", marginRight: 4 }} />
+            Upload Edited Video <span style={{ color: "#DC2626" }}>*</span>
           </label>
-          <input className="du" style={{ ...FIELD, borderColor: "rgba(99,102,241,0.3)" }}
-            placeholder="Paste Google Drive / WeTransfer / YouTube link…"
-            value={entry.video_link ?? ""}
-            onChange={(e) => onChange({ video_link: e.target.value })} />
-          <p className="text-[11px]" style={{ color: "#6B7280" }}>
-            This video will be saved under <strong>{entry.client_name || "the client"}</strong> for this month.
-          </p>
+          <VideoUploader
+            clientName={entry.client_name}
+            onLink={(link) => onChange({ video_link: link })}
+          />
+          {entry.video_link && (
+            <input type="hidden" value={entry.video_link} readOnly />
+          )}
         </div>
 
         {/* Notes */}
         <div>
           <label style={LABEL}>Notes</label>
           <textarea rows={2} className="du resize-none" style={FIELD}
-            placeholder="Software used, version, special effects, feedback received…"
+            placeholder="Software used, effects, client feedback…"
             value={entry.notes ?? ""}
             onChange={(e) => onChange({ notes: e.target.value })} />
         </div>

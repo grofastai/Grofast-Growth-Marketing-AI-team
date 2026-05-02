@@ -17,7 +17,6 @@ const taskSchema = z.object({
   title: z.string().min(1, 'Title required'),
   description: z.string().optional(),
   project_id: z.string().uuid().optional().nullable(),
-  assigned_to: z.string().uuid().optional().nullable(),
   priority: z.enum(['low', 'medium', 'high']).default('medium'),
   due_date: z.string().optional().nullable(),
 })
@@ -30,13 +29,15 @@ export async function createTask(
     title: formData.get('title') as string,
     description: (formData.get('description') as string) || undefined,
     project_id: (formData.get('project_id') as string) || null,
-    assigned_to: (formData.get('assigned_to') as string) || null,
     priority: (formData.get('priority') as string) || 'medium',
     due_date: (formData.get('due_date') as string) || null,
   }
 
   const parsed = taskSchema.safeParse(raw)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  // Support multiple assigned_to values (one task per member)
+  const assignedToList = (formData.getAll('assigned_to') as string[]).filter(v => v && v.trim())
 
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -46,18 +47,24 @@ export async function createTask(
   const { data: profile } = await admin.from('users').select('company_id').eq('id', user.id).single()
   if (!profile?.company_id) return { error: 'Profile not found — contact support' }
 
-  const { error } = await admin.from('tasks').insert({
+  const base = {
     company_id: profile.company_id,
     title: parsed.data.title,
     description: parsed.data.description || null,
     project_id: parsed.data.project_id || null,
-    assigned_to: parsed.data.assigned_to || null,
     priority: parsed.data.priority,
     due_date: parsed.data.due_date || null,
-    status: 'todo',
-  })
+    status: 'todo' as const,
+  }
 
-  if (error) return { error: error.message }
+  if (assignedToList.length === 0) {
+    const { error } = await admin.from('tasks').insert({ ...base, assigned_to: null })
+    if (error) return { error: error.message }
+  } else {
+    const rows = assignedToList.map(id => ({ ...base, assigned_to: id }))
+    const { error } = await admin.from('tasks').insert(rows)
+    if (error) return { error: error.message }
+  }
 
   revalidatePath('/admin/goals')
   revalidatePath('/member/tasks')

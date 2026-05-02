@@ -42,7 +42,7 @@ const STATUS_CONFIG = {
 }
 
 const inputStyle: React.CSSProperties = {
-  background: "#1A1A1A", border: "1px solid #2E2E2E", color: "#FFFFFF",
+  background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#111111",
   borderRadius: "10px", padding: "10px 14px", fontSize: "13px",
   outline: "none", width: "100%", fontFamily: "inherit", colorScheme: "dark",
 }
@@ -121,7 +121,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
   const labelStyle: React.CSSProperties = {
     display: "block", fontSize: "10px", fontWeight: 700,
     textTransform: "uppercase", letterSpacing: "0.16em",
-    marginBottom: "8px", color: "rgba(255,255,255,0.3)",
+    marginBottom: "8px", color: "#9CA3AF",
   }
 
   return (
@@ -138,13 +138,13 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
             <h2 className="text-[17px] font-black text-white" style={{ fontFamily: "var(--font-jakarta)" }}>
               {isEdit ? "Edit Client" : "Add New Client"}
             </h2>
-            <p className="text-[12px] mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
+            <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>
               {isEdit ? "Update client details" : "Create and track a new client engagement"}
             </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "#1A1A1A" }}>
-            <X size={14} style={{ color: "rgba(255,255,255,0.5)" }} />
+            style={{ background: "#F8F9FA" }}>
+            <X size={14} style={{ color: "#6B7280" }} />
           </button>
         </div>
 
@@ -167,7 +167,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
                     className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all border"
                     style={active
                       ? { background: "rgba(220,38,38,0.12)", borderColor: "rgba(220,38,38,0.35)", color: "#F87171" }
-                      : { background: "#1A1A1A", borderColor: "#2E2E2E", color: "rgba(255,255,255,0.4)" }
+                      : { background: "#F8F9FA", borderColor: "#2E2E2E", color: "#9CA3AF" }
                     }>
                     {active && "✓ "}{s}
                   </button>
@@ -203,7 +203,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
             <input value={form.package_name} onChange={set("package_name")}
               placeholder="e.g. 3-Month Social Media — ₹15,000/mo"
               className="ps-input" style={inputStyle} />
-            <p className="text-[10px] mt-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>
+            <p className="text-[10px] mt-1.5" style={{ color: "#D1D5DB" }}>
               Describe the service package or pricing plan for this client
             </p>
           </div>
@@ -213,17 +213,17 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
             <label style={labelStyle}>Engagement Period</label>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <p className="text-[10px] mb-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>From Month</p>
+                <p className="text-[10px] mb-1.5" style={{ color: "#D1D5DB" }}>From Month</p>
                 <input type="month" value={form.start_month} onChange={set("start_month")}
                   className="ps-input" style={inputStyle} />
               </div>
               <div>
-                <p className="text-[10px] mb-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>To Month</p>
+                <p className="text-[10px] mb-1.5" style={{ color: "#D1D5DB" }}>To Month</p>
                 <input type="month" value={form.end_month} onChange={set("end_month")}
                   className="ps-input" style={inputStyle} />
               </div>
             </div>
-            <p className="text-[10px] mt-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>
+            <p className="text-[10px] mt-1.5" style={{ color: "#D1D5DB" }}>
               The months this client engagement runs — used to track how long the project is active
             </p>
           </div>
@@ -240,7 +240,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
                     className="flex-1 py-2.5 rounded-lg text-[12px] font-bold transition-all"
                     style={isActive
                       ? { background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }
-                      : { background: "#1A1A1A", border: "1px solid #2E2E2E", color: "rgba(255,255,255,0.35)" }
+                      : { background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#9CA3AF" }
                     }>
                     {cfg.label}
                   </button>
@@ -260,10 +260,10 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
               value={form.progress_pct}
               onChange={e => setForm(p => ({ ...p, progress_pct: Number(e.target.value) }))}
               className="w-full" style={{ accentColor: "#DC2626" }} />
-            <div className="flex justify-between text-[10px] mt-1" style={{ color: "rgba(255,255,255,0.2)" }}>
+            <div className="flex justify-between text-[10px] mt-1" style={{ color: "rgba(0,0,0,0.1)" }}>
               <span>0% — Not started</span><span>50%</span><span>100% — Done</span>
             </div>
-            <p className="text-[10px] mt-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>
+            <p className="text-[10px] mt-1.5" style={{ color: "#D1D5DB" }}>
               How much of the overall work / deliverables are completed for this client
             </p>
           </div>
@@ -281,7 +281,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
           style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
           <button onClick={onClose}
             className="flex-1 py-3 rounded-xl text-[13px] font-semibold"
-            style={{ background: "#1A1A1A", border: "1px solid #2E2E2E", color: "rgba(255,255,255,0.5)" }}>
+            style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#6B7280" }}>
             Cancel
           </button>
           <button onClick={handleSubmit} disabled={isPending}
@@ -318,13 +318,13 @@ function DeleteConfirm({ project, onCancel }: { project: Project; onCancel: () =
           <h3 className="text-[16px] font-black mb-1 text-white" style={{ fontFamily: "var(--font-jakarta)" }}>
             Delete Client?
           </h3>
-          <p className="text-[13px] mb-6" style={{ color: "rgba(255,255,255,0.4)" }}>
+          <p className="text-[13px] mb-6" style={{ color: "#9CA3AF" }}>
             <span className="text-white font-semibold">{project.business_name}</span> will be permanently removed.
           </p>
           <div className="flex gap-3">
             <button onClick={onCancel}
               className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
-              style={{ background: "#1A1A1A", border: "1px solid #2E2E2E", color: "rgba(255,255,255,0.5)" }}>
+              style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#6B7280" }}>
               Cancel
             </button>
             <button onClick={handleDelete} disabled={isPending}

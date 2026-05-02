@@ -19,13 +19,13 @@ interface Task {
 }
 
 const PRIORITY = {
-  low:    { color: "rgba(255,255,255,0.55)", bg: "rgba(255,255,255,0.05)", label: "Low"    },
+  low:    { color: "#6B7280", bg: "rgba(0,0,0,0.04)", label: "Low"    },
   medium: { color: "#F59E0B",               bg: "rgba(245,158,11,0.1)",   label: "Medium" },
   high:   { color: "#FF6B57",               bg: "rgba(255,107,87,0.1)",   label: "High"   },
 }
 
 const STATUS_META = {
-  todo:        { icon: Circle,       color: "rgba(255,255,255,0.55)", label: "To Do",       next: "in_progress" as const },
+  todo:        { icon: Circle,       color: "#6B7280", label: "To Do",       next: "in_progress" as const },
   in_progress: { icon: Clock,        color: "#F59E0B",               label: "In Progress", next: "completed"   as const },
   completed:   { icon: CheckCircle2, color: "#DC2626",               label: "Done",        next: "todo"        as const },
 }
@@ -46,8 +46,8 @@ function dueDateLabel(due: string | null, today: string): { text: string; color:
   if (due === today) return { text: "Due Today",     color: "#F59E0B" }
   const days = Math.round((new Date(due).getTime() - new Date(today).getTime()) / 86400000)
   if (days === 1)  return { text: "Due Tomorrow",    color: "#DC2626" }
-  if (days <= 7)   return { text: `${days}d left`,   color: "rgba(255,255,255,0.45)" }
-  return { text: due, color: "rgba(255,255,255,0.3)" }
+  if (days <= 7)   return { text: `${days}d left`,   color: "#6B7280" }
+  return { text: due, color: "#9CA3AF" }
 }
 
 function ProgressBar({ done, total }: { done: number; total: number }) {
@@ -55,20 +55,20 @@ function ProgressBar({ done, total }: { done: number; total: number }) {
   const blocks = 10
   const filled = Math.round((pct / 100) * blocks)
   return (
-    <div className="rounded-xl p-4" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+    <div className="rounded-xl p-4" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
       <div className="flex items-center justify-between mb-2">
         <span className="text-[11px] font-bold uppercase tracking-wider"
-          style={{ color: "rgba(255,255,255,0.25)" }}>Today&apos;s Progress</span>
+          style={{ color: "#D1D5DB" }}>Today&apos;s Progress</span>
         <span className="text-[12px] font-black"
           style={{ color: pct === 100 ? "#DC2626" : "#FFFFFF" }}>{done}/{total} tasks</span>
       </div>
       <div className="flex gap-1">
         {Array.from({ length: blocks }).map((_, i) => (
           <div key={i} className="flex-1 h-2 rounded-full"
-            style={{ background: i < filled ? "#DC2626" : "rgba(255,255,255,0.08)" }} />
+            style={{ background: i < filled ? "#DC2626" : "rgba(0,0,0,0.06)" }} />
         ))}
       </div>
-      <p className="text-[11px] mt-1.5" style={{ color: "rgba(255,255,255,0.3)" }}>
+      <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>
         {pct === 100 ? "All tasks done for today 🎉" : `${pct}% complete`}
       </p>
     </div>
@@ -129,8 +129,8 @@ export default function MemberTasksClient({
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-[30px] font-black leading-tight"
-            style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>My Tasks</h1>
-          <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>
+            style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>My Tasks</h1>
+          <p className="text-[13px] mt-1" style={{ color: "#9CA3AF" }}>
             {active.length > 0
               ? <>{active.length} active task{active.length !== 1 ? "s" : ""}{overdue.length > 0 && <span style={{ color: "#FF6B57" }}> · {overdue.length} overdue ⚠</span>}</>
               : "You're all caught up 🎉"
@@ -140,27 +140,27 @@ export default function MemberTasksClient({
 
         {/* Quick summary pill */}
         <div className="hidden md:flex items-center gap-4 px-4 py-3 rounded-xl"
-          style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+          style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
           <div className="text-center">
             <p className="text-[18px] font-black leading-none"
-              style={{ fontFamily: "var(--font-jakarta)", color: todayHours > 0 ? "#DC2626" : "rgba(255,255,255,0.3)" }}>
+              style={{ fontFamily: "var(--font-jakarta)", color: todayHours > 0 ? "#DC2626" : "#9CA3AF" }}>
               {todayHours > 0 ? `${todayHours}h` : "—"}
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>Worked</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>Worked</p>
           </div>
-          <div className="w-px h-8" style={{ background: "#333" }} />
+          <div className="w-px h-8" style={{ background: "#E5E7EB" }} />
           <div className="text-center">
             <p className="text-[18px] font-black leading-none"
-              style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>{active.length}</p>
-            <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>Active</p>
+              style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>{active.length}</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>Active</p>
           </div>
-          <div className="w-px h-8" style={{ background: "#333" }} />
+          <div className="w-px h-8" style={{ background: "#E5E7EB" }} />
           <div className="text-center">
             <p className="text-[18px] font-black leading-none"
-              style={{ fontFamily: "var(--font-jakarta)", color: overdue.length > 0 ? "#FF6B57" : "rgba(255,255,255,0.3)" }}>
+              style={{ fontFamily: "var(--font-jakarta)", color: overdue.length > 0 ? "#FF6B57" : "#9CA3AF" }}>
               {overdue.length}
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>Overdue</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>Overdue</p>
           </div>
         </div>
       </div>
@@ -197,7 +197,7 @@ export default function MemberTasksClient({
               className="px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
               style={isActive
                 ? { background: "rgba(220,38,38,0.1)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }
-                : { background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.4)", border: "1px solid rgba(255,255,255,0.06)" }
+                : { background: "rgba(0,0,0,0.02)", color: "#9CA3AF", border: "1px solid rgba(255,255,255,0.06)" }
               }>
               {tab.label}
               <span className="ml-1.5 text-[11px] opacity-70">({count})</span>
@@ -209,12 +209,12 @@ export default function MemberTasksClient({
       {/* ── Task list ── */}
       {displayed.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 rounded-xl"
-          style={{ background: "#1A1A1A", border: "1px solid #2A2A2A" }}>
-          <Target size={36} style={{ color: "rgba(255,255,255,0.08)" }} className="mb-3" />
-          <p className="text-[15px] font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>
+          style={{ background: "#F8F9FA", border: "1px solid #2A2A2A" }}>
+          <Target size={36} style={{ color: "rgba(0,0,0,0.06)" }} className="mb-3" />
+          <p className="text-[15px] font-bold" style={{ color: "#9CA3AF" }}>
             {filter === "all" ? "No tasks assigned 🎉" : `No ${filter.replace("_", " ")} tasks`}
           </p>
-          <p className="text-[12px] mt-1" style={{ color: "rgba(255,255,255,0.2)" }}>
+          <p className="text-[12px] mt-1" style={{ color: "rgba(0,0,0,0.1)" }}>
             {filter === "all"
               ? "You're all caught up. Focus on learning or check back later."
               : "Switch to a different filter to see other tasks."}
@@ -261,7 +261,7 @@ function TaskCard({
   return (
     <div className="rounded-xl p-4"
       style={{
-        background: isOverdue ? "rgba(255,107,87,0.03)" : isDone ? "rgba(220,38,38,0.02)" : "#1E1E1E",
+        background: isOverdue ? "rgba(255,107,87,0.03)" : isDone ? "rgba(220,38,38,0.02)" : "#FFFFFF",
         border: isOverdue
           ? "1px solid rgba(255,107,87,0.15)"
           : isDone
@@ -283,11 +283,11 @@ function TaskCard({
         {/* Title + meta */}
         <div className="flex-1 min-w-0">
           <p className={`text-[14px] font-semibold ${isDone ? "line-through" : ""}`}
-            style={{ color: isDone ? "rgba(255,255,255,0.3)" : "#FFFFFF" }}>
+            style={{ color: isDone ? "#9CA3AF" : "#FFFFFF" }}>
             {task.title}
           </p>
           {task.description && (
-            <p className="text-[12px] mt-0.5 truncate" style={{ color: "rgba(255,255,255,0.3)" }}>
+            <p className="text-[12px] mt-0.5 truncate" style={{ color: "#9CA3AF" }}>
               {task.description}
             </p>
           )}
@@ -305,7 +305,7 @@ function TaskCard({
               {pr.label.toUpperCase()}
             </span>
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(255,255,255,0.04)", color: st.color }}>
+              style={{ background: "rgba(0,0,0,0.03)", color: st.color }}>
               {st.label}
             </span>
             {due && (

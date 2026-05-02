@@ -44,9 +44,9 @@ function newEntry(): WorkEntryInput {
 }
 
 const IS: React.CSSProperties = {
-  background: "#1A1A1A",
+  background: "#F8F9FA",
   border: "1px solid #2E2E2E",
-  color: "#FFFFFF",
+  color: "#111111",
   borderRadius: "10px",
   padding: "10px 14px",
   fontSize: "13px",
@@ -62,7 +62,7 @@ const LABEL: React.CSSProperties = {
   textTransform: "uppercase",
   letterSpacing: "0.16em",
   marginBottom: "6px",
-  color: "rgba(255,255,255,0.3)",
+  color: "#9CA3AF",
 }
 
 export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
@@ -170,7 +170,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
       `}</style>
 
       {/* ── Tab switcher ────────────────────────────────────── */}
-      <div className="flex gap-2 mb-6 p-1 rounded-xl" style={{ background: "#1A1A1A", border: "1px solid #2A2A2A" }}>
+      <div className="flex gap-2 mb-6 p-1 rounded-xl" style={{ background: "#F8F9FA", border: "1px solid #2A2A2A" }}>
         {(["working", "learning"] as const).map((t) => {
           const Icon = t === "working" ? Briefcase : BookOpen
           const active = tab === t
@@ -178,10 +178,10 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
             <button key={t} type="button" onClick={() => setTab(t)}
               className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-[13px] font-bold capitalize transition-all"
               style={active
-                ? { background: "#262626", color: "#FFFFFF", border: "1px solid #333" }
-                : { background: "transparent", color: "rgba(255,255,255,0.35)", border: "1px solid transparent" }
+                ? { background: "#FFFFFF", color: "#111111", border: "1px solid #333" }
+                : { background: "transparent", color: "#9CA3AF", border: "1px solid transparent" }
               }>
-              <Icon size={14} style={{ color: active ? "#DC2626" : "rgba(255,255,255,0.35)" }} />
+              <Icon size={14} style={{ color: active ? "#DC2626" : "#9CA3AF" }} />
               {t === "working" ? "Working" : "Learning"}
             </button>
           )
@@ -216,7 +216,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
               <div className="space-y-3">
                 {entries.map((entry, i) => (
                   <div key={entry.id} className="rounded-xl p-4 space-y-3"
-                    style={{ background: "#1E1E1E", border: "1px solid #2A2A2A" }}>
+                    style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
 
                     {/* Row 1: task type chips */}
                     <div className="flex items-center gap-2 flex-wrap">
@@ -226,7 +226,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
                           style={entry.task_type === value
                             ? { background: "rgba(220,38,38,0.1)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.25)" }
-                            : { background: "#262626", color: "rgba(255,255,255,0.4)", border: "1px solid #333" }
+                            : { background: "#FFFFFF", color: "#9CA3AF", border: "1px solid #333" }
                           }>
                           <Icon size={11} /> {label}
                         </button>
@@ -254,7 +254,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                               ))}
                             </select>
                             <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                              style={{ color: "rgba(255,255,255,0.3)" }} />
+                              style={{ color: "#9CA3AF" }} />
                           </div>
                         ) : (
                           <input
@@ -290,8 +290,8 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                       <div>
                         <label style={LABEL}>Duration</label>
                         <div className="flex items-center justify-center h-[42px] rounded-[10px] text-[14px] font-black"
-                          style={{ background: "#262626", border: "1px solid #333",
-                            color: entry.duration_hours > 0 ? "#DC2626" : "rgba(255,255,255,0.2)" }}>
+                          style={{ background: "#FFFFFF", border: "1px solid #333",
+                            color: entry.duration_hours > 0 ? "#DC2626" : "rgba(0,0,0,0.1)" }}>
                           {entry.duration_hours > 0 ? `${entry.duration_hours}h` : "—"}
                         </div>
                       </div>
@@ -315,21 +315,21 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
               <button type="button"
                 onClick={() => setShowMedia((v) => !v)}
                 className="w-full flex items-center justify-between px-4 py-3"
-                style={{ background: "#1E1E1E" }}>
+                style={{ background: "#FFFFFF" }}>
                 <div className="flex items-center gap-2">
                   <Camera size={13} style={{ color: "#DC2626" }} />
                   <span className="text-[12px] font-bold uppercase tracking-wider"
-                    style={{ color: "rgba(255,255,255,0.55)" }}>Media Stats</span>
+                    style={{ color: "#6B7280" }}>Media Stats</span>
                   <span className="text-[10px] px-1.5 py-0.5 rounded"
-                    style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.3)" }}>optional</span>
+                    style={{ background: "rgba(0,0,0,0.05)", color: "#9CA3AF" }}>optional</span>
                 </div>
                 <ChevronDown size={14} className={`transition-transform ${showMedia ? "rotate-180" : ""}`}
-                  style={{ color: "rgba(255,255,255,0.3)" }} />
+                  style={{ color: "#9CA3AF" }} />
               </button>
 
               {showMedia && (
                 <div className="px-4 pb-4 pt-3 grid grid-cols-2 gap-3"
-                  style={{ background: "#1A1A1A", borderTop: "1px solid #2A2A2A" }}>
+                  style={{ background: "#F8F9FA", borderTop: "1px solid #2A2A2A" }}>
                   <div>
                     <label style={LABEL}>Shoot Count</label>
                     <input type="number" min="0" className="du" style={IS}
@@ -381,9 +381,9 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                 <div className="space-y-1.5">
                   {links.map((lnk, i) => (
                     <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg"
-                      style={{ background: "#1E1E1E", border: "1px solid #2A2A2A" }}>
-                      <Link2 size={12} style={{ color: "rgba(255,255,255,0.3)" }} />
-                      <span className="flex-1 text-[12px] truncate" style={{ color: "rgba(255,255,255,0.6)" }}>{lnk}</span>
+                      style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
+                      <Link2 size={12} style={{ color: "#9CA3AF" }} />
+                      <span className="flex-1 text-[12px] truncate" style={{ color: "#4B5563" }}>{lnk}</span>
                       <button type="button" onClick={() => setLinks((prev) => prev.filter((_, idx) => idx !== i))}>
                         <Trash2 size={11} style={{ color: "rgba(255,107,87,0.6)" }} />
                       </button>
@@ -401,7 +401,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
         {tab === "learning" && (
           <div className="space-y-4">
             <div className="rounded-xl p-5 space-y-4"
-              style={{ background: "#1E1E1E", border: "1px solid #2A2A2A" }}>
+              style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
               <div>
                 <label style={LABEL}>Topic *</label>
                 <input className="du" style={IS}
@@ -428,7 +428,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
             <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg"
               style={{ background: "rgba(109,93,246,0.06)", border: "1px solid rgba(109,93,246,0.15)" }}>
               <BookOpen size={13} style={{ color: "#6D5DF6" }} />
-              <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+              <p className="text-[12px]" style={{ color: "#6B7280" }}>
                 Learning hours count toward your daily productivity score.
               </p>
             </div>

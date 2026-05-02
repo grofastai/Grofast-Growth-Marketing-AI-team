@@ -203,17 +203,17 @@ export default async function DashboardPage() {
             <h1 className="text-[28px] leading-tight font-black text-white">
               {greeting} 👋
             </h1>
-            <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.55)" }}>{dateStr}</p>
+            <p className="text-sm mt-1" style={{ color: "#6B7280" }}>{dateStr}</p>
           </div>
           <div className="flex items-center gap-2 mt-1 flex-shrink-0">
             <Link href="/admin/team"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90"
-              style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#FFFFFF" }}>
+              style={{ background: "rgba(0,0,0,0.06)", border: "1px solid rgba(255,255,255,0.2)", color: "#111111" }}>
               <Plus size={14} /> Add Member
             </Link>
             <Link href="/admin/announcements"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90"
-              style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", color: "#FFFFFF" }}>
+              style={{ background: "rgba(0,0,0,0.06)", border: "1px solid rgba(255,255,255,0.2)", color: "#111111" }}>
               <Megaphone size={14} /> Announcement
             </Link>
             <Link href="/admin/goals"

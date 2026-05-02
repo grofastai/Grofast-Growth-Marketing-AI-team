@@ -43,7 +43,7 @@ interface RecentUpdate {
 }
 
 const IS: React.CSSProperties = {
-  background: "#1A1A1A", border: "1px solid #2E2E2E", color: "#FFFFFF",
+  background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#111111",
   borderRadius: "10px", padding: "10px 14px", fontSize: "13px",
   outline: "none", width: "100%",
 }
@@ -64,7 +64,7 @@ function WeekChart({ data }: { data: ChartDay[] }) {
   return (
     <div>
       <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-3"
-        style={{ color: "rgba(255,255,255,0.25)" }}>Last 7 Days</p>
+        style={{ color: "#D1D5DB" }}>Last 7 Days</p>
       <div className="flex items-end gap-2 h-20">
         {data.map((day) => {
           const pct = maxH > 0 ? (day.hours / maxH) * 100 : 0
@@ -76,7 +76,7 @@ function WeekChart({ data }: { data: ChartDay[] }) {
                 {hasHours && (
                   <div className="absolute -top-5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     <span className="text-[10px] font-bold whitespace-nowrap px-1.5 py-0.5 rounded"
-                      style={{ background: "#333", color: "#DC2626" }}>{day.hours}h</span>
+                      style={{ background: "#E5E7EB", color: "#DC2626" }}>{day.hours}h</span>
                   </div>
                 )}
                 <div className="w-full rounded-t-sm" style={{
@@ -93,13 +93,13 @@ function WeekChart({ data }: { data: ChartDay[] }) {
                       ? "#DC2626"
                       : hasHours
                       ? "rgba(220,38,38,0.4)"
-                      : "rgba(255,255,255,0.06)",
+                      : "rgba(0,0,0,0.05)",
                     border: day.isFuture ? "none" : "none",
                   }} />
                 </div>
               </div>
               <span className="text-[10px] font-medium" style={{
-                color: isToday ? "#DC2626" : "rgba(255,255,255,0.3)",
+                color: isToday ? "#DC2626" : "#9CA3AF",
               }}>{day.label}</span>
             </div>
           )
@@ -148,8 +148,8 @@ export default function ProfileClient({
       {/* ── Page title ── */}
       <div className="mb-6">
         <h1 className="text-[30px] font-black leading-tight"
-          style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>My Profile</h1>
-        <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>
+          style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>My Profile</h1>
+        <p className="text-[13px] mt-1" style={{ color: "#9CA3AF" }}>
           Your identity, performance, and account settings.
         </p>
       </div>
@@ -161,7 +161,7 @@ export default function ProfileClient({
         <div className="space-y-4">
 
           {/* Profile header card */}
-          <div className="rounded-2xl p-5" style={{ background: "#1E1E1E", border: "1px solid #2A2A2A" }}>
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
             <div className="flex items-start gap-4">
               {/* Avatar */}
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-[26px]"
@@ -194,7 +194,7 @@ export default function ProfileClient({
                       </button>
                       <button onClick={() => { setEditing(false); setEditName(profile?.name ?? ""); setEditPhone(profile?.phone ?? "") }}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
-                        style={{ background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", border: "1px solid #333" }}>
+                        style={{ background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #333" }}>
                         <X size={11} /> Cancel
                       </button>
                     </div>
@@ -202,7 +202,7 @@ export default function ProfileClient({
                 ) : (
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <h2 className="text-[20px] font-black truncate" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+                      <h2 className="text-[20px] font-black truncate" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
                         {profile?.name ?? authEmail.split("@")[0]}
                       </h2>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -242,10 +242,10 @@ export default function ProfileClient({
                     <Zap size={13} style={{ color: "#DC2626" }} />
                   </div>
                   <div>
-                    <p className="text-[16px] font-black leading-none" style={{ color: "#FFFFFF" }}>
+                    <p className="text-[16px] font-black leading-none" style={{ color: "#111111" }}>
                       {stats.avgHoursPerDay > 0 ? `${stats.avgHoursPerDay}h` : "—"}
                     </p>
-                    <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>Avg hours/day</p>
+                    <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Avg hours/day</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
@@ -254,10 +254,10 @@ export default function ProfileClient({
                     <Target size={13} style={{ color: "#DC2626" }} />
                   </div>
                   <div>
-                    <p className="text-[16px] font-black leading-none" style={{ color: "#FFFFFF" }}>
+                    <p className="text-[16px] font-black leading-none" style={{ color: "#111111" }}>
                       {stats.totalCompleted}
                     </p>
-                    <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>Tasks completed</p>
+                    <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Tasks completed</p>
                   </div>
                 </div>
               </div>
@@ -265,9 +265,9 @@ export default function ProfileClient({
           </div>
 
           {/* Account Details */}
-          <div className="rounded-2xl p-5" style={{ background: "#1E1E1E", border: "1px solid #2A2A2A" }}>
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
             <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4"
-              style={{ color: "rgba(255,255,255,0.25)" }}>Account Details</p>
+              style={{ color: "#D1D5DB" }}>Account Details</p>
             <div className="space-y-2">
               {[
                 { icon: Mail,      label: "Email",       value: profile?.email || authEmail },
@@ -277,14 +277,14 @@ export default function ProfileClient({
                 { icon: Calendar,  label: "Joined",      value: profile?.joined ?? "—" },
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
-                  style={{ background: "rgba(255,255,255,0.02)" }}>
+                  style={{ background: "rgba(0,0,0,0.02)" }}>
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(255,255,255,0.04)" }}>
-                    <Icon size={13} style={{ color: "rgba(255,255,255,0.4)" }} />
+                    style={{ background: "rgba(0,0,0,0.03)" }}>
+                    <Icon size={13} style={{ color: "#9CA3AF" }} />
                   </div>
                   <div className="flex-1">
-                    <p className="text-[10px] uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.3)" }}>{label}</p>
-                    <p className="text-[13px] font-semibold capitalize" style={{ color: "#FFFFFF" }}>{value}</p>
+                    <p className="text-[10px] uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{label}</p>
+                    <p className="text-[13px] font-semibold capitalize" style={{ color: "#111111" }}>{value}</p>
                   </div>
                 </div>
               ))}
@@ -292,9 +292,9 @@ export default function ProfileClient({
           </div>
 
           {/* Account Actions */}
-          <div className="rounded-2xl p-5" style={{ background: "#1E1E1E", border: "1px solid #2A2A2A" }}>
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
             <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4"
-              style={{ color: "rgba(255,255,255,0.25)" }}>Account Actions</p>
+              style={{ color: "#D1D5DB" }}>Account Actions</p>
             <div className="space-y-2">
               <button onClick={() => router.push("/change-password")}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
@@ -322,9 +322,9 @@ export default function ProfileClient({
         <div className="space-y-4">
 
           {/* This week summary */}
-          <div className="rounded-2xl p-5" style={{ background: "#1E1E1E", border: "1px solid #2A2A2A" }}>
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
             <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4"
-              style={{ color: "rgba(255,255,255,0.25)" }}>This Week</p>
+              style={{ color: "#D1D5DB" }}>This Week</p>
             <div className="space-y-3">
               {[
                 {
@@ -342,7 +342,7 @@ export default function ProfileClient({
                 },
                 {
                   icon: TrendingUp, label: "Leave Requests", value: stats.totalLeaves,
-                  color: "rgba(255,255,255,0.55)", bg: "rgba(255,255,255,0.04)",
+                  color: "#6B7280", bg: "rgba(0,0,0,0.03)",
                 },
               ].map(({ icon: Icon, label, value, color, bg }) => (
                 <div key={label} className="flex items-center gap-3">
@@ -351,7 +351,7 @@ export default function ProfileClient({
                     <Icon size={13} style={{ color }} />
                   </div>
                   <div className="flex-1">
-                    <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>{label}</p>
+                    <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{label}</p>
                   </div>
                   <p className="text-[16px] font-black" style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
                 </div>
@@ -360,16 +360,16 @@ export default function ProfileClient({
           </div>
 
           {/* 7-day bar chart */}
-          <div className="rounded-2xl p-5" style={{ background: "#1E1E1E", border: "1px solid #2A2A2A" }}>
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
             <WeekChart data={chartData} />
           </div>
 
           {/* Recent Activity */}
-          <div className="rounded-2xl p-5" style={{ background: "#1E1E1E", border: "1px solid #2A2A2A" }}>
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
             <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4"
-              style={{ color: "rgba(255,255,255,0.25)" }}>Recent Activity</p>
+              style={{ color: "#D1D5DB" }}>Recent Activity</p>
             {recentUpdates.length === 0 ? (
-              <p className="text-[13px] text-center py-4" style={{ color: "rgba(255,255,255,0.2)" }}>
+              <p className="text-[13px] text-center py-4" style={{ color: "rgba(0,0,0,0.1)" }}>
                 No updates yet
               </p>
             ) : (
@@ -379,10 +379,10 @@ export default function ProfileClient({
                     <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
                       style={{ background: "#DC2626" }} />
                     <div className="flex-1">
-                      <p className="text-[12px] font-semibold" style={{ color: "#FFFFFF" }}>
+                      <p className="text-[12px] font-semibold" style={{ color: "#111111" }}>
                         {relativeDate(upd.date)}
                       </p>
-                      <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.35)" }}>
+                      <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
                         {upd.working_hours != null ? `${upd.working_hours}h worked` : "Update submitted"}
                         {upd.shoot_count && upd.shoot_count > 0 ? ` · ${upd.shoot_count} shoot${upd.shoot_count !== 1 ? "s" : ""}` : ""}
                       </p>

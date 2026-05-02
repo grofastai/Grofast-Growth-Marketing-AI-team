@@ -55,10 +55,10 @@ export default async function AttendancePage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-[30px] leading-tight font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+          <h1 className="text-[30px] leading-tight font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
             Attendance
           </h1>
-          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{todayDisplay}</p>
+          <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>{todayDisplay}</p>
         </div>
       </div>
 
@@ -73,18 +73,18 @@ export default async function AttendancePage() {
           return (
             <div key={s.label} className="rounded-xl p-5 flex items-center gap-4"
               style={{
-                background: "#262626",
+                background: "#FFFFFF",
                 border: s.lime ? "1px solid rgba(220,38,38,0.2)" : "1px solid #2A2A2A",
               }}>
               <div className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ background: s.lime ? "rgba(220,38,38,0.08)" : "rgba(255,255,255,0.04)" }}>
-                <Icon size={17} style={{ color: s.lime ? "#DC2626" : "rgba(255,255,255,0.35)" }} />
+                style={{ background: s.lime ? "rgba(220,38,38,0.08)" : "rgba(0,0,0,0.03)" }}>
+                <Icon size={17} style={{ color: s.lime ? "#DC2626" : "#9CA3AF" }} />
               </div>
               <div>
                 <p className="text-[32px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: s.lime ? "#DC2626" : "#FFFFFF" }}>
                   {s.value}
                 </p>
-                <p className="text-[11px] font-medium mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{s.label}</p>
+                <p className="text-[11px] font-medium mt-1" style={{ color: "#9CA3AF" }}>{s.label}</p>
               </div>
             </div>
           )
@@ -92,18 +92,18 @@ export default async function AttendancePage() {
       </div>
 
       {/* Member table */}
-      <div className="rounded-xl overflow-hidden" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+      <div className="rounded-xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
         <div className="px-5 py-4" style={{ borderBottom: "1px solid #2A2A2A" }}>
           <div className="flex items-center gap-2">
             <Clock size={14} style={{ color: "#DC2626" }} />
-            <h3 className="text-[13px] font-bold" style={{ color: "#FFFFFF" }}>Team Attendance — Today</h3>
+            <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>Team Attendance — Today</h3>
           </div>
         </div>
 
         {!members || members.length === 0 ? (
           <div className="flex flex-col items-center py-16 gap-2">
-            <Users size={32} style={{ color: "#2A2A2A" }} />
-            <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.2)" }}>No team members found</p>
+            <Users size={32} style={{ color: "#E5E7EB" }} />
+            <p className="text-[13px]" style={{ color: "rgba(0,0,0,0.1)" }}>No team members found</p>
           </div>
         ) : (
           <div>
@@ -126,28 +126,28 @@ export default async function AttendancePage() {
                     <span className="text-[11px] font-bold" style={{ color: "#DC2626" }}>{m.name[0]}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold" style={{ color: "#FFFFFF" }}>{m.name}</p>
-                    <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>#{m.employee_id}</p>
+                    <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{m.name}</p>
+                    <p className="text-[11px]" style={{ color: "#9CA3AF" }}>#{m.employee_id}</p>
                   </div>
                   <div className="flex items-center gap-6 text-right">
                     <div>
-                      <p className="text-[9px] uppercase tracking-wider font-bold mb-0.5" style={{ color: "rgba(255,255,255,0.2)" }}>Clock In</p>
-                      <p className="text-[13px] font-semibold" style={{ color: "#FFFFFF" }}>{fmtTime(log?.clock_in ?? null)}</p>
+                      <p className="text-[9px] uppercase tracking-wider font-bold mb-0.5" style={{ color: "rgba(0,0,0,0.1)" }}>Clock In</p>
+                      <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{fmtTime(log?.clock_in ?? null)}</p>
                     </div>
                     <div>
-                      <p className="text-[9px] uppercase tracking-wider font-bold mb-0.5" style={{ color: "rgba(255,255,255,0.2)" }}>Clock Out</p>
-                      <p className="text-[13px] font-semibold" style={{ color: "#FFFFFF" }}>{fmtTime(log?.clock_out ?? null)}</p>
+                      <p className="text-[9px] uppercase tracking-wider font-bold mb-0.5" style={{ color: "rgba(0,0,0,0.1)" }}>Clock Out</p>
+                      <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{fmtTime(log?.clock_out ?? null)}</p>
                     </div>
                     {dur && (
                       <div>
-                        <p className="text-[9px] uppercase tracking-wider font-bold mb-0.5" style={{ color: "rgba(255,255,255,0.2)" }}>Duration</p>
-                        <p className="text-[13px] font-semibold" style={{ color: "#FFFFFF" }}>{dur}</p>
+                        <p className="text-[9px] uppercase tracking-wider font-bold mb-0.5" style={{ color: "rgba(0,0,0,0.1)" }}>Duration</p>
+                        <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{dur}</p>
                       </div>
                     )}
                     <span className="text-[10px] font-bold px-2.5 py-1 rounded-full min-w-[90px] text-center"
                       style={statusLime
                         ? { background: "rgba(220,38,38,0.1)", color: "#DC2626" }
-                        : { background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.4)" }
+                        : { background: "rgba(0,0,0,0.04)", color: "#9CA3AF" }
                       }>
                       {statusLabel}
                     </span>

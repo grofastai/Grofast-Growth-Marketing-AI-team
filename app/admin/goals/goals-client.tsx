@@ -287,14 +287,14 @@ export default function GoalsClient({
         <div className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}>
           <div className="w-full max-w-lg rounded-2xl p-6 mx-4"
-            style={{ background: "#0F0F0F", border: "1px solid rgba(255,255,255,0.1)" }}>
+            style={{ background: "#F8F9FA", border: "1px solid rgba(255,255,255,0.1)" }}>
 
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-[18px] font-black text-white" style={{ fontFamily: "var(--font-jakarta)" }}>
                 Create Task
               </h2>
               <button onClick={() => { setShowForm(false); setSelectedMembers([]) }}
-                style={{ color: "rgba(255,255,255,0.4)" }}>
+                style={{ color: "#9CA3AF" }}>
                 <X size={18} />
               </button>
             </div>
@@ -316,25 +316,25 @@ export default function GoalsClient({
               {/* Title */}
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
-                  style={{ color: "rgba(255,255,255,0.3)" }}>Title *</label>
+                  style={{ color: "#9CA3AF" }}>Title *</label>
                 <input name="title" required placeholder="Task title…"
                   className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px] text-white"
-                  style={{ background: "#1A1A1A", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }} />
+                  style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }} />
               </div>
 
               {/* Description */}
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
-                  style={{ color: "rgba(255,255,255,0.3)" }}>Description</label>
+                  style={{ color: "#9CA3AF" }}>Description</label>
                 <textarea name="description" rows={2} placeholder="Optional details…"
                   className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px] text-white resize-none"
-                  style={{ background: "#1A1A1A", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }} />
+                  style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }} />
               </div>
 
               {/* Assign to — multi-member toggle pills */}
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
-                  style={{ color: "rgba(255,255,255,0.3)" }}>
+                  style={{ color: "#9CA3AF" }}>
                   Assign To
                   {selectedMembers.length > 0 && (
                     <span className="ml-2 normal-case text-[10px]" style={{ color: "#F87171" }}>
@@ -347,7 +347,7 @@ export default function GoalsClient({
                   <input key={id} type="hidden" name="assigned_to" value={id} />
                 ))}
                 {members.length === 0 ? (
-                  <p className="text-[12px] py-2" style={{ color: "rgba(255,255,255,0.25)" }}>
+                  <p className="text-[12px] py-2" style={{ color: "#D1D5DB" }}>
                     No team members yet — add members in Team settings
                   </p>
                 ) : (
@@ -359,12 +359,12 @@ export default function GoalsClient({
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all"
                           style={selected
                             ? { background: "rgba(220,38,38,0.2)", border: "1px solid rgba(220,38,38,0.5)", color: "#F87171" }
-                            : { background: "#1A1A1A", border: "1px solid #2E2E2E", color: "rgba(255,255,255,0.45)" }
+                            : { background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#6B7280" }
                           }>
                           <span className="w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center flex-shrink-0"
                             style={selected
                               ? { background: "rgba(220,38,38,0.3)", color: "#F87171" }
-                              : { background: "#2E2E2E", color: "rgba(255,255,255,0.4)" }}>
+                              : { background: "#2E2E2E", color: "#9CA3AF" }}>
                             {m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                           </span>
                           {m.name.split(" ")[0]}
@@ -379,10 +379,10 @@ export default function GoalsClient({
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
-                    style={{ color: "rgba(255,255,255,0.3)" }}>Priority</label>
+                    style={{ color: "#9CA3AF" }}>Priority</label>
                   <select name="priority" defaultValue="medium"
                     className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px] text-white"
-                    style={{ background: "#1A1A1A", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }}>
+                    style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }}>
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
@@ -390,10 +390,10 @@ export default function GoalsClient({
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
-                    style={{ color: "rgba(255,255,255,0.3)" }}>Client / Project</label>
+                    style={{ color: "#9CA3AF" }}>Client / Project</label>
                   <select name="project_id"
                     className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px] text-white"
-                    style={{ background: "#1A1A1A", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }}>
+                    style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }}>
                     <option value="">No project</option>
                     {projects.map(p => (
                       <option key={p.id} value={p.id}>
@@ -407,10 +407,10 @@ export default function GoalsClient({
               {/* Due date */}
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-2"
-                  style={{ color: "rgba(255,255,255,0.3)" }}>Due Date</label>
+                  style={{ color: "#9CA3AF" }}>Due Date</label>
                 <input name="due_date" type="date"
                   className="task-input w-full rounded-xl px-3.5 py-2.5 text-[13px] text-white"
-                  style={{ background: "#1A1A1A", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }} />
+                  style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", fontFamily: "inherit", colorScheme: "dark" }} />
               </div>
 
               {state && 'error' in state && (
@@ -420,7 +420,7 @@ export default function GoalsClient({
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => { setShowForm(false); setSelectedMembers([]) }}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
-                  style={{ background: "#1A1A1A", border: "1px solid #2E2E2E", color: "rgba(255,255,255,0.45)" }}>
+                  style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#6B7280" }}>
                   Cancel
                 </button>
                 <button type="submit" disabled={formPending}

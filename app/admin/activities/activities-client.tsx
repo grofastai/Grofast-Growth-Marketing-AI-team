@@ -23,7 +23,7 @@ const ATTENDANCE_STYLE: Record<string, { bg: string; color: string; label: strin
   present: { bg: "rgba(220,38,38,0.1)",  color: "#DC2626", label: "Present" },
   absent:  { bg: "rgba(255,107,87,0.1)",  color: "#FF6B57", label: "Absent" },
   holiday: { bg: "rgba(245,158,11,0.1)",  color: "#F59E0B", label: "Holiday" },
-  outside: { bg: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", label: "Outside" },
+  outside: { bg: "rgba(0,0,0,0.05)", color: "#4B5563", label: "Outside" },
 }
 
 const WORK_TYPE: Record<string, string> = { office: "Office", outside: "Outside", wfh: "WFH" }
@@ -85,25 +85,25 @@ export default function ActivitiesClient({
     <div className="p-8 max-w-[1200px]">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+        <h1 className="text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
           Activities
         </h1>
-        <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>Daily updates from all team members.</p>
+        <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>Daily updates from all team members.</p>
       </div>
 
       {/* Summary chips */}
       <div className="flex flex-wrap gap-3 mb-6">
         {[
-          { label: "Updates",    value: updates.length,          color: "#FFFFFF",  bg: "#262626", border: "#2A2A2A" },
+          { label: "Updates",    value: updates.length,          color: "#111111",  bg: "#FFFFFF", border: "#E5E7EB" },
           { label: "Present",    value: presentCount,            color: "#DC2626",  bg: "rgba(220,38,38,0.06)",  border: "rgba(220,38,38,0.15)" },
           { label: "Absent",     value: absentCount,             color: "#FF6B57",  bg: "rgba(255,107,87,0.06)",  border: "rgba(255,107,87,0.15)" },
           { label: "Total Hours",value: `${totalHours.toFixed(1)}h`, color: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
-          { label: "Not Updated",value: notUpdated.length,        color: notUpdated.length > 0 ? "#FF6B57" : "rgba(255,255,255,0.3)", bg: notUpdated.length > 0 ? "rgba(255,107,87,0.06)" : "#262626", border: notUpdated.length > 0 ? "rgba(255,107,87,0.15)" : "#2A2A2A" },
+          { label: "Not Updated",value: notUpdated.length,        color: notUpdated.length > 0 ? "#FF6B57" : "#9CA3AF", bg: notUpdated.length > 0 ? "rgba(255,107,87,0.06)" : "#FFFFFF", border: notUpdated.length > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB" },
         ].map((chip) => (
           <div key={chip.label} className="flex items-center gap-2 px-4 py-2 rounded-lg"
             style={{ background: chip.bg, border: `1px solid ${chip.border}` }}>
             <span className="text-[15px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: chip.color }}>{chip.value}</span>
-            <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>{chip.label}</span>
+            <span className="text-[11px] font-medium" style={{ color: "#9CA3AF" }}>{chip.label}</span>
           </div>
         ))}
         {lowHoursCount > 0 && (
@@ -118,16 +118,16 @@ export default function ActivitiesClient({
       {/* Filters */}
       <div className="flex gap-3 mb-6">
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
-          style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
-          <Filter size={12} style={{ color: "rgba(255,255,255,0.3)" }} />
+          style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
+          <Filter size={12} style={{ color: "#9CA3AF" }} />
           <input type="date" value={dateFilter}
             onChange={(e) => navigate(e.target.value, memberFilter)}
             className="bg-transparent text-[13px] outline-none"
-            style={{ color: "#FFFFFF", colorScheme: "dark" }} />
+            style={{ color: "#111111", colorScheme: "dark" }} />
         </div>
         <select value={memberFilter} onChange={(e) => navigate(dateFilter, e.target.value)}
           className="px-3 py-2 rounded-lg text-[13px] outline-none"
-          style={{ background: "#262626", border: "1px solid #2A2A2A", color: "#FFFFFF", colorScheme: "dark" }}>
+          style={{ background: "#FFFFFF", border: "1px solid #2A2A2A", color: "#111111", colorScheme: "dark" }}>
           <option value="">All Members</option>
           {members.map((m) => (
             <option key={m.id} value={m.id}>{m.name} ({m.employee_id})</option>
@@ -158,10 +158,10 @@ export default function ActivitiesClient({
       {/* Updates list */}
       {updates.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 rounded-xl"
-          style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
-          <Activity size={36} style={{ color: "rgba(255,255,255,0.08)" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "rgba(255,255,255,0.3)" }}>No updates for this date</p>
-          <p className="text-[12px] mt-1" style={{ color: "rgba(255,255,255,0.18)" }}>Team members haven't submitted yet.</p>
+          style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
+          <Activity size={36} style={{ color: "rgba(0,0,0,0.06)" }} className="mb-3" />
+          <p className="text-[14px] font-semibold" style={{ color: "#9CA3AF" }}>No updates for this date</p>
+          <p className="text-[12px] mt-1" style={{ color: "rgba(0,0,0,0.08)" }}>Team members haven't submitted yet.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -173,7 +173,7 @@ export default function ActivitiesClient({
 
             return (
               <div key={u.id} className="rounded-xl p-5"
-                style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+                style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
                 <div className="flex items-start gap-4">
                   {/* Avatar */}
                   <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
@@ -186,15 +186,15 @@ export default function ActivitiesClient({
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center flex-wrap gap-2 mb-2">
-                      <p className="text-[14px] font-bold" style={{ color: "#FFFFFF" }}>{user?.name ?? "Unknown"}</p>
-                      <span className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>#{user?.employee_id}</span>
+                      <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{user?.name ?? "Unknown"}</p>
+                      <span className="text-[11px]" style={{ color: "#9CA3AF" }}>#{user?.employee_id}</span>
                       <span className="text-[11px] font-bold px-2 py-0.5 rounded-full ml-auto"
                         style={{ background: sc.bg, color: sc.color }}>
                         {sc.label}
                       </span>
                       {wt && (
                         <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                          style={{ background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.45)" }}>
+                          style={{ background: "rgba(0,0,0,0.04)", color: "#6B7280" }}>
                           {wt}
                         </span>
                       )}
@@ -204,19 +204,19 @@ export default function ActivitiesClient({
                     {/* Stats */}
                     <div className="flex flex-wrap gap-4 mb-2">
                       <div className="flex items-center gap-1.5">
-                        <Clock size={11} style={{ color: "rgba(255,255,255,0.25)" }} />
-                        <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>
+                        <Clock size={11} style={{ color: "#D1D5DB" }} />
+                        <span className="text-[12px]" style={{ color: "#6B7280" }}>
                           {u.working_hours != null ? `${u.working_hours}h work` : "—"}
                         </span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <BookOpen size={11} style={{ color: "rgba(255,255,255,0.25)" }} />
-                        <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>{u.learning_hours}h learning</span>
+                        <BookOpen size={11} style={{ color: "#D1D5DB" }} />
+                        <span className="text-[12px]" style={{ color: "#6B7280" }}>{u.learning_hours}h learning</span>
                       </div>
                       {u.shoot_count > 0 && (
                         <div className="flex items-center gap-1.5">
-                          <Camera size={11} style={{ color: "rgba(255,255,255,0.25)" }} />
-                          <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>{u.shoot_count} shoots</span>
+                          <Camera size={11} style={{ color: "#D1D5DB" }} />
+                          <span className="text-[12px]" style={{ color: "#6B7280" }}>{u.shoot_count} shoots</span>
                         </div>
                       )}
                     </div>
@@ -230,7 +230,7 @@ export default function ActivitiesClient({
                     )}
 
                     {u.notes && (
-                      <p className="text-[12px] px-3 py-2 rounded-lg" style={{ background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.45)" }}>
+                      <p className="text-[12px] px-3 py-2 rounded-lg" style={{ background: "rgba(0,0,0,0.02)", color: "#6B7280" }}>
                         {u.notes}
                       </p>
                     )}

@@ -69,7 +69,7 @@ export default function LeavesClient({ leaves, statusFilter }: { leaves: Leave[]
             className="px-4 py-2 rounded-xl text-[13px] font-semibold font-sans transition-all"
             style={statusFilter === tab.key
               ? { background: tab.bg, color: tab.color, border: `1px solid ${tab.color}30` }
-              : { background: "rgba(255,255,255,0.03)", color: "#6B7280", border: "1px solid rgba(255,255,255,0.06)" }
+              : { background: "rgba(0,0,0,0.02)", color: "#6B7280", border: "1px solid rgba(255,255,255,0.06)" }
             }
           >
             {tab.label}
@@ -79,8 +79,8 @@ export default function LeavesClient({ leaves, statusFilter }: { leaves: Leave[]
 
       {/* List */}
       {leaves.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 rounded-2xl" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <CalendarOff size={40} style={{ color: "rgba(255,255,255,0.1)" }} className="mb-3" />
+        <div className="flex flex-col items-center justify-center py-24 rounded-2xl" style={{ background: "rgba(0,0,0,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <CalendarOff size={40} style={{ color: "rgba(0,0,0,0.06)" }} className="mb-3" />
           <p className="text-[14px] font-semibold font-sans" style={{ color: "#6B7280" }}>
             No {statusFilter === "all" ? "" : statusFilter} leave requests
           </p>
@@ -94,7 +94,7 @@ export default function LeavesClient({ leaves, statusFilter }: { leaves: Leave[]
 
             return (
               <div key={leave.id} className="rounded-2xl p-5 flex items-center gap-4"
-                style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                style={{ background: "rgba(0,0,0,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
 
                 {/* Avatar */}
                 <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"

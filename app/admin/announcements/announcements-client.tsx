@@ -51,7 +51,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#E6EDF3" }}>
+          <h1 className="text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800, color: "#111111" }}>
             Announcements
           </h1>
           <p className="text-sm mt-1 font-sans" style={{ color: "#6B7280" }}>Post updates and notices to your team.</p>
@@ -69,9 +69,9 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
       {/* Create Form Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
-          <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: "#111111", border: "1px solid rgba(220,38,38,0.15)" }}>
+          <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: "#FFFFFF", border: "1px solid rgba(220,38,38,0.15)" }}>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-[18px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#E6EDF3" }}>New Announcement</h2>
+              <h2 className="text-[18px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>New Announcement</h2>
               <button onClick={() => setShowForm(false)}><X size={18} style={{ color: "#6B7280" }} /></button>
             </div>
 
@@ -86,18 +86,18 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
                 <label className="text-[12px] font-semibold font-sans uppercase tracking-wider mb-1.5 block" style={{ color: "#6B7280" }}>Title</label>
                 <input name="title" required maxLength={120} placeholder="Announcement title..."
                   className="w-full px-3 py-2.5 rounded-xl text-[13px] font-sans outline-none"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#E6EDF3" }} />
+                  style={{ background: "#F8F9FA", border: "1px solid #E5E7EB", color: "#111111" }} />
               </div>
               <div>
                 <label className="text-[12px] font-semibold font-sans uppercase tracking-wider mb-1.5 block" style={{ color: "#6B7280" }}>Message</label>
                 <textarea name="message" required rows={4} placeholder="Write your announcement..."
                   className="w-full px-3 py-2.5 rounded-xl text-[13px] font-sans outline-none resize-none"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#E6EDF3" }} />
+                  style={{ background: "#F8F9FA", border: "1px solid #E5E7EB", color: "#111111" }} />
               </div>
               <label className="flex items-center gap-3 cursor-pointer">
                 <div className="relative">
                   <input type="checkbox" className="sr-only" checked={pinned} onChange={(e) => setPinned(e.target.checked)} />
-                  <div className="w-10 h-5 rounded-full transition-all" style={{ background: pinned ? "#DC2626" : "rgba(255,255,255,0.1)" }}>
+                  <div className="w-10 h-5 rounded-full transition-all" style={{ background: pinned ? "#DC2626" : "rgba(0,0,0,0.06)" }}>
                     <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all" style={{ transform: pinned ? "translateX(20px)" : "translateX(0)" }} />
                   </div>
                 </div>
@@ -111,7 +111,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold font-sans"
-                  style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", color: "#9CA3AF" }}>
+                  style={{ background: "#F8F9FA", border: "1px solid #E5E7EB", color: "#9CA3AF" }}>
                   Cancel
                 </button>
                 <button type="submit" disabled={formPending}
@@ -128,8 +128,8 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
 
       {/* Announcements List */}
       {announcements.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 rounded-2xl" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
-          <Megaphone size={40} style={{ color: "rgba(255,255,255,0.1)" }} className="mb-3" />
+        <div className="flex flex-col items-center justify-center py-24 rounded-2xl" style={{ background: "rgba(0,0,0,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+          <Megaphone size={40} style={{ color: "rgba(0,0,0,0.06)" }} className="mb-3" />
           <p className="text-[14px] font-semibold font-sans" style={{ color: "#6B7280" }}>No announcements yet</p>
           <p className="text-[12px] font-sans mt-1" style={{ color: "#4B5563" }}>Post your first announcement to notify the team.</p>
         </div>
@@ -140,8 +140,8 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
             return (
               <div key={ann.id} className="rounded-2xl p-5"
                 style={{
-                  background: ann.pinned ? "rgba(220,38,38,0.06)" : "rgba(255,255,255,0.02)",
-                  border: ann.pinned ? "1px solid rgba(220,38,38,0.2)" : "1px solid rgba(255,255,255,0.06)",
+                  background: ann.pinned ? "rgba(220,38,38,0.06)" : "rgba(0,0,0,0.02)",
+                  border: ann.pinned ? "1px solid rgba(220,38,38,0.2)" : "1px solid #E5E7EB",
                 }}>
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
@@ -155,7 +155,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
                           <Pin size={10} /> Pinned
                         </span>
                       )}
-                      <h3 className="text-[15px] font-bold font-sans" style={{ color: "#E6EDF3" }}>{ann.title}</h3>
+                      <h3 className="text-[15px] font-bold font-sans" style={{ color: "#111111" }}>{ann.title}</h3>
                     </div>
                     <p className="text-[13px] font-sans leading-relaxed mb-2" style={{ color: "#9CA3AF" }}>{ann.message}</p>
                     <p className="text-[11px] font-sans" style={{ color: "#6B7280" }}>

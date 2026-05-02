@@ -62,11 +62,11 @@ function Section({ title, icon: Icon, iconColor = "#DC2626", children }: {
   children: React.ReactNode
 }) {
   return (
-    <div className="rounded-xl overflow-hidden" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+    <div className="rounded-xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
       <div className="flex items-center gap-2.5 px-5 py-4" style={{ borderBottom: "1px solid #1A1A1A" }}>
         <Icon size={14} style={{ color: iconColor }} />
         <h2 className="text-[12px] font-black uppercase tracking-wider"
-          style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>{title}</h2>
+          style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>{title}</h2>
       </div>
       {children}
     </div>
@@ -91,12 +91,12 @@ function AlertBlock({
           style={{ background: `${color}20`, color }}>{items.length}</span>
       </div>
       {items.length === 0 ? (
-        <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.25)" }}>{emptyLabel ?? "None"}</p>
+        <p className="text-[12px]" style={{ color: "#D1D5DB" }}>{emptyLabel ?? "None"}</p>
       ) : (
         <div className="space-y-1.5">
           {items.map((item, i) => (
             <div key={i} className="flex items-start justify-between gap-2">
-              <span className="text-[12px] leading-snug" style={{ color: "rgba(255,255,255,0.6)" }}>{item.label}</span>
+              <span className="text-[12px] leading-snug" style={{ color: "#4B5563" }}>{item.label}</span>
               {item.sub && <span className="text-[11px] flex-shrink-0" style={{ color }}>{item.sub}</span>}
             </div>
           ))}
@@ -138,10 +138,10 @@ export default function ReportsClient({
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-[30px] font-black leading-tight"
-            style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+            style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
             Daily Intelligence
           </h1>
-          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>
+          <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>
             {getLongDate(date)}
             {isToday && (
               <span className="ml-2 text-[11px] font-bold px-2 py-0.5 rounded-full"
@@ -156,18 +156,18 @@ export default function ReportsClient({
         <div className="flex items-center gap-2 mt-1">
           <button onClick={() => go(prevDay)}
             className="w-9 h-9 rounded-lg flex items-center justify-center transition-all"
-            style={{ background: "#262626", border: "1px solid #2A2A2A", color: "rgba(255,255,255,0.5)" }}>
+            style={{ background: "#FFFFFF", border: "1px solid #2A2A2A", color: "#6B7280" }}>
             <ChevronLeft size={16} />
           </button>
           <input
             type="date" value={date}
             onChange={(e) => e.target.value && go(e.target.value)}
             className="px-3 py-2 rounded-lg text-[13px] outline-none"
-            style={{ background: "#262626", border: "1px solid #2A2A2A", color: "#FFFFFF", colorScheme: "dark" }}
+            style={{ background: "#FFFFFF", border: "1px solid #2A2A2A", color: "#111111", colorScheme: "dark" }}
           />
           <button onClick={() => go(nextDay)} disabled={isToday}
             className="w-9 h-9 rounded-lg flex items-center justify-center transition-all disabled:opacity-30"
-            style={{ background: "#262626", border: "1px solid #2A2A2A", color: "rgba(255,255,255,0.5)" }}>
+            style={{ background: "#FFFFFF", border: "1px solid #2A2A2A", color: "#6B7280" }}>
             <ChevronRight size={16} />
           </button>
           {!isToday && (
@@ -184,18 +184,18 @@ export default function ReportsClient({
       <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-8">
         {[
           { label: "Hours Worked",  value: `${totalHours.toFixed(1)}h`,    color: "#F59E0B", bg: "rgba(245,158,11,0.05)",  border: "rgba(245,158,11,0.15)",  icon: Clock },
-          { label: "Shoots",        value: totalShoots,                     color: "#FFFFFF",  bg: "#262626",               border: "#2A2A2A",                 icon: Camera },
-          { label: "Learning Hrs",  value: `${totalLearning.toFixed(1)}h`, color: "rgba(255,255,255,0.55)", bg: "#262626", border: "#2A2A2A",                 icon: BookOpen },
+          { label: "Shoots",        value: totalShoots,                     color: "#111111",  bg: "#FFFFFF",               border: "#E5E7EB",                 icon: Camera },
+          { label: "Learning Hrs",  value: `${totalLearning.toFixed(1)}h`, color: "#6B7280", bg: "#FFFFFF", border: "#E5E7EB",                 icon: BookOpen },
           { label: "Present",       value: presentCount,                    color: "#DC2626",  bg: "rgba(220,38,38,0.05)", border: "rgba(220,38,38,0.15)",  icon: Users },
-          { label: "Absent",        value: absentCount,                     color: absentCount > 0 ? "#FF6B57" : "rgba(255,255,255,0.3)", bg: absentCount > 0 ? "rgba(255,107,87,0.05)" : "#262626", border: absentCount > 0 ? "rgba(255,107,87,0.15)" : "#2A2A2A", icon: UserX },
-          { label: "Not Updated",   value: notUpdatedMembers.length,        color: notUpdatedMembers.length > 0 ? "#FF6B57" : "rgba(255,255,255,0.3)", bg: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.05)" : "#262626", border: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.15)" : "#2A2A2A", icon: AlertTriangle },
+          { label: "Absent",        value: absentCount,                     color: absentCount > 0 ? "#FF6B57" : "#9CA3AF", bg: absentCount > 0 ? "rgba(255,107,87,0.05)" : "#FFFFFF", border: absentCount > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB", icon: UserX },
+          { label: "Not Updated",   value: notUpdatedMembers.length,        color: notUpdatedMembers.length > 0 ? "#FF6B57" : "#9CA3AF", bg: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.05)" : "#FFFFFF", border: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB", icon: AlertTriangle },
         ].map(({ label, value, color, bg, border, icon: Icon }) => (
           <div key={label} className="rounded-xl p-4 flex flex-col gap-2"
             style={{ background: bg, border: `1px solid ${border}` }}>
-            <Icon size={13} style={{ color: "rgba(255,255,255,0.25)" }} />
+            <Icon size={13} style={{ color: "#D1D5DB" }} />
             <p className="text-[26px] font-black leading-none"
               style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
-            <p className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.35)" }}>{label}</p>
+            <p className="text-[10px] font-medium" style={{ color: "#9CA3AF" }}>{label}</p>
           </div>
         ))}
       </div>
@@ -203,12 +203,12 @@ export default function ReportsClient({
       {/* ── No Data ────────────────────────────────────────────────────────── */}
       {!hasData && (
         <div className="flex flex-col items-center justify-center py-20 rounded-xl mb-8"
-          style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
-          <Clock size={36} style={{ color: "rgba(255,255,255,0.06)" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "rgba(255,255,255,0.3)" }}>
+          style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
+          <Clock size={36} style={{ color: "rgba(0,0,0,0.05)" }} className="mb-3" />
+          <p className="text-[14px] font-semibold" style={{ color: "#9CA3AF" }}>
             No updates submitted for this date
           </p>
-          <p className="text-[12px] mt-1" style={{ color: "rgba(255,255,255,0.18)" }}>
+          <p className="text-[12px] mt-1" style={{ color: "rgba(0,0,0,0.08)" }}>
             Team members haven't submitted their daily reports yet.
           </p>
         </div>
@@ -223,8 +223,8 @@ export default function ReportsClient({
             <Section title="Top Performers" icon={TrendingUp}>
               {topPerformers.length === 0 ? (
                 <div className="flex flex-col items-center py-12">
-                  <Users size={28} style={{ color: "rgba(255,255,255,0.06)" }} className="mb-2" />
-                  <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.25)" }}>No data for this date</p>
+                  <Users size={28} style={{ color: "rgba(0,0,0,0.05)" }} className="mb-2" />
+                  <p className="text-[13px]" style={{ color: "#D1D5DB" }}>No data for this date</p>
                 </div>
               ) : (
                 <div className="p-2">
@@ -242,35 +242,35 @@ export default function ReportsClient({
                         <div className="w-6 text-center flex-shrink-0">
                           {isTop
                             ? <Zap size={14} style={{ color: "#DC2626" }} />
-                            : <span className="text-[11px] font-bold" style={{ color: "rgba(255,255,255,0.25)" }}>#{i + 1}</span>
+                            : <span className="text-[11px] font-bold" style={{ color: "#D1D5DB" }}>#{i + 1}</span>
                           }
                         </div>
                         {/* Avatar */}
                         <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                           style={{
-                            background: isTop ? "rgba(220,38,38,0.12)" : "rgba(255,255,255,0.05)",
-                            border: `1px solid ${isTop ? "rgba(220,38,38,0.2)" : "rgba(255,255,255,0.08)"}`,
+                            background: isTop ? "rgba(220,38,38,0.12)" : "rgba(0,0,0,0.04)",
+                            border: `1px solid ${isTop ? "rgba(220,38,38,0.2)" : "rgba(0,0,0,0.06)"}`,
                           }}>
                           <span className="text-[10px] font-bold"
-                            style={{ color: isTop ? "#DC2626" : "rgba(255,255,255,0.5)" }}>
+                            style={{ color: isTop ? "#DC2626" : "#6B7280" }}>
                             {getInitials(p.name)}
                           </span>
                         </div>
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold truncate" style={{ color: "#FFFFFF" }}>{p.name}</p>
-                          <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: "#1A1A1A" }}>
+                          <p className="text-[13px] font-semibold truncate" style={{ color: "#111111" }}>{p.name}</p>
+                          <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: "#F8F9FA" }}>
                             <div className="h-full rounded-full transition-all"
-                              style={{ width: `${barPct}%`, background: isTop ? "#DC2626" : "rgba(255,255,255,0.2)" }} />
+                              style={{ width: `${barPct}%`, background: isTop ? "#DC2626" : "rgba(0,0,0,0.1)" }} />
                           </div>
                         </div>
                         {/* Stats */}
                         <div className="text-right flex-shrink-0">
-                          <p className="text-[14px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: isTop ? "#F59E0B" : "rgba(255,255,255,0.6)" }}>
+                          <p className="text-[14px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: isTop ? "#F59E0B" : "#4B5563" }}>
                             {p.hours.toFixed(1)}h
                           </p>
                           {p.shoots > 0 && (
-                            <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+                            <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
                               {p.shoots} shoot{p.shoots !== 1 ? "s" : ""}
                             </p>
                           )}
@@ -291,7 +291,7 @@ export default function ReportsClient({
                 <div className="flex flex-col items-center py-12">
                   <CheckCircle2 size={28} style={{ color: "rgba(220,38,38,0.2)" }} className="mb-2" />
                   <p className="text-[13px] font-semibold" style={{ color: "rgba(220,38,38,0.6)" }}>All clear</p>
-                  <p className="text-[12px] mt-1" style={{ color: "rgba(255,255,255,0.2)" }}>
+                  <p className="text-[12px] mt-1" style={{ color: "rgba(0,0,0,0.1)" }}>
                     No issues detected for this date
                   </p>
                 </div>
@@ -328,16 +328,16 @@ export default function ReportsClient({
               <div className="p-5 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { label: "Active Tasks",    value: totalActiveTasks,        color: "#FFFFFF",  bg: "#1A1A1A",                   border: "#2A2A2A" },
-                    { label: "Overdue Tasks",   value: overdueTasks.length,     color: overdueTasks.length > 0 ? "#FF6B57" : "rgba(255,255,255,0.3)", bg: overdueTasks.length > 0 ? "rgba(255,107,87,0.08)" : "#1A1A1A", border: overdueTasks.length > 0 ? "rgba(255,107,87,0.18)" : "#2A2A2A" },
-                    { label: "No Activity",     value: tasksNoActivity.length,  color: tasksNoActivity.length > 0 ? "#F59E0B" : "rgba(255,255,255,0.3)", bg: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.08)" : "#1A1A1A", border: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.18)" : "#2A2A2A" },
-                    { label: "Completion Rate", value: totalActiveTasks > 0 ? "—" : "100%", color: "#DC2626", bg: "#1A1A1A", border: "#2A2A2A" },
+                    { label: "Active Tasks",    value: totalActiveTasks,        color: "#111111",  bg: "#F8F9FA",                   border: "#E5E7EB" },
+                    { label: "Overdue Tasks",   value: overdueTasks.length,     color: overdueTasks.length > 0 ? "#FF6B57" : "#9CA3AF", bg: overdueTasks.length > 0 ? "rgba(255,107,87,0.08)" : "#F8F9FA", border: overdueTasks.length > 0 ? "rgba(255,107,87,0.18)" : "#E5E7EB" },
+                    { label: "No Activity",     value: tasksNoActivity.length,  color: tasksNoActivity.length > 0 ? "#F59E0B" : "#9CA3AF", bg: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.08)" : "#F8F9FA", border: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.18)" : "#E5E7EB" },
+                    { label: "Completion Rate", value: totalActiveTasks > 0 ? "—" : "100%", color: "#DC2626", bg: "#F8F9FA", border: "#E5E7EB" },
                   ].map(({ label, value, color, bg, border }) => (
                     <div key={label} className="rounded-xl px-4 py-3"
                       style={{ background: bg, border: `1px solid ${border}` }}>
                       <p className="text-[22px] font-black leading-none mb-1"
                         style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
-                      <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>{label}</p>
+                      <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{label}</p>
                     </div>
                   ))}
                 </div>
@@ -348,7 +348,7 @@ export default function ReportsClient({
                     </p>
                     <div className="space-y-1">
                       {tasksNoActivity.map((t) => (
-                        <p key={t.id} className="text-[12px] truncate" style={{ color: "rgba(255,255,255,0.5)" }}>
+                        <p key={t.id} className="text-[12px] truncate" style={{ color: "#6B7280" }}>
                           · {t.title}
                         </p>
                       ))}
@@ -364,15 +364,15 @@ export default function ReportsClient({
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { label: "Active Projects",   value: activeProjects,          color: "#DC2626",  bg: "rgba(220,38,38,0.05)", border: "rgba(220,38,38,0.12)" },
-                    { label: "Overdue Projects",  value: overdueProjects.length,  color: overdueProjects.length > 0 ? "#FF6B57" : "rgba(255,255,255,0.3)", bg: overdueProjects.length > 0 ? "rgba(255,107,87,0.08)" : "#1A1A1A", border: overdueProjects.length > 0 ? "rgba(255,107,87,0.18)" : "#2A2A2A" },
-                    { label: "On Track",          value: activeProjects - overdueProjects.length, color: "#DC2626", bg: "#1A1A1A", border: "#2A2A2A" },
-                    { label: "Health Score",      value: activeProjects > 0 ? `${Math.round(((activeProjects - overdueProjects.length) / activeProjects) * 100)}%` : "—", color: "#FFFFFF", bg: "#1A1A1A", border: "#2A2A2A" },
+                    { label: "Overdue Projects",  value: overdueProjects.length,  color: overdueProjects.length > 0 ? "#FF6B57" : "#9CA3AF", bg: overdueProjects.length > 0 ? "rgba(255,107,87,0.08)" : "#F8F9FA", border: overdueProjects.length > 0 ? "rgba(255,107,87,0.18)" : "#E5E7EB" },
+                    { label: "On Track",          value: activeProjects - overdueProjects.length, color: "#DC2626", bg: "#F8F9FA", border: "#E5E7EB" },
+                    { label: "Health Score",      value: activeProjects > 0 ? `${Math.round(((activeProjects - overdueProjects.length) / activeProjects) * 100)}%` : "—", color: "#111111", bg: "#F8F9FA", border: "#E5E7EB" },
                   ].map(({ label, value, color, bg, border }) => (
                     <div key={label} className="rounded-xl px-4 py-3"
                       style={{ background: bg, border: `1px solid ${border}` }}>
                       <p className="text-[22px] font-black leading-none mb-1"
                         style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
-                      <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.35)" }}>{label}</p>
+                      <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{label}</p>
                     </div>
                   ))}
                 </div>
@@ -384,7 +384,7 @@ export default function ReportsClient({
                     <div className="space-y-1">
                       {overdueProjects.map((p) => (
                         <div key={p.id} className="flex items-center justify-between gap-2">
-                          <p className="text-[12px] truncate" style={{ color: "rgba(255,255,255,0.5)" }}>
+                          <p className="text-[12px] truncate" style={{ color: "#6B7280" }}>
                             {p.business_name}
                           </p>
                           <span className="text-[11px] flex-shrink-0" style={{ color: "#FF6B57" }}>
@@ -404,11 +404,11 @@ export default function ReportsClient({
 
       {/* Problems visible even with no submissions (task/project health) */}
       {!hasData && (overdueTasks.length > 0 || overdueProjects.length > 0 || tasksNoActivity.length > 0) && (
-        <div className="rounded-xl overflow-hidden" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+        <div className="rounded-xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
           <div className="flex items-center gap-2.5 px-5 py-4" style={{ borderBottom: "1px solid #1A1A1A" }}>
             <AlertTriangle size={14} style={{ color: "#F59E0B" }} />
             <h2 className="text-[12px] font-black uppercase tracking-wider"
-              style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+              style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
               Standing Issues
             </h2>
           </div>

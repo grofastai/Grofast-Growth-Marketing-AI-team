@@ -68,7 +68,7 @@ export default async function MemberDashboardPage() {
   }
 
   const PRIORITY_STYLE: Record<string, { color: string; bg: string }> = {
-    low:    { color: "rgba(255,255,255,0.4)",  bg: "rgba(255,255,255,0.04)" },
+    low:    { color: "#9CA3AF",  bg: "rgba(0,0,0,0.03)" },
     medium: { color: "#F59E0B",                bg: "rgba(245,158,11,0.08)"  },
     high:   { color: "#FF6464",                bg: "rgba(255,100,100,0.08)" },
   }
@@ -81,14 +81,14 @@ export default async function MemberDashboardPage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-[28px] md:text-[32px] leading-tight font-black"
-              style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+              style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
               {greeting}, {firstName}
             </h1>
-            <p className="text-[13px] mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{dateStr}</p>
+            <p className="text-[13px] mt-1" style={{ color: "#9CA3AF" }}>{dateStr}</p>
           </div>
           <div className="text-right mt-1">
             <p className="text-[9px] uppercase tracking-[0.2em] font-bold mb-1"
-              style={{ color: "rgba(255,255,255,0.18)" }}>Employee ID</p>
+              style={{ color: "rgba(0,0,0,0.08)" }}>Employee ID</p>
             <p className="text-[14px] font-black"
               style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
               {profile?.employee_id ? `#${profile.employee_id}` : "—"}
@@ -96,7 +96,7 @@ export default async function MemberDashboardPage() {
           </div>
         </div>
         {activeTasks > 0 && (
-          <p className="text-[12px] mt-2 font-medium" style={{ color: "rgba(255,255,255,0.3)" }}>
+          <p className="text-[12px] mt-2 font-medium" style={{ color: "#9CA3AF" }}>
             Today&apos;s focus:&nbsp;
             <span style={{ color: "#DC2626" }}>{activeTasks} task{activeTasks > 1 ? "s" : ""} pending</span>
           </p>
@@ -111,7 +111,7 @@ export default async function MemberDashboardPage() {
 
           {/* Daily Update block */}
           <div className="rounded-xl p-5" style={{
-            background: "#262626",
+            background: "#FFFFFF",
             border: todayUpdate ? "1px solid rgba(220,38,38,0.2)" : "1px solid rgba(245,158,11,0.25)",
           }}>
             <div className="flex items-center justify-between gap-4">
@@ -124,10 +124,10 @@ export default async function MemberDashboardPage() {
                   }
                 </div>
                 <div>
-                  <p className="text-[14px] font-bold" style={{ color: "#FFFFFF" }}>
+                  <p className="text-[14px] font-bold" style={{ color: "#111111" }}>
                     {todayUpdate ? "Daily update submitted ✓" : "You haven't submitted today's update"}
                   </p>
-                  <p className="text-[12px] mt-0.5" style={{ color: "rgba(255,255,255,0.3)" }}>
+                  <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>
                     {todayUpdate
                       ? `${todayUpdate.working_hours ?? "—"}h logged · ${shootCount} shoot${shootCount !== 1 ? "s" : ""}`
                       : "Submit before 9 PM to avoid alerts"}
@@ -145,11 +145,11 @@ export default async function MemberDashboardPage() {
           </div>
 
           {/* My Tasks */}
-          <div className="rounded-xl p-5" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+          <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Target size={14} style={{ color: "#DC2626" }} />
-                <h3 className="text-[13px] font-bold" style={{ color: "#FFFFFF" }}>My Tasks</h3>
+                <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>My Tasks</h3>
                 {todayOverdue.length > 0 && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                     style={{ background: "rgba(255,100,100,0.1)", color: "#FF6464" }}>
@@ -163,8 +163,8 @@ export default async function MemberDashboardPage() {
 
             {myTasks.length === 0 ? (
               <div className="flex flex-col items-center py-8 gap-2">
-                <CheckCircle2 size={26} style={{ color: "#2A2A2A" }} />
-                <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.2)" }}>All tasks completed</p>
+                <CheckCircle2 size={26} style={{ color: "#E5E7EB" }} />
+                <p className="text-[13px]" style={{ color: "rgba(0,0,0,0.1)" }}>All tasks completed</p>
               </div>
             ) : (
               <div className="space-y-1.5">
@@ -176,10 +176,10 @@ export default async function MemberDashboardPage() {
                   return (
                     <div key={task.id}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
-                      style={{ background: isOverdue ? "rgba(255,100,100,0.04)" : "rgba(255,255,255,0.03)" }}>
+                      style={{ background: isOverdue ? "rgba(255,100,100,0.04)" : "rgba(0,0,0,0.02)" }}>
                       <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
                         style={{ background: pr.color }} />
-                      <p className="flex-1 text-[13px] truncate" style={{ color: "#FFFFFF" }}>
+                      <p className="flex-1 text-[13px] truncate" style={{ color: "#111111" }}>
                         {task.title}
                       </p>
                       {isOverdue && (
@@ -190,7 +190,7 @@ export default async function MemberDashboardPage() {
                       )}
                       {task.due_date && !isOverdue && (
                         <span className="text-[11px] flex-shrink-0"
-                          style={{ color: "rgba(255,255,255,0.25)" }}>
+                          style={{ color: "#D1D5DB" }}>
                           {task.due_date}
                         </span>
                       )}
@@ -219,7 +219,7 @@ export default async function MemberDashboardPage() {
             return (
               <Link key={stat.label} href={stat.href}
                 className="rounded-xl p-4 flex items-center gap-4 transition-all hover:-translate-y-0.5"
-                style={{ background: "#262626", border: "1px solid #2A2A2A", display: "flex" }}>
+                style={{ background: "#FFFFFF", border: "1px solid #2A2A2A", display: "flex" }}>
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
                   style={{ background: "rgba(220,38,38,0.08)" }}>
                   <Icon size={16} style={{ color: stat.accent }} />
@@ -229,7 +229,7 @@ export default async function MemberDashboardPage() {
                     style={{ fontFamily: "var(--font-jakarta)", color: stat.accent }}>
                     {stat.value}
                   </p>
-                  <p className="text-[11px] font-medium mt-0.5" style={{ color: "rgba(255,255,255,0.35)" }}>
+                  <p className="text-[11px] font-medium mt-0.5" style={{ color: "#9CA3AF" }}>
                     {stat.label}
                   </p>
                 </div>
@@ -238,9 +238,9 @@ export default async function MemberDashboardPage() {
           })}
 
           {/* Today Summary */}
-          <div className="rounded-xl p-5" style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
+          <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
             <p className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4"
-              style={{ color: "rgba(255,255,255,0.25)" }}>Today Summary</p>
+              style={{ color: "#D1D5DB" }}>Today Summary</p>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { label: "Hours",     value: todayHours > 0 ? `${todayHours}h` : "—" },
@@ -248,12 +248,12 @@ export default async function MemberDashboardPage() {
                 { label: "Shoots",    value: shootCount },
               ].map((item) => (
                 <div key={item.label} className="rounded-lg p-3 text-center"
-                  style={{ background: "rgba(255,255,255,0.03)", border: "1px solid #1A1A1A" }}>
+                  style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #1A1A1A" }}>
                   <p className="text-[22px] font-black leading-none mb-1"
-                    style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+                    style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
                     {item.value}
                   </p>
-                  <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.3)" }}>{item.label}</p>
+                  <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{item.label}</p>
                 </div>
               ))}
             </div>

@@ -3,6 +3,7 @@ export const revalidate = 0
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -14,25 +15,38 @@ function adminSupabase() {
   )
 }
 
-function formatPhone(raw: string): string {
-  const digits = raw.replace(/\D/g, '')
-  if (digits.length === 10) return '91' + digits
-  if (digits.startsWith('0') && digits.length === 11) return '91' + digits.slice(1)
-  return digits
+function isAuthorized(request: NextRequest): boolean {
+  const cronSecret = process.env.CRON_SECRET
+  const webhookSecret = process.env.INTERNAL_WEBHOOK_SECRET
+  const authHeader = request.headers.get('authorization')
+  if (cronSecret && authHeader === `Bearer ${cronSecret}`) return true
+  const webhookHeader = request.headers.get('x-webhook-secret')
+  if (webhookSecret && webhookHeader === webhookSecret) return true
+  return false
 }
 
-// n8n calls this at ~9 PM via cron.
-// Returns members who never submitted today so n8n can send grofast_missed_update.
-// Required: x-webhook-secret header + ?company_id=UUID query param.
+function getCompanyId(request: NextRequest): string | null {
+  const fromParam = request.nextUrl.searchParams.get('company_id')
+  if (fromParam && UUID_RE.test(fromParam)) return fromParam
+  const fromEnv = process.env.CRON_COMPANY_ID
+  if (fromEnv && UUID_RE.test(fromEnv)) return fromEnv
+  return null
+}
+
+// Vercel Cron calls this at 9:00 PM IST (30 15 * * * UTC).
+// Also callable manually with x-webhook-secret + ?company_id=UUID.
+// Sends grofast_missed_update to active members who never submitted today.
 export async function GET(request: NextRequest) {
-  const secret = request.headers.get('x-webhook-secret')
-  if (!secret || secret !== process.env.INTERNAL_WEBHOOK_SECRET) {
+  if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const companyId = request.nextUrl.searchParams.get('company_id')
-  if (!companyId || !UUID_RE.test(companyId)) {
-    return NextResponse.json({ error: 'Valid company_id UUID is required' }, { status: 400 })
+  const companyId = getCompanyId(request)
+  if (!companyId) {
+    return NextResponse.json(
+      { error: 'company_id required — provide ?company_id=UUID or set CRON_COMPANY_ID env var' },
+      { status: 400 }
+    )
   }
 
   const admin = adminSupabase()
@@ -58,19 +72,26 @@ export async function GET(request: NextRequest) {
   ])
 
   const submittedIds = new Set((todayUpdates ?? []).map((u: any) => u.user_id))
+  const missed = (members ?? []).filter((m: any) => !submittedIds.has(m.id) && m.phone)
 
-  const missed = (members ?? [])
-    .filter((m: any) => !submittedIds.has(m.id) && m.phone)
-    .map((m: any) => ({
-      name: m.name,
-      phone: formatPhone(m.phone),
-      date: dateLabel,
-    }))
+  let sent = 0
+  let failed = 0
+  const failedNames: string[] = []
+
+  await Promise.all(
+    missed.map(async (m: any) => {
+      const ok = await sendWhatsAppTemplate(formatPhone(m.phone), 'grofast_missed_update', [m.name, dateLabel])
+      if (ok) sent++
+      else { failed++; failedNames.push(m.name) }
+    })
+  )
 
   return NextResponse.json({
     date: today,
     missedCount: missed.length,
-    members: missed,
-    checkedAt: new Date().toISOString(),
+    sent,
+    failed,
+    failedNames,
+    sentAt: new Date().toISOString(),
   })
 }

@@ -21,48 +21,8 @@ function formatPhone(raw: string): string {
   return digits
 }
 
-async function sendWhatsAppTemplate(
-  phone: string,
-  templateName: string,
-  params: string[]
-): Promise<boolean> {
-  const token = process.env.META_WHATSAPP_TOKEN
-  const phoneId = process.env.META_PHONE_NUMBER_ID
-  if (!token || !phoneId) return false
-
-  const res = await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: phone,
-      type: 'template',
-      template: {
-        name: templateName,
-        language: { code: 'en' },
-        components: [
-          {
-            type: 'body',
-            parameters: params.map(text => ({ type: 'text', text })),
-          },
-        ],
-      },
-    }),
-  })
-
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}))
-    console.error(`[send-daily-reminder] Meta API error for ${phone}:`, json)
-    return false
-  }
-  return true
-}
-
 // n8n calls this at ~4–5 PM via cron.
-// Sends grofast_daily_reminder to all active members who haven't submitted today.
+// Returns members who haven't submitted today so n8n can send grofast_daily_reminder.
 // Required: x-webhook-secret header + ?company_id=UUID query param.
 export async function GET(request: NextRequest) {
   const secret = request.headers.get('x-webhook-secret')
@@ -98,31 +58,19 @@ export async function GET(request: NextRequest) {
   ])
 
   const submittedIds = new Set((todayUpdates ?? []).map((u: any) => u.user_id))
-  const pending = (members ?? []).filter((m: any) => !submittedIds.has(m.id) && m.phone)
 
-  let sent = 0
-  let failed = 0
-  const failedNames: string[] = []
-
-  await Promise.all(
-    pending.map(async (m: any) => {
-      const phone = formatPhone(m.phone)
-      const ok = await sendWhatsAppTemplate(phone, 'grofast_daily_reminder', [m.name, dateLabel])
-      if (ok) {
-        sent++
-      } else {
-        failed++
-        failedNames.push(m.name)
-      }
-    })
-  )
+  const pending = (members ?? [])
+    .filter((m: any) => !submittedIds.has(m.id) && m.phone)
+    .map((m: any) => ({
+      name: m.name,
+      phone: formatPhone(m.phone),
+      date: dateLabel,
+    }))
 
   return NextResponse.json({
     date: today,
     pendingCount: pending.length,
-    sent,
-    failed,
-    failedNames,
-    sentAt: new Date().toISOString(),
+    members: pending,
+    checkedAt: new Date().toISOString(),
   })
 }

@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/send-daily-reminder",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/send-missed-alert",
+      "schedule": "30 15 * * *"
+    }
+  ]
+}

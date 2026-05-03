@@ -16,79 +16,58 @@ async function notifyWhatsApp(
   payload: { name: string; email: string; employee_id: string; phone: string; loginLink: string; password: string; team: string },
   meta: { companyId: string; userId: string }
 ) {
+  const metaToken   = process.env.META_WHATSAPP_TOKEN
+  const metaPhoneId = process.env.META_PHONE_NUMBER_ID
+  if (!metaToken || !metaPhoneId) {
+    console.warn('[notifyWhatsApp] META credentials not set — skipping onboarding WhatsApp')
+    return
+  }
+
   const admin = adminSupabase()
   let status: 'sent' | 'failed' = 'sent'
   let providerRef: string | null = null
 
-  const metaToken    = process.env.META_WHATSAPP_TOKEN
-  const metaPhoneId  = process.env.META_PHONE_NUMBER_ID
   const templateName = process.env.WHATSAPP_ONBOARDING_TEMPLATE ?? 'grofast_member_welcome'
 
   try {
-    if (metaToken && metaPhoneId) {
-      // Send via Meta WhatsApp Cloud API using the verified template
-      const res = await fetch(
-        `https://graph.facebook.com/v19.0/${metaPhoneId}/messages`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${metaToken}`,
-          },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            to: payload.phone,
-            type: 'template',
-            template: {
-              name: templateName,
-              language: { code: 'en' },
-              components: [
-                {
-                  type: 'body',
-                  parameters: [
-                    { type: 'text', text: payload.name },
-                    { type: 'text', text: payload.employee_id },
-                    { type: 'text', text: payload.email },
-                    { type: 'text', text: payload.password },
-                    { type: 'text', text: payload.team || 'Team' },
-                    { type: 'text', text: payload.loginLink },
-                  ],
-                },
-              ],
-            },
-          }),
-        }
-      )
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        status = 'failed'
-        console.error('[notifyWhatsApp] Meta API error:', json)
-      } else {
-        providerRef = json?.messages?.[0]?.id ?? null
-      }
-    } else {
-      // Fallback: forward to n8n webhook
-      const url = process.env.N8N_WEBHOOK_URL
-      if (!url) return
-
-      const res = await fetch(url, {
+    const res = await fetch(
+      `https://graph.facebook.com/v19.0/${metaPhoneId}/messages`,
+      {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(process.env.N8N_WEBHOOK_SECRET
-            ? { 'x-webhook-secret': process.env.N8N_WEBHOOK_SECRET }
-            : {}),
+          Authorization: `Bearer ${metaToken}`,
         },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        status = 'failed'
-      } else {
-        try {
-          const json = await res.json()
-          providerRef = json?.executionId ?? json?.id ?? null
-        } catch { /* response body not required */ }
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: payload.phone,
+          type: 'template',
+          template: {
+            name: templateName,
+            language: { code: 'en' },
+            components: [
+              {
+                type: 'body',
+                parameters: [
+                  { type: 'text', text: payload.name },
+                  { type: 'text', text: payload.employee_id },
+                  { type: 'text', text: payload.email },
+                  { type: 'text', text: payload.password },
+                  { type: 'text', text: payload.team || 'Team' },
+                  { type: 'text', text: payload.loginLink },
+                ],
+              },
+            ],
+          },
+        }),
       }
+    )
+    const json = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      status = 'failed'
+      console.error('[notifyWhatsApp] Meta API error:', json)
+    } else {
+      providerRef = json?.messages?.[0]?.id ?? null
     }
   } catch (err) {
     status = 'failed'

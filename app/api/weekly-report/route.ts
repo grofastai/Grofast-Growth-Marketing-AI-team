@@ -6,8 +6,8 @@ import { createClient } from '@supabase/supabase-js'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-// n8n calls this on Monday 9 AM via cron.
-// Required: x-webhook-secret header + ?company_id=UUID query param.
+// Called via x-webhook-secret header + ?company_id=UUID query param.
+// Returns weekly performance metrics for admin reporting.
 
 function adminSupabase() {
   return createClient(

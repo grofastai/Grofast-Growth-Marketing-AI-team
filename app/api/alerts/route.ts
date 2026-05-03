@@ -6,8 +6,8 @@ import { getAlerts } from '@/lib/alerts'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-// n8n calls this endpoint at 9 PM via cron.
-// Required: x-webhook-secret header + ?company_id=UUID query param.
+// Called via x-webhook-secret header + ?company_id=UUID query param.
+// Returns alert counts for the admin dashboard widget.
 export async function GET(request: NextRequest) {
   const secret = request.headers.get('x-webhook-secret')
   if (!secret || secret !== process.env.INTERNAL_WEBHOOK_SECRET) {

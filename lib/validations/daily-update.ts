@@ -31,6 +31,7 @@ export const workEntrySchema = z.object({
   video_uploaded:  z.boolean().nullable().optional(),
   screenshot_url:  z.string().optional(),
   petrol_expense:  z.number().min(0).optional(),
+  other_expense:   z.number().min(0).optional(),
   travel_time:     z.string().optional(),
   // Edit-specific
   video_link:      z.string().optional(),

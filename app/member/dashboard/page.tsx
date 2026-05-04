@@ -1,7 +1,7 @@
 export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
-import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, Zap, AlertTriangle } from "lucide-react"
+import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, Zap, AlertTriangle, Calendar } from "lucide-react"
 import Link from "next/link"
 
 export default async function MemberDashboardPage() {
@@ -9,12 +9,17 @@ export default async function MemberDashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
 
-  const today = new Date().toISOString().split("T")[0]
+  const now      = new Date()
+  const today    = now.toISOString().split("T")[0]
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+  const monthName  = now.toLocaleString("en-US", { month: "long", year: "numeric" })
 
-  type ProfileRow  = { name: string; employee_id: string }
-  type UpdateRow   = { working_hours: number | null; shoot_count: number | null }
-  type TaskRow     = { id: string; title: string; status: string; priority: string; due_date: string | null }
-  type AttLog      = { clock_in: string | null; clock_out: string | null }
+  type ProfileRow     = { name: string; employee_id: string }
+  type UpdateRow      = { working_hours: number | null; shoot_count: number | null }
+  type TaskRow        = { id: string; title: string; status: string; priority: string; due_date: string | null }
+  type AttLog         = { clock_in: string | null; clock_out: string | null }
+  type MonthlyUpdate  = { working_hours: number | null; work_type: string | null; attendance_status: string }
+  type LeaveRow       = { from_date: string; to_date: string }
 
   const [
     { data: profileRaw },
@@ -24,6 +29,8 @@ export default async function MemberDashboardPage() {
     { count: pendingLeavesCount },
     { data: myTasksRaw },
     { data: clockLogRaw },
+    { data: monthlyUpdatesRaw },
+    { data: approvedLeavesRaw },
   ] = await Promise.all([
     supabase.from("users").select("name, employee_id").eq("id", user.id).single(),
     supabase.from("daily_updates").select("working_hours, shoot_count").eq("user_id", user.id).eq("date", today).maybeSingle(),
@@ -32,19 +39,18 @@ export default async function MemberDashboardPage() {
     supabase.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "pending"),
     supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", user.id).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
     supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", user.id).eq("date", today).maybeSingle(),
+    supabase.from("daily_updates").select("working_hours, work_type, attendance_status").eq("user_id", user.id).gte("date", monthStart).lte("date", today),
+    supabase.from("leaves").select("from_date, to_date").eq("user_id", user.id).eq("status", "approved").gte("from_date", monthStart),
   ])
 
-  const profile       = profileRaw as unknown as ProfileRow | null
-  const todayUpdate   = todayUpdateRaw as unknown as UpdateRow | null
-  const myTasks       = (myTasksRaw ?? []) as unknown as TaskRow[]
-  const clockLog      = clockLogRaw as unknown as AttLog | null
+  const profile         = profileRaw as unknown as ProfileRow | null
+  const todayUpdate     = todayUpdateRaw as unknown as UpdateRow | null
+  const myTasks         = (myTasksRaw ?? []) as unknown as TaskRow[]
+  const clockLog        = clockLogRaw as unknown as AttLog | null
+  const monthlyUpdates  = (monthlyUpdatesRaw ?? []) as unknown as MonthlyUpdate[]
+  const approvedLeaves  = (approvedLeavesRaw ?? []) as unknown as LeaveRow[]
 
-  const now       = new Date()
-  const hour      = now.getHours()
-  const greeting  = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
-  const dateStr   = now.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" })
-  const firstName = profile?.name?.split(" ")[0] ?? user.email?.split("@")[0] ?? "there"
-
+  // Today hours
   let todayHours = 0
   if (clockLog?.clock_in) {
     const end = clockLog.clock_out ? new Date(clockLog.clock_out).getTime() : Date.now()
@@ -58,20 +64,50 @@ export default async function MemberDashboardPage() {
   const completedTasks = completedTasksCount ?? 0
   const todayOverdue   = myTasks.filter(t => t.due_date && t.due_date < today)
 
+  // Monthly calculations — only count 'present' days for hours avg
+  const presentRows    = monthlyUpdates.filter(u => u.attendance_status === "present")
+  const workingDays    = presentRows.length
+  const officeDays     = presentRows.filter(u => u.work_type === "office").length
+  const wfhDays        = presentRows.filter(u => u.work_type === "wfh").length
+  const holidayDays    = monthlyUpdates.filter(u => u.attendance_status === "holiday").length
+  const totalMonthHrs  = presentRows.reduce((s, u) => s + (u.working_hours ?? 0), 0)
+  const avgHoursPerDay = workingDays > 0 ? Math.round((totalMonthHrs / workingDays) * 10) / 10 : 0
+
+  // Leave days — sum date ranges of approved leaves this month
+  const leaveDays = approvedLeaves.reduce((sum, l) => {
+    const days = Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
+    return sum + days
+  }, 0)
+
+  const hour      = now.getHours()
+  const greeting  = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
+  const dateStr   = now.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" })
+  const firstName = profile?.name?.split(" ")[0] ?? user.email?.split("@")[0] ?? "there"
+
   let productivitySignal: { icon: "zap" | "warn"; text: string; color: string } | null = null
   if (clockLog?.clock_in) {
-    if (todayHours >= 6) {
+    if (todayHours >= 6)
       productivitySignal = { icon: "zap",  text: "You're on track today",        color: "#DC2626" }
-    } else if (todayHours < 4) {
+    else if (todayHours < 4)
       productivitySignal = { icon: "warn", text: "You are below expected hours", color: "#F59E0B" }
-    }
   }
 
   const PRIORITY_STYLE: Record<string, { color: string; bg: string }> = {
-    low:    { color: "#9CA3AF",  bg: "rgba(0,0,0,0.03)" },
-    medium: { color: "#F59E0B",                bg: "rgba(245,158,11,0.08)"  },
-    high:   { color: "#FF6464",                bg: "rgba(255,100,100,0.08)" },
+    low:    { color: "#9CA3AF", bg: "rgba(0,0,0,0.03)" },
+    medium: { color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+    high:   { color: "#FF6464", bg: "rgba(255,100,100,0.08)" },
   }
+
+  // Monthly stats config
+  const avgColor = avgHoursPerDay >= 9 ? "#16A34A" : avgHoursPerDay >= 7 ? "#D97706" : avgHoursPerDay > 0 ? "#DC2626" : "#D1D5DB"
+  const monthlyStats = [
+    { label: "Avg Hours / Day", value: avgHoursPerDay > 0 ? `${avgHoursPerDay}h` : "—", color: avgColor, sub: avgHoursPerDay > 0 ? (avgHoursPerDay >= 9 ? "On target ✓" : `${(9 - avgHoursPerDay).toFixed(1)}h below 9h`) : undefined },
+    { label: "Working Days",    value: workingDays,  color: "#111111" },
+    { label: "Leave Days",      value: leaveDays,    color: leaveDays > 0 ? "#D97706" : "#D1D5DB" },
+    { label: "Office Days",     value: officeDays,   color: "#DC2626" },
+    { label: "WFH Days",        value: wfhDays,      color: "#6366F1" },
+    { label: "Holidays",        value: holidayDays,  color: "#9CA3AF" },
+  ]
 
   return (
     <div className="p-6 md:p-8 max-w-[1400px]">
@@ -106,10 +142,10 @@ export default async function MemberDashboardPage() {
       {/* ── 2-column grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">
 
-        {/* ── LEFT: Daily Update + My Tasks ── */}
+        {/* ── LEFT ── */}
         <div className="space-y-5">
 
-          {/* Daily Update block */}
+          {/* Daily Update */}
           <div className="rounded-xl p-5" style={{
             background: "#FFFFFF",
             border: todayUpdate ? "1px solid rgba(220,38,38,0.2)" : "1px solid rgba(245,158,11,0.25)",
@@ -157,8 +193,9 @@ export default async function MemberDashboardPage() {
                   </span>
                 )}
               </div>
-              <Link href="/member/tasks" className="text-[12px] font-semibold"
-                style={{ color: "#DC2626" }}>View all →</Link>
+              <Link href="/member/tasks" className="text-[12px] font-semibold" style={{ color: "#DC2626" }}>
+                View all →
+              </Link>
             </div>
 
             {myTasks.length === 0 ? (
@@ -174,25 +211,16 @@ export default async function MemberDashboardPage() {
                     ? { color: "#FF6464", bg: "rgba(255,100,100,0.06)" }
                     : PRIORITY_STYLE[task.priority] ?? PRIORITY_STYLE.medium
                   return (
-                    <div key={task.id}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
+                    <div key={task.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
                       style={{ background: isOverdue ? "rgba(255,100,100,0.04)" : "rgba(0,0,0,0.02)" }}>
-                      <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-                        style={{ background: pr.color }} />
-                      <p className="flex-1 text-[13px] truncate" style={{ color: "#111111" }}>
-                        {task.title}
-                      </p>
+                      <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: pr.color }} />
+                      <p className="flex-1 text-[13px] truncate" style={{ color: "#111111" }}>{task.title}</p>
                       {isOverdue && (
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
-                          style={{ background: "rgba(255,100,100,0.12)", color: "#FF6464" }}>
-                          OVERDUE
-                        </span>
+                          style={{ background: "rgba(255,100,100,0.12)", color: "#FF6464" }}>OVERDUE</span>
                       )}
                       {task.due_date && !isOverdue && (
-                        <span className="text-[11px] flex-shrink-0"
-                          style={{ color: "#D1D5DB" }}>
-                          {task.due_date}
-                        </span>
+                        <span className="text-[11px] flex-shrink-0" style={{ color: "#D1D5DB" }}>{task.due_date}</span>
                       )}
                       <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
                         style={{ background: pr.bg, color: pr.color }}>
@@ -206,14 +234,12 @@ export default async function MemberDashboardPage() {
           </div>
         </div>
 
-        {/* ── RIGHT: Stats + Today Summary ── */}
+        {/* ── RIGHT ── */}
         <div className="space-y-4">
-
-          {/* Quick Stats — stacked vertically */}
           {[
-            { label: "Active Tasks",   value: activeTasks,                             icon: Target,      href: "/member/tasks",      accent: "#DC2626" },
+            { label: "Active Tasks",   value: activeTasks,                              icon: Target,      href: "/member/tasks",      accent: "#DC2626" },
             { label: "Today's Hours",  value: todayHours > 0 ? `${todayHours}h` : "—", icon: Clock,       href: "/member/attendance", accent: "#DC2626" },
-            { label: "Pending Leaves", value: pendingLeavesCount ?? 0,                 icon: CalendarOff, href: "/member/leaves",     accent: "#DC2626" },
+            { label: "Pending Leaves", value: pendingLeavesCount ?? 0,                  icon: CalendarOff, href: "/member/leaves",     accent: "#DC2626" },
           ].map((stat) => {
             const Icon = stat.icon
             return (
@@ -229,9 +255,7 @@ export default async function MemberDashboardPage() {
                     style={{ fontFamily: "var(--font-jakarta)", color: stat.accent }}>
                     {stat.value}
                   </p>
-                  <p className="text-[11px] font-medium mt-0.5" style={{ color: "#9CA3AF" }}>
-                    {stat.label}
-                  </p>
+                  <p className="text-[11px] font-medium mt-0.5" style={{ color: "#9CA3AF" }}>{stat.label}</p>
                 </div>
               </Link>
             )
@@ -239,13 +263,14 @@ export default async function MemberDashboardPage() {
 
           {/* Today Summary */}
           <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
-            <p className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4"
-              style={{ color: "#D1D5DB" }}>Today Summary</p>
+            <p className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4" style={{ color: "#D1D5DB" }}>
+              Today Summary
+            </p>
             <div className="grid grid-cols-3 gap-2">
               {[
-                { label: "Hours",     value: todayHours > 0 ? `${todayHours}h` : "—" },
-                { label: "Done",      value: completedTasks },
-                { label: "Shoots",    value: shootCount },
+                { label: "Hours",  value: todayHours > 0 ? `${todayHours}h` : "—" },
+                { label: "Done",   value: completedTasks },
+                { label: "Shoots", value: shootCount },
               ].map((item) => (
                 <div key={item.label} className="rounded-lg p-3 text-center"
                   style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
@@ -259,8 +284,7 @@ export default async function MemberDashboardPage() {
             </div>
 
             {productivitySignal && (
-              <div className="flex items-center gap-2 mt-4 pt-4"
-                style={{ borderTop: "1px solid #1A1A1A" }}>
+              <div className="flex items-center gap-2 mt-4 pt-4" style={{ borderTop: "1px solid #1A1A1A" }}>
                 {productivitySignal.icon === "zap"
                   ? <Zap size={13} style={{ color: productivitySignal.color }} />
                   : <AlertTriangle size={13} style={{ color: productivitySignal.color }} />
@@ -271,7 +295,51 @@ export default async function MemberDashboardPage() {
               </div>
             )}
           </div>
+        </div>
+      </div>
 
+      {/* ── This Month ─────────────────────────────────────────── */}
+      <div className="mt-5 rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: "rgba(220,38,38,0.08)" }}>
+            <Calendar size={14} style={{ color: "#DC2626" }} />
+          </div>
+          <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>This Month</h3>
+          <span className="text-[11px]" style={{ color: "#9CA3AF" }}>{monthName}</span>
+          {avgHoursPerDay > 0 && avgHoursPerDay < 9 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto"
+              style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+              ⚠ {(9 - avgHoursPerDay).toFixed(1)}h below daily target
+            </span>
+          )}
+          {avgHoursPerDay >= 9 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto"
+              style={{ background: "rgba(22,163,74,0.1)", color: "#16A34A" }}>
+              ✓ On target
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+          {monthlyStats.map((stat) => (
+            <div key={stat.label} className="rounded-xl p-3.5 text-center"
+              style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
+              <p className="text-[22px] font-black leading-none mb-1"
+                style={{ fontFamily: "var(--font-jakarta)", color: stat.color }}>
+                {stat.value}
+              </p>
+              <p className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: "#9CA3AF" }}>
+                {stat.label}
+              </p>
+              {stat.sub && (
+                <p className="text-[9px] mt-1 font-semibold"
+                  style={{ color: avgHoursPerDay >= 9 ? "#16A34A" : "#DC2626" }}>
+                  {stat.sub}
+                </p>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 

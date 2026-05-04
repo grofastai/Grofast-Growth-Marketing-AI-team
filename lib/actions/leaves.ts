@@ -6,9 +6,12 @@ import { sendNotification } from '@/lib/notifications/send'
 import { z } from 'zod'
 
 const leaveSchema = z.object({
-  from_date: z.string().min(1, 'Start date required'),
-  to_date: z.string().min(1, 'End date required'),
-  reason: z.string().min(5, 'Please provide a reason (min 5 characters)'),
+  leave_type:       z.enum(['full_day', 'half_day', 'permission']).default('full_day'),
+  from_date:        z.string().min(1, 'Date required'),
+  to_date:          z.string().min(1, 'End date required'),
+  half_day_period:  z.enum(['morning', 'afternoon']).optional(),
+  permission_hours: z.coerce.number().min(0.5).max(8).optional(),
+  reason:           z.string().min(3, 'Please provide a reason'),
 })
 
 function parseCompanyId(accessToken: string): string | null {
@@ -25,10 +28,15 @@ export async function submitLeaveRequest(
   _prev: { error: string } | { success: true } | null,
   formData: FormData
 ): Promise<{ error: string } | { success: true }> {
+  const leaveType = (formData.get('leave_type') as string) || 'full_day'
+
   const raw = {
-    from_date: formData.get('from_date') as string,
-    to_date: formData.get('to_date') as string,
-    reason: formData.get('reason') as string,
+    leave_type:       leaveType,
+    from_date:        formData.get('from_date') as string,
+    to_date:          leaveType === 'full_day' ? (formData.get('to_date') as string) : (formData.get('from_date') as string),
+    half_day_period:  formData.get('half_day_period') as string | null,
+    permission_hours: formData.get('permission_hours') ? Number(formData.get('permission_hours')) : undefined,
+    reason:           formData.get('reason') as string,
   }
 
   const parsed = leaveSchema.safeParse(raw)
@@ -51,15 +59,17 @@ export async function submitLeaveRequest(
 
   const { error: insertError } = await supabase.from('leaves').insert({
     company_id,
-    user_id: session.user.id,
-    from_date: parsed.data.from_date,
-    to_date: parsed.data.to_date,
-    reason: parsed.data.reason,
+    user_id:          session.user.id,
+    from_date:        parsed.data.from_date,
+    to_date:          parsed.data.to_date,
+    reason:           parsed.data.reason,
+    leave_type:       parsed.data.leave_type,
+    permission_hours: parsed.data.permission_hours ?? null,
+    half_day_period:  (parsed.data.half_day_period ?? null) as 'morning' | 'afternoon' | null,
   })
 
   if (insertError) return { error: insertError.message }
 
-  // Notify admin via WhatsApp
   if (profile) {
     const { data: adminPhone } = await supabase
       .from('users')
@@ -71,13 +81,13 @@ export async function submitLeaveRequest(
 
     if (adminPhone?.phone) {
       sendNotification({
-        event: 'leave.submitted',
+        event:         'leave.submitted',
         employee_name: profile.name,
-        employee_id: profile.employee_id,
-        from_date: parsed.data.from_date,
-        to_date: parsed.data.to_date,
-        reason: parsed.data.reason,
-        admin_phone: adminPhone.phone,
+        employee_id:   profile.employee_id,
+        from_date:     parsed.data.from_date,
+        to_date:       parsed.data.to_date,
+        reason:        parsed.data.reason,
+        admin_phone:   adminPhone.phone,
       }).catch(console.error)
     }
   }
@@ -107,7 +117,6 @@ export async function updateLeaveStatus(
     users: { name: string; phone: string | null } | null
   }
 
-  // Fetch leave + employee phone before updating
   const { data: leaveRaw } = await supabase
     .from('leaves')
     .select('from_date, to_date, users(name, phone)')
@@ -123,14 +132,13 @@ export async function updateLeaveStatus(
 
   if (error) return { success: false, error: error.message }
 
-  // Notify employee via WhatsApp
   if (leave && leave.users?.phone) {
     sendNotification({
-      event: status === 'approved' ? 'leave.approved' : 'leave.rejected',
-      employee_name: leave.users.name,
+      event:          status === 'approved' ? 'leave.approved' : 'leave.rejected',
+      employee_name:  leave.users.name,
       employee_phone: leave.users.phone,
-      from_date: leave.from_date,
-      to_date: leave.to_date,
+      from_date:      leave.from_date,
+      to_date:        leave.to_date,
       status,
     }).catch(console.error)
   }

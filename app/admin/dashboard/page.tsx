@@ -1,5 +1,3 @@
-export const revalidate = 60
-
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import {
@@ -8,6 +6,7 @@ import {
   Minus, ArrowRight, ListTodo, BarChart2,
 } from "lucide-react"
 import Link from "next/link"
+import DashboardFilterBar from "./dashboard-filter"
 import { getAlerts } from "@/lib/alerts"
 import PendingApprovalsCard from "./pending-approvals"
 import AnalyticsChart, { type ChartPoint } from "./analytics-chart"
@@ -36,11 +35,35 @@ type LeaveRow = {
   users: { name: string; employee_id: string } | null
 }
 
-export default async function DashboardPage() {
-  const supabase = await createServerClient()
-  const now = new Date()
-  const today = now.toISOString().split("T")[0]
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ filter?: string; from?: string; to?: string }>
+}) {
+  const params    = await searchParams
+  const filter    = (params.filter ?? "today") as "today" | "yesterday" | "custom"
+  const supabase  = await createServerClient()
+  const now       = new Date()
+  const today     = now.toISOString().split("T")[0]
   const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+
+  // Determine the selected date range from the filter
+  let dateStart = today
+  let dateEnd   = today
+  let prevStart = yesterday
+  let prevEnd   = yesterday
+  let rangeLabel = "Today"
+
+  if (filter === "yesterday") {
+    dateStart = yesterday; dateEnd = yesterday
+    prevStart = new Date(Date.now() - 2 * 86400000).toISOString().split("T")[0]
+    prevEnd   = prevStart
+    rangeLabel = "Yesterday"
+  } else if (filter === "custom" && params.from && params.to) {
+    dateStart = params.from; dateEnd = params.to
+    rangeLabel = `${params.from} → ${params.to}`
+  }
 
   // Last 7 days for analytics
   const last7Days = Array.from({ length: 7 }, (_, i) => {
@@ -59,29 +82,30 @@ export default async function DashboardPage() {
   const cid = profile?.company_id as string
 
   const [
-    { count: presentToday },
-    { count: presentYesterday },
-    { count: absentToday },
+    { count: presentSelected },
+    { count: presentPrev },
+    { count: absentSelected },
     { count: activeTasks },
     { count: activeClients },
     { count: pendingLeaves },
     { data: todayUpdatesRaw },
     { data: pendingLeavesRaw },
     { data: analyticsRaw },
+    { data: monthlyPerfRaw },
     alerts,
   ] = await Promise.all([
     admin.from("daily_updates").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).eq("date", today).eq("attendance_status", "present"),
+      .eq("company_id", cid).gte("date", dateStart).lte("date", dateEnd).eq("attendance_status", "present"),
     admin.from("daily_updates").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).eq("date", yesterday).eq("attendance_status", "present"),
+      .eq("company_id", cid).gte("date", prevStart).lte("date", prevEnd).eq("attendance_status", "present"),
     admin.from("daily_updates").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).eq("date", today).eq("attendance_status", "absent"),
+      .eq("company_id", cid).gte("date", dateStart).lte("date", dateEnd).eq("attendance_status", "absent"),
     supabase.from("tasks").select("*", { count: "exact", head: true }).neq("status", "completed"),
     supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("leaves").select("*", { count: "exact", head: true }).eq("status", "pending"),
     admin.from("daily_updates")
       .select("attendance_status, work_type, working_hours, created_at, users(name, employee_id)")
-      .eq("company_id", cid).eq("date", today)
+      .eq("company_id", cid).gte("date", dateStart).lte("date", dateEnd)
       .order("created_at", { ascending: false }).limit(5),
     admin.from("leaves")
       .select("id, from_date, to_date, reason, users(name, employee_id)")
@@ -91,11 +115,40 @@ export default async function DashboardPage() {
       .select("date, attendance_status")
       .eq("company_id", cid)
       .gte("date", sevenDaysAgo),
+    // Monthly performance: all present-day updates this month per member
+    admin.from("daily_updates")
+      .select("user_id, working_hours, users(name, employee_id)")
+      .eq("company_id", cid)
+      .gte("date", monthStart)
+      .lte("date", today)
+      .eq("attendance_status", "present"),
     cid ? getAlerts(cid) : Promise.resolve({ notUpdatedCount: 0, notUpdatedNames: [], overdueTaskCount: 0, overdueProjectCount: 0, total: 0 }),
   ])
 
-  const recentUpdates = (todayUpdatesRaw ?? []) as unknown as UpdateRow[]
+  // Build monthly performance per member
+  type PerfRow = { user_id: string; working_hours: number | null; users: { name: string; employee_id: string } | { name: string; employee_id: string }[] | null }
+  const perfMap: Record<string, { name: string; employee_id: string; days: number; totalHrs: number }> = {}
+  for (const row of (monthlyPerfRaw ?? []) as unknown as PerfRow[]) {
+    const u = Array.isArray(row.users) ? row.users[0] : row.users
+    if (!perfMap[row.user_id]) {
+      perfMap[row.user_id] = { name: u?.name ?? "—", employee_id: u?.employee_id ?? "", days: 0, totalHrs: 0 }
+    }
+    perfMap[row.user_id].days++
+    perfMap[row.user_id].totalHrs += row.working_hours ?? 0
+  }
+  const memberPerf = Object.values(perfMap)
+    .map((m) => ({ ...m, avgHrs: m.days > 0 ? Math.round((m.totalHrs / m.days) * 10) / 10 : 0 }))
+    .sort((a, b) => a.avgHrs - b.avgHrs)
+  const teamAvgHrs = memberPerf.length > 0
+    ? Math.round((memberPerf.reduce((s, m) => s + m.avgHrs, 0) / memberPerf.length) * 10) / 10
+    : 0
+  const belowTarget = memberPerf.filter((m) => m.avgHrs < 9 && m.days > 0).length
+
+  const recentUpdates     = (todayUpdatesRaw ?? []) as unknown as UpdateRow[]
   const pendingLeavesList = (pendingLeavesRaw ?? []) as unknown as LeaveRow[]
+  const presentTodayN     = presentSelected ?? 0
+  const presentYesterdayN = presentPrev ?? 0
+  const presentDiff       = presentTodayN - presentYesterdayN
 
   // Build 7-day chart data
   const chartData: ChartPoint[] = last7Days.map(day => {
@@ -106,10 +159,6 @@ export default async function DashboardPage() {
       absent: rows.filter((r: any) => r.attendance_status === "absent").length,
     }
   })
-
-  const presentTodayN = presentToday ?? 0
-  const presentYesterdayN = presentYesterday ?? 0
-  const presentDiff = presentTodayN - presentYesterdayN
 
   const hour = now.getHours()
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
@@ -150,7 +199,7 @@ export default async function DashboardPage() {
 
   const stats = [
     {
-      label: "Present Today", value: presentTodayN, icon: Users,
+      label: filter === "today" ? "Present Today" : filter === "yesterday" ? "Present Yesterday" : "Present", value: presentTodayN, icon: Users,
       href: "/admin/attendance",
       trendLabel: presentDiff > 0 ? `+${presentDiff} from yesterday` : presentDiff < 0 ? `${presentDiff} from yesterday` : "Same as yesterday",
       trendDir: presentDiff,
@@ -198,30 +247,35 @@ export default async function DashboardPage() {
         <div className="absolute bottom-0 left-1/3 w-40 h-40 rounded-full opacity-5 pointer-events-none"
           style={{ background: "radial-gradient(circle, #FFFFFF 0%, transparent 70%)", transform: "translateY(50%)" }} />
 
-        <div className="relative flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[28px] leading-tight font-black text-white">
-              {greeting} 👋
-            </h1>
-            <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>{dateStr}</p>
+        <div className="relative space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-[28px] leading-tight font-black text-white">
+                {greeting} 👋
+              </h1>
+              <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>{dateStr}</p>
+            </div>
+            <div className="flex items-center gap-2 mt-1 flex-shrink-0">
+              <Link href="/admin/team"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90"
+                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#FFFFFF" }}>
+                <Plus size={14} /> Add Member
+              </Link>
+              <Link href="/admin/announcements"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90"
+                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#FFFFFF" }}>
+                <Megaphone size={14} /> Announcement
+              </Link>
+              <Link href="/admin/goals"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
+                style={{ background: "#FFFFFF", color: "#B91C1C" }}>
+                <ListTodo size={14} /> Assign Task
+              </Link>
+            </div>
           </div>
-          <div className="flex items-center gap-2 mt-1 flex-shrink-0">
-            <Link href="/admin/team"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90"
-              style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#FFFFFF" }}>
-              <Plus size={14} /> Add Member
-            </Link>
-            <Link href="/admin/announcements"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90"
-              style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#FFFFFF" }}>
-              <Megaphone size={14} /> Announcement
-            </Link>
-            <Link href="/admin/goals"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
-              style={{ background: "#FFFFFF", color: "#B91C1C" }}>
-              <ListTodo size={14} /> Assign Task
-            </Link>
-          </div>
+
+          {/* Date filter */}
+          <DashboardFilterBar currentFilter={filter} from={params.from} to={params.to} />
         </div>
       </div>
 
@@ -279,6 +333,66 @@ export default async function DashboardPage() {
         </div>
         <AnalyticsChart data={chartData} />
       </div>
+
+      {/* ── Monthly Team Performance ────────────────────────────── */}
+      {memberPerf.length > 0 && (
+        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ background: belowTarget > 0 ? "rgba(220,38,38,0.1)" : "rgba(22,163,74,0.1)" }}>
+                <Clock size={14} style={{ color: belowTarget > 0 ? "#DC2626" : "#16A34A" }} />
+              </div>
+              <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Monthly Performance</h3>
+              <span className="text-[11px]" style={{ color: "#9CA3AF" }}>
+                {now.toLocaleString("en-US", { month: "long", year: "numeric" })} · 9h/day target · working days only
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-[11px]" style={{ color: "#9CA3AF" }}>Team avg</p>
+                <p className="text-[16px] font-black" style={{ color: teamAvgHrs >= 9 ? "#16A34A" : "#DC2626" }}>
+                  {teamAvgHrs}h/day
+                </p>
+              </div>
+              {belowTarget > 0 && (
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
+                  style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+                  ⚠ {belowTarget} below 9h
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            {memberPerf.map((m) => {
+              const pct   = Math.min((m.avgHrs / 9) * 100, 100)
+              const color = m.avgHrs >= 9 ? "#16A34A" : m.avgHrs >= 7 ? "#D97706" : "#DC2626"
+              const bg    = m.avgHrs >= 9 ? "rgba(22,163,74,0.05)" : m.avgHrs >= 7 ? "rgba(217,119,6,0.05)" : "rgba(220,38,38,0.04)"
+              return (
+                <div key={m.employee_id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: bg }}>
+                  <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
+                    style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+                    {m.name[0].toUpperCase()}
+                  </div>
+                  <p className="text-[12px] font-semibold flex-1 truncate" style={{ color: "#111827" }}>{m.name}</p>
+                  <p className="text-[11px] flex-shrink-0" style={{ color: "#9CA3AF" }}>{m.days}d worked</p>
+                  <div className="w-24 h-1.5 rounded-full overflow-hidden flex-shrink-0" style={{ background: "#E5E7EB" }}>
+                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+                  </div>
+                  <span className="text-[12px] font-black w-14 text-right flex-shrink-0" style={{ color }}>
+                    {m.avgHrs}h/d
+                  </span>
+                  {m.avgHrs < 9 && m.days > 0 && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
+                      style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>⚠</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Action Required ────────────────────────────────────── */}
       <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
@@ -344,7 +458,7 @@ export default async function DashboardPage() {
             </div>
             <div className="text-center py-3 rounded-xl" style={{ background: "rgba(220,38,38,0.06)" }}>
               <p className="text-[26px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
-                {absentToday ?? 0}
+                {absentSelected ?? 0}
               </p>
               <p className="text-[10px] font-semibold mt-1" style={{ color: "#DC2626" }}>Absent</p>
             </div>

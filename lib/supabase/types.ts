@@ -166,15 +166,24 @@ export interface Database {
           id: string; company_id: string; user_id: string
           from_date: string; to_date: string; reason: string
           status: 'pending' | 'approved' | 'rejected'; created_at: string
+          leave_type: 'full_day' | 'half_day' | 'permission'
+          permission_hours: number | null
+          half_day_period: 'morning' | 'afternoon' | null
         }
         Insert: {
           id?: string; company_id: string; user_id: string
           from_date: string; to_date: string; reason: string
           status?: 'pending' | 'approved' | 'rejected'; created_at?: string
+          leave_type?: 'full_day' | 'half_day' | 'permission'
+          permission_hours?: number | null
+          half_day_period?: 'morning' | 'afternoon' | null
         }
         Update: {
           from_date?: string; to_date?: string; reason?: string
           status?: 'pending' | 'approved' | 'rejected'
+          leave_type?: 'full_day' | 'half_day' | 'permission'
+          permission_hours?: number | null
+          half_day_period?: 'morning' | 'afternoon' | null
         }
         Relationships: []
       }

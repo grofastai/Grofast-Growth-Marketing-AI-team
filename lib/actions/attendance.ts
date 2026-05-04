@@ -3,6 +3,23 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { sendNotification } from '@/lib/notifications/send'
+
+// 10:00 AM IST = 04:30 UTC. Returns true if clock-in is after 10:00 AM IST.
+function isLateArrival(isoUtc: string): boolean {
+  const d = new Date(isoUtc)
+  const istMs = d.getTime() + 5.5 * 60 * 60 * 1000
+  const ist = new Date(istMs)
+  const h = ist.getUTCHours()
+  const m = ist.getUTCMinutes()
+  return h > 10 || (h === 10 && m > 0)
+}
+
+function formatISTTime(isoUtc: string): string {
+  return new Date(isoUtc).toLocaleTimeString('en-IN', {
+    hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata',
+  })
+}
 
 function adminSupabase() {
   return createClient(
@@ -57,16 +74,37 @@ export async function clockIn(workType: 'wfh' | 'office'): Promise<{ success: bo
 
   if (existing) return { success: false, error: 'Already logged attendance today' }
 
+  const clockInTime = new Date().toISOString()
+
   const { error } = await admin.from('attendance_logs').insert({
     company_id: ctx.companyId,
     user_id: ctx.userId,
     date: today,
-    clock_in: new Date().toISOString(),
+    clock_in: clockInTime,
     work_type: workType,
     status: 'present',
   })
 
   if (error) return { success: false, error: error.message }
+
+  if (isLateArrival(clockInTime)) {
+    ;(async () => {
+      const [{ data: profile }, { data: adminRow }] = await Promise.all([
+        admin.from('users').select('name, employee_id').eq('id', ctx.userId).single(),
+        admin.from('users').select('phone').eq('company_id', ctx.companyId).eq('role', 'ADMIN').limit(1).single(),
+      ])
+      if (profile && adminRow?.phone) {
+        await sendNotification({
+          event:         'attendance.late',
+          employee_name: profile.name,
+          employee_id:   profile.employee_id,
+          clock_in_time: formatISTTime(clockInTime),
+          admin_phone:   adminRow.phone,
+        })
+      }
+    })().catch(console.error)
+  }
+
   revalidatePath('/member/dashboard')
   revalidatePath('/admin/attendance')
   return { success: true }

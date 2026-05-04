@@ -7,6 +7,7 @@ export type NotificationEvent =
   | 'hours.underperformance'
   | 'announcement.new'
   | 'wfh.started'
+  | 'attendance.late'
 
 export interface LeaveSubmittedPayload {
   event: 'leave.submitted'
@@ -64,6 +65,14 @@ export interface AnnouncementPayload {
   team_phones: string[]
 }
 
+export interface LateArrivalPayload {
+  event: 'attendance.late'
+  employee_name: string
+  employee_id: string
+  clock_in_time: string
+  admin_phone: string
+}
+
 export type NotificationPayload =
   | LeaveSubmittedPayload
   | LeaveStatusPayload
@@ -71,3 +80,4 @@ export type NotificationPayload =
   | MissingUpdatePayload
   | UnderperformancePayload
   | AnnouncementPayload
+  | LateArrivalPayload

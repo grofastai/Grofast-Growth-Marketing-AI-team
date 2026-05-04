@@ -1,4 +1,4 @@
-import type { NotificationEvent, NotificationPayload, MissingUpdatePayload, LeaveSubmittedPayload, LeaveStatusPayload } from '@/lib/notifications/types'
+import type { NotificationEvent, NotificationPayload, MissingUpdatePayload, LeaveSubmittedPayload, LeaveStatusPayload, LateArrivalPayload } from '@/lib/notifications/types'
 
 export function formatPhone(raw: string): string {
   const digits = raw.replace(/\D/g, '')
@@ -122,6 +122,15 @@ export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
     buildParams: (p) => {
       const lp = p as LeaveStatusPayload
       return [lp.employee_name, lp.from_date, lp.to_date]
+    },
+  },
+
+  'attendance.late': {
+    name: 'grofast_late_arrival',
+    resolvePhone: (p) => (p as LateArrivalPayload).admin_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LateArrivalPayload
+      return [lp.employee_name, lp.employee_id, lp.clock_in_time]
     },
   },
 }

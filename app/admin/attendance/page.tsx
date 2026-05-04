@@ -2,7 +2,7 @@ export const revalidate = 0
 
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
-import { Clock, LogIn, LogOut, Users } from "lucide-react"
+import { Clock, LogIn, LogOut, Users, AlertTriangle } from "lucide-react"
 
 function adminSupabase() {
   return createClient(
@@ -37,14 +37,31 @@ export default async function AttendancePage() {
   const today = new Date().toISOString().split("T")[0]
   const todayDisplay = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
 
-  const [{ data: members }, { data: logs }] = await Promise.all([
+  // 10:00 AM IST = 04:30 AM UTC
+  const lateThreshold = `${today}T04:30:00.000Z`
+
+  const [{ data: members }, { data: logs }, { data: lateLogs }] = await Promise.all([
     admin.from("users").select("id, name, employee_id").eq("company_id", profile.company_id).eq("role", "MEMBER").order("name"),
     admin.from("attendance_logs").select("user_id, clock_in, clock_out").eq("company_id", profile.company_id).eq("date", today),
+    admin.from("attendance_logs")
+      .select("user_id, clock_in")
+      .eq("company_id", profile.company_id)
+      .eq("date", today)
+      .not("clock_in", "is", null)
+      .gt("clock_in", lateThreshold)
+      .order("clock_in"),
   ])
 
   type Log = { user_id: string; clock_in: string | null; clock_out: string | null }
   const logMap = new Map<string, Log>()
   for (const l of (logs ?? []) as Log[]) logMap.set(l.user_id, l)
+
+  type LateLog = { user_id: string; clock_in: string }
+  const memberMap = new Map((members ?? []).map(m => [m.id, m]))
+  const lateEntries = (lateLogs ?? [] as LateLog[]).map((l) => ({
+    ...l,
+    member: memberMap.get(l.user_id),
+  })).filter(l => l.member)
 
   const clockedInNow = (members ?? []).filter((m) => { const l = logMap.get(m.id); return l?.clock_in && !l?.clock_out }).length
   const clockedOut   = (members ?? []).filter((m) => { const l = logMap.get(m.id); return l?.clock_in && l?.clock_out }).length
@@ -150,6 +167,67 @@ export default async function AttendancePage() {
                         : { background: "rgba(0,0,0,0.04)", color: "#9CA3AF" }
                       }>
                       {statusLabel}
+                    </span>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── Late Arrivals ── */}
+      <div className="mt-5 rounded-xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
+        <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom: "1px solid #2A2A2A" }}>
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={14} style={{ color: "#F59E0B" }} />
+            <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>Late Arrivals Today</h3>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-1"
+              style={{ background: lateEntries.length > 0 ? "rgba(245,158,11,0.12)" : "rgba(0,0,0,0.04)", color: lateEntries.length > 0 ? "#F59E0B" : "#9CA3AF" }}>
+              {lateEntries.length}
+            </span>
+          </div>
+          <span className="text-[11px]" style={{ color: "#9CA3AF" }}>After 10:00 AM</span>
+        </div>
+
+        {lateEntries.length === 0 ? (
+          <div className="flex flex-col items-center py-10 gap-1">
+            <p className="text-[13px] font-semibold" style={{ color: "#10B981" }}>All on time today 🎉</p>
+            <p className="text-[11px]" style={{ color: "#9CA3AF" }}>No one clocked in after 10:00 AM</p>
+          </div>
+        ) : (
+          <div>
+            {lateEntries.map((entry) => {
+              const clockInIST = new Date(entry.clock_in).toLocaleTimeString("en-IN", {
+                hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata",
+              })
+              const lateByMs = new Date(entry.clock_in).getTime() - new Date(`${today}T04:30:00.000Z`).getTime()
+              const lateByMins = Math.floor(lateByMs / 60000)
+              const lateStr = lateByMins >= 60
+                ? `${Math.floor(lateByMins / 60)}h ${lateByMins % 60}m late`
+                : `${lateByMins}m late`
+
+              return (
+                <div key={entry.user_id} className="flex items-center gap-4 px-5 py-3.5"
+                  style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: "rgba(245,158,11,0.1)" }}>
+                    <span className="text-[11px] font-bold" style={{ color: "#F59E0B" }}>
+                      {entry.member!.name[0]}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{entry.member!.name}</p>
+                    <p className="text-[11px]" style={{ color: "#9CA3AF" }}>#{entry.member!.employee_id}</p>
+                  </div>
+                  <div className="flex items-center gap-4 text-right">
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider font-bold mb-0.5" style={{ color: "rgba(0,0,0,0.1)" }}>Clock In</p>
+                      <p className="text-[13px] font-bold" style={{ color: "#111111" }}>{clockInIST}</p>
+                    </div>
+                    <span className="text-[11px] font-bold px-3 py-1 rounded-lg"
+                      style={{ background: "rgba(245,158,11,0.1)", color: "#F59E0B" }}>
+                      {lateStr}
                     </span>
                   </div>
                 </div>

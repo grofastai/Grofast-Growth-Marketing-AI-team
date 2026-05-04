@@ -1,4 +1,4 @@
-import type { NotificationEvent, NotificationPayload, MissingUpdatePayload } from '@/lib/notifications/types'
+import type { NotificationEvent, NotificationPayload, MissingUpdatePayload, LeaveSubmittedPayload } from '@/lib/notifications/types'
 
 export function formatPhone(raw: string): string {
   const digits = raw.replace(/\D/g, '')
@@ -7,16 +7,40 @@ export function formatPhone(raw: string): string {
   return digits
 }
 
+interface ButtonParam {
+  index: number
+  payload: string
+}
+
 export async function sendWhatsAppTemplate(
   phone: string,
   templateName: string,
-  params: string[]
+  params: string[],
+  buttons?: ButtonParam[]
 ): Promise<boolean> {
   const token = process.env.META_WHATSAPP_TOKEN
   const phoneId = process.env.META_PHONE_NUMBER_ID
   if (!token || !phoneId) {
     console.warn('[whatsapp] META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID not set — skipping')
     return false
+  }
+
+  const components: object[] = [
+    {
+      type: 'body',
+      parameters: params.map(text => ({ type: 'text', text })),
+    },
+  ]
+
+  if (buttons?.length) {
+    for (const btn of buttons) {
+      components.push({
+        type: 'button',
+        sub_type: 'quick_reply',
+        index: String(btn.index),
+        parameters: [{ type: 'payload', payload: btn.payload }],
+      })
+    }
   }
 
   try {
@@ -33,12 +57,7 @@ export async function sendWhatsAppTemplate(
         template: {
           name: templateName,
           language: { code: 'en' },
-          components: [
-            {
-              type: 'body',
-              parameters: params.map(text => ({ type: 'text', text })),
-            },
-          ],
+          components,
         },
       }),
     })
@@ -59,6 +78,7 @@ interface TemplateEntry {
   name: string
   resolvePhone: (payload: NotificationPayload) => string | null
   buildParams: (payload: NotificationPayload) => string[]
+  buildButtons?: (payload: NotificationPayload) => ButtonParam[]
 }
 
 export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
@@ -68,6 +88,22 @@ export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
     buildParams: (p) => {
       const mp = p as MissingUpdatePayload
       return [mp.employee_name, mp.date]
+    },
+  },
+
+  'leave.submitted': {
+    name: 'grofast_leave_request',
+    resolvePhone: (p) => (p as LeaveSubmittedPayload).admin_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveSubmittedPayload
+      return [lp.employee_name, lp.from_date, lp.to_date, lp.reason]
+    },
+    buildButtons: (p) => {
+      const lp = p as LeaveSubmittedPayload
+      return [
+        { index: 0, payload: `approve:${lp.leave_id}` },
+        { index: 1, payload: `reject:${lp.leave_id}` },
+      ]
     },
   },
 }
@@ -83,5 +119,6 @@ export async function sendNotificationViaTemplate(payload: NotificationPayload):
     console.warn(`[whatsapp] no phone for "${payload.event}" — skipping`)
     return
   }
-  await sendWhatsAppTemplate(formatPhone(rawPhone), entry.name, entry.buildParams(payload))
+  const buttons = entry.buildButtons?.(payload)
+  await sendWhatsAppTemplate(formatPhone(rawPhone), entry.name, entry.buildParams(payload), buttons)
 }

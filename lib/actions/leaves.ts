@@ -57,7 +57,7 @@ export async function submitLeaveRequest(
     .eq('id', session.user.id)
     .single()
 
-  const { error: insertError } = await supabase.from('leaves').insert({
+  const { data: inserted, error: insertError } = await supabase.from('leaves').insert({
     company_id,
     user_id:          session.user.id,
     from_date:        parsed.data.from_date,
@@ -66,11 +66,11 @@ export async function submitLeaveRequest(
     leave_type:       parsed.data.leave_type,
     permission_hours: parsed.data.permission_hours ?? null,
     half_day_period:  (parsed.data.half_day_period ?? null) as 'morning' | 'afternoon' | null,
-  })
+  }).select('id').single()
 
   if (insertError) return { error: insertError.message }
 
-  if (profile) {
+  if (profile && inserted?.id) {
     const { data: adminPhone } = await supabase
       .from('users')
       .select('phone')
@@ -82,6 +82,7 @@ export async function submitLeaveRequest(
     if (adminPhone?.phone) {
       sendNotification({
         event:         'leave.submitted',
+        leave_id:      inserted.id,
         employee_name: profile.name,
         employee_id:   profile.employee_id,
         from_date:     parsed.data.from_date,

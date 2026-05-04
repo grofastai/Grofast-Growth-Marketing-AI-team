@@ -10,6 +10,7 @@ export type NotificationEvent =
 
 export interface LeaveSubmittedPayload {
   event: 'leave.submitted'
+  leave_id: string
   employee_name: string
   employee_id: string
   from_date: string

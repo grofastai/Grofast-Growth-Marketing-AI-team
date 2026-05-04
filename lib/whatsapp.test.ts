@@ -76,14 +76,13 @@ describe('sendNotificationViaTemplate', () => {
   it('skips and warns when no template exists for event', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     await sendNotificationViaTemplate({
-      event: 'leave.approved',
-      employee_name: 'Ravi',
-      employee_phone: '9876543210',
-      from_date: '2026-05-10',
-      to_date: '2026-05-12',
-      status: 'approved',
+      event: 'announcement.new',
+      title: 'Hello',
+      message: 'World',
+      company_id: 'abc',
+      team_phones: [],
     })
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('no template for "leave.approved"'))
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('no template for "announcement.new"'))
   })
 
   it('skips and warns when phone is missing', async () => {

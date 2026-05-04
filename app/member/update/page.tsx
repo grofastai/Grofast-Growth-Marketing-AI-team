@@ -1,8 +1,17 @@
 import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import DailyUpdateForm from "./daily-update-form"
 import { CheckCircle2, Loader2 } from "lucide-react"
+
+function adminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export default async function UpdatePage() {
   const supabase = await createServerClient()
@@ -21,6 +30,14 @@ export default async function UpdatePage() {
 
   type Project = { id: string; business_name: string }
 
+  // Fetch user's company_id first so we can query projects with service role
+  const admin = adminSupabase()
+  const { data: profile } = await admin
+    .from("users")
+    .select("company_id")
+    .eq("id", user.id)
+    .single()
+
   const [{ data: existingRaw }, { data: projectsRaw }] = await Promise.all([
     supabase
       .from("daily_updates")
@@ -28,9 +45,11 @@ export default async function UpdatePage() {
       .eq("user_id", user.id)
       .eq("date", today)
       .maybeSingle(),
-    supabase
+    // Use service role so members can see all company projects regardless of RLS
+    admin
       .from("projects")
       .select("id, business_name")
+      .eq("company_id", profile?.company_id ?? "")
       .eq("status", "active")
       .order("business_name"),
   ])

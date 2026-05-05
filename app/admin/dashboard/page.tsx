@@ -94,12 +94,12 @@ export default async function DashboardPage({
     { data: monthlyPerfRaw },
     alerts,
   ] = await Promise.all([
-    admin.from("daily_updates").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).gte("date", dateStart).lte("date", dateEnd).eq("attendance_status", "present"),
-    admin.from("daily_updates").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).gte("date", prevStart).lte("date", prevEnd).eq("attendance_status", "present"),
-    admin.from("daily_updates").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).gte("date", dateStart).lte("date", dateEnd).eq("attendance_status", "absent"),
+    admin.from("attendance_logs").select("*", { count: "exact", head: true })
+      .eq("company_id", cid).gte("date", dateStart).lte("date", dateEnd).eq("status", "present"),
+    admin.from("attendance_logs").select("*", { count: "exact", head: true })
+      .eq("company_id", cid).gte("date", prevStart).lte("date", prevEnd).eq("status", "present"),
+    admin.from("attendance_logs").select("*", { count: "exact", head: true })
+      .eq("company_id", cid).gte("date", dateStart).lte("date", dateEnd).eq("status", "absent"),
     supabase.from("tasks").select("*", { count: "exact", head: true }).neq("status", "completed"),
     supabase.from("projects").select("*", { count: "exact", head: true }).eq("status", "active"),
     supabase.from("leaves").select("*", { count: "exact", head: true }).eq("status", "pending"),
@@ -111,8 +111,8 @@ export default async function DashboardPage({
       .select("id, from_date, to_date, reason, users(name, employee_id)")
       .eq("company_id", cid).eq("status", "pending")
       .order("created_at", { ascending: false }).limit(5),
-    admin.from("daily_updates")
-      .select("date, attendance_status")
+    admin.from("attendance_logs")
+      .select("date, status")
       .eq("company_id", cid)
       .gte("date", sevenDaysAgo),
     // Monthly performance: all present-day updates this month per member
@@ -155,8 +155,8 @@ export default async function DashboardPage({
     const rows = (analyticsRaw ?? []).filter((r: any) => r.date === day)
     return {
       day: new Date(day + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" }),
-      present: rows.filter((r: any) => r.attendance_status === "present").length,
-      absent: rows.filter((r: any) => r.attendance_status === "absent").length,
+      present: rows.filter((r: any) => r.status === "present").length,
+      absent: rows.filter((r: any) => r.status === "absent").length,
     }
   })
 

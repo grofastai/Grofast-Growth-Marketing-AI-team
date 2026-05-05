@@ -476,14 +476,6 @@ function EditCard({ entry, i, projects, onChange, onRemove }: {
           onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"}>
           <Plus size={13} /> Add Video
         </button>
-
-        <div>
-          <label style={LABEL}>Session Notes</label>
-          <textarea rows={2} className="du resize-none" style={FIELD}
-            placeholder="Software used, feedback, blockers…"
-            value={entry.notes ?? ""}
-            onChange={(e) => onChange({ notes: e.target.value })} />
-        </div>
       </div>
     </div>
   )
@@ -848,21 +840,18 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                 })}
               </div>
 
-              {/* Add another button */}
-              <button
-                type="button"
-                onClick={() => setEntries((prev) => [...prev, newEntry(mode === "shoot" ? "shoot" : "edit")])}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[13px] font-bold transition-all"
-                style={mode === "shoot"
-                  ? { background: "rgba(220,38,38,0.05)", color: "#DC2626", border: "2px dashed rgba(220,38,38,0.22)" }
-                  : { background: "rgba(99,102,241,0.05)", color: "#6366F1", border: "2px dashed rgba(99,102,241,0.22)" }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background =
-                  mode === "shoot" ? "rgba(220,38,38,0.1)" : "rgba(99,102,241,0.1)"}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background =
-                  mode === "shoot" ? "rgba(220,38,38,0.05)" : "rgba(99,102,241,0.05)"}>
-                <Plus size={15} />
-                {mode === "shoot" ? "Add Another Shoot" : "Add Another Editing Session"}
-              </button>
+              {/* Add another shoot button — editing sessions are fixed from step 2 */}
+              {mode === "shoot" && (
+                <button
+                  type="button"
+                  onClick={() => setEntries((prev) => [...prev, newEntry("shoot")])}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[13px] font-bold transition-all"
+                  style={{ background: "rgba(220,38,38,0.05)", color: "#DC2626", border: "2px dashed rgba(220,38,38,0.22)" }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.1)"}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.05)"}>
+                  <Plus size={15} /> Add Another Shoot
+                </button>
+              )}
 
               {/* Attachment links */}
               <div>

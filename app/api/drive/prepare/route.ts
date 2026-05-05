@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
-import { getOrCreateClientFolder, initResumableUpload } from '@/lib/google/drive'
+import { createClient } from '@supabase/supabase-js'
+
+function adminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,16 +22,21 @@ export async function POST(req: NextRequest) {
     }
 
     const now = new Date()
-    const year = now.getFullYear().toString()                              // "2026"
-    const month = now.toLocaleString('en-US', { month: 'long' })          // "May"
+    const year = now.getFullYear().toString()
+    const month = now.toLocaleString('en-US', { month: 'long' })
+    const storagePath = `${year}/${month}/${clientName}/${Date.now()}_${fileName}`
 
-    const folderId = await getOrCreateClientFolder(year, month, clientName)
-    const uploadUrl = await initResumableUpload(folderId, fileName, mimeType, fileSize)
+    const admin = adminSupabase()
+    const { data, error } = await admin.storage
+      .from('media-uploads')
+      .createSignedUploadUrl(storagePath)
 
-    return NextResponse.json({ uploadUrl })
+    if (error) throw new Error(error.message)
+
+    return NextResponse.json({ uploadUrl: data.signedUrl, storagePath })
   } catch (err: unknown) {
-    console.error('[drive/prepare]', err)
-    const message = err instanceof Error ? err.message : 'Drive error'
+    console.error('[upload/prepare]', err)
+    const message = err instanceof Error ? err.message : 'Upload error'
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

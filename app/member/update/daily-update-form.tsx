@@ -143,17 +143,19 @@ function DriveUploader({ clientName, onLink, label = "Upload to Drive" }: {
       const prepData = await prepRes.json()
       if (!prepRes.ok) throw new Error(prepData.error ?? "Failed to prepare upload")
 
+      const { uploadUrl, storagePath } = prepData
+
       setState("uploading")
-      const fileId = await new Promise<string>((resolve, reject) => {
+      await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest()
-        xhr.open("PUT", prepData.uploadUrl)
+        xhr.open("PUT", uploadUrl)
         xhr.setRequestHeader("Content-Type", file.type || "video/mp4")
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100))
         }
         xhr.onload = () => {
           if (xhr.status === 200 || xhr.status === 201) {
-            resolve(JSON.parse(xhr.responseText).id)
+            resolve()
           } else {
             reject(new Error(`Upload failed (${xhr.status})`))
           }
@@ -165,7 +167,7 @@ function DriveUploader({ clientName, onLink, label = "Upload to Drive" }: {
       const completeRes = await fetch("/api/drive/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileId }),
+        body: JSON.stringify({ storagePath }),
       })
       const completeData = await completeRes.json()
       if (!completeRes.ok) throw new Error(completeData.error ?? "Failed to finalise upload")
@@ -185,7 +187,7 @@ function DriveUploader({ clientName, onLink, label = "Upload to Drive" }: {
         style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)" }}>
         <CheckCircle2 size={18} style={{ color: "#16A34A", flexShrink: 0 }} />
         <div className="flex-1 min-w-0">
-          <p className="text-[12px] font-bold" style={{ color: "#16A34A" }}>Uploaded to Drive</p>
+          <p className="text-[12px] font-bold" style={{ color: "#16A34A" }}>Uploaded</p>
           <p className="text-[11px] truncate" style={{ color: "#6B7280" }}>{fileName}</p>
         </div>
         <a href={link} target="_blank" rel="noreferrer"
@@ -226,7 +228,7 @@ function DriveUploader({ clientName, onLink, label = "Upload to Drive" }: {
       <div className="rounded-xl p-3 flex items-center gap-2"
         style={{ background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.15)" }}>
         <Loader2 size={14} className="animate-spin" style={{ color: "#6366F1" }} />
-        <span className="text-[12px]" style={{ color: "#6366F1" }}>Setting up Drive folder…</span>
+        <span className="text-[12px]" style={{ color: "#6366F1" }}>Preparing upload…</span>
       </div>
     )
   }

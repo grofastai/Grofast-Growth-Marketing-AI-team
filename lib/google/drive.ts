@@ -27,17 +27,21 @@ const folderCache = new Map<string, string>() // "parentId::name" → folderId
 let rootFolderIdCache: string | null = null
 
 // ── Core helpers ──────────────────────────────────────────────
+// All calls include supportsAllDrives=true so they work with Shared Drives
 
 async function driveGet(path: string, t: string) {
-  const res = await fetch(`${DRIVE}${path}`, {
-    headers: { Authorization: `Bearer ${t}` },
-  })
+  const sep = path.includes('?') ? '&' : '?'
+  const res = await fetch(
+    `${DRIVE}${path}${sep}supportsAllDrives=true&includeItemsFromAllDrives=true`,
+    { headers: { Authorization: `Bearer ${t}` } }
+  )
   if (!res.ok) throw new Error(`Drive GET ${path}: ${await res.text()}`)
   return res.json()
 }
 
 async function drivePost(path: string, body: unknown, t: string) {
-  const res = await fetch(`${DRIVE}${path}`, {
+  const sep = path.includes('?') ? '&' : '?'
+  const res = await fetch(`${DRIVE}${path}${sep}supportsAllDrives=true`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
@@ -75,39 +79,16 @@ async function findOrCreate(name: string, parentId: string, t: string): Promise<
 
 async function getRootFolder(t: string): Promise<string> {
   if (rootFolderIdCache) return rootFolderIdCache
-  if (process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID) {
-    rootFolderIdCache = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID
-    return rootFolderIdCache
+  if (!process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID) {
+    throw new Error('GOOGLE_DRIVE_ROOT_FOLDER_ID env var is required. Set it to your Shared Drive ID.')
   }
-
-  // Search for existing MediaUploads folder
-  const q = encodeURIComponent(`name='MediaUploads' and mimeType='application/vnd.google-apps.folder' and trashed=false`)
-  const search = await driveGet(`/files?q=${q}&fields=files(id)`, t)
-
-  if (search.files?.length > 0) {
-    rootFolderIdCache = search.files[0].id
-  } else {
-    // Create root folder
-    const created = await drivePost('/files?fields=id', {
-      name: 'MediaUploads',
-      mimeType: 'application/vnd.google-apps.folder',
-    }, t)
-    rootFolderIdCache = created.id
-
-    // Make root folder public so admin can browse via link
-    await fetch(`${DRIVE}/files/${rootFolderIdCache}/permissions`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
-    })
-  }
-
-  return rootFolderIdCache!
+  rootFolderIdCache = process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID
+  return rootFolderIdCache
 }
 
 // ── Public API ────────────────────────────────────────────────
 
-/** Returns the Drive folder ID for MediaUploads / year / month / clientName */
+/** Returns the Drive folder ID for <root> / year / month / clientName */
 export async function getOrCreateClientFolder(
   year: string,
   month: string,
@@ -122,9 +103,8 @@ export async function getOrCreateClientFolder(
 }
 
 /**
- * Initiates a resumable upload session.
+ * Initiates a resumable upload session to a Shared Drive folder.
  * Returns the upload URL — browser uploads the file directly to this URL.
- * After upload, Drive returns { id, webViewLink } in the response body.
  */
 export async function initResumableUpload(
   folderId: string,
@@ -135,7 +115,7 @@ export async function initResumableUpload(
   const t = await token()
 
   const res = await fetch(
-    `${UPLOAD}/files?uploadType=resumable&fields=id,webViewLink`,
+    `${UPLOAD}/files?uploadType=resumable&fields=id,webViewLink&supportsAllDrives=true`,
     {
       method: 'POST',
       headers: {
@@ -162,7 +142,7 @@ export async function initResumableUpload(
 export async function makeFilePublic(fileId: string): Promise<string> {
   const t = await token()
 
-  await fetch(`${DRIVE}/files/${fileId}/permissions`, {
+  await fetch(`${DRIVE}/files/${fileId}/permissions?supportsAllDrives=true`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${t}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ role: 'reader', type: 'anyone' }),

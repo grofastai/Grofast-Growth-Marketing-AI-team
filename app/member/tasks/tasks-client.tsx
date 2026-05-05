@@ -87,7 +87,7 @@ export default function MemberTasksClient({
   const router = useRouter()
   const [tasks, setTasks] = useState(initialTasks)
   const [filter, setFilter]   = useState("all")
-  const [movingId, setMovingId] = useState<string | null>(null)
+  const [moving, setMoving] = useState<{ id: string; to: "todo" | "in_progress" | "completed" } | null>(null)
   const [, startTransition]   = useTransition()
 
   const today = new Date().toISOString().split("T")[0]
@@ -105,13 +105,12 @@ export default function MemberTasksClient({
 
   const displayed = filter === "all" ? tasks : tasks.filter(t => t.status === filter)
 
-  function advance(task: Task) {
-    const next = STATUS_META[task.status].next
-    setMovingId(task.id)
+  function setStatus(task: Task, next: "todo" | "in_progress" | "completed") {
+    setMoving({ id: task.id, to: next })
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: next } : t))
     startTransition(async () => {
       await updateTaskStatus(task.id, next)
-      setMovingId(null)
+      setMoving(null)
     })
   }
 
@@ -181,8 +180,8 @@ export default function MemberTasksClient({
           <div className="divide-y" style={{ borderColor: "rgba(255,107,87,0.1)" }}>
             {overdue.map(task => (
               <TaskCard key={task.id} task={task} today={today}
-                isMoving={movingId === task.id}
-                onAdvance={() => advance(task)}
+                movingTo={moving?.id === task.id ? moving.to : null}
+              onSetStatus={(s) => setStatus(task, s)}
                 onLogWork={() => logWork(task)} />
             ))}
           </div>
@@ -226,8 +225,8 @@ export default function MemberTasksClient({
         <div className="space-y-2 mb-5">
           {displayed.map(task => (
             <TaskCard key={task.id} task={task} today={today}
-              isMoving={movingId === task.id}
-              onAdvance={() => advance(task)}
+              movingTo={moving?.id === task.id ? moving.to : null}
+              onSetStatus={(s) => setStatus(task, s)}
               onLogWork={() => logWork(task)} />
           ))}
         </div>
@@ -243,151 +242,145 @@ export default function MemberTasksClient({
 
 // ── Individual task card ──────────────────────────────────────
 
+const STATUS_BUTTONS: { key: "todo" | "in_progress" | "completed"; label: string; active: React.CSSProperties; inactive: React.CSSProperties }[] = [
+  {
+    key: "todo",
+    label: "To Do",
+    active:   { background: "rgba(107,114,128,0.15)", color: "#D1D5DB",  border: "1px solid rgba(107,114,128,0.3)" },
+    inactive: { background: "transparent",            color: "#6B7280",  border: "1px solid rgba(107,114,128,0.15)" },
+  },
+  {
+    key: "in_progress",
+    label: "In Progress",
+    active:   { background: "rgba(245,158,11,0.15)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.3)" },
+    inactive: { background: "transparent",           color: "#6B7280",  border: "1px solid rgba(107,114,128,0.15)" },
+  },
+  {
+    key: "completed",
+    label: "Done",
+    active:   { background: "rgba(22,163,74,0.15)", color: "#16A34A", border: "1px solid rgba(22,163,74,0.3)" },
+    inactive: { background: "transparent",          color: "#6B7280",  border: "1px solid rgba(107,114,128,0.15)" },
+  },
+]
+
 function TaskCard({
-  task, today, isMoving, onAdvance, onLogWork,
+  task, today, movingTo, onSetStatus, onLogWork,
 }: {
   task: Task
   today: string
-  isMoving: boolean
-  onAdvance: () => void
+  movingTo: "todo" | "in_progress" | "completed" | null
+  onSetStatus: (s: "todo" | "in_progress" | "completed") => void
   onLogWork: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
-  const pr   = PRIORITY[task.priority]
-  const st   = STATUS_META[task.status]
-  const StatusIcon = st.icon
+  const pr      = PRIORITY[task.priority]
   const project = Array.isArray(task.projects) ? task.projects[0] : task.projects
   const assigner = Array.isArray(task.assigner) ? task.assigner[0] : task.assigner
-  const due  = dueDateLabel(task.due_date, today)
-  const isOverdue  = !!task.due_date && task.due_date < today && task.status !== "completed"
-  const isDone     = task.status === "completed"
+  const due     = dueDateLabel(task.due_date, today)
+  const isOverdue = !!task.due_date && task.due_date < today && task.status !== "completed"
+  const isDone    = task.status === "completed"
 
   return (
     <div className="rounded-xl overflow-hidden"
       style={{
-        background: isOverdue ? "rgba(255,107,87,0.03)" : isDone ? "rgba(220,38,38,0.02)" : "#FFFFFF",
+        background: isOverdue ? "rgba(255,107,87,0.03)" : isDone ? "rgba(22,163,74,0.02)" : "#FFFFFF",
         border: isOverdue
-          ? "1px solid rgba(255,107,87,0.15)"
+          ? "1px solid rgba(255,107,87,0.2)"
           : isDone
-          ? "1px solid rgba(220,38,38,0.1)"
+          ? "1px solid rgba(22,163,74,0.15)"
           : "1px solid #2A2A2A",
       }}>
 
-      {/* Main row */}
       <div className="p-4">
-        <div className="flex items-start gap-3">
-          {/* Status toggle */}
-          <button onClick={onAdvance} disabled={isMoving}
-            className="mt-0.5 flex-shrink-0 transition-all hover:scale-110 active:scale-95">
-            {isMoving
-              ? <Loader2 size={20} className="animate-spin" style={{ color: st.color }} />
-              : <StatusIcon size={20} style={{ color: st.color }} />
+        {/* Title row */}
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <p className={`text-[14px] font-semibold leading-snug flex-1 ${isDone ? "line-through" : ""}`}
+            style={{ color: isDone ? "#9CA3AF" : "#FFFFFF" }}>
+            {task.title}
+          </p>
+          <button onClick={() => setExpanded(v => !v)}
+            className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: "rgba(255,255,255,0.05)" }}>
+            {expanded
+              ? <ChevronUp size={13} style={{ color: "#9CA3AF" }} />
+              : <ChevronDown size={13} style={{ color: "#9CA3AF" }} />
             }
           </button>
-
-          {/* Title + meta */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <p className={`text-[14px] font-semibold leading-snug ${isDone ? "line-through" : ""}`}
-                style={{ color: isDone ? "#9CA3AF" : "#FFFFFF" }}>
-                {task.title}
-              </p>
-              {/* Expand toggle */}
-              <button onClick={() => setExpanded(v => !v)}
-                className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-                style={{ background: "rgba(255,255,255,0.05)" }}>
-                {expanded
-                  ? <ChevronUp size={13} style={{ color: "#9CA3AF" }} />
-                  : <ChevronDown size={13} style={{ color: "#9CA3AF" }} />
-                }
-              </button>
-            </div>
-
-            {/* Badges row */}
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
-              {project && (
-                <span className="text-[11px] px-2 py-0.5 rounded font-medium"
-                  style={{ background: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
-                  {project.business_name}
-                </span>
-              )}
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded"
-                style={{ background: pr.bg, color: pr.color }}>
-                {pr.label.toUpperCase()}
-              </span>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(0,0,0,0.03)", color: st.color }}>
-                {st.label}
-              </span>
-              {due && (
-                <span className="flex items-center gap-1 text-[11px] font-medium"
-                  style={{ color: due.color }}>
-                  <Calendar size={10} />{due.text}
-                </span>
-              )}
-            </div>
-          </div>
         </div>
 
-        {/* Action buttons */}
-        {!isDone && (
-          <div className="flex items-center gap-2 mt-3 pt-3"
-            style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-            <button onClick={onAdvance} disabled={isMoving}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
-              style={task.status === "todo"
-                ? { background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.15)" }
-                : { background: "rgba(245,158,11,0.08)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.15)" }
-              }>
-              {isMoving ? <Loader2 size={11} className="animate-spin" /> : <Play size={11} />}
-              {task.status === "todo" ? "Start Work" : "Mark Done"}
-            </button>
+        {/* Meta badges */}
+        <div className="flex items-center gap-2 flex-wrap mb-3">
+          {project && (
+            <span className="text-[11px] px-2 py-0.5 rounded font-medium"
+              style={{ background: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
+              {project.business_name}
+            </span>
+          )}
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded"
+            style={{ background: pr.bg, color: pr.color }}>
+            {pr.label.toUpperCase()}
+          </span>
+          {due && (
+            <span className="flex items-center gap-1 text-[11px] font-medium"
+              style={{ color: due.color }}>
+              <Calendar size={10} />{due.text}
+            </span>
+          )}
+          {isOverdue && (
+            <span className="flex items-center gap-1 text-[11px] font-bold ml-auto"
+              style={{ color: "#DC2626" }}>
+              <AlertTriangle size={11} /> Overdue
+            </span>
+          )}
+        </div>
 
-            <button onClick={onLogWork}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
-              style={{ background: "rgba(220,38,38,0.06)", color: "#B91C1C", border: "1px solid rgba(220,38,38,0.15)" }}>
-              <FileEdit size={11} /> Log Work
+        {/* Status selector — always visible */}
+        <div className="flex items-center gap-1.5 mb-3">
+          {STATUS_BUTTONS.map(btn => (
+            <button key={btn.key}
+              disabled={!!movingTo}
+              onClick={() => task.status !== btn.key && onSetStatus(btn.key)}
+              className="flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1"
+              style={task.status === btn.key ? btn.active : btn.inactive}>
+              {movingTo === btn.key
+                ? <Loader2 size={10} className="animate-spin" />
+                : task.status === btn.key && <Play size={9} />
+              }
+              {btn.label}
             </button>
+          ))}
+        </div>
 
-            {isOverdue && (
-              <span className="ml-auto flex items-center gap-1 text-[11px] font-medium"
-                style={{ color: "#DC2626" }}>
-                <AlertTriangle size={11} /> Overdue
-              </span>
-            )}
-          </div>
-        )}
+        {/* Log Work button */}
+        <button onClick={onLogWork}
+          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-bold transition-all"
+          style={{ background: "rgba(220,38,38,0.06)", color: "#B91C1C", border: "1px solid rgba(220,38,38,0.15)" }}>
+          <FileEdit size={11} /> Log Work
+        </button>
       </div>
 
-      {/* Expandable detail panel */}
+      {/* Expandable detail */}
       {expanded && (
-        <div className="px-4 pb-4 pt-0" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="px-4 pb-4" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
           <div className="rounded-xl p-4 mt-3 space-y-3"
             style={{ background: "rgba(0,0,0,0.06)" }}>
 
-            {/* Assigned by */}
             {assigner?.name && (
               <div className="flex items-center gap-2">
                 <User size={12} style={{ color: "#9CA3AF" }} />
                 <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Assigned by</span>
-                <span className="text-[12px] font-bold" style={{ color: "#E5E7EB" }}>
-                  {assigner.name}
-                </span>
+                <span className="text-[12px] font-bold" style={{ color: "#E5E7EB" }}>{assigner.name}</span>
               </div>
             )}
 
-            {/* Project */}
             {project && (
               <div className="flex items-center gap-2">
                 <Target size={12} style={{ color: "#9CA3AF" }} />
                 <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Project</span>
-                <span className="text-[12px] font-bold" style={{ color: "#E5E7EB" }}>
-                  {project.business_name}
-                </span>
+                <span className="text-[12px] font-bold" style={{ color: "#E5E7EB" }}>{project.business_name}</span>
               </div>
             )}
 
-            {/* Due date */}
             {task.due_date && (
               <div className="flex items-center gap-2">
                 <Calendar size={12} style={{ color: "#9CA3AF" }} />
@@ -398,13 +391,10 @@ function TaskCard({
               </div>
             )}
 
-            {/* Description */}
             {task.description && (
               <div>
                 <p className="text-[11px] mb-1" style={{ color: "#9CA3AF" }}>Description</p>
-                <p className="text-[13px] leading-relaxed" style={{ color: "#D1D5DB" }}>
-                  {task.description}
-                </p>
+                <p className="text-[13px] leading-relaxed" style={{ color: "#D1D5DB" }}>{task.description}</p>
               </div>
             )}
           </div>

@@ -94,8 +94,16 @@ export async function fetchSheetClients(sheetId: string, gid?: string): Promise<
   if (!res.ok) throw new Error(`Google Sheets fetch failed: ${res.status}`)
   const text = await res.text()
   const rows = parseCSV(text)
-  // Skip header row; skip rows with no company name or customer name
-  return rows.slice(1)
+
+  // Find the header row dynamically — it's the first row containing "S.NO" or "CLIENT STATUS"
+  const headerIdx = rows.findIndex(r =>
+    r.some(cell => /^s\.?no\.?$/i.test(cell.trim()) || /client.?status/i.test(cell.trim()))
+  )
+  // Start data from the row after the header, skipping any blank rows
+  const dataRows = (headerIdx >= 0 ? rows.slice(headerIdx + 1) : rows.slice(1))
+    .filter(r => r.some(cell => cell.trim()))
+
+  return dataRows
     .map(cols => ({
       sno:                 col(cols, 0),
       client_status:       col(cols, 1),

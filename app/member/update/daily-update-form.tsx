@@ -339,10 +339,27 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
         {/* Travel time */}
         <div>
           <label style={LABEL}>Travel Time</label>
-          <input className="du" style={FIELD}
-            placeholder="e.g. 45 mins, 1.5 hrs"
-            value={entry.travel_time ?? ""}
-            onChange={(e) => onChange({ travel_time: e.target.value })} />
+          <div className="relative">
+            <select
+              className="du-sel"
+              style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}
+              value={entry.travel_time ?? ""}
+              onChange={(e) => onChange({ travel_time: e.target.value })}
+            >
+              <option value="">No travel</option>
+              <option value="15 mins">15 mins</option>
+              <option value="30 mins">30 mins</option>
+              <option value="45 mins">45 mins</option>
+              <option value="1 hour">1 hour</option>
+              <option value="1.5 hours">1.5 hours</option>
+              <option value="2 hours">2 hours</option>
+              <option value="2.5 hours">2.5 hours</option>
+              <option value="3 hours">3 hours</option>
+              <option value="3+ hours">3+ hours</option>
+            </select>
+            <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
+              style={{ color: "#9CA3AF" }} />
+          </div>
         </div>
 
         {/* Expenses row */}

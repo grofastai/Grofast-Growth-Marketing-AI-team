@@ -619,75 +619,71 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
 
       {/* ── STEP 1: Type Select ─────────────────────────────── */}
       {step === "type-select" && (
-        <div className="space-y-3">
+        <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] mb-5"
             style={{ color: "#9CA3AF" }}>What did you work on today?</p>
 
-          {/* Shooting card */}
-          <button type="button" onClick={() => selectType("shoot")}
-            className="w-full flex items-center gap-4 p-5 rounded-2xl text-left transition-all group"
-            style={{ background: "rgba(220,38,38,0.04)", border: "2px solid rgba(220,38,38,0.18)" }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.09)"
-              ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(220,38,38,0.35)"
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.04)"
-              ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(220,38,38,0.18)"
-            }}>
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(220,38,38,0.12)" }}>
-              <Camera size={26} style={{ color: "#DC2626" }} />
-            </div>
-            <div className="flex-1">
-              <p className="text-[18px] font-black" style={{ color: "#DC2626" }}>Shooting</p>
-              <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>Log shoot sessions, timing, travel & expenses</p>
-            </div>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626", fontSize: 18 }}>→</div>
-          </button>
+          <div className="grid grid-cols-3 gap-4">
+            {/* Shooting */}
+            <button type="button" onClick={() => selectType("shoot")}
+              className="flex flex-col items-center justify-center gap-3 rounded-2xl transition-all"
+              style={{ aspectRatio: "1", background: "rgba(220,38,38,0.04)", border: "2px solid rgba(220,38,38,0.18)" }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.1)"
+                ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(220,38,38,0.4)"
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.04)"
+                ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(220,38,38,0.18)"
+              }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{ background: "rgba(220,38,38,0.12)" }}>
+                <Camera size={28} style={{ color: "#DC2626" }} />
+              </div>
+              <p className="text-[15px] font-black" style={{ color: "#DC2626" }}>Shooting</p>
+              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#9CA3AF" }}>Sessions, travel & expenses</p>
+            </button>
 
-          {/* Editing card */}
-          <button type="button" onClick={() => selectType("edit")}
-            className="w-full flex items-center gap-4 p-5 rounded-2xl text-left transition-all"
-            style={{ background: "rgba(99,102,241,0.04)", border: "2px solid rgba(99,102,241,0.18)" }}
-            onMouseEnter={e => {
-              (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.09)"
-              ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(99,102,241,0.35)"
-            }}
-            onMouseLeave={e => {
-              (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.04)"
-              ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(99,102,241,0.18)"
-            }}>
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(99,102,241,0.12)" }}>
-              <Scissors size={26} style={{ color: "#6366F1" }} />
-            </div>
-            <div className="flex-1">
-              <p className="text-[18px] font-black" style={{ color: "#6366F1" }}>Editing</p>
-              <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>Log videos edited, timelines & Drive uploads</p>
-            </div>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(99,102,241,0.1)", color: "#6366F1", fontSize: 18 }}>→</div>
-          </button>
+            {/* Editing */}
+            <button type="button" onClick={() => selectType("edit")}
+              className="flex flex-col items-center justify-center gap-3 rounded-2xl transition-all"
+              style={{ aspectRatio: "1", background: "rgba(99,102,241,0.04)", border: "2px solid rgba(99,102,241,0.18)" }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.1)"
+                ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(99,102,241,0.4)"
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.04)"
+                ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(99,102,241,0.18)"
+              }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{ background: "rgba(99,102,241,0.12)" }}>
+                <Scissors size={28} style={{ color: "#6366F1" }} />
+              </div>
+              <p className="text-[15px] font-black" style={{ color: "#6366F1" }}>Editing</p>
+              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#9CA3AF" }}>Videos & Drive uploads</p>
+            </button>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 py-2">
-            <div className="flex-1 h-px" style={{ background: "#E5E7EB" }} />
-            <span className="text-[11px]" style={{ color: "#9CA3AF" }}>or</span>
-            <div className="flex-1 h-px" style={{ background: "#E5E7EB" }} />
+            {/* Learning */}
+            <button type="button" onClick={() => selectType("learning")}
+              className="flex flex-col items-center justify-center gap-3 rounded-2xl transition-all"
+              style={{ aspectRatio: "1", background: "#F8F9FA", border: "2px solid #E5E7EB" }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.background = "#F1F5F9"
+                ;(e.currentTarget as HTMLElement).style.borderColor = "#D1D5DB"
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.background = "#F8F9FA"
+                ;(e.currentTarget as HTMLElement).style.borderColor = "#E5E7EB"
+              }}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{ background: "rgba(0,0,0,0.05)" }}>
+                <BookOpen size={28} style={{ color: "#6B7280" }} />
+              </div>
+              <p className="text-[15px] font-black" style={{ color: "#6B7280" }}>Learning</p>
+              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#9CA3AF" }}>Study & skill building</p>
+            </button>
           </div>
-
-          {/* Learning */}
-          <button type="button" onClick={() => selectType("learning")}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
-            style={{ background: "#F8F9FA", border: "1px solid #E5E7EB" }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F1F5F9"}
-            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "#F8F9FA"}>
-            <BookOpen size={16} style={{ color: "#9CA3AF" }} />
-            <span className="text-[13px] font-semibold" style={{ color: "#6B7280" }}>Learning Day</span>
-            <span className="ml-auto text-[11px]" style={{ color: "#D1D5DB" }}>→</span>
-          </button>
         </div>
       )}
 

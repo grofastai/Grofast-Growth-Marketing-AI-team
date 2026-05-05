@@ -51,6 +51,15 @@
   --color-ink-light:      rgba(255,255,255,0.22);
   --color-border-dark:    #2A2A2A;
 
+  /* shadcn/ui compatibility tokens */
+  --color-card-foreground:        #FFFFFF;
+  --color-primary-foreground:     #FFFFFF;
+  --color-secondary:              #1A1A1A;
+  --color-secondary-foreground:   #FFFFFF;
+  --color-muted:                  #1A1A1A;
+  --color-muted-foreground:       rgba(255,255,255,0.45);
+  --color-ring:                   #DC2626;
+
   /* Sidebar — brand crimson gradient */
   --color-sidebar:        #000000;
   --color-sidebar-hover:  rgba(255,255,255,0.07);

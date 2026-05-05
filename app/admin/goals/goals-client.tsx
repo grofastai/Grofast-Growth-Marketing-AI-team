@@ -3,9 +3,10 @@
 import { useState, useTransition, useActionState } from "react"
 import {
   Plus, X, Trash2, Loader2, Target, Calendar, Users,
-  LayoutGrid, Columns, CheckCircle2, Clock, Circle,
+  LayoutGrid, Columns, CheckCircle2, Clock, Circle, Orbit,
 } from "lucide-react"
 import { createTask, updateTaskStatus, deleteTask } from "@/lib/actions/tasks"
+import RadialOrbitalTimeline from "@/components/ui/radial-orbital-timeline"
 
 interface Task {
   id: string
@@ -156,7 +157,7 @@ export default function GoalsClient({
 }) {
   const [tasks, setTasks] = useState(initialTasks)
   const [showForm, setShowForm] = useState(false)
-  const [viewMode, setViewMode] = useState<"member" | "status">("member")
+  const [viewMode, setViewMode] = useState<"member" | "status" | "orbital">("member")
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
   const [isPending, startTransition] = useTransition()
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -252,6 +253,13 @@ export default function GoalsClient({
                 ? { background: "#FFFFFF", color: "#DC2626", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
                 : { color: "#6B7280" }}>
               <Columns size={12} /> By Status
+            </button>
+            <button onClick={() => setViewMode("orbital")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
+              style={viewMode === "orbital"
+                ? { background: "#0B0B0B", color: "#DC2626", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
+                : { color: "#6B7280" }}>
+              <Orbit size={12} /> Orbital
             </button>
           </div>
 
@@ -501,6 +509,50 @@ export default function GoalsClient({
           </div>
         </div>
       )}
+
+      {/* ── Orbital View ─────────────────────────────────────── */}
+      {viewMode === "orbital" && (() => {
+        const orbitalData = tasks.map((task, index) => {
+          const statusMap = {
+            todo:        "pending"     as const,
+            in_progress: "in-progress" as const,
+            completed:   "completed"   as const,
+          }
+          const energyMap = {
+            high:   task.status === "completed" ? 100 : 85,
+            medium: task.status === "completed" ? 100 : 55,
+            low:    task.status === "completed" ? 100 : 25,
+          }
+          const iconMap = {
+            todo:        Circle,
+            in_progress: Clock,
+            completed:   CheckCircle2,
+          }
+          const project = Array.isArray(task.projects) ? task.projects[0] : task.projects
+          const relatedIds = tasks
+            .map((t, i) => {
+              const p = Array.isArray(t.projects) ? t.projects[0] : t.projects
+              return { idx: i + 1, projectId: p?.id }
+            })
+            .filter(t => t.idx !== index + 1 && project?.id && t.projectId === project?.id)
+            .map(t => t.idx)
+
+          return {
+            id: index + 1,
+            title: task.title.length > 18 ? task.title.slice(0, 16) + "…" : task.title,
+            date: task.due_date
+              ? new Date(task.due_date + "T12:00:00").toLocaleDateString("en-US", { day: "numeric", month: "short" })
+              : "No date",
+            content: task.description || project?.business_name || "No description provided.",
+            category: project?.business_name || "General",
+            icon: iconMap[task.status],
+            relatedIds,
+            status: statusMap[task.status],
+            energy: energyMap[task.priority],
+          }
+        })
+        return <RadialOrbitalTimeline timelineData={orbitalData} />
+      })()}
 
       {/* ── By Status View ────────────────────────────────────── */}
       {viewMode === "status" && (

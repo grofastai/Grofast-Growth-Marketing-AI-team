@@ -87,8 +87,9 @@ function col(cols: string[], idx: number): string {
   return (cols[idx] ?? "").trim()
 }
 
-export async function fetchSheetClients(sheetId: string): Promise<SheetClient[]> {
-  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv`
+export async function fetchSheetClients(sheetId: string, gid?: string): Promise<SheetClient[]> {
+  const gidParam = gid ? `&gid=${gid}` : ""
+  const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv${gidParam}`
   const res = await fetch(url, { next: { revalidate: 60 } })
   if (!res.ok) throw new Error(`Google Sheets fetch failed: ${res.status}`)
   const text = await res.text()

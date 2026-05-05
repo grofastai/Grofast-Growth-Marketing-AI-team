@@ -25,13 +25,14 @@ export default async function ClientsPage() {
   if (!profile) redirect("/login")
 
   const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
+  const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
   const sheetUrl = process.env.GOOGLE_CLIENTS_SHEET_URL ?? null
 
   // If a Google Sheet ID is configured, read from there (read-only)
   if (sheetId) {
     let clients: Awaited<ReturnType<typeof fetchSheetClients>> = []
     try {
-      clients = await fetchSheetClients(sheetId)
+      clients = await fetchSheetClients(sheetId, sheetGid)
     } catch (err) {
       console.error("[ClientsPage] Failed to fetch Google Sheet:", err)
     }

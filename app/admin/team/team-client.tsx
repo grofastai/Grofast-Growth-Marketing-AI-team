@@ -27,6 +27,10 @@ interface Member {
   status: "active" | "inactive"
   team: string | null
   created_at: string
+  employment_type: "regular" | "irregular" | null
+  monthly_salary: number | null
+  hourly_rate: number | null
+  paid_leave_days: number | null
 }
 
 function getInitials(name: string) {
@@ -67,6 +71,10 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
     role: (member?.role ?? "MEMBER") as "ADMIN" | "MEMBER",
     team: member?.team ?? "",
     password: "",
+    employment_type: (member?.employment_type ?? "regular") as "regular" | "irregular",
+    monthly_salary: member?.monthly_salary?.toString() ?? "",
+    hourly_rate: member?.hourly_rate?.toString() ?? "",
+    paid_leave_days: member?.paid_leave_days?.toString() ?? "5",
   })
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
@@ -79,9 +87,15 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
   function handleSubmit() {
     setError("")
     startTransition(async () => {
+      const salaryFields = {
+        employment_type: form.employment_type,
+        monthly_salary: form.employment_type === "regular" && form.monthly_salary ? parseFloat(form.monthly_salary) : null,
+        hourly_rate: form.employment_type === "irregular" && form.hourly_rate ? parseFloat(form.hourly_rate) : null,
+        paid_leave_days: form.employment_type === "regular" ? (parseInt(form.paid_leave_days) || 5) : 0,
+      }
       const result = isEdit
-        ? await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team })
-        : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, password: form.password })
+        ? await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, ...salaryFields })
+        : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, password: form.password, ...salaryFields })
 
       if (result.success) {
         router.refresh()
@@ -186,6 +200,61 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
               ))}
             </div>
           </div>
+
+          {/* Employment Type */}
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
+              style={{ color: "#9CA3AF" }}>Employment Type *</label>
+            <div className="flex gap-3">
+              {(["regular", "irregular"] as const).map((t) => (
+                <button key={t} type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, employment_type: t, monthly_salary: "", hourly_rate: "", paid_leave_days: t === "regular" ? "5" : "0" }))}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-all capitalize"
+                  style={form.employment_type === t
+                    ? { background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(220,38,38,0.3)" }
+                    : { background: "rgba(0,0,0,0.03)", color: "#9CA3AF", border: "1px solid #E5E7EB" }
+                  }>
+                  {t}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] mt-1.5" style={{ color: "#D1D5DB" }}>
+              {form.employment_type === "regular"
+                ? "9 hrs/day · Mon–Fri · 5 paid leaves/month"
+                : "Calculated purely on hours worked"}
+            </p>
+          </div>
+
+          {/* Salary fields */}
+          {form.employment_type === "regular" ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
+                  style={{ color: "#9CA3AF" }}>Monthly Salary (₹)</label>
+                <input type="number" min="0" step="500" className="sheet-input" style={FIELD}
+                  placeholder="e.g. 15000"
+                  value={form.monthly_salary}
+                  onChange={(e) => setForm((prev) => ({ ...prev, monthly_salary: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
+                  style={{ color: "#9CA3AF" }}>Paid Leave Days/Month</label>
+                <input type="number" min="0" max="30" step="1" className="sheet-input" style={FIELD}
+                  placeholder="5"
+                  value={form.paid_leave_days}
+                  onChange={(e) => setForm((prev) => ({ ...prev, paid_leave_days: e.target.value }))} />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
+                style={{ color: "#9CA3AF" }}>Hourly Rate (₹)</label>
+              <input type="number" min="0" step="10" className="sheet-input" style={FIELD}
+                placeholder="e.g. 150"
+                value={form.hourly_rate}
+                onChange={(e) => setForm((prev) => ({ ...prev, hourly_rate: e.target.value }))} />
+            </div>
+          )}
 
           {/* Password */}
           {!isEdit && (

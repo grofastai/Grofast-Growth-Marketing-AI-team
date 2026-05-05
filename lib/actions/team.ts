@@ -97,6 +97,10 @@ export async function createMember(input: {
   role: 'ADMIN' | 'MEMBER'
   team: string
   password: string
+  employment_type?: 'regular' | 'irregular'
+  monthly_salary?: number | null
+  hourly_rate?: number | null
+  paid_leave_days?: number
 }): Promise<{ success: boolean; error?: string }> {
   if (!input.name || !input.employee_id || !input.email || !input.password) {
     return { success: false, error: 'Name, Employee ID, Email and Password are required' }
@@ -165,6 +169,10 @@ export async function createMember(input: {
     team: input.team || null,
     status: 'active',
     must_change_password: true,
+    employment_type: input.employment_type ?? 'regular',
+    monthly_salary: input.monthly_salary ?? null,
+    hourly_rate: input.hourly_rate ?? null,
+    paid_leave_days: input.paid_leave_days ?? 5,
   })
 
   if (insertError) {
@@ -229,6 +237,10 @@ export async function updateMember(input: {
   phone: string
   role: 'ADMIN' | 'MEMBER'
   team: string
+  employment_type?: 'regular' | 'irregular'
+  monthly_salary?: number | null
+  hourly_rate?: number | null
+  paid_leave_days?: number
 }): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -237,7 +249,17 @@ export async function updateMember(input: {
   const admin = adminSupabase()
   const { error } = await admin
     .from('users')
-    .update({ name: input.name, email: input.email || null, phone: input.phone || null, role: input.role, team: input.team || null })
+    .update({
+      name: input.name,
+      email: input.email || null,
+      phone: input.phone || null,
+      role: input.role,
+      team: input.team || null,
+      employment_type: input.employment_type ?? 'regular',
+      monthly_salary: input.monthly_salary ?? null,
+      hourly_rate: input.hourly_rate ?? null,
+      paid_leave_days: input.paid_leave_days ?? 5,
+    })
     .eq('id', input.id)
 
   if (error) return { success: false, error: error.message }

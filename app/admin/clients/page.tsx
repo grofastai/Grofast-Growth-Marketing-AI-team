@@ -1,9 +1,10 @@
-export const revalidate = 30
+export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import ProjectsClient from "@/app/admin/projects/projects-client"
+import { fetchSheetClients } from "@/lib/google/sheets"
 
 function adminClient() {
   return createClient(
@@ -22,8 +23,22 @@ export default async function ClientsPage() {
   const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
   if (!profile) redirect("/login")
 
-  const cid = profile.company_id
+  const sheetId = process.env.GOOGLE_CLIENTS_SHEET_ID
 
+  // If a Google Sheet ID is configured, read from there (read-only mode)
+  if (sheetId) {
+    let projects: Awaited<ReturnType<typeof fetchSheetClients>> = []
+    try {
+      projects = await fetchSheetClients(sheetId)
+    } catch (err) {
+      console.error("[ClientsPage] Failed to fetch Google Sheet:", err)
+    }
+    const sheetUrl = process.env.GOOGLE_CLIENTS_SHEET_URL ?? null
+    return <ProjectsClient projects={projects} taskStats={{}} readOnly sheetUrl={sheetUrl} />
+  }
+
+  // Fallback: read from Supabase
+  const cid = profile.company_id
   const [{ data: projects }, { data: tasks }] = await Promise.all([
     admin.from("projects")
       .select("id, business_name, client_name, location, service_types, status, package_name, start_month, end_month, progress_pct, created_at")
@@ -35,7 +50,6 @@ export default async function ClientsPage() {
       .not("project_id", "is", null),
   ])
 
-  // Task counts per project
   const taskStats: Record<string, { total: number; completed: number; active: number }> = {}
   for (const t of tasks ?? []) {
     if (!t.project_id) continue

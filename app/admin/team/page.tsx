@@ -24,11 +24,15 @@ export default async function TeamPage() {
 
   if (!profile) redirect('/login')
 
-  const { data: members } = await admin
+  const { data: members, error: membersError } = await admin
     .from('users')
     .select('id, name, employee_id, role, email, phone, status, team, created_at, employment_type, monthly_salary, hourly_rate, paid_leave_days')
     .eq('company_id', profile.company_id)
     .order('created_at', { ascending: true })
+
+  if (membersError) {
+    console.error('[TeamPage] members query failed:', membersError.message)
+  }
 
   return <TeamClient members={members ?? []} />
 }

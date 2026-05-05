@@ -345,9 +345,13 @@ function DeleteConfirm({ project, onCancel }: { project: Project; onCancel: () =
 export default function ProjectsClient({
   projects,
   taskStats = {},
+  readOnly = false,
+  sheetUrl = null,
 }: {
   projects: Project[]
   taskStats?: Record<string, TaskStats>
+  readOnly?: boolean
+  sheetUrl?: string | null
 }) {
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "completed" | "on_hold">("ALL")
@@ -386,13 +390,25 @@ export default function ProjectsClient({
           <h1 className="gradient-heading text-[28px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
             Clients
           </h1>
-          <p className="text-sm mt-1" style={{ color: "rgba(17,24,39,0.4)" }}>Track and manage all client engagements.</p>
+          <p className="text-sm mt-1" style={{ color: "rgba(17,24,39,0.4)" }}>
+            {readOnly ? "Client list synced from Google Sheets — edit the sheet to make changes." : "Track and manage all client engagements."}
+          </p>
         </div>
-        <button onClick={() => { setEditProject(null); setSheetOpen(true) }}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
-          style={{ background: "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)", color: "#FFFFFF" }}>
-          <Plus size={14} /> Add Client
-        </button>
+        {readOnly ? (
+          sheetUrl ? (
+            <a href={sheetUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
+              style={{ background: "#F0FDF4", border: "1px solid rgba(22,163,74,0.3)", color: "#16A34A" }}>
+              <ArrowRight size={14} /> Open Sheet
+            </a>
+          ) : null
+        ) : (
+          <button onClick={() => { setEditProject(null); setSheetOpen(true) }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
+            style={{ background: "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)", color: "#FFFFFF" }}>
+            <Plus size={14} /> Add Client
+          </button>
+        )}
       </div>
 
       {/* Stats */}
@@ -464,7 +480,7 @@ export default function ProjectsClient({
           <p className="text-[14px] font-semibold" style={{ color: "#9CA3AF" }}>
             {projects.length === 0 ? "No clients yet" : "No clients match your filter"}
           </p>
-          {projects.length === 0 && (
+          {projects.length === 0 && !readOnly && (
             <button onClick={() => { setEditProject(null); setSheetOpen(true) }}
               className="mt-5 px-5 py-2.5 rounded-xl text-[13px] font-bold"
               style={{ background: "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)", color: "#FFFFFF" }}>
@@ -531,28 +547,30 @@ export default function ProjectsClient({
                       </div>
                     )}
                   </div>
-                  <div className="relative ml-2 flex-shrink-0">
-                    <button onClick={() => setOpenDropdown(openDropdown === project.id ? null : project.id)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ background: "#F3F4F6" }}>
-                      <MoreVertical size={14} style={{ color: "#6B7280" }} />
-                    </button>
-                    {openDropdown === project.id && (
-                      <div className="absolute right-0 top-9 w-36 rounded-xl overflow-hidden py-1 z-20"
-                        style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
-                        <button onClick={() => { setEditProject(project); setSheetOpen(true); setOpenDropdown(null) }}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all hover:bg-gray-50"
-                          style={{ color: "#374151" }}>
-                          <Pencil size={12} /> Edit
-                        </button>
-                        <button onClick={() => { setDeleteTarget(project); setOpenDropdown(null) }}
-                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all hover:bg-red-50"
-                          style={{ color: "#DC2626" }}>
-                          <Trash2 size={12} /> Delete
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  {!readOnly && (
+                    <div className="relative ml-2 flex-shrink-0">
+                      <button onClick={() => setOpenDropdown(openDropdown === project.id ? null : project.id)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{ background: "#F3F4F6" }}>
+                        <MoreVertical size={14} style={{ color: "#6B7280" }} />
+                      </button>
+                      {openDropdown === project.id && (
+                        <div className="absolute right-0 top-9 w-36 rounded-xl overflow-hidden py-1 z-20"
+                          style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+                          <button onClick={() => { setEditProject(project); setSheetOpen(true); setOpenDropdown(null) }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all hover:bg-gray-50"
+                            style={{ color: "#374151" }}>
+                            <Pencil size={12} /> Edit
+                          </button>
+                          <button onClick={() => { setDeleteTarget(project); setOpenDropdown(null) }}
+                            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all hover:bg-red-50"
+                            style={{ color: "#DC2626" }}>
+                            <Trash2 size={12} /> Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Client + Location + Package + Period */}
@@ -624,12 +642,14 @@ export default function ProjectsClient({
                   </p>
                 </div>
 
-                {/* View Details */}
-                <Link href={`/admin/clients/${project.id}`}
-                  className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-[12px] font-semibold transition-all hover:opacity-90"
-                  style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)", color: "#DC2626" }}>
-                  View Details <ArrowRight size={12} />
-                </Link>
+                {/* View Details — only for Supabase-backed clients */}
+                {!readOnly && (
+                  <Link href={`/admin/clients/${project.id}`}
+                    className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-[12px] font-semibold transition-all hover:opacity-90"
+                    style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)", color: "#DC2626" }}>
+                    View Details <ArrowRight size={12} />
+                  </Link>
+                )}
               </div>
             )
           })}
@@ -637,8 +657,8 @@ export default function ProjectsClient({
       )}
 
       {openDropdown && <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />}
-      <ProjectSheet key={editProject?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} project={editProject} />
-      {deleteTarget && <DeleteConfirm project={deleteTarget} onCancel={() => setDeleteTarget(null)} />}
+      {!readOnly && <ProjectSheet key={editProject?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} project={editProject} />}
+      {!readOnly && deleteTarget && <DeleteConfirm project={deleteTarget} onCancel={() => setDeleteTarget(null)} />}
     </div>
   )
 }

@@ -532,11 +532,6 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
     }
   }
 
-  function addLink() {
-    const v = newLink.trim()
-    if (v) { setLinks((prev) => [...prev, v]); setNewLink("") }
-  }
-
   function validate(): string | null {
     for (let i = 0; i < entries.length; i++) {
       const e = entries[i]

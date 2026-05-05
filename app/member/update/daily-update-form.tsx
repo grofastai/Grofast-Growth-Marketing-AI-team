@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   Plus, Trash2, Loader2, BookOpen,
-  Camera, Film, Link2, ChevronDown,
+  Camera, Film, ChevronDown,
   CheckCircle2, XCircle, AlertCircle,
   FolderOpen, ArrowLeft, Scissors,
 } from "lucide-react"
@@ -493,8 +493,6 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
 
   // Form data
   const [entries, setEntries] = useState<WorkEntryInput[]>([])
-  const [links, setLinks] = useState<string[]>([])
-  const [newLink, setNewLink] = useState("")
   const [learningTopic, setLearningTopic] = useState("")
   const [learningHours, setLearningHours] = useState("")
   const [learningNotes, setLearningNotes] = useState("")
@@ -515,6 +513,12 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
     setMode(m)
     setError(null)
     if (m === "learning") {
+      setStep("form")
+    } else if (m === "edit") {
+      // Skip count-select — start with 1 session + 1 video pre-added
+      const session = newEntry("edit")
+      session.editing_videos = [newEditingVideo()]
+      setEntries([session])
       setStep("form")
     } else {
       setStep("count-select")
@@ -588,7 +592,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
       const result = await submitDailyUpdate({
         active_tab: tab,
         work_entries: tab === "working" ? entries : [],
-        links,
+        links: [],
         shoot_count: entries.filter((e) => e.task_type === "shoot").length,
         editing_count: entries.filter((e) => e.task_type === "edit").length,
         learning_topic: learningTopic || undefined,
@@ -849,36 +853,6 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                 </button>
               )}
 
-              {/* Attachment links */}
-              <div>
-                <label style={LABEL}>Attachment Links</label>
-                <div className="flex gap-2 mb-2">
-                  <input className="du flex-1" style={FIELD}
-                    placeholder="Paste Drive / Figma / GitHub link…"
-                    value={newLink}
-                    onChange={(e) => setNewLink(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addLink())} />
-                  <button type="button" onClick={addLink}
-                    className="px-3 rounded-lg text-[12px] font-bold"
-                    style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.15)" }}>
-                    <Plus size={14} />
-                  </button>
-                </div>
-                {links.length > 0 && (
-                  <div className="space-y-1.5">
-                    {links.map((lnk, i) => (
-                      <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg"
-                        style={{ background: "#F8F9FA", border: "1px solid #E5E7EB" }}>
-                        <Link2 size={12} style={{ color: "#9CA3AF" }} />
-                        <span className="flex-1 text-[12px] truncate" style={{ color: "#4B5563" }}>{lnk}</span>
-                        <button type="button" onClick={() => setLinks((p) => p.filter((_, idx) => idx !== i))}>
-                          <Trash2 size={11} style={{ color: "rgba(220,38,38,0.5)" }} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </>
           )}
 

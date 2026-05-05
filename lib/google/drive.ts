@@ -148,6 +148,11 @@ export async function initResumableUpload(
     }
   )
 
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Drive resumable upload init failed (${res.status}): ${body}`)
+  }
+
   const uploadUrl = res.headers.get('Location')
   if (!uploadUrl) throw new Error('Drive did not return a resumable upload URL')
   return uploadUrl

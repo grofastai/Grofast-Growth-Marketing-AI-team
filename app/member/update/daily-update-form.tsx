@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useTransition, useRef } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   Plus, Trash2, Loader2, BookOpen,
-  Camera, Film, Upload, Link2, ChevronDown,
+  Camera, Film, Link2, ChevronDown,
   CheckCircle2, XCircle, AlertCircle,
-  FolderOpen, ExternalLink, ArrowLeft, Scissors,
+  FolderOpen, ArrowLeft, Scissors,
 } from "lucide-react"
 import { submitDailyUpdate } from "@/lib/actions/daily-updates"
 import type { WorkEntryInput, EditingVideo } from "@/lib/validations/daily-update"
@@ -108,163 +108,6 @@ function ClientSelect({ projects, value, onChange, required }: {
   )
 }
 
-// ── Drive uploader ─────────────────────────────────────────────
-type UploadState = "idle" | "preparing" | "uploading" | "done" | "error"
-
-function DriveUploader({ clientName, onLink, label = "Upload to Drive" }: {
-  clientName: string
-  onLink: (link: string) => void
-  label?: string
-}) {
-  const fileRef = useRef<HTMLInputElement>(null)
-  const [state, setState] = useState<UploadState>("idle")
-  const [progress, setProgress] = useState(0)
-  const [fileName, setFileName] = useState("")
-  const [link, setLink] = useState("")
-  const [errMsg, setErrMsg] = useState("")
-
-  async function handleFile(file: File) {
-    if (!file) return
-    setFileName(file.name)
-    setState("preparing")
-    setErrMsg("")
-
-    try {
-      const prepRes = await fetch("/api/drive/prepare", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientName: clientName || "Uncategorized",
-          fileName: file.name,
-          mimeType: file.type || "video/mp4",
-          fileSize: file.size,
-        }),
-      })
-      const prepData = await prepRes.json()
-      if (!prepRes.ok) throw new Error(prepData.error ?? "Failed to prepare upload")
-
-      const { uploadUrl, storagePath } = prepData
-
-      setState("uploading")
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-        xhr.open("PUT", uploadUrl)
-        xhr.setRequestHeader("Content-Type", file.type || "video/mp4")
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100))
-        }
-        xhr.onload = () => {
-          if (xhr.status === 200 || xhr.status === 201) {
-            resolve()
-          } else {
-            reject(new Error(`Upload failed (${xhr.status})`))
-          }
-        }
-        xhr.onerror = () => reject(new Error("Network error during upload"))
-        xhr.send(file)
-      })
-
-      const completeRes = await fetch("/api/drive/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ storagePath }),
-      })
-      const completeData = await completeRes.json()
-      if (!completeRes.ok) throw new Error(completeData.error ?? "Failed to finalise upload")
-
-      setLink(completeData.driveLink)
-      onLink(completeData.driveLink)
-      setState("done")
-    } catch (err: unknown) {
-      setErrMsg(err instanceof Error ? err.message : "Upload failed")
-      setState("error")
-    }
-  }
-
-  if (state === "done") {
-    return (
-      <div className="rounded-xl p-3 flex items-center gap-3"
-        style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)" }}>
-        <CheckCircle2 size={18} style={{ color: "#16A34A", flexShrink: 0 }} />
-        <div className="flex-1 min-w-0">
-          <p className="text-[12px] font-bold" style={{ color: "#16A34A" }}>Uploaded</p>
-          <p className="text-[11px] truncate" style={{ color: "#6B7280" }}>{fileName}</p>
-        </div>
-        <a href={link} target="_blank" rel="noreferrer"
-          className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg"
-          style={{ background: "rgba(34,197,94,0.12)", color: "#16A34A", border: "1px solid rgba(34,197,94,0.2)" }}>
-          <ExternalLink size={11} /> View
-        </a>
-        <button type="button" onClick={() => { setState("idle"); setLink(""); setFileName(""); setProgress(0) }}
-          className="text-[11px] px-2 py-1.5 rounded-lg"
-          style={{ color: "#9CA3AF", border: "1px solid #E5E7EB" }}>
-          Replace
-        </button>
-      </div>
-    )
-  }
-
-  if (state === "uploading") {
-    return (
-      <div className="rounded-xl p-3 space-y-2"
-        style={{ background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.15)" }}>
-        <div className="flex items-center gap-2">
-          <Loader2 size={14} className="animate-spin" style={{ color: "#6366F1" }} />
-          <span className="text-[12px] font-semibold" style={{ color: "#6366F1" }}>
-            Uploading… {progress}%
-          </span>
-        </div>
-        <div className="rounded-full overflow-hidden" style={{ background: "#E5E7EB", height: 6 }}>
-          <div className="h-full rounded-full transition-all"
-            style={{ width: `${progress}%`, background: "linear-gradient(90deg, #6366F1, #8B5CF6)" }} />
-        </div>
-        <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{fileName}</p>
-      </div>
-    )
-  }
-
-  if (state === "preparing") {
-    return (
-      <div className="rounded-xl p-3 flex items-center gap-2"
-        style={{ background: "rgba(99,102,241,0.04)", border: "1px solid rgba(99,102,241,0.15)" }}>
-        <Loader2 size={14} className="animate-spin" style={{ color: "#6366F1" }} />
-        <span className="text-[12px]" style={{ color: "#6366F1" }}>Preparing upload…</span>
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      <input ref={fileRef} type="file" accept="video/*,image/*" className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
-      {state === "error" && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg mb-2"
-          style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)" }}>
-          <AlertCircle size={13} style={{ color: "#DC2626" }} />
-          <span className="text-[12px]" style={{ color: "#DC2626" }}>{errMsg}</span>
-        </div>
-      )}
-      <button type="button" onClick={() => fileRef.current?.click()}
-        className="w-full flex flex-col items-center justify-center gap-2 py-5 rounded-xl transition-all"
-        style={{ border: "2px dashed rgba(220,38,38,0.25)", background: "rgba(220,38,38,0.02)" }}
-        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.06)"}
-        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.02)"}>
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: "rgba(220,38,38,0.1)" }}>
-          <Upload size={16} style={{ color: "#DC2626" }} />
-        </div>
-        <div className="text-center">
-          <p className="text-[12px] font-bold" style={{ color: "#DC2626" }}>
-            {label}
-          </p>
-          <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>
-            → Drive: {new Date().getFullYear()} / {new Date().toLocaleString("en-US", { month: "long" })} / {clientName || "Client"}
-          </p>
-        </div>
-      </button>
-    </div>
-  )
-}
 
 // ── Shoot card ─────────────────────────────────────────────────
 function ShootCard({ entry, i, projects, onChange, onRemove }: {
@@ -382,38 +225,18 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
           </div>
         </div>
 
-        {/* Clip upload */}
+        {/* Screenshot link */}
         <div>
-          <label style={{ ...LABEL, marginBottom: "10px" }}>
-            Upload Clips <span style={{ color: "#9CA3AF", fontWeight: 400, textTransform: "none", fontSize: "11px" }}>(optional)</span>
+          <label style={LABEL}>
+            Screenshot Link <span style={{ color: "#9CA3AF", fontWeight: 400, textTransform: "none", fontSize: "11px" }}>(optional)</span>
           </label>
-          {entry.screenshot_url ? (
-            <div className="rounded-xl p-3 flex items-center gap-3"
-              style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)" }}>
-              <CheckCircle2 size={18} style={{ color: "#16A34A", flexShrink: 0 }} />
-              <div className="flex-1 min-w-0">
-                <p className="text-[12px] font-bold" style={{ color: "#16A34A" }}>Clips uploaded to Drive</p>
-                <p className="text-[11px] truncate" style={{ color: "#6B7280" }}>{entry.screenshot_url}</p>
-              </div>
-              <a href={entry.screenshot_url} target="_blank" rel="noreferrer"
-                className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg"
-                style={{ background: "rgba(34,197,94,0.12)", color: "#16A34A", border: "1px solid rgba(34,197,94,0.2)" }}>
-                <ExternalLink size={11} /> View
-              </a>
-              <button type="button"
-                onClick={() => onChange({ screenshot_url: "", video_uploaded: false })}
-                className="text-[11px] px-2 py-1.5 rounded-lg"
-                style={{ color: "#9CA3AF", border: "1px solid #E5E7EB" }}>
-                Replace
-              </button>
-            </div>
-          ) : (
-            <DriveUploader
-              clientName={entry.client_name}
-              label="Upload Shoot Clips"
-              onLink={(link) => onChange({ screenshot_url: link, video_uploaded: true })}
-            />
-          )}
+          <input
+            className="du"
+            style={FIELD}
+            placeholder="Paste WhatsApp, Google Photos or any screenshot link…"
+            value={entry.screenshot_url ?? ""}
+            onChange={(e) => onChange({ screenshot_url: e.target.value, video_uploaded: !!e.target.value })}
+          />
         </div>
 
         {/* Notes */}
@@ -561,29 +384,15 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
         <div className="space-y-1.5">
           <label style={{ ...LABEL, color: "#16A34A", marginBottom: 2 }}>
             <FolderOpen size={10} style={{ display: "inline", marginRight: 4 }} />
-            Upload Final Video <span style={{ color: "#DC2626" }}>*</span>
+            Final Video Link <span style={{ color: "#DC2626" }}>*</span>
           </label>
-          {video.drive_link ? (
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
-              style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)" }}>
-              <CheckCircle2 size={14} style={{ color: "#16A34A" }} />
-              <span className="flex-1 text-[11px] truncate" style={{ color: "#374151" }}>{video.drive_link}</span>
-              <a href={video.drive_link} target="_blank" rel="noreferrer"
-                className="text-[11px] font-semibold px-2 py-1 rounded-lg"
-                style={{ color: "#16A34A", border: "1px solid rgba(34,197,94,0.3)" }}>
-                <ExternalLink size={11} />
-              </a>
-              <button type="button" onClick={() => onChange({ drive_link: "" })}
-                className="text-[11px] px-2 py-1 rounded-lg"
-                style={{ color: "#9CA3AF", border: "1px solid #E5E7EB" }}>Replace</button>
-            </div>
-          ) : (
-            <DriveUploader
-              clientName={video.client_name}
-              label="Upload Final Video"
-              onLink={(link) => onChange({ drive_link: link })}
-            />
-          )}
+          <input
+            className="du"
+            style={FIELD}
+            placeholder="Paste Google Drive, WhatsApp or any video link…"
+            value={video.drive_link ?? ""}
+            onChange={(e) => onChange({ drive_link: e.target.value })}
+          />
         </div>
       )}
     </div>

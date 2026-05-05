@@ -24,19 +24,17 @@ export default async function ClientsPage() {
   const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
   if (!profile) redirect("/login")
 
-  const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
-  const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
-  const sheetUrl = process.env.GOOGLE_CLIENTS_SHEET_URL ?? null
+  const sheetId      = process.env.GOOGLE_CLIENTS_SHEET_ID
+  const sheetGid     = process.env.GOOGLE_CLIENTS_SHEET_GID
+  const pastGid      = process.env.GOOGLE_PAST_CLIENTS_SHEET_GID
 
   // If a Google Sheet ID is configured, read from there (read-only)
   if (sheetId) {
-    let clients: Awaited<ReturnType<typeof fetchSheetClients>> = []
-    try {
-      clients = await fetchSheetClients(sheetId, sheetGid)
-    } catch (err) {
-      console.error("[ClientsPage] Failed to fetch Google Sheet:", err)
-    }
-    return <ClientsSheetView clients={clients} />
+    const [activeClients, pastClients] = await Promise.all([
+      fetchSheetClients(sheetId, sheetGid).catch(() => []),
+      pastGid ? fetchSheetClients(sheetId, pastGid).catch(() => []) : Promise.resolve([]),
+    ])
+    return <ClientsSheetView activeClients={activeClients} pastClients={pastClients} />
   }
 
   // Fallback: read from Supabase (editable)

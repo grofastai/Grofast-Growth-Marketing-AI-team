@@ -1,8 +1,17 @@
 export const revalidate = 30
 
 import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import MemberTasksClient from "./tasks-client"
+
+function adminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export default async function MemberTasksPage() {
   const supabase = await createServerClient()
@@ -14,14 +23,13 @@ export default async function MemberTasksPage() {
   type AttLog  = { clock_in: string | null; clock_out: string | null }
   type DayUpd  = { working_hours: number | null }
 
-  const [
-    { data: tasksRaw },
-    { data: clockRaw },
-    { data: updateRaw },
-  ] = await Promise.all([
-    supabase
+  const admin = adminSupabase()
+
+  const [tasksResult, clockResult, updateResult] = await Promise.all([
+    // Use admin client so we can select created_by + join assigner name without type restriction
+    admin
       .from("tasks")
-      .select("id, title, description, status, priority, due_date, projects(id, business_name)")
+      .select("id, title, description, status, priority, due_date, created_by, projects(id, business_name), assigner:users!tasks_created_by_fkey(name)")
       .eq("assigned_to", user.id)
       .order("due_date", { ascending: true, nullsFirst: false }),
     supabase
@@ -38,8 +46,8 @@ export default async function MemberTasksPage() {
       .maybeSingle(),
   ])
 
-  const clockLog = clockRaw as unknown as AttLog | null
-  const dayUpd   = updateRaw as unknown as DayUpd | null
+  const clockLog = clockResult.data as unknown as AttLog | null
+  const dayUpd   = updateResult.data as unknown as DayUpd | null
 
   // Derive today's worked hours
   let todayHours = 0
@@ -50,9 +58,16 @@ export default async function MemberTasksPage() {
     todayHours = dayUpd.working_hours
   }
 
+  if (tasksResult.error) {
+    console.error("[MemberTasksPage] tasks query failed:", tasksResult.error.message)
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tasks = (tasksResult.data ?? []) as any[]
+
   return (
     <MemberTasksClient
-      tasks={tasksRaw ?? []}
+      tasks={tasks}
       todayHours={todayHours}
     />
   )

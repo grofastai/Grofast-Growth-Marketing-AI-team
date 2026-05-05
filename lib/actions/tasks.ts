@@ -55,6 +55,7 @@ export async function createTask(
     priority: parsed.data.priority,
     due_date: parsed.data.due_date || null,
     status: 'todo' as const,
+    created_by: user.id,
   }
 
   if (assignedToList.length === 0) {

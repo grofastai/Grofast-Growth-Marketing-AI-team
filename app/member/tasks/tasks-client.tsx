@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   Target, Calendar, CheckCircle2, Circle, Clock,
-  Loader2, AlertTriangle, Play, FileEdit, BookOpen,
+  Loader2, AlertTriangle, Play, FileEdit, ChevronDown, ChevronUp, User,
 } from "lucide-react"
 import { updateTaskStatus } from "@/lib/actions/tasks"
 
@@ -15,7 +15,9 @@ interface Task {
   status: "todo" | "in_progress" | "completed"
   priority: "low" | "medium" | "high"
   due_date: string | null
+  created_by: string | null
   projects: { id: string; business_name: string } | null
+  assigner: { name: string } | null
 }
 
 const PRIORITY = {
@@ -250,16 +252,18 @@ function TaskCard({
   onAdvance: () => void
   onLogWork: () => void
 }) {
+  const [expanded, setExpanded] = useState(false)
   const pr   = PRIORITY[task.priority]
   const st   = STATUS_META[task.status]
   const StatusIcon = st.icon
   const project = Array.isArray(task.projects) ? task.projects[0] : task.projects
+  const assigner = Array.isArray(task.assigner) ? task.assigner[0] : task.assigner
   const due  = dueDateLabel(task.due_date, today)
   const isOverdue  = !!task.due_date && task.due_date < today && task.status !== "completed"
   const isDone     = task.status === "completed"
 
   return (
-    <div className="rounded-xl p-4"
+    <div className="rounded-xl overflow-hidden"
       style={{
         background: isOverdue ? "rgba(255,107,87,0.03)" : isDone ? "rgba(220,38,38,0.02)" : "#FFFFFF",
         border: isOverdue
@@ -269,97 +273,141 @@ function TaskCard({
           : "1px solid #2A2A2A",
       }}>
 
-      {/* Top row: priority badge + title + status toggle */}
-      <div className="flex items-start gap-3">
-        {/* Status toggle button */}
-        <button onClick={onAdvance} disabled={isMoving}
-          className="mt-0.5 flex-shrink-0 transition-all hover:scale-110 active:scale-95">
-          {isMoving
-            ? <Loader2 size={20} className="animate-spin" style={{ color: st.color }} />
-            : <StatusIcon size={20} style={{ color: st.color }} />
-          }
-        </button>
+      {/* Main row */}
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          {/* Status toggle */}
+          <button onClick={onAdvance} disabled={isMoving}
+            className="mt-0.5 flex-shrink-0 transition-all hover:scale-110 active:scale-95">
+            {isMoving
+              ? <Loader2 size={20} className="animate-spin" style={{ color: st.color }} />
+              : <StatusIcon size={20} style={{ color: st.color }} />
+            }
+          </button>
 
-        {/* Title + meta */}
-        <div className="flex-1 min-w-0">
-          <p className={`text-[14px] font-semibold ${isDone ? "line-through" : ""}`}
-            style={{ color: isDone ? "#9CA3AF" : "#FFFFFF" }}>
-            {task.title}
-          </p>
-          {task.description && (
-            <p className="text-[12px] mt-0.5 truncate" style={{ color: "#9CA3AF" }}>
-              {task.description}
-            </p>
-          )}
+          {/* Title + meta */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <p className={`text-[14px] font-semibold leading-snug ${isDone ? "line-through" : ""}`}
+                style={{ color: isDone ? "#9CA3AF" : "#FFFFFF" }}>
+                {task.title}
+              </p>
+              {/* Expand toggle */}
+              <button onClick={() => setExpanded(v => !v)}
+                className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+                style={{ background: "rgba(255,255,255,0.05)" }}>
+                {expanded
+                  ? <ChevronUp size={13} style={{ color: "#9CA3AF" }} />
+                  : <ChevronDown size={13} style={{ color: "#9CA3AF" }} />
+                }
+              </button>
+            </div>
 
-          {/* Badges row */}
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            {project && (
-              <span className="text-[11px] px-2 py-0.5 rounded font-medium"
-                style={{ background: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
-                {project.business_name}
+            {/* Badges row */}
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {project && (
+                <span className="text-[11px] px-2 py-0.5 rounded font-medium"
+                  style={{ background: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
+                  {project.business_name}
+                </span>
+              )}
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded"
+                style={{ background: pr.bg, color: pr.color }}>
+                {pr.label.toUpperCase()}
               </span>
-            )}
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded"
-              style={{ background: pr.bg, color: pr.color }}>
-              {pr.label.toUpperCase()}
-            </span>
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(0,0,0,0.03)", color: st.color }}>
-              {st.label}
-            </span>
-            {due && (
-              <span className="flex items-center gap-1 text-[11px] font-medium"
-                style={{ color: due.color }}>
-                <Calendar size={10} />{due.text}
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ background: "rgba(0,0,0,0.03)", color: st.color }}>
+                {st.label}
+              </span>
+              {due && (
+                <span className="flex items-center gap-1 text-[11px] font-medium"
+                  style={{ color: due.color }}>
+                  <Calendar size={10} />{due.text}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        {!isDone && (
+          <div className="flex items-center gap-2 mt-3 pt-3"
+            style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+            <button onClick={onAdvance} disabled={isMoving}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
+              style={task.status === "todo"
+                ? { background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.15)" }
+                : { background: "rgba(245,158,11,0.08)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.15)" }
+              }>
+              {isMoving ? <Loader2 size={11} className="animate-spin" /> : <Play size={11} />}
+              {task.status === "todo" ? "Start Work" : "Mark Done"}
+            </button>
+
+            <button onClick={onLogWork}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
+              style={{ background: "rgba(220,38,38,0.06)", color: "#B91C1C", border: "1px solid rgba(220,38,38,0.15)" }}>
+              <FileEdit size={11} /> Log Work
+            </button>
+
+            {isOverdue && (
+              <span className="ml-auto flex items-center gap-1 text-[11px] font-medium"
+                style={{ color: "#DC2626" }}>
+                <AlertTriangle size={11} /> Overdue
               </span>
             )}
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Action buttons row */}
-      {!isDone && (
-        <div className="flex items-center gap-2 mt-3 pt-3"
-          style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+      {/* Expandable detail panel */}
+      {expanded && (
+        <div className="px-4 pb-4 pt-0" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <div className="rounded-xl p-4 mt-3 space-y-3"
+            style={{ background: "rgba(0,0,0,0.06)" }}>
 
-          {/* Advance status */}
-          <button onClick={onAdvance} disabled={isMoving}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
-            style={task.status === "todo"
-              ? { background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.15)" }
-              : { background: "rgba(245,158,11,0.08)", color: "#F59E0B", border: "1px solid rgba(245,158,11,0.15)" }
-            }>
-            {isMoving
-              ? <Loader2 size={11} className="animate-spin" />
-              : <Play size={11} />
-            }
-            {task.status === "todo" ? "Start Work" : "Mark Done"}
-          </button>
+            {/* Assigned by */}
+            {assigner?.name && (
+              <div className="flex items-center gap-2">
+                <User size={12} style={{ color: "#9CA3AF" }} />
+                <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Assigned by</span>
+                <span className="text-[12px] font-bold" style={{ color: "#E5E7EB" }}>
+                  {assigner.name}
+                </span>
+              </div>
+            )}
 
-          {/* Log Work → pre-fills daily update */}
-          <button onClick={onLogWork}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
-            style={{ background: "rgba(109,93,246,0.08)", color: "#B91C1C", border: "1px solid rgba(220,38,38,0.15)" }}>
-            <FileEdit size={11} /> Log Work
-          </button>
+            {/* Project */}
+            {project && (
+              <div className="flex items-center gap-2">
+                <Target size={12} style={{ color: "#9CA3AF" }} />
+                <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Project</span>
+                <span className="text-[12px] font-bold" style={{ color: "#E5E7EB" }}>
+                  {project.business_name}
+                </span>
+              </div>
+            )}
 
-          {/* If overdue: nudge to learn */}
-          {isOverdue && (
-            <span className="ml-auto flex items-center gap-1 text-[11px] font-medium"
-              style={{ color: "#DC2626" }}>
-              <AlertTriangle size={11} /> Overdue
-            </span>
-          )}
+            {/* Due date */}
+            {task.due_date && (
+              <div className="flex items-center gap-2">
+                <Calendar size={12} style={{ color: "#9CA3AF" }} />
+                <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Due date</span>
+                <span className="text-[12px] font-bold" style={{ color: "#E5E7EB" }}>
+                  {new Date(task.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                </span>
+              </div>
+            )}
 
-          {/* Complete shortcut */}
-          {task.status === "in_progress" && (
-            <button onClick={() => {/* already handled by advance */}}
-              className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
-              style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.12)" }}>
-              <BookOpen size={11} /> Also Learning?
-            </button>
-          )}
+            {/* Description */}
+            {task.description && (
+              <div>
+                <p className="text-[11px] mb-1" style={{ color: "#9CA3AF" }}>Description</p>
+                <p className="text-[13px] leading-relaxed" style={{ color: "#D1D5DB" }}>
+                  {task.description}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

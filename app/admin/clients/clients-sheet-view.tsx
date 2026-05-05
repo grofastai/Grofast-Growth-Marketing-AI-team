@@ -1,15 +1,13 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Search, ExternalLink, ChevronDown } from "lucide-react"
+import { Search, ChevronDown } from "lucide-react"
 import type { SheetClient } from "@/lib/google/sheets"
 
 export default function ClientsSheetView({
   clients,
-  sheetUrl,
 }: {
   clients: SheetClient[]
-  sheetUrl: string | null
 }) {
   const [search, setSearch]             = useState("")
   const [industryFilter, setIndustry]   = useState("")
@@ -60,19 +58,10 @@ export default function ClientsSheetView({
             Synced from Google Sheets — edit the sheet to update.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-[13px] font-semibold px-3 py-1.5 rounded-xl"
-            style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>
-            {clients.length} clients
-          </span>
-          {sheetUrl && (
-            <a href={sheetUrl} target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-80"
-              style={{ background: "#F0FDF4", border: "1px solid rgba(22,163,74,0.3)", color: "#16A34A" }}>
-              <ExternalLink size={13} /> Open Sheet
-            </a>
-          )}
-        </div>
+        <span className="text-[13px] font-semibold px-3 py-1.5 rounded-xl"
+          style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>
+          {clients.length} clients
+        </span>
       </div>
 
       {/* Filters */}

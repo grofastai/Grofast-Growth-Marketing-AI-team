@@ -36,7 +36,7 @@ export default async function ClientsPage() {
     } catch (err) {
       console.error("[ClientsPage] Failed to fetch Google Sheet:", err)
     }
-    return <ClientsSheetView clients={clients} sheetUrl={sheetUrl} />
+    return <ClientsSheetView clients={clients} />
   }
 
   // Fallback: read from Supabase (editable)

@@ -450,14 +450,6 @@ function EditCard({ entry, i, projects, onChange, onRemove }: {
       </div>
 
       <div className="p-4 space-y-3" style={{ background: "#FFFFFF" }}>
-        {videos.length === 0 && (
-          <div className="text-center py-6 rounded-xl"
-            style={{ border: "2px dashed rgba(99,102,241,0.2)", background: "rgba(99,102,241,0.02)" }}>
-            <Film size={22} className="mx-auto mb-2" style={{ color: "rgba(99,102,241,0.3)" }} />
-            <p className="text-[12px]" style={{ color: "#9CA3AF" }}>No videos logged yet</p>
-          </div>
-        )}
-
         {videos.map((video, idx) => (
           <EditingVideoRow
             key={video.id}
@@ -469,13 +461,6 @@ function EditCard({ entry, i, projects, onChange, onRemove }: {
           />
         ))}
 
-        <button type="button" onClick={() => onChange({ editing_videos: [...videos, newEditingVideo()] })}
-          className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[12px] font-bold transition-all"
-          style={{ background: "rgba(99,102,241,0.06)", color: "#6366F1", border: "1.5px dashed rgba(99,102,241,0.3)" }}
-          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.1)"}
-          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"}>
-          <Plus size={13} /> Add Video
-        </button>
       </div>
     </div>
   )

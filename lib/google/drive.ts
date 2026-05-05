@@ -9,7 +9,7 @@ let _auth: GoogleAuth | null = null
 
 function getAuth(): GoogleAuth {
   if (_auth) return _auth
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY!
+  const raw = (process.env.GOOGLE_SERVICE_ACCOUNT_KEY2 || process.env.GOOGLE_SERVICE_ACCOUNT_KEY)!
   const credentials = JSON.parse(raw)
   _auth = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] })
   return _auth

@@ -26,10 +26,10 @@ export default async function MemberTasksPage() {
   const admin = adminSupabase()
 
   const [tasksResult, clockResult, updateResult] = await Promise.all([
-    // Use admin client so we can select created_by + join assigner name without type restriction
+    // Use admin client to bypass RLS; created_by + assigner join only when column exists
     admin
       .from("tasks")
-      .select("id, title, description, status, priority, due_date, created_by, projects(id, business_name), assigner:users!tasks_created_by_fkey(name)")
+      .select("id, title, description, status, priority, due_date, projects(id, business_name)")
       .eq("assigned_to", user.id)
       .order("due_date", { ascending: true, nullsFirst: false }),
     supabase

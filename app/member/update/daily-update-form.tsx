@@ -110,8 +110,6 @@ function ClientSelect({ projects, value, onChange, required }: {
 
 
 // ── Shoot card ─────────────────────────────────────────────────
-const UPLOAD_SOURCES = ["WhatsApp", "Google Drive", "Google Photos", "Telegram", "Other"] as const
-
 function ShootCard({ entry, i, projects, onChange, onRemove }: {
   entry: WorkEntryInput
   i: number
@@ -119,7 +117,6 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
   onChange: (patch: Partial<WorkEntryInput>) => void
   onRemove: () => void
 }) {
-  const [screenshotSource, setScreenshotSource] = useState("")
   return (
     <div className="rounded-2xl overflow-hidden"
       style={{ border: "1px solid rgba(220,38,38,0.2)", boxShadow: "0 2px 8px rgba(220,38,38,0.06)" }}>
@@ -228,35 +225,18 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
           </div>
         </div>
 
-        {/* Screenshot link */}
+        {/* Google Drive link — required */}
         <div>
           <label style={LABEL}>
-            Screenshot / Proof <span style={{ color: "#9CA3AF", fontWeight: 400, textTransform: "none", fontSize: "11px" }}>(optional)</span>
+            Google Drive Link <span style={{ color: "#DC2626" }}>*</span>
           </label>
-          <div className="space-y-2">
-            <div className="relative">
-              <select
-                className="du-sel"
-                style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}
-                value={screenshotSource}
-                onChange={(e) => { setScreenshotSource(e.target.value); if (!e.target.value) onChange({ screenshot_url: "", video_uploaded: false }) }}
-              >
-                <option value="">Where did you upload?</option>
-                {UPLOAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: "#9CA3AF" }} />
-            </div>
-            {screenshotSource && (
-              <input
-                className="du"
-                style={FIELD}
-                placeholder={`Paste ${screenshotSource} link…`}
-                value={entry.screenshot_url ?? ""}
-                onChange={(e) => onChange({ screenshot_url: e.target.value, video_uploaded: !!e.target.value })}
-              />
-            )}
-          </div>
+          <input
+            className="du"
+            style={FIELD}
+            placeholder="Upload clips to Drive, then paste the link here…"
+            value={entry.screenshot_url ?? ""}
+            onChange={(e) => onChange({ screenshot_url: e.target.value, video_uploaded: !!e.target.value })}
+          />
         </div>
 
         {/* Notes */}
@@ -280,7 +260,6 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
   onChange: (patch: Partial<EditingVideo>) => void
   onRemove: () => void
 }) {
-  const [videoSource, setVideoSource] = useState("")
   return (
     <div className="rounded-xl p-4 space-y-3"
       style={{ background: "#F8F9FA", border: "1px solid #E5E7EB" }}>
@@ -405,32 +384,15 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
         <div className="space-y-1.5">
           <label style={{ ...LABEL, color: "#16A34A", marginBottom: 2 }}>
             <FolderOpen size={10} style={{ display: "inline", marginRight: 4 }} />
-            Final Video Link <span style={{ color: "#DC2626" }}>*</span>
+            Google Drive Link <span style={{ color: "#DC2626" }}>*</span>
           </label>
-          <div className="space-y-2">
-            <div className="relative">
-              <select
-                className="du-sel"
-                style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}
-                value={videoSource}
-                onChange={(e) => { setVideoSource(e.target.value); if (!e.target.value) onChange({ drive_link: "" }) }}
-              >
-                <option value="">Where did you upload?</option>
-                {UPLOAD_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: "#9CA3AF" }} />
-            </div>
-            {videoSource && (
-              <input
-                className="du"
-                style={FIELD}
-                placeholder={`Paste ${videoSource} link…`}
-                value={video.drive_link ?? ""}
-                onChange={(e) => onChange({ drive_link: e.target.value })}
-              />
-            )}
-          </div>
+          <input
+            className="du"
+            style={FIELD}
+            placeholder="Upload final video to Drive, then paste the link here…"
+            value={video.drive_link ?? ""}
+            onChange={(e) => onChange({ drive_link: e.target.value })}
+          />
         </div>
       )}
     </div>
@@ -602,6 +564,7 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
         if (!e.client_id && !e.client_name) return `Shoot ${n}: Client is required`
         if (!e.start_time || !e.end_time) return `Shoot ${n}: Start and end time are required`
         if (e.duration_hours <= 0) return `Shoot ${n}: End time must be after start time`
+        if (!e.screenshot_url?.trim()) return `Shoot ${n}: Google Drive link is required`
       }
       if (e.task_type === "edit") {
         const vids = e.editing_videos ?? []

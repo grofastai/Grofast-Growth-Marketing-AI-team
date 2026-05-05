@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import ProjectsClient from "@/app/admin/projects/projects-client"
+import ClientsSheetView from "./clients-sheet-view"
 import { fetchSheetClients } from "@/lib/google/sheets"
 
 function adminClient() {
@@ -23,21 +24,21 @@ export default async function ClientsPage() {
   const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
   if (!profile) redirect("/login")
 
-  const sheetId = process.env.GOOGLE_CLIENTS_SHEET_ID
+  const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
+  const sheetUrl = process.env.GOOGLE_CLIENTS_SHEET_URL ?? null
 
-  // If a Google Sheet ID is configured, read from there (read-only mode)
+  // If a Google Sheet ID is configured, read from there (read-only)
   if (sheetId) {
-    let projects: Awaited<ReturnType<typeof fetchSheetClients>> = []
+    let clients: Awaited<ReturnType<typeof fetchSheetClients>> = []
     try {
-      projects = await fetchSheetClients(sheetId)
+      clients = await fetchSheetClients(sheetId)
     } catch (err) {
       console.error("[ClientsPage] Failed to fetch Google Sheet:", err)
     }
-    const sheetUrl = process.env.GOOGLE_CLIENTS_SHEET_URL ?? null
-    return <ProjectsClient projects={projects} taskStats={{}} readOnly sheetUrl={sheetUrl} />
+    return <ClientsSheetView clients={clients} sheetUrl={sheetUrl} />
   }
 
-  // Fallback: read from Supabase
+  // Fallback: read from Supabase (editable)
   const cid = profile.company_id
   const [{ data: projects }, { data: tasks }] = await Promise.all([
     admin.from("projects")

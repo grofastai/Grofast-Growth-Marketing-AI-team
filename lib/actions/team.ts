@@ -275,11 +275,14 @@ export async function deleteMember(id: string): Promise<{ success: boolean; erro
 
   const admin = adminSupabase()
 
-  const { error: dbError } = await admin.from('users').delete().eq('id', id)
-  if (dbError) return { success: false, error: dbError.message }
-
+  // Delete from Supabase Auth first — this cascades to public.users if ON DELETE CASCADE is set.
+  // Doing auth first also prevents the member from logging in immediately.
   const { error: authError } = await admin.auth.admin.deleteUser(id)
   if (authError) return { success: false, error: authError.message }
+
+  // Also explicitly delete the public.users row in case cascade is not configured.
+  // Ignore "no rows affected" — it may have already been removed by the cascade.
+  await admin.from('users').delete().eq('id', id)
 
   revalidatePath('/admin/team')
   return { success: true }

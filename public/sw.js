@@ -18,8 +18,19 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return
-  const url = new URL(e.request.url)
-  if (!url.origin.includes(self.location.origin.split('//')[1])) return
+
+  let url
+  try {
+    url = new URL(e.request.url)
+  } catch {
+    return
+  }
+
+  // Only handle plain HTTP/HTTPS requests to our own origin.
+  // Skips chrome-error://, chrome-extension://, data:, etc.
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') return
+  if (url.origin !== self.location.origin) return
+
   if (
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/_next/') ||

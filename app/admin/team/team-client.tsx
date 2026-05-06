@@ -32,6 +32,8 @@ interface Member {
   hourly_rate: number | null
   paid_leave_days: number | null
   deleted_at?: string | null
+  date_of_birth?: string | null
+  joined_at?: string | null
 }
 
 function getInitials(name: string) {
@@ -76,6 +78,8 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
     monthly_salary: member?.monthly_salary?.toString() ?? "",
     hourly_rate: member?.hourly_rate?.toString() ?? "",
     paid_leave_days: member?.paid_leave_days?.toString() ?? "5",
+    date_of_birth: member?.date_of_birth ?? "",
+    joined_at: member?.joined_at ?? new Date().toISOString().split("T")[0],
   })
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
@@ -94,9 +98,13 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
         hourly_rate: form.employment_type !== "regular" && form.hourly_rate ? parseFloat(form.hourly_rate) : null,
         paid_leave_days: form.employment_type === "regular" ? (parseInt(form.paid_leave_days) || 5) : 0,
       }
+      const dateFields = {
+        date_of_birth: form.date_of_birth || null,
+        joined_at:     form.joined_at     || null,
+      }
       const result = isEdit
-        ? await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, ...salaryFields })
-        : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, password: form.password, ...salaryFields })
+        ? await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, ...salaryFields, ...dateFields })
+        : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, password: form.password, ...salaryFields, ...dateFields })
 
       if (result.success) {
         router.refresh()
@@ -262,6 +270,22 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
                 onChange={(e) => setForm((prev) => ({ ...prev, hourly_rate: e.target.value }))} />
             </div>
           )}
+
+          {/* Date of Birth + Joined At */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
+                style={{ color: "#9CA3AF" }}>Date of Birth</label>
+              <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }}
+                value={form.date_of_birth} onChange={set("date_of_birth")} />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
+                style={{ color: "#9CA3AF" }}>Work Start Date</label>
+              <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }}
+                value={form.joined_at} onChange={set("joined_at")} />
+            </div>
+          </div>
 
           {/* Password */}
           {!isEdit && (

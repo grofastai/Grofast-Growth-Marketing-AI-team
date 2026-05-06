@@ -299,15 +299,12 @@ export async function deleteMember(id: string): Promise<{ success: boolean; erro
 
   const admin = adminSupabase()
 
-  // Soft-delete: mark as past member (preserves history) + revoke login access
-  const { error: dbError } = await admin
-    .from('users')
-    .update({ deleted_at: new Date().toISOString(), status: 'inactive' })
-    .eq('id', id)
-  if (dbError) return { success: false, error: dbError.message }
-
-  // Delete from Supabase Auth so the member can no longer log in
+  // Hard delete from Supabase Auth first (prevents login immediately)
   await admin.auth.admin.deleteUser(id)
+
+  // Then hard delete the public.users record — removes all traces
+  const { error: dbError } = await admin.from('users').delete().eq('id', id)
+  if (dbError) return { success: false, error: dbError.message }
 
   revalidatePath('/admin/team')
   return { success: true }

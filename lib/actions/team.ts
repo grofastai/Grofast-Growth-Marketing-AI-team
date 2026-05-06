@@ -133,27 +133,48 @@ export async function createMember(input: {
   let authUserId: string
 
   if (authError) {
-    if (!authError.message.includes('already registered')) {
+    // Supabase may return different messages across versions — catch all duplicate-email variants
+    const msg = authError.message?.toLowerCase() ?? ''
+    const isDuplicateEmail =
+      msg.includes('already registered') ||
+      msg.includes('already been registered') ||
+      msg.includes('email already') ||
+      msg.includes('user already') ||
+      msg.includes('already exists') ||
+      authError.status === 422
+
+    if (!isDuplicateEmail) {
       return { success: false, error: authError.message }
     }
 
-    // Auth user exists — check if public.users record is missing (broken account)
-    // Query public.users by email first (faster than paginating auth users)
-    const { data: existingProfileByEmail } = await admin
+    // Check if an active profile already exists for this company
+    const { data: existingProfile } = await admin
       .from('users').select('id').eq('email', input.email).maybeSingle()
 
-    if (existingProfileByEmail) {
-      return { success: false, error: 'This email is already registered' }
+    if (existingProfile) {
+      return { success: false, error: 'This email is already in use by a team member.' }
     }
 
-    // Profile is missing — find the auth user ID by paginating with high perPage
+    // Profile is missing but Auth record exists (e.g. partially deleted account).
+    // Find it and reuse/repair rather than failing.
     const { data: { users: existingAuthUsers } } = await admin.auth.admin.listUsers({ perPage: 1000 })
     const existingAuthUser = existingAuthUsers.find(u => u.email === input.email)
-    if (!existingAuthUser) return { success: false, error: 'This email is already registered' }
 
-    // Repair: reset their password and create the missing profile
-    await admin.auth.admin.updateUserById(existingAuthUser.id, { password: input.password })
-    authUserId = existingAuthUser.id
+    if (!existingAuthUser) {
+      // Auth says email is taken but we can't find the user — likely a soft-delete delay.
+      // Wait briefly and retry once.
+      await new Promise(r => setTimeout(r, 1500))
+      const { data: authData2, error: authError2 } = await admin.auth.admin.createUser({
+        email: input.email, password: input.password, email_confirm: true,
+        user_metadata: { name: input.name },
+      })
+      if (authError2) return { success: false, error: 'This email address is unavailable. Try a different one.' }
+      authUserId = authData2.user.id
+    } else {
+      // Repair: reuse existing auth user, reset password
+      await admin.auth.admin.updateUserById(existingAuthUser.id, { password: input.password })
+      authUserId = existingAuthUser.id
+    }
   } else {
     authUserId = authData.user.id
   }

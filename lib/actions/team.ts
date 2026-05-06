@@ -97,7 +97,7 @@ export async function createMember(input: {
   role: 'ADMIN' | 'MEMBER'
   team: string
   password: string
-  employment_type?: 'regular' | 'irregular'
+  employment_type?: 'regular' | 'part_time' | 'freelancer'
   monthly_salary?: number | null
   hourly_rate?: number | null
   paid_leave_days?: number
@@ -213,7 +213,10 @@ export async function createMember(input: {
     : 0
   const recentlySent = Date.now() - lastNotified < 60_000
 
-  if (input.phone && !recentlySent) {
+  // Part-time and freelancer members don't get onboarding WhatsApp notifications
+  const skipNotification = input.employment_type === 'part_time' || input.employment_type === 'freelancer'
+
+  if (input.phone && !recentlySent && !skipNotification) {
     const appUrl = process.env.APP_BASE_URL?.replace(/\/$/, '') ?? ''
     let loginLink = `${appUrl}/login`
 
@@ -258,7 +261,7 @@ export async function updateMember(input: {
   phone: string
   role: 'ADMIN' | 'MEMBER'
   team: string
-  employment_type?: 'regular' | 'irregular'
+  employment_type?: 'regular' | 'part_time' | 'freelancer'
   monthly_salary?: number | null
   hourly_rate?: number | null
   paid_leave_days?: number

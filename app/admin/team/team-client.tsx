@@ -27,7 +27,7 @@ interface Member {
   status: "active" | "inactive"
   team: string | null
   created_at: string
-  employment_type: "regular" | "irregular" | null
+  employment_type: "regular" | "part_time" | "freelancer" | null
   monthly_salary: number | null
   hourly_rate: number | null
   paid_leave_days: number | null
@@ -71,7 +71,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
     role: (member?.role ?? "MEMBER") as "ADMIN" | "MEMBER",
     team: member?.team ?? "",
     password: "",
-    employment_type: (member?.employment_type ?? "regular") as "regular" | "irregular",
+    employment_type: (member?.employment_type ?? "regular") as "regular" | "part_time" | "freelancer",
     monthly_salary: member?.monthly_salary?.toString() ?? "",
     hourly_rate: member?.hourly_rate?.toString() ?? "",
     paid_leave_days: member?.paid_leave_days?.toString() ?? "5",
@@ -90,7 +90,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
       const salaryFields = {
         employment_type: form.employment_type,
         monthly_salary: form.employment_type === "regular" && form.monthly_salary ? parseFloat(form.monthly_salary) : null,
-        hourly_rate: form.employment_type === "irregular" && form.hourly_rate ? parseFloat(form.hourly_rate) : null,
+        hourly_rate: form.employment_type !== "regular" && form.hourly_rate ? parseFloat(form.hourly_rate) : null,
         paid_leave_days: form.employment_type === "regular" ? (parseInt(form.paid_leave_days) || 5) : 0,
       }
       const result = isEdit
@@ -205,23 +205,29 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
               style={{ color: "#9CA3AF" }}>Employment Type *</label>
-            <div className="flex gap-3">
-              {(["regular", "irregular"] as const).map((t) => (
-                <button key={t} type="button"
-                  onClick={() => setForm((prev) => ({ ...prev, employment_type: t, monthly_salary: "", hourly_rate: "", paid_leave_days: t === "regular" ? "5" : "0" }))}
-                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-all capitalize"
-                  style={form.employment_type === t
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { value: "regular",    label: "Regular" },
+                { value: "part_time",  label: "Part Time" },
+                { value: "freelancer", label: "Freelancer" },
+              ] as const).map(({ value, label }) => (
+                <button key={value} type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, employment_type: value, monthly_salary: "", hourly_rate: "", paid_leave_days: value === "regular" ? "5" : "0" }))}
+                  className="py-2.5 rounded-xl text-[13px] font-semibold transition-all"
+                  style={form.employment_type === value
                     ? { background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(220,38,38,0.3)" }
                     : { background: "rgba(0,0,0,0.03)", color: "#9CA3AF", border: "1px solid #E5E7EB" }
                   }>
-                  {t}
+                  {label}
                 </button>
               ))}
             </div>
             <p className="text-[11px] mt-1.5" style={{ color: "#D1D5DB" }}>
               {form.employment_type === "regular"
                 ? "9 hrs/day · Mon–Fri · 5 paid leaves/month"
-                : "Calculated purely on hours worked"}
+                : form.employment_type === "part_time"
+                ? "Flexible hours · calculated on hours worked"
+                : "Project-based · no WhatsApp notification sent"}
             </p>
           </div>
 

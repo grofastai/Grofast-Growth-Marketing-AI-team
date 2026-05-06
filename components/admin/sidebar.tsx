@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  LayoutDashboard, Users, Clock, Target, Activity,
+  LayoutDashboard, Users, Clock, Target,
   CalendarOff, Megaphone, Briefcase, LogOut, BarChart2,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
@@ -14,18 +14,17 @@ const navItems = [
   { label: "Attendance",    href: "/admin/attendance",    icon: Clock },
   { label: "Tasks",         href: "/admin/goals",         icon: Target },
   { label: "Clients",       href: "/admin/clients",       icon: Briefcase },
-  { label: "Activities",    href: "/admin/activities",    icon: Activity },
   { label: "Reports",       href: "/admin/reports",       icon: BarChart2 },
   { label: "Leaves",        href: "/admin/leaves",        icon: CalendarOff },
   { label: "Announcements", href: "/admin/announcements", icon: Megaphone },
 ]
 
 const bottomNavItems = [
-  { label: "Home",       href: "/admin/dashboard",  icon: LayoutDashboard },
-  { label: "Team",       href: "/admin/team",       icon: Users },
-  { label: "Activities", href: "/admin/activities", icon: Activity },
-  { label: "Leaves",     href: "/admin/leaves",     icon: CalendarOff },
-  { label: "Reports",    href: "/admin/reports",    icon: BarChart2 },
+  { label: "Home",    href: "/admin/dashboard", icon: LayoutDashboard },
+  { label: "Team",    href: "/admin/team",      icon: Users },
+  { label: "Tasks",   href: "/admin/goals",     icon: Target },
+  { label: "Leaves",  href: "/admin/leaves",    icon: CalendarOff },
+  { label: "Reports", href: "/admin/reports",   icon: BarChart2 },
 ]
 
 const SIDEBAR_BG   = "linear-gradient(160deg, #000000 0%, #520000 55%, #C90D16 100%)"

@@ -20,6 +20,7 @@ export default async function MemberDashboardPage() {
   type AttLog         = { clock_in: string | null; clock_out: string | null }
   type MonthlyUpdate  = { working_hours: number | null; work_type: string | null; attendance_status: string }
   type LeaveRow       = { from_date: string; to_date: string }
+  type AnnRow         = { id: string; title: string; message: string }
 
   const [
     { data: profileRaw },
@@ -31,6 +32,7 @@ export default async function MemberDashboardPage() {
     { data: clockLogRaw },
     { data: monthlyUpdatesRaw },
     { data: approvedLeavesRaw },
+    { data: announcementsRaw },
   ] = await Promise.all([
     supabase.from("users").select("name, employee_id").eq("id", user.id).single(),
     supabase.from("daily_updates").select("working_hours, shoot_count").eq("user_id", user.id).eq("date", today).maybeSingle(),
@@ -41,6 +43,7 @@ export default async function MemberDashboardPage() {
     supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", user.id).eq("date", today).maybeSingle(),
     supabase.from("daily_updates").select("working_hours, work_type, attendance_status").eq("user_id", user.id).gte("date", monthStart).lte("date", today),
     supabase.from("leaves").select("from_date, to_date").eq("user_id", user.id).eq("status", "approved").gte("from_date", monthStart),
+    supabase.from("announcements").select("id, title, message").order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(5),
   ])
 
   const profile         = profileRaw as unknown as ProfileRow | null
@@ -49,6 +52,7 @@ export default async function MemberDashboardPage() {
   const clockLog        = clockLogRaw as unknown as AttLog | null
   const monthlyUpdates  = (monthlyUpdatesRaw ?? []) as unknown as MonthlyUpdate[]
   const approvedLeaves  = (approvedLeavesRaw ?? []) as unknown as LeaveRow[]
+  const announcements   = (announcementsRaw ?? []) as unknown as AnnRow[]
 
   // Today hours
   let todayHours = 0
@@ -109,8 +113,29 @@ export default async function MemberDashboardPage() {
     { label: "Holidays",        value: holidayDays,  color: "#9CA3AF" },
   ]
 
+  // Duplicate announcements text for seamless marquee loop
+  const annTicker = announcements.map(a => `${a.title}: ${a.message}`).join("   ·   ")
+
   return (
     <div className="p-6 md:p-8 max-w-[1400px]">
+
+      {/* ── Announcements Ticker ── */}
+      {announcements.length > 0 && (
+        <div className="overflow-hidden rounded-xl mb-5 flex items-center gap-0"
+          style={{ background: "linear-gradient(90deg, #7F1D1D 0%, #DC2626 100%)", height: "38px" }}>
+          <div className="flex-shrink-0 flex items-center gap-1.5 px-3 border-r"
+            style={{ borderColor: "rgba(255,255,255,0.2)", height: "100%" }}>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.9)" }}>News</span>
+          </div>
+          <div className="flex-1 overflow-hidden relative">
+            <div className="marquee-track whitespace-nowrap">
+              <span className="text-[12px] font-medium px-6" style={{ color: "rgba(255,255,255,0.92)" }}>
+                {annTicker}&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;{annTicker}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Header ── */}
       <div className="mb-7">
@@ -137,6 +162,23 @@ export default async function MemberDashboardPage() {
             <span style={{ color: "#DC2626" }}>{activeTasks} task{activeTasks > 1 ? "s" : ""} pending</span>
           </p>
         )}
+      </div>
+
+      {/* ── 4-stat Summary Row ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+        {[
+          { label: "Present Days",   value: workingDays,                                   color: "#DC2626" },
+          { label: "Total Hours",    value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : "—", color: "#6366F1" },
+          { label: "Pending Leave",  value: pendingLeavesCount ?? 0,                        color: "#F59E0B" },
+          { label: "Active Tasks",   value: activeTasks,                                    color: "#16A34A" },
+        ].map((s) => (
+          <div key={s.label} className="rounded-xl p-4"
+            style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+            <p className="text-[24px] font-black leading-none mb-1"
+              style={{ fontFamily: "var(--font-jakarta)", color: s.color }}>{s.value}</p>
+            <p className="text-[11px] font-medium" style={{ color: "#9CA3AF" }}>{s.label}</p>
+          </div>
+        ))}
       </div>
 
       {/* ── 2-column grid ── */}

@@ -1,6 +1,7 @@
 "use client"
 
-import { useActionState, useTransition, useState } from "react"
+import { useActionState, useTransition, useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Megaphone, Pin, Trash2, Loader2, Plus, X } from "lucide-react"
 import { createAnnouncement, deleteAnnouncement, togglePin } from "@/lib/actions/announcements"
 
@@ -29,8 +30,13 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
   const [pinned, setPinned] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const router = useRouter()
 
   const [state, action, formPending] = useActionState<ActionState, FormData>(createAnnouncement, null)
+
+  useEffect(() => {
+    if (state && 'success' in state) router.refresh()
+  }, [state, router])
 
   async function handleDelete(id: string) {
     setDeletingId(id)

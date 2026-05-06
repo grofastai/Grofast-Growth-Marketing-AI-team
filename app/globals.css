@@ -118,6 +118,17 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(220,38,38,0.5); }
   background-clip: text;
 }
 
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: inline-flex;
+  animation: marquee 28s linear infinite;
+  will-change: transform;
+}
+.marquee-track:hover { animation-play-state: paused; }
+
 @keyframes shimmer {
   from { background-position: -200% 0; }
   to   { background-position: 200% 0; }

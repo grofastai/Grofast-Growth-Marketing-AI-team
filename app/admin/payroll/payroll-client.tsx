@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter, usePathname } from "next/navigation"
-import { IndianRupee, Clock, CalendarDays, TrendingUp, Users } from "lucide-react"
+import { Users, FileText } from "lucide-react"
 
 type PayrollRow = {
   id: string; name: string; employee_id: string; team: string | null
@@ -85,7 +85,7 @@ export default function PayrollClient({
         <table className="w-full">
           <thead>
             <tr style={{ background: "rgba(0,0,0,0.02)", borderBottom: "1px solid #E5E7EB" }}>
-              {["Employee", "Type", "Present", "Absent", "Hours", "OT", "Base Pay", "Deduction", "OT Pay", "Net Pay"].map(h => (
+              {["Employee", "Type", "Present", "Absent", "Hours", "OT", "Base Pay", "Deduction", "OT Pay", "Net Pay", "Slip"].map(h => (
                 <th key={h} className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-[0.15em]"
                   style={{ color: "#9CA3AF" }}>{h}</th>
               ))}
@@ -143,12 +143,24 @@ export default function PayrollClient({
                     {r.netPay > 0 ? fmt(r.netPay) : "—"}
                   </span>
                 </td>
+                <td className="px-4 py-3.5">
+                  <a
+                    href={`/api/payslip?userId=${r.id}&month=${month}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                    style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.12)" }}
+                    title="Download Salary Slip"
+                  >
+                    <FileText size={13} style={{ color: "#DC2626" }} />
+                  </a>
+                </td>
               </tr>
             ))}
 
             {/* Totals row */}
             <tr style={{ borderTop: "2px solid #E5E7EB", background: "rgba(220,38,38,0.02)" }}>
-              <td className="px-4 py-3" colSpan={6}>
+              <td className="px-4 py-3" colSpan={7}>
                 <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Total</span>
               </td>
               <td className="px-4 py-3">

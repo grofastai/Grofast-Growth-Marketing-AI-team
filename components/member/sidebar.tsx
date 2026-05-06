@@ -7,6 +7,7 @@ import {
   Megaphone, User, LogOut, Clock, History, Camera, Receipt, FolderOpen,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
+import PushSubscribeButton from "@/components/PushSubscribeButton"
 
 const navItems = [
   { label: "Dashboard",     href: "/member/dashboard",     icon: LayoutDashboard },
@@ -133,6 +134,7 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
               <p className="text-[13px] font-bold leading-none truncate" style={{ color: "#FFFFFF" }}>{name}</p>
               <p className="text-[10px] mt-0.5 font-medium" style={{ color: "rgba(255,255,255,0.45)" }}>#{employeeId}</p>
             </div>
+            <PushSubscribeButton />
           </div>
           <form action={logoutAction}>
             <button
@@ -169,11 +171,14 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
           </div>
           <span className="text-[14px] tracking-[0.12em] font-black" style={{ color: "#FFFFFF" }}>GROFAST</span>
         </div>
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold"
-          style={{ background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,255,255,0.3)", color: "#FFFFFF" }}
-        >
-          {initials}
+        <div className="flex items-center gap-2">
+          <PushSubscribeButton />
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold"
+            style={{ background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,255,255,0.3)", color: "#FFFFFF" }}
+          >
+            {initials}
+          </div>
         </div>
       </header>
 

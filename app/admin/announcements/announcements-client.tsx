@@ -2,8 +2,9 @@
 
 import { useActionState, useTransition, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Megaphone, Pin, Trash2, Loader2, Plus, X } from "lucide-react"
+import { Megaphone, Pin, Trash2, Loader2, Plus, X, Bell } from "lucide-react"
 import { createAnnouncement, deleteAnnouncement, togglePin } from "@/lib/actions/announcements"
+import { sendPushNotification } from "@/lib/actions/push"
 
 interface Announcement {
   id: string
@@ -27,10 +28,28 @@ function timeAgo(dateStr: string) {
 
 export default function AnnouncementsClient({ announcements }: { announcements: Announcement[] }) {
   const [showForm, setShowForm] = useState(false)
+  const [showPush, setShowPush] = useState(false)
+  const [pushTitle, setPushTitle] = useState("")
+  const [pushBody, setPushBody] = useState("")
+  const [pushResult, setPushResult] = useState<string | null>(null)
+  const [pushBusy, setPushBusy] = useState(false)
   const [pinned, setPinned] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const router = useRouter()
+
+  async function handleSendPush() {
+    if (!pushTitle.trim() || !pushBody.trim()) return
+    setPushBusy(true)
+    const res = await sendPushNotification(pushTitle.trim(), pushBody.trim())
+    if ("error" in res) {
+      setPushResult(`Error: ${res.error}`)
+    } else {
+      setPushResult(`Sent to ${res.sent} device${res.sent !== 1 ? "s" : ""}`)
+      setPushTitle(""); setPushBody("")
+    }
+    setPushBusy(false)
+  }
 
   const [state, action, formPending] = useActionState<ActionState, FormData>(createAnnouncement, null)
 
@@ -62,15 +81,73 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
           </h1>
           <p className="text-sm mt-1 font-sans" style={{ color: "#6B7280" }}>Post updates and notices to your team.</p>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold font-sans text-white transition-all"
-          style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", boxShadow: "0 4px 16px rgba(220,38,38,0.25)" }}
-        >
-          <Plus size={15} />
-          New Announcement
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowPush(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold font-sans transition-all"
+            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#374151" }}
+          >
+            <Bell size={14} />
+            Send Push
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold font-sans text-white transition-all"
+            style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", boxShadow: "0 4px 16px rgba(220,38,38,0.25)" }}
+          >
+            <Plus size={15} />
+            New Announcement
+          </button>
+        </div>
       </div>
+
+      {/* Push Notification Modal */}
+      {showPush && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
+          <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <Bell size={18} style={{ color: "#DC2626" }} />
+                <h2 className="text-[16px] font-bold" style={{ color: "#111111" }}>Send Push Notification</h2>
+              </div>
+              <button onClick={() => { setShowPush(false); setPushResult(null) }}><X size={18} style={{ color: "#6B7280" }} /></button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Title</label>
+                <input value={pushTitle} onChange={e => setPushTitle(e.target.value)} placeholder="e.g. Meeting at 4PM"
+                  className="w-full px-3 py-2.5 rounded-xl text-[13px] outline-none"
+                  style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }} />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Message</label>
+                <textarea value={pushBody} onChange={e => setPushBody(e.target.value)} rows={3} placeholder="Notification message..."
+                  className="w-full px-3 py-2.5 rounded-xl text-[13px] outline-none resize-none"
+                  style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }} />
+              </div>
+              {pushResult && (
+                <p className="text-[12px] px-3 py-2 rounded-lg"
+                  style={{ background: pushResult.startsWith("Error") ? "rgba(220,38,38,0.06)" : "rgba(22,163,74,0.06)", color: pushResult.startsWith("Error") ? "#DC2626" : "#16A34A" }}>
+                  {pushResult}
+                </p>
+              )}
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => { setShowPush(false); setPushResult(null) }}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
+                  style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#6B7280" }}>
+                  Cancel
+                </button>
+                <button onClick={handleSendPush} disabled={pushBusy || !pushTitle.trim() || !pushBody.trim()}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)" }}>
+                  {pushBusy ? <Loader2 size={13} className="animate-spin" /> : <Bell size={13} />}
+                  Send to All Devices
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Form Modal */}
       {showForm && (

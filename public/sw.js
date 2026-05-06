@@ -1,4 +1,4 @@
-const CACHE = 'grofast-v1'
+const CACHE = 'grofast-v2'
 const OFFLINE = '/offline'
 const PRECACHE = ['/', '/offline', '/login']
 
@@ -14,6 +14,32 @@ self.addEventListener('activate', e => {
     )
   )
   self.clients.claim()
+})
+
+self.addEventListener('push', e => {
+  let data = { title: 'GroFast', body: 'You have a new notification.' }
+  try { data = e.data.json() } catch { /* use defaults */ }
+  e.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/file.svg',
+      badge: '/file.svg',
+      data: data.url ?? '/',
+    })
+  )
+})
+
+self.addEventListener('notificationclick', e => {
+  e.notification.close()
+  const url = e.notification.data ?? '/'
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const client of list) {
+        if (client.url === url && 'focus' in client) return client.focus()
+      }
+      if (clients.openWindow) return clients.openWindow(url)
+    })
+  )
 })
 
 self.addEventListener('fetch', e => {

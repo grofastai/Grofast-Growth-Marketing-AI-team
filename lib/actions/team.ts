@@ -343,12 +343,25 @@ export async function toggleMemberStatus(
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return { success: false, error: 'Not authenticated' }
 
-  const { error } = await supabase
-    .from('users')
-    .update({ status })
-    .eq('id', id)
+  const admin = adminSupabase()
 
-  if (error) return { success: false, error: error.message }
+  if (status === 'inactive') {
+    // Deactivating = move to Past Members (soft-delete) + revoke login
+    const { error } = await admin
+      .from('users')
+      .update({ status: 'inactive', deleted_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) return { success: false, error: error.message }
+    // Revoke login access
+    await admin.auth.admin.deleteUser(id)
+  } else {
+    // Reactivating — clear deleted_at so they appear in active list again
+    const { error } = await admin
+      .from('users')
+      .update({ status: 'active', deleted_at: null })
+      .eq('id', id)
+    if (error) return { success: false, error: error.message }
+  }
 
   revalidatePath('/admin/team')
   return { success: true }

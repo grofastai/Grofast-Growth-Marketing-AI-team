@@ -30,20 +30,22 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith('/api/')) return supabaseResponse
 
-  // getSession() reads JWT from cookie — no Supabase network round-trip.
-  // Layouts re-verify with getUser() as the security layer.
-  const { data: { session } } = await supabase.auth.getSession()
+  // Use getUser() — validates the token against Supabase (refreshes if needed).
+  // getSession() only reads the cookie and can return a stale/expired session,
+  // causing a redirect loop: middleware → dashboard → layout rejects → /login → repeat.
+  const { data: { user } } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     if (pathname === '/login') return supabaseResponse
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   if (pathname === '/login' || pathname === '/') {
-    // Decode role from JWT payload locally — no extra network call
+    // Session is confirmed valid — decode role from the (now-fresh) token
+    const { data: { session } } = await supabase.auth.getSession()
     let role: string | null = null
     try {
-      role = JSON.parse(atob(session.access_token.split('.')[1])).role ?? null
+      role = JSON.parse(atob(session!.access_token.split('.')[1])).role ?? null
     } catch { /* ignore malformed token */ }
     const dest = role === 'ADMIN' ? '/admin/dashboard' : '/member/dashboard'
     return NextResponse.redirect(new URL(dest, request.url))

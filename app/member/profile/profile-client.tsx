@@ -1,14 +1,18 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   Mail, Phone, Briefcase, Calendar, Shield,
   Edit2, Check, X, Loader2, LogOut, KeyRound,
   TrendingUp, Clock, Target, AlertCircle, Zap,
+  Camera, HeartPulse, MapPin, UserPlus, Landmark,
+  CreditCard, FileText, Upload, CheckCircle2, AlertTriangle,
 } from "lucide-react"
 import { updateOwnProfile } from "@/lib/actions/team"
+import { updatePersonalDetails, updateKYC } from "@/lib/actions/profile"
 import { logoutAction } from "@/lib/actions/auth"
+import { createBrowserClient } from "@/lib/supabase/client"
 
 interface ProfileData {
   id:          string
@@ -19,6 +23,20 @@ interface ProfileData {
   phone:       string
   status:      string
   joined:      string
+  photo_url:               string | null
+  blood_group:             string | null
+  address:                 string | null
+  emergency_contact_name:  string | null
+  emergency_contact_phone: string | null
+}
+
+interface KYCData {
+  bank_name:      string | null
+  bank_account:   string | null
+  bank_ifsc:      string | null
+  govt_id_type:   string | null
+  govt_id_url:    string | null
+  ration_card_url: string | null
 }
 
 interface Stats {
@@ -43,10 +61,13 @@ interface RecentUpdate {
 }
 
 const IS: React.CSSProperties = {
-  background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#111111",
+  background: "#F8F9FA", border: "1px solid #E5E7EB", color: "#111111",
   borderRadius: "10px", padding: "10px 14px", fontSize: "13px",
   outline: "none", width: "100%",
 }
+
+const BLOOD_GROUPS = ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−"]
+const GOVT_ID_TYPES = ["Aadhaar Card", "PAN Card", "Voter ID", "Passport", "Driving Licence"]
 
 function relativeDate(dateStr: string): string {
   const today = new Date().toISOString().split("T")[0]
@@ -56,18 +77,15 @@ function relativeDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short" })
 }
 
-// ── Simple 7-day bar chart (CSS-only) ────────────────────────
 function WeekChart({ data }: { data: ChartDay[] }) {
-  const maxH = Math.max(...data.map(d => d.hours), 1)
+  const maxH  = Math.max(...data.map(d => d.hours), 1)
   const today = new Date().toISOString().split("T")[0]
-
   return (
     <div>
-      <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-3"
-        style={{ color: "#D1D5DB" }}>Last 7 Days</p>
+      <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-3" style={{ color: "#D1D5DB" }}>Last 7 Days</p>
       <div className="flex items-end gap-2 h-20">
         {data.map((day) => {
-          const pct = maxH > 0 ? (day.hours / maxH) * 100 : 0
+          const pct     = maxH > 0 ? (day.hours / maxH) * 100 : 0
           const isToday = day.date === today
           const hasHours = day.hours > 0
           return (
@@ -79,28 +97,15 @@ function WeekChart({ data }: { data: ChartDay[] }) {
                       style={{ background: "#E5E7EB", color: "#DC2626" }}>{day.hours}h</span>
                   </div>
                 )}
-                <div className="w-full rounded-t-sm" style={{
-                  height: 64,
-                  display: "flex",
-                  alignItems: "flex-end",
-                }}>
+                <div className="w-full rounded-t-sm" style={{ height: 64, display: "flex", alignItems: "flex-end" }}>
                   <div className="w-full rounded-sm transition-all" style={{
                     height: `${Math.max(pct, day.isFuture ? 0 : 3)}%`,
                     minHeight: !day.isFuture && hasHours ? 4 : 0,
-                    background: day.isFuture
-                      ? "transparent"
-                      : isToday
-                      ? "#DC2626"
-                      : hasHours
-                      ? "rgba(220,38,38,0.4)"
-                      : "rgba(0,0,0,0.05)",
-                    border: day.isFuture ? "none" : "none",
+                    background: day.isFuture ? "transparent" : isToday ? "#DC2626" : hasHours ? "rgba(220,38,38,0.4)" : "rgba(0,0,0,0.05)",
                   }} />
                 </div>
               </div>
-              <span className="text-[10px] font-medium" style={{
-                color: isToday ? "#DC2626" : "#9CA3AF",
-              }}>{day.label}</span>
+              <span className="text-[10px] font-medium" style={{ color: isToday ? "#DC2626" : "#9CA3AF" }}>{day.label}</span>
             </div>
           )
         })}
@@ -109,24 +114,72 @@ function WeekChart({ data }: { data: ChartDay[] }) {
   )
 }
 
+function completionScore(p: ProfileData | null, k: KYCData | null): { score: number; items: { label: string; done: boolean }[] } {
+  const items = [
+    { label: "Profile photo",        done: !!p?.photo_url },
+    { label: "Phone number",         done: !!p?.phone },
+    { label: "Blood group",          done: !!p?.blood_group },
+    { label: "Emergency contact",    done: !!(p?.emergency_contact_name && p?.emergency_contact_phone) },
+    { label: "Bank account",         done: !!(k?.bank_account && k?.bank_ifsc) },
+    { label: "Government ID",        done: !!k?.govt_id_url },
+  ]
+  const done  = items.filter(i => i.done).length
+  const score = Math.round((done / items.length) * 100)
+  return { score, items }
+}
+
 export default function ProfileClient({
-  profile, stats, chartData, recentUpdates, authEmail,
+  profile, kyc, stats, chartData, recentUpdates, authEmail,
 }: {
   profile:       ProfileData | null
+  kyc:           KYCData | null
   stats:         Stats
   chartData:     ChartDay[]
   recentUpdates: RecentUpdate[]
   authEmail:     string
 }) {
   const router = useRouter()
+
+  // Basic edit
   const [editing, setEditing] = useState(false)
   const [editName, setEditName]   = useState(profile?.name ?? "")
   const [editPhone, setEditPhone] = useState(profile?.phone ?? "")
   const [editError, setEditError] = useState<string | null>(null)
   const [savePending, startSave]  = useTransition()
+
+  // Personal details
+  const [editPersonal, setEditPersonal] = useState(false)
+  const [personal, setPersonal] = useState({
+    blood_group:             profile?.blood_group ?? "",
+    address:                 profile?.address ?? "",
+    emergency_contact_name:  profile?.emergency_contact_name ?? "",
+    emergency_contact_phone: profile?.emergency_contact_phone ?? "",
+  })
+  const [personalPending, startPersonal] = useTransition()
+  const [personalError, setPersonalError] = useState<string | null>(null)
+
+  // KYC
+  const [editKYC, setEditKYC] = useState(false)
+  const [kycForm, setKYCForm] = useState({
+    bank_name:    kyc?.bank_name    ?? "",
+    bank_account: kyc?.bank_account ?? "",
+    bank_ifsc:    kyc?.bank_ifsc    ?? "",
+    govt_id_type: kyc?.govt_id_type ?? "",
+    govt_id_url:  kyc?.govt_id_url  ?? "",
+    ration_card_url: kyc?.ration_card_url ?? "",
+  })
+  const [kycPending, startKYC] = useTransition()
+  const [kycError, setKYCError] = useState<string | null>(null)
+  const [uploadingField, setUploadingField] = useState<string | null>(null)
+
+  // Photo
+  const photoRef = useRef<HTMLInputElement>(null)
+  const [photoBusy, setPhotoBusy] = useState(false)
+
   const [logoutPending, startLogout] = useTransition()
 
   const initial = profile?.name?.charAt(0)?.toUpperCase() ?? authEmail?.charAt(0)?.toUpperCase() ?? "?"
+  const { score, items: completionItems } = completionScore(profile, kyc ?? kycForm as KYCData)
 
   function handleSave() {
     setEditError(null)
@@ -137,64 +190,166 @@ export default function ProfileClient({
     })
   }
 
-  function handleLogout() {
-    startLogout(async () => { await logoutAction() })
+  function handlePersonalSave() {
+    setPersonalError(null)
+    startPersonal(async () => {
+      const res = await updatePersonalDetails({
+        blood_group:             personal.blood_group || null,
+        address:                 personal.address || null,
+        emergency_contact_name:  personal.emergency_contact_name || null,
+        emergency_contact_phone: personal.emergency_contact_phone || null,
+      })
+      if (res.success) { setEditPersonal(false); router.refresh() }
+      else setPersonalError(res.error ?? "Failed to save")
+    })
+  }
+
+  function handleKYCSave() {
+    setKYCError(null)
+    startKYC(async () => {
+      const res = await updateKYC({
+        bank_name:       kycForm.bank_name || null,
+        bank_account:    kycForm.bank_account || null,
+        bank_ifsc:       kycForm.bank_ifsc || null,
+        govt_id_type:    kycForm.govt_id_type || null,
+        govt_id_url:     kycForm.govt_id_url || null,
+        ration_card_url: kycForm.ration_card_url || null,
+      })
+      if (res.success) { setEditKYC(false); router.refresh() }
+      else setKYCError(res.error ?? "Failed to save")
+    })
+  }
+
+  async function handlePhotoUpload(file: File) {
+    setPhotoBusy(true)
+    try {
+      const supabase = createBrowserClient()
+      const ext  = file.name.split(".").pop()
+      const path = `photos/${profile?.id}/${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from("documents").upload(path, file, { upsert: true })
+      if (upErr) { setPhotoBusy(false); return }
+      const { data: { publicUrl } } = supabase.storage.from("documents").getPublicUrl(path)
+      await updatePersonalDetails({ photo_url: publicUrl })
+      router.refresh()
+    } finally {
+      setPhotoBusy(false)
+    }
+  }
+
+  async function handleDocUpload(field: "govt_id_url" | "ration_card_url", file: File) {
+    setUploadingField(field)
+    try {
+      const supabase = createBrowserClient()
+      const ext  = file.name.split(".").pop()
+      const path = `kyc/${profile?.id}/${field}_${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage.from("documents").upload(path, file, { upsert: true })
+      if (upErr) { setUploadingField(null); return }
+      const { data: { publicUrl } } = supabase.storage.from("documents").getPublicUrl(path)
+      setKYCForm(prev => ({ ...prev, [field]: publicUrl }))
+    } finally {
+      setUploadingField(null)
+    }
   }
 
   return (
     <div className="p-6 md:p-8 max-w-[1100px]">
-      <style>{`.pf-in::placeholder{color:rgba(255,255,255,0.18);} .pf-in:focus{border-color:rgba(220,38,38,0.4)!important;}`}</style>
+      <style>{`.pf-in::placeholder{color:rgba(0,0,0,0.25);} .pf-in:focus{border-color:rgba(220,38,38,0.4)!important;}`}</style>
 
       {/* ── Page title ── */}
-      <div className="mb-6">
-        <h1 className="gradient-heading text-[30px] font-black leading-tight"
-          style={{ fontFamily: "var(--font-jakarta)" }}>My Profile</h1>
-        <p className="text-[13px] mt-1" style={{ color: "#9CA3AF" }}>
-          Your identity, performance, and account settings.
-        </p>
+      <div className="mb-5">
+        <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>My Profile</h1>
+        <p className="text-[13px] mt-1" style={{ color: "#9CA3AF" }}>Your identity, documents, and account settings.</p>
       </div>
 
-      {/* ── 2-column grid ── */}
+      {/* ── Profile Completion Banner ── */}
+      {score < 100 && (
+        <div className="rounded-2xl p-4 mb-5 flex items-center gap-4"
+          style={{ background: score >= 60 ? "rgba(217,119,6,0.06)" : "rgba(220,38,38,0.06)", border: `1px solid ${score >= 60 ? "rgba(217,119,6,0.2)" : "rgba(220,38,38,0.2)"}` }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: score >= 60 ? "rgba(217,119,6,0.12)" : "rgba(220,38,38,0.12)" }}>
+            <AlertTriangle size={16} style={{ color: score >= 60 ? "#D97706" : "#DC2626" }} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-bold" style={{ color: "#111111" }}>
+              Profile {score}% complete — fill in your details to unlock full access
+            </p>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {completionItems.filter(i => !i.done).map(i => (
+                <span key={i.label} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>
+                  Missing: {i.label}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="flex-shrink-0 text-right">
+            <p className="text-[28px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: score >= 60 ? "#D97706" : "#DC2626" }}>{score}%</p>
+            <div className="w-20 h-1.5 rounded-full mt-1" style={{ background: "#E5E7EB" }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, background: score >= 60 ? "#D97706" : "#DC2626" }} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {score === 100 && (
+        <div className="rounded-2xl p-4 mb-5 flex items-center gap-3"
+          style={{ background: "rgba(22,163,74,0.06)", border: "1px solid rgba(22,163,74,0.2)" }}>
+          <CheckCircle2 size={18} style={{ color: "#16A34A" }} />
+          <p className="text-[13px] font-semibold" style={{ color: "#16A34A" }}>Profile 100% complete — all details filled in</p>
+        </div>
+      )}
+
+      {/* ── Main 2-column grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5">
 
-        {/* ── LEFT COLUMN ── */}
+        {/* ── LEFT ── */}
         <div className="space-y-4">
 
-          {/* Profile header card */}
-          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
+          {/* Profile card */}
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
             <div className="flex items-start gap-4">
-              {/* Avatar */}
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0 font-black text-[26px]"
-                style={{
-                  background: "linear-gradient(135deg, rgba(220,38,38,0.2), rgba(220,38,38,0.06))",
-                  border: "2px solid rgba(220,38,38,0.3)",
-                  fontFamily: "var(--font-jakarta)",
-                  color: "#DC2626",
-                }}>
-                {initial}
+              {/* Photo avatar */}
+              <div className="relative flex-shrink-0">
+                <div className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center font-black text-[26px]"
+                  style={{
+                    background: profile?.photo_url ? "transparent" : "linear-gradient(135deg, rgba(220,38,38,0.2), rgba(220,38,38,0.06))",
+                    border: "2px solid rgba(220,38,38,0.3)",
+                    fontFamily: "var(--font-jakarta)",
+                    color: "#DC2626",
+                  }}>
+                  {profile?.photo_url
+                    ? <img src={profile.photo_url} alt="photo" className="w-full h-full object-cover" />
+                    : initial
+                  }
+                </div>
+                <button
+                  onClick={() => photoRef.current?.click()}
+                  disabled={photoBusy}
+                  className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center"
+                  style={{ background: "#DC2626", border: "2px solid #FFFFFF" }}
+                  title="Change photo"
+                >
+                  {photoBusy ? <Loader2 size={10} className="animate-spin" style={{ color: "#FFFFFF" }} /> : <Camera size={10} style={{ color: "#FFFFFF" }} />}
+                </button>
+                <input ref={photoRef} type="file" accept="image/*" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f) }} />
               </div>
 
-              {/* Name + role */}
               <div className="flex-1 min-w-0">
                 {editing ? (
                   <div className="space-y-2">
-                    <input className="pf-in text-[15px] font-bold" style={IS}
-                      value={editName} onChange={(e) => setEditName(e.target.value)}
-                      placeholder="Full name" />
-                    <input className="pf-in" style={IS}
-                      value={editPhone} onChange={(e) => setEditPhone(e.target.value)}
-                      placeholder="Phone number" />
+                    <input className="pf-in text-[15px] font-bold" style={IS} value={editName} onChange={e => setEditName(e.target.value)} placeholder="Full name" />
+                    <input className="pf-in" style={IS} value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Phone number" />
                     {editError && <p className="text-[12px]" style={{ color: "#DC2626" }}>{editError}</p>}
                     <div className="flex gap-2">
                       <button onClick={handleSave} disabled={savePending}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
                         style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
-                        {savePending ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />}
-                        Save
+                        {savePending ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Save
                       </button>
                       <button onClick={() => { setEditing(false); setEditName(profile?.name ?? ""); setEditPhone(profile?.phone ?? "") }}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
-                        style={{ background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #333" }}>
+                        style={{ background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }}>
                         <X size={11} /> Cancel
                       </button>
                     </div>
@@ -206,19 +361,14 @@ export default function ProfileClient({
                         {profile?.name ?? authEmail.split("@")[0]}
                       </h2>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full"
-                          style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
                           {profile?.role ?? "MEMBER"}
                         </span>
-                        <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
-                          style={{ background: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
+                        <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
                           #{profile?.employee_id ?? "—"}
                         </span>
                         <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
-                          style={{
-                            background: profile?.status === "active" ? "rgba(16,185,129,0.1)" : "rgba(255,107,87,0.1)",
-                            color: profile?.status === "active" ? "#10B981" : "#DC2626",
-                          }}>
+                          style={{ background: profile?.status === "active" ? "rgba(16,185,129,0.1)" : "rgba(255,107,87,0.1)", color: profile?.status === "active" ? "#10B981" : "#DC2626" }}>
                           {profile?.status ?? "active"}
                         </span>
                       </div>
@@ -233,30 +383,23 @@ export default function ProfileClient({
               </div>
             </div>
 
-            {/* Avg + total stats inline */}
             {!editing && (
-              <div className="grid grid-cols-2 gap-3 mt-4 pt-4" style={{ borderTop: "1px solid #2A2A2A" }}>
+              <div className="grid grid-cols-2 gap-3 mt-4 pt-4" style={{ borderTop: "1px solid #F0F0F0" }}>
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{ background: "rgba(220,38,38,0.08)" }}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(220,38,38,0.08)" }}>
                     <Zap size={13} style={{ color: "#DC2626" }} />
                   </div>
                   <div>
-                    <p className="text-[16px] font-black leading-none" style={{ color: "#111111" }}>
-                      {stats.avgHoursPerDay > 0 ? `${stats.avgHoursPerDay}h` : "—"}
-                    </p>
+                    <p className="text-[16px] font-black leading-none" style={{ color: "#111111" }}>{stats.avgHoursPerDay > 0 ? `${stats.avgHoursPerDay}h` : "—"}</p>
                     <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Avg hours/day</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                    style={{ background: "rgba(220,38,38,0.08)" }}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(220,38,38,0.08)" }}>
                     <Target size={13} style={{ color: "#DC2626" }} />
                   </div>
                   <div>
-                    <p className="text-[16px] font-black leading-none" style={{ color: "#111111" }}>
-                      {stats.totalCompleted}
-                    </p>
+                    <p className="text-[16px] font-black leading-none" style={{ color: "#111111" }}>{stats.totalCompleted}</p>
                     <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Tasks completed</p>
                   </div>
                 </div>
@@ -265,9 +408,8 @@ export default function ProfileClient({
           </div>
 
           {/* Account Details */}
-          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
-            <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4"
-              style={{ color: "#D1D5DB" }}>Account Details</p>
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+            <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4" style={{ color: "#9CA3AF" }}>Account Details</p>
             <div className="space-y-2">
               {[
                 { icon: Mail,      label: "Email",       value: profile?.email || authEmail },
@@ -276,10 +418,8 @@ export default function ProfileClient({
                 { icon: Shield,    label: "Role",        value: profile?.role ?? "MEMBER" },
                 { icon: Calendar,  label: "Joined",      value: profile?.joined ?? "—" },
               ].map(({ icon: Icon, label, value }) => (
-                <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
-                  style={{ background: "rgba(0,0,0,0.02)" }}>
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(0,0,0,0.03)" }}>
+                <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.03)" }}>
                     <Icon size={13} style={{ color: "#9CA3AF" }} />
                   </div>
                   <div className="flex-1">
@@ -291,10 +431,188 @@ export default function ProfileClient({
             </div>
           </div>
 
+          {/* Personal Details */}
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: "#9CA3AF" }}>Personal Details</p>
+              {!editPersonal && (
+                <button onClick={() => setEditPersonal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
+                  style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
+                  <Edit2 size={11} /> Edit
+                </button>
+              )}
+            </div>
+
+            {editPersonal ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Blood Group</label>
+                  <div className="flex flex-wrap gap-2">
+                    {BLOOD_GROUPS.map(bg => (
+                      <button key={bg} onClick={() => setPersonal(p => ({ ...p, blood_group: bg }))}
+                        className="px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
+                        style={personal.blood_group === bg
+                          ? { background: "#DC2626", color: "#FFFFFF", border: "1px solid #DC2626" }
+                          : { background: "#F9FAFB", color: "#6B7280", border: "1px solid #E5E7EB" }}>
+                        {bg}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Residential Address</label>
+                  <textarea value={personal.address} onChange={e => setPersonal(p => ({ ...p, address: e.target.value }))}
+                    rows={2} placeholder="Full address..."
+                    className="pf-in w-full px-3 py-2.5 rounded-xl text-[13px] outline-none resize-none"
+                    style={IS} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Emergency Contact Name</label>
+                    <input value={personal.emergency_contact_name} onChange={e => setPersonal(p => ({ ...p, emergency_contact_name: e.target.value }))}
+                      placeholder="e.g. Mother's name" className="pf-in" style={IS} />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Emergency Phone</label>
+                    <input value={personal.emergency_contact_phone} onChange={e => setPersonal(p => ({ ...p, emergency_contact_phone: e.target.value }))}
+                      placeholder="Phone number" className="pf-in" style={IS} />
+                  </div>
+                </div>
+                {personalError && <p className="text-[12px]" style={{ color: "#DC2626" }}>{personalError}</p>}
+                <div className="flex gap-2 pt-1">
+                  <button onClick={handlePersonalSave} disabled={personalPending}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
+                    style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF" }}>
+                    {personalPending ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Save
+                  </button>
+                  <button onClick={() => setEditPersonal(false)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
+                    style={{ background: "#F9FAFB", color: "#6B7280", border: "1px solid #E5E7EB" }}>
+                    <X size={11} /> Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {[
+                  { icon: HeartPulse, label: "Blood Group",       value: profile?.blood_group || "—" },
+                  { icon: MapPin,     label: "Address",           value: profile?.address || "—" },
+                  { icon: UserPlus,   label: "Emergency Contact", value: profile?.emergency_contact_name ? `${profile.emergency_contact_name}${profile.emergency_contact_phone ? ` · ${profile.emergency_contact_phone}` : ""}` : "—" },
+                ].map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.03)" }}>
+                      <Icon size={13} style={{ color: value === "—" ? "#D1D5DB" : "#9CA3AF" }} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[10px] uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{label}</p>
+                      <p className="text-[13px] font-semibold" style={{ color: value === "—" ? "#D1D5DB" : "#111111" }}>{value}</p>
+                    </div>
+                    {value === "—" && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>Missing</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* KYC Documents */}
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: "#9CA3AF" }}>KYC &amp; Bank Details</p>
+              {!editKYC && (
+                <button onClick={() => setEditKYC(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
+                  style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
+                  <Edit2 size={11} /> Edit
+                </button>
+              )}
+            </div>
+
+            {editKYC ? (
+              <div className="space-y-4">
+                {/* Bank details */}
+                <div>
+                  <p className="text-[11px] font-bold mb-2" style={{ color: "#374151" }}>Bank Account</p>
+                  <div className="space-y-2">
+                    <input value={kycForm.bank_name} onChange={e => setKYCForm(p => ({ ...p, bank_name: e.target.value }))}
+                      placeholder="Bank name (e.g. SBI, HDFC)" className="pf-in" style={IS} />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={kycForm.bank_account} onChange={e => setKYCForm(p => ({ ...p, bank_account: e.target.value }))}
+                        placeholder="Account number" className="pf-in" style={IS} />
+                      <input value={kycForm.bank_ifsc} onChange={e => setKYCForm(p => ({ ...p, bank_ifsc: e.target.value }))}
+                        placeholder="IFSC code" className="pf-in" style={IS} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Govt ID */}
+                <div>
+                  <p className="text-[11px] font-bold mb-2" style={{ color: "#374151" }}>Government ID</p>
+                  <select value={kycForm.govt_id_type} onChange={e => setKYCForm(p => ({ ...p, govt_id_type: e.target.value }))}
+                    className="pf-in mb-2" style={{ ...IS, appearance: "none" }}>
+                    <option value="">Select ID type…</option>
+                    {GOVT_ID_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <DocUploadButton
+                    label="Upload Government ID"
+                    url={kycForm.govt_id_url}
+                    loading={uploadingField === "govt_id_url"}
+                    onFile={f => handleDocUpload("govt_id_url", f)}
+                  />
+                </div>
+
+                {/* Ration card */}
+                <div>
+                  <p className="text-[11px] font-bold mb-2" style={{ color: "#374151" }}>Ration Card</p>
+                  <DocUploadButton
+                    label="Upload Ration Card"
+                    url={kycForm.ration_card_url}
+                    loading={uploadingField === "ration_card_url"}
+                    onFile={f => handleDocUpload("ration_card_url", f)}
+                  />
+                </div>
+
+                {kycError && <p className="text-[12px]" style={{ color: "#DC2626" }}>{kycError}</p>}
+                <div className="flex gap-2 pt-1">
+                  <button onClick={handleKYCSave} disabled={kycPending}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
+                    style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF" }}>
+                    {kycPending ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Save
+                  </button>
+                  <button onClick={() => setEditKYC(false)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
+                    style={{ background: "#F9FAFB", color: "#6B7280", border: "1px solid #E5E7EB" }}>
+                    <X size={11} /> Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {[
+                  { icon: Landmark,  label: "Bank",        value: kyc?.bank_name ? `${kyc.bank_name}${kyc.bank_ifsc ? ` · ${kyc.bank_ifsc}` : ""}` : "—" },
+                  { icon: CreditCard, label: "Account No.",  value: kyc?.bank_account ? `****${kyc.bank_account.slice(-4)}` : "—" },
+                  { icon: FileText,  label: "Govt ID",     value: kyc?.govt_id_type ?? "—", hasUrl: !!kyc?.govt_id_url },
+                  { icon: FileText,  label: "Ration Card", value: kyc?.ration_card_url ? "Uploaded" : "—", hasUrl: !!kyc?.ration_card_url },
+                ].map(({ icon: Icon, label, value, hasUrl }) => (
+                  <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.03)" }}>
+                      <Icon size={13} style={{ color: value === "—" ? "#D1D5DB" : "#9CA3AF" }} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[10px] uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{label}</p>
+                      <p className="text-[13px] font-semibold" style={{ color: value === "—" ? "#D1D5DB" : "#111111" }}>{value}</p>
+                    </div>
+                    {hasUrl && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(22,163,74,0.08)", color: "#16A34A" }}>✓ Uploaded</span>}
+                    {value === "—" && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>Missing</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Account Actions */}
-          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
-            <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4"
-              style={{ color: "#D1D5DB" }}>Account Actions</p>
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+            <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4" style={{ color: "#9CA3AF" }}>Account Actions</p>
             <div className="space-y-2">
               <button onClick={() => router.push("/change-password")}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
@@ -302,86 +620,53 @@ export default function ProfileClient({
                 <KeyRound size={15} style={{ color: "#B91C1C" }} />
                 <span className="text-[13px] font-semibold" style={{ color: "#B91C1C" }}>Change Password</span>
               </button>
-              <button onClick={handleLogout} disabled={logoutPending}
+              <button onClick={() => startLogout(async () => { await logoutAction() })} disabled={logoutPending}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
                 style={{ background: "rgba(255,107,87,0.06)", border: "1px solid rgba(255,107,87,0.15)" }}>
-                {logoutPending
-                  ? <Loader2 size={15} className="animate-spin" style={{ color: "#DC2626" }} />
-                  : <LogOut size={15} style={{ color: "#DC2626" }} />
-                }
-                <span className="text-[13px] font-semibold" style={{ color: "#DC2626" }}>
-                  {logoutPending ? "Signing out…" : "Sign Out"}
-                </span>
+                {logoutPending ? <Loader2 size={15} className="animate-spin" style={{ color: "#DC2626" }} /> : <LogOut size={15} style={{ color: "#DC2626" }} />}
+                <span className="text-[13px] font-semibold" style={{ color: "#DC2626" }}>{logoutPending ? "Signing out…" : "Sign Out"}</span>
               </button>
             </div>
           </div>
-
         </div>
 
-        {/* ── RIGHT COLUMN ── */}
+        {/* ── RIGHT ── */}
         <div className="space-y-4">
-
-          {/* This week summary */}
-          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
-            <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4"
-              style={{ color: "#D1D5DB" }}>This Week</p>
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+            <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4" style={{ color: "#D1D5DB" }}>This Week</p>
             <div className="space-y-3">
               {[
-                {
-                  icon: Clock, label: "Hours Worked", value: stats.weekHours > 0 ? `${stats.weekHours}h` : "—",
-                  color: "#DC2626", bg: "rgba(220,38,38,0.08)",
-                },
-                {
-                  icon: Target, label: "Tasks Completed", value: stats.totalCompleted,
-                  color: "#DC2626", bg: "rgba(220,38,38,0.08)",
-                },
-                {
-                  icon: AlertCircle, label: "Missed Updates", value: stats.weekMissed,
-                  color: stats.weekMissed > 0 ? "#F59E0B" : "#10B981",
-                  bg: stats.weekMissed > 0 ? "rgba(245,158,11,0.08)" : "rgba(16,185,129,0.08)",
-                },
-                {
-                  icon: TrendingUp, label: "Leave Requests", value: stats.totalLeaves,
-                  color: "#6B7280", bg: "rgba(0,0,0,0.03)",
-                },
+                { icon: Clock,       label: "Hours Worked",    value: stats.weekHours > 0 ? `${stats.weekHours}h` : "—", color: "#DC2626", bg: "rgba(220,38,38,0.08)" },
+                { icon: Target,      label: "Tasks Completed", value: stats.totalCompleted, color: "#DC2626", bg: "rgba(220,38,38,0.08)" },
+                { icon: AlertCircle, label: "Missed Updates",  value: stats.weekMissed, color: stats.weekMissed > 0 ? "#F59E0B" : "#10B981", bg: stats.weekMissed > 0 ? "rgba(245,158,11,0.08)" : "rgba(16,185,129,0.08)" },
+                { icon: TrendingUp,  label: "Leave Requests",  value: stats.totalLeaves, color: "#6B7280", bg: "rgba(0,0,0,0.03)" },
               ].map(({ icon: Icon, label, value, color, bg }) => (
                 <div key={label} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                    style={{ background: bg }}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: bg }}>
                     <Icon size={13} style={{ color }} />
                   </div>
-                  <div className="flex-1">
-                    <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{label}</p>
-                  </div>
+                  <div className="flex-1"><p className="text-[11px]" style={{ color: "#9CA3AF" }}>{label}</p></div>
                   <p className="text-[16px] font-black" style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* 7-day bar chart */}
-          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
             <WeekChart data={chartData} />
           </div>
 
-          {/* Recent Activity */}
-          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
-            <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4"
-              style={{ color: "#D1D5DB" }}>Recent Activity</p>
+          <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+            <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4" style={{ color: "#D1D5DB" }}>Recent Activity</p>
             {recentUpdates.length === 0 ? (
-              <p className="text-[13px] text-center py-4" style={{ color: "rgba(0,0,0,0.1)" }}>
-                No updates yet
-              </p>
+              <p className="text-[13px] text-center py-4" style={{ color: "rgba(0,0,0,0.1)" }}>No updates yet</p>
             ) : (
               <div className="space-y-2.5">
                 {recentUpdates.map((upd) => (
                   <div key={upd.date} className="flex items-start gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
-                      style={{ background: "#DC2626" }} />
+                    <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: "#DC2626" }} />
                     <div className="flex-1">
-                      <p className="text-[12px] font-semibold" style={{ color: "#111111" }}>
-                        {relativeDate(upd.date)}
-                      </p>
+                      <p className="text-[12px] font-semibold" style={{ color: "#111111" }}>{relativeDate(upd.date)}</p>
                       <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
                         {upd.working_hours != null ? `${upd.working_hours}h worked` : "Update submitted"}
                         {upd.shoot_count && upd.shoot_count > 0 ? ` · ${upd.shoot_count} shoot${upd.shoot_count !== 1 ? "s" : ""}` : ""}
@@ -392,9 +677,26 @@ export default function ProfileClient({
               </div>
             )}
           </div>
-
         </div>
       </div>
+    </div>
+  )
+}
+
+function DocUploadButton({ label, url, loading, onFile }: {
+  label: string; url: string; loading: boolean; onFile: (f: File) => void
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+  return (
+    <div>
+      <input ref={ref} type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f) }} />
+      <button onClick={() => ref.current?.click()} disabled={loading}
+        className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed text-[13px] font-medium transition-all"
+        style={{ borderColor: url ? "#16A34A" : "#E5E7EB", color: url ? "#16A34A" : "#9CA3AF", background: url ? "rgba(22,163,74,0.04)" : "#F9FAFB" }}>
+        {loading ? <Loader2 size={14} className="animate-spin" /> : url ? <CheckCircle2 size={14} /> : <Upload size={14} />}
+        {loading ? "Uploading…" : url ? "Uploaded — click to replace" : label}
+      </button>
     </div>
   )
 }

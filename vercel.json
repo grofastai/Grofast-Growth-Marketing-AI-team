@@ -7,6 +7,10 @@
     {
       "path": "/api/send-missed-alert",
       "schedule": "30 15 * * *"
+    },
+    {
+      "path": "/api/cron/birthdays",
+      "schedule": "30 3 * * *"
     }
   ]
 }

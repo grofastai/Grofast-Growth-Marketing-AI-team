@@ -30,6 +30,15 @@ export default async function ProfilePage() {
     name: string; employee_id: string; role: string
     email: string | null; phone: string | null
     status: string; created_at: string
+    photo_url: string | null
+    blood_group: string | null
+    address: string | null
+    emergency_contact_name: string | null
+    emergency_contact_phone: string | null
+  }
+  type KYCRow = {
+    bank_name: string | null; bank_account: string | null; bank_ifsc: string | null
+    govt_id_type: string | null; govt_id_url: string | null; ration_card_url: string | null
   }
   type UpdateRow  = { date: string; working_hours: number | null; shoot_count: number | null }
 
@@ -39,10 +48,11 @@ export default async function ProfilePage() {
     { data: allUpdatesRaw },
     { count: totalCompleted },
     { count: totalLeaves },
+    { data: kycRaw },
   ] = await Promise.all([
     supabase
       .from("users")
-      .select("name, employee_id, role, email, phone, status, created_at")
+      .select("name, employee_id, role, email, phone, status, created_at, photo_url, blood_group, address, emergency_contact_name, emergency_contact_phone")
       .eq("id", user.id)
       .single(),
     supabase
@@ -60,9 +70,15 @@ export default async function ProfilePage() {
       .from("leaves")
       .select("*", { count: "exact", head: true })
       .eq("user_id", user.id),
+    supabase
+      .from("member_kyc")
+      .select("bank_name, bank_account, bank_ifsc, govt_id_type, govt_id_url, ration_card_url")
+      .eq("user_id", user.id)
+      .maybeSingle(),
   ])
 
   const profile    = profileRaw as unknown as ProfileRow | null
+  const kyc        = kycRaw as unknown as KYCRow | null
   const allUpdates = (allUpdatesRaw ?? []) as unknown as UpdateRow[]
   // Derive recent activity from the same fetch — sorted desc, capped at 5
   const recentUpdates = [...allUpdates].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
@@ -111,7 +127,13 @@ export default async function ProfilePage() {
         phone:       profile.phone ?? "",
         status:      profile.status,
         joined,
+        photo_url:               profile.photo_url ?? null,
+        blood_group:             profile.blood_group ?? null,
+        address:                 profile.address ?? null,
+        emergency_contact_name:  profile.emergency_contact_name ?? null,
+        emergency_contact_phone: profile.emergency_contact_phone ?? null,
       } : null}
+      kyc={kyc}
       stats={{
         weekHours:    Math.round(weekHours * 10) / 10,
         weekMissed,

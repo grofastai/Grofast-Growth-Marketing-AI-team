@@ -14,7 +14,8 @@ export default async function MemberDashboardPage() {
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
   const monthName  = now.toLocaleString("en-US", { month: "long", year: "numeric" })
 
-  type ProfileRow     = { name: string; employee_id: string }
+  type ProfileRow     = { name: string; employee_id: string; phone: string | null; photo_url: string | null; blood_group: string | null; emergency_contact_name: string | null }
+  type KYCRow         = { bank_account: string | null; govt_id_url: string | null }
   type UpdateRow      = { working_hours: number | null; shoot_count: number | null }
   type TaskRow        = { id: string; title: string; status: string; priority: string; due_date: string | null }
   type AttLog         = { clock_in: string | null; clock_out: string | null }
@@ -33,8 +34,9 @@ export default async function MemberDashboardPage() {
     { data: monthlyUpdatesRaw },
     { data: approvedLeavesRaw },
     { data: announcementsRaw },
+    { data: kycRaw },
   ] = await Promise.all([
-    supabase.from("users").select("name, employee_id").eq("id", user.id).single(),
+    supabase.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name").eq("id", user.id).single(),
     supabase.from("daily_updates").select("working_hours, shoot_count").eq("user_id", user.id).eq("date", today).maybeSingle(),
     supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", user.id).neq("status", "completed"),
     supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", user.id).eq("status", "completed"),
@@ -44,9 +46,14 @@ export default async function MemberDashboardPage() {
     supabase.from("daily_updates").select("working_hours, work_type, attendance_status").eq("user_id", user.id).gte("date", monthStart).lte("date", today),
     supabase.from("leaves").select("from_date, to_date").eq("user_id", user.id).eq("status", "approved").gte("from_date", monthStart),
     supabase.from("announcements").select("id, title, message").order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(5),
+    supabase.from("member_kyc").select("bank_account, govt_id_url").eq("user_id", user.id).maybeSingle(),
   ])
 
   const profile         = profileRaw as unknown as ProfileRow | null
+  const kyc             = kycRaw as unknown as KYCRow | null
+  // Profile completion score
+  const profileFields   = [!!profile?.photo_url, !!profile?.phone, !!profile?.blood_group, !!profile?.emergency_contact_name, !!kyc?.bank_account, !!kyc?.govt_id_url]
+  const profileScore    = Math.round((profileFields.filter(Boolean).length / profileFields.length) * 100)
   const todayUpdate     = todayUpdateRaw as unknown as UpdateRow | null
   const myTasks         = (myTasksRaw ?? []) as unknown as TaskRow[]
   const clockLog        = clockLogRaw as unknown as AttLog | null
@@ -128,6 +135,26 @@ export default async function MemberDashboardPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-[1400px]">
+
+      {/* ── Profile Completion Prompt ── */}
+      {profileScore < 100 && (
+        <Link href="/member/profile"
+          className="flex items-center gap-3 px-4 py-3 rounded-xl mb-4 transition-all hover:opacity-90"
+          style={{ background: profileScore >= 60 ? "rgba(217,119,6,0.06)" : "rgba(220,38,38,0.06)", border: `1px solid ${profileScore >= 60 ? "rgba(217,119,6,0.2)" : "rgba(220,38,38,0.2)"}` }}>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: profileScore >= 60 ? "rgba(217,119,6,0.15)" : "rgba(220,38,38,0.12)" }}>
+            <AlertTriangle size={14} style={{ color: profileScore >= 60 ? "#D97706" : "#DC2626" }} />
+          </div>
+          <div className="flex-1">
+            <p className="text-[12px] font-bold" style={{ color: "#111111" }}>Complete your profile — {profileScore}% done</p>
+            <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>Add photo, blood group, bank details &amp; ID proof</p>
+          </div>
+          <div className="w-16 h-1.5 rounded-full flex-shrink-0" style={{ background: "#E5E7EB" }}>
+            <div className="h-full rounded-full" style={{ width: `${profileScore}%`, background: profileScore >= 60 ? "#D97706" : "#DC2626" }} />
+          </div>
+          <span className="text-[12px] font-black flex-shrink-0" style={{ color: profileScore >= 60 ? "#D97706" : "#DC2626" }}>{profileScore}%</span>
+        </Link>
+      )}
 
       {/* ── Announcements Ticker ── */}
       {announcements.length > 0 && (

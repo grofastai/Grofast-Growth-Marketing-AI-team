@@ -89,16 +89,30 @@ export default async function HistoryPage() {
           {Object.entries(grouped).map(([month, rows]) => (
             <div key={month}>
               {/* Month header */}
-              <div className="flex items-center gap-3 mb-4">
-                <CalendarDays size={13} style={{ color: "#DC2626" }} />
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em]"
-                  style={{ color: "#9CA3AF" }}>{month}</p>
-                <div className="flex-1 h-px" style={{ background: "#F0F0F0" }} />
-                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>
-                  {rows.length} day{rows.length !== 1 ? "s" : ""}
-                </span>
-              </div>
+              {(() => {
+                const monthOT = rows.reduce((sum, r) => {
+                  const h = r.working_hours ?? 0
+                  return h > 9 ? sum + Math.round((h - 9) * 10) / 10 : sum
+                }, 0)
+                return (
+                  <div className="flex items-center gap-3 mb-4">
+                    <CalendarDays size={13} style={{ color: "#DC2626" }} />
+                    <p className="text-[11px] font-bold uppercase tracking-[0.2em]"
+                      style={{ color: "#9CA3AF" }}>{month}</p>
+                    <div className="flex-1 h-px" style={{ background: "#F0F0F0" }} />
+                    {monthOT > 0 && (
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                        style={{ background: "rgba(234,88,12,0.08)", color: "#EA580C" }}>
+                        {monthOT}h OT
+                      </span>
+                    )}
+                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>
+                      {rows.length} day{rows.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                )
+              })()}
 
               {/* Timeline */}
               <div className="relative pl-6">
@@ -149,6 +163,12 @@ export default async function HistoryPage() {
                                   <span className="text-[12px] font-semibold" style={{ color: "#374151" }}>
                                     {u.working_hours}h worked
                                   </span>
+                                  {u.working_hours > 9 && (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                                      style={{ background: "rgba(234,88,12,0.1)", color: "#EA580C" }}>
+                                      +{Math.round((u.working_hours - 9) * 10) / 10}h OT
+                                    </span>
+                                  )}
                                 </div>
                               )}
                               {u.learning_hours != null && u.learning_hours > 0 && (

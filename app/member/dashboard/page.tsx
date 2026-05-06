@@ -83,6 +83,14 @@ export default async function MemberDashboardPage() {
     return sum + days
   }, 0)
 
+  const overtimeDays = presentRows.filter(u => (u.working_hours ?? 0) > 9).length
+  const overtimeHrs  = Math.round(
+    presentRows.reduce((sum, u) => {
+      const h = u.working_hours ?? 0
+      return h > 9 ? sum + (h - 9) : sum
+    }, 0) * 10
+  ) / 10
+
   const hour      = now.getHours()
   const greeting  = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
   const dateStr   = now.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long" })
@@ -90,7 +98,9 @@ export default async function MemberDashboardPage() {
 
   let productivitySignal: { icon: "zap" | "warn"; text: string; color: string } | null = null
   if (clockLog?.clock_in) {
-    if (todayHours >= 6)
+    if (todayHours > 9)
+      productivitySignal = { icon: "zap",  text: `Overtime: +${Math.round((todayHours - 9) * 10) / 10}h beyond 9h today`, color: "#EA580C" }
+    else if (todayHours >= 6)
       productivitySignal = { icon: "zap",  text: "You're on track today",        color: "#DC2626" }
     else if (todayHours < 4)
       productivitySignal = { icon: "warn", text: "You are below expected hours", color: "#F59E0B" }
@@ -110,7 +120,7 @@ export default async function MemberDashboardPage() {
     { label: "Leave Days",      value: leaveDays,    color: leaveDays > 0 ? "#D97706" : "#D1D5DB" },
     { label: "Office Days",     value: officeDays,   color: "#DC2626" },
     { label: "WFH Days",        value: wfhDays,      color: "#6366F1" },
-    { label: "Holidays",        value: holidayDays,  color: "#9CA3AF" },
+    { label: "Overtime Hrs",    value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—", color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeDays > 0 ? `${overtimeDays} day${overtimeDays !== 1 ? "s" : ""}` : undefined },
   ]
 
   // Duplicate announcements text for seamless marquee loop

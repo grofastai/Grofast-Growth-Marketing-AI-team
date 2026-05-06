@@ -427,8 +427,8 @@ export default function TeamClient({ members }: { members: Member[] }) {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl overflow-hidden"
-        style={{ background: "#FFFFFF", border: "1px solid rgba(255,255,255,0.06)" }}>
+      <div className="rounded-xl"
+        style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", overflow: "visible" }}>
         <table className="w-full">
           <thead>
             <tr style={{ borderBottom: "1px solid #E5E7EB", background: "rgba(0,0,0,0.02)" }}>
@@ -527,7 +527,7 @@ export default function TeamClient({ members }: { members: Member[] }) {
                     </button>
 
                     {openDropdown === member.id && (
-                      <div className="absolute right-0 top-9 w-44 rounded-xl shadow-2xl z-20 overflow-hidden py-1"
+                      <div className="absolute right-0 top-9 w-44 rounded-xl shadow-2xl z-50 overflow-hidden py-1"
                         style={{ background: "#F8F9FA", border: "1px solid #E5E7EB" }}>
                         <button onClick={() => handleToggleStatus(member)} disabled={isPending}
                           className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"

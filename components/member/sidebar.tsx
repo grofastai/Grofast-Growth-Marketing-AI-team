@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, ClipboardList, Target, CalendarOff,
-  Megaphone, User, LogOut, Clock, History, Camera,
+  Megaphone, User, LogOut, Clock, History, Camera, Receipt, FolderOpen,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
@@ -16,6 +16,8 @@ const navItems = [
   { label: "Shoot Log",     href: "/member/shoots",        icon: Camera },
   { label: "My Tasks",      href: "/member/tasks",         icon: Target },
   { label: "Leaves",        href: "/member/leaves",        icon: CalendarOff },
+  { label: "Expenses",      href: "/member/expenses",      icon: Receipt },
+  { label: "Documents",     href: "/member/documents",     icon: FolderOpen },
   { label: "Announcements", href: "/member/announcements", icon: Megaphone },
   { label: "Profile",       href: "/member/profile",       icon: User },
 ]

@@ -31,6 +31,7 @@ interface Member {
   monthly_salary: number | null
   hourly_rate: number | null
   paid_leave_days: number | null
+  deleted_at?: string | null
 }
 
 function getInitials(name: string) {
@@ -300,13 +301,14 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function TeamClient({ members }: { members: Member[] }) {
+export default function TeamClient({ members, pastMembers }: { members: Member[]; pastMembers: Member[] }) {
   const [search, setSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER">("ALL")
   const [statusFilter, setStatusFilter] = useState<"ALL" | "active" | "inactive">("ALL")
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [showPast, setShowPast] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Member | null>(null)
   const [deleteError, setDeleteError] = useState("")
   const [isPending, startTransition] = useTransition()
@@ -569,6 +571,77 @@ export default function TeamClient({ members }: { members: Member[] }) {
       </div>
 
       {openDropdown && <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />}
+
+      {/* Past Members */}
+      {pastMembers.length > 0 && (
+        <div>
+          <button
+            onClick={() => setShowPast(v => !v)}
+            className="flex items-center gap-2 text-[13px] font-semibold mb-3 transition-all"
+            style={{ color: "#9CA3AF" }}
+          >
+            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px]"
+              style={{ background: "rgba(0,0,0,0.06)" }}>
+              {showPast ? "▲" : "▼"}
+            </span>
+            Past Members
+            <span className="text-[11px] px-2 py-0.5 rounded-full"
+              style={{ background: "rgba(0,0,0,0.05)", color: "#9CA3AF" }}>
+              {pastMembers.length}
+            </span>
+          </button>
+
+          {showPast && (
+            <div className="rounded-xl" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+              <table className="w-full">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #F0F0F0", background: "rgba(0,0,0,0.01)" }}>
+                    {["Employee", "ID", "Team", "Role", "Left On"].map((h) => (
+                      <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.18em]"
+                        style={{ color: "#D1D5DB" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pastMembers.map((m, i) => (
+                    <tr key={m.id}
+                      style={{ borderBottom: i < pastMembers.length - 1 ? "1px solid #F9F9F9" : "none", opacity: 0.7 }}>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                            style={{ background: "rgba(0,0,0,0.05)" }}>
+                            <span className="text-[10px] font-bold" style={{ color: "#9CA3AF" }}>{getInitials(m.name)}</span>
+                          </div>
+                          <div>
+                            <p className="text-[13px] font-semibold" style={{ color: "#6B7280" }}>{m.name}</p>
+                            <p className="text-[11px]" style={{ color: "#D1D5DB" }}>{m.email ?? "—"}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="text-[12px] font-mono px-2 py-0.5 rounded"
+                          style={{ background: "rgba(0,0,0,0.03)", color: "#9CA3AF" }}>{m.employee_id}</span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="text-[12px]" style={{ color: "#D1D5DB" }}>{m.team ?? "—"}</span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="text-[11px] px-2 py-0.5 rounded-full"
+                          style={{ background: "rgba(0,0,0,0.04)", color: "#9CA3AF" }}>{m.role}</span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="text-[12px]" style={{ color: "#D1D5DB" }}>
+                          {m.deleted_at ? formatDate(m.deleted_at) : "—"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Delete confirmation modal */}
       {confirmDelete && (

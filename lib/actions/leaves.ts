@@ -48,8 +48,12 @@ export async function submitLeaveRequest(
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return { error: 'Not authenticated' }
 
-  const company_id = parseCompanyId(session.access_token)
-  if (!company_id) return { error: 'Missing company claim' }
+  let company_id = parseCompanyId(session.access_token)
+  if (!company_id) {
+    const { data: u } = await supabase.from('users').select('company_id').eq('id', session.user.id).single()
+    company_id = u?.company_id ?? null
+  }
+  if (!company_id) return { error: 'Could not resolve company. Please sign out and sign in again.' }
 
   const { data: profile } = await supabase
     .from('users')

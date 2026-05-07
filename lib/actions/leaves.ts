@@ -34,7 +34,7 @@ export async function submitLeaveRequest(
     leave_type:       leaveType,
     from_date:        formData.get('from_date') as string,
     to_date:          leaveType === 'full_day' ? (formData.get('to_date') as string) : (formData.get('from_date') as string),
-    half_day_period:  formData.get('half_day_period') as string | null,
+    half_day_period:  formData.get('half_day_period') || undefined,
     permission_hours: formData.get('permission_hours') ? Number(formData.get('permission_hours')) : undefined,
     reason:           formData.get('reason') as string,
   }

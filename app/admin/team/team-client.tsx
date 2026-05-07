@@ -10,11 +10,10 @@ import {
 import { createMember, updateMember, toggleMemberStatus, deleteMember } from "@/lib/actions/team"
 
 const TEAMS = [
+  "Media & Technology Team",
   "Media Team",
-  "Tech & Operation Team",
-  "Tech & Media Team",
-  "Freelancing",
-  "Script Team",
+  "Technology & Operation Team",
+  "Creative Team",
 ] as const
 
 interface Member {

@@ -68,6 +68,78 @@ const IS: React.CSSProperties = {
 
 const BLOOD_GROUPS = ["A+", "A−", "B+", "B−", "AB+", "AB−", "O+", "O−"]
 const GOVT_ID_TYPES = ["Aadhaar Card", "PAN Card", "Voter ID", "Passport", "Driving Licence"]
+const INDIAN_BANKS = [
+  // Public Sector Banks
+  "State Bank of India (SBI)",
+  "Bank of Baroda",
+  "Bank of India",
+  "Bank of Maharashtra",
+  "Canara Bank",
+  "Central Bank of India",
+  "Indian Bank",
+  "Indian Overseas Bank",
+  "Punjab & Sind Bank",
+  "Punjab National Bank",
+  "UCO Bank",
+  "Union Bank of India",
+  // Private Sector Banks
+  "Axis Bank",
+  "Bandhan Bank",
+  "City Union Bank",
+  "CSB Bank (Catholic Syrian Bank)",
+  "DCB Bank",
+  "Dhanlaxmi Bank",
+  "Federal Bank",
+  "HDFC Bank",
+  "ICICI Bank",
+  "IDBI Bank",
+  "IDFC First Bank",
+  "IndusInd Bank",
+  "Jammu & Kashmir Bank",
+  "Karnataka Bank",
+  "Karur Vysya Bank",
+  "Kotak Mahindra Bank",
+  "Lakshmi Vilas Bank",
+  "Nainital Bank",
+  "RBL Bank",
+  "South Indian Bank",
+  "Tamilnad Mercantile Bank",
+  "YES Bank",
+  // Small Finance Banks
+  "AU Small Finance Bank",
+  "Equitas Small Finance Bank",
+  "ESAF Small Finance Bank",
+  "Jana Small Finance Bank",
+  "Suryoday Small Finance Bank",
+  "Ujjivan Small Finance Bank",
+  "Utkarsh Small Finance Bank",
+  // Payments Banks
+  "Airtel Payments Bank",
+  "India Post Payments Bank",
+  "Fino Payments Bank",
+  "Jio Payments Bank",
+  "Paytm Payments Bank",
+  // Tamil Nadu Co-operative Banks
+  "Tamil Nadu State Apex Co-operative Bank",
+  "Thanjavur Central Co-operative Bank",
+  "Madurai District Central Co-operative Bank",
+  "Coimbatore District Central Co-operative Bank",
+  "Salem District Central Co-operative Bank",
+  "Tirunelveli District Central Co-operative Bank",
+  "Erode District Central Co-operative Bank",
+  "Vellore District Central Co-operative Bank",
+  "Krishnagiri District Central Co-operative Bank",
+  "Dharmapuri District Central Co-operative Bank",
+  "Villupuram District Central Co-operative Bank",
+  "Cuddalore District Central Co-operative Bank",
+  "Tiruvannamalai District Central Co-operative Bank",
+  "Kancheepuram District Central Co-operative Bank",
+  "Tiruvallur District Central Co-operative Bank",
+  "Chengalpattu District Central Co-operative Bank",
+  // Other
+  "Post Office (IPPB)",
+  "Other",
+]
 
 function relativeDate(dateStr: string): string {
   const today = new Date().toISOString().split("T")[0]
@@ -534,8 +606,11 @@ export default function ProfileClient({
                 <div>
                   <p className="text-[11px] font-bold mb-2" style={{ color: "#374151" }}>Bank Account</p>
                   <div className="space-y-2">
-                    <input value={kycForm.bank_name} onChange={e => setKYCForm(p => ({ ...p, bank_name: e.target.value }))}
-                      placeholder="Bank name (e.g. SBI, HDFC)" className="pf-in" style={IS} />
+                    <select value={kycForm.bank_name} onChange={e => setKYCForm(p => ({ ...p, bank_name: e.target.value }))}
+                      className="pf-in" style={{ ...IS, appearance: "none" }}>
+                      <option value="">Select bank…</option>
+                      {INDIAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select>
                     <div className="grid grid-cols-2 gap-2">
                       <input value={kycForm.bank_account} onChange={e => setKYCForm(p => ({ ...p, bank_account: e.target.value }))}
                         placeholder="Account number" className="pf-in" style={IS} />

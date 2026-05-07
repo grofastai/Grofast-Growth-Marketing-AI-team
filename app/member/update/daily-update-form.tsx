@@ -611,6 +611,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
   const [error, setError] = useState<string | null>(null)
 
   const [entries, setEntries] = useState<GenEntry[]>([newGenEntry()])
+  const [hasLearning, setHasLearning] = useState(false)
   const [learning, setLearning] = useState<GenLearning>({
     title: "", start_time: "", end_time: "", duration_hours: 0, notes: "",
   })
@@ -631,10 +632,12 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
       if (e.duration_hours <= 0)                    return `Work Entry ${n}: End time must be after start time`
       if (!e.notes.trim())                          return `Work Entry ${n}: Notes are required — explain what you worked on`
     }
-    if (!learning.title.trim())                     return "Learning: Title is required"
-    if (!learning.start_time || !learning.end_time) return "Learning: Start and end time are required"
-    if (learning.duration_hours <= 0)               return "Learning: End time must be after start time"
-    if (!learning.notes.trim())                     return "Learning: Notes are required — explain what you learned"
+    if (hasLearning) {
+      if (!learning.title.trim())                     return "Learning: Title is required"
+      if (!learning.start_time || !learning.end_time) return "Learning: Start and end time are required"
+      if (learning.duration_hours <= 0)               return "Learning: End time must be after start time"
+      if (!learning.notes.trim())                     return "Learning: Notes are required — explain what you learned"
+    }
     return null
   }
 
@@ -662,9 +665,9 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
         links: [],
         shoot_count: 0,
         editing_count: 0,
-        learning_topic: learning.title,
-        learning_hours: learning.duration_hours,
-        learning_notes: `[${learning.start_time}–${learning.end_time}] ${learning.notes}`,
+        learning_topic: hasLearning ? learning.title : undefined,
+        learning_hours: hasLearning ? learning.duration_hours : 0,
+        learning_notes: hasLearning ? `[${learning.start_time}–${learning.end_time}] ${learning.notes}` : undefined,
       })
 
       if (result.success) {
@@ -737,86 +740,113 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
 
         {/* ── Learning Section ────────────────────────────────── */}
         <div>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: "rgba(99,102,241,0.1)" }}>
-              <BookOpen size={17} style={{ color: "#6366F1" }} />
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: "rgba(99,102,241,0.1)" }}>
+                <BookOpen size={17} style={{ color: "#6366F1" }} />
+              </div>
+              <div>
+                <h2 className="text-[17px] font-black leading-none"
+                  style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>Learning</h2>
+                {hasLearning && learning.duration_hours > 0 && (
+                  <p className="text-[11px] font-semibold mt-0.5" style={{ color: "#6366F1" }}>
+                    {learning.duration_hours}h
+                  </p>
+                )}
+              </div>
             </div>
-            <div>
-              <h2 className="text-[17px] font-black leading-none"
-                style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>Learning</h2>
-              {learning.duration_hours > 0 && (
-                <p className="text-[11px] font-semibold mt-0.5" style={{ color: "#6366F1" }}>
-                  {learning.duration_hours}h
-                </p>
-              )}
-            </div>
+            <button
+              type="button"
+              onClick={() => setHasLearning(prev => !prev)}
+              className="flex items-center gap-2 text-[12px] font-bold px-3 py-1.5 rounded-lg transition-all"
+              style={hasLearning
+                ? { background: "rgba(99,102,241,0.12)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.3)" }
+                : { background: "rgba(99,102,241,0.06)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.15)" }
+              }
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.15)"}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = hasLearning ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.06)"}
+            >
+              {hasLearning ? "Remove Learning" : "+ Add Learning"}
+            </button>
           </div>
 
-          <div className="rounded-2xl overflow-hidden"
-            style={{ border: "1px solid rgba(99,102,241,0.2)", boxShadow: "0 2px 8px rgba(99,102,241,0.06)" }}>
-
-            <div className="px-4 py-3"
-              style={{ background: "rgba(99,102,241,0.06)", borderBottom: "1px solid rgba(99,102,241,0.12)" }}>
-              <span className="text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: "#6366F1" }}>
-                What did you learn today?
+          {!hasLearning && (
+            <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl"
+              style={{ background: "rgba(99,102,241,0.04)", border: "1px dashed rgba(99,102,241,0.2)" }}>
+              <BookOpen size={15} style={{ color: "rgba(99,102,241,0.4)" }} />
+              <span className="text-[13px]" style={{ color: "#9CA3AF" }}>
+                Did you learn something today? Tap <strong style={{ color: "#6366F1" }}>+ Add Learning</strong> to log it — it's optional.
               </span>
             </div>
+          )}
 
-            <div className="p-4 space-y-4" style={{ background: "#FFFFFF" }}>
-              {/* Title */}
-              <div>
-                <label style={LABEL}>Title <span style={{ color: "#de1a1a" }}>*</span></label>
-                <input className="du" style={FIELD}
-                  placeholder="e.g. Meta Ads Strategy, SEO Techniques, Client Communication Skills…"
-                  value={learning.title}
-                  onChange={(e) => setLearning(prev => ({ ...prev, title: e.target.value }))} />
+          {hasLearning && (
+            <div className="rounded-2xl overflow-hidden"
+              style={{ border: "1px solid rgba(99,102,241,0.2)", boxShadow: "0 2px 8px rgba(99,102,241,0.06)" }}>
+
+              <div className="px-4 py-3"
+                style={{ background: "rgba(99,102,241,0.06)", borderBottom: "1px solid rgba(99,102,241,0.12)" }}>
+                <span className="text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: "#6366F1" }}>
+                  What did you learn today?
+                </span>
               </div>
 
-              {/* From / To / Duration */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="p-4 space-y-4" style={{ background: "#FFFFFF" }}>
+                {/* Title */}
                 <div>
-                  <label style={LABEL}>From <span style={{ color: "#de1a1a" }}>*</span></label>
-                  <input type="time" className="du" style={FIELD}
-                    value={learning.start_time}
-                    onChange={(e) => {
-                      const dur = calcDuration(e.target.value, learning.end_time)
-                      setLearning(prev => ({ ...prev, start_time: e.target.value, duration_hours: dur }))
-                    }} />
+                  <label style={LABEL}>Title <span style={{ color: "#de1a1a" }}>*</span></label>
+                  <input className="du" style={FIELD}
+                    placeholder="e.g. Meta Ads Strategy, SEO Techniques, Client Communication Skills…"
+                    value={learning.title}
+                    onChange={(e) => setLearning(prev => ({ ...prev, title: e.target.value }))} />
                 </div>
-                <div>
-                  <label style={LABEL}>To <span style={{ color: "#de1a1a" }}>*</span></label>
-                  <input type="time" className="du" style={FIELD}
-                    value={learning.end_time}
-                    onChange={(e) => {
-                      const dur = calcDuration(learning.start_time, e.target.value)
-                      setLearning(prev => ({ ...prev, end_time: e.target.value, duration_hours: dur }))
-                    }} />
-                </div>
-                <div>
-                  <label style={LABEL}>Duration</label>
-                  <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
-                    style={{
-                      height: "42px", background: "#F4F5F7", border: "1px solid #E5E7EB",
-                      color: learning.duration_hours > 0 ? "#6366F1" : "#D1D5DB",
-                    }}>
-                    {learning.duration_hours > 0 ? `${learning.duration_hours}h` : "—"}
+
+                {/* From / To / Duration */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  <div>
+                    <label style={LABEL}>From <span style={{ color: "#de1a1a" }}>*</span></label>
+                    <input type="time" className="du" style={FIELD}
+                      value={learning.start_time}
+                      onChange={(e) => {
+                        const dur = calcDuration(e.target.value, learning.end_time)
+                        setLearning(prev => ({ ...prev, start_time: e.target.value, duration_hours: dur }))
+                      }} />
+                  </div>
+                  <div>
+                    <label style={LABEL}>To <span style={{ color: "#de1a1a" }}>*</span></label>
+                    <input type="time" className="du" style={FIELD}
+                      value={learning.end_time}
+                      onChange={(e) => {
+                        const dur = calcDuration(learning.start_time, e.target.value)
+                        setLearning(prev => ({ ...prev, end_time: e.target.value, duration_hours: dur }))
+                      }} />
+                  </div>
+                  <div>
+                    <label style={LABEL}>Duration</label>
+                    <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
+                      style={{
+                        height: "42px", background: "#F4F5F7", border: "1px solid #E5E7EB",
+                        color: learning.duration_hours > 0 ? "#6366F1" : "#D1D5DB",
+                      }}>
+                      {learning.duration_hours > 0 ? `${learning.duration_hours}h` : "—"}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Notes */}
-              <div>
-                <label style={LABEL}>
-                  Notes — Key takeaways & insights <span style={{ color: "#de1a1a" }}>*</span>
-                </label>
-                <textarea rows={4} className="du resize-none" style={FIELD}
-                  placeholder="Explain clearly what you learned, key insights gained, resources used, and how it applies to your work…"
-                  value={learning.notes}
-                  onChange={(e) => setLearning(prev => ({ ...prev, notes: e.target.value }))} />
+                {/* Notes */}
+                <div>
+                  <label style={LABEL}>
+                    Notes — Key takeaways & insights <span style={{ color: "#de1a1a" }}>*</span>
+                  </label>
+                  <textarea rows={4} className="du resize-none" style={FIELD}
+                    placeholder="Explain clearly what you learned, key insights gained, resources used, and how it applies to your work…"
+                    value={learning.notes}
+                    onChange={(e) => setLearning(prev => ({ ...prev, notes: e.target.value }))} />
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Error */}

@@ -41,7 +41,11 @@ export async function updateKYC(data: {
   aadhaar_number?: string | null
   pan_number?: string | null
   govt_id_url?: string | null
+  aadhaar_back_url?: string | null
+  pan_front_url?: string | null
+  pan_back_url?: string | null
   ration_card_url?: string | null
+  ration_card_url2?: string | null
 }) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -72,7 +72,7 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
   const approvedTotal = approved.reduce((s, e) => s + e.amount, 0)
 
   return (
-    <div className="p-4 md:p-6 xl:p-8 max-w-[1000px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
       {/* Header */}
       <div className="flex items-start justify-between mb-7">
         <div>

@@ -78,7 +78,7 @@ export default function MemberSupportClient({ tickets }: { tickets: Ticket[] }) 
   }
 
   return (
-    <div className="p-4 md:p-6 xl:p-8 max-w-3xl">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

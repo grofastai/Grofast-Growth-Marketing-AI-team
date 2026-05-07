@@ -1,4 +1,4 @@
-ï»¿'use client'
+'use client'
 
 import { useState, useTransition } from 'react'
 import { addResponse, updateTicketStatus } from '@/lib/actions/support'
@@ -72,7 +72,7 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
   }
 
   return (
-    <div className="p-4 md:p-6 xl:p-8 max-w-5xl">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-black" style={{ color: '#0a100d' }}>Support Tickets</h1>
@@ -142,9 +142,9 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-[12px]" style={{ color: '#6B7280' }}>
                       <span className="capitalize">{ticket.category}</span>
-                      <span>Â·</span>
+                      <span>·</span>
                       <span>{new Date(ticket.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                      <span>Â·</span>
+                      <span>·</span>
                       <span>{responses.length} {responses.length === 1 ? 'reply' : 'replies'}</span>
                     </div>
                   </div>
@@ -181,7 +181,7 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
                     <div className="flex gap-2">
                       <textarea
                         rows={2}
-                        placeholder="Type a replyâ€¦"
+                        placeholder="Type a reply…"
                         value={replyText[ticket.id] ?? ''}
                         onChange={e => setReplyText(p => ({ ...p, [ticket.id]: e.target.value }))}
                         className="flex-1 rounded-xl px-3 py-2 text-[13px] resize-none outline-none"

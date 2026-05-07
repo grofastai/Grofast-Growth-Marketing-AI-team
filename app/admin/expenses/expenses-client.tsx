@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
@@ -50,7 +50,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
   }
 
   return (
-    <div className="p-4 md:p-6 xl:p-8 max-w-[1200px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
       <div className="mb-6">
         <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
           Expense Claims
@@ -62,8 +62,8 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
       <div className="flex flex-wrap gap-2 md:gap-3 mb-5 md:mb-6">
         {[
           { label: "Pending Review", value: pending.length, color: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
-          { label: "Pending Amount", value: `₹${totalPending.toLocaleString("en-IN")}`, color: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
-          { label: "Approved Total", value: `₹${totalApproved.toLocaleString("en-IN")}`, color: "#16A34A", bg: "rgba(22,163,74,0.06)", border: "rgba(22,163,74,0.15)" },
+          { label: "Pending Amount", value: `?${totalPending.toLocaleString("en-IN")}`, color: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
+          { label: "Approved Total", value: `?${totalApproved.toLocaleString("en-IN")}`, color: "#16A34A", bg: "rgba(22,163,74,0.06)", border: "rgba(22,163,74,0.15)" },
           { label: "All Claims", value: expenses.length, color: "#111111", bg: "#FFFFFF", border: "#E5E7EB" },
         ].map(s => (
           <div key={s.label} className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
@@ -117,7 +117,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
                           <span className="text-[11px]" style={{ color: "#6B7280" }}>#{user?.employee_id}</span>
                         </div>
                         <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
-                          {e.description} · <span style={{ color: "#6B7280" }}>{e.category}</span> · {formatDate(e.date)}
+                          {e.description} � <span style={{ color: "#6B7280" }}>{e.category}</span> � {formatDate(e.date)}
                         </p>
                         {e.notes && <p className="text-[12px] mt-1" style={{ color: "#6B7280" }}>{e.notes}</p>}
                         {e.review_notes && (
@@ -128,7 +128,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-[18px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
-                          ₹{e.amount.toLocaleString("en-IN")}
+                          ?{e.amount.toLocaleString("en-IN")}
                         </p>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                           style={{ background: st.bg, color: st.color }}>{st.label}</span>
@@ -144,7 +144,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
                         </button>
                         {reviewId === e.id ? (
                           <div className="flex items-center gap-2 flex-1">
-                            <input placeholder="Rejection note (optional)…"
+                            <input placeholder="Rejection note (optional)�"
                               value={reviewNote} onChange={ev => setNote(ev.target.value)}
                               className="flex-1 text-[12px] px-3 py-1.5 rounded-lg outline-none"
                               style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }} />

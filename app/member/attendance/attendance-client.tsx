@@ -1,9 +1,24 @@
 "use client"
 
-import { useState, useEffect, useTransition } from "react"
-import { LogIn, LogOut, Loader2, Home, Building2, CheckCircle2, Flame, AlertTriangle } from "lucide-react"
+import { useState, useEffect, useTransition, useCallback } from "react"
+import { LogIn, LogOut, Loader2, Home, Building2, CheckCircle2, Flame, AlertTriangle, MapPin } from "lucide-react"
 import { clockIn, clockOut, markAbsent } from "@/lib/actions/attendance"
 import { useRouter } from "next/navigation"
+
+// Office location from env vars (set NEXT_PUBLIC_OFFICE_LAT, NEXT_PUBLIC_OFFICE_LNG in Vercel)
+const OFFICE_LAT = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LAT ?? "")
+const OFFICE_LNG = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LNG ?? "")
+const OFFICE_RADIUS = parseFloat(process.env.NEXT_PUBLIC_OFFICE_RADIUS_METERS ?? "300")
+const OFFICE_CHECK_ENABLED = !isNaN(OFFICE_LAT) && !isNaN(OFFICE_LNG)
+
+function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371000
+  const dLat = (lat2 - lat1) * (Math.PI / 180)
+  const dLon = (lon2 - lon1) * (Math.PI / 180)
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
 
 type AttLog = {
   id: string; date: string
@@ -112,6 +127,44 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [selectedMode, setSelectedMode] = useState<"wfh" | "office">("office")
   const [confirmAbsent, setConfirmAbsent] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [geoLoading, setGeoLoading] = useState(false)
+
+  const handleLogIn = useCallback(() => {
+    setError(null)
+    if (selectedMode === "office" && OFFICE_CHECK_ENABLED) {
+      if (!navigator.geolocation) {
+        setError("Your browser does not support location — cannot verify office attendance.")
+        return
+      }
+      setGeoLoading(true)
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setGeoLoading(false)
+          const dist = haversineMeters(pos.coords.latitude, pos.coords.longitude, OFFICE_LAT, OFFICE_LNG)
+          if (dist > OFFICE_RADIUS) {
+            setError(`You are ${Math.round(dist)}m from the office (allowed: ${OFFICE_RADIUS}m). Move to the office to log in.`)
+            return
+          }
+          startTransition(async () => {
+            const res = await clockIn(selectedMode)
+            if (!res.success) setError(res.error ?? "Something went wrong")
+            else router.refresh()
+          })
+        },
+        () => {
+          setGeoLoading(false)
+          setError("Location access denied. Please allow location permission for office attendance.")
+        },
+        { timeout: 12000, maximumAge: 60000 }
+      )
+    } else {
+      startTransition(async () => {
+        const res = await clockIn(selectedMode)
+        if (!res.success) setError(res.error ?? "Something went wrong")
+        else router.refresh()
+      })
+    }
+  }, [selectedMode, router, startTransition])
 
   const isAbsent  = todayLog?.status === "absent"
   const isIn      = !!todayLog?.clock_in && !todayLog?.clock_out && todayLog?.status === "present"
@@ -214,12 +267,16 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => handle(() => clockIn(selectedMode))}
-                disabled={isPending}
+                onClick={handleLogIn}
+                disabled={isPending || geoLoading}
                 className="flex items-center gap-2 px-7 py-3 rounded-xl text-[14px] font-bold disabled:opacity-50 transition-all"
                 style={{ background: "#DC2626", color: "#FFFFFF" }}>
-                {isPending ? <Loader2 size={14} className="animate-spin" /> : <LogIn size={14} />}
-                Clock In
+                {geoLoading
+                  ? <><MapPin size={14} className="animate-pulse" /> Verifying location…</>
+                  : isPending
+                    ? <Loader2 size={14} className="animate-spin" />
+                    : <LogIn size={14} />}
+                {!geoLoading && "Log In"}
               </button>
               <button
                 onClick={() => setConfirmAbsent(true)}
@@ -239,7 +296,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             <div>
               <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-1"
                 style={{ color: "#DC2626" }}>
-                Checked in at {fmtTime(todayLog.clock_in)}
+                Logged in at {fmtTime(todayLog.clock_in)}
               </p>
               <p className="text-[12px] mb-3" style={{ color: "#9CA3AF" }}>Working for</p>
               <LiveTimer clockInIso={todayLog.clock_in} />
@@ -251,7 +308,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               className="flex items-center gap-2 px-7 py-3 rounded-xl text-[13px] font-bold disabled:opacity-50 transition-all"
               style={{ background: "rgba(0,0,0,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "#111111" }}>
               {isPending ? <Loader2 size={13} className="animate-spin" /> : <LogOut size={13} />}
-              Clock Out
+              Log Out
             </button>
             {error && <p className="text-[12px]" style={{ color: "#FF7070" }}>{error}</p>}
           </div>
@@ -270,8 +327,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               </p>
               <div className="space-y-1.5">
                 {[
-                  { label: "Check-in",  value: fmtTime(todayLog.clock_in)  },
-                  { label: "Check-out", value: fmtTime(todayLog.clock_out) },
+                  { label: "Log In",  value: fmtTime(todayLog.clock_in)  },
+                  { label: "Log Out", value: fmtTime(todayLog.clock_out) },
                   { label: "Total",     value: fmtHoursShort(hoursWorked)  },
                 ].map(row => (
                   <div key={row.label} className="flex items-center gap-3">
@@ -314,8 +371,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               color: isAbsent ? "#FF6464" : (isIn || isDone) ? "#DC2626" : "#6B7280" },
             { label: "Work Mode", value: todayLog?.work_type
                 ? (todayLog.work_type === "wfh" ? "Work From Home" : "Office") : "—" },
-            { label: "Check-in",  value: fmtTime(todayLog?.clock_in ?? null) },
-            { label: "Check-out", value: fmtTime(todayLog?.clock_out ?? null) },
+            { label: "Log In",  value: fmtTime(todayLog?.clock_in ?? null) },
+            { label: "Log Out", value: fmtTime(todayLog?.clock_out ?? null) },
             { label: "Hours",     value: hoursWorked > 0 ? fmtHoursShort(hoursWorked) : "—" },
           ].map(row => (
             <div key={row.label} className="flex items-center justify-between">

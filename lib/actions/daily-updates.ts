@@ -42,36 +42,75 @@ export async function submitDailyUpdate(
   const totalWorkHours = d.work_entries.reduce((sum, e) => sum + e.duration_hours, 0)
   const roundedHours = Math.round(totalWorkHours * 10) / 10
 
-  const { error: insertError } = await admin
+  // Check if a record already exists for today (allow appending more work)
+  const { data: existingRecord } = await admin
     .from('daily_updates')
-    .insert({
-      company_id:          profile.company_id,
-      user_id:             user.id,
-      date:                today,
-      attendance_status:   'present',
-      working_hours:       d.active_tab === 'working' ? roundedHours : null,
-      learning_hours:      d.learning_hours,
-      shoot_count:         d.shoot_count,
-      notes:               null,
-      // v2 columns
-      work_entries:        d.work_entries,
-      learning_topic:      d.learning_topic ?? null,
-      learning_notes:      d.learning_notes ?? null,
-      links:               d.links,
-      editing_count:       d.editing_count,
-      shoot_time_hours:    d.shoot_time_hours ?? null,
-      editing_time_hours:  d.editing_time_hours ?? null,
-    })
+    .select('id, work_entries, working_hours, shoot_count, editing_count, learning_hours')
+    .eq('user_id', user.id)
+    .eq('date', today)
+    .maybeSingle()
 
-  if (insertError) {
-    if (insertError.code === '23505') {
-      return { success: false, error: 'Already submitted today' }
+  let isFirstSubmission = false
+
+  if (existingRecord) {
+    // Append new entries to existing record
+    const combinedEntries = [
+      ...(Array.isArray(existingRecord.work_entries) ? existingRecord.work_entries : []),
+      ...d.work_entries,
+    ]
+    const newWorkHours = Math.round(((existingRecord.working_hours || 0) + (d.active_tab === 'working' ? roundedHours : 0)) * 10) / 10
+
+    const updatePayload: Record<string, unknown> = {
+      work_entries:  combinedEntries,
+      working_hours: newWorkHours || null,
+      shoot_count:   (existingRecord.shoot_count   || 0) + d.shoot_count,
+      editing_count: (existingRecord.editing_count || 0) + d.editing_count,
     }
-    return { success: false, error: insertError.message }
+    if (d.learning_topic) {
+      updatePayload.learning_topic = d.learning_topic
+      updatePayload.learning_notes = d.learning_notes ?? null
+      updatePayload.learning_hours = Math.round(((existingRecord.learning_hours || 0) + d.learning_hours) * 10) / 10
+    }
+
+    const { error: updateError } = await admin
+      .from('daily_updates')
+      .update(updatePayload)
+      .eq('id', existingRecord.id)
+
+    if (updateError) return { success: false, error: updateError.message }
+  } else {
+    isFirstSubmission = true
+    const { error: insertError } = await admin
+      .from('daily_updates')
+      .insert({
+        company_id:          profile.company_id,
+        user_id:             user.id,
+        date:                today,
+        attendance_status:   'present',
+        working_hours:       d.active_tab === 'working' ? roundedHours : null,
+        learning_hours:      d.learning_hours,
+        shoot_count:         d.shoot_count,
+        notes:               null,
+        work_entries:        d.work_entries,
+        learning_topic:      d.learning_topic ?? null,
+        learning_notes:      d.learning_notes ?? null,
+        links:               d.links,
+        editing_count:       d.editing_count,
+        shoot_time_hours:    d.shoot_time_hours ?? null,
+        editing_time_hours:  d.editing_time_hours ?? null,
+      })
+
+    if (insertError) return { success: false, error: insertError.message }
   }
 
-  // WhatsApp notification to admin
+  // WhatsApp notification to admin — only on first submission
   try {
+    if (!isFirstSubmission) {
+      revalidatePath('/member/update')
+      revalidatePath('/member/dashboard')
+      revalidatePath('/admin/activities')
+      return { success: true }
+    }
     const { data: adminPhone } = await admin
       .from('users')
       .select('phone')

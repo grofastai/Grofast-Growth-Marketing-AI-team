@@ -73,45 +73,34 @@ export default async function UpdatePage() {
         <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>{dateStr}</p>
       </div>
 
-      {existing ? (
-        <div className="rounded-xl p-8 flex flex-col items-center gap-5 text-center"
-          style={{ background: "rgba(220,38,38,0.04)", border: "1px solid rgba(220,38,38,0.2)" }}>
-          <div className="w-14 h-14 rounded-full flex items-center justify-center"
+      {/* Already-submitted summary — shown above the form so they can log more work */}
+      {existing && (
+        <div className="rounded-xl px-5 py-4 mb-6 flex items-center gap-4"
+          style={{ background: "rgba(220,38,38,0.04)", border: "1px solid rgba(220,38,38,0.18)" }}>
+          <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center"
             style={{ background: "rgba(220,38,38,0.1)" }}>
-            <CheckCircle2 size={28} style={{ color: "#DC2626" }} />
+            <CheckCircle2 size={18} style={{ color: "#DC2626" }} />
           </div>
-          <div>
-            <h2 className="text-[18px] font-black mb-1"
-              style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
-              Update submitted
-            </h2>
-            <p className="text-[13px]" style={{ color: "#6B7280" }}>
-              You&apos;ve already submitted your daily update for today.
+          <div className="flex-1">
+            <p className="text-[13px] font-bold" style={{ color: "#DC2626" }}>Update submitted today</p>
+            <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>
+              {existing.working_hours != null ? `${existing.working_hours}h work` : ""}
+              {existing.working_hours != null && existing.learning_hours ? " · " : ""}
+              {existing.learning_hours ? `${existing.learning_hours}h learning` : ""}
+              {entryCount > 0 ? ` · ${entryCount} entr${entryCount === 1 ? "y" : "ies"}` : ""}
             </p>
           </div>
-          <div className="grid grid-cols-3 gap-3 w-full max-w-sm">
-            {[
-              { label: "Work Hours",    value: existing.working_hours != null ? `${existing.working_hours}h` : "—" },
-              { label: "Work Entries",  value: entryCount },
-              { label: "Learning",      value: existing.learning_hours ? `${existing.learning_hours}h` : "—" },
-            ].map((item) => (
-              <div key={item.label} className="rounded-lg p-3" style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
-                <p className="text-[9px] uppercase tracking-[0.18em] font-bold mb-1"
-                  style={{ color: "#9CA3AF" }}>{item.label}</p>
-                <p className="text-[13px] font-bold capitalize" style={{ color: "#111827" }}>{item.value}</p>
-              </div>
-            ))}
-          </div>
+          <p className="text-[11px] font-semibold" style={{ color: "#9CA3AF" }}>Add more below ↓</p>
         </div>
-      ) : (
-        <Suspense fallback={
-          <div className="flex items-center justify-center py-16">
-            <Loader2 size={20} className="animate-spin" style={{ color: "#DC2626" }} />
-          </div>
-        }>
-          <DailyUpdateForm projects={projects} team={profile?.team ?? null} />
-        </Suspense>
       )}
+
+      <Suspense fallback={
+        <div className="flex items-center justify-center py-16">
+          <Loader2 size={20} className="animate-spin" style={{ color: "#DC2626" }} />
+        </div>
+      }>
+        <DailyUpdateForm projects={projects} team={profile?.team ?? null} />
+      </Suspense>
     </div>
   )
 }

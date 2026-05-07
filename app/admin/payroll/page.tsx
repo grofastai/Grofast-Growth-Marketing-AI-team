@@ -30,7 +30,7 @@ export default async function PayrollPage({
   const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
   if (!profile) redirect("/login")
 
-  const [{ data: membersRaw }, { data: updatesRaw }] = await Promise.all([
+  const [{ data: membersRaw }, { data: updatesRaw }, { data: logsRaw }] = await Promise.all([
     admin
       .from("users")
       .select("id, name, employee_id, team, employment_type, monthly_salary, hourly_rate")
@@ -40,7 +40,13 @@ export default async function PayrollPage({
       .order("name"),
     admin
       .from("daily_updates")
-      .select("user_id, attendance_status, working_hours")
+      .select("user_id, working_hours")
+      .eq("company_id", profile.company_id)
+      .gte("date", monthStart)
+      .lte("date", monthEnd),
+    admin
+      .from("attendance_logs")
+      .select("user_id, date, clock_in, clock_out, status")
       .eq("company_id", profile.company_id)
       .gte("date", monthStart)
       .lte("date", monthEnd),
@@ -59,8 +65,11 @@ export default async function PayrollPage({
 
   const workDays = workingDaysInMonth(year, mon)
 
-  type UpdateRow = { user_id: string; attendance_status: string; working_hours: number | null }
+  type UpdateRow = { user_id: string; working_hours: number | null }
   const updates = (updatesRaw ?? []) as UpdateRow[]
+
+  type LogRow = { user_id: string; date: string; clock_in: string | null; clock_out: string | null; status: string | null }
+  const logs = (logsRaw ?? []) as LogRow[]
 
   type MemberRow = {
     id: string; name: string; employee_id: string; team: string | null
@@ -69,12 +78,12 @@ export default async function PayrollPage({
   const members = (membersRaw ?? []) as MemberRow[]
 
   const rows = members.map(m => {
+    const myLogs    = logs.filter(l => l.user_id === m.id)
     const myUpdates = updates.filter(u => u.user_id === m.id)
-    const presentRows = myUpdates.filter(u => u.attendance_status === "present")
-    const presentDays = presentRows.length
+    const presentDays = myLogs.filter(l => l.clock_in !== null || l.status === "present").length
     const absentDays  = Math.max(workDays - presentDays, 0)
-    const totalHours  = presentRows.reduce((s, u) => s + (u.working_hours ?? 0), 0)
-    const otHours     = Math.round(presentRows.reduce((s, u) => {
+    const totalHours  = myUpdates.reduce((s, u) => s + (u.working_hours ?? 0), 0)
+    const otHours     = Math.round(myUpdates.reduce((s, u) => {
       const h = u.working_hours ?? 0; return h > 9 ? s + (h - 9) : s
     }, 0) * 10) / 10
 

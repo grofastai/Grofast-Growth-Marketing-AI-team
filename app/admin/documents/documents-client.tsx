@@ -4,11 +4,27 @@ import { useState, useTransition, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { saveDocumentRecord, deleteDocument } from "@/lib/actions/documents"
-import { FileText, Upload, Trash2, FolderOpen, Loader2, X, Download, Users } from "lucide-react"
+import {
+  FileText, Upload, Trash2, FolderOpen, Loader2, X, Download, Users,
+  Phone, Mail, Briefcase, Calendar, Shield, HeartPulse, MapPin,
+  UserPlus, Landmark, CreditCard, ExternalLink, User,
+} from "lucide-react"
 
 const DOC_TYPES = ["Offer Letter", "Contract", "ID Proof", "Certificate", "Payslip", "Other"]
 
-type Member   = { id: string; name: string; employee_id: string }
+type Member = {
+  id: string; name: string; employee_id: string; role: string
+  email: string | null; phone: string | null; status: string
+  team: string | null; employment_type: string | null; created_at: string
+  blood_group: string | null; address: string | null
+  emergency_contact_name: string | null; emergency_contact_phone: string | null
+  photo_url: string | null
+}
+type KYCRecord = {
+  user_id: string; bank_name: string | null; bank_account: string | null
+  bank_ifsc: string | null; govt_id_type: string | null
+  govt_id_url: string | null; ration_card_url: string | null
+}
 type Document = {
   id: string; name: string; file_url: string; file_type: string | null
   file_size: number | null; doc_type: string; created_at: string
@@ -32,11 +48,37 @@ const DOC_COLOR: Record<string, string> = {
   "Certificate": "#16A34A", "Payslip": "#0EA5E9", "Other": "#9CA3AF",
 }
 
+function InfoRow({ icon: Icon, label, value, url }: {
+  icon: React.ElementType; label: string; value: string | null; url?: string | null
+}) {
+  const empty = !value || value === "—"
+  return (
+    <div className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>
+      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.03)" }}>
+        <Icon size={12} style={{ color: empty ? "#D1D5DB" : "#9CA3AF" }} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{label}</p>
+        <p className="text-[12px] font-semibold truncate" style={{ color: empty ? "#D1D5DB" : "#111111" }}>{value || "—"}</p>
+      </div>
+      {url && (
+        <a href={url} target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg flex-shrink-0"
+          style={{ background: "rgba(22,163,74,0.08)", color: "#16A34A", border: "1px solid rgba(22,163,74,0.2)", textDecoration: "none" }}>
+          <ExternalLink size={9} /> View
+        </a>
+      )}
+      {empty && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(220,38,38,0.07)", color: "#DC2626" }}>—</span>}
+    </div>
+  )
+}
+
 export default function DocumentsClient({
-  members, documents, companyId,
+  members, documents, kycRecords, companyId,
 }: {
   members: Member[]
   documents: Document[]
+  kycRecords: KYCRecord[]
   companyId: string
 }) {
   const [memberFilter, setMemberFilter] = useState("")
@@ -51,6 +93,8 @@ export default function DocumentsClient({
   const fileRef                         = useRef<HTMLInputElement>(null)
   const router                          = useRouter()
 
+  const selectedMember = memberFilter ? members.find(m => m.id === memberFilter) ?? null : null
+  const selectedKYC    = memberFilter ? kycRecords.find(k => k.user_id === memberFilter) ?? null : null
   const shown = memberFilter
     ? documents.filter(d => d.user_id === memberFilter)
     : documents
@@ -94,8 +138,10 @@ export default function DocumentsClient({
     start(async () => { await deleteDocument(id); router.refresh() })
   }
 
+  const initial = selectedMember?.name?.charAt(0)?.toUpperCase() ?? "?"
+
   return (
-    <div className="p-8 max-w-[1000px]">
+    <div className="p-8 max-w-[1100px]">
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
@@ -111,7 +157,7 @@ export default function DocumentsClient({
         </button>
       </div>
 
-      {/* Filter */}
+      {/* Member filter */}
       <div className="flex items-center gap-3 mb-5">
         <Users size={13} style={{ color: "#9CA3AF" }} />
         <select value={memberFilter} onChange={e => setMemberFilter(e.target.value)}
@@ -123,12 +169,105 @@ export default function DocumentsClient({
         <span className="text-[12px]" style={{ color: "#9CA3AF" }}>{shown.length} documents</span>
       </div>
 
+      {/* Member profile card (shown when a member is selected) */}
+      {selectedMember && (
+        <div className="rounded-2xl mb-6 overflow-hidden" style={{ border: "1px solid #F0F0F0" }}>
+          {/* Profile header */}
+          <div className="px-5 py-4 flex items-center gap-4" style={{ background: "linear-gradient(135deg, rgba(220,38,38,0.06), rgba(220,38,38,0.02))", borderBottom: "1px solid #F0F0F0" }}>
+            <div className="w-14 h-14 rounded-2xl overflow-hidden flex items-center justify-center font-black text-[22px] flex-shrink-0"
+              style={{
+                background: selectedMember.photo_url ? "transparent" : "linear-gradient(135deg, rgba(220,38,38,0.2), rgba(220,38,38,0.06))",
+                border: "2px solid rgba(220,38,38,0.25)",
+                fontFamily: "var(--font-jakarta)", color: "#DC2626",
+              }}>
+              {selectedMember.photo_url
+                ? <img src={selectedMember.photo_url} alt="photo" className="w-full h-full object-cover" />
+                : initial}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-[18px] font-black leading-tight truncate" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+                {selectedMember.name}
+              </h2>
+              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+                  #{selectedMember.employee_id}
+                </span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
+                  {selectedMember.role}
+                </span>
+                {selectedMember.team && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
+                    {selectedMember.team}
+                  </span>
+                )}
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: "rgba(16,185,129,0.1)", color: "#10B981" }}>
+                  {selectedMember.status}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Details grid */}
+          <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Account details */}
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#9CA3AF" }}>Account</p>
+              <div className="space-y-1.5">
+                <InfoRow icon={Mail}      label="Email"       value={selectedMember.email} />
+                <InfoRow icon={Phone}     label="Phone"       value={selectedMember.phone} />
+                <InfoRow icon={Briefcase} label="Employment"  value={selectedMember.employment_type ?? null} />
+                <InfoRow icon={Calendar}  label="Joined"      value={formatDate(selectedMember.created_at)} />
+              </div>
+            </div>
+
+            {/* Personal details */}
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#9CA3AF" }}>Personal</p>
+              <div className="space-y-1.5">
+                <InfoRow icon={HeartPulse} label="Blood Group"       value={selectedMember.blood_group} />
+                <InfoRow icon={MapPin}     label="Address"           value={selectedMember.address} />
+                <InfoRow icon={UserPlus}   label="Emergency Contact" value={
+                  selectedMember.emergency_contact_name
+                    ? `${selectedMember.emergency_contact_name}${selectedMember.emergency_contact_phone ? ` · ${selectedMember.emergency_contact_phone}` : ""}`
+                    : null
+                } />
+              </div>
+            </div>
+
+            {/* KYC / Bank */}
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#9CA3AF" }}>KYC & Bank</p>
+              <div className="space-y-1.5">
+                <InfoRow icon={Landmark}   label="Bank"       value={selectedKYC?.bank_name ?? null} />
+                <InfoRow icon={CreditCard} label="Account No" value={selectedKYC?.bank_account ? `****${selectedKYC.bank_account.slice(-4)}` : null} />
+                <InfoRow icon={Shield}     label="IFSC"       value={selectedKYC?.bank_ifsc ?? null} />
+                <InfoRow icon={FileText}   label="Govt ID"    value={selectedKYC?.govt_id_type ?? null} url={selectedKYC?.govt_id_url} />
+                <InfoRow icon={FileText}   label="Ration Card" value={selectedKYC?.ration_card_url ? "Uploaded" : null} url={selectedKYC?.ration_card_url} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Documents list */}
+      {selectedMember && (
+        <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-3" style={{ color: "#9CA3AF" }}>
+          Uploaded Documents ({shown.length})
+        </p>
+      )}
       {shown.length === 0 ? (
-        <div className="flex flex-col items-center py-20 rounded-2xl"
+        <div className="flex flex-col items-center py-16 rounded-2xl"
           style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F0F0F0" }}>
           <FolderOpen size={32} style={{ color: "#E5E7EB" }} className="mb-3" />
           <p className="text-[13px] font-semibold" style={{ color: "#9CA3AF" }}>No documents uploaded yet</p>
+          {selectedMember && (
+            <button onClick={() => { setUploadFor(selectedMember.id); setShowUpload(true) }}
+              className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
+              style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
+              <Upload size={12} /> Upload for {selectedMember.name}
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-2">

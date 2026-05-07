@@ -81,7 +81,7 @@ export async function sendWhatsAppBlast(input: {
             type: 'template',
             template: {
               name: templateName,
-              language: { code: 'en' },
+              language: { code: process.env.WHATSAPP_TEMPLATE_LANG ?? 'en_US' },
               components: [
                 { type: 'body', parameters: [{ type: 'text', text: input.message }] },
               ],

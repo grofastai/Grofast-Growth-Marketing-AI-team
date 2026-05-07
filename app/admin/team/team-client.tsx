@@ -590,7 +590,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
               </tr>
             )}
           </tbody>
-        </table></div>      </div>
+        </table></div>
 
       {openDropdown && <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />}
 
@@ -659,7 +659,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                     </tr>
                   ))}
                 </tbody>
-              </table></div>            </div>
+              </table></div>
           )}
         </div>
       )}

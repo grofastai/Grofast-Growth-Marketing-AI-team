@@ -1,16 +1,15 @@
 ﻿"use client"
 
-import { useState, useTransition, useRef } from "react"
+import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   Plus, Trash2, Loader2, BookOpen, Briefcase,
   Camera, ChevronDown,
   CheckCircle2, XCircle, AlertCircle,
-  FolderOpen, ArrowLeft, Scissors, Upload, X, FileImage,
+  FolderOpen, ArrowLeft, Scissors,
 } from "lucide-react"
 import { submitDailyUpdate } from "@/lib/actions/daily-updates"
 import type { WorkEntryInput, EditingVideo } from "@/lib/validations/daily-update"
-import { createBrowserClient } from "@/lib/supabase/client"
 
 interface Project { id: string; business_name: string }
 
@@ -71,71 +70,6 @@ const LABEL: React.CSSProperties = {
 }
 
 // ── Proof Upload ───────────────────────────────────────────────
-function ProofUploadSection({
-  urls, onAdd, onRemove,
-}: { urls: string[]; onAdd: (url: string) => void; onRemove: (i: number) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [uploading, setUploading] = useState(false)
-
-  async function handleFile(file: File) {
-    if (urls.length >= 5) return
-    setUploading(true)
-    try {
-      const supabase = createBrowserClient()
-      const ext = file.name.split(".").pop()
-      const path = `daily-proofs/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
-      const { error } = await supabase.storage.from("documents").upload(path, file, { upsert: true })
-      if (error) { setUploading(false); return }
-      const { data: { publicUrl } } = supabase.storage.from("documents").getPublicUrl(path)
-      onAdd(publicUrl)
-    } finally { setUploading(false) }
-  }
-
-  return (
-    <div className="rounded-2xl p-4" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(222,26,26,0.08)" }}>
-            <FileImage size={13} style={{ color: "#de1a1a" }} />
-          </div>
-          <div>
-            <p className="text-[13px] font-bold" style={{ color: "#111827" }}>Work Proof</p>
-            <p className="text-[10px]" style={{ color: "#83858c" }}>Screenshots or documents — optional, up to 5</p>
-          </div>
-        </div>
-        {urls.length < 5 && (
-          <button type="button" onClick={() => inputRef.current?.click()} disabled={uploading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
-            style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}>
-            {uploading ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
-            {uploading ? "Uploading…" : "Upload"}
-          </button>
-        )}
-      </div>
-      <input ref={inputRef} type="file" accept="image/*,.pdf" className="hidden"
-        onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = "" }} />
-      {urls.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-2">
-          {urls.map((url, i) => (
-            <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
-              style={{ background: "rgba(22,163,74,0.07)", border: "1px solid rgba(22,163,74,0.2)" }}>
-              <CheckCircle2 size={11} style={{ color: "#16A34A" }} />
-              <a href={url} target="_blank" rel="noopener noreferrer"
-                className="text-[11px] font-semibold" style={{ color: "#16A34A", textDecoration: "none" }}>
-                File {i + 1}
-              </a>
-              <button type="button" onClick={() => onRemove(i)} className="ml-0.5">
-                <X size={10} style={{ color: "#83858c" }} />
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // ── Client select ──────────────────────────────────────────────
 function ClientSelect({ projects, value, onChange, required }: {
   projects: Project[]
@@ -680,8 +614,6 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
   const [learning, setLearning] = useState<GenLearning>({
     title: "", start_time: "", end_time: "", duration_hours: 0, notes: "",
   })
-  const [proofUrls, setProofUrls] = useState<string[]>([])
-
   function updateEntry(i: number, p: Partial<GenEntry>) {
     setEntries(prev => { const next = [...prev]; next[i] = { ...next[i], ...p }; return next })
   }
@@ -733,7 +665,6 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
         learning_topic: learning.title,
         learning_hours: learning.duration_hours,
         learning_notes: `[${learning.start_time}–${learning.end_time}] ${learning.notes}`,
-        work_proof_urls: proofUrls,
       })
 
       if (result.success) {
@@ -888,13 +819,6 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
           </div>
         </div>
 
-        {/* Proof upload */}
-        <ProofUploadSection
-          urls={proofUrls}
-          onAdd={url => setProofUrls(p => [...p, url])}
-          onRemove={i => setProofUrls(p => p.filter((_, j) => j !== i))}
-        />
-
         {/* Error */}
         {error && (
           <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl"
@@ -937,7 +861,6 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
   const [entries, setEntries] = useState<WorkEntryInput[]>([])
   const [learningTopic, setLearningTopic] = useState("")
   const [learningHours, setLearningHours] = useState("")
-  const [proofUrls, setProofUrls] = useState<string[]>([])
   const [learningNotes, setLearningNotes] = useState("")
 
   function updateEntry(i: number, patch: Partial<WorkEntryInput>) {
@@ -1035,7 +958,6 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
         learning_topic: learningTopic || undefined,
         learning_hours: parseFloat(learningHours) || 0,
         learning_notes: learningNotes || undefined,
-        work_proof_urls: proofUrls,
       })
 
       if (result.success) {
@@ -1291,13 +1213,6 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
               )}
             </>
           )}
-
-          {/* Proof upload */}
-          <ProofUploadSection
-            urls={proofUrls}
-            onAdd={url => setProofUrls(p => [...p, url])}
-            onRemove={i => setProofUrls(p => p.filter((_, j) => j !== i))}
-          />
 
           {/* Error */}
           {error && (

@@ -31,11 +31,12 @@ interface ProfileData {
 }
 
 interface KYCData {
-  bank_name:      string | null
-  bank_account:   string | null
-  bank_ifsc:      string | null
-  govt_id_type:   string | null
-  govt_id_url:    string | null
+  bank_name:       string | null
+  bank_account:    string | null
+  bank_ifsc:       string | null
+  aadhaar_number:  string | null
+  pan_number:      string | null
+  govt_id_url:     string | null
   ration_card_url: string | null
 }
 
@@ -233,11 +234,12 @@ export default function ProfileClient({
   // KYC
   const [editKYC, setEditKYC] = useState(false)
   const [kycForm, setKYCForm] = useState({
-    bank_name:    kyc?.bank_name    ?? "",
-    bank_account: kyc?.bank_account ?? "",
-    bank_ifsc:    kyc?.bank_ifsc    ?? "",
-    govt_id_type: kyc?.govt_id_type ?? "",
-    govt_id_url:  kyc?.govt_id_url  ?? "",
+    bank_name:       kyc?.bank_name       ?? "",
+    bank_account:    kyc?.bank_account    ?? "",
+    bank_ifsc:       kyc?.bank_ifsc       ?? "",
+    aadhaar_number:  kyc?.aadhaar_number  ?? "",
+    pan_number:      kyc?.pan_number      ?? "",
+    govt_id_url:     kyc?.govt_id_url     ?? "",
     ration_card_url: kyc?.ration_card_url ?? "",
   })
   const [kycPending, startKYC] = useTransition()
@@ -281,11 +283,16 @@ export default function ProfileClient({
     setKYCError(null)
     setKycSuccess(false)
     startKYC(async () => {
+      if (!kycForm.govt_id_url) {
+        setKYCError("Aadhaar photo upload is required")
+        return
+      }
       const res = await updateKYC({
         bank_name:       kycForm.bank_name || null,
         bank_account:    kycForm.bank_account || null,
         bank_ifsc:       kycForm.bank_ifsc || null,
-        govt_id_type:    kycForm.govt_id_type || null,
+        aadhaar_number:  kycForm.aadhaar_number || null,
+        pan_number:      kycForm.pan_number || null,
         govt_id_url:     kycForm.govt_id_url || null,
         ration_card_url: kycForm.ration_card_url || null,
       })
@@ -629,20 +636,30 @@ export default function ProfileClient({
                   </div>
                 </div>
 
-                {/* Govt ID */}
+                {/* Aadhaar & PAN */}
                 <div>
-                  <p className="text-[11px] font-bold mb-2" style={{ color: "#374151" }}>Government ID</p>
-                  <select value={kycForm.govt_id_type} onChange={e => setKYCForm(p => ({ ...p, govt_id_type: e.target.value }))}
-                    className="pf-in mb-2" style={{ ...IS, appearance: "none" }}>
-                    <option value="">Select ID type…</option>
-                    {GOVT_ID_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <DocUploadButton
-                    label="Upload Government ID"
-                    url={kycForm.govt_id_url}
-                    loading={uploadingField === "govt_id_url"}
-                    onFile={f => handleDocUpload("govt_id_url", f)}
-                  />
+                  <p className="text-[11px] font-bold mb-2" style={{ color: "#374151" }}>Identity Details</p>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Aadhaar Number</label>
+                      <input value={kycForm.aadhaar_number} onChange={e => setKYCForm(p => ({ ...p, aadhaar_number: e.target.value }))}
+                        placeholder="12-digit Aadhaar number" maxLength={14} className="pf-in" style={IS} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>PAN Number</label>
+                      <input value={kycForm.pan_number} onChange={e => setKYCForm(p => ({ ...p, pan_number: e.target.value.toUpperCase() }))}
+                        placeholder="e.g. ABCDE1234F" maxLength={10} className="pf-in" style={IS} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Aadhaar Photo <span style={{ color: "#DC2626" }}>*</span></label>
+                      <DocUploadButton
+                        label="Upload Aadhaar Photo (required)"
+                        url={kycForm.govt_id_url}
+                        loading={uploadingField === "govt_id_url"}
+                        onFile={f => handleDocUpload("govt_id_url", f)}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Ration card */}
@@ -673,10 +690,12 @@ export default function ProfileClient({
             ) : (
               <div className="space-y-2">
                 {[
-                  { icon: Landmark,   label: "Bank",        value: kyc?.bank_name ? `${kyc.bank_name}${kyc.bank_ifsc ? ` · ${kyc.bank_ifsc}` : ""}` : "—", url: null },
-                  { icon: CreditCard, label: "Account No.", value: kyc?.bank_account ? `****${kyc.bank_account.slice(-4)}` : "—", url: null },
-                  { icon: FileText,   label: "Govt ID",     value: kyc?.govt_id_type ?? "—", url: kyc?.govt_id_url ?? null },
-                  { icon: FileText,   label: "Ration Card", value: kyc?.ration_card_url ? "Uploaded" : "—", url: kyc?.ration_card_url ?? null },
+                  { icon: Landmark,   label: "Bank",           value: kyc?.bank_name ? `${kyc.bank_name}${kyc.bank_ifsc ? ` · ${kyc.bank_ifsc}` : ""}` : "—", url: null },
+                  { icon: CreditCard, label: "Account No.",    value: kyc?.bank_account ? `****${kyc.bank_account.slice(-4)}` : "—", url: null },
+                  { icon: FileText,   label: "Aadhaar No.",    value: kyc?.aadhaar_number ?? "—", url: null },
+                  { icon: FileText,   label: "PAN No.",        value: kyc?.pan_number ?? "—", url: null },
+                  { icon: FileText,   label: "Aadhaar Photo",  value: kyc?.govt_id_url ? "Uploaded" : "—", url: kyc?.govt_id_url ?? null },
+                  { icon: FileText,   label: "Ration Card",    value: kyc?.ration_card_url ? "Uploaded" : "—", url: kyc?.ration_card_url ?? null },
                 ].map(({ icon: Icon, label, value, url }) => (
                   <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.03)" }}>

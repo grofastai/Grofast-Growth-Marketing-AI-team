@@ -38,7 +38,8 @@ export default async function ProfilePage() {
   }
   type KYCRow = {
     bank_name: string | null; bank_account: string | null; bank_ifsc: string | null
-    govt_id_type: string | null; govt_id_url: string | null; ration_card_url: string | null
+    aadhaar_number: string | null; pan_number: string | null
+    govt_id_url: string | null; ration_card_url: string | null
   }
   type UpdateRow  = { date: string; working_hours: number | null; shoot_count: number | null }
 
@@ -72,7 +73,7 @@ export default async function ProfilePage() {
       .eq("user_id", user.id),
     supabase
       .from("member_kyc")
-      .select("bank_name, bank_account, bank_ifsc, govt_id_type, govt_id_url, ration_card_url")
+      .select("bank_name, bank_account, bank_ifsc, aadhaar_number, pan_number, govt_id_url, ration_card_url")
       .eq("user_id", user.id)
       .maybeSingle(),
   ])

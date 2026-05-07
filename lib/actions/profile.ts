@@ -38,7 +38,8 @@ export async function updateKYC(data: {
   bank_name?: string | null
   bank_account?: string | null
   bank_ifsc?: string | null
-  govt_id_type?: string | null
+  aadhaar_number?: string | null
+  pan_number?: string | null
   govt_id_url?: string | null
   ration_card_url?: string | null
 }) {

@@ -34,7 +34,7 @@ export default async function UpdatePage() {
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from("users")
-    .select("company_id")
+    .select("company_id, team")
     .eq("id", user.id)
     .single()
 
@@ -109,7 +109,7 @@ export default async function UpdatePage() {
             <Loader2 size={20} className="animate-spin" style={{ color: "#DC2626" }} />
           </div>
         }>
-          <DailyUpdateForm projects={projects} />
+          <DailyUpdateForm projects={projects} team={profile?.team ?? null} />
         </Suspense>
       )}
     </div>

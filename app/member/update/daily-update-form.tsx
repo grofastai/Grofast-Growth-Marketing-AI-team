@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
-  Plus, Trash2, Loader2, BookOpen,
-  Camera, Film, ChevronDown,
+  Plus, Trash2, Loader2, BookOpen, Briefcase,
+  Camera, ChevronDown,
   CheckCircle2, XCircle, AlertCircle,
   FolderOpen, ArrowLeft, Scissors,
 } from "lucide-react"
@@ -466,8 +466,389 @@ function EditCard({ entry, i, projects, onChange, onRemove }: {
   )
 }
 
-// ── Main form ──────────────────────────────────────────────────
-export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
+// ═══════════════════════════════════════════════════════════════
+// GENERAL TEAM FORM (all teams except Media Team)
+// ═══════════════════════════════════════════════════════════════
+
+type GenEntry = {
+  id: string
+  title: string
+  client_id: string | null
+  client_name: string
+  start_time: string
+  end_time: string
+  duration_hours: number
+  notes: string
+}
+
+type GenLearning = {
+  title: string
+  start_time: string
+  end_time: string
+  duration_hours: number
+  notes: string
+}
+
+function newGenEntry(): GenEntry {
+  return {
+    id: crypto.randomUUID(),
+    title: "", client_id: null, client_name: "",
+    start_time: "", end_time: "", duration_hours: 0,
+    notes: "",
+  }
+}
+
+// ── General Work Entry card ────────────────────────────────────
+function GenWorkCard({ entry, index, projects, onChange, onRemove, canRemove }: {
+  entry: GenEntry
+  index: number
+  projects: Project[]
+  onChange: (p: Partial<GenEntry>) => void
+  onRemove: () => void
+  canRemove: boolean
+}) {
+  return (
+    <div className="rounded-2xl overflow-hidden"
+      style={{ border: "1px solid rgba(220,38,38,0.2)", boxShadow: "0 2px 8px rgba(220,38,38,0.06)" }}>
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3"
+        style={{ background: "rgba(220,38,38,0.06)", borderBottom: "1px solid rgba(220,38,38,0.12)" }}>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: "rgba(220,38,38,0.15)" }}>
+            <Briefcase size={14} style={{ color: "#DC2626" }} />
+          </div>
+          <span className="text-[13px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
+            WORK ENTRY {index + 1}
+          </span>
+          {entry.duration_hours > 0 && (
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: "rgba(220,38,38,0.12)", color: "#DC2626" }}>
+              {entry.duration_hours}h
+            </span>
+          )}
+        </div>
+        {canRemove && (
+          <button type="button" onClick={onRemove}
+            className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}>
+            <Trash2 size={12} style={{ color: "#DC2626" }} />
+          </button>
+        )}
+      </div>
+
+      <div className="p-4 space-y-4" style={{ background: "#FFFFFF" }}>
+        {/* Title */}
+        <div>
+          <label style={LABEL}>Title <span style={{ color: "#DC2626" }}>*</span></label>
+          <input className="du" style={FIELD}
+            placeholder="e.g. Client Strategy Meeting, Website Development, Campaign Setup…"
+            value={entry.title}
+            onChange={(e) => onChange({ title: e.target.value })} />
+        </div>
+
+        {/* Client */}
+        <ClientSelect
+          projects={projects}
+          value={entry.client_id ?? ""}
+          onChange={(id, name) => onChange({ client_id: id || null, client_name: name })}
+          required
+        />
+
+        {/* From / To / Duration */}
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label style={LABEL}>From <span style={{ color: "#DC2626" }}>*</span></label>
+            <input type="time" className="du" style={FIELD}
+              value={entry.start_time}
+              onChange={(e) => {
+                const dur = calcDuration(e.target.value, entry.end_time)
+                onChange({ start_time: e.target.value, duration_hours: dur })
+              }} />
+          </div>
+          <div>
+            <label style={LABEL}>To <span style={{ color: "#DC2626" }}>*</span></label>
+            <input type="time" className="du" style={FIELD}
+              value={entry.end_time}
+              onChange={(e) => {
+                const dur = calcDuration(entry.start_time, e.target.value)
+                onChange({ end_time: e.target.value, duration_hours: dur })
+              }} />
+          </div>
+          <div>
+            <label style={LABEL}>Duration</label>
+            <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
+              style={{
+                height: "42px", background: "#F8F9FA", border: "1px solid #E5E7EB",
+                color: entry.duration_hours > 0 ? "#DC2626" : "#D1D5DB",
+              }}>
+              {entry.duration_hours > 0 ? `${entry.duration_hours}h` : "—"}
+            </div>
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label style={LABEL}>
+            Notes — What did you work on? <span style={{ color: "#DC2626" }}>*</span>
+          </label>
+          <textarea rows={4} className="du resize-none" style={FIELD}
+            placeholder="Describe clearly what you worked on, tasks completed, progress made, outcomes achieved, and any challenges faced…"
+            value={entry.notes}
+            onChange={(e) => onChange({ notes: e.target.value })} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── General Team Form ──────────────────────────────────────────
+function GeneralTeamForm({ projects }: { projects: Project[] }) {
+  const router = useRouter()
+  const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  const [entries, setEntries] = useState<GenEntry[]>([newGenEntry()])
+  const [learning, setLearning] = useState<GenLearning>({
+    title: "", start_time: "", end_time: "", duration_hours: 0, notes: "",
+  })
+
+  function updateEntry(i: number, p: Partial<GenEntry>) {
+    setEntries(prev => { const next = [...prev]; next[i] = { ...next[i], ...p }; return next })
+  }
+
+  function removeEntry(i: number) {
+    setEntries(prev => prev.filter((_, j) => j !== i))
+  }
+
+  function validate(): string | null {
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i]; const n = i + 1
+      if (!e.title.trim())                          return `Work Entry ${n}: Title is required`
+      if (!e.client_id && !e.client_name.trim())    return `Work Entry ${n}: Client is required`
+      if (!e.start_time || !e.end_time)             return `Work Entry ${n}: Start and end time are required`
+      if (e.duration_hours <= 0)                    return `Work Entry ${n}: End time must be after start time`
+      if (!e.notes.trim())                          return `Work Entry ${n}: Notes are required — explain what you worked on`
+    }
+    if (!learning.title.trim())                     return "Learning: Title is required"
+    if (!learning.start_time || !learning.end_time) return "Learning: Start and end time are required"
+    if (learning.duration_hours <= 0)               return "Learning: End time must be after start time"
+    if (!learning.notes.trim())                     return "Learning: Notes are required — explain what you learned"
+    return null
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+    const err = validate()
+    if (err) { setError(err); return }
+
+    startTransition(async () => {
+      const result = await submitDailyUpdate({
+        active_tab: "working",
+        work_entries: entries.map(e => ({
+          id: e.id,
+          client_id: e.client_id,
+          client_name: e.client_name,
+          task_type: "other" as const,
+          title: e.title,
+          start_time: e.start_time,
+          end_time: e.end_time,
+          duration_hours: e.duration_hours,
+          notes: e.notes,
+          editing_videos: [],
+        })),
+        links: [],
+        shoot_count: 0,
+        editing_count: 0,
+        learning_topic: learning.title,
+        learning_hours: learning.duration_hours,
+        learning_notes: `[${learning.start_time}–${learning.end_time}] ${learning.notes}`,
+      })
+
+      if (result.success) {
+        router.push("/member/dashboard")
+        router.refresh()
+      } else {
+        setError(result.error ?? "Something went wrong")
+      }
+    })
+  }
+
+  const totalWorkHours = Math.round(entries.reduce((s, e) => s + e.duration_hours, 0) * 10) / 10
+
+  return (
+    <>
+      <style>{`
+        .du::placeholder { color: #9CA3AF; }
+        .du:focus { border-color: rgba(220,38,38,0.4) !important; box-shadow: 0 0 0 2px rgba(220,38,38,0.06); }
+        .du-sel { appearance: none; }
+      `}</style>
+
+      <form onSubmit={handleSubmit} className="space-y-8">
+
+        {/* ── Work Update Section ─────────────────────────────── */}
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{ background: "rgba(220,38,38,0.1)" }}>
+                <Briefcase size={17} style={{ color: "#DC2626" }} />
+              </div>
+              <div>
+                <h2 className="text-[17px] font-black leading-none"
+                  style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>Work Update</h2>
+                {totalWorkHours > 0 && (
+                  <p className="text-[11px] font-semibold mt-0.5" style={{ color: "#DC2626" }}>
+                    {totalWorkHours}h total · {entries.length} entr{entries.length === 1 ? "y" : "ies"}
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEntries(prev => [...prev, newGenEntry()])}
+              className="flex items-center gap-1.5 text-[12px] font-bold px-3 py-1.5 rounded-lg transition-all"
+              style={{ background: "rgba(220,38,38,0.07)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.13)"}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.07)"}>
+              <Plus size={13} /> Add Entry
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {entries.map((entry, i) => (
+              <GenWorkCard
+                key={entry.id}
+                entry={entry}
+                index={i}
+                projects={projects}
+                canRemove={entries.length > 1}
+                onChange={(p) => updateEntry(i, p)}
+                onRemove={() => removeEntry(i)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div style={{ height: "1px", background: "linear-gradient(90deg, transparent, #E5E7EB 20%, #E5E7EB 80%, transparent)" }} />
+
+        {/* ── Learning Section ────────────────────────────────── */}
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: "rgba(99,102,241,0.1)" }}>
+              <BookOpen size={17} style={{ color: "#6366F1" }} />
+            </div>
+            <div>
+              <h2 className="text-[17px] font-black leading-none"
+                style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>Learning</h2>
+              {learning.duration_hours > 0 && (
+                <p className="text-[11px] font-semibold mt-0.5" style={{ color: "#6366F1" }}>
+                  {learning.duration_hours}h
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="rounded-2xl overflow-hidden"
+            style={{ border: "1px solid rgba(99,102,241,0.2)", boxShadow: "0 2px 8px rgba(99,102,241,0.06)" }}>
+
+            <div className="px-4 py-3"
+              style={{ background: "rgba(99,102,241,0.06)", borderBottom: "1px solid rgba(99,102,241,0.12)" }}>
+              <span className="text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: "#6366F1" }}>
+                What did you learn today?
+              </span>
+            </div>
+
+            <div className="p-4 space-y-4" style={{ background: "#FFFFFF" }}>
+              {/* Title */}
+              <div>
+                <label style={LABEL}>Title <span style={{ color: "#DC2626" }}>*</span></label>
+                <input className="du" style={FIELD}
+                  placeholder="e.g. Meta Ads Strategy, SEO Techniques, Client Communication Skills…"
+                  value={learning.title}
+                  onChange={(e) => setLearning(prev => ({ ...prev, title: e.target.value }))} />
+              </div>
+
+              {/* From / To / Duration */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label style={LABEL}>From <span style={{ color: "#DC2626" }}>*</span></label>
+                  <input type="time" className="du" style={FIELD}
+                    value={learning.start_time}
+                    onChange={(e) => {
+                      const dur = calcDuration(e.target.value, learning.end_time)
+                      setLearning(prev => ({ ...prev, start_time: e.target.value, duration_hours: dur }))
+                    }} />
+                </div>
+                <div>
+                  <label style={LABEL}>To <span style={{ color: "#DC2626" }}>*</span></label>
+                  <input type="time" className="du" style={FIELD}
+                    value={learning.end_time}
+                    onChange={(e) => {
+                      const dur = calcDuration(learning.start_time, e.target.value)
+                      setLearning(prev => ({ ...prev, end_time: e.target.value, duration_hours: dur }))
+                    }} />
+                </div>
+                <div>
+                  <label style={LABEL}>Duration</label>
+                  <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
+                    style={{
+                      height: "42px", background: "#F8F9FA", border: "1px solid #E5E7EB",
+                      color: learning.duration_hours > 0 ? "#6366F1" : "#D1D5DB",
+                    }}>
+                    {learning.duration_hours > 0 ? `${learning.duration_hours}h` : "—"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label style={LABEL}>
+                  Notes — Key takeaways & insights <span style={{ color: "#DC2626" }}>*</span>
+                </label>
+                <textarea rows={4} className="du resize-none" style={FIELD}
+                  placeholder="Explain clearly what you learned, key insights gained, resources used, and how it applies to your work…"
+                  value={learning.notes}
+                  onChange={(e) => setLearning(prev => ({ ...prev, notes: e.target.value }))} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl"
+            style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)" }}>
+            <AlertCircle size={15} className="flex-shrink-0 mt-0.5" style={{ color: "#DC2626" }} />
+            <span className="text-[13px]" style={{ color: "#DC2626" }}>{error}</span>
+          </div>
+        )}
+
+        {/* Submit */}
+        <button type="submit" disabled={pending}
+          className="w-full py-3.5 rounded-xl text-[14px] font-black flex items-center justify-center gap-2 transition-all"
+          style={{
+            background: pending ? "rgba(220,38,38,0.5)" : "linear-gradient(135deg, #DC2626, #7F1D1D)",
+            color: "#FFFFFF",
+            boxShadow: pending ? "none" : "0 4px 16px rgba(220,38,38,0.3)",
+            cursor: pending ? "not-allowed" : "pointer",
+          }}>
+          {pending && <Loader2 size={16} className="animate-spin" />}
+          {pending ? "Submitting…" : "Submit Daily Update →"}
+        </button>
+      </form>
+    </>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MEDIA TEAM FORM (shooting / editing / learning flow)
+// ═══════════════════════════════════════════════════════════════
+function MediaTeamForm({ projects }: { projects: Project[] }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -500,7 +881,6 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
     if (m === "learning") {
       setStep("form")
     } else if (m === "edit") {
-      // Skip count-select — start with 1 session + 1 video pre-added
       const session = newEntry("edit")
       session.editing_videos = [newEditingVideo()]
       setEntries([session])
@@ -820,7 +1200,6 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                 })}
               </div>
 
-              {/* Add another shoot button — editing sessions are fixed from step 2 */}
               {mode === "shoot" && (
                 <button
                   type="button"
@@ -832,7 +1211,6 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
                   <Plus size={15} /> Add Another Shoot
                 </button>
               )}
-
             </>
           )}
 
@@ -861,4 +1239,20 @@ export default function DailyUpdateForm({ projects }: { projects: Project[] }) {
       )}
     </>
   )
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXPORTED ROUTER — picks form based on team
+// ═══════════════════════════════════════════════════════════════
+export default function DailyUpdateForm({
+  projects,
+  team,
+}: {
+  projects: Project[]
+  team: string | null
+}) {
+  if (team === "Media Team") {
+    return <MediaTeamForm projects={projects} />
+  }
+  return <GeneralTeamForm projects={projects} />
 }

@@ -26,7 +26,6 @@ export async function updatePersonalDetails(data: {
   const admin = adminSupabase()
   const { error } = await admin.from('users').update({
     ...data,
-    updated_at: new Date().toISOString(),
   }).eq('id', user.id)
 
   if (error) return { error: error.message }

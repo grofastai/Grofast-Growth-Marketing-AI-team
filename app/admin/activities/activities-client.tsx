@@ -88,7 +88,7 @@ export default function ActivitiesClient({
         <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
           Activities
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#83858c" }}>Daily updates from all team members.</p>
+        <p className="text-sm mt-1" style={{ color: "#6B7280" }}>Daily updates from all team members.</p>
       </div>
 
       {/* Summary chips */}
@@ -98,12 +98,12 @@ export default function ActivitiesClient({
           { label: "Present",    value: presentCount,            color: "#de1a1a",  bg: "rgba(222,26,26,0.06)",  border: "rgba(222,26,26,0.15)" },
           { label: "Absent",     value: absentCount,             color: "#FF6B57",  bg: "rgba(255,107,87,0.06)",  border: "rgba(255,107,87,0.15)" },
           { label: "Total Hours",value: `${totalHours.toFixed(1)}h`, color: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
-          { label: "Not Updated",value: notUpdated.length,        color: notUpdated.length > 0 ? "#FF6B57" : "#83858c", bg: notUpdated.length > 0 ? "rgba(255,107,87,0.06)" : "#FFFFFF", border: notUpdated.length > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB" },
+          { label: "Not Updated",value: notUpdated.length,        color: notUpdated.length > 0 ? "#FF6B57" : "#6B7280", bg: notUpdated.length > 0 ? "rgba(255,107,87,0.06)" : "#FFFFFF", border: notUpdated.length > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB" },
         ].map((chip) => (
           <div key={chip.label} className="flex items-center gap-2 px-4 py-2 rounded-lg"
             style={{ background: chip.bg, border: `1px solid ${chip.border}` }}>
             <span className="text-[15px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: chip.color }}>{chip.value}</span>
-            <span className="text-[11px] font-medium" style={{ color: "#83858c" }}>{chip.label}</span>
+            <span className="text-[11px] font-medium" style={{ color: "#6B7280" }}>{chip.label}</span>
           </div>
         ))}
         {lowHoursCount > 0 && (
@@ -119,7 +119,7 @@ export default function ActivitiesClient({
       <div className="flex gap-3 mb-6">
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
           style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
-          <Filter size={12} style={{ color: "#83858c" }} />
+          <Filter size={12} style={{ color: "#6B7280" }} />
           <input type="date" value={dateFilter}
             onChange={(e) => navigate(e.target.value, memberFilter)}
             className="bg-transparent text-[13px] outline-none"
@@ -160,7 +160,7 @@ export default function ActivitiesClient({
         <div className="flex flex-col items-center justify-center py-24 rounded-xl"
           style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
           <Activity size={36} style={{ color: "rgba(0,0,0,0.06)" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#83858c" }}>No updates for this date</p>
+          <p className="text-[14px] font-semibold" style={{ color: "#6B7280" }}>No updates for this date</p>
           <p className="text-[12px] mt-1" style={{ color: "rgba(0,0,0,0.08)" }}>Team members haven't submitted yet.</p>
         </div>
       ) : (
@@ -187,7 +187,7 @@ export default function ActivitiesClient({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center flex-wrap gap-2 mb-2">
                       <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{user?.name ?? "Unknown"}</p>
-                      <span className="text-[11px]" style={{ color: "#83858c" }}>#{user?.employee_id}</span>
+                      <span className="text-[11px]" style={{ color: "#6B7280" }}>#{user?.employee_id}</span>
                       <span className="text-[11px] font-bold px-2 py-0.5 rounded-full ml-auto"
                         style={{ background: sc.bg, color: sc.color }}>
                         {sc.label}

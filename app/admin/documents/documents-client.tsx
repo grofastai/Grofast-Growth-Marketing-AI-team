@@ -45,7 +45,7 @@ function formatDate(s: string) {
 
 const DOC_COLOR: Record<string, string> = {
   "Offer Letter": "#de1a1a", "Contract": "#6366F1", "ID Proof": "#F59E0B",
-  "Certificate": "#16A34A", "Payslip": "#0EA5E9", "Other": "#83858c",
+  "Certificate": "#16A34A", "Payslip": "#0EA5E9", "Other": "#6B7280",
 }
 
 function InfoRow({ icon: Icon, label, value, url }: {
@@ -55,10 +55,10 @@ function InfoRow({ icon: Icon, label, value, url }: {
   return (
     <div className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>
       <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.03)" }}>
-        <Icon size={12} style={{ color: empty ? "#D1D5DB" : "#83858c" }} />
+        <Icon size={12} style={{ color: empty ? "#D1D5DB" : "#6B7280" }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] uppercase tracking-wider" style={{ color: "#83858c" }}>{label}</p>
+        <p className="text-[10px] uppercase tracking-wider" style={{ color: "#6B7280" }}>{label}</p>
         <p className="text-[12px] font-semibold truncate" style={{ color: empty ? "#D1D5DB" : "#111111" }}>{value || "—"}</p>
       </div>
       {url && (
@@ -148,7 +148,7 @@ export default function DocumentsClient({
           <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
             Documents
           </h1>
-          <p className="text-sm mt-1" style={{ color: "#83858c" }}>Upload and manage team member documents</p>
+          <p className="text-sm mt-1" style={{ color: "#6B7280" }}>Upload and manage team member documents</p>
         </div>
         <button onClick={() => setShowUpload(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold"
@@ -159,21 +159,21 @@ export default function DocumentsClient({
 
       {/* Member filter */}
       <div className="flex items-center gap-3 mb-5">
-        <Users size={13} style={{ color: "#83858c" }} />
+        <Users size={13} style={{ color: "#6B7280" }} />
         <select value={memberFilter} onChange={e => setMemberFilter(e.target.value)}
           className="text-[13px] px-3 py-2 rounded-xl outline-none"
           style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#111111" }}>
           <option value="">All Members</option>
           {members.map(m => <option key={m.id} value={m.id}>{m.name} (#{m.employee_id})</option>)}
         </select>
-        <span className="text-[12px]" style={{ color: "#83858c" }}>{shown.length} documents</span>
+        <span className="text-[12px]" style={{ color: "#6B7280" }}>{shown.length} documents</span>
       </div>
 
       {/* Member profile card (shown when a member is selected) */}
       {selectedMember && (
-        <div className="rounded-2xl mb-6 overflow-hidden" style={{ border: "1px solid #F0F0F0" }}>
+        <div className="rounded-2xl mb-6 overflow-hidden" style={{ border: "1px solid #E5E7EB" }}>
           {/* Profile header */}
-          <div className="px-5 py-4 flex items-center gap-4" style={{ background: "linear-gradient(135deg, rgba(222,26,26,0.06), rgba(222,26,26,0.02))", borderBottom: "1px solid #F0F0F0" }}>
+          <div className="px-5 py-4 flex items-center gap-4" style={{ background: "linear-gradient(135deg, rgba(222,26,26,0.06), rgba(222,26,26,0.02))", borderBottom: "1px solid #E5E7EB" }}>
             <div className="w-14 h-14 rounded-2xl overflow-hidden flex items-center justify-center font-black text-[22px] flex-shrink-0"
               style={{
                 background: selectedMember.photo_url ? "transparent" : "linear-gradient(135deg, rgba(222,26,26,0.2), rgba(222,26,26,0.06))",
@@ -212,7 +212,7 @@ export default function DocumentsClient({
           <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Account details */}
             <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#83858c" }}>Account</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#6B7280" }}>Account</p>
               <div className="space-y-1.5">
                 <InfoRow icon={Mail}      label="Email"       value={selectedMember.email} />
                 <InfoRow icon={Phone}     label="Phone"       value={selectedMember.phone} />
@@ -223,7 +223,7 @@ export default function DocumentsClient({
 
             {/* Personal details */}
             <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#83858c" }}>Personal</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#6B7280" }}>Personal</p>
               <div className="space-y-1.5">
                 <InfoRow icon={HeartPulse} label="Blood Group"       value={selectedMember.blood_group} />
                 <InfoRow icon={MapPin}     label="Address"           value={selectedMember.address} />
@@ -237,7 +237,7 @@ export default function DocumentsClient({
 
             {/* KYC / Bank */}
             <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#83858c" }}>KYC & Bank</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#6B7280" }}>KYC & Bank</p>
               <div className="space-y-1.5">
                 <InfoRow icon={Landmark}   label="Bank"       value={selectedKYC?.bank_name ?? null} />
                 <InfoRow icon={CreditCard} label="Account No" value={selectedKYC?.bank_account ? `****${selectedKYC.bank_account.slice(-4)}` : null} />
@@ -252,15 +252,15 @@ export default function DocumentsClient({
 
       {/* Documents list */}
       {selectedMember && (
-        <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-3" style={{ color: "#83858c" }}>
+        <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-3" style={{ color: "#6B7280" }}>
           Uploaded Documents ({shown.length})
         </p>
       )}
       {shown.length === 0 ? (
         <div className="flex flex-col items-center py-16 rounded-2xl"
-          style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F0F0F0" }}>
+          style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #E5E7EB" }}>
           <FolderOpen size={32} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[13px] font-semibold" style={{ color: "#83858c" }}>No documents uploaded yet</p>
+          <p className="text-[13px] font-semibold" style={{ color: "#6B7280" }}>No documents uploaded yet</p>
           {selectedMember && (
             <button onClick={() => { setUploadFor(selectedMember.id); setShowUpload(true) }}
               className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
@@ -276,7 +276,7 @@ export default function DocumentsClient({
             const color = DOC_COLOR[doc.doc_type] ?? DOC_COLOR["Other"]
             return (
               <div key={doc.id} className="flex items-center gap-4 rounded-xl px-4 py-3.5"
-                style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+                style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: `${color}14` }}>
                   <FileText size={16} style={{ color }} />
@@ -287,7 +287,7 @@ export default function DocumentsClient({
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
                       style={{ background: `${color}14`, color }}>{doc.doc_type}</span>
                   </div>
-                  <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>
+                  <p className="text-[11px] mt-0.5" style={{ color: "#6B7280" }}>
                     {user?.name ?? "Unknown"} #{user?.employee_id} · {formatDate(doc.created_at)}
                     {doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}
                   </p>
@@ -318,7 +318,7 @@ export default function DocumentsClient({
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-[420px] rounded-2xl shadow-2xl"
               style={{ background: "#FFFFFF", border: "1px solid rgba(222,26,26,0.15)" }}>
-              <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: "1px solid #F0F0F0" }}>
+              <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: "1px solid #E5E7EB" }}>
                 <h2 className="text-[16px] font-bold" style={{ color: "#111111" }}>Upload Document</h2>
                 <button onClick={() => setShowUpload(false)} className="w-8 h-8 rounded-full flex items-center justify-center"
                   style={{ border: "1px solid #E5E7EB" }}>
@@ -327,7 +327,7 @@ export default function DocumentsClient({
               </div>
               <div className="px-6 py-5 space-y-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#83858c" }}>Member *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#6B7280" }}>Member *</label>
                   <select value={uploadFor} onChange={e => setUploadFor(e.target.value)}
                     className="w-full text-[13px] px-3 py-2.5 rounded-xl outline-none"
                     style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}>
@@ -336,14 +336,14 @@ export default function DocumentsClient({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#83858c" }}>Document Name *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#6B7280" }}>Document Name *</label>
                   <input placeholder="e.g. Offer Letter May 2025"
                     className="w-full text-[13px] px-3 py-2.5 rounded-xl outline-none"
                     style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}
                     value={docName} onChange={e => setDocName(e.target.value)} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#83858c" }}>Document Type</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#6B7280" }}>Document Type</label>
                   <select value={docType} onChange={e => setDocType(e.target.value)}
                     className="w-full text-[13px] px-3 py-2.5 rounded-xl outline-none"
                     style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}>
@@ -351,12 +351,12 @@ export default function DocumentsClient({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#83858c" }}>File *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#6B7280" }}>File *</label>
                   <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                     onChange={e => setFile(e.target.files?.[0] ?? null)} className="hidden" />
                   <button onClick={() => fileRef.current?.click()}
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed text-[13px] font-medium transition-all"
-                    style={{ borderColor: file ? "#de1a1a" : "#E5E7EB", color: file ? "#de1a1a" : "#83858c", background: file ? "rgba(222,26,26,0.04)" : "#F9FAFB" }}>
+                    style={{ borderColor: file ? "#de1a1a" : "#E5E7EB", color: file ? "#de1a1a" : "#6B7280", background: file ? "rgba(222,26,26,0.04)" : "#F9FAFB" }}>
                     <Upload size={14} />
                     {file ? file.name : "Click to choose file (PDF, DOC, JPG, PNG)"}
                   </button>

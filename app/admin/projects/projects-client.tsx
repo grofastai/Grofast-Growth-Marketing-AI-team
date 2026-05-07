@@ -42,7 +42,7 @@ const STATUS_CONFIG = {
 }
 
 const inputStyle: React.CSSProperties = {
-  background: "#fbf5f7", border: "1px solid #2E2E2E", color: "#111111",
+  background: "#F4F5F7", border: "1px solid #2E2E2E", color: "#111111",
   borderRadius: "10px", padding: "10px 14px", fontSize: "13px",
   outline: "none", width: "100%", fontFamily: "inherit", colorScheme: "dark",
 }
@@ -121,7 +121,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
   const labelStyle: React.CSSProperties = {
     display: "block", fontSize: "10px", fontWeight: 700,
     textTransform: "uppercase", letterSpacing: "0.16em",
-    marginBottom: "8px", color: "#83858c",
+    marginBottom: "8px", color: "#6B7280",
   }
 
   return (
@@ -138,12 +138,12 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
             <h2 className="text-[17px] font-black text-white" style={{ fontFamily: "var(--font-jakarta)" }}>
               {isEdit ? "Edit Client" : "Add New Client"}
             </h2>
-            <p className="text-[12px] mt-0.5" style={{ color: "#83858c" }}>
+            <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
               {isEdit ? "Update client details" : "Create and track a new client engagement"}
             </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "#fbf5f7" }}>
+            style={{ background: "#F4F5F7" }}>
             <X size={14} style={{ color: "#6B7280" }} />
           </button>
         </div>
@@ -167,7 +167,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
                     className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all border"
                     style={active
                       ? { background: "rgba(222,26,26,0.12)", borderColor: "rgba(222,26,26,0.35)", color: "#F87171" }
-                      : { background: "#fbf5f7", borderColor: "#2E2E2E", color: "#83858c" }
+                      : { background: "#F4F5F7", borderColor: "#2E2E2E", color: "#6B7280" }
                     }>
                     {active && "✓ "}{s}
                   </button>
@@ -240,7 +240,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
                     className="flex-1 py-2.5 rounded-lg text-[12px] font-bold transition-all"
                     style={isActive
                       ? { background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }
-                      : { background: "#fbf5f7", border: "1px solid #2E2E2E", color: "#83858c" }
+                      : { background: "#F4F5F7", border: "1px solid #2E2E2E", color: "#6B7280" }
                     }>
                     {cfg.label}
                   </button>
@@ -281,7 +281,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
           style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
           <button onClick={onClose}
             className="flex-1 py-3 rounded-xl text-[13px] font-semibold"
-            style={{ background: "#fbf5f7", border: "1px solid #2E2E2E", color: "#6B7280" }}>
+            style={{ background: "#F4F5F7", border: "1px solid #2E2E2E", color: "#6B7280" }}>
             Cancel
           </button>
           <button onClick={handleSubmit} disabled={isPending}
@@ -318,13 +318,13 @@ function DeleteConfirm({ project, onCancel }: { project: Project; onCancel: () =
           <h3 className="text-[16px] font-black mb-1 text-white" style={{ fontFamily: "var(--font-jakarta)" }}>
             Delete Client?
           </h3>
-          <p className="text-[13px] mb-6" style={{ color: "#83858c" }}>
+          <p className="text-[13px] mb-6" style={{ color: "#6B7280" }}>
             <span className="text-white font-semibold">{project.business_name}</span> will be permanently removed.
           </p>
           <div className="flex gap-3">
             <button onClick={onCancel}
               className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
-              style={{ background: "#fbf5f7", border: "1px solid #2E2E2E", color: "#6B7280" }}>
+              style={{ background: "#F4F5F7", border: "1px solid #2E2E2E", color: "#6B7280" }}>
               Cancel
             </button>
             <button onClick={handleDelete} disabled={isPending}
@@ -436,23 +436,23 @@ export default function ProjectsClient({
       <div className="flex items-center gap-3 flex-wrap mb-6">
         <div className="relative flex-1 min-w-[200px] max-w-[280px]">
           <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#83858c" }} />
+            style={{ color: "#6B7280" }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search client, business, package…"
             className="w-full pl-9 pr-4 py-2.5 rounded-xl text-[13px] outline-none"
-            style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", color: "#111827" }} />
+            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)", color: "#111827" }} />
         </div>
         <div className="relative">
           <Briefcase size={12} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#83858c" }} />
+            style={{ color: "#6B7280" }} />
           <select value={serviceFilter} onChange={e => setServiceFilter(e.target.value)}
             className="appearance-none pl-8 pr-8 py-2.5 rounded-xl text-[12px] outline-none min-w-[190px]"
-            style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", color: "#374151" }}>
+            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)", color: "#374151" }}>
             <option value="">All Services</option>
             {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#83858c" }} />
+            style={{ color: "#6B7280" }} />
         </div>
         <div className="flex items-center gap-1 p-1 rounded-xl"
           style={{ background: "#F3F4F6", border: "1px solid #E5E7EB" }}>
@@ -467,7 +467,7 @@ export default function ProjectsClient({
             </button>
           ))}
         </div>
-        <span className="ml-auto text-[12px]" style={{ color: "#83858c" }}>
+        <span className="ml-auto text-[12px]" style={{ color: "#6B7280" }}>
           {filtered.length} of {projects.length}
         </span>
       </div>
@@ -475,9 +475,9 @@ export default function ProjectsClient({
       {/* Cards */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
-          style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
           <FolderOpen size={36} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#83858c" }}>
+          <p className="text-[14px] font-semibold" style={{ color: "#6B7280" }}>
             {projects.length === 0 ? "No clients yet" : "No clients match your filter"}
           </p>
           {projects.length === 0 && !readOnly && (
@@ -508,7 +508,7 @@ export default function ProjectsClient({
             return (
               <div key={project.id}
                 className="rounded-2xl p-5 flex flex-col gap-4 transition-all hover:-translate-y-0.5 hover:shadow-md"
-                style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+                style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
 
                 {/* Header */}
                 <div className="flex items-start justify-between">
@@ -556,7 +556,7 @@ export default function ProjectsClient({
                       </button>
                       {openDropdown === project.id && (
                         <div className="absolute right-0 top-9 w-36 rounded-xl overflow-hidden py-1 z-20"
-                          style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
+                          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
                           <button onClick={() => { setEditProject(project); setSheetOpen(true); setOpenDropdown(null) }}
                             className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all hover:bg-gray-50"
                             style={{ color: "#374151" }}>
@@ -576,12 +576,12 @@ export default function ProjectsClient({
                 {/* Client + Location + Package + Period */}
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <User size={11} style={{ color: "#83858c" }} />
+                    <User size={11} style={{ color: "#6B7280" }} />
                     <span className="text-[12px] truncate" style={{ color: "#374151" }}>{project.client_name}</span>
                   </div>
                   {project.location && (
                     <div className="flex items-center gap-2">
-                      <MapPin size={11} style={{ color: "#83858c" }} />
+                      <MapPin size={11} style={{ color: "#6B7280" }} />
                       <span className="text-[12px] truncate" style={{ color: "#6B7280" }}>{project.location}</span>
                     </div>
                   )}
@@ -595,7 +595,7 @@ export default function ProjectsClient({
                   )}
                   {(project.start_month || project.end_month) && (
                     <div className="flex items-center gap-2">
-                      <CalendarRange size={11} style={{ color: "#83858c" }} />
+                      <CalendarRange size={11} style={{ color: "#6B7280" }} />
                       <span className="text-[12px]" style={{ color: "#6B7280" }}>
                         {fmtMonth(project.start_month)} → {fmtMonth(project.end_month)}
                       </span>
@@ -617,7 +617,7 @@ export default function ProjectsClient({
                 {/* Work Completion bar */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#83858c" }}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#6B7280" }}>
                       Work Completion
                     </span>
                     <span className="text-[12px] font-bold" style={{ color: "#111827" }}>

@@ -33,7 +33,7 @@ export default async function PayrollPage({
   const [{ data: membersRaw }, { data: updatesRaw }, { data: logsRaw }] = await Promise.all([
     admin
       .from("users")
-      .select("id, name, employee_id, team, employment_type, monthly_salary, hourly_rate")
+      .select("id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, paid_leave_days")
       .eq("company_id", profile.company_id)
       .eq("status", "active")
       .is("deleted_at", null)
@@ -74,14 +74,21 @@ export default async function PayrollPage({
   type MemberRow = {
     id: string; name: string; employee_id: string; team: string | null
     employment_type: string | null; monthly_salary: number | null; hourly_rate: number | null
+    paid_leave_days: number | null
   }
   const members = (membersRaw ?? []) as MemberRow[]
+
+  // Salary basis: standard Indian payroll uses 30-day month regardless of actual days
+  const SALARY_BASIS = 30
 
   const rows = members.map(m => {
     const myLogs    = logs.filter(l => l.user_id === m.id)
     const myUpdates = updates.filter(u => u.user_id === m.id)
-    const presentDays = myLogs.filter(l => l.clock_in !== null || l.status === "present").length
-    const absentDays  = Math.max(workDays - presentDays, 0)
+    const presentDays     = myLogs.filter(l => l.clock_in !== null || l.status === "present").length
+    const rawAbsent       = Math.max(workDays - presentDays, 0)
+    const paidLeaveDays   = m.paid_leave_days ?? 0
+    // Absent days covered by paid leave are not deducted
+    const deductibleAbsent = Math.max(rawAbsent - paidLeaveDays, 0)
     const totalHours  = myUpdates.reduce((s, u) => s + (u.working_hours ?? 0), 0)
     const otHours     = Math.round(myUpdates.reduce((s, u) => {
       const h = u.working_hours ?? 0; return h > 9 ? s + (h - 9) : s
@@ -90,9 +97,9 @@ export default async function PayrollPage({
     let basePay = 0, deduction = 0, otPay = 0, netPay = 0
 
     if ((m.employment_type ?? "regular") === "regular" && m.monthly_salary) {
-      const dailyRate = m.monthly_salary / workDays
+      const dailyRate = m.monthly_salary / SALARY_BASIS  // 30-day basis
       basePay   = m.monthly_salary
-      deduction = Math.round(absentDays * dailyRate * 100) / 100
+      deduction = Math.round(deductibleAbsent * dailyRate * 100) / 100
       otPay     = Math.round(otHours * (dailyRate / 9) * 100) / 100
       netPay    = Math.round((basePay - deduction + otPay) * 100) / 100
     } else if (m.hourly_rate) {
@@ -104,7 +111,8 @@ export default async function PayrollPage({
     return {
       id: m.id, name: m.name, employee_id: m.employee_id, team: m.team,
       employment_type: m.employment_type ?? "regular",
-      presentDays, absentDays, totalHours, otHours,
+      presentDays, absentDays: rawAbsent, paidLeaveDays, deductibleAbsent,
+      totalHours, otHours,
       basePay, deduction, otPay, netPay,
       monthly_salary: m.monthly_salary, hourly_rate: m.hourly_rate,
     }

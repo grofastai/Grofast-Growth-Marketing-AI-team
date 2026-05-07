@@ -114,7 +114,7 @@ export default async function MemberDashboardPage() {
   }
 
   const PRIORITY_STYLE: Record<string, { color: string; bg: string }> = {
-    low:    { color: "#83858c", bg: "rgba(0,0,0,0.03)" },
+    low:    { color: "#6B7280", bg: "rgba(0,0,0,0.03)" },
     medium: { color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
     high:   { color: "#FF6464", bg: "rgba(255,100,100,0.08)" },
   }
@@ -147,7 +147,7 @@ export default async function MemberDashboardPage() {
           </div>
           <div className="flex-1">
             <p className="text-[12px] font-bold" style={{ color: "#111111" }}>Complete your profile — {profileScore}% done</p>
-            <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>Add photo, blood group, bank details &amp; ID proof</p>
+            <p className="text-[11px] mt-0.5" style={{ color: "#6B7280" }}>Add photo, blood group, bank details &amp; ID proof</p>
           </div>
           <div className="w-16 h-1.5 rounded-full flex-shrink-0" style={{ background: "#E5E7EB" }}>
             <div className="h-full rounded-full" style={{ width: `${profileScore}%`, background: profileScore >= 60 ? "#D97706" : "#de1a1a" }} />
@@ -182,7 +182,7 @@ export default async function MemberDashboardPage() {
               style={{ fontFamily: "var(--font-jakarta)" }}>
               {greeting}, {firstName}
             </h1>
-            <p className="text-[13px] mt-1" style={{ color: "#83858c" }}>{dateStr}</p>
+            <p className="text-[13px] mt-1" style={{ color: "#6B7280" }}>{dateStr}</p>
           </div>
           <div className="text-right mt-1">
             <p className="text-[9px] uppercase tracking-[0.2em] font-bold mb-1"
@@ -194,7 +194,7 @@ export default async function MemberDashboardPage() {
           </div>
         </div>
         {activeTasks > 0 && (
-          <p className="text-[12px] mt-2 font-medium" style={{ color: "#83858c" }}>
+          <p className="text-[12px] mt-2 font-medium" style={{ color: "#6B7280" }}>
             Today&apos;s focus:&nbsp;
             <span style={{ color: "#de1a1a" }}>{activeTasks} task{activeTasks > 1 ? "s" : ""} pending</span>
           </p>
@@ -210,10 +210,10 @@ export default async function MemberDashboardPage() {
           { label: "Active Tasks",   value: activeTasks,                                    color: "#16A34A" },
         ].map((s) => (
           <div key={s.label} className="rounded-xl p-4"
-            style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
             <p className="text-[24px] font-black leading-none mb-1"
               style={{ fontFamily: "var(--font-jakarta)", color: s.color }}>{s.value}</p>
-            <p className="text-[11px] font-medium" style={{ color: "#83858c" }}>{s.label}</p>
+            <p className="text-[11px] font-medium" style={{ color: "#6B7280" }}>{s.label}</p>
           </div>
         ))}
       </div>
@@ -242,7 +242,7 @@ export default async function MemberDashboardPage() {
                   <p className="text-[14px] font-bold" style={{ color: "#111111" }}>
                     {todayUpdate ? "Daily update submitted ✓" : "You haven't submitted today's update"}
                   </p>
-                  <p className="text-[12px] mt-0.5" style={{ color: "#83858c" }}>
+                  <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
                     {todayUpdate
                       ? `${todayUpdate.working_hours ?? "—"}h logged · ${shootCount} shoot${shootCount !== 1 ? "s" : ""}`
                       : "Submit before 9 PM to avoid alerts"}
@@ -334,7 +334,7 @@ export default async function MemberDashboardPage() {
                     style={{ fontFamily: "var(--font-jakarta)", color: stat.accent }}>
                     {stat.value}
                   </p>
-                  <p className="text-[11px] font-medium mt-0.5" style={{ color: "#83858c" }}>{stat.label}</p>
+                  <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>{stat.label}</p>
                 </div>
               </Link>
             )
@@ -352,12 +352,12 @@ export default async function MemberDashboardPage() {
                 { label: "Shoots", value: shootCount },
               ].map((item) => (
                 <div key={item.label} className="rounded-lg p-3 text-center"
-                  style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
+                  style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
                   <p className="text-[22px] font-black leading-none mb-1"
                     style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
                     {item.value}
                   </p>
-                  <p className="text-[10px]" style={{ color: "#83858c" }}>{item.label}</p>
+                  <p className="text-[10px]" style={{ color: "#6B7280" }}>{item.label}</p>
                 </div>
               ))}
             </div>
@@ -385,7 +385,7 @@ export default async function MemberDashboardPage() {
             <Calendar size={14} style={{ color: "#de1a1a" }} />
           </div>
           <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>This Month</h3>
-          <span className="text-[11px]" style={{ color: "#83858c" }}>{monthName}</span>
+          <span className="text-[11px]" style={{ color: "#6B7280" }}>{monthName}</span>
           {avgHoursPerDay > 0 && avgHoursPerDay < 9 && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto"
               style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
@@ -403,12 +403,12 @@ export default async function MemberDashboardPage() {
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
           {monthlyStats.map((stat) => (
             <div key={stat.label} className="rounded-xl p-3.5 text-center"
-              style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
+              style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
               <p className="text-[22px] font-black leading-none mb-1"
                 style={{ fontFamily: "var(--font-jakarta)", color: stat.color }}>
                 {stat.value}
               </p>
-              <p className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: "#83858c" }}>
+              <p className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: "#6B7280" }}>
                 {stat.label}
               </p>
               {stat.sub && (

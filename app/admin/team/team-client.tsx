@@ -128,7 +128,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
             <h2 className="text-[17px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
               {isEdit ? "Edit Member" : "Add New Member"}
             </h2>
-            <p className="text-[12px] mt-0.5" style={{ color: "#83858c" }}>
+            <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
               {isEdit ? "Update member details" : "Create a new team member account"}
             </p>
           </div>
@@ -146,7 +146,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {/* Full Name */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-              style={{ color: "#83858c" }}>Full Name *</label>
+              style={{ color: "#6B7280" }}>Full Name *</label>
             <input className="sheet-input" value={form.name} onChange={set("name")} placeholder="e.g. Priya Sharma" style={FIELD} />
           </div>
 
@@ -154,7 +154,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {!isEdit && (
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                style={{ color: "#83858c" }}>Employee ID *</label>
+                style={{ color: "#6B7280" }}>Employee ID *</label>
               <input className="sheet-input" value={form.employee_id} onChange={set("employee_id")} placeholder="e.g. GF002" style={FIELD} />
               <p className="text-[11px] mt-1.5" style={{ color: "#D1D5DB" }}>Unique ID — cannot be changed later.</p>
             </div>
@@ -163,7 +163,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {/* Email */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-              style={{ color: "#83858c" }}>Email Address *</label>
+              style={{ color: "#6B7280" }}>Email Address *</label>
             <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com" style={FIELD} />
             <p className="text-[11px] mt-1.5" style={{ color: "#D1D5DB" }}>Used for account creation.</p>
           </div>
@@ -171,7 +171,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {/* Phone */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-              style={{ color: "#83858c" }}>WhatsApp Number</label>
+              style={{ color: "#6B7280" }}>WhatsApp Number</label>
             <input className="sheet-input" value={form.phone} onChange={set("phone")} placeholder="e.g. 919876543210" style={FIELD} />
             <p className="text-[11px] mt-1.5" style={{ color: "#D1D5DB" }}>Credentials will be sent here after account creation.</p>
           </div>
@@ -179,7 +179,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {/* Team */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-              style={{ color: "#83858c" }}>Team *</label>
+              style={{ color: "#6B7280" }}>Team *</label>
             <div className="relative">
               <select className="sheet-input" value={form.team} onChange={set("team")}
                 style={{ ...FIELD, appearance: "none", paddingRight: "36px", colorScheme: "dark" }}>
@@ -187,21 +187,21 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
                 {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
               <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: "#83858c" }} />
+                style={{ color: "#6B7280" }} />
             </div>
           </div>
 
           {/* Role */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-              style={{ color: "#83858c" }}>Role *</label>
+              style={{ color: "#6B7280" }}>Role *</label>
             <div className="flex gap-3">
               {(["MEMBER", "ADMIN"] as const).map((r) => (
                 <button key={r} type="button" onClick={() => setForm((prev) => ({ ...prev, role: r }))}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
                   style={form.role === r
                     ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
-                    : { background: "rgba(0,0,0,0.03)", color: "#83858c", border: "1px solid #E5E7EB" }
+                    : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }
                   }>
                   {r === "ADMIN" ? "Admin" : "Member"}
                 </button>
@@ -212,7 +212,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {/* Employment Type */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-              style={{ color: "#83858c" }}>Employment Type *</label>
+              style={{ color: "#6B7280" }}>Employment Type *</label>
             <div className="grid grid-cols-3 gap-2">
               {([
                 { value: "regular",    label: "Regular" },
@@ -224,7 +224,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
                   className="py-2.5 rounded-xl text-[13px] font-semibold transition-all"
                   style={form.employment_type === value
                     ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
-                    : { background: "rgba(0,0,0,0.03)", color: "#83858c", border: "1px solid #E5E7EB" }
+                    : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }
                   }>
                   {label}
                 </button>
@@ -244,7 +244,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                  style={{ color: "#83858c" }}>Monthly Salary (₹)</label>
+                  style={{ color: "#6B7280" }}>Monthly Salary (₹)</label>
                 <input type="number" min="0" step="500" className="sheet-input" style={FIELD}
                   placeholder="e.g. 15000"
                   value={form.monthly_salary}
@@ -252,7 +252,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                  style={{ color: "#83858c" }}>Paid Leave Days/Month</label>
+                  style={{ color: "#6B7280" }}>Paid Leave Days/Month</label>
                 <input type="number" min="0" max="30" step="1" className="sheet-input" style={FIELD}
                   placeholder="5"
                   value={form.paid_leave_days}
@@ -262,7 +262,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           ) : (
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                style={{ color: "#83858c" }}>Hourly Rate (₹)</label>
+                style={{ color: "#6B7280" }}>Hourly Rate (₹)</label>
               <input type="number" min="0" step="10" className="sheet-input" style={FIELD}
                 placeholder="e.g. 150"
                 value={form.hourly_rate}
@@ -274,13 +274,13 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                style={{ color: "#83858c" }}>Date of Birth</label>
+                style={{ color: "#6B7280" }}>Date of Birth</label>
               <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }}
                 value={form.date_of_birth} onChange={set("date_of_birth")} />
             </div>
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                style={{ color: "#83858c" }}>Work Start Date</label>
+                style={{ color: "#6B7280" }}>Work Start Date</label>
               <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }}
                 value={form.joined_at} onChange={set("joined_at")} />
             </div>
@@ -290,7 +290,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {!isEdit && (
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                style={{ color: "#83858c" }}>Temporary Password *</label>
+                style={{ color: "#6B7280" }}>Temporary Password *</label>
               <input type="text" className="sheet-input" value={form.password} onChange={set("password")}
                 placeholder="Min 6 characters" style={FIELD} />
               <p className="text-[11px] mt-1.5" style={{ color: "#D1D5DB" }}>Will be sent via WhatsApp.</p>
@@ -380,7 +380,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
         <div>
           <h1 className="gradient-heading text-[30px] leading-tight font-black"
             style={{ fontFamily: "var(--font-jakarta)" }}>Team</h1>
-          <p className="text-sm mt-1" style={{ color: "#83858c" }}>Manage your employees and their access</p>
+          <p className="text-sm mt-1" style={{ color: "#6B7280" }}>Manage your employees and their access</p>
         </div>
         <button onClick={() => { setEditMember(null); setSheetOpen(true) }}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all"
@@ -395,7 +395,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
           { label: "Total Members", value: stats.total,    Icon: Users,      color: "#111111",  bg: "rgba(0,0,0,0.05)",  border: "rgba(0,0,0,0.06)" },
           { label: "Active",        value: stats.active,   Icon: UserCheck,  color: "#22C55E",  bg: "rgba(34,197,94,0.08)",    border: "rgba(34,197,94,0.15)"   },
           { label: "Admins",        value: stats.admins,   Icon: Shield,     color: "#de1a1a",  bg: "rgba(222,26,26,0.08)",    border: "rgba(222,26,26,0.15)"   },
-          { label: "Inactive",      value: stats.inactive, Icon: UserX,      color: "#83858c", bg: "rgba(0,0,0,0.03)", border: "rgba(0,0,0,0.05)" },
+          { label: "Inactive",      value: stats.inactive, Icon: UserX,      color: "#6B7280", bg: "rgba(0,0,0,0.03)", border: "rgba(0,0,0,0.05)" },
         ].map(({ label, value, Icon, color, bg, border }) => (
           <div key={label} className="rounded-xl px-5 py-4 flex items-center gap-4"
             style={{ background: "#FFFFFF", border: `1px solid ${border}` }}>
@@ -406,7 +406,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
             <div>
               <p className="text-[28px] leading-none font-black"
                 style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
-              <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>{label}</p>
+              <p className="text-[11px] mt-0.5" style={{ color: "#6B7280" }}>{label}</p>
             </div>
           </div>
         ))}
@@ -416,22 +416,22 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[240px] max-w-[360px]">
           <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#83858c" }} />
+            style={{ color: "#6B7280" }} />
           <input value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or ID…"
             className="w-full rounded-xl pl-9 pr-4 py-2.5 text-[13px] outline-none"
-            style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", color: "#111111" }} />
+            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)", color: "#111111" }} />
           <style>{`.search-input::placeholder{color:rgba(255,255,255,0.25)}`}</style>
         </div>
 
         <div className="flex items-center gap-1 rounded-xl p-1"
-          style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
           {(["ALL", "MEMBER", "ADMIN"] as const).map((r) => (
             <button key={r} onClick={() => setRoleFilter(r)}
               className="px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
               style={roleFilter === r
                 ? { background: "rgba(222,26,26,0.15)", color: "#de1a1a" }
-                : { color: "#83858c" }
+                : { color: "#6B7280" }
               }>
               {r === "ALL" ? "All Roles" : r === "MEMBER" ? "Members" : "Admins"}
             </button>
@@ -439,33 +439,33 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
         </div>
 
         <div className="flex items-center gap-1 rounded-xl p-1"
-          style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
           {(["ALL", "active", "inactive"] as const).map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)}
               className="px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
               style={statusFilter === s
                 ? { background: "rgba(222,26,26,0.15)", color: "#de1a1a" }
-                : { color: "#83858c" }
+                : { color: "#6B7280" }
               }>
               {s === "ALL" ? "All" : s === "active" ? "Active" : "Inactive"}
             </button>
           ))}
         </div>
 
-        <span className="ml-auto text-[12px]" style={{ color: "#83858c" }}>
+        <span className="ml-auto text-[12px]" style={{ color: "#6B7280" }}>
           {filtered.length} of {members.length} members
         </span>
       </div>
 
       {/* Table */}
       <div className="rounded-xl"
-        style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", overflow: "visible" }}>
+        style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", overflow: "visible" }}>
         <table className="w-full">
           <thead>
             <tr style={{ borderBottom: "1px solid #E5E7EB", background: "rgba(0,0,0,0.02)" }}>
               {["Employee", "ID", "Team", "Role", "Phone", "Status", "Joined", ""].map((h) => (
                 <th key={h} className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-[0.18em] last:w-12"
-                  style={{ color: "#83858c" }}>{h}</th>
+                  style={{ color: "#6B7280" }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -485,7 +485,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                     </div>
                     <div>
                       <p className="text-[13px] font-semibold leading-tight" style={{ color: "#111111" }}>{member.name}</p>
-                      <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>{member.email ?? "—"}</p>
+                      <p className="text-[11px] mt-0.5" style={{ color: "#6B7280" }}>{member.email ?? "—"}</p>
                     </div>
                   </div>
                 </td>
@@ -513,7 +513,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                 </td>
 
                 <td className="px-5 py-3.5">
-                  <p className="text-[12px] flex items-center gap-1.5" style={{ color: "#83858c" }}>
+                  <p className="text-[12px] flex items-center gap-1.5" style={{ color: "#6B7280" }}>
                     <Phone size={9} style={{ color: "#D1D5DB" }} />
                     {member.phone ?? "—"}
                   </p>
@@ -523,7 +523,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
                     style={member.status === "active"
                       ? { background: "rgba(34,197,94,0.1)", color: "#22C55E", border: "1px solid rgba(34,197,94,0.2)" }
-                      : { background: "rgba(0,0,0,0.03)", color: "#83858c", border: "1px solid rgba(255,255,255,0.06)" }
+                      : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid rgba(255,255,255,0.06)" }
                     }>
                     <span className="w-1.5 h-1.5 rounded-full"
                       style={{ background: member.status === "active" ? "#22C55E" : "#D1D5DB" }} />
@@ -532,7 +532,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                 </td>
 
                 <td className="px-5 py-3.5">
-                  <p className="text-[12px] flex items-center gap-1.5" style={{ color: "#83858c" }}>
+                  <p className="text-[12px] flex items-center gap-1.5" style={{ color: "#6B7280" }}>
                     <CalendarDays size={10} />
                     {formatDate(member.created_at)}
                   </p>
@@ -551,7 +551,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
 
                     <button onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
                       className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                      style={{ color: "#83858c" }}
+                      style={{ color: "#6B7280" }}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.05)"}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                       <MoreVertical size={14} />
@@ -559,7 +559,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
 
                     {openDropdown === member.id && (
                       <div className="absolute right-0 top-9 w-44 rounded-xl shadow-2xl z-50 overflow-hidden py-1"
-                        style={{ background: "#fbf5f7", border: "1px solid #E5E7EB" }}>
+                        style={{ background: "#F4F5F7", border: "1px solid #E5E7EB" }}>
                         <button onClick={() => handleToggleStatus(member)} disabled={isPending}
                           className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
                           style={{ color: member.status === "active" ? "#F59E0B" : "#22C55E" }}
@@ -601,7 +601,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
           <button
             onClick={() => setShowPast(v => !v)}
             className="flex items-center gap-2 text-[13px] font-semibold mb-3 transition-all"
-            style={{ color: "#83858c" }}
+            style={{ color: "#6B7280" }}
           >
             <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px]"
               style={{ background: "rgba(0,0,0,0.06)" }}>
@@ -609,16 +609,16 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
             </span>
             Past Members
             <span className="text-[11px] px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(0,0,0,0.05)", color: "#83858c" }}>
+              style={{ background: "rgba(0,0,0,0.05)", color: "#6B7280" }}>
               {pastMembers.length}
             </span>
           </button>
 
           {showPast && (
-            <div className="rounded-xl" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+            <div className="rounded-xl" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
               <table className="w-full">
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #F0F0F0", background: "rgba(0,0,0,0.01)" }}>
+                  <tr style={{ borderBottom: "1px solid #E5E7EB", background: "rgba(0,0,0,0.01)" }}>
                     {["Employee", "ID", "Team", "Role", "Left On"].map((h) => (
                       <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.18em]"
                         style={{ color: "#D1D5DB" }}>{h}</th>
@@ -633,7 +633,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                             style={{ background: "rgba(0,0,0,0.05)" }}>
-                            <span className="text-[10px] font-bold" style={{ color: "#83858c" }}>{getInitials(m.name)}</span>
+                            <span className="text-[10px] font-bold" style={{ color: "#6B7280" }}>{getInitials(m.name)}</span>
                           </div>
                           <div>
                             <p className="text-[13px] font-semibold" style={{ color: "#6B7280" }}>{m.name}</p>
@@ -643,14 +643,14 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                       </td>
                       <td className="px-5 py-3">
                         <span className="text-[12px] font-mono px-2 py-0.5 rounded"
-                          style={{ background: "rgba(0,0,0,0.03)", color: "#83858c" }}>{m.employee_id}</span>
+                          style={{ background: "rgba(0,0,0,0.03)", color: "#6B7280" }}>{m.employee_id}</span>
                       </td>
                       <td className="px-5 py-3">
                         <span className="text-[12px]" style={{ color: "#D1D5DB" }}>{m.team ?? "—"}</span>
                       </td>
                       <td className="px-5 py-3">
                         <span className="text-[11px] px-2 py-0.5 rounded-full"
-                          style={{ background: "rgba(0,0,0,0.04)", color: "#83858c" }}>{m.role}</span>
+                          style={{ background: "rgba(0,0,0,0.04)", color: "#6B7280" }}>{m.role}</span>
                       </td>
                       <td className="px-5 py-3">
                         <span className="text-[12px]" style={{ color: "#D1D5DB" }}>

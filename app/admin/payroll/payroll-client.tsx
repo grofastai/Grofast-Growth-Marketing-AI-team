@@ -6,7 +6,8 @@ import { Users, FileText } from "lucide-react"
 type PayrollRow = {
   id: string; name: string; employee_id: string; team: string | null
   employment_type: string
-  presentDays: number; absentDays: number; totalHours: number; otHours: number
+  presentDays: number; absentDays: number; paidLeaveDays: number; deductibleAbsent: number
+  totalHours: number; otHours: number
   basePay: number; deduction: number; otPay: number; netPay: number
   monthly_salary: number | null; hourly_rate: number | null
 }
@@ -46,7 +47,7 @@ export default function PayrollClient({
           <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
             Payroll
           </h1>
-          <p className="text-sm mt-1" style={{ color: "#83858c" }}>Monthly salary breakdown for your team</p>
+          <p className="text-sm mt-1" style={{ color: "#6B7280" }}>Monthly salary breakdown for your team</p>
         </div>
         {/* Month picker */}
         <div className="flex items-center gap-2">
@@ -69,25 +70,25 @@ export default function PayrollClient({
           { label: "Total Payroll",   value: fmt(totalNet), color: "#de1a1a", bg: "rgba(222,26,26,0.06)", border: "rgba(222,26,26,0.15)" },
           { label: "Total OT Pay",    value: fmt(totalOT),  color: "#EA580C", bg: "rgba(234,88,12,0.06)", border: "rgba(234,88,12,0.15)" },
           { label: "Total Deductions",value: fmt(totalDed), color: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
-          { label: "Working Days",    value: `${workDays} days`, color: "#6B7280", bg: "#FFFFFF", border: "#E5E7EB" },
+          { label: "Salary Basis",    value: "30 days", color: "#6B7280", bg: "#FFFFFF", border: "#E5E7EB" },
           { label: "Members",         value: rows.length,   color: "#6B7280", bg: "#FFFFFF", border: "#E5E7EB" },
         ].map(s => (
           <div key={s.label} className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
             style={{ background: s.bg, border: `1px solid ${s.border}` }}>
             <span className="text-[17px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: s.color }}>{s.value}</span>
-            <span className="text-[11px]" style={{ color: "#83858c" }}>{s.label}</span>
+            <span className="text-[11px]" style={{ color: "#6B7280" }}>{s.label}</span>
           </div>
         ))}
       </div>
 
       {/* Table */}
-      <div className="rounded-xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+      <div className="rounded-xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
         <table className="w-full">
           <thead>
             <tr style={{ background: "rgba(0,0,0,0.02)", borderBottom: "1px solid #E5E7EB" }}>
-              {["Employee", "Type", "Present", "Absent", "Hours", "OT", "Base Pay", "Deduction", "OT Pay", "Net Pay", "Slip"].map(h => (
+              {["Employee", "Type", "Present", "Absent", "Paid Leave", "Deductible", "Hours", "OT", "Base Pay", "Deduction", "OT Pay", "Net Pay", "Slip"].map(h => (
                 <th key={h} className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-[0.15em]"
-                  style={{ color: "#83858c" }}>{h}</th>
+                  style={{ color: "#6B7280" }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -99,7 +100,7 @@ export default function PayrollClient({
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                 <td className="px-4 py-3.5">
                   <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{r.name}</p>
-                  <p className="text-[10px]" style={{ color: "#83858c" }}>#{r.employee_id}</p>
+                  <p className="text-[10px]" style={{ color: "#6B7280" }}>#{r.employee_id}</p>
                 </td>
                 <td className="px-4 py-3.5">
                   <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize"
@@ -113,6 +114,16 @@ export default function PayrollClient({
                 <td className="px-4 py-3.5">
                   <span className="text-[13px] font-semibold" style={{ color: r.absentDays > 0 ? "#de1a1a" : "#D1D5DB" }}>
                     {r.absentDays}
+                  </span>
+                </td>
+                <td className="px-4 py-3.5">
+                  <span className="text-[13px] font-semibold" style={{ color: "#16A34A" }}>
+                    {r.paidLeaveDays > 0 ? r.paidLeaveDays : "—"}
+                  </span>
+                </td>
+                <td className="px-4 py-3.5">
+                  <span className="text-[13px] font-semibold" style={{ color: r.deductibleAbsent > 0 ? "#F59E0B" : "#D1D5DB" }}>
+                    {r.deductibleAbsent}
                   </span>
                 </td>
                 <td className="px-4 py-3.5">
@@ -139,7 +150,7 @@ export default function PayrollClient({
                   </span>
                 </td>
                 <td className="px-4 py-3.5">
-                  <span className="text-[14px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: r.netPay > 0 ? "#de1a1a" : "#83858c" }}>
+                  <span className="text-[14px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: r.netPay > 0 ? "#de1a1a" : "#6B7280" }}>
                     {r.netPay > 0 ? fmt(r.netPay) : "—"}
                   </span>
                 </td>
@@ -161,7 +172,7 @@ export default function PayrollClient({
             {/* Totals row */}
             <tr style={{ borderTop: "2px solid #E5E7EB", background: "rgba(222,26,26,0.02)" }}>
               <td className="px-4 py-3" colSpan={7}>
-                <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: "#83858c" }}>Total</span>
+                <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: "#6B7280" }}>Total</span>
               </td>
               <td className="px-4 py-3">
                 <span className="text-[13px] font-bold" style={{ color: "#374151" }}>

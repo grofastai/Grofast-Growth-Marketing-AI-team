@@ -270,7 +270,7 @@ export default async function DashboardPage({
   ]
 
   return (
-    <div className="p-8 max-w-[1400px] space-y-5">
+    <div className="p-5 lg:p-7 space-y-5 w-full max-w-[1600px]">
 
       {/* ── Header ─────────────────────────────────────── */}
       <div className="rounded-2xl p-6 relative overflow-hidden"
@@ -309,16 +309,16 @@ export default async function DashboardPage({
       <div className="grid grid-cols-4 gap-4">
         {stats.map(({ label, value, icon: Icon, href, trendLabel, trendDir, accent, accentBg }) => (
           <Link key={label} href={href}
-            className="rounded-2xl p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md group"
-            style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+            className="stat-card group block"
+            style={{ textDecoration: "none" }}>
             <div className="flex items-center justify-between mb-4">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: accentBg }}>
                 <Icon size={16} style={{ color: accent }} />
               </div>
               <ChevronRight size={14} style={{ color: "#D1D5DB" }} className="group-hover:translate-x-0.5 transition-transform" />
             </div>
-            <p className="text-[38px] leading-none font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>{value}</p>
-            <p className="text-[12px] font-medium mt-1.5" style={{ color: "#6B7280" }}>{label}</p>
+            <p className="stat-value">{value}</p>
+            <p className="stat-label">{label}</p>
             <p className="text-[11px] font-semibold mt-1.5 flex items-center gap-1" style={{ color: accent }}>
               {trendDir !== null && (trendDir > 0 ? <TrendingUp size={10} /> : trendDir < 0 ? <TrendingDown size={10} /> : <Minus size={10} />)}
               {trendLabel}
@@ -395,7 +395,7 @@ export default async function DashboardPage({
 
       {/* ── Team Performance ────────────────────────────── */}
       {memberPerf.length > 0 && (
-        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center"
@@ -403,11 +403,11 @@ export default async function DashboardPage({
                 <Clock size={14} style={{ color: belowTarget > 0 ? "#de1a1a" : "#16A34A" }} />
               </div>
               <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Team Performance</h3>
-              <span className="text-[11px]" style={{ color: "#83858c" }}>{monthName} · 9h/day target</span>
+              <span className="text-[11px]" style={{ color: "#6B7280" }}>{monthName} · 9h/day target</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-[11px]" style={{ color: "#83858c" }}>Team avg</p>
+                <p className="text-[11px]" style={{ color: "#6B7280" }}>Team avg</p>
                 <p className="text-[16px] font-black" style={{ color: teamAvgHrs >= 9 ? "#16A34A" : "#de1a1a" }}>{teamAvgHrs}h/day</p>
               </div>
               {belowTarget > 0 && (
@@ -430,7 +430,7 @@ export default async function DashboardPage({
                     {m.name[0].toUpperCase()}
                   </div>
                   <p className="text-[12px] font-semibold flex-1 truncate" style={{ color: "#111827" }}>{m.name}</p>
-                  <p className="text-[11px] flex-shrink-0" style={{ color: "#83858c" }}>{m.days}d worked</p>
+                  <p className="text-[11px] flex-shrink-0" style={{ color: "#6B7280" }}>{m.days}d worked</p>
                   <div className="w-32 h-1.5 rounded-full overflow-hidden flex-shrink-0" style={{ background: "#E5E7EB" }}>
                     <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
                   </div>
@@ -447,7 +447,7 @@ export default async function DashboardPage({
       )}
 
       {/* ── Action Required ─────────────────────────────── */}
-      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
         <div className="flex items-center gap-2.5 mb-4">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center"
             style={{ background: actionItems.length > 0 ? "rgba(222,26,26,0.1)" : "rgba(22,163,74,0.1)" }}>
@@ -485,14 +485,14 @@ export default async function DashboardPage({
 
       {/* ── Team Status + Pending Approvals ─────────────── */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(222,26,26,0.1)" }}>
               <Users size={14} style={{ color: "#de1a1a" }} />
             </div>
             <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Today's Team</h3>
           </div>
-          <p className="text-[10px] mb-4 px-1" style={{ color: "#83858c" }}>
+          <p className="text-[10px] mb-4 px-1" style={{ color: "#6B7280" }}>
             Attendance — who signed in today
           </p>
           <div className="grid grid-cols-3 gap-2 mb-4">
@@ -537,7 +537,7 @@ export default async function DashboardPage({
               </div>
             ))}
             {recentUpdates.length === 0 && alerts.notUpdatedCount === 0 && (
-              <p className="text-[12px] text-center py-4" style={{ color: "#83858c" }}>No activity yet today</p>
+              <p className="text-[12px] text-center py-4" style={{ color: "#6B7280" }}>No activity yet today</p>
             )}
           </div>
         </div>
@@ -547,7 +547,7 @@ export default async function DashboardPage({
       </div>
 
       {/* ── Today's Updates ─────────────────────────────── */}
-      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(222,26,26,0.1)" }}>
@@ -567,13 +567,13 @@ export default async function DashboardPage({
             View All <ArrowRight size={12} />
           </Link>
         </div>
-        <p className="text-[10px] mb-4 px-1" style={{ color: "#83858c" }}>
+        <p className="text-[10px] mb-4 px-1" style={{ color: "#6B7280" }}>
           Daily work reports — different from attendance. Someone can sign in but not submit a report, or vice versa.
         </p>
         {recentUpdates.length === 0 ? (
           <div className="flex flex-col items-center py-12 gap-2">
             <Clock size={28} style={{ color: "#E5E7EB" }} />
-            <p className="text-[13px]" style={{ color: "#83858c" }}>No updates submitted yet today</p>
+            <p className="text-[13px]" style={{ color: "#6B7280" }}>No updates submitted yet today</p>
           </div>
         ) : (
           <div className="divide-y" style={{ borderColor: "#F3F4F6" }}>
@@ -588,11 +588,11 @@ export default async function DashboardPage({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold" style={{ color: "#111827" }}>{m?.name ?? "—"}</p>
-                    <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>
+                    <p className="text-[11px] mt-0.5" style={{ color: "#6B7280" }}>
                       {u.work_type ?? "—"}{u.working_hours != null ? ` · ${u.working_hours}h` : ""}
                     </p>
                   </div>
-                  <p className="text-[11px] flex-shrink-0" style={{ color: "#83858c" }}>{time}</p>
+                  <p className="text-[11px] flex-shrink-0" style={{ color: "#6B7280" }}>{time}</p>
                   <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full flex-shrink-0" style={
                     u.attendance_status === "present"
                       ? { background: "rgba(22,163,74,0.1)",  color: "#16A34A" }
@@ -606,13 +606,13 @@ export default async function DashboardPage({
       </div>
 
       {/* ── Monthly Leave Calendar ───────────────────────── */}
-      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
         <div className="flex items-center gap-2.5 mb-5">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(222,26,26,0.1)" }}>
             <CalendarDays size={14} style={{ color: "#de1a1a" }} />
           </div>
           <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Leave Calendar</h3>
-          <span className="text-[11px]" style={{ color: "#83858c" }}>{monthName} — approved leaves</span>
+          <span className="text-[11px]" style={{ color: "#6B7280" }}>{monthName} — approved leaves</span>
           {Object.keys(leaveCalMap).length > 0 && (
             <span className="text-[11px] font-bold px-2 py-0.5 rounded-full ml-auto"
               style={{ background: "rgba(217,119,6,0.1)", color: "#D97706" }}>
@@ -624,7 +624,7 @@ export default async function DashboardPage({
         {/* Day headers */}
         <div className="grid grid-cols-7 gap-1 mb-1">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
-            <div key={d} className="text-center text-[10px] font-bold py-1" style={{ color: "#83858c" }}>{d}</div>
+            <div key={d} className="text-center text-[10px] font-bold py-1" style={{ color: "#6B7280" }}>{d}</div>
           ))}
         </div>
 
@@ -642,7 +642,7 @@ export default async function DashboardPage({
               <div key={day} className="h-14 rounded-lg p-1.5 flex flex-col"
                 style={{
                   background: isToday ? "rgba(222,26,26,0.08)" : leaves.length > 0 ? "rgba(217,119,6,0.06)" : isWeekend ? "rgba(0,0,0,0.02)" : "#F9FAFB",
-                  border: isToday ? "1.5px solid rgba(222,26,26,0.3)" : leaves.length > 0 ? "1px solid rgba(217,119,6,0.2)" : "1px solid #F0F0F0",
+                  border: isToday ? "1.5px solid rgba(222,26,26,0.3)" : leaves.length > 0 ? "1px solid rgba(217,119,6,0.2)" : "1px solid #E5E7EB",
                 }}>
                 <p className="text-[11px] font-bold leading-none" style={{ color: isToday ? "#de1a1a" : isWeekend ? "#D1D5DB" : "#374151" }}>
                   {day}
@@ -656,7 +656,7 @@ export default async function DashboardPage({
                       </span>
                     ))}
                     {leaves.length > 2 && (
-                      <span className="text-[8px] font-bold leading-none" style={{ color: "#83858c" }}>+{leaves.length - 2}</span>
+                      <span className="text-[8px] font-bold leading-none" style={{ color: "#6B7280" }}>+{leaves.length - 2}</span>
                     )}
                   </div>
                 )}

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useTransition } from 'react'
 import { addResponse, updateTicketStatus } from '@/lib/actions/support'
@@ -28,7 +28,7 @@ const STATUS_TEXT: Record<string, string> = {
   open:        '#de1a1a',
   in_progress: '#b45309',
   resolved:    '#15803d',
-  closed:      '#83858c',
+  closed:      '#6B7280',
 }
 const STATUS_ICON: Record<string, React.ReactNode> = {
   open:        <AlertCircle size={13} />,
@@ -37,7 +37,7 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
   closed:      <XCircle size={13} />,
 }
 const PRIORITY_COLOR: Record<string, string> = {
-  low:    '#83858c',
+  low:    '#6B7280',
   normal: '#2563eb',
   high:   '#d97706',
   urgent: '#de1a1a',
@@ -76,7 +76,7 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-black" style={{ color: '#0a100d' }}>Support Tickets</h1>
-        <p className="text-sm mt-1" style={{ color: '#83858c' }}>Manage team support requests</p>
+        <p className="text-sm mt-1" style={{ color: '#6B7280' }}>Manage team support requests</p>
       </div>
 
       {/* Filter tabs */}
@@ -87,7 +87,7 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
             className="px-4 py-1.5 rounded-full text-[12px] font-semibold transition-all capitalize"
             style={{
               background: filter === s ? '#de1a1a' : 'rgba(10,16,13,0.06)',
-              color:      filter === s ? '#fff' : '#83858c',
+              color:      filter === s ? '#fff' : '#6B7280',
             }}>
             {s.replace('_', ' ')}
           </button>
@@ -100,19 +100,19 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
           { label: 'Open',        count: tickets.filter(t => t.status === 'open').length,        color: '#de1a1a' },
           { label: 'In Progress', count: tickets.filter(t => t.status === 'in_progress').length,  color: '#d97706' },
           { label: 'Resolved',    count: tickets.filter(t => t.status === 'resolved').length,     color: '#15803d' },
-          { label: 'Closed',      count: tickets.filter(t => t.status === 'closed').length,       color: '#83858c' },
+          { label: 'Closed',      count: tickets.filter(t => t.status === 'closed').length,       color: '#6B7280' },
         ].map(stat => (
           <div key={stat.label} className="rounded-2xl p-4 text-center"
             style={{ background: '#fff', border: '1px solid rgba(10,16,13,0.08)' }}>
             <div className="text-2xl font-black" style={{ color: stat.color }}>{stat.count}</div>
-            <div className="text-[11px] font-medium mt-0.5" style={{ color: '#83858c' }}>{stat.label}</div>
+            <div className="text-[11px] font-medium mt-0.5" style={{ color: '#6B7280' }}>{stat.label}</div>
           </div>
         ))}
       </div>
 
       {/* Ticket list */}
       {filtered.length === 0 ? (
-        <div className="text-center py-16" style={{ color: '#83858c' }}>
+        <div className="text-center py-16" style={{ color: '#6B7280' }}>
           <MessageSquare size={40} className="mx-auto mb-3 opacity-30" />
           <p className="font-medium">No tickets found</p>
         </div>
@@ -131,7 +131,7 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-[14px]" style={{ color: '#0a100d' }}>{ticket.title}</span>
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold flex items-center gap-1"
-                        style={{ background: STATUS_COLORS[ticket.status] ?? 'rgba(130,133,140,0.1)', color: STATUS_TEXT[ticket.status] ?? '#83858c' }}>
+                        style={{ background: STATUS_COLORS[ticket.status] ?? 'rgba(130,133,140,0.1)', color: STATUS_TEXT[ticket.status] ?? '#6B7280' }}>
                         {STATUS_ICON[ticket.status]}
                         {ticket.status.replace('_', ' ')}
                       </span>
@@ -140,7 +140,7 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
                         {ticket.priority}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 mt-1 text-[12px]" style={{ color: '#83858c' }}>
+                    <div className="flex items-center gap-3 mt-1 text-[12px]" style={{ color: '#6B7280' }}>
                       <span className="capitalize">{ticket.category}</span>
                       <span>·</span>
                       <span>{new Date(ticket.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
@@ -148,7 +148,7 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
                       <span>{responses.length} {responses.length === 1 ? 'reply' : 'replies'}</span>
                     </div>
                   </div>
-                  {isExpanded ? <ChevronUp size={16} style={{ color: '#83858c' }} /> : <ChevronDown size={16} style={{ color: '#83858c' }} />}
+                  {isExpanded ? <ChevronUp size={16} style={{ color: '#6B7280' }} /> : <ChevronDown size={16} style={{ color: '#6B7280' }} />}
                 </button>
 
                 {/* Expanded content */}
@@ -167,7 +167,7 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
                             style={{ background: 'rgba(10,16,13,0.04)' }}>
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-[12px] font-bold" style={{ color: '#0a100d' }}>{r.responder_name}</span>
-                              <span className="text-[11px]" style={{ color: '#83858c' }}>
+                              <span className="text-[11px]" style={{ color: '#6B7280' }}>
                                 {new Date(r.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
@@ -200,13 +200,13 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
 
                     {/* Status actions */}
                     <div className="flex items-center gap-2 flex-wrap pt-1">
-                      <span className="text-[12px] font-medium" style={{ color: '#83858c' }}>Change status:</span>
+                      <span className="text-[12px] font-medium" style={{ color: '#6B7280' }}>Change status:</span>
                       {['open', 'in_progress', 'resolved', 'closed'].filter(s => s !== ticket.status).map(s => (
                         <button key={s}
                           onClick={() => handleStatus(ticket.id, s)}
                           disabled={pending && actionId === ticket.id + '_status'}
                           className="px-3 py-1 rounded-full text-[11px] font-semibold capitalize transition-all"
-                          style={{ background: STATUS_COLORS[s] ?? 'rgba(130,133,140,0.1)', color: STATUS_TEXT[s] ?? '#83858c' }}>
+                          style={{ background: STATUS_COLORS[s] ?? 'rgba(130,133,140,0.1)', color: STATUS_TEXT[s] ?? '#6B7280' }}>
                           {s.replace('_', ' ')}
                         </button>
                       ))}

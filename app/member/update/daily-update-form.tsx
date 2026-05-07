@@ -58,7 +58,7 @@ function newEntry(type: "shoot" | "edit" = "shoot"): WorkEntryInput {
 
 // ── Style constants ────────────────────────────────────────────
 const FIELD: React.CSSProperties = {
-  background: "#fbf5f7", border: "1px solid #E5E7EB",
+  background: "#F4F5F7", border: "1px solid #E5E7EB",
   color: "#111111", borderRadius: "10px",
   padding: "10px 14px", fontSize: "13px",
   outline: "none", width: "100%",
@@ -98,7 +98,7 @@ function ClientSelect({ projects, value, onChange, required }: {
             ))}
           </select>
           <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#83858c" }} />
+            style={{ color: "#6B7280" }} />
         </div>
       ) : (
         <input style={FIELD} placeholder="Client name" className="du"
@@ -174,7 +174,7 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
             <label style={LABEL}>Duration</label>
             <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
               style={{
-                height: "42px", background: "#fbf5f7", border: "1px solid #E5E7EB",
+                height: "42px", background: "#F4F5F7", border: "1px solid #E5E7EB",
                 color: entry.duration_hours > 0 ? "#de1a1a" : "#D1D5DB",
               }}>
               {entry.duration_hours > 0 ? `${entry.duration_hours}h` : "—"}
@@ -204,7 +204,7 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
               <option value="3+ hours">3+ hours</option>
             </select>
             <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: "#83858c" }} />
+              style={{ color: "#6B7280" }} />
           </div>
         </div>
 
@@ -263,7 +263,7 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
 }) {
   return (
     <div className="rounded-xl p-4 space-y-3"
-      style={{ background: "#fbf5f7", border: "1px solid #E5E7EB" }}>
+      style={{ background: "#F4F5F7", border: "1px solid #E5E7EB" }}>
 
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-black uppercase tracking-[0.15em]"
@@ -297,7 +297,7 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
                 {projects.map((p) => <option key={p.id} value={p.id}>{p.business_name}</option>)}
               </select>
               <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: "#83858c" }} />
+                style={{ color: "#6B7280" }} />
             </div>
           ) : (
             <input className="du" style={FIELD} placeholder="Client name"
@@ -315,7 +315,7 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
               {VIDEO_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
             <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: "#83858c" }} />
+              style={{ color: "#6B7280" }} />
           </div>
         </div>
       </div>
@@ -366,7 +366,7 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
               className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all"
               style={video.drive_updated
                 ? { background: "rgba(34,197,94,0.12)", color: "#16A34A", border: "1.5px solid rgba(34,197,94,0.4)" }
-                : { background: "#FFFFFF", color: "#83858c", border: "1px solid #E5E7EB" }}>
+                : { background: "#FFFFFF", color: "#6B7280", border: "1px solid #E5E7EB" }}>
               <CheckCircle2 size={11} /> Yes
             </button>
             <button type="button"
@@ -374,7 +374,7 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
               className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all"
               style={!video.drive_updated
                 ? { background: "rgba(239,68,68,0.08)", color: "#de1a1a", border: "1.5px solid rgba(222,26,26,0.25)" }
-                : { background: "#FFFFFF", color: "#83858c", border: "1px solid #E5E7EB" }}>
+                : { background: "#FFFFFF", color: "#6B7280", border: "1px solid #E5E7EB" }}>
               <XCircle size={11} /> No
             </button>
           </div>
@@ -581,7 +581,7 @@ function GenWorkCard({ entry, index, projects, onChange, onRemove, canRemove }: 
             <label style={LABEL}>Duration</label>
             <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
               style={{
-                height: "42px", background: "#fbf5f7", border: "1px solid #E5E7EB",
+                height: "42px", background: "#F4F5F7", border: "1px solid #E5E7EB",
                 color: entry.duration_hours > 0 ? "#de1a1a" : "#D1D5DB",
               }}>
               {entry.duration_hours > 0 ? `${entry.duration_hours}h` : "—"}
@@ -681,7 +681,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
   return (
     <>
       <style>{`
-        .du::placeholder { color: #83858c; }
+        .du::placeholder { color: #6B7280; }
         .du:focus { border-color: rgba(222,26,26,0.4) !important; box-shadow: 0 0 0 2px rgba(222,26,26,0.06); }
         .du-sel { appearance: none; }
       `}</style>
@@ -797,7 +797,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
                   <label style={LABEL}>Duration</label>
                   <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
                     style={{
-                      height: "42px", background: "#fbf5f7", border: "1px solid #E5E7EB",
+                      height: "42px", background: "#F4F5F7", border: "1px solid #E5E7EB",
                       color: learning.duration_hours > 0 ? "#6366F1" : "#D1D5DB",
                     }}>
                     {learning.duration_hours > 0 ? `${learning.duration_hours}h` : "—"}
@@ -976,7 +976,7 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
   return (
     <>
       <style>{`
-        .du::placeholder { color: #83858c; }
+        .du::placeholder { color: #6B7280; }
         .du:focus { border-color: rgba(222,26,26,0.4) !important; box-shadow: 0 0 0 2px rgba(222,26,26,0.06); }
         .du-sel { appearance: none; }
       `}</style>
@@ -985,7 +985,7 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
       {step === "type-select" && (
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] mb-5"
-            style={{ color: "#83858c" }}>What did you work on today?</p>
+            style={{ color: "#6B7280" }}>What did you work on today?</p>
 
           <div className="grid grid-cols-3 gap-4">
             {/* Shooting */}
@@ -1005,7 +1005,7 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
                 <Camera size={28} style={{ color: "#de1a1a" }} />
               </div>
               <p className="text-[15px] font-black" style={{ color: "#de1a1a" }}>Shooting</p>
-              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#83858c" }}>Sessions, travel & expenses</p>
+              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#6B7280" }}>Sessions, travel & expenses</p>
             </button>
 
             {/* Editing */}
@@ -1025,19 +1025,19 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
                 <Scissors size={28} style={{ color: "#6366F1" }} />
               </div>
               <p className="text-[15px] font-black" style={{ color: "#6366F1" }}>Editing</p>
-              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#83858c" }}>Videos & Drive uploads</p>
+              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#6B7280" }}>Videos & Drive uploads</p>
             </button>
 
             {/* Learning */}
             <button type="button" onClick={() => selectType("learning")}
               className="flex flex-col items-center justify-center gap-3 rounded-2xl transition-all"
-              style={{ aspectRatio: "1", background: "#fbf5f7", border: "2px solid #E5E7EB" }}
+              style={{ aspectRatio: "1", background: "#F4F5F7", border: "2px solid #E5E7EB" }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLElement).style.background = "#F1F5F9"
                 ;(e.currentTarget as HTMLElement).style.borderColor = "#D1D5DB"
               }}
               onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.background = "#fbf5f7"
+                (e.currentTarget as HTMLElement).style.background = "#F4F5F7"
                 ;(e.currentTarget as HTMLElement).style.borderColor = "#E5E7EB"
               }}>
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
@@ -1045,7 +1045,7 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
                 <BookOpen size={28} style={{ color: "#6B7280" }} />
               </div>
               <p className="text-[15px] font-black" style={{ color: "#6B7280" }}>Learning</p>
-              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#83858c" }}>Study & skill building</p>
+              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#6B7280" }}>Study & skill building</p>
             </button>
           </div>
         </div>
@@ -1056,7 +1056,7 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
         <div className="space-y-6">
           <button type="button" onClick={goBack}
             className="flex items-center gap-1.5 text-[12px] font-semibold"
-            style={{ color: "#83858c" }}>
+            style={{ color: "#6B7280" }}>
             <ArrowLeft size={14} /> Back
           </button>
 
@@ -1064,7 +1064,7 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
             <p className="text-[22px] font-black mb-1" style={{ color: "#111111" }}>
               {mode === "shoot" ? "How many shoots today?" : "How many videos edited?"}
             </p>
-            <p className="text-[13px]" style={{ color: "#83858c" }}>
+            <p className="text-[13px]" style={{ color: "#6B7280" }}>
               {mode === "shoot"
                 ? "Each shoot session gets its own card"
                 : "Each editing session gets its own card"}
@@ -1113,7 +1113,7 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
           <div className="flex items-center justify-between">
             <button type="button" onClick={goBack}
               className="flex items-center gap-1.5 text-[12px] font-semibold"
-              style={{ color: "#83858c" }}>
+              style={{ color: "#6B7280" }}>
               <ArrowLeft size={14} /> Back
             </button>
             {mode !== "learning" && (

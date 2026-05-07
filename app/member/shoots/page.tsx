@@ -90,7 +90,7 @@ export default async function ShootsPage() {
           style={{ fontFamily: "var(--font-jakarta)" }}>
           Shoot Log
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#83858c" }}>
+        <p className="text-sm mt-1" style={{ color: "#6B7280" }}>
           All your shoot sessions logged from daily updates
         </p>
       </div>
@@ -105,10 +105,10 @@ export default async function ShootsPage() {
           const Icon = s.icon
           return (
             <div key={s.label} className="rounded-xl p-4 flex flex-col"
-              style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+              style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
               <div className="flex items-center gap-2 mb-2">
                 <Icon size={13} style={{ color: s.color }} />
-                <p className="text-[10px] uppercase tracking-[0.15em] font-bold" style={{ color: "#83858c" }}>
+                <p className="text-[10px] uppercase tracking-[0.15em] font-bold" style={{ color: "#6B7280" }}>
                   {s.label}
                 </p>
               </div>
@@ -123,9 +123,9 @@ export default async function ShootsPage() {
 
       {allShoots.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
-          style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F0F0F0" }}>
+          style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #E5E7EB" }}>
           <Camera size={36} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#83858c" }}>No shoots logged yet</p>
+          <p className="text-[14px] font-semibold" style={{ color: "#6B7280" }}>No shoots logged yet</p>
           <p className="text-[12px] mt-1" style={{ color: "#D1D5DB" }}>
             Add shoot entries in your daily update to see them here.
           </p>
@@ -134,7 +134,7 @@ export default async function ShootsPage() {
         <div className="space-y-6">
 
           {/* Client Breakdown */}
-          <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+          <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
             <div className="flex items-center gap-2 mb-4">
               <Users size={13} style={{ color: "#F59E0B" }} />
               <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>Client Breakdown</h3>
@@ -155,7 +155,7 @@ export default async function ShootsPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         {c.hours > 0 && (
-                          <span className="text-[11px] font-medium" style={{ color: "#83858c" }}>{c.hours}h</span>
+                          <span className="text-[11px] font-medium" style={{ color: "#6B7280" }}>{c.hours}h</span>
                         )}
                         <span className="text-[12px] font-bold px-2 py-0.5 rounded-full"
                           style={{ background: "rgba(245,158,11,0.1)", color: "#F59E0B" }}>
@@ -182,8 +182,8 @@ export default async function ShootsPage() {
                   <div className="flex items-center gap-3 mb-4">
                     <CalendarDays size={13} style={{ color: "#F59E0B" }} />
                     <p className="text-[11px] font-bold uppercase tracking-[0.2em]"
-                      style={{ color: "#83858c" }}>{month}</p>
-                    <div className="flex-1 h-px" style={{ background: "#F0F0F0" }} />
+                      style={{ color: "#6B7280" }}>{month}</p>
+                    <div className="flex-1 h-px" style={{ background: "#E5E7EB" }} />
                     {monthHrs > 0 && (
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
                         style={{ background: "rgba(245,158,11,0.08)", color: "#F59E0B" }}>
@@ -198,7 +198,7 @@ export default async function ShootsPage() {
 
                   <div className="relative pl-6">
                     <div className="absolute left-[7px] top-2 bottom-2 w-px"
-                      style={{ background: "#F0F0F0" }} />
+                      style={{ background: "#E5E7EB" }} />
                     <div className="space-y-3">
                       {shoots.map((s, i) => (
                         <div key={i} className="relative">
@@ -217,7 +217,7 @@ export default async function ShootsPage() {
                                     style={{ color: "#F59E0B" }}>{s.duration_hours}h</span>
                                 )}
                               </div>
-                              <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>{formatDate(s.date)}</p>
+                              <p className="text-[11px] mt-0.5" style={{ color: "#6B7280" }}>{formatDate(s.date)}</p>
                               {s.notes && (
                                 <p className="text-[11px] mt-2 line-clamp-2 leading-relaxed"
                                   style={{ color: "#6B7280" }}>{s.notes}</p>

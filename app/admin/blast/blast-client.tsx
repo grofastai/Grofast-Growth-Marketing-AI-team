@@ -72,9 +72,9 @@ export default function BlastClient({ members }: { members: Member[] }) {
           )}
           {skippedCount > 0 && (
             <div className="flex items-center gap-2 px-4 py-2 rounded-lg"
-              style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #F0F0F0" }}>
-              <Phone size={14} style={{ color: "#83858c" }} />
-              <span className="text-[13px] font-medium" style={{ color: "#83858c" }}>
+              style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #E5E7EB" }}>
+              <Phone size={14} style={{ color: "#6B7280" }} />
+              <span className="text-[13px] font-medium" style={{ color: "#6B7280" }}>
                 {skippedCount} skipped (no phone)
               </span>
             </div>
@@ -85,10 +85,10 @@ export default function BlastClient({ members }: { members: Member[] }) {
         <div className="space-y-2 mb-6">
           {results.map(r => (
             <div key={r.userId} className="flex items-center gap-3 px-4 py-3 rounded-xl"
-              style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+              style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{r.name}</p>
-                <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>
+                <p className="text-[11px] mt-0.5" style={{ color: "#6B7280" }}>
                   {r.phone ?? "No phone number"}
                 </p>
                 {r.error && (
@@ -121,17 +121,17 @@ export default function BlastClient({ members }: { members: Member[] }) {
           style={{ fontFamily: "var(--font-jakarta)" }}>
           WhatsApp Blast
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#83858c" }}>
+        <p className="text-sm mt-1" style={{ color: "#6B7280" }}>
           Send a WhatsApp message to your team instantly
         </p>
       </div>
 
       <div className="space-y-5">
         {/* Message composer */}
-        <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+        <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
           <div className="flex items-center gap-2 mb-3">
             <MessageSquare size={13} style={{ color: "#25D366" }} />
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#83858c" }}>Message</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#6B7280" }}>Message</p>
           </div>
           <textarea
             value={message}
@@ -140,7 +140,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
             maxLength={1000}
             rows={5}
             className="w-full resize-none rounded-lg px-3 py-2.5 text-[13px] outline-none leading-relaxed"
-            style={{ background: "#F9FAFB", border: "1px solid #F0F0F0", color: "#111111" }}
+            style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}
           />
           <p className="text-[11px] mt-1.5 text-right tabular-nums" style={{ color: "#D1D5DB" }}>
             {message.length} / 1000
@@ -148,11 +148,11 @@ export default function BlastClient({ members }: { members: Member[] }) {
         </div>
 
         {/* Recipients */}
-        <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+        <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Users size={13} style={{ color: "#de1a1a" }} />
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#83858c" }}>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#6B7280" }}>
                 Recipients
               </p>
               {recipientCount > 0 && (
@@ -177,13 +177,13 @@ export default function BlastClient({ members }: { members: Member[] }) {
                   className="flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer select-none transition-all"
                   style={{
                     background: isSelected ? "rgba(222,26,26,0.04)" : "#F9FAFB",
-                    border: `1px solid ${isSelected ? "rgba(222,26,26,0.2)" : "#F0F0F0"}`,
+                    border: `1px solid ${isSelected ? "rgba(222,26,26,0.2)" : "#E5E7EB"}`,
                   }}>
                   <input type="checkbox" checked={isSelected} onChange={() => toggleMember(m.id)}
                     className="w-4 h-4 accent-red-600 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold truncate" style={{ color: "#111111" }}>{m.name}</p>
-                    <p className="text-[11px]" style={{ color: m.phone ? "#83858c" : "#D1D5DB" }}>
+                    <p className="text-[11px]" style={{ color: m.phone ? "#6B7280" : "#D1D5DB" }}>
                       {m.phone ?? "No phone number"}
                     </p>
                   </div>
@@ -205,7 +205,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
           className="flex items-center gap-2 px-6 py-3 rounded-xl text-[14px] font-bold transition-all"
           style={{
             background: canSend ? "#25D366" : "#E5E7EB",
-            color:      canSend ? "#FFFFFF" : "#83858c",
+            color:      canSend ? "#FFFFFF" : "#6B7280",
             cursor:     canSend ? "pointer" : "not-allowed",
           }}>
           <Send size={14} />

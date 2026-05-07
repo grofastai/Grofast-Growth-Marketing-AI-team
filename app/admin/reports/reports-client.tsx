@@ -141,7 +141,7 @@ export default function ReportsClient({
             style={{ fontFamily: "var(--font-jakarta)" }}>
             Daily Intelligence
           </h1>
-          <p className="text-sm mt-1" style={{ color: "#83858c" }}>
+          <p className="text-sm mt-1" style={{ color: "#6B7280" }}>
             {getLongDate(date)}
             {isToday && (
               <span className="ml-2 text-[11px] font-bold px-2 py-0.5 rounded-full"
@@ -187,15 +187,15 @@ export default function ReportsClient({
           { label: "Shoots",        value: totalShoots,                     color: "#111111",  bg: "#FFFFFF",               border: "#E5E7EB",                 icon: Camera },
           { label: "Learning Hrs",  value: `${totalLearning.toFixed(1)}h`, color: "#6B7280", bg: "#FFFFFF", border: "#E5E7EB",                 icon: BookOpen },
           { label: "Present",       value: presentCount,                    color: "#de1a1a",  bg: "rgba(222,26,26,0.05)", border: "rgba(222,26,26,0.15)",  icon: Users },
-          { label: "Absent",        value: absentCount,                     color: absentCount > 0 ? "#FF6B57" : "#83858c", bg: absentCount > 0 ? "rgba(255,107,87,0.05)" : "#FFFFFF", border: absentCount > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB", icon: UserX },
-          { label: "Not Updated",   value: notUpdatedMembers.length,        color: notUpdatedMembers.length > 0 ? "#FF6B57" : "#83858c", bg: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.05)" : "#FFFFFF", border: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB", icon: AlertTriangle },
+          { label: "Absent",        value: absentCount,                     color: absentCount > 0 ? "#FF6B57" : "#6B7280", bg: absentCount > 0 ? "rgba(255,107,87,0.05)" : "#FFFFFF", border: absentCount > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB", icon: UserX },
+          { label: "Not Updated",   value: notUpdatedMembers.length,        color: notUpdatedMembers.length > 0 ? "#FF6B57" : "#6B7280", bg: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.05)" : "#FFFFFF", border: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB", icon: AlertTriangle },
         ].map(({ label, value, color, bg, border, icon: Icon }) => (
           <div key={label} className="rounded-xl p-4 flex flex-col gap-2"
             style={{ background: bg, border: `1px solid ${border}` }}>
             <Icon size={13} style={{ color: "#D1D5DB" }} />
             <p className="text-[26px] font-black leading-none"
               style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
-            <p className="text-[10px] font-medium" style={{ color: "#83858c" }}>{label}</p>
+            <p className="text-[10px] font-medium" style={{ color: "#6B7280" }}>{label}</p>
           </div>
         ))}
       </div>
@@ -205,7 +205,7 @@ export default function ReportsClient({
         <div className="flex flex-col items-center justify-center py-20 rounded-xl mb-8"
           style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
           <Clock size={36} style={{ color: "rgba(0,0,0,0.05)" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#83858c" }}>
+          <p className="text-[14px] font-semibold" style={{ color: "#6B7280" }}>
             No updates submitted for this date
           </p>
           <p className="text-[12px] mt-1" style={{ color: "rgba(0,0,0,0.08)" }}>
@@ -259,7 +259,7 @@ export default function ReportsClient({
                         {/* Info */}
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-semibold truncate" style={{ color: "#111111" }}>{p.name}</p>
-                          <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: "#fbf5f7" }}>
+                          <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: "#F4F5F7" }}>
                             <div className="h-full rounded-full transition-all"
                               style={{ width: `${barPct}%`, background: isTop ? "#de1a1a" : "rgba(0,0,0,0.1)" }} />
                           </div>
@@ -270,7 +270,7 @@ export default function ReportsClient({
                             {p.hours.toFixed(1)}h
                           </p>
                           {p.shoots > 0 && (
-                            <p className="text-[11px]" style={{ color: "#83858c" }}>
+                            <p className="text-[11px]" style={{ color: "#6B7280" }}>
                               {p.shoots} shoot{p.shoots !== 1 ? "s" : ""}
                             </p>
                           )}
@@ -328,16 +328,16 @@ export default function ReportsClient({
               <div className="p-5 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { label: "Active Tasks",    value: totalActiveTasks,        color: "#111111",  bg: "#fbf5f7",                   border: "#E5E7EB" },
-                    { label: "Overdue Tasks",   value: overdueTasks.length,     color: overdueTasks.length > 0 ? "#FF6B57" : "#83858c", bg: overdueTasks.length > 0 ? "rgba(255,107,87,0.08)" : "#fbf5f7", border: overdueTasks.length > 0 ? "rgba(255,107,87,0.18)" : "#E5E7EB" },
-                    { label: "No Activity",     value: tasksNoActivity.length,  color: tasksNoActivity.length > 0 ? "#F59E0B" : "#83858c", bg: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.08)" : "#fbf5f7", border: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.18)" : "#E5E7EB" },
-                    { label: "Completion Rate", value: totalActiveTasks > 0 ? "—" : "100%", color: "#de1a1a", bg: "#fbf5f7", border: "#E5E7EB" },
+                    { label: "Active Tasks",    value: totalActiveTasks,        color: "#111111",  bg: "#F4F5F7",                   border: "#E5E7EB" },
+                    { label: "Overdue Tasks",   value: overdueTasks.length,     color: overdueTasks.length > 0 ? "#FF6B57" : "#6B7280", bg: overdueTasks.length > 0 ? "rgba(255,107,87,0.08)" : "#F4F5F7", border: overdueTasks.length > 0 ? "rgba(255,107,87,0.18)" : "#E5E7EB" },
+                    { label: "No Activity",     value: tasksNoActivity.length,  color: tasksNoActivity.length > 0 ? "#F59E0B" : "#6B7280", bg: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.08)" : "#F4F5F7", border: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.18)" : "#E5E7EB" },
+                    { label: "Completion Rate", value: totalActiveTasks > 0 ? "—" : "100%", color: "#de1a1a", bg: "#F4F5F7", border: "#E5E7EB" },
                   ].map(({ label, value, color, bg, border }) => (
                     <div key={label} className="rounded-xl px-4 py-3"
                       style={{ background: bg, border: `1px solid ${border}` }}>
                       <p className="text-[22px] font-black leading-none mb-1"
                         style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
-                      <p className="text-[10px]" style={{ color: "#83858c" }}>{label}</p>
+                      <p className="text-[10px]" style={{ color: "#6B7280" }}>{label}</p>
                     </div>
                   ))}
                 </div>
@@ -364,15 +364,15 @@ export default function ReportsClient({
                 <div className="grid grid-cols-2 gap-3">
                   {[
                     { label: "Active Projects",   value: activeProjects,          color: "#de1a1a",  bg: "rgba(222,26,26,0.05)", border: "rgba(222,26,26,0.12)" },
-                    { label: "Overdue Projects",  value: overdueProjects.length,  color: overdueProjects.length > 0 ? "#FF6B57" : "#83858c", bg: overdueProjects.length > 0 ? "rgba(255,107,87,0.08)" : "#fbf5f7", border: overdueProjects.length > 0 ? "rgba(255,107,87,0.18)" : "#E5E7EB" },
-                    { label: "On Track",          value: activeProjects - overdueProjects.length, color: "#de1a1a", bg: "#fbf5f7", border: "#E5E7EB" },
-                    { label: "Health Score",      value: activeProjects > 0 ? `${Math.round(((activeProjects - overdueProjects.length) / activeProjects) * 100)}%` : "—", color: "#111111", bg: "#fbf5f7", border: "#E5E7EB" },
+                    { label: "Overdue Projects",  value: overdueProjects.length,  color: overdueProjects.length > 0 ? "#FF6B57" : "#6B7280", bg: overdueProjects.length > 0 ? "rgba(255,107,87,0.08)" : "#F4F5F7", border: overdueProjects.length > 0 ? "rgba(255,107,87,0.18)" : "#E5E7EB" },
+                    { label: "On Track",          value: activeProjects - overdueProjects.length, color: "#de1a1a", bg: "#F4F5F7", border: "#E5E7EB" },
+                    { label: "Health Score",      value: activeProjects > 0 ? `${Math.round(((activeProjects - overdueProjects.length) / activeProjects) * 100)}%` : "—", color: "#111111", bg: "#F4F5F7", border: "#E5E7EB" },
                   ].map(({ label, value, color, bg, border }) => (
                     <div key={label} className="rounded-xl px-4 py-3"
                       style={{ background: bg, border: `1px solid ${border}` }}>
                       <p className="text-[22px] font-black leading-none mb-1"
                         style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
-                      <p className="text-[10px]" style={{ color: "#83858c" }}>{label}</p>
+                      <p className="text-[10px]" style={{ color: "#6B7280" }}>{label}</p>
                     </div>
                   ))}
                 </div>

@@ -28,7 +28,7 @@ type UpdateRow = {
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
   present: { label: "Present",  color: "#16A34A", bg: "rgba(22,163,74,0.1)"  },
   absent:  { label: "Absent",   color: "#de1a1a", bg: "rgba(222,26,26,0.1)"  },
-  holiday: { label: "Holiday",  color: "#83858c", bg: "rgba(0,0,0,0.05)"     },
+  holiday: { label: "Holiday",  color: "#6B7280", bg: "rgba(0,0,0,0.05)"     },
   wfh:     { label: "WFH",      color: "#6366F1", bg: "rgba(99,102,241,0.1)" },
 }
 
@@ -72,16 +72,16 @@ export default async function HistoryPage() {
           style={{ fontFamily: "var(--font-jakarta)" }}>
           Update History
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#83858c" }}>
+        <p className="text-sm mt-1" style={{ color: "#6B7280" }}>
           Your daily work logs — last 90 days
         </p>
       </div>
 
       {updates.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
-          style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F0F0F0" }}>
+          style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #E5E7EB" }}>
           <ClipboardList size={36} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#83858c" }}>No updates yet</p>
+          <p className="text-[14px] font-semibold" style={{ color: "#6B7280" }}>No updates yet</p>
           <p className="text-[12px] mt-1" style={{ color: "#D1D5DB" }}>Submit your first daily update to see history here.</p>
         </div>
       ) : (
@@ -98,8 +98,8 @@ export default async function HistoryPage() {
                   <div className="flex items-center gap-3 mb-4">
                     <CalendarDays size={13} style={{ color: "#de1a1a" }} />
                     <p className="text-[11px] font-bold uppercase tracking-[0.2em]"
-                      style={{ color: "#83858c" }}>{month}</p>
-                    <div className="flex-1 h-px" style={{ background: "#F0F0F0" }} />
+                      style={{ color: "#6B7280" }}>{month}</p>
+                    <div className="flex-1 h-px" style={{ background: "#E5E7EB" }} />
                     {monthOT > 0 && (
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
                         style={{ background: "rgba(234,88,12,0.08)", color: "#EA580C" }}>
@@ -118,7 +118,7 @@ export default async function HistoryPage() {
               <div className="relative pl-6">
                 {/* Vertical line */}
                 <div className="absolute left-[7px] top-2 bottom-2 w-px"
-                  style={{ background: "#F0F0F0" }} />
+                  style={{ background: "#E5E7EB" }} />
 
                 <div className="space-y-4">
                   {rows.map((u) => {
@@ -134,7 +134,7 @@ export default async function HistoryPage() {
                           style={{ background: st.color, boxShadow: `0 0 0 3px ${st.bg}` }} />
 
                         <div className="rounded-xl p-4"
-                          style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
+                          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
 
                           {/* Top row */}
                           <div className="flex items-start justify-between gap-3 mb-3">
@@ -143,7 +143,7 @@ export default async function HistoryPage() {
                                 {formatDate(u.date)}
                               </p>
                               {u.work_type && (
-                                <p className="text-[11px] mt-0.5 capitalize" style={{ color: "#83858c" }}>
+                                <p className="text-[11px] mt-0.5 capitalize" style={{ color: "#6B7280" }}>
                                   {u.work_type === "wfh" ? "Work from Home" : "Office"}
                                 </p>
                               )}
@@ -207,7 +207,7 @@ export default async function HistoryPage() {
                                           {e.client_name || e.title}
                                         </p>
                                         {e.notes && (
-                                          <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: "#83858c" }}>{e.notes}</p>
+                                          <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: "#6B7280" }}>{e.notes}</p>
                                         )}
                                       </div>
                                       {e.duration_hours > 0 && (
@@ -234,7 +234,7 @@ export default async function HistoryPage() {
                                           {e.client_name || e.title}
                                         </p>
                                         {e.notes && (
-                                          <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: "#83858c" }}>{e.notes}</p>
+                                          <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: "#6B7280" }}>{e.notes}</p>
                                         )}
                                       </div>
                                       {e.duration_hours > 0 && (

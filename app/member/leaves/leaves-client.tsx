@@ -120,7 +120,7 @@ export default function MemberLeavesClient({ leaves }: { leaves: Leave[] }) {
                       className="flex flex-col items-center gap-1.5 py-3 rounded-xl text-[12px] font-bold transition-all"
                       style={leaveType === key
                         ? { background: "#de1a1a", color: "#FFFFFF", border: "2px solid #de1a1a" }
-                        : { background: "rgba(255,255,255,0.06)", color: "#83858c", border: "1px solid rgba(255,255,255,0.1)" }
+                        : { background: "rgba(255,255,255,0.06)", color: "#6B7280", border: "1px solid rgba(255,255,255,0.1)" }
                       }>
                       <Icon size={15} />
                       {label}
@@ -161,7 +161,7 @@ export default function MemberLeavesClient({ leaves }: { leaves: Leave[] }) {
                           className="py-2.5 rounded-xl text-[12px] font-bold capitalize transition-all"
                           style={halfPeriod === p
                             ? { background: "#de1a1a", color: "#FFFFFF" }
-                            : { background: "rgba(255,255,255,0.06)", color: "#83858c", border: "1px solid rgba(255,255,255,0.1)" }
+                            : { background: "rgba(255,255,255,0.06)", color: "#6B7280", border: "1px solid rgba(255,255,255,0.1)" }
                           }>
                           {p}
                         </button>
@@ -207,7 +207,7 @@ export default function MemberLeavesClient({ leaves }: { leaves: Leave[] }) {
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={handleClose}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
-                  style={{ background: "rgba(255,255,255,0.06)", color: "#83858c", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  style={{ background: "rgba(255,255,255,0.06)", color: "#6B7280", border: "1px solid rgba(255,255,255,0.1)" }}>
                   Cancel
                 </button>
                 <button type="submit" disabled={formPending}
@@ -225,10 +225,10 @@ export default function MemberLeavesClient({ leaves }: { leaves: Leave[] }) {
       {/* ── Leave List ── */}
       {leaves.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
-          style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
+          style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
           <CalendarOff size={40} style={{ color: "rgba(0,0,0,0.06)" }} className="mb-3" />
           <p className="text-[14px] font-semibold font-sans" style={{ color: "#6B7280" }}>No leave requests</p>
-          <p className="text-[12px] font-sans mt-1" style={{ color: "#83858c" }}>Apply for leave using the button above.</p>
+          <p className="text-[12px] font-sans mt-1" style={{ color: "#6B7280" }}>Apply for leave using the button above.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -241,7 +241,7 @@ export default function MemberLeavesClient({ leaves }: { leaves: Leave[] }) {
 
             return (
               <div key={leave.id} className="rounded-2xl p-5 flex items-center gap-4"
-                style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
+                style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: sc.bg }}>
                   {isPermission

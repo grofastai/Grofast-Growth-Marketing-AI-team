@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useTransition } from 'react'
 import { createTicket, addResponse } from '@/lib/actions/support'
@@ -26,7 +26,7 @@ const STATUS_TEXT: Record<string, string> = {
   open:        '#de1a1a',
   in_progress: '#b45309',
   resolved:    '#15803d',
-  closed:      '#83858c',
+  closed:      '#6B7280',
 }
 const STATUS_ICON: Record<string, React.ReactNode> = {
   open:        <AlertCircle size={12} />,
@@ -83,7 +83,7 @@ export default function MemberSupportClient({ tickets }: { tickets: Ticket[] }) 
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black" style={{ color: '#0a100d' }}>Support</h1>
-          <p className="text-sm mt-1" style={{ color: '#83858c' }}>Raise a ticket, we'll get back to you</p>
+          <p className="text-sm mt-1" style={{ color: '#6B7280' }}>Raise a ticket, we'll get back to you</p>
         </div>
         <button onClick={() => setShowForm(v => !v)}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold transition-all"
@@ -149,7 +149,7 @@ export default function MemberSupportClient({ tickets }: { tickets: Ticket[] }) 
 
       {/* Ticket list */}
       {tickets.length === 0 ? (
-        <div className="text-center py-16" style={{ color: '#83858c' }}>
+        <div className="text-center py-16" style={{ color: '#6B7280' }}>
           <LifeBuoy size={40} className="mx-auto mb-3 opacity-30" />
           <p className="font-medium">No tickets yet</p>
           <p className="text-[13px] mt-1">Click "New Ticket" to raise a support request</p>
@@ -168,19 +168,19 @@ export default function MemberSupportClient({ tickets }: { tickets: Ticket[] }) 
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold text-[14px]" style={{ color: '#0a100d' }}>{ticket.title}</span>
                       <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold flex items-center gap-1"
-                        style={{ background: STATUS_COLORS[ticket.status] ?? 'rgba(130,133,140,0.1)', color: STATUS_TEXT[ticket.status] ?? '#83858c' }}>
+                        style={{ background: STATUS_COLORS[ticket.status] ?? 'rgba(130,133,140,0.1)', color: STATUS_TEXT[ticket.status] ?? '#6B7280' }}>
                         {STATUS_ICON[ticket.status]}
                         {ticket.status.replace('_', ' ')}
                       </span>
                     </div>
-                    <div className="flex items-center gap-3 mt-1 text-[12px]" style={{ color: '#83858c' }}>
+                    <div className="flex items-center gap-3 mt-1 text-[12px]" style={{ color: '#6B7280' }}>
                       <span className="capitalize">{ticket.category}</span>
                       <span>·</span>
                       <span>{new Date(ticket.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                       {responses.length > 0 && <><span>·</span><span>{responses.length} {responses.length === 1 ? 'reply' : 'replies'}</span></>}
                     </div>
                   </div>
-                  {isExpanded ? <ChevronUp size={16} style={{ color: '#83858c' }} /> : <ChevronDown size={16} style={{ color: '#83858c' }} />}
+                  {isExpanded ? <ChevronUp size={16} style={{ color: '#6B7280' }} /> : <ChevronDown size={16} style={{ color: '#6B7280' }} />}
                 </button>
 
                 {isExpanded && (
@@ -194,7 +194,7 @@ export default function MemberSupportClient({ tickets }: { tickets: Ticket[] }) 
                             style={{ background: 'rgba(222,26,26,0.04)', border: '1px solid rgba(222,26,26,0.1)' }}>
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-[12px] font-bold" style={{ color: '#de1a1a' }}>{r.responder_name}</span>
-                              <span className="text-[11px]" style={{ color: '#83858c' }}>
+                              <span className="text-[11px]" style={{ color: '#6B7280' }}>
                                 {new Date(r.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>

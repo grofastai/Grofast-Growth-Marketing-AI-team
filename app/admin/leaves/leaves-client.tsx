@@ -69,7 +69,7 @@ export default function LeavesClient({ leaves, statusFilter }: { leaves: Leave[]
             className="px-4 py-2 rounded-xl text-[13px] font-semibold font-sans transition-all"
             style={statusFilter === tab.key
               ? { background: tab.bg, color: tab.color, border: `1px solid ${tab.color}30` }
-              : { background: "rgba(0,0,0,0.02)", color: "#6B7280", border: "1px solid #F0F0F0" }
+              : { background: "rgba(0,0,0,0.02)", color: "#6B7280", border: "1px solid #E5E7EB" }
             }
           >
             {tab.label}
@@ -79,7 +79,7 @@ export default function LeavesClient({ leaves, statusFilter }: { leaves: Leave[]
 
       {/* List */}
       {leaves.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 rounded-2xl" style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
+        <div className="flex flex-col items-center justify-center py-24 rounded-2xl" style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
           <CalendarOff size={40} style={{ color: "rgba(0,0,0,0.06)" }} className="mb-3" />
           <p className="text-[14px] font-semibold font-sans" style={{ color: "#6B7280" }}>
             No {statusFilter === "all" ? "" : statusFilter} leave requests
@@ -94,7 +94,7 @@ export default function LeavesClient({ leaves, statusFilter }: { leaves: Leave[]
 
             return (
               <div key={leave.id} className="rounded-2xl p-5 flex items-center gap-4"
-                style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
+                style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
 
                 {/* Avatar */}
                 <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
@@ -110,7 +110,7 @@ export default function LeavesClient({ leaves, statusFilter }: { leaves: Leave[]
                     <p className="text-[14px] font-bold font-sans" style={{ color: "#111827" }}>{user?.name ?? "Unknown"}</p>
                     <span className="text-[11px] font-sans" style={{ color: "#6B7280" }}>#{user?.employee_id}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-[12px] font-sans" style={{ color: "#83858c" }}>
+                  <div className="flex items-center gap-2 text-[12px] font-sans" style={{ color: "#6B7280" }}>
                     <Calendar size={12} style={{ color: "#6B7280" }} />
                     <span>{formatDate(leave.from_date)} — {formatDate(leave.to_date)}</span>
                     <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>{days}d</span>

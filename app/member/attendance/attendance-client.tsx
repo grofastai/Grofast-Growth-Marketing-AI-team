@@ -113,7 +113,7 @@ function ProgressBar({ hoursWorked }: { hoursWorked: number }) {
           <div key={i} className="h-2 flex-1 rounded-sm" style={{ background: "rgba(0,0,0,0.06)" }} />
         ))}
       </div>
-      <p className="text-[12px]" style={{ color: "#83858c" }}>
+      <p className="text-[12px]" style={{ color: "#6B7280" }}>
         {hoursStr} / {SHIFT_HOURS}h
       </p>
     </div>
@@ -181,7 +181,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
   // Status badge
   const statusLabel = isAbsent ? "Absent" : (isIn || isDone) ? "Present" : "Not Logged"
-  const statusColor = isAbsent ? "#FF6464" : (isIn || isDone) ? "#de1a1a" : "#83858c"
+  const statusColor = isAbsent ? "#FF6464" : (isIn || isDone) ? "#de1a1a" : "#6B7280"
   const statusDot   = isAbsent ? "#FF6464" : (isIn || isDone) ? "#de1a1a" : "#555"
 
   function handle(fn: () => Promise<{ success: boolean; error?: string }>) {
@@ -215,7 +215,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             style={{ fontFamily: "var(--font-jakarta)" }}>
             Attendance
           </h1>
-          <p className="text-[13px] mt-1" style={{ color: "#83858c" }}>{dateStr}</p>
+          <p className="text-[13px] mt-1" style={{ color: "#6B7280" }}>{dateStr}</p>
           <p className="text-[11px] mt-0.5" style={{ color: "#D1D5DB" }}>
             Shift: 9:00 AM – 6:00 PM
           </p>
@@ -255,7 +255,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       className="flex items-center gap-2 px-5 py-3 rounded-xl text-[13px] font-bold transition-all"
                       style={{
                         background: active ? "#de1a1a" : "rgba(0,0,0,0.03)",
-                        color: active ? "#0D0D0D" : "#83858c",
+                        color: active ? "#0D0D0D" : "#6B7280",
                         border: active ? "none" : "1px solid #2A2A2A",
                       }}>
                       <Icon size={14} />
@@ -298,7 +298,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 style={{ color: "#de1a1a" }}>
                 Logged in at {fmtTime(todayLog.clock_in)}
               </p>
-              <p className="text-[12px] mb-3" style={{ color: "#83858c" }}>Working for</p>
+              <p className="text-[12px] mb-3" style={{ color: "#6B7280" }}>Working for</p>
               <LiveTimer clockInIso={todayLog.clock_in} />
             </div>
             <ProgressBar hoursWorked={hoursWorked} />
@@ -332,7 +332,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   { label: "Total",     value: fmtHoursShort(hoursWorked)  },
                 ].map(row => (
                   <div key={row.label} className="flex items-center gap-3">
-                    <span className="text-[12px] w-20" style={{ color: "#83858c" }}>{row.label}</span>
+                    <span className="text-[12px] w-20" style={{ color: "#6B7280" }}>{row.label}</span>
                     <span className="text-[13px] font-bold" style={{ color: "#111111" }}>{row.value}</span>
                   </div>
                 ))}
@@ -350,7 +350,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             </div>
             <div>
               <p className="text-[14px] font-bold" style={{ color: "#111111" }}>Absent Today</p>
-              <p className="text-[12px] mt-0.5" style={{ color: "#83858c" }}>
+              <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
                 Absence recorded for today.
               </p>
             </div>
@@ -364,7 +364,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
       {/* ── 4. Today Status Card ── */}
       <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
         <p className="text-[10px] uppercase tracking-[0.2em] font-bold mb-3"
-          style={{ color: "#83858c" }}>Today Status</p>
+          style={{ color: "#6B7280" }}>Today Status</p>
         <div className="space-y-2.5">
           {[
             { label: "Status",    value: isAbsent ? "Absent" : (isIn || isDone) ? "Present" : "Not Logged",
@@ -400,7 +400,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
       {/* ── 5. Week Summary ── */}
       <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
         <p className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4"
-          style={{ color: "#83858c" }}>This Week</p>
+          style={{ color: "#6B7280" }}>This Week</p>
         <div className="space-y-1.5">
           {weekDates.map((date, i) => {
             const log        = logByDate[date]
@@ -413,7 +413,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
             let dot   = "#444"
             let label = "No record"
-            let color = "#83858c"
+            let color = "#6B7280"
 
             if (isFuture)        { dot = "#E5E7EB";    label = "—";       color = "rgba(0,0,0,0.1)" }
             else if (absent)     { dot = "#FF6464"; label = "Absent";  color = "#FF6464" }
@@ -449,7 +449,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
           <p className="text-[14px] font-bold mb-1" style={{ color: "#111111" }}>
             Mark today as absent?
           </p>
-          <p className="text-[12px] mb-4" style={{ color: "#83858c" }}>
+          <p className="text-[12px] mb-4" style={{ color: "#6B7280" }}>
             This will record your absence for today. This action cannot be undone.
           </p>
           <div className="flex gap-3">
@@ -483,12 +483,12 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               { label: "Shoots",        value: todayUpdate.shoot_count    ? `${todayUpdate.shoot_count}`      : "—" },
             ].map(item => (
               <div key={item.label} className="rounded-lg p-3 text-center"
-                style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
+                style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
                 <p className="text-[22px] font-black mb-0.5"
                   style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
                   {item.value}
                 </p>
-                <p className="text-[10px]" style={{ color: "#83858c" }}>{item.label}</p>
+                <p className="text-[10px]" style={{ color: "#6B7280" }}>{item.label}</p>
               </div>
             ))}
           </div>

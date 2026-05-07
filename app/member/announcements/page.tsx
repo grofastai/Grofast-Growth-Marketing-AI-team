@@ -42,10 +42,10 @@ export default async function MemberAnnouncementsPage() {
 
       {announcements.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
-          style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
+          style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
           <Megaphone size={40} style={{ color: "rgba(0,0,0,0.06)" }} className="mb-3" />
           <p className="text-[14px] font-semibold font-sans" style={{ color: "#6B7280" }}>No announcements yet</p>
-          <p className="text-[12px] font-sans mt-1" style={{ color: "#83858c" }}>Your admin will post updates here.</p>
+          <p className="text-[12px] font-sans mt-1" style={{ color: "#6B7280" }}>Your admin will post updates here.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -55,7 +55,7 @@ export default async function MemberAnnouncementsPage() {
               <div key={ann.id} className="rounded-2xl p-5"
                 style={{
                   background: ann.pinned ? "rgba(222,26,26,0.06)" : "rgba(0,0,0,0.02)",
-                  border: ann.pinned ? "1px solid rgba(222,26,26,0.2)" : "1px solid #F0F0F0",
+                  border: ann.pinned ? "1px solid rgba(222,26,26,0.2)" : "1px solid #E5E7EB",
                 }}>
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"

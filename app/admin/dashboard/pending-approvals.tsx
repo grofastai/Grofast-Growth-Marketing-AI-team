@@ -29,7 +29,7 @@ export default function PendingApprovalsCard({ leaves }: { leaves: LeaveRow[] })
     new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
 
   return (
-    <div className="rounded-2xl p-5 h-full" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+    <div className="rounded-2xl p-5 h-full" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(222,26,26,0.1)" }}>
@@ -52,7 +52,7 @@ export default function PendingApprovalsCard({ leaves }: { leaves: LeaveRow[] })
       {leaves.length === 0 ? (
         <div className="flex flex-col items-center py-10 gap-2">
           <CheckCircle2 size={28} style={{ color: "#E5E7EB" }} />
-          <p className="text-[13px]" style={{ color: "#83858c" }}>No pending leave requests</p>
+          <p className="text-[13px]" style={{ color: "#6B7280" }}>No pending leave requests</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -74,11 +74,11 @@ export default function PendingApprovalsCard({ leaves }: { leaves: LeaveRow[] })
                 <div className="flex-1 min-w-0">
                   <p className="text-[13px] font-semibold leading-tight" style={{ color: "#111827" }}>
                     {member?.name ?? "—"}
-                    <span className="ml-1.5 text-[11px] font-medium" style={{ color: "#83858c" }}>
+                    <span className="ml-1.5 text-[11px] font-medium" style={{ color: "#6B7280" }}>
                       #{member?.employee_id}
                     </span>
                   </p>
-                  <p className="text-[11px] mt-0.5 truncate" style={{ color: "#83858c" }}>
+                  <p className="text-[11px] mt-0.5 truncate" style={{ color: "#6B7280" }}>
                     {fmt(leave.from_date)} → {fmt(leave.to_date)} · {shortReason}
                   </p>
                 </div>

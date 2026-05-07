@@ -39,18 +39,18 @@ export default function AnalyticsChart({ data }: { data: ChartPoint[] }) {
             <stop offset="100%" stopColor="#de1a1a" stopOpacity={0} />
           </linearGradient>
           <linearGradient id="grayGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#83858c" stopOpacity={0.12} />
-            <stop offset="100%" stopColor="#83858c" stopOpacity={0} />
+            <stop offset="0%" stopColor="#6B7280" stopOpacity={0.12} />
+            <stop offset="100%" stopColor="#6B7280" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
         <XAxis
           dataKey="day"
-          tick={{ fontSize: 11, fill: "#83858c", fontWeight: 500 }}
+          tick={{ fontSize: 11, fill: "#6B7280", fontWeight: 500 }}
           tickLine={false} axisLine={false}
         />
         <YAxis
-          tick={{ fontSize: 11, fill: "#83858c" }}
+          tick={{ fontSize: 11, fill: "#6B7280" }}
           tickLine={false} axisLine={false}
           allowDecimals={false}
         />
@@ -69,10 +69,10 @@ export default function AnalyticsChart({ data }: { data: ChartPoint[] }) {
         />
         <Area
           type="monotone" dataKey="absent" name="Absent"
-          stroke="#83858c" strokeWidth={2}
+          stroke="#6B7280" strokeWidth={2}
           fill="url(#grayGrad)"
-          dot={{ fill: "#83858c", r: 3, strokeWidth: 0 }}
-          activeDot={{ r: 4.5, fill: "#83858c", stroke: "#fff", strokeWidth: 2 }}
+          dot={{ fill: "#6B7280", r: 3, strokeWidth: 0 }}
+          activeDot={{ r: 4.5, fill: "#6B7280", stroke: "#fff", strokeWidth: 2 }}
         />
       </AreaChart>
     </ResponsiveContainer>

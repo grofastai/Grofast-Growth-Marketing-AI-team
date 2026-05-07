@@ -114,13 +114,13 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#83858c" }}>Title</label>
+                <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#6B7280" }}>Title</label>
                 <input value={pushTitle} onChange={e => setPushTitle(e.target.value)} placeholder="e.g. Meeting at 4PM"
                   className="w-full px-3 py-2.5 rounded-xl text-[13px] outline-none"
                   style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }} />
               </div>
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#83858c" }}>Message</label>
+                <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#6B7280" }}>Message</label>
                 <textarea value={pushBody} onChange={e => setPushBody(e.target.value)} rows={3} placeholder="Notification message..."
                   className="w-full px-3 py-2.5 rounded-xl text-[13px] outline-none resize-none"
                   style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }} />
@@ -169,13 +169,13 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
                 <label className="text-[12px] font-semibold font-sans uppercase tracking-wider mb-1.5 block" style={{ color: "#6B7280" }}>Title</label>
                 <input name="title" required maxLength={120} placeholder="Announcement title..."
                   className="w-full px-3 py-2.5 rounded-xl text-[13px] font-sans outline-none"
-                  style={{ background: "#fbf5f7", border: "1px solid #E5E7EB", color: "#111111" }} />
+                  style={{ background: "#F4F5F7", border: "1px solid #E5E7EB", color: "#111111" }} />
               </div>
               <div>
                 <label className="text-[12px] font-semibold font-sans uppercase tracking-wider mb-1.5 block" style={{ color: "#6B7280" }}>Message</label>
                 <textarea name="message" required rows={4} placeholder="Write your announcement..."
                   className="w-full px-3 py-2.5 rounded-xl text-[13px] font-sans outline-none resize-none"
-                  style={{ background: "#fbf5f7", border: "1px solid #E5E7EB", color: "#111111" }} />
+                  style={{ background: "#F4F5F7", border: "1px solid #E5E7EB", color: "#111111" }} />
               </div>
               <label className="flex items-center gap-3 cursor-pointer">
                 <div className="relative">
@@ -184,7 +184,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
                     <div className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all" style={{ transform: pinned ? "translateX(20px)" : "translateX(0)" }} />
                   </div>
                 </div>
-                <span className="text-[13px] font-sans" style={{ color: "#83858c" }}>Pin this announcement</span>
+                <span className="text-[13px] font-sans" style={{ color: "#6B7280" }}>Pin this announcement</span>
               </label>
 
               {state && 'error' in state && (
@@ -194,7 +194,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => setShowForm(false)}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold font-sans"
-                  style={{ background: "#fbf5f7", border: "1px solid #E5E7EB", color: "#83858c" }}>
+                  style={{ background: "#F4F5F7", border: "1px solid #E5E7EB", color: "#6B7280" }}>
                   Cancel
                 </button>
                 <button type="submit" disabled={formPending}
@@ -240,7 +240,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
                       )}
                       <h3 className="text-[15px] font-bold font-sans" style={{ color: "#111111" }}>{ann.title}</h3>
                     </div>
-                    <p className="text-[13px] font-sans leading-relaxed mb-2" style={{ color: "#83858c" }}>{ann.message}</p>
+                    <p className="text-[13px] font-sans leading-relaxed mb-2" style={{ color: "#6B7280" }}>{ann.message}</p>
                     <p className="text-[11px] font-sans" style={{ color: "#6B7280" }}>
                       By {creator?.name ?? "Admin"} · {timeAgo(ann.created_at)}
                     </p>

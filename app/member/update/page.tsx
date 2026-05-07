@@ -70,7 +70,7 @@ export default async function UpdatePage() {
           style={{ fontFamily: "var(--font-jakarta)" }}>
           Daily Update
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#83858c" }}>{dateStr}</p>
+        <p className="text-sm mt-1" style={{ color: "#6B7280" }}>{dateStr}</p>
       </div>
 
       {/* Already-submitted summary — shown above the form so they can log more work */}
@@ -83,14 +83,14 @@ export default async function UpdatePage() {
           </div>
           <div className="flex-1">
             <p className="text-[13px] font-bold" style={{ color: "#de1a1a" }}>Update submitted today</p>
-            <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>
+            <p className="text-[11px] mt-0.5" style={{ color: "#6B7280" }}>
               {existing.working_hours != null ? `${existing.working_hours}h work` : ""}
               {existing.working_hours != null && existing.learning_hours ? " · " : ""}
               {existing.learning_hours ? `${existing.learning_hours}h learning` : ""}
               {entryCount > 0 ? ` · ${entryCount} entr${entryCount === 1 ? "y" : "ies"}` : ""}
             </p>
           </div>
-          <p className="text-[11px] font-semibold" style={{ color: "#83858c" }}>Add more below ↓</p>
+          <p className="text-[11px] font-semibold" style={{ color: "#6B7280" }}>Add more below ↓</p>
         </div>
       )}
 

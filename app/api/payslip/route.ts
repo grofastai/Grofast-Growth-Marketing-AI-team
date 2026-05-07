@@ -105,24 +105,24 @@ export async function GET(request: NextRequest) {
   .page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; padding: 12mm 14mm; }
   .header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 8mm; border-bottom: 3px solid #de1a1a; margin-bottom: 8mm; }
   .logo { font-size: 28px; font-weight: 900; letter-spacing: 0.1em; color: #de1a1a; }
-  .logo-sub { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: #83858c; margin-top: 2px; }
+  .logo-sub { font-size: 9px; letter-spacing: 0.25em; text-transform: uppercase; color: #6B7280; margin-top: 2px; }
   .slip-title { text-align: right; }
   .slip-title h2 { font-size: 18px; font-weight: 700; color: #111; }
   .slip-title p { font-size: 12px; color: #6B7280; margin-top: 3px; }
   .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin-bottom: 8mm; }
   .meta-box { background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 5mm; }
-  .meta-box label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: #83858c; font-weight: 700; display: block; margin-bottom: 4px; }
+  .meta-box label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.15em; color: #6B7280; font-weight: 700; display: block; margin-bottom: 4px; }
   .meta-box span { font-size: 14px; font-weight: 600; color: #111; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 6mm; }
   th { background: #F3F4F6; text-align: left; padding: 3mm 4mm; font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: #6B7280; font-weight: 700; }
   td { padding: 3mm 4mm; border-bottom: 1px solid #F0F0F0; font-size: 13px; }
   td:last-child { text-align: right; font-weight: 600; }
-  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: #83858c; margin-bottom: 3mm; }
+  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: #6B7280; margin-bottom: 3mm; }
   .net-box { background: linear-gradient(135deg, #de1a1a, #7F1D1D); border-radius: 10px; padding: 6mm 8mm; display: flex; align-items: center; justify-content: space-between; margin-top: 4mm; }
   .net-label { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 0.1em; }
   .net-amount { font-size: 28px; font-weight: 900; color: #fff; letter-spacing: -0.02em; }
   .footer { margin-top: 10mm; padding-top: 5mm; border-top: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: flex-end; }
-  .footer p { font-size: 10px; color: #83858c; }
+  .footer p { font-size: 10px; color: #6B7280; }
   .signature { text-align: center; }
   .signature-line { width: 45mm; border-top: 1px solid #374151; margin: 0 auto 2mm; }
   .signature p { font-size: 10px; color: #6B7280; }

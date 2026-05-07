@@ -49,7 +49,7 @@ function dueDateLabel(due: string | null, today: string): { text: string; color:
   const days = Math.round((new Date(due).getTime() - new Date(today).getTime()) / 86400000)
   if (days === 1)  return { text: "Due Tomorrow",    color: "#de1a1a" }
   if (days <= 7)   return { text: `${days}d left`,   color: "#6B7280" }
-  return { text: due, color: "#83858c" }
+  return { text: due, color: "#6B7280" }
 }
 
 function ProgressBar({ done, total }: { done: number; total: number }) {
@@ -70,7 +70,7 @@ function ProgressBar({ done, total }: { done: number; total: number }) {
             style={{ background: i < filled ? "#de1a1a" : "rgba(0,0,0,0.06)" }} />
         ))}
       </div>
-      <p className="text-[11px] mt-1.5" style={{ color: "#83858c" }}>
+      <p className="text-[11px] mt-1.5" style={{ color: "#6B7280" }}>
         {pct === 100 ? "All tasks done for today 🎉" : `${pct}% complete`}
       </p>
     </div>
@@ -131,7 +131,7 @@ export default function MemberTasksClient({
         <div>
           <h1 className="gradient-heading text-[30px] font-black leading-tight"
             style={{ fontFamily: "var(--font-jakarta)" }}>My Tasks</h1>
-          <p className="text-[13px] mt-1" style={{ color: "#83858c" }}>
+          <p className="text-[13px] mt-1" style={{ color: "#6B7280" }}>
             {active.length > 0
               ? <>{active.length} active task{active.length !== 1 ? "s" : ""}{overdue.length > 0 && <span style={{ color: "#de1a1a" }}> · {overdue.length} overdue ⚠</span>}</>
               : "You're all caught up 🎉"
@@ -144,24 +144,24 @@ export default function MemberTasksClient({
           style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
           <div className="text-center">
             <p className="text-[18px] font-black leading-none"
-              style={{ fontFamily: "var(--font-jakarta)", color: todayHours > 0 ? "#de1a1a" : "#83858c" }}>
+              style={{ fontFamily: "var(--font-jakarta)", color: todayHours > 0 ? "#de1a1a" : "#6B7280" }}>
               {todayHours > 0 ? `${todayHours}h` : "—"}
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: "#83858c" }}>Worked</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "#6B7280" }}>Worked</p>
           </div>
           <div className="w-px h-8" style={{ background: "#E5E7EB" }} />
           <div className="text-center">
             <p className="text-[18px] font-black leading-none"
               style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>{active.length}</p>
-            <p className="text-[10px] mt-0.5" style={{ color: "#83858c" }}>Active</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "#6B7280" }}>Active</p>
           </div>
           <div className="w-px h-8" style={{ background: "#E5E7EB" }} />
           <div className="text-center">
             <p className="text-[18px] font-black leading-none"
-              style={{ fontFamily: "var(--font-jakarta)", color: overdue.length > 0 ? "#de1a1a" : "#83858c" }}>
+              style={{ fontFamily: "var(--font-jakarta)", color: overdue.length > 0 ? "#de1a1a" : "#6B7280" }}>
               {overdue.length}
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: "#83858c" }}>Overdue</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "#6B7280" }}>Overdue</p>
           </div>
         </div>
       </div>
@@ -198,7 +198,7 @@ export default function MemberTasksClient({
               className="px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
               style={isActive
                 ? { background: "rgba(222,26,26,0.1)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }
-                : { background: "rgba(0,0,0,0.02)", color: "#83858c", border: "1px solid #F0F0F0" }
+                : { background: "rgba(0,0,0,0.02)", color: "#6B7280", border: "1px solid #E5E7EB" }
               }>
               {tab.label}
               <span className="ml-1.5 text-[11px] opacity-70">({count})</span>
@@ -210,9 +210,9 @@ export default function MemberTasksClient({
       {/* ── Task list ── */}
       {displayed.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 rounded-xl"
-          style={{ background: "#fbf5f7", border: "1px solid #2A2A2A" }}>
+          style={{ background: "#F4F5F7", border: "1px solid #2A2A2A" }}>
           <Target size={36} style={{ color: "rgba(0,0,0,0.06)" }} className="mb-3" />
-          <p className="text-[15px] font-bold" style={{ color: "#83858c" }}>
+          <p className="text-[15px] font-bold" style={{ color: "#6B7280" }}>
             {filter === "all" ? "No tasks assigned 🎉" : `No ${filter.replace("_", " ")} tasks`}
           </p>
           <p className="text-[12px] mt-1" style={{ color: "rgba(0,0,0,0.1)" }}>
@@ -295,15 +295,15 @@ function TaskCard({
         {/* Title row */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <p className={`text-[14px] font-semibold leading-snug flex-1 ${isDone ? "line-through" : ""}`}
-            style={{ color: isDone ? "#83858c" : "#FFFFFF" }}>
+            style={{ color: isDone ? "#6B7280" : "#FFFFFF" }}>
             {task.title}
           </p>
           <button onClick={() => setExpanded(v => !v)}
             className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
             style={{ background: "rgba(255,255,255,0.05)" }}>
             {expanded
-              ? <ChevronUp size={13} style={{ color: "#83858c" }} />
-              : <ChevronDown size={13} style={{ color: "#83858c" }} />
+              ? <ChevronUp size={13} style={{ color: "#6B7280" }} />
+              : <ChevronDown size={13} style={{ color: "#6B7280" }} />
             }
           </button>
         </div>
@@ -367,24 +367,24 @@ function TaskCard({
 
             {assigner?.name && (
               <div className="flex items-center gap-2">
-                <User size={12} style={{ color: "#83858c" }} />
-                <span className="text-[11px]" style={{ color: "#83858c" }}>Assigned by</span>
+                <User size={12} style={{ color: "#6B7280" }} />
+                <span className="text-[11px]" style={{ color: "#6B7280" }}>Assigned by</span>
                 <span className="text-[12px] font-bold" style={{ color: "#E5E7EB" }}>{assigner.name}</span>
               </div>
             )}
 
             {project && (
               <div className="flex items-center gap-2">
-                <Target size={12} style={{ color: "#83858c" }} />
-                <span className="text-[11px]" style={{ color: "#83858c" }}>Project</span>
+                <Target size={12} style={{ color: "#6B7280" }} />
+                <span className="text-[11px]" style={{ color: "#6B7280" }}>Project</span>
                 <span className="text-[12px] font-bold" style={{ color: "#E5E7EB" }}>{project.business_name}</span>
               </div>
             )}
 
             {task.due_date && (
               <div className="flex items-center gap-2">
-                <Calendar size={12} style={{ color: "#83858c" }} />
-                <span className="text-[11px]" style={{ color: "#83858c" }}>Due date</span>
+                <Calendar size={12} style={{ color: "#6B7280" }} />
+                <span className="text-[11px]" style={{ color: "#6B7280" }}>Due date</span>
                 <span className="text-[12px] font-bold" style={{ color: "#E5E7EB" }}>
                   {new Date(task.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                 </span>
@@ -393,7 +393,7 @@ function TaskCard({
 
             {task.description && (
               <div>
-                <p className="text-[11px] mb-1" style={{ color: "#83858c" }}>Description</p>
+                <p className="text-[11px] mb-1" style={{ color: "#6B7280" }}>Description</p>
                 <p className="text-[13px] leading-relaxed" style={{ color: "#D1D5DB" }}>{task.description}</p>
               </div>
             )}

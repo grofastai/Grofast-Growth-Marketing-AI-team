@@ -12,7 +12,6 @@ import {
 import { updateOwnProfile } from "@/lib/actions/team"
 import { updatePersonalDetails, updateKYC } from "@/lib/actions/profile"
 import { logoutAction } from "@/lib/actions/auth"
-import { createBrowserClient } from "@/lib/supabase/client"
 
 interface ProfileData {
   id:          string
@@ -250,6 +249,7 @@ export default function ProfileClient({
   // Photo
   const photoRef = useRef<HTMLInputElement>(null)
   const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoError, setPhotoError] = useState<string | null>(null)
 
   const [logoutPending, startLogout] = useTransition()
 
@@ -303,15 +303,17 @@ export default function ProfileClient({
 
   async function handlePhotoUpload(file: File) {
     setPhotoBusy(true)
+    setPhotoError(null)
     try {
-      const supabase = createBrowserClient()
-      const ext  = file.name.split(".").pop()
-      const path = `photos/${profile?.id}/${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from("documents").upload(path, file, { upsert: true })
-      if (upErr) { setPhotoBusy(false); return }
-      const { data: { publicUrl } } = supabase.storage.from("documents").getPublicUrl(path)
-      await updatePersonalDetails({ photo_url: publicUrl })
+      const fd = new FormData()
+      fd.append("file", file)
+      const res  = await fetch("/api/upload-photo", { method: "POST", body: fd })
+      const json = await res.json()
+      if (!res.ok || json.error) { setPhotoError(json.error ?? "Upload failed"); return }
+      await updatePersonalDetails({ photo_url: json.url })
       router.refresh()
+    } catch {
+      setPhotoError("Upload failed — please try again")
     } finally {
       setPhotoBusy(false)
     }
@@ -320,13 +322,12 @@ export default function ProfileClient({
   async function handleDocUpload(field: "govt_id_url" | "ration_card_url", file: File) {
     setUploadingField(field)
     try {
-      const supabase = createBrowserClient()
-      const ext  = file.name.split(".").pop()
-      const path = `kyc/${profile?.id}/${field}_${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from("documents").upload(path, file, { upsert: true })
-      if (upErr) { setUploadingField(null); return }
-      const { data: { publicUrl } } = supabase.storage.from("documents").getPublicUrl(path)
-      setKYCForm(prev => ({ ...prev, [field]: publicUrl }))
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("folder", "kyc")
+      const res  = await fetch("/api/upload-photo", { method: "POST", body: fd })
+      const json = await res.json()
+      if (res.ok && json.url) setKYCForm(prev => ({ ...prev, [field]: json.url }))
     } finally {
       setUploadingField(null)
     }
@@ -415,6 +416,9 @@ export default function ProfileClient({
                 <input ref={photoRef} type="file" accept="image/*" className="hidden"
                   onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f) }} />
               </div>
+              {photoError && (
+                <p className="text-[11px] font-semibold mt-1" style={{ color: "#de1a1a" }}>{photoError}</p>
+              )}
 
               <div className="flex-1 min-w-0">
                 {editing ? (

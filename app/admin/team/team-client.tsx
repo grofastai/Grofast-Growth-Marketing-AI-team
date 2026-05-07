@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation"
 import {
   Search, Plus, Users, Shield, UserCheck, UserX,
   MoreVertical, Phone, CalendarDays, X, Pencil,
-  Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown,
+  Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
 } from "lucide-react"
-import { createMember, updateMember, toggleMemberStatus, deleteMember } from "@/lib/actions/team"
+import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword } from "@/lib/actions/team"
 
 const TEAMS = [
   "Media & Technology Team",
@@ -334,6 +334,10 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
   const [showPast, setShowPast] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Member | null>(null)
   const [deleteError, setDeleteError] = useState("")
+  const [resetTarget, setResetTarget] = useState<Member | null>(null)
+  const [resetPassword, setResetPassword] = useState("")
+  const [resetError, setResetError] = useState("")
+  const [resetSuccess, setResetSuccess] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const filtered = useMemo(() => {
@@ -368,6 +372,21 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
         setConfirmDelete(null)
       } else {
         setDeleteError(result.error ?? "Failed to delete member")
+      }
+    })
+  }
+
+  function handleResetPassword() {
+    if (!resetTarget) return
+    setResetError("")
+    setResetSuccess(false)
+    startTransition(async () => {
+      const result = await resetMemberPassword(resetTarget.id, resetPassword)
+      if (result.success) {
+        setResetSuccess(true)
+        setResetPassword("")
+      } else {
+        setResetError(result.error ?? "Failed to reset password")
       }
     })
   }
@@ -567,6 +586,13 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                           {member.status === "active" ? <><Ban size={12} /> Deactivate</> : <><RotateCcw size={12} /> Reactivate</>}
                         </button>
+                        <button onClick={() => { setResetTarget(member); setResetPassword(""); setResetError(""); setResetSuccess(false); setOpenDropdown(null) }}
+                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
+                          style={{ color: "#6366F1" }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                          <KeyRound size={12} /> Reset Password
+                        </button>
                         <div style={{ borderTop: "1px solid #E5E7EB", margin: "2px 0" }} />
                         <button onClick={() => { setConfirmDelete(member); setOpenDropdown(null) }}
                           className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
@@ -703,6 +729,78 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                   Delete
                 </button>
               </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Reset Password modal */}
+      {resetTarget && (
+        <>
+          <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
+            onClick={() => { setResetTarget(null); setResetSuccess(false) }} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-[380px] rounded-2xl shadow-2xl"
+              style={{ background: "#FFFFFF", border: "1px solid rgba(99,102,241,0.2)" }}>
+              <div className="px-6 pt-6 pb-4 flex flex-col items-center text-center gap-3">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                  style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                  <KeyRound size={20} style={{ color: "#6366F1" }} />
+                </div>
+                <div>
+                  <h3 className="text-[16px] font-bold" style={{ color: "#111111" }}>Reset Password</h3>
+                  <p className="text-[13px] mt-1" style={{ color: "#6B7280" }}>
+                    Set a new password for <strong style={{ color: "#111111" }}>{resetTarget.name}</strong>
+                  </p>
+                </div>
+              </div>
+
+              {resetSuccess ? (
+                <div className="px-6 pb-6 flex flex-col items-center gap-4">
+                  <div className="w-full rounded-xl px-4 py-3 text-center text-[13px] font-semibold"
+                    style={{ background: "rgba(34,197,94,0.08)", color: "#16A34A", border: "1px solid rgba(34,197,94,0.2)" }}>
+                    Password reset successfully! The member must change it on next login.
+                  </div>
+                  <button onClick={() => { setResetTarget(null); setResetSuccess(false) }}
+                    className="w-full py-2.5 rounded-xl text-[13px] font-semibold"
+                    style={{ background: "rgba(0,0,0,0.04)", color: "#374151", border: "1px solid #E5E7EB" }}>
+                    Close
+                  </button>
+                </div>
+              ) : (
+                <div className="px-6 pb-6 space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#6B7280" }}>
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="Min. 6 characters"
+                      value={resetPassword}
+                      onChange={e => setResetPassword(e.target.value)}
+                      className="w-full rounded-xl px-4 py-2.5 text-[13px] outline-none"
+                      style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}
+                    />
+                  </div>
+                  {resetError && (
+                    <p className="text-[12px] px-3 py-2 rounded-lg"
+                      style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>{resetError}</p>
+                  )}
+                  <div className="flex gap-3">
+                    <button onClick={() => { setResetTarget(null); setResetError(""); setResetPassword("") }}
+                      className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
+                      style={{ background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }}>
+                      Cancel
+                    </button>
+                    <button onClick={handleResetPassword} disabled={isPending || !resetPassword}
+                      className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
+                      style={{ background: "linear-gradient(135deg, #6366F1, #4F46E5)", color: "#FFFFFF" }}>
+                      {isPending && <Loader2 size={13} className="animate-spin" />}
+                      Reset Password
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </>

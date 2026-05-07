@@ -327,6 +327,26 @@ export async function updateOwnProfile(input: {
   return { success: true }
 }
 
+export async function resetMemberPassword(
+  id: string,
+  newPassword: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!newPassword || newPassword.length < 6) return { success: false, error: 'Password must be at least 6 characters' }
+
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { error } = await admin.auth.admin.updateUserById(id, { password: newPassword })
+  if (error) return { success: false, error: error.message }
+
+  await admin.from('users').update({ must_change_password: true }).eq('id', id)
+
+  revalidatePath('/admin/team')
+  return { success: true }
+}
+
 export async function toggleMemberStatus(
   id: string,
   status: 'active' | 'inactive'

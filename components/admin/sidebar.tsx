@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, Users, Clock, Target,
   CalendarOff, Megaphone, Briefcase, LogOut, BarChart2,
-  Receipt, IndianRupee, FolderOpen, LifeBuoy,
+  Receipt, IndianRupee, FolderOpen, LifeBuoy, Camera,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
@@ -21,6 +21,7 @@ const navItems = [
   { label: "Expenses",      href: "/admin/expenses",      icon: Receipt },
   { label: "Payroll",       href: "/admin/payroll",       icon: IndianRupee },
   { label: "Documents",     href: "/admin/documents",     icon: FolderOpen },
+  { label: "Shoots",        href: "/admin/shoots",        icon: Camera   },
   { label: "Support",       href: "/admin/support",       icon: LifeBuoy },
 ]
 

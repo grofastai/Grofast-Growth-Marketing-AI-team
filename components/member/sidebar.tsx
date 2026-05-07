@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, ClipboardList, Target, CalendarOff,
-  Megaphone, User, LogOut, Clock, History, Receipt, LifeBuoy,
+  Megaphone, User, LogOut, Clock, History, Receipt, LifeBuoy, Camera,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 import PushSubscribeButton from "@/components/PushSubscribeButton"
@@ -19,6 +19,7 @@ const navItems = [
   { label: "Expenses",      href: "/member/expenses",      icon: Receipt },
   { label: "Announcements", href: "/member/announcements", icon: Megaphone },
   { label: "Profile",       href: "/member/profile",       icon: User },
+  { label: "Shoots",        href: "/member/shoots",        icon: Camera   },
   { label: "Support",       href: "/member/support",       icon: LifeBuoy },
 ]
 

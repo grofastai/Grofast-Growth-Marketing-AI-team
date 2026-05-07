@@ -30,7 +30,7 @@ export default function PendingApprovalsCard({ leaves }: { leaves: LeaveRow[] })
 
   return (
     <div className="rounded-2xl p-5 h-full" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(222,26,26,0.1)" }}>
             <CalendarCheck size={14} style={{ color: "#de1a1a" }} />

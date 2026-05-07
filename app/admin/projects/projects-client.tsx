@@ -211,7 +211,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
           {/* Engagement Period */}
           <div>
             <label style={labelStyle}>Engagement Period</label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <p className="text-[10px] mb-1.5" style={{ color: "#D1D5DB" }}>From Month</p>
                 <input type="month" value={form.start_month} onChange={set("start_month")}
@@ -382,10 +382,10 @@ export default function ProjectsClient({
   }
 
   return (
-    <div className="p-8 max-w-[1400px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="gradient-heading text-[28px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
             Clients
@@ -412,7 +412,7 @@ export default function ProjectsClient({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         {[
           { label: "Total Clients", value: stats.total,     color: "#de1a1a",  bg: "rgba(222,26,26,0.08)",  border: "rgba(222,26,26,0.15)",  icon: FolderOpen },
           { label: "Active",        value: stats.active,    color: "#de1a1a",  bg: "rgba(222,26,26,0.06)",  border: "rgba(222,26,26,0.12)",  icon: Clock },
@@ -489,7 +489,7 @@ export default function ProjectsClient({
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(project => {
             const cfg = STATUS_CONFIG[project.status]
             const ts = taskStats[project.id]

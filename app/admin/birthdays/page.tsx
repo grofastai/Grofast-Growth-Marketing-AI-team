@@ -122,7 +122,7 @@ export default async function BirthdaysPage() {
   const anniversariesThisMonth = celebrations.filter(c => c.type === "anniversary").length
 
   return (
-    <div className="p-6 md:p-8 max-w-[860px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1000px]">
       {/* Header */}
       <div className="mb-7">
         <h1 className="gradient-heading text-[30px] font-black leading-tight"
@@ -135,7 +135,7 @@ export default async function BirthdaysPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-7">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-7">
         {[
           { label: "Today",             value: todayCelebrations.length, icon: PartyPopper, color: "#de1a1a" },
           { label: "Birthdays (30d)",   value: birthdaysThisMonth,       icon: Cake,        color: "#F59E0B" },

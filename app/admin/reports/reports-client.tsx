@@ -132,10 +132,10 @@ export default function ReportsClient({
   const hasData = presentCount > 0 || absentCount > 0
 
   return (
-    <div className="p-8 max-w-[1200px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="gradient-heading text-[30px] font-black leading-tight"
             style={{ fontFamily: "var(--font-jakarta)" }}>
@@ -326,7 +326,7 @@ export default function ReportsClient({
             {/* Task Health */}
             <Section title="Task Health" icon={Target}>
               <div className="p-5 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
                     { label: "Active Tasks",    value: totalActiveTasks,        color: "#111111",  bg: "#F4F5F7",                   border: "#E5E7EB" },
                     { label: "Overdue Tasks",   value: overdueTasks.length,     color: overdueTasks.length > 0 ? "#FF6B57" : "#6B7280", bg: overdueTasks.length > 0 ? "rgba(255,107,87,0.08)" : "#F4F5F7", border: overdueTasks.length > 0 ? "rgba(255,107,87,0.18)" : "#E5E7EB" },
@@ -361,7 +361,7 @@ export default function ReportsClient({
             {/* Project Health */}
             <Section title="Project Health" icon={FolderOpen}>
               <div className="p-5 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {[
                     { label: "Active Projects",   value: activeProjects,          color: "#de1a1a",  bg: "rgba(222,26,26,0.05)", border: "rgba(222,26,26,0.12)" },
                     { label: "Overdue Projects",  value: overdueProjects.length,  color: overdueProjects.length > 0 ? "#FF6B57" : "#6B7280", bg: overdueProjects.length > 0 ? "rgba(255,107,87,0.08)" : "#F4F5F7", border: overdueProjects.length > 0 ? "rgba(255,107,87,0.18)" : "#E5E7EB" },

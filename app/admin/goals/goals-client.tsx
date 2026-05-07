@@ -223,10 +223,10 @@ export default function GoalsClient({
   }
 
   return (
-    <div className="p-8 max-w-none">
+    <div className="p-4 md:p-6 xl:p-8 max-w-none">
 
       {/* ── Header ───────────────────────────────────────────── */}
-      <div className="flex items-start justify-between mb-5">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-5">
         <div>
           <h1 className="gradient-heading text-[28px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
             Task Board
@@ -289,7 +289,7 @@ export default function GoalsClient({
           <div className="w-full max-w-lg rounded-2xl p-6 mx-4"
             style={{ background: "#FFFFFF", boxShadow: "0 20px 60px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08)" }}>
 
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl flex items-center justify-center"
                   style={{ background: "rgba(222,26,26,0.1)" }}>
@@ -378,7 +378,7 @@ export default function GoalsClient({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-1.5"
                     style={{ color: "#374151" }}>Priority</label>
@@ -504,7 +504,7 @@ export default function GoalsClient({
 
       {/* ── By Status View ────────────────────────────────────── */}
       {viewMode === "status" && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {statusColumns.map((col) => (
             <div key={col.key} className="rounded-2xl p-4 flex flex-col"
               style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)", minHeight: 480 }}>

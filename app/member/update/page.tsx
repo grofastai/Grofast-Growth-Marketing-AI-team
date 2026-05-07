@@ -64,7 +64,7 @@ export default async function UpdatePage() {
   const entryCount = Array.isArray(existing?.work_entries) ? existing.work_entries.length : 0
 
   return (
-    <div className="p-6 md:p-8 max-w-[1100px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1300px]">
       <div className="mb-7">
         <h1 className="gradient-heading text-[30px] font-black leading-tight"
           style={{ fontFamily: "var(--font-jakarta)" }}>

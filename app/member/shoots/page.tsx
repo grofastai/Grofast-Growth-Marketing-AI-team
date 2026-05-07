@@ -83,7 +83,7 @@ export default async function ShootsPage() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-[860px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1000px]">
       {/* Header */}
       <div className="mb-7">
         <h1 className="gradient-heading text-[30px] font-black leading-tight"
@@ -96,7 +96,7 @@ export default async function ShootsPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
         {[
           { label: "Total Shoots",       value: totalShoots,                            icon: Camera, color: "#F59E0B" },
           { label: "Shoot Hours",        value: totalHours > 0 ? `${totalHours}h` : "—", icon: Clock,  color: "#de1a1a" },

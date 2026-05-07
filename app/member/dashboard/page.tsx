@@ -134,7 +134,7 @@ export default async function MemberDashboardPage() {
   const annTicker = announcements.map(a => `${a.title}: ${a.message}`).join("   ·   ")
 
   return (
-    <div className="p-6 md:p-8 max-w-[1400px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1600px]">
 
       {/* ── Profile Completion Prompt ── */}
       {profileScore < 100 && (
@@ -261,7 +261,7 @@ export default async function MemberDashboardPage() {
 
           {/* My Tasks */}
           <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="flex items-center gap-2">
                 <Target size={14} style={{ color: "#de1a1a" }} />
                 <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>My Tasks</h3>
@@ -345,7 +345,7 @@ export default async function MemberDashboardPage() {
             <p className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4" style={{ color: "#D1D5DB" }}>
               Today Summary
             </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
               {[
                 { label: "Hours",  value: todayHours > 0 ? `${todayHours}h` : "—" },
                 { label: "Done",   value: completedTasks },

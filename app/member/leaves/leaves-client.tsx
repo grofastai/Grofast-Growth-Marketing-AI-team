@@ -66,8 +66,8 @@ export default function MemberLeavesClient({ leaves }: { leaves: Leave[] }) {
   }
 
   return (
-    <div className="p-8 max-w-[1100px]">
-      <div className="flex items-start justify-between mb-6">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1300px]">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="gradient-heading text-[32px] leading-tight"
             style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800 }}>
@@ -91,7 +91,7 @@ export default function MemberLeavesClient({ leaves }: { leaves: Leave[] }) {
           <div className="w-full max-w-md rounded-2xl p-6"
             style={{ background: "#111827", border: "1px solid rgba(255,255,255,0.08)" }}>
 
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
               <h2 className="text-[18px] font-bold" style={{ color: "#FFFFFF" }}>Apply for Leave</h2>
               <button onClick={handleClose}><X size={18} style={{ color: "#6B7280" }} /></button>
             </div>
@@ -107,7 +107,7 @@ export default function MemberLeavesClient({ leaves }: { leaves: Leave[] }) {
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-[0.16em] mb-2 block"
                   style={{ color: "#6B7280" }}>Leave Type *</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   {([
                     { key: "full_day",   label: "Full Day",    icon: Calendar },
                     { key: "half_day",   label: "Half Day",    icon: Calendar },
@@ -131,7 +131,7 @@ export default function MemberLeavesClient({ leaves }: { leaves: Leave[] }) {
 
               {/* Date fields */}
               {leaveType === "full_day" && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[11px] font-bold uppercase tracking-[0.16em] mb-1.5 block"
                       style={{ color: "#6B7280" }}>From Date *</label>
@@ -155,7 +155,7 @@ export default function MemberLeavesClient({ leaves }: { leaves: Leave[] }) {
                   <div>
                     <label className="text-[11px] font-bold uppercase tracking-[0.16em] mb-2 block"
                       style={{ color: "#6B7280" }}>Which Half? *</label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {(["morning", "afternoon"] as const).map((p) => (
                         <button key={p} type="button" onClick={() => setHalfPeriod(p)}
                           className="py-2.5 rounded-xl text-[12px] font-bold capitalize transition-all"

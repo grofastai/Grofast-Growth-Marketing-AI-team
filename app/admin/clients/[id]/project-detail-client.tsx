@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useMemo } from "react"
 import Link from "next/link"
@@ -194,7 +194,7 @@ export default function ProjectDetailClient({
   const problemCount = stats.noActivityTasks.length + stats.overdueTasks.length + stats.stuckTasks.length + stats.lowHourEmployees.length
 
   return (
-    <div className="p-8 max-w-[1200px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
 
       {/* Back */}
       <Link href="/admin/clients"
@@ -204,7 +204,7 @@ export default function ProjectDetailClient({
       </Link>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
           <div className="flex items-center gap-2.5 flex-wrap mb-2">
             <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"

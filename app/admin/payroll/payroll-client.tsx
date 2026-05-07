@@ -40,9 +40,9 @@ export default function PayrollClient({
   }
 
   return (
-    <div className="p-8 max-w-[1200px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
             Payroll
@@ -65,7 +65,7 @@ export default function PayrollClient({
       </div>
 
       {/* Summary chips */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-2 md:gap-3 mb-5 md:mb-6">
         {[
           { label: "Total Payroll",   value: fmt(totalNet), color: "#de1a1a", bg: "rgba(222,26,26,0.06)", border: "rgba(222,26,26,0.15)" },
           { label: "Total OT Pay",    value: fmt(totalOT),  color: "#EA580C", bg: "rgba(234,88,12,0.06)", border: "rgba(234,88,12,0.15)" },
@@ -82,8 +82,7 @@ export default function PayrollClient({
       </div>
 
       {/* Table */}
-      <div className="rounded-xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-        <table className="w-full">
+      <div className="rounded-xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}><div className="overflow-x-auto"><table className="w-full">
           <thead>
             <tr style={{ background: "rgba(0,0,0,0.02)", borderBottom: "1px solid #E5E7EB" }}>
               {["Employee", "Type", "Present", "Absent", "Paid Leave", "Deductible", "Hours", "OT", "Base Pay", "Deduction", "OT Pay", "Net Pay", "Slip"].map(h => (
@@ -196,8 +195,7 @@ export default function PayrollClient({
               </td>
             </tr>
           </tbody>
-        </table>
-      </div>
+        </table></div>      </div>
 
       {rows.length === 0 && (
         <div className="text-center py-16" style={{ color: "#D1D5DB" }}>

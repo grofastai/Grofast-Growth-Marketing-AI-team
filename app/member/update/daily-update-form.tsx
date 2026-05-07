@@ -151,7 +151,7 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
         />
 
         {/* Timing row */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <div>
             <label style={LABEL}>Start Time <span style={{ color: "#de1a1a" }}>*</span></label>
             <input type="time" className="du" style={FIELD}
@@ -209,7 +209,7 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
         </div>
 
         {/* Expenses row */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label style={LABEL}>Petrol Expense (₹)</label>
             <input type="number" min="0" step="1" className="du" style={FIELD}
@@ -276,7 +276,7 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
       </div>
 
       {/* Video Name | Client | Video Type */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
         <div>
           <label style={LABEL}>Video Name *</label>
           <input className="du" style={FIELD} placeholder="e.g. Promo Reel"
@@ -321,7 +321,7 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
       </div>
 
       {/* Date Given | Date Finished | Duration */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
         <div>
           <label style={LABEL}>Date Given</label>
           <input type="date" className="du" style={FIELD}
@@ -343,7 +343,7 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
       </div>
 
       {/* Time Taken | Revisions | Drive Updated */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
         <div>
           <label style={LABEL}>Time Taken (hrs) *</label>
           <input type="number" min="0.5" step="0.5" className="du" style={FIELD}
@@ -558,7 +558,7 @@ function GenWorkCard({ entry, index, projects, onChange, onRemove, canRemove }: 
         />
 
         {/* From / To / Duration */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <div>
             <label style={LABEL}>From <span style={{ color: "#de1a1a" }}>*</span></label>
             <input type="time" className="du" style={FIELD}
@@ -690,7 +690,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
 
         {/* ── Work Update Section ─────────────────────────────── */}
         <div>
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center"
                 style={{ background: "rgba(222,26,26,0.1)" }}>
@@ -774,7 +774,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
               </div>
 
               {/* From / To / Duration */}
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div>
                   <label style={LABEL}>From <span style={{ color: "#de1a1a" }}>*</span></label>
                   <input type="time" className="du" style={FIELD}
@@ -987,7 +987,7 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] mb-5"
             style={{ color: "#6B7280" }}>What did you work on today?</p>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Shooting */}
             <button type="button" onClick={() => selectType("shoot")}
               className="flex flex-col items-center justify-center gap-3 rounded-2xl transition-all"

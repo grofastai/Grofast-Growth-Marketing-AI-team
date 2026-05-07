@@ -163,7 +163,7 @@ export default function ClientsSheetView({
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-[1400px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1600px]">
 
       {/* Header */}
       <div className="mb-6">

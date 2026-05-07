@@ -52,7 +52,7 @@ export default function LeavesClient({ leaves, statusFilter }: { leaves: Leave[]
   const currentTab = STATUS_TABS.find((t) => t.key === statusFilter) ?? STATUS_TABS[0]
 
   return (
-    <div className="p-8 max-w-[1400px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
       <div className="mb-6">
         <h1 className="gradient-heading text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800 }}>
           Leave Requests

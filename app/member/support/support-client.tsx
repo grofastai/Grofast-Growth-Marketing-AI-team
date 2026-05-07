@@ -78,7 +78,7 @@ export default function MemberSupportClient({ tickets }: { tickets: Ticket[] }) 
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 xl:p-8 max-w-3xl">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -108,7 +108,7 @@ export default function MemberSupportClient({ tickets }: { tickets: Ticket[] }) 
               style={{ background: 'rgba(10,16,13,0.04)', border: '1px solid rgba(10,16,13,0.12)', color: '#0a100d' }}
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
                 className="rounded-xl px-4 py-2.5 text-[13px] outline-none capitalize"
                 style={{ background: 'rgba(10,16,13,0.04)', border: '1px solid rgba(10,16,13,0.12)', color: '#0a100d' }}>

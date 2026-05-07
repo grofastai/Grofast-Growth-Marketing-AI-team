@@ -72,7 +72,7 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
   const approvedTotal = approved.reduce((s, e) => s + e.amount, 0)
 
   return (
-    <div className="p-6 md:p-8 max-w-[800px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1000px]">
       {/* Header */}
       <div className="flex items-start justify-between mb-7">
         <div>
@@ -89,7 +89,7 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
         {[
           { label: "Total Claims",    value: expenses.length,                              color: "#111111" },
           { label: "Pending Review",  value: pending,                                      color: "#F59E0B" },
@@ -174,7 +174,7 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
                 </button>
               </div>
               <div className="px-6 py-5 space-y-4">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#6B7280" }}>Amount (₹) *</label>
                     <input type="number" min="0" step="0.01" placeholder="500" style={FIELD}

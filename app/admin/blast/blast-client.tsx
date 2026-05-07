@@ -48,7 +48,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
     const skippedCount = results.filter(r => r.status === "no_phone").length
 
     return (
-      <div className="p-8 max-w-[720px]">
+      <div className="p-4 md:p-6 xl:p-8 max-w-[800px]">
         <div className="mb-7">
           <h1 className="gradient-heading text-[30px] font-black leading-tight"
             style={{ fontFamily: "var(--font-jakarta)" }}>Blast Results</h1>
@@ -114,7 +114,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
 
   // ── Compose view ──────────────────────────────────────────
   return (
-    <div className="p-8 max-w-[720px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[800px]">
       {/* Header */}
       <div className="mb-7">
         <h1 className="gradient-heading text-[30px] font-black leading-tight"

@@ -333,7 +333,7 @@ export default function ProfileClient({
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-[1100px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1300px]">
       <style>{`.pf-in::placeholder{color:rgba(0,0,0,0.25);} .pf-in:focus{border-color:rgba(222,26,26,0.4)!important;}`}</style>
 
       {/* ── Page title ── */}
@@ -514,7 +514,7 @@ export default function ProfileClient({
 
           {/* Personal Details */}
           <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <p className="text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: "#6B7280" }}>Personal Details</p>
               {!editPersonal && (
                 <button onClick={() => setEditPersonal(true)}
@@ -548,7 +548,7 @@ export default function ProfileClient({
                     className="pf-in w-full px-3 py-2.5 rounded-xl text-[13px] outline-none resize-none"
                     style={IS} />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#6B7280" }}>Emergency Contact Name</label>
                     <input value={personal.emergency_contact_name} onChange={e => setPersonal(p => ({ ...p, emergency_contact_name: e.target.value }))}
@@ -598,7 +598,7 @@ export default function ProfileClient({
 
           {/* KYC Documents */}
           <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <p className="text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: "#6B7280" }}>KYC &amp; Bank Details</p>
               {!editKYC && (
                 <button onClick={() => { setEditKYC(true); setKycSuccess(false) }}
@@ -627,7 +627,7 @@ export default function ProfileClient({
                       <option value="">Select bank…</option>
                       {INDIAN_BANKS.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <input value={kycForm.bank_account} onChange={e => setKYCForm(p => ({ ...p, bank_account: e.target.value }))}
                         placeholder="Account number" className="pf-in" style={IS} />
                       <input value={kycForm.bank_ifsc} onChange={e => setKYCForm(p => ({ ...p, bank_ifsc: e.target.value }))}

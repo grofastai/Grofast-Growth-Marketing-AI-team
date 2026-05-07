@@ -56,7 +56,7 @@ export default async function MemberDocumentsPage() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-[800px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1000px]">
       <div className="mb-7">
         <h1 className="gradient-heading text-[30px] font-black leading-tight"
           style={{ fontFamily: "var(--font-jakarta)" }}>My Documents</h1>

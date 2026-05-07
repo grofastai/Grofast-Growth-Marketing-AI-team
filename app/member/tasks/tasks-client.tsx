@@ -124,10 +124,10 @@ export default function MemberTasksClient({
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-[1100px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1300px]">
 
       {/* ── Header ── */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="gradient-heading text-[30px] font-black leading-tight"
             style={{ fontFamily: "var(--font-jakarta)" }}>My Tasks</h1>

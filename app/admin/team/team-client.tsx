@@ -213,7 +213,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
               style={{ color: "#6B7280" }}>Employment Type *</label>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
               {([
                 { value: "regular",    label: "Regular" },
                 { value: "part_time",  label: "Part Time" },
@@ -241,7 +241,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
 
           {/* Salary fields */}
           {form.employment_type === "regular" ? (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
                   style={{ color: "#6B7280" }}>Monthly Salary (₹)</label>
@@ -271,7 +271,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           )}
 
           {/* Date of Birth + Joined At */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
                 style={{ color: "#6B7280" }}>Date of Birth</label>
@@ -373,7 +373,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
   }
 
   return (
-    <div className="p-8 space-y-6 max-w-[1400px]">
+    <div className="p-4 md:p-6 xl:p-8 space-y-6 max-w-[1600px]">
 
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -590,8 +590,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
               </tr>
             )}
           </tbody>
-        </table>
-      </div>
+        </table></div>      </div>
 
       {openDropdown && <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />}
 
@@ -660,8 +659,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                     </tr>
                   ))}
                 </tbody>
-              </table>
-            </div>
+              </table></div>            </div>
           )}
         </div>
       )}

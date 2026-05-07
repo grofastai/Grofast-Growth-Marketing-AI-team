@@ -82,7 +82,7 @@ export default function ActivitiesClient({
   const lowHoursCount = updates.filter((u) => u.attendance_status === "present" && (u.working_hours ?? 0) < 6).length
 
   return (
-    <div className="p-8 max-w-[1200px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
       {/* Header */}
       <div className="mb-6">
         <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
@@ -92,7 +92,7 @@ export default function ActivitiesClient({
       </div>
 
       {/* Summary chips */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-2 md:gap-3 mb-5 md:mb-6">
         {[
           { label: "Updates",    value: updates.length,          color: "#111111",  bg: "#FFFFFF", border: "#E5E7EB" },
           { label: "Present",    value: presentCount,            color: "#de1a1a",  bg: "rgba(222,26,26,0.06)",  border: "rgba(222,26,26,0.15)" },

@@ -72,7 +72,7 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 xl:p-8 max-w-5xl">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-black" style={{ color: '#0a100d' }}>Support Tickets</h1>

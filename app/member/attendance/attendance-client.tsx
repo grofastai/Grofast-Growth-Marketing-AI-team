@@ -206,7 +206,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   }
 
   return (
-    <div className="p-8 max-w-[1100px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1300px]">
 
       {/* ── 1. Header ── */}
       <div className="flex items-start justify-between mb-7">
@@ -476,7 +476,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
           <p className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4"
             style={{ color: "#D1D5DB" }}>Work Breakdown</p>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {[
               { label: "Work Hours",    value: todayUpdate.working_hours  ? `${todayUpdate.working_hours}h`  : "—" },
               { label: "Learning",      value: todayUpdate.learning_hours ? `${todayUpdate.learning_hours}h` : "—" },

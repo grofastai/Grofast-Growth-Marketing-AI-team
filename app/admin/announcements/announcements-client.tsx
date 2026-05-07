@@ -72,9 +72,9 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
   }
 
   return (
-    <div className="p-8 max-w-[1400px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="gradient-heading text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800 }}>
             Announcements
@@ -105,7 +105,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
       {showPush && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
           <div className="w-full max-w-md rounded-2xl p-6" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
               <div className="flex items-center gap-2">
                 <Bell size={18} style={{ color: "#de1a1a" }} />
                 <h2 className="text-[16px] font-bold" style={{ color: "#111111" }}>Send Push Notification</h2>
@@ -153,7 +153,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}>
           <div className="w-full max-w-lg rounded-2xl p-6" style={{ background: "#FFFFFF", border: "1px solid rgba(222,26,26,0.15)" }}>
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
               <h2 className="text-[18px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>New Announcement</h2>
               <button onClick={() => setShowForm(false)}><X size={18} style={{ color: "#6B7280" }} /></button>
             </div>

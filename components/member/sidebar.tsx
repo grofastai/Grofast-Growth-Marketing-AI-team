@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -46,87 +46,52 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
 
   return (
     <>
-      {/* ── Desktop Sidebar (lg+) ─────────────────────────── */}
+      {/* ── Desktop Sidebar (lg+: 1024px+) ─────────────────── */}
       <aside
         className="hidden lg:flex fixed left-0 top-0 h-screen w-[240px] flex-col z-50 select-none"
         style={{ background: SIDEBAR_BG, borderRight: "1px solid rgba(201,13,22,0.25)" }}
       >
-        {/* Logo */}
         <div className="px-5 py-[20px]" style={{ borderBottom: `1px solid ${DIVIDER}` }}>
           <div className="flex items-center gap-3">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{
-                background: "rgba(255,255,255,0.15)",
-                border: "1.5px solid rgba(255,255,255,0.25)",
-                backdropFilter: "blur(6px)",
-              }}
+              style={{ background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.25)", backdropFilter: "blur(6px)" }}
             >
               <span className="text-[16px] font-black" style={{ color: "#FFFFFF" }}>G</span>
             </div>
             <div>
               <p className="text-[14px] tracking-[0.14em] font-black" style={{ color: "#FFFFFF" }}>GROFAST</p>
-              <p className="text-[9px] tracking-[0.22em] uppercase font-semibold mt-0.5"
-                style={{ color: "rgba(255,255,255,0.5)" }}>Member Portal</p>
+              <p className="text-[9px] tracking-[0.22em] uppercase font-semibold mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>Member Portal</p>
             </div>
           </div>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 px-3 pt-5 pb-2 overflow-y-auto">
-          <p className="text-[9px] tracking-[0.28em] uppercase px-3 pb-3 font-bold"
-            style={{ color: "rgba(255,255,255,0.3)" }}>Navigation</p>
+          <p className="text-[9px] tracking-[0.28em] uppercase px-3 pb-3 font-bold" style={{ color: "rgba(255,255,255,0.3)" }}>Navigation</p>
           <div className="space-y-[1px]">
             {navItems.map(({ label, href, icon: Icon }) => {
               const active = isActive(href)
               return (
                 <Link
-                  key={href}
-                  href={href}
+                  key={href} href={href}
                   className="relative flex items-center gap-3 px-3 py-[10px] rounded-lg transition-all duration-150"
-                  style={active
-                    ? { background: ACTIVE_BG, color: "#FFFFFF" }
-                    : { color: "rgba(255,255,255,0.65)" }
-                  }
-                  onMouseEnter={e => {
-                    if (!active) {
-                      (e.currentTarget as HTMLElement).style.background = HOVER_BG
-                      ;(e.currentTarget as HTMLElement).style.color = "#FFFFFF"
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (!active) {
-                      (e.currentTarget as HTMLElement).style.background = "transparent"
-                      ;(e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.65)"
-                    }
-                  }}
+                  style={active ? { background: ACTIVE_BG, color: "#FFFFFF" } : { color: "rgba(255,255,255,0.65)" }}
+                  onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = HOVER_BG; (e.currentTarget as HTMLElement).style.color = "#FFFFFF" } }}
+                  onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.65)" } }}
                 >
-                  {active && (
-                    <span
-                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full"
-                      style={{ height: "22px", background: "#FFFFFF" }}
-                    />
-                  )}
+                  {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full" style={{ height: "22px", background: "#FFFFFF" }} />}
                   <Icon size={15} className="flex-shrink-0" strokeWidth={active ? 2.2 : 1.7} />
                   <span className="text-[13px] font-semibold">{label}</span>
-                  {active && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
-                      style={{ background: "#FFFFFF", opacity: 0.7 }} />
-                  )}
+                  {active && <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#FFFFFF", opacity: 0.7 }} />}
                 </Link>
               )
             })}
           </div>
         </nav>
 
-        {/* User + Logout */}
         <div className="px-3 pb-4 pt-3" style={{ borderTop: `1px solid ${DIVIDER}` }}>
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1"
-            style={{ background: "rgba(255,255,255,0.07)" }}>
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,255,255,0.3)" }}
-            >
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1" style={{ background: "rgba(255,255,255,0.07)" }}>
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,255,255,0.3)" }}>
               <span className="text-[11px] font-bold" style={{ color: "#FFFFFF" }}>{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
@@ -136,18 +101,11 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
             <PushSubscribeButton />
           </div>
           <form action={logoutAction}>
-            <button
-              type="submit"
+            <button type="submit"
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all w-full"
               style={{ color: "rgba(255,255,255,0.55)" }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.background = HOVER_BG
-                ;(e.currentTarget as HTMLElement).style.color = "#FFFFFF"
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.background = "transparent"
-                ;(e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)"
-              }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = HOVER_BG; (e.currentTarget as HTMLElement).style.color = "#FFFFFF" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)" }}
             >
               <LogOut size={14} />
               <span className="text-[13px] font-medium">Sign Out</span>
@@ -156,9 +114,62 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
         </div>
       </aside>
 
-      {/* ── Mobile Top Bar (< lg) ─────────────────────────── */}
+      {/* ── Tablet Sidebar (md–lg: 768px–1023px) ────────────── */}
+      <aside
+        className="hidden md:flex lg:hidden fixed left-0 top-0 h-screen w-[64px] flex-col z-50 select-none"
+        style={{ background: SIDEBAR_BG, borderRight: "1px solid rgba(201,13,22,0.25)" }}
+      >
+        <div className="flex items-center justify-center py-[18px]" style={{ borderBottom: `1px solid ${DIVIDER}` }}>
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center"
+            style={{ background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.25)" }}
+          >
+            <span className="text-[14px] font-black" style={{ color: "#FFFFFF" }}>G</span>
+          </div>
+        </div>
+
+        <nav className="flex-1 flex flex-col items-center pt-3 pb-2 gap-[2px] overflow-y-auto">
+          {navItems.map(({ label, href, icon: Icon }) => {
+            const active = isActive(href)
+            return (
+              <Link
+                key={href} href={href} title={label}
+                className="relative w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-150"
+                style={active ? { background: ACTIVE_BG, color: "#FFFFFF" } : { color: "rgba(255,255,255,0.55)" }}
+                onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = HOVER_BG; (e.currentTarget as HTMLElement).style.color = "#FFFFFF" } }}
+                onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)" } }}
+              >
+                {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full" style={{ height: "18px", background: "#FFFFFF" }} />}
+                <Icon size={16} strokeWidth={active ? 2.2 : 1.7} />
+              </Link>
+            )
+          })}
+        </nav>
+
+        <div className="flex flex-col items-center pb-4 pt-3 gap-2" style={{ borderTop: `1px solid ${DIVIDER}` }}>
+          <div
+            className="w-9 h-9 rounded-full flex items-center justify-center"
+            title={`${name} #${employeeId}`}
+            style={{ background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.25)" }}
+          >
+            <span className="text-[10px] font-bold" style={{ color: "#FFFFFF" }}>{initials}</span>
+          </div>
+          <form action={logoutAction}>
+            <button type="submit" title="Sign Out"
+              className="w-9 h-9 rounded-lg flex items-center justify-center transition-all"
+              style={{ color: "rgba(255,255,255,0.55)" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = HOVER_BG; (e.currentTarget as HTMLElement).style.color = "#FFFFFF" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)" }}
+            >
+              <LogOut size={15} />
+            </button>
+          </form>
+        </div>
+      </aside>
+
+      {/* ── Mobile Top Bar (< md: 768px) ─────────────────────── */}
       <header
-        className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
+        className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
         style={{ background: MOBILE_BG, borderBottom: `1px solid ${DIVIDER}` }}
       >
         <div className="flex items-center gap-2.5">
@@ -181,9 +192,9 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
         </div>
       </header>
 
-      {/* ── Mobile Bottom Nav (< lg) ──────────────────────── */}
+      {/* ── Mobile Bottom Nav (< md: 768px) ──────────────────── */}
       <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2"
         style={{
           background: "linear-gradient(90deg, #0a100d 0%, #de1a1a 100%)",
           borderTop: `1px solid ${DIVIDER}`,
@@ -195,13 +206,9 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
           const active = isActive(href)
           return (
             <Link
-              key={href}
-              href={href}
+              key={href} href={href}
               className="flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl transition-all"
-              style={active
-                ? { color: "#FFFFFF", background: "rgba(255,255,255,0.12)" }
-                : { color: "rgba(255,255,255,0.5)" }
-              }
+              style={active ? { color: "#FFFFFF", background: "rgba(255,255,255,0.12)" } : { color: "rgba(255,255,255,0.5)" }}
             >
               <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
               <span className="text-[10px] font-semibold leading-none">{label}</span>

@@ -283,7 +283,7 @@ export default async function DashboardPage({
               <h1 className="text-[28px] leading-tight font-black text-white">{greeting} 👋</h1>
               <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>{dateStr}</p>
             </div>
-            <div className="flex items-center gap-2 mt-1 flex-shrink-0">
+            <div className="flex flex-wrap items-center gap-2 mt-1">
               <Link href="/admin/team"
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90"
                 style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#FFFFFF" }}>
@@ -306,12 +306,12 @@ export default async function DashboardPage({
       </div>
 
       {/* ── Stats ──────────────────────────────────────── */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         {stats.map(({ label, value, icon: Icon, href, trendLabel, trendDir, accent, accentBg }) => (
           <Link key={label} href={href}
             className="stat-card group block"
             style={{ textDecoration: "none" }}>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: accentBg }}>
                 <Icon size={16} style={{ color: accent }} />
               </div>
@@ -396,7 +396,7 @@ export default async function DashboardPage({
       {/* ── Team Performance ────────────────────────────── */}
       {memberPerf.length > 0 && (
         <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
             <div className="flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center"
                 style={{ background: belowTarget > 0 ? "rgba(222,26,26,0.1)" : "rgba(22,163,74,0.1)" }}>
@@ -484,7 +484,7 @@ export default async function DashboardPage({
       </div>
 
       {/* ── Team Status + Pending Approvals ─────────────── */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(222,26,26,0.1)" }}>
@@ -541,7 +541,7 @@ export default async function DashboardPage({
             )}
           </div>
         </div>
-        <div className="col-span-2">
+        <div className="md:col-span-2">
           <PendingApprovalsCard leaves={pendingLeavesList} />
         </div>
       </div>

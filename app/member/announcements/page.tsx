@@ -32,7 +32,7 @@ export default async function MemberAnnouncementsPage() {
   const announcements = (raw ?? []) as unknown as AnnouncementRow[]
 
   return (
-    <div className="p-8 max-w-[1100px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1300px]">
       <div className="mb-6">
         <h1 className="gradient-heading text-[32px] leading-tight" style={{ fontFamily: "var(--font-jakarta)", fontWeight: 800 }}>
           Announcements

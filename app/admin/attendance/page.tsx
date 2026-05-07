@@ -88,9 +88,9 @@ export default async function AttendancePage({
   })
 
   return (
-    <div className="p-8 max-w-[1200px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="gradient-heading text-[30px] leading-tight font-black" style={{ fontFamily: "var(--font-jakarta)" }}>
             Attendance
@@ -102,7 +102,7 @@ export default async function AttendancePage({
       </div>
 
       {/* Summary chips */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
         {[
           { label: "Present",       value: presentCount, icon: LogIn,  highlight: true },
           { label: "Absent",        value: absentCount,  icon: LogOut, highlight: false },

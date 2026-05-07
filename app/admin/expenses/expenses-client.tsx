@@ -50,7 +50,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
   }
 
   return (
-    <div className="p-8 max-w-[1000px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1200px]">
       <div className="mb-6">
         <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
           Expense Claims
@@ -59,7 +59,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
       </div>
 
       {/* Stats */}
-      <div className="flex flex-wrap gap-3 mb-6">
+      <div className="flex flex-wrap gap-2 md:gap-3 mb-5 md:mb-6">
         {[
           { label: "Pending Review", value: pending.length, color: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
           { label: "Pending Amount", value: `₹${totalPending.toLocaleString("en-IN")}`, color: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },

@@ -65,7 +65,7 @@ export default async function HistoryPage() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-[860px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1000px]">
       {/* Header */}
       <div className="mb-7">
         <h1 className="gradient-heading text-[30px] font-black leading-tight"

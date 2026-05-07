@@ -242,6 +242,7 @@ export default function ProfileClient({
   })
   const [kycPending, startKYC] = useTransition()
   const [kycError, setKYCError] = useState<string | null>(null)
+  const [kycSuccess, setKycSuccess] = useState(false)
   const [uploadingField, setUploadingField] = useState<string | null>(null)
 
   // Photo
@@ -278,6 +279,7 @@ export default function ProfileClient({
 
   function handleKYCSave() {
     setKYCError(null)
+    setKycSuccess(false)
     startKYC(async () => {
       const res = await updateKYC({
         bank_name:       kycForm.bank_name || null,
@@ -287,7 +289,7 @@ export default function ProfileClient({
         govt_id_url:     kycForm.govt_id_url || null,
         ration_card_url: kycForm.ration_card_url || null,
       })
-      if (res.success) { setEditKYC(false); router.refresh() }
+      if (res.success) { setEditKYC(false); setKycSuccess(true); router.refresh() }
       else setKYCError(res.error ?? "Failed to save")
     })
   }
@@ -592,13 +594,20 @@ export default function ProfileClient({
             <div className="flex items-center justify-between mb-4">
               <p className="text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: "#9CA3AF" }}>KYC &amp; Bank Details</p>
               {!editKYC && (
-                <button onClick={() => setEditKYC(true)}
+                <button onClick={() => { setEditKYC(true); setKycSuccess(false) }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
                   style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
                   <Edit2 size={11} /> Edit
                 </button>
               )}
             </div>
+            {kycSuccess && (
+              <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl mb-3"
+                style={{ background: "rgba(22,163,74,0.08)", border: "1px solid rgba(22,163,74,0.2)" }}>
+                <CheckCircle2 size={14} style={{ color: "#16A34A" }} />
+                <p className="text-[12px] font-semibold" style={{ color: "#16A34A" }}>KYC details saved successfully</p>
+              </div>
+            )}
 
             {editKYC ? (
               <div className="space-y-4">
@@ -664,11 +673,11 @@ export default function ProfileClient({
             ) : (
               <div className="space-y-2">
                 {[
-                  { icon: Landmark,  label: "Bank",        value: kyc?.bank_name ? `${kyc.bank_name}${kyc.bank_ifsc ? ` · ${kyc.bank_ifsc}` : ""}` : "—" },
-                  { icon: CreditCard, label: "Account No.",  value: kyc?.bank_account ? `****${kyc.bank_account.slice(-4)}` : "—" },
-                  { icon: FileText,  label: "Govt ID",     value: kyc?.govt_id_type ?? "—", hasUrl: !!kyc?.govt_id_url },
-                  { icon: FileText,  label: "Ration Card", value: kyc?.ration_card_url ? "Uploaded" : "—", hasUrl: !!kyc?.ration_card_url },
-                ].map(({ icon: Icon, label, value, hasUrl }) => (
+                  { icon: Landmark,   label: "Bank",        value: kyc?.bank_name ? `${kyc.bank_name}${kyc.bank_ifsc ? ` · ${kyc.bank_ifsc}` : ""}` : "—", url: null },
+                  { icon: CreditCard, label: "Account No.", value: kyc?.bank_account ? `****${kyc.bank_account.slice(-4)}` : "—", url: null },
+                  { icon: FileText,   label: "Govt ID",     value: kyc?.govt_id_type ?? "—", url: kyc?.govt_id_url ?? null },
+                  { icon: FileText,   label: "Ration Card", value: kyc?.ration_card_url ? "Uploaded" : "—", url: kyc?.ration_card_url ?? null },
+                ].map(({ icon: Icon, label, value, url }) => (
                   <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.03)" }}>
                       <Icon size={13} style={{ color: value === "—" ? "#D1D5DB" : "#9CA3AF" }} />
@@ -677,8 +686,14 @@ export default function ProfileClient({
                       <p className="text-[10px] uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{label}</p>
                       <p className="text-[13px] font-semibold" style={{ color: value === "—" ? "#D1D5DB" : "#111111" }}>{value}</p>
                     </div>
-                    {hasUrl && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(22,163,74,0.08)", color: "#16A34A" }}>✓ Uploaded</span>}
-                    {value === "—" && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>Missing</span>}
+                    {url && (
+                      <a href={url} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg flex-shrink-0"
+                        style={{ background: "rgba(22,163,74,0.08)", color: "#16A34A", border: "1px solid rgba(22,163,74,0.2)", textDecoration: "none" }}>
+                        <CheckCircle2 size={11} /> View
+                      </a>
+                    )}
+                    {!url && value === "—" && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>Missing</span>}
                   </div>
                 ))}
               </div>

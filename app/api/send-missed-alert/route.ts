@@ -86,12 +86,35 @@ export async function GET(request: NextRequest) {
     })
   )
 
+  // Notify admin with a summary of who missed
+  let adminNotified = false
+  if (missed.length > 0) {
+    const { data: adminUser } = await admin
+      .from('users')
+      .select('phone')
+      .eq('company_id', companyId)
+      .eq('role', 'ADMIN')
+      .limit(1)
+      .single()
+
+    if (adminUser?.phone) {
+      const names = missed.map((m: any) => m.name).slice(0, 10).join(', ')
+      const displayNames = missed.length > 10 ? `${names} and ${missed.length - 10} more` : names
+      adminNotified = await sendWhatsAppTemplate(
+        formatPhone(adminUser.phone),
+        'grofast_admin_missed_summary',
+        [String(missed.length), dateLabel, displayNames]
+      )
+    }
+  }
+
   return NextResponse.json({
     date: today,
     missedCount: missed.length,
     sent,
     failed,
     failedNames,
+    adminNotified,
     sentAt: new Date().toISOString(),
   })
 }

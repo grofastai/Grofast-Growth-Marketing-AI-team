@@ -53,6 +53,8 @@ export const dailyUpdateSchema = z
     learning_topic: z.string().optional(),
     learning_hours: z.number().min(0).max(24).default(0),
     learning_notes: z.string().optional(),
+
+    work_proof_urls: z.array(z.string()).optional().default([]),
   })
   .superRefine((val, ctx) => {
     if (val.active_tab === 'working' && val.work_entries.length === 0) {

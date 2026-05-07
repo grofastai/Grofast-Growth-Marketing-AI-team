@@ -60,11 +60,14 @@ export async function submitDailyUpdate(
     ]
     const newWorkHours = Math.round(((existingRecord.working_hours || 0) + (d.active_tab === 'working' ? roundedHours : 0)) * 10) / 10
 
+    const existingProofs = Array.isArray((existingRecord as any).work_proof_urls)
+      ? (existingRecord as any).work_proof_urls : []
     const updatePayload: Record<string, unknown> = {
-      work_entries:  combinedEntries,
-      working_hours: newWorkHours || null,
-      shoot_count:   (existingRecord.shoot_count   || 0) + d.shoot_count,
-      editing_count: (existingRecord.editing_count || 0) + d.editing_count,
+      work_entries:    combinedEntries,
+      working_hours:   newWorkHours || null,
+      shoot_count:     (existingRecord.shoot_count   || 0) + d.shoot_count,
+      editing_count:   (existingRecord.editing_count || 0) + d.editing_count,
+      work_proof_urls: [...existingProofs, ...(d.work_proof_urls ?? [])],
     }
     if (d.learning_topic) {
       updatePayload.learning_topic = d.learning_topic
@@ -98,6 +101,7 @@ export async function submitDailyUpdate(
         editing_count:       d.editing_count,
         shoot_time_hours:    d.shoot_time_hours ?? null,
         editing_time_hours:  d.editing_time_hours ?? null,
+        work_proof_urls:     d.work_proof_urls ?? [],
       })
 
     if (insertError) return { success: false, error: insertError.message }

@@ -1,4 +1,4 @@
-export const revalidate = 60
+﻿export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
 import { Megaphone, Pin } from "lucide-react"
@@ -45,7 +45,7 @@ export default async function MemberAnnouncementsPage() {
           style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
           <Megaphone size={40} style={{ color: "rgba(0,0,0,0.06)" }} className="mb-3" />
           <p className="text-[14px] font-semibold font-sans" style={{ color: "#6B7280" }}>No announcements yet</p>
-          <p className="text-[12px] font-sans mt-1" style={{ color: "#9CA3AF" }}>Your admin will post updates here.</p>
+          <p className="text-[12px] font-sans mt-1" style={{ color: "#83858c" }}>Your admin will post updates here.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -54,19 +54,19 @@ export default async function MemberAnnouncementsPage() {
             return (
               <div key={ann.id} className="rounded-2xl p-5"
                 style={{
-                  background: ann.pinned ? "rgba(220,38,38,0.06)" : "rgba(0,0,0,0.02)",
-                  border: ann.pinned ? "1px solid rgba(220,38,38,0.2)" : "1px solid #F0F0F0",
+                  background: ann.pinned ? "rgba(222,26,26,0.06)" : "rgba(0,0,0,0.02)",
+                  border: ann.pinned ? "1px solid rgba(222,26,26,0.2)" : "1px solid #F0F0F0",
                 }}>
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
-                    style={{ background: ann.pinned ? "rgba(220,38,38,0.15)" : "rgba(255,107,87,0.1)" }}>
-                    <Megaphone size={15} style={{ color: ann.pinned ? "#DC2626" : "#DC2626" }} />
+                    style={{ background: ann.pinned ? "rgba(222,26,26,0.15)" : "rgba(255,107,87,0.1)" }}>
+                    <Megaphone size={15} style={{ color: ann.pinned ? "#de1a1a" : "#de1a1a" }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       {ann.pinned && (
                         <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                          style={{ background: "rgba(220,38,38,0.15)", color: "#DC2626" }}>
+                          style={{ background: "rgba(222,26,26,0.15)", color: "#de1a1a" }}>
                           <Pin size={9} /> Pinned
                         </span>
                       )}

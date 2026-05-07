@@ -1,4 +1,4 @@
-import type { Metadata, Viewport } from "next"
+﻿import type { Metadata, Viewport } from "next"
 import { Plus_Jakarta_Sans } from "next/font/google"
 import "./globals.css"
 import PwaInstallPrompt from "@/components/pwa-install-prompt"
@@ -11,7 +11,7 @@ const jakarta = Plus_Jakarta_Sans({
 })
 
 export const viewport: Viewport = {
-  themeColor: "#DC2626",
+  themeColor: "#de1a1a",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,

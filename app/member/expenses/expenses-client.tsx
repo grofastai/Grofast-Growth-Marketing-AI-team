@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
@@ -22,7 +22,7 @@ type Expense = {
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string; icon: typeof Clock }> = {
   pending:  { label: "Pending",  color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: Clock         },
   approved: { label: "Approved", color: "#16A34A", bg: "rgba(22,163,74,0.1)",   icon: CheckCircle2  },
-  rejected: { label: "Rejected", color: "#DC2626", bg: "rgba(220,38,38,0.1)",   icon: XCircle       },
+  rejected: { label: "Rejected", color: "#de1a1a", bg: "rgba(222,26,26,0.1)",   icon: XCircle       },
 }
 
 const FIELD: React.CSSProperties = {
@@ -79,11 +79,11 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
           <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
             Expense Claims
           </h1>
-          <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>Submit and track your expense reimbursements</p>
+          <p className="text-sm mt-1" style={{ color: "#83858c" }}>Submit and track your expense reimbursements</p>
         </div>
         <button onClick={() => setShowForm(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold"
-          style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF" }}>
+          style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF" }}>
           <Plus size={14} /> New Claim
         </button>
       </div>
@@ -98,7 +98,7 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
           <div key={s.label} className="rounded-xl p-4" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
             <p className="text-[22px] font-black leading-none mb-1"
               style={{ fontFamily: "var(--font-jakarta)", color: s.color }}>{s.value}</p>
-            <p className="text-[11px] font-medium" style={{ color: "#9CA3AF" }}>{s.label}</p>
+            <p className="text-[11px] font-medium" style={{ color: "#83858c" }}>{s.label}</p>
           </div>
         ))}
       </div>
@@ -108,7 +108,7 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
         <div className="flex flex-col items-center py-20 rounded-2xl"
           style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F0F0F0" }}>
           <Receipt size={32} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[13px] font-semibold" style={{ color: "#9CA3AF" }}>No claims yet</p>
+          <p className="text-[13px] font-semibold" style={{ color: "#83858c" }}>No claims yet</p>
           <p className="text-[12px] mt-1" style={{ color: "#D1D5DB" }}>Submit your first expense claim above.</p>
         </div>
       ) : (
@@ -121,14 +121,14 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
                 style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(220,38,38,0.06)" }}>
-                    <IndianRupee size={16} style={{ color: "#DC2626" }} />
+                    style={{ background: "rgba(222,26,26,0.06)" }}>
+                    <IndianRupee size={16} style={{ color: "#de1a1a" }} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{e.description}</p>
-                        <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>
+                        <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>
                           {e.category} · {formatDate(e.date)}
                         </p>
                       </div>
@@ -145,8 +145,8 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
                     </div>
                     {e.review_notes && (
                       <p className="text-[12px] mt-2 px-3 py-2 rounded-lg"
-                        style={{ background: e.status === "rejected" ? "rgba(220,38,38,0.04)" : "rgba(22,163,74,0.04)", color: "#6B7280" }}>
-                        <strong style={{ color: e.status === "rejected" ? "#DC2626" : "#16A34A" }}>Admin note: </strong>
+                        style={{ background: e.status === "rejected" ? "rgba(222,26,26,0.04)" : "rgba(22,163,74,0.04)", color: "#6B7280" }}>
+                        <strong style={{ color: e.status === "rejected" ? "#de1a1a" : "#16A34A" }}>Admin note: </strong>
                         {e.review_notes}
                       </p>
                     )}
@@ -165,7 +165,7 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
             onClick={() => setShowForm(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-[440px] rounded-2xl shadow-2xl"
-              style={{ background: "#FFFFFF", border: "1px solid rgba(220,38,38,0.15)" }}>
+              style={{ background: "#FFFFFF", border: "1px solid rgba(222,26,26,0.15)" }}>
               <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: "1px solid #F0F0F0" }}>
                 <h2 className="text-[16px] font-bold" style={{ color: "#111111" }}>New Expense Claim</h2>
                 <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -176,36 +176,36 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
               <div className="px-6 py-5 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#9CA3AF" }}>Amount (₹) *</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#83858c" }}>Amount (₹) *</label>
                     <input type="number" min="0" step="0.01" placeholder="500" style={FIELD}
                       value={form.amount} onChange={set("amount")} />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#9CA3AF" }}>Date *</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#83858c" }}>Date *</label>
                     <input type="date" style={{ ...FIELD, colorScheme: "light" }}
                       value={form.date} onChange={set("date")} />
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#9CA3AF" }}>Category *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#83858c" }}>Category *</label>
                   <select style={{ ...FIELD, appearance: "none" }} value={form.category} onChange={set("category")}>
                     <option value="">Select category…</option>
                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#9CA3AF" }}>Description *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#83858c" }}>Description *</label>
                   <input placeholder="What was this expense for?" style={FIELD}
                     value={form.description} onChange={set("description")} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#9CA3AF" }}>Notes (optional)</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#83858c" }}>Notes (optional)</label>
                   <textarea rows={2} placeholder="Additional details…" style={{ ...FIELD, resize: "none" }}
                     value={form.notes} onChange={set("notes")} />
                 </div>
                 {error && (
                   <p className="text-[12px] px-3 py-2 rounded-lg"
-                    style={{ background: "rgba(220,38,38,0.06)", color: "#DC2626" }}>{error}</p>
+                    style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>{error}</p>
                 )}
               </div>
               <div className="px-6 pb-5 flex gap-3">
@@ -216,7 +216,7 @@ export default function MemberExpensesClient({ expenses }: { expenses: Expense[]
                 </button>
                 <button onClick={handleSubmit} disabled={isPending}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 disabled:opacity-60"
-                  style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF" }}>
+                  style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF" }}>
                   {isPending && <Loader2 size={13} className="animate-spin" />}
                   Submit Claim
                 </button>

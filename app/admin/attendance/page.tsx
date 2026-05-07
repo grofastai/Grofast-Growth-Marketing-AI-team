@@ -1,4 +1,4 @@
-export const revalidate = 0
+﻿export const revalidate = 0
 
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
@@ -95,7 +95,7 @@ export default async function AttendancePage({
           <h1 className="gradient-heading text-[30px] leading-tight font-black" style={{ fontFamily: "var(--font-jakarta)" }}>
             Attendance
           </h1>
-          <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>{displayDate}</p>
+          <p className="text-sm mt-1" style={{ color: "#83858c" }}>{displayDate}</p>
         </div>
 
         <AttendanceDateNav selectedDate={selectedDate} today={today} />
@@ -113,18 +113,18 @@ export default async function AttendancePage({
             <div key={s.label} className="rounded-xl p-5 flex items-center gap-4"
               style={{
                 background: "#FFFFFF",
-                border: s.highlight ? "1px solid rgba(220,38,38,0.2)" : "1px solid #F0F0F0",
+                border: s.highlight ? "1px solid rgba(222,26,26,0.2)" : "1px solid #F0F0F0",
                 boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
               }}>
               <div className="w-10 h-10 rounded-lg flex items-center justify-center"
-                style={{ background: s.highlight ? "rgba(220,38,38,0.08)" : "rgba(0,0,0,0.03)" }}>
-                <Icon size={17} style={{ color: s.highlight ? "#DC2626" : "#9CA3AF" }} />
+                style={{ background: s.highlight ? "rgba(222,26,26,0.08)" : "rgba(0,0,0,0.03)" }}>
+                <Icon size={17} style={{ color: s.highlight ? "#de1a1a" : "#83858c" }} />
               </div>
               <div>
-                <p className="text-[32px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: s.highlight ? "#DC2626" : "#111827" }}>
+                <p className="text-[32px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: s.highlight ? "#de1a1a" : "#111827" }}>
                   {s.value}
                 </p>
-                <p className="text-[11px] font-medium mt-1" style={{ color: "#9CA3AF" }}>{s.label}</p>
+                <p className="text-[11px] font-medium mt-1" style={{ color: "#83858c" }}>{s.label}</p>
               </div>
             </div>
           )
@@ -135,7 +135,7 @@ export default async function AttendancePage({
       <div className="rounded-xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
         <div className="px-5 py-4" style={{ borderBottom: "1px solid #F0F0F0" }}>
           <div className="flex items-center gap-2">
-            <Clock size={14} style={{ color: "#DC2626" }} />
+            <Clock size={14} style={{ color: "#de1a1a" }} />
             <h3 className="text-[13px] font-bold" style={{ color: "#111827" }}>
               Team Attendance — {isToday ? "Today" : displayDate}
             </h3>
@@ -145,7 +145,7 @@ export default async function AttendancePage({
         {!members || members.length === 0 ? (
           <div className="flex flex-col items-center py-16 gap-2">
             <Users size={32} style={{ color: "#E5E7EB" }} />
-            <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No team members found</p>
+            <p className="text-[13px]" style={{ color: "#83858c" }}>No team members found</p>
           </div>
         ) : (
           <div>
@@ -158,9 +158,9 @@ export default async function AttendancePage({
               const dur = calcDuration(log?.clock_in ?? null, log?.clock_out ?? null)
 
               let statusLabel = "Not logged"
-              let statusColor = "#9CA3AF"
+              let statusColor = "#83858c"
               let statusBg    = "rgba(0,0,0,0.04)"
-              if (isAbsent)  { statusLabel = "Absent";  statusColor = "#DC2626"; statusBg = "rgba(220,38,38,0.08)" }
+              if (isAbsent)  { statusLabel = "Absent";  statusColor = "#de1a1a"; statusBg = "rgba(222,26,26,0.08)" }
               if (isWorking) { statusLabel = "Working"; statusColor = "#16A34A"; statusBg = "rgba(22,163,74,0.1)" }
               if (isDone)    { statusLabel = "Done";    statusColor = "#2563EB"; statusBg = "rgba(37,99,235,0.08)" }
 
@@ -168,12 +168,12 @@ export default async function AttendancePage({
                 <div key={m.id} className="flex items-center gap-4 px-5 py-3.5"
                   style={{ borderBottom: "1px solid #F9FAFB" }}>
                   <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(220,38,38,0.08)" }}>
-                    <span className="text-[11px] font-bold" style={{ color: "#DC2626" }}>{m.name[0]}</span>
+                    style={{ background: "rgba(222,26,26,0.08)" }}>
+                    <span className="text-[11px] font-bold" style={{ color: "#de1a1a" }}>{m.name[0]}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold" style={{ color: "#111827" }}>{m.name}</p>
-                    <p className="text-[11px]" style={{ color: "#9CA3AF" }}>#{m.employee_id}</p>
+                    <p className="text-[11px]" style={{ color: "#83858c" }}>#{m.employee_id}</p>
                   </div>
                   <div className="flex items-center gap-6 text-right">
                     <div>
@@ -209,17 +209,17 @@ export default async function AttendancePage({
             <AlertTriangle size={14} style={{ color: "#F59E0B" }} />
             <h3 className="text-[13px] font-bold" style={{ color: "#111827" }}>Late Arrivals</h3>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-1"
-              style={{ background: lateEntries.length > 0 ? "rgba(245,158,11,0.12)" : "rgba(0,0,0,0.04)", color: lateEntries.length > 0 ? "#F59E0B" : "#9CA3AF" }}>
+              style={{ background: lateEntries.length > 0 ? "rgba(245,158,11,0.12)" : "rgba(0,0,0,0.04)", color: lateEntries.length > 0 ? "#F59E0B" : "#83858c" }}>
               {lateEntries.length}
             </span>
           </div>
-          <span className="text-[11px]" style={{ color: "#9CA3AF" }}>After 10:00 AM</span>
+          <span className="text-[11px]" style={{ color: "#83858c" }}>After 10:00 AM</span>
         </div>
 
         {lateEntries.length === 0 ? (
           <div className="flex flex-col items-center py-10 gap-1">
             <p className="text-[13px] font-semibold" style={{ color: "#10B981" }}>All on time 🎉</p>
-            <p className="text-[11px]" style={{ color: "#9CA3AF" }}>No one clocked in after 10:00 AM</p>
+            <p className="text-[11px]" style={{ color: "#83858c" }}>No one clocked in after 10:00 AM</p>
           </div>
         ) : (
           <div>
@@ -244,7 +244,7 @@ export default async function AttendancePage({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold" style={{ color: "#111827" }}>{entry.member!.name}</p>
-                    <p className="text-[11px]" style={{ color: "#9CA3AF" }}>#{entry.member!.employee_id}</p>
+                    <p className="text-[11px]" style={{ color: "#83858c" }}>#{entry.member!.employee_id}</p>
                   </div>
                   <div className="flex items-center gap-4 text-right">
                     <div>

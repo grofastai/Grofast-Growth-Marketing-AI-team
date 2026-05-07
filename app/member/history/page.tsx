@@ -1,4 +1,4 @@
-export const revalidate = 60
+﻿export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
@@ -27,8 +27,8 @@ type UpdateRow = {
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
   present: { label: "Present",  color: "#16A34A", bg: "rgba(22,163,74,0.1)"  },
-  absent:  { label: "Absent",   color: "#DC2626", bg: "rgba(220,38,38,0.1)"  },
-  holiday: { label: "Holiday",  color: "#9CA3AF", bg: "rgba(0,0,0,0.05)"     },
+  absent:  { label: "Absent",   color: "#de1a1a", bg: "rgba(222,26,26,0.1)"  },
+  holiday: { label: "Holiday",  color: "#83858c", bg: "rgba(0,0,0,0.05)"     },
   wfh:     { label: "WFH",      color: "#6366F1", bg: "rgba(99,102,241,0.1)" },
 }
 
@@ -72,7 +72,7 @@ export default async function HistoryPage() {
           style={{ fontFamily: "var(--font-jakarta)" }}>
           Update History
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>
+        <p className="text-sm mt-1" style={{ color: "#83858c" }}>
           Your daily work logs — last 90 days
         </p>
       </div>
@@ -81,7 +81,7 @@ export default async function HistoryPage() {
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
           style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F0F0F0" }}>
           <ClipboardList size={36} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#9CA3AF" }}>No updates yet</p>
+          <p className="text-[14px] font-semibold" style={{ color: "#83858c" }}>No updates yet</p>
           <p className="text-[12px] mt-1" style={{ color: "#D1D5DB" }}>Submit your first daily update to see history here.</p>
         </div>
       ) : (
@@ -96,9 +96,9 @@ export default async function HistoryPage() {
                 }, 0)
                 return (
                   <div className="flex items-center gap-3 mb-4">
-                    <CalendarDays size={13} style={{ color: "#DC2626" }} />
+                    <CalendarDays size={13} style={{ color: "#de1a1a" }} />
                     <p className="text-[11px] font-bold uppercase tracking-[0.2em]"
-                      style={{ color: "#9CA3AF" }}>{month}</p>
+                      style={{ color: "#83858c" }}>{month}</p>
                     <div className="flex-1 h-px" style={{ background: "#F0F0F0" }} />
                     {monthOT > 0 && (
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
@@ -107,7 +107,7 @@ export default async function HistoryPage() {
                       </span>
                     )}
                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                      style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>
+                      style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
                       {rows.length} day{rows.length !== 1 ? "s" : ""}
                     </span>
                   </div>
@@ -143,7 +143,7 @@ export default async function HistoryPage() {
                                 {formatDate(u.date)}
                               </p>
                               {u.work_type && (
-                                <p className="text-[11px] mt-0.5 capitalize" style={{ color: "#9CA3AF" }}>
+                                <p className="text-[11px] mt-0.5 capitalize" style={{ color: "#83858c" }}>
                                   {u.work_type === "wfh" ? "Work from Home" : "Office"}
                                 </p>
                               )}
@@ -159,7 +159,7 @@ export default async function HistoryPage() {
                             <div className="flex items-center gap-4 mb-3 flex-wrap">
                               {u.working_hours != null && u.working_hours > 0 && (
                                 <div className="flex items-center gap-1.5">
-                                  <Clock size={12} style={{ color: "#DC2626" }} />
+                                  <Clock size={12} style={{ color: "#de1a1a" }} />
                                   <span className="text-[12px] font-semibold" style={{ color: "#374151" }}>
                                     {u.working_hours}h worked
                                   </span>
@@ -207,7 +207,7 @@ export default async function HistoryPage() {
                                           {e.client_name || e.title}
                                         </p>
                                         {e.notes && (
-                                          <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: "#9CA3AF" }}>{e.notes}</p>
+                                          <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: "#83858c" }}>{e.notes}</p>
                                         )}
                                       </div>
                                       {e.duration_hours > 0 && (
@@ -234,7 +234,7 @@ export default async function HistoryPage() {
                                           {e.client_name || e.title}
                                         </p>
                                         {e.notes && (
-                                          <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: "#9CA3AF" }}>{e.notes}</p>
+                                          <p className="text-[11px] mt-0.5 line-clamp-2" style={{ color: "#83858c" }}>{e.notes}</p>
                                         )}
                                       </div>
                                       {e.duration_hours > 0 && (

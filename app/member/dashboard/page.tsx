@@ -1,4 +1,4 @@
-export const revalidate = 60
+﻿export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
 import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, Zap, AlertTriangle, Calendar } from "lucide-react"
@@ -108,24 +108,24 @@ export default async function MemberDashboardPage() {
     if (todayHours > 9)
       productivitySignal = { icon: "zap",  text: `Overtime: +${Math.round((todayHours - 9) * 10) / 10}h beyond 9h today`, color: "#EA580C" }
     else if (todayHours >= 6)
-      productivitySignal = { icon: "zap",  text: "You're on track today",        color: "#DC2626" }
+      productivitySignal = { icon: "zap",  text: "You're on track today",        color: "#de1a1a" }
     else if (todayHours < 4)
       productivitySignal = { icon: "warn", text: "You are below expected hours", color: "#F59E0B" }
   }
 
   const PRIORITY_STYLE: Record<string, { color: string; bg: string }> = {
-    low:    { color: "#9CA3AF", bg: "rgba(0,0,0,0.03)" },
+    low:    { color: "#83858c", bg: "rgba(0,0,0,0.03)" },
     medium: { color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
     high:   { color: "#FF6464", bg: "rgba(255,100,100,0.08)" },
   }
 
   // Monthly stats config
-  const avgColor = avgHoursPerDay >= 9 ? "#16A34A" : avgHoursPerDay >= 7 ? "#D97706" : avgHoursPerDay > 0 ? "#DC2626" : "#D1D5DB"
+  const avgColor = avgHoursPerDay >= 9 ? "#16A34A" : avgHoursPerDay >= 7 ? "#D97706" : avgHoursPerDay > 0 ? "#de1a1a" : "#D1D5DB"
   const monthlyStats = [
     { label: "Avg Hours / Day", value: avgHoursPerDay > 0 ? `${avgHoursPerDay}h` : "—", color: avgColor, sub: avgHoursPerDay > 0 ? (avgHoursPerDay >= 9 ? "On target ✓" : `${(9 - avgHoursPerDay).toFixed(1)}h below 9h`) : undefined },
     { label: "Working Days",    value: workingDays,  color: "#111111" },
     { label: "Leave Days",      value: leaveDays,    color: leaveDays > 0 ? "#D97706" : "#D1D5DB" },
-    { label: "Office Days",     value: officeDays,   color: "#DC2626" },
+    { label: "Office Days",     value: officeDays,   color: "#de1a1a" },
     { label: "WFH Days",        value: wfhDays,      color: "#6366F1" },
     { label: "Overtime Hrs",    value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—", color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeDays > 0 ? `${overtimeDays} day${overtimeDays !== 1 ? "s" : ""}` : undefined },
   ]
@@ -140,26 +140,26 @@ export default async function MemberDashboardPage() {
       {profileScore < 100 && (
         <Link href="/member/profile"
           className="flex items-center gap-3 px-4 py-3 rounded-xl mb-4 transition-all hover:opacity-90"
-          style={{ background: profileScore >= 60 ? "rgba(217,119,6,0.06)" : "rgba(220,38,38,0.06)", border: `1px solid ${profileScore >= 60 ? "rgba(217,119,6,0.2)" : "rgba(220,38,38,0.2)"}` }}>
+          style={{ background: profileScore >= 60 ? "rgba(217,119,6,0.06)" : "rgba(222,26,26,0.06)", border: `1px solid ${profileScore >= 60 ? "rgba(217,119,6,0.2)" : "rgba(222,26,26,0.2)"}` }}>
           <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: profileScore >= 60 ? "rgba(217,119,6,0.15)" : "rgba(220,38,38,0.12)" }}>
-            <AlertTriangle size={14} style={{ color: profileScore >= 60 ? "#D97706" : "#DC2626" }} />
+            style={{ background: profileScore >= 60 ? "rgba(217,119,6,0.15)" : "rgba(222,26,26,0.12)" }}>
+            <AlertTriangle size={14} style={{ color: profileScore >= 60 ? "#D97706" : "#de1a1a" }} />
           </div>
           <div className="flex-1">
             <p className="text-[12px] font-bold" style={{ color: "#111111" }}>Complete your profile — {profileScore}% done</p>
-            <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>Add photo, blood group, bank details &amp; ID proof</p>
+            <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>Add photo, blood group, bank details &amp; ID proof</p>
           </div>
           <div className="w-16 h-1.5 rounded-full flex-shrink-0" style={{ background: "#E5E7EB" }}>
-            <div className="h-full rounded-full" style={{ width: `${profileScore}%`, background: profileScore >= 60 ? "#D97706" : "#DC2626" }} />
+            <div className="h-full rounded-full" style={{ width: `${profileScore}%`, background: profileScore >= 60 ? "#D97706" : "#de1a1a" }} />
           </div>
-          <span className="text-[12px] font-black flex-shrink-0" style={{ color: profileScore >= 60 ? "#D97706" : "#DC2626" }}>{profileScore}%</span>
+          <span className="text-[12px] font-black flex-shrink-0" style={{ color: profileScore >= 60 ? "#D97706" : "#de1a1a" }}>{profileScore}%</span>
         </Link>
       )}
 
       {/* ── Announcements Ticker ── */}
       {announcements.length > 0 && (
         <div className="overflow-hidden rounded-xl mb-5 flex items-center gap-0"
-          style={{ background: "linear-gradient(90deg, #7F1D1D 0%, #DC2626 100%)", height: "38px" }}>
+          style={{ background: "linear-gradient(90deg, #7F1D1D 0%, #de1a1a 100%)", height: "38px" }}>
           <div className="flex-shrink-0 flex items-center gap-1.5 px-3 border-r"
             style={{ borderColor: "rgba(255,255,255,0.2)", height: "100%" }}>
             <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.9)" }}>News</span>
@@ -182,21 +182,21 @@ export default async function MemberDashboardPage() {
               style={{ fontFamily: "var(--font-jakarta)" }}>
               {greeting}, {firstName}
             </h1>
-            <p className="text-[13px] mt-1" style={{ color: "#9CA3AF" }}>{dateStr}</p>
+            <p className="text-[13px] mt-1" style={{ color: "#83858c" }}>{dateStr}</p>
           </div>
           <div className="text-right mt-1">
             <p className="text-[9px] uppercase tracking-[0.2em] font-bold mb-1"
               style={{ color: "rgba(0,0,0,0.08)" }}>Employee ID</p>
             <p className="text-[14px] font-black"
-              style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
+              style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>
               {profile?.employee_id ? `#${profile.employee_id}` : "—"}
             </p>
           </div>
         </div>
         {activeTasks > 0 && (
-          <p className="text-[12px] mt-2 font-medium" style={{ color: "#9CA3AF" }}>
+          <p className="text-[12px] mt-2 font-medium" style={{ color: "#83858c" }}>
             Today&apos;s focus:&nbsp;
-            <span style={{ color: "#DC2626" }}>{activeTasks} task{activeTasks > 1 ? "s" : ""} pending</span>
+            <span style={{ color: "#de1a1a" }}>{activeTasks} task{activeTasks > 1 ? "s" : ""} pending</span>
           </p>
         )}
       </div>
@@ -204,7 +204,7 @@ export default async function MemberDashboardPage() {
       {/* ── 4-stat Summary Row ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
         {[
-          { label: "Present Days",   value: workingDays,                                   color: "#DC2626" },
+          { label: "Present Days",   value: workingDays,                                   color: "#de1a1a" },
           { label: "Total Hours",    value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : "—", color: "#6366F1" },
           { label: "Pending Leave",  value: pendingLeavesCount ?? 0,                        color: "#F59E0B" },
           { label: "Active Tasks",   value: activeTasks,                                    color: "#16A34A" },
@@ -213,7 +213,7 @@ export default async function MemberDashboardPage() {
             style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
             <p className="text-[24px] font-black leading-none mb-1"
               style={{ fontFamily: "var(--font-jakarta)", color: s.color }}>{s.value}</p>
-            <p className="text-[11px] font-medium" style={{ color: "#9CA3AF" }}>{s.label}</p>
+            <p className="text-[11px] font-medium" style={{ color: "#83858c" }}>{s.label}</p>
           </div>
         ))}
       </div>
@@ -227,14 +227,14 @@ export default async function MemberDashboardPage() {
           {/* Daily Update */}
           <div className="rounded-xl p-5" style={{
             background: "#FFFFFF",
-            border: todayUpdate ? "1px solid rgba(220,38,38,0.2)" : "1px solid rgba(245,158,11,0.25)",
+            border: todayUpdate ? "1px solid rgba(222,26,26,0.2)" : "1px solid rgba(245,158,11,0.25)",
           }}>
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: todayUpdate ? "rgba(220,38,38,0.08)" : "rgba(245,158,11,0.08)" }}>
+                  style={{ background: todayUpdate ? "rgba(222,26,26,0.08)" : "rgba(245,158,11,0.08)" }}>
                   {todayUpdate
-                    ? <CheckCircle2 size={18} style={{ color: "#DC2626" }} />
+                    ? <CheckCircle2 size={18} style={{ color: "#de1a1a" }} />
                     : <AlertCircle  size={18} style={{ color: "#F59E0B" }} />
                   }
                 </div>
@@ -242,7 +242,7 @@ export default async function MemberDashboardPage() {
                   <p className="text-[14px] font-bold" style={{ color: "#111111" }}>
                     {todayUpdate ? "Daily update submitted ✓" : "You haven't submitted today's update"}
                   </p>
-                  <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>
+                  <p className="text-[12px] mt-0.5" style={{ color: "#83858c" }}>
                     {todayUpdate
                       ? `${todayUpdate.working_hours ?? "—"}h logged · ${shootCount} shoot${shootCount !== 1 ? "s" : ""}`
                       : "Submit before 9 PM to avoid alerts"}
@@ -252,7 +252,7 @@ export default async function MemberDashboardPage() {
               {!todayUpdate && (
                 <Link href="/member/update"
                   className="px-5 py-2.5 rounded-lg text-[13px] font-bold flex-shrink-0 transition-all"
-                  style={{ background: "#DC2626", color: "#FFFFFF" }}>
+                  style={{ background: "#de1a1a", color: "#FFFFFF" }}>
                   Submit Update
                 </Link>
               )}
@@ -263,7 +263,7 @@ export default async function MemberDashboardPage() {
           <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <Target size={14} style={{ color: "#DC2626" }} />
+                <Target size={14} style={{ color: "#de1a1a" }} />
                 <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>My Tasks</h3>
                 {todayOverdue.length > 0 && (
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
@@ -272,7 +272,7 @@ export default async function MemberDashboardPage() {
                   </span>
                 )}
               </div>
-              <Link href="/member/tasks" className="text-[12px] font-semibold" style={{ color: "#DC2626" }}>
+              <Link href="/member/tasks" className="text-[12px] font-semibold" style={{ color: "#de1a1a" }}>
                 View all →
               </Link>
             </div>
@@ -316,9 +316,9 @@ export default async function MemberDashboardPage() {
         {/* ── RIGHT ── */}
         <div className="space-y-4">
           {[
-            { label: "Active Tasks",   value: activeTasks,                              icon: Target,      href: "/member/tasks",      accent: "#DC2626" },
-            { label: "Today's Hours",  value: todayHours > 0 ? `${todayHours}h` : "—", icon: Clock,       href: "/member/attendance", accent: "#DC2626" },
-            { label: "Pending Leaves", value: pendingLeavesCount ?? 0,                  icon: CalendarOff, href: "/member/leaves",     accent: "#DC2626" },
+            { label: "Active Tasks",   value: activeTasks,                              icon: Target,      href: "/member/tasks",      accent: "#de1a1a" },
+            { label: "Today's Hours",  value: todayHours > 0 ? `${todayHours}h` : "—", icon: Clock,       href: "/member/attendance", accent: "#de1a1a" },
+            { label: "Pending Leaves", value: pendingLeavesCount ?? 0,                  icon: CalendarOff, href: "/member/leaves",     accent: "#de1a1a" },
           ].map((stat) => {
             const Icon = stat.icon
             return (
@@ -326,7 +326,7 @@ export default async function MemberDashboardPage() {
                 className="rounded-xl p-4 flex items-center gap-4 transition-all hover:-translate-y-0.5"
                 style={{ background: "#FFFFFF", border: "1px solid #2A2A2A", display: "flex" }}>
                 <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(220,38,38,0.08)" }}>
+                  style={{ background: "rgba(222,26,26,0.08)" }}>
                   <Icon size={16} style={{ color: stat.accent }} />
                 </div>
                 <div className="flex-1">
@@ -334,7 +334,7 @@ export default async function MemberDashboardPage() {
                     style={{ fontFamily: "var(--font-jakarta)", color: stat.accent }}>
                     {stat.value}
                   </p>
-                  <p className="text-[11px] font-medium mt-0.5" style={{ color: "#9CA3AF" }}>{stat.label}</p>
+                  <p className="text-[11px] font-medium mt-0.5" style={{ color: "#83858c" }}>{stat.label}</p>
                 </div>
               </Link>
             )
@@ -357,7 +357,7 @@ export default async function MemberDashboardPage() {
                     style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
                     {item.value}
                   </p>
-                  <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{item.label}</p>
+                  <p className="text-[10px]" style={{ color: "#83858c" }}>{item.label}</p>
                 </div>
               ))}
             </div>
@@ -381,14 +381,14 @@ export default async function MemberDashboardPage() {
       <div className="mt-5 rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
         <div className="flex items-center gap-2 mb-4">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(220,38,38,0.08)" }}>
-            <Calendar size={14} style={{ color: "#DC2626" }} />
+            style={{ background: "rgba(222,26,26,0.08)" }}>
+            <Calendar size={14} style={{ color: "#de1a1a" }} />
           </div>
           <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>This Month</h3>
-          <span className="text-[11px]" style={{ color: "#9CA3AF" }}>{monthName}</span>
+          <span className="text-[11px]" style={{ color: "#83858c" }}>{monthName}</span>
           {avgHoursPerDay > 0 && avgHoursPerDay < 9 && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto"
-              style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+              style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
               ⚠ {(9 - avgHoursPerDay).toFixed(1)}h below daily target
             </span>
           )}
@@ -408,12 +408,12 @@ export default async function MemberDashboardPage() {
                 style={{ fontFamily: "var(--font-jakarta)", color: stat.color }}>
                 {stat.value}
               </p>
-              <p className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: "#9CA3AF" }}>
+              <p className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: "#83858c" }}>
                 {stat.label}
               </p>
               {stat.sub && (
                 <p className="text-[9px] mt-1 font-semibold"
-                  style={{ color: avgHoursPerDay >= 9 ? "#16A34A" : "#DC2626" }}>
+                  style={{ color: avgHoursPerDay >= 9 ? "#16A34A" : "#de1a1a" }}>
                   {stat.sub}
                 </p>
               )}

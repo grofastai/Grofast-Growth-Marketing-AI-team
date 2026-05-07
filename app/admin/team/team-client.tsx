@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useMemo, useTransition } from "react"
 import { useRouter } from "next/navigation"
@@ -120,7 +120,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
     <>
       <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }} onClick={onClose} />
       <div className="fixed right-0 top-0 h-full w-[420px] z-50 shadow-2xl flex flex-col"
-        style={{ background: "#FFFFFF", borderLeft: "1px solid rgba(220,38,38,0.15)" }}>
+        style={{ background: "#FFFFFF", borderLeft: "1px solid rgba(222,26,26,0.15)" }}>
 
         <div className="px-6 py-5 flex items-center justify-between flex-shrink-0"
           style={{ borderBottom: "1px solid #E5E7EB" }}>
@@ -128,7 +128,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
             <h2 className="text-[17px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
               {isEdit ? "Edit Member" : "Add New Member"}
             </h2>
-            <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>
+            <p className="text-[12px] mt-0.5" style={{ color: "#83858c" }}>
               {isEdit ? "Update member details" : "Create a new team member account"}
             </p>
           </div>
@@ -141,12 +141,12 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
 
-          <style>{`.sheet-input::placeholder{color:rgba(255,255,255,0.22)}.sheet-input:focus{border-color:rgba(220,38,38,0.4)!important}`}</style>
+          <style>{`.sheet-input::placeholder{color:rgba(255,255,255,0.22)}.sheet-input:focus{border-color:rgba(222,26,26,0.4)!important}`}</style>
 
           {/* Full Name */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-              style={{ color: "#9CA3AF" }}>Full Name *</label>
+              style={{ color: "#83858c" }}>Full Name *</label>
             <input className="sheet-input" value={form.name} onChange={set("name")} placeholder="e.g. Priya Sharma" style={FIELD} />
           </div>
 
@@ -154,7 +154,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {!isEdit && (
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                style={{ color: "#9CA3AF" }}>Employee ID *</label>
+                style={{ color: "#83858c" }}>Employee ID *</label>
               <input className="sheet-input" value={form.employee_id} onChange={set("employee_id")} placeholder="e.g. GF002" style={FIELD} />
               <p className="text-[11px] mt-1.5" style={{ color: "#D1D5DB" }}>Unique ID — cannot be changed later.</p>
             </div>
@@ -163,7 +163,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {/* Email */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-              style={{ color: "#9CA3AF" }}>Email Address *</label>
+              style={{ color: "#83858c" }}>Email Address *</label>
             <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com" style={FIELD} />
             <p className="text-[11px] mt-1.5" style={{ color: "#D1D5DB" }}>Used for account creation.</p>
           </div>
@@ -171,7 +171,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {/* Phone */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-              style={{ color: "#9CA3AF" }}>WhatsApp Number</label>
+              style={{ color: "#83858c" }}>WhatsApp Number</label>
             <input className="sheet-input" value={form.phone} onChange={set("phone")} placeholder="e.g. 919876543210" style={FIELD} />
             <p className="text-[11px] mt-1.5" style={{ color: "#D1D5DB" }}>Credentials will be sent here after account creation.</p>
           </div>
@@ -179,7 +179,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {/* Team */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-              style={{ color: "#9CA3AF" }}>Team *</label>
+              style={{ color: "#83858c" }}>Team *</label>
             <div className="relative">
               <select className="sheet-input" value={form.team} onChange={set("team")}
                 style={{ ...FIELD, appearance: "none", paddingRight: "36px", colorScheme: "dark" }}>
@@ -187,21 +187,21 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
                 {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
               <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: "#9CA3AF" }} />
+                style={{ color: "#83858c" }} />
             </div>
           </div>
 
           {/* Role */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-              style={{ color: "#9CA3AF" }}>Role *</label>
+              style={{ color: "#83858c" }}>Role *</label>
             <div className="flex gap-3">
               {(["MEMBER", "ADMIN"] as const).map((r) => (
                 <button key={r} type="button" onClick={() => setForm((prev) => ({ ...prev, role: r }))}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
                   style={form.role === r
-                    ? { background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(220,38,38,0.3)" }
-                    : { background: "rgba(0,0,0,0.03)", color: "#9CA3AF", border: "1px solid #E5E7EB" }
+                    ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
+                    : { background: "rgba(0,0,0,0.03)", color: "#83858c", border: "1px solid #E5E7EB" }
                   }>
                   {r === "ADMIN" ? "Admin" : "Member"}
                 </button>
@@ -212,7 +212,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {/* Employment Type */}
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-              style={{ color: "#9CA3AF" }}>Employment Type *</label>
+              style={{ color: "#83858c" }}>Employment Type *</label>
             <div className="grid grid-cols-3 gap-2">
               {([
                 { value: "regular",    label: "Regular" },
@@ -223,8 +223,8 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
                   onClick={() => setForm((prev) => ({ ...prev, employment_type: value, monthly_salary: "", hourly_rate: "", paid_leave_days: value === "regular" ? "5" : "0" }))}
                   className="py-2.5 rounded-xl text-[13px] font-semibold transition-all"
                   style={form.employment_type === value
-                    ? { background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(220,38,38,0.3)" }
-                    : { background: "rgba(0,0,0,0.03)", color: "#9CA3AF", border: "1px solid #E5E7EB" }
+                    ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
+                    : { background: "rgba(0,0,0,0.03)", color: "#83858c", border: "1px solid #E5E7EB" }
                   }>
                   {label}
                 </button>
@@ -244,7 +244,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                  style={{ color: "#9CA3AF" }}>Monthly Salary (₹)</label>
+                  style={{ color: "#83858c" }}>Monthly Salary (₹)</label>
                 <input type="number" min="0" step="500" className="sheet-input" style={FIELD}
                   placeholder="e.g. 15000"
                   value={form.monthly_salary}
@@ -252,7 +252,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
               </div>
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                  style={{ color: "#9CA3AF" }}>Paid Leave Days/Month</label>
+                  style={{ color: "#83858c" }}>Paid Leave Days/Month</label>
                 <input type="number" min="0" max="30" step="1" className="sheet-input" style={FIELD}
                   placeholder="5"
                   value={form.paid_leave_days}
@@ -262,7 +262,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           ) : (
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                style={{ color: "#9CA3AF" }}>Hourly Rate (₹)</label>
+                style={{ color: "#83858c" }}>Hourly Rate (₹)</label>
               <input type="number" min="0" step="10" className="sheet-input" style={FIELD}
                 placeholder="e.g. 150"
                 value={form.hourly_rate}
@@ -274,13 +274,13 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                style={{ color: "#9CA3AF" }}>Date of Birth</label>
+                style={{ color: "#83858c" }}>Date of Birth</label>
               <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }}
                 value={form.date_of_birth} onChange={set("date_of_birth")} />
             </div>
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                style={{ color: "#9CA3AF" }}>Work Start Date</label>
+                style={{ color: "#83858c" }}>Work Start Date</label>
               <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }}
                 value={form.joined_at} onChange={set("joined_at")} />
             </div>
@@ -290,7 +290,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           {!isEdit && (
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
-                style={{ color: "#9CA3AF" }}>Temporary Password *</label>
+                style={{ color: "#83858c" }}>Temporary Password *</label>
               <input type="text" className="sheet-input" value={form.password} onChange={set("password")}
                 placeholder="Min 6 characters" style={FIELD} />
               <p className="text-[11px] mt-1.5" style={{ color: "#D1D5DB" }}>Will be sent via WhatsApp.</p>
@@ -299,7 +299,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
 
           {error && (
             <p className="text-[12px] rounded-xl px-4 py-3"
-              style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>{error}</p>
+              style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}>{error}</p>
           )}
         </div>
 
@@ -312,7 +312,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
           </button>
           <button onClick={handleSubmit} disabled={isPending}
             className="flex-1 py-3 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
-            style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF", boxShadow: "0 4px 16px rgba(220,38,38,0.25)" }}>
+            style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", boxShadow: "0 4px 16px rgba(222,26,26,0.25)" }}>
             {isPending && <Loader2 size={13} className="animate-spin" />}
             {isEdit ? "Save Changes" : "Add Member"}
           </button>
@@ -380,11 +380,11 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
         <div>
           <h1 className="gradient-heading text-[30px] leading-tight font-black"
             style={{ fontFamily: "var(--font-jakarta)" }}>Team</h1>
-          <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>Manage your employees and their access</p>
+          <p className="text-sm mt-1" style={{ color: "#83858c" }}>Manage your employees and their access</p>
         </div>
         <button onClick={() => { setEditMember(null); setSheetOpen(true) }}
           className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all"
-          style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF", boxShadow: "0 4px 16px rgba(220,38,38,0.25)" }}>
+          style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", boxShadow: "0 4px 16px rgba(222,26,26,0.25)" }}>
           <Plus size={15} /> Add Member
         </button>
       </div>
@@ -394,8 +394,8 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
         {[
           { label: "Total Members", value: stats.total,    Icon: Users,      color: "#111111",  bg: "rgba(0,0,0,0.05)",  border: "rgba(0,0,0,0.06)" },
           { label: "Active",        value: stats.active,   Icon: UserCheck,  color: "#22C55E",  bg: "rgba(34,197,94,0.08)",    border: "rgba(34,197,94,0.15)"   },
-          { label: "Admins",        value: stats.admins,   Icon: Shield,     color: "#DC2626",  bg: "rgba(220,38,38,0.08)",    border: "rgba(220,38,38,0.15)"   },
-          { label: "Inactive",      value: stats.inactive, Icon: UserX,      color: "#9CA3AF", bg: "rgba(0,0,0,0.03)", border: "rgba(0,0,0,0.05)" },
+          { label: "Admins",        value: stats.admins,   Icon: Shield,     color: "#de1a1a",  bg: "rgba(222,26,26,0.08)",    border: "rgba(222,26,26,0.15)"   },
+          { label: "Inactive",      value: stats.inactive, Icon: UserX,      color: "#83858c", bg: "rgba(0,0,0,0.03)", border: "rgba(0,0,0,0.05)" },
         ].map(({ label, value, Icon, color, bg, border }) => (
           <div key={label} className="rounded-xl px-5 py-4 flex items-center gap-4"
             style={{ background: "#FFFFFF", border: `1px solid ${border}` }}>
@@ -406,7 +406,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
             <div>
               <p className="text-[28px] leading-none font-black"
                 style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
-              <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>{label}</p>
+              <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>{label}</p>
             </div>
           </div>
         ))}
@@ -416,7 +416,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[240px] max-w-[360px]">
           <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#9CA3AF" }} />
+            style={{ color: "#83858c" }} />
           <input value={search} onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name or ID…"
             className="w-full rounded-xl pl-9 pr-4 py-2.5 text-[13px] outline-none"
@@ -430,8 +430,8 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
             <button key={r} onClick={() => setRoleFilter(r)}
               className="px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
               style={roleFilter === r
-                ? { background: "rgba(220,38,38,0.15)", color: "#DC2626" }
-                : { color: "#9CA3AF" }
+                ? { background: "rgba(222,26,26,0.15)", color: "#de1a1a" }
+                : { color: "#83858c" }
               }>
               {r === "ALL" ? "All Roles" : r === "MEMBER" ? "Members" : "Admins"}
             </button>
@@ -444,15 +444,15 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
             <button key={s} onClick={() => setStatusFilter(s)}
               className="px-3.5 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
               style={statusFilter === s
-                ? { background: "rgba(220,38,38,0.15)", color: "#DC2626" }
-                : { color: "#9CA3AF" }
+                ? { background: "rgba(222,26,26,0.15)", color: "#de1a1a" }
+                : { color: "#83858c" }
               }>
               {s === "ALL" ? "All" : s === "active" ? "Active" : "Inactive"}
             </button>
           ))}
         </div>
 
-        <span className="ml-auto text-[12px]" style={{ color: "#9CA3AF" }}>
+        <span className="ml-auto text-[12px]" style={{ color: "#83858c" }}>
           {filtered.length} of {members.length} members
         </span>
       </div>
@@ -465,7 +465,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
             <tr style={{ borderBottom: "1px solid #E5E7EB", background: "rgba(0,0,0,0.02)" }}>
               {["Employee", "ID", "Team", "Role", "Phone", "Status", "Joined", ""].map((h) => (
                 <th key={h} className="text-left px-5 py-3.5 text-[10px] font-bold uppercase tracking-[0.18em] last:w-12"
-                  style={{ color: "#9CA3AF" }}>{h}</th>
+                  style={{ color: "#83858c" }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -479,13 +479,13 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                 <td className="px-5 py-3.5">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.2)" }}>
+                      style={{ background: "rgba(222,26,26,0.1)", border: "1px solid rgba(222,26,26,0.2)" }}>
                       <span className="text-[11px] font-bold"
-                        style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>{getInitials(member.name)}</span>
+                        style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>{getInitials(member.name)}</span>
                     </div>
                     <div>
                       <p className="text-[13px] font-semibold leading-tight" style={{ color: "#111111" }}>{member.name}</p>
-                      <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>{member.email ?? "—"}</p>
+                      <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>{member.email ?? "—"}</p>
                     </div>
                   </div>
                 </td>
@@ -504,7 +504,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                 <td className="px-5 py-3.5">
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
                     style={member.role === "ADMIN"
-                      ? { background: "rgba(220,38,38,0.1)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }
+                      ? { background: "rgba(222,26,26,0.1)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }
                       : { background: "rgba(0,0,0,0.04)", color: "#6B7280", border: "1px solid #E5E7EB" }
                     }>
                     {member.role === "ADMIN" ? <Shield size={9} /> : <User size={9} />}
@@ -513,7 +513,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                 </td>
 
                 <td className="px-5 py-3.5">
-                  <p className="text-[12px] flex items-center gap-1.5" style={{ color: "#9CA3AF" }}>
+                  <p className="text-[12px] flex items-center gap-1.5" style={{ color: "#83858c" }}>
                     <Phone size={9} style={{ color: "#D1D5DB" }} />
                     {member.phone ?? "—"}
                   </p>
@@ -523,7 +523,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
                     style={member.status === "active"
                       ? { background: "rgba(34,197,94,0.1)", color: "#22C55E", border: "1px solid rgba(34,197,94,0.2)" }
-                      : { background: "rgba(0,0,0,0.03)", color: "#9CA3AF", border: "1px solid rgba(255,255,255,0.06)" }
+                      : { background: "rgba(0,0,0,0.03)", color: "#83858c", border: "1px solid rgba(255,255,255,0.06)" }
                     }>
                     <span className="w-1.5 h-1.5 rounded-full"
                       style={{ background: member.status === "active" ? "#22C55E" : "#D1D5DB" }} />
@@ -532,7 +532,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                 </td>
 
                 <td className="px-5 py-3.5">
-                  <p className="text-[12px] flex items-center gap-1.5" style={{ color: "#9CA3AF" }}>
+                  <p className="text-[12px] flex items-center gap-1.5" style={{ color: "#83858c" }}>
                     <CalendarDays size={10} />
                     {formatDate(member.created_at)}
                   </p>
@@ -543,15 +543,15 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                     {/* Direct Edit button */}
                     <button onClick={() => { setEditMember(member); setSheetOpen(true) }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
-                      style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.15)" }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.15)"}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.08)"}>
+                      style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.15)" }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.15)"}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.08)"}>
                       <Pencil size={11} /> Edit
                     </button>
 
                     <button onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
                       className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                      style={{ color: "#9CA3AF" }}
+                      style={{ color: "#83858c" }}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(0,0,0,0.05)"}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                       <MoreVertical size={14} />
@@ -559,7 +559,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
 
                     {openDropdown === member.id && (
                       <div className="absolute right-0 top-9 w-44 rounded-xl shadow-2xl z-50 overflow-hidden py-1"
-                        style={{ background: "#F8F9FA", border: "1px solid #E5E7EB" }}>
+                        style={{ background: "#fbf5f7", border: "1px solid #E5E7EB" }}>
                         <button onClick={() => handleToggleStatus(member)} disabled={isPending}
                           className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
                           style={{ color: member.status === "active" ? "#F59E0B" : "#22C55E" }}
@@ -601,7 +601,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
           <button
             onClick={() => setShowPast(v => !v)}
             className="flex items-center gap-2 text-[13px] font-semibold mb-3 transition-all"
-            style={{ color: "#9CA3AF" }}
+            style={{ color: "#83858c" }}
           >
             <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px]"
               style={{ background: "rgba(0,0,0,0.06)" }}>
@@ -609,7 +609,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
             </span>
             Past Members
             <span className="text-[11px] px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(0,0,0,0.05)", color: "#9CA3AF" }}>
+              style={{ background: "rgba(0,0,0,0.05)", color: "#83858c" }}>
               {pastMembers.length}
             </span>
           </button>
@@ -633,7 +633,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                             style={{ background: "rgba(0,0,0,0.05)" }}>
-                            <span className="text-[10px] font-bold" style={{ color: "#9CA3AF" }}>{getInitials(m.name)}</span>
+                            <span className="text-[10px] font-bold" style={{ color: "#83858c" }}>{getInitials(m.name)}</span>
                           </div>
                           <div>
                             <p className="text-[13px] font-semibold" style={{ color: "#6B7280" }}>{m.name}</p>
@@ -643,14 +643,14 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                       </td>
                       <td className="px-5 py-3">
                         <span className="text-[12px] font-mono px-2 py-0.5 rounded"
-                          style={{ background: "rgba(0,0,0,0.03)", color: "#9CA3AF" }}>{m.employee_id}</span>
+                          style={{ background: "rgba(0,0,0,0.03)", color: "#83858c" }}>{m.employee_id}</span>
                       </td>
                       <td className="px-5 py-3">
                         <span className="text-[12px]" style={{ color: "#D1D5DB" }}>{m.team ?? "—"}</span>
                       </td>
                       <td className="px-5 py-3">
                         <span className="text-[11px] px-2 py-0.5 rounded-full"
-                          style={{ background: "rgba(0,0,0,0.04)", color: "#9CA3AF" }}>{m.role}</span>
+                          style={{ background: "rgba(0,0,0,0.04)", color: "#83858c" }}>{m.role}</span>
                       </td>
                       <td className="px-5 py-3">
                         <span className="text-[12px]" style={{ color: "#D1D5DB" }}>
@@ -673,11 +673,11 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
             onClick={() => setConfirmDelete(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-[380px] rounded-2xl shadow-2xl flex flex-col"
-              style={{ background: "#FFFFFF", border: "1px solid rgba(220,38,38,0.2)" }}>
+              style={{ background: "#FFFFFF", border: "1px solid rgba(222,26,26,0.2)" }}>
               <div className="px-6 pt-6 pb-4 flex flex-col items-center text-center gap-4">
                 <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                  style={{ background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.2)" }}>
-                  <AlertTriangle size={22} style={{ color: "#DC2626" }} />
+                  style={{ background: "rgba(222,26,26,0.1)", border: "1px solid rgba(222,26,26,0.2)" }}>
+                  <AlertTriangle size={22} style={{ color: "#de1a1a" }} />
                 </div>
                 <div>
                   <h3 className="text-[16px] font-bold" style={{ color: "#111111" }}>Delete Member</h3>
@@ -687,7 +687,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                 </div>
                 {deleteError && (
                   <p className="text-[12px] rounded-xl px-4 py-2.5 w-full"
-                    style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
+                    style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}>
                     {deleteError}
                   </p>
                 )}
@@ -700,7 +700,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                 </button>
                 <button onClick={handleDeleteConfirm} disabled={isPending}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
-                  style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF" }}>
+                  style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF" }}>
                   {isPending && <Loader2 size={13} className="animate-spin" />}
                   Delete
                 </button>

@@ -1,4 +1,4 @@
-import { ImageResponse } from 'next/og'
+﻿import { ImageResponse } from 'next/og'
 
 export const size        = { width: 180, height: 180 }
 export const contentType = 'image/png'
@@ -19,7 +19,7 @@ export default function AppleIcon() {
       >
         <span
           style={{
-            color: '#DC2626',
+            color: '#de1a1a',
             fontSize: 74,
             fontWeight: 800,
             letterSpacing: '-2px',

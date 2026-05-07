@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -29,8 +29,8 @@ const bottomNavItems = [
   { label: "Profile",    href: "/member/profile",       icon: User },
 ]
 
-const SIDEBAR_BG = "linear-gradient(160deg, #000000 0%, #520000 55%, #C90D16 100%)"
-const MOBILE_BG  = "linear-gradient(90deg, #000000 0%, #C90D16 100%)"
+const SIDEBAR_BG = "linear-gradient(160deg, #0a100d 0%, #520000 55%, #de1a1a 100%)"
+const MOBILE_BG  = "linear-gradient(90deg, #0a100d 0%, #de1a1a 100%)"
 const ACTIVE_BG  = "rgba(255,255,255,0.14)"
 const HOVER_BG   = "rgba(255,255,255,0.07)"
 const DIVIDER    = "rgba(255,255,255,0.1)"
@@ -184,7 +184,7 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
       <nav
         className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2"
         style={{
-          background: "linear-gradient(90deg, #000000 0%, #C90D16 100%)",
+          background: "linear-gradient(90deg, #0a100d 0%, #de1a1a 100%)",
           borderTop: `1px solid ${DIVIDER}`,
           height: "64px",
           paddingBottom: "env(safe-area-inset-bottom)",

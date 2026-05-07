@@ -1,4 +1,4 @@
-import type { MetadataRoute } from 'next'
+﻿import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/',
     display: 'standalone',
     background_color: '#0D0D0D',
-    theme_color: '#DC2626',
+    theme_color: '#de1a1a',
     orientation: 'portrait-primary',
     icons: [
       { src: '/apple-icon', sizes: '180x180', type: 'image/png' },

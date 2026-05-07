@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useTransition, useActionState } from "react"
 import {
@@ -22,15 +22,15 @@ interface Member { id: string; name: string; employee_id: string; team?: string 
 interface Project { id: string; business_name: string; client_name?: string | null }
 
 const STATUS_CONFIG = {
-  todo:        { label: "To Do",       color: "#9CA3AF", bg: "rgba(156,163,175,0.12)", dot: "#6B7280" },
+  todo:        { label: "To Do",       color: "#83858c", bg: "rgba(156,163,175,0.12)", dot: "#6B7280" },
   in_progress: { label: "In Progress", color: "#F59E0B", bg: "rgba(245,158,11,0.12)",  dot: "#F59E0B" },
   completed:   { label: "Completed",   color: "#16A34A", bg: "rgba(22,163,74,0.12)",   dot: "#16A34A" },
 } as const
 
 const PRIORITY_COLORS = {
-  low:    { color: "#9CA3AF", bg: "rgba(156,163,175,0.1)" },
+  low:    { color: "#83858c", bg: "rgba(156,163,175,0.1)" },
   medium: { color: "#F59E0B", bg: "rgba(245,158,11,0.1)" },
-  high:   { color: "#DC2626", bg: "rgba(220,38,38,0.12)" },
+  high:   { color: "#de1a1a", bg: "rgba(222,26,26,0.12)" },
 }
 
 function fmt(d: string) {
@@ -78,8 +78,8 @@ function TaskCard({
         <button onClick={() => onDelete(task.id)} disabled={isDeleting}
           className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5 p-0.5 rounded">
           {isDeleting
-            ? <Loader2 size={11} className="animate-spin" style={{ color: "#DC2626" }} />
-            : <Trash2 size={11} style={{ color: "rgba(220,38,38,0.5)" }} />}
+            ? <Loader2 size={11} className="animate-spin" style={{ color: "#de1a1a" }} />
+            : <Trash2 size={11} style={{ color: "rgba(222,26,26,0.5)" }} />}
         </button>
       </div>
 
@@ -105,7 +105,7 @@ function TaskCard({
         {/* Project */}
         {project && (
           <span className="text-[10px] px-1.5 py-0.5 rounded"
-            style={{ background: "rgba(220,38,38,0.07)", color: "#B91C1C" }}>
+            style={{ background: "rgba(222,26,26,0.07)", color: "#B91C1C" }}>
             {project.business_name}
           </span>
         )}
@@ -113,8 +113,8 @@ function TaskCard({
         {task.due_date && (
           <span className="flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded"
             style={{
-              background: overdue ? "rgba(220,38,38,0.08)" : "rgba(0,0,0,0.04)",
-              color: overdue ? "#DC2626" : "#6B7280",
+              background: overdue ? "rgba(222,26,26,0.08)" : "rgba(0,0,0,0.04)",
+              color: overdue ? "#de1a1a" : "#6B7280",
             }}>
             <Calendar size={9} /> {fmt(task.due_date)}{overdue ? " ⚠" : ""}
           </span>
@@ -134,12 +134,12 @@ function TaskCard({
         {next && (
           <button onClick={() => onMove(task.id, next)} disabled={isMoving}
             className="flex-1 text-[10px] font-bold py-1.5 rounded-lg transition-all"
-            style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+            style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
             {isMoving ? <Loader2 size={11} className="animate-spin mx-auto" /> : "Forward →"}
           </button>
         )}
         {!prev && !next && (
-          <p className="text-[10px] text-center w-full" style={{ color: "#9CA3AF" }}>Completed ✓</p>
+          <p className="text-[10px] text-center w-full" style={{ color: "#83858c" }}>Completed ✓</p>
         )}
       </div>
     </div>
@@ -242,14 +242,14 @@ export default function GoalsClient({
             <button onClick={() => setViewMode("member")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
               style={viewMode === "member"
-                ? { background: "#FFFFFF", color: "#DC2626", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
+                ? { background: "#FFFFFF", color: "#de1a1a", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
                 : { color: "#6B7280" }}>
               <Users size={12} /> By Member
             </button>
             <button onClick={() => setViewMode("status")}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
               style={viewMode === "status"
-                ? { background: "#FFFFFF", color: "#DC2626", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
+                ? { background: "#FFFFFF", color: "#de1a1a", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
                 : { color: "#6B7280" }}>
               <Columns size={12} /> By Status
             </button>
@@ -257,7 +257,7 @@ export default function GoalsClient({
 
           <button onClick={() => setShowForm(true)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
-            style={{ background: "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)", color: "#FFFFFF" }}>
+            style={{ background: "linear-gradient(135deg, #de1a1a 0%, #991B1B 100%)", color: "#FFFFFF" }}>
             <Plus size={14} /> Create Task
           </button>
         </div>
@@ -269,7 +269,7 @@ export default function GoalsClient({
           { label: "To Do",       count: totalByStatus.todo,        icon: Circle,      color: "#6B7280", bg: "rgba(107,114,128,0.1)" },
           { label: "In Progress", count: totalByStatus.in_progress, icon: Clock,       color: "#F59E0B", bg: "rgba(245,158,11,0.1)" },
           { label: "Completed",   count: totalByStatus.completed,   icon: CheckCircle2,color: "#16A34A", bg: "rgba(22,163,74,0.1)" },
-          { label: "Total",       count: tasks.length,              icon: Target,      color: "#DC2626", bg: "rgba(220,38,38,0.1)" },
+          { label: "Total",       count: tasks.length,              icon: Target,      color: "#de1a1a", bg: "rgba(222,26,26,0.1)" },
         ].map(({ label, count, icon: Icon, color, bg }) => (
           <div key={label} className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
             style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
@@ -292,8 +292,8 @@ export default function GoalsClient({
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-                  style={{ background: "rgba(220,38,38,0.1)" }}>
-                  <Target size={16} style={{ color: "#DC2626" }} />
+                  style={{ background: "rgba(222,26,26,0.1)" }}>
+                  <Target size={16} style={{ color: "#de1a1a" }} />
                 </div>
                 <h2 className="text-[18px] font-black" style={{ color: "#111827", fontFamily: "var(--font-jakarta)" }}>
                   Create Task
@@ -301,15 +301,15 @@ export default function GoalsClient({
               </div>
               <button onClick={() => { setShowForm(false); setSelectedMembers([]) }}
                 className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors hover:bg-gray-100"
-                style={{ color: "#9CA3AF" }}>
+                style={{ color: "#83858c" }}>
                 <X size={16} />
               </button>
             </div>
 
             <style>{`
               .task-input { outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
-              .task-input::placeholder { color: #9CA3AF; }
-              .task-input:focus { border-color: rgba(220,38,38,0.5) !important; box-shadow: 0 0 0 3px rgba(220,38,38,0.06) !important; }
+              .task-input::placeholder { color: #83858c; }
+              .task-input:focus { border-color: rgba(222,26,26,0.5) !important; box-shadow: 0 0 0 3px rgba(222,26,26,0.06) !important; }
             `}</style>
 
             <form action={(fd) => {
@@ -341,7 +341,7 @@ export default function GoalsClient({
                   style={{ color: "#374151" }}>
                   Assign To
                   {selectedMembers.length > 0 && (
-                    <span className="ml-2 normal-case text-[10px]" style={{ color: "#DC2626" }}>
+                    <span className="ml-2 normal-case text-[10px]" style={{ color: "#de1a1a" }}>
                       ({selectedMembers.length} selected)
                     </span>
                   )}
@@ -350,7 +350,7 @@ export default function GoalsClient({
                   <input key={id} type="hidden" name="assigned_to" value={id} />
                 ))}
                 {members.length === 0 ? (
-                  <p className="text-[12px] py-2" style={{ color: "#9CA3AF" }}>
+                  <p className="text-[12px] py-2" style={{ color: "#83858c" }}>
                     No team members yet — add members in Team settings
                   </p>
                 ) : (
@@ -361,12 +361,12 @@ export default function GoalsClient({
                         <button key={m.id} type="button" onClick={() => toggleMember(m.id)}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all"
                           style={selected
-                            ? { background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.35)", color: "#DC2626" }
+                            ? { background: "rgba(222,26,26,0.1)", border: "1px solid rgba(222,26,26,0.35)", color: "#de1a1a" }
                             : { background: "#F3F4F6", border: "1px solid #E5E7EB", color: "#6B7280" }
                           }>
                           <span className="w-5 h-5 rounded-full text-[9px] font-bold flex items-center justify-center flex-shrink-0"
                             style={selected
-                              ? { background: "rgba(220,38,38,0.15)", color: "#DC2626" }
+                              ? { background: "rgba(222,26,26,0.15)", color: "#de1a1a" }
                               : { background: "#E5E7EB", color: "#6B7280" }}>
                             {m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
                           </span>
@@ -415,7 +415,7 @@ export default function GoalsClient({
               </div>
 
               {state && 'error' in state && (
-                <p className="text-[12px] font-medium" style={{ color: "#DC2626" }}>{state.error}</p>
+                <p className="text-[12px] font-medium" style={{ color: "#de1a1a" }}>{state.error}</p>
               )}
 
               <div className="flex gap-3 pt-1">
@@ -426,7 +426,7 @@ export default function GoalsClient({
                 </button>
                 <button type="submit" disabled={formPending}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 transition-opacity hover:opacity-90"
-                  style={{ background: "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)", color: "#FFFFFF", opacity: formPending ? 0.65 : 1 }}>
+                  style={{ background: "linear-gradient(135deg, #de1a1a 0%, #991B1B 100%)", color: "#FFFFFF", opacity: formPending ? 0.65 : 1 }}>
                   {formPending && <Loader2 size={13} className="animate-spin" />}
                   {selectedMembers.length > 1
                     ? `Create ${selectedMembers.length} Tasks`
@@ -457,20 +457,20 @@ export default function GoalsClient({
                   style={{ borderBottom: "1px solid #F3F4F6" }}>
                   <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
                     style={col.id === "unassigned"
-                      ? { background: "#F3F4F6", color: "#9CA3AF" }
-                      : { background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+                      ? { background: "#F3F4F6", color: "#83858c" }
+                      : { background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
                     {col.initials}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-bold truncate" style={{ color: "#111827" }}>{col.label}</p>
                     {col.team && (
-                      <p className="text-[10px] truncate" style={{ color: "#9CA3AF" }}>{col.team}</p>
+                      <p className="text-[10px] truncate" style={{ color: "#83858c" }}>{col.team}</p>
                     )}
                   </div>
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
                     style={{
-                      background: col.tasks.length > 0 ? "rgba(220,38,38,0.1)" : "#F3F4F6",
-                      color: col.tasks.length > 0 ? "#DC2626" : "#9CA3AF",
+                      background: col.tasks.length > 0 ? "rgba(222,26,26,0.1)" : "#F3F4F6",
+                      color: col.tasks.length > 0 ? "#de1a1a" : "#83858c",
                     }}>
                     {col.tasks.length}
                   </span>
@@ -483,7 +483,7 @@ export default function GoalsClient({
                       style={{ background: "#F9FAFB" }}>
                       <Target size={18} style={{ color: "#D1D5DB" }} />
                     </div>
-                    <p className="text-[12px]" style={{ color: "#9CA3AF" }}>No tasks assigned</p>
+                    <p className="text-[12px]" style={{ color: "#83858c" }}>No tasks assigned</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2.5">

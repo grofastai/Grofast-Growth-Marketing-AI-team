@@ -1,4 +1,4 @@
-import { createServerClient } from "@/lib/supabase/server"
+﻿import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
@@ -70,33 +70,33 @@ export default async function UpdatePage() {
           style={{ fontFamily: "var(--font-jakarta)" }}>
           Daily Update
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>{dateStr}</p>
+        <p className="text-sm mt-1" style={{ color: "#83858c" }}>{dateStr}</p>
       </div>
 
       {/* Already-submitted summary — shown above the form so they can log more work */}
       {existing && (
         <div className="rounded-xl px-5 py-4 mb-6 flex items-center gap-4"
-          style={{ background: "rgba(220,38,38,0.04)", border: "1px solid rgba(220,38,38,0.18)" }}>
+          style={{ background: "rgba(222,26,26,0.04)", border: "1px solid rgba(222,26,26,0.18)" }}>
           <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center"
-            style={{ background: "rgba(220,38,38,0.1)" }}>
-            <CheckCircle2 size={18} style={{ color: "#DC2626" }} />
+            style={{ background: "rgba(222,26,26,0.1)" }}>
+            <CheckCircle2 size={18} style={{ color: "#de1a1a" }} />
           </div>
           <div className="flex-1">
-            <p className="text-[13px] font-bold" style={{ color: "#DC2626" }}>Update submitted today</p>
-            <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>
+            <p className="text-[13px] font-bold" style={{ color: "#de1a1a" }}>Update submitted today</p>
+            <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>
               {existing.working_hours != null ? `${existing.working_hours}h work` : ""}
               {existing.working_hours != null && existing.learning_hours ? " · " : ""}
               {existing.learning_hours ? `${existing.learning_hours}h learning` : ""}
               {entryCount > 0 ? ` · ${entryCount} entr${entryCount === 1 ? "y" : "ies"}` : ""}
             </p>
           </div>
-          <p className="text-[11px] font-semibold" style={{ color: "#9CA3AF" }}>Add more below ↓</p>
+          <p className="text-[11px] font-semibold" style={{ color: "#83858c" }}>Add more below ↓</p>
         </div>
       )}
 
       <Suspense fallback={
         <div className="flex items-center justify-center py-16">
-          <Loader2 size={20} className="animate-spin" style={{ color: "#DC2626" }} />
+          <Loader2 size={20} className="animate-spin" style={{ color: "#de1a1a" }} />
         </div>
       }>
         <DailyUpdateForm projects={projects} team={profile?.team ?? null} />

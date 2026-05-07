@@ -1,4 +1,4 @@
-export const revalidate = 3600
+﻿export const revalidate = 3600
 
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
@@ -129,7 +129,7 @@ export default async function BirthdaysPage() {
           style={{ fontFamily: "var(--font-jakarta)" }}>
           Birthdays &amp; Anniversaries
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>
+        <p className="text-sm mt-1" style={{ color: "#83858c" }}>
           Upcoming celebrations in the next 30 days
         </p>
       </div>
@@ -137,7 +137,7 @@ export default async function BirthdaysPage() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mb-7">
         {[
-          { label: "Today",             value: todayCelebrations.length, icon: PartyPopper, color: "#DC2626" },
+          { label: "Today",             value: todayCelebrations.length, icon: PartyPopper, color: "#de1a1a" },
           { label: "Birthdays (30d)",   value: birthdaysThisMonth,       icon: Cake,        color: "#F59E0B" },
           { label: "Anniversaries (30d)", value: anniversariesThisMonth, icon: Star,        color: "#6366F1" },
         ].map(s => {
@@ -147,7 +147,7 @@ export default async function BirthdaysPage() {
               style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
               <div className="flex items-center gap-2 mb-2">
                 <Icon size={13} style={{ color: s.color }} />
-                <p className="text-[10px] uppercase tracking-[0.15em] font-bold" style={{ color: "#9CA3AF" }}>
+                <p className="text-[10px] uppercase tracking-[0.15em] font-bold" style={{ color: "#83858c" }}>
                   {s.label}
                 </p>
               </div>
@@ -164,7 +164,7 @@ export default async function BirthdaysPage() {
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
           style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F0F0F0" }}>
           <Calendar size={36} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#9CA3AF" }}>No celebrations in the next 30 days</p>
+          <p className="text-[14px] font-semibold" style={{ color: "#83858c" }}>No celebrations in the next 30 days</p>
           <p className="text-[12px] mt-1" style={{ color: "#D1D5DB" }}>
             Add Date of Birth and Work Start Date in team member profiles.
           </p>
@@ -176,10 +176,10 @@ export default async function BirthdaysPage() {
           {todayCelebrations.length > 0 && (
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <PartyPopper size={14} style={{ color: "#DC2626" }} />
+                <PartyPopper size={14} style={{ color: "#de1a1a" }} />
                 <p className="text-[12px] font-bold uppercase tracking-[0.2em]"
-                  style={{ color: "#DC2626" }}>Today</p>
-                <div className="flex-1 h-px" style={{ background: "rgba(220,38,38,0.15)" }} />
+                  style={{ color: "#de1a1a" }}>Today</p>
+                <div className="flex-1 h-px" style={{ background: "rgba(222,26,26,0.15)" }} />
               </div>
               <div className="space-y-3">
                 {todayCelebrations.map(c => (
@@ -193,13 +193,13 @@ export default async function BirthdaysPage() {
           {thisWeek.length > 0 && (
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <Calendar size={13} style={{ color: "#9CA3AF" }} />
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: "#9CA3AF" }}>
+                <Calendar size={13} style={{ color: "#83858c" }} />
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: "#83858c" }}>
                   This Week
                 </p>
                 <div className="flex-1 h-px" style={{ background: "#F0F0F0" }} />
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(0,0,0,0.04)", color: "#9CA3AF" }}>
+                  style={{ background: "rgba(0,0,0,0.04)", color: "#83858c" }}>
                   {thisWeek.length}
                 </span>
               </div>
@@ -213,13 +213,13 @@ export default async function BirthdaysPage() {
           {laterThisMonth.length > 0 && (
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <Calendar size={13} style={{ color: "#9CA3AF" }} />
-                <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: "#9CA3AF" }}>
+                <Calendar size={13} style={{ color: "#83858c" }} />
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ color: "#83858c" }}>
                   Later This Month
                 </p>
                 <div className="flex-1 h-px" style={{ background: "#F0F0F0" }} />
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(0,0,0,0.04)", color: "#9CA3AF" }}>
+                  style={{ background: "rgba(0,0,0,0.04)", color: "#83858c" }}>
                   {laterThisMonth.length}
                 </span>
               </div>
@@ -247,7 +247,7 @@ export default async function BirthdaysPage() {
             <div className="flex flex-wrap gap-2">
               {noDates.map(m => (
                 <span key={m.id} className="text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                  style={{ background: "rgba(0,0,0,0.04)", color: "#9CA3AF" }}>
+                  style={{ background: "rgba(0,0,0,0.04)", color: "#83858c" }}>
                   {m.name}
                 </span>
               ))}
@@ -318,7 +318,7 @@ function CelebrationCard({ c, highlight }: { c: CelebrationEntry; highlight?: bo
           <div className="px-3 py-1.5 rounded-full text-center"
             style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #F0F0F0" }}>
             <p className="text-[16px] font-black leading-none" style={{ color }}>{c.daysUntil}</p>
-            <p className="text-[9px] font-medium" style={{ color: "#9CA3AF" }}>days</p>
+            <p className="text-[9px] font-medium" style={{ color: "#83858c" }}>days</p>
           </div>
         )}
       </div>

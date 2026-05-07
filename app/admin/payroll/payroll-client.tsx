@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useRouter, usePathname } from "next/navigation"
 import { Users, FileText } from "lucide-react"
@@ -46,7 +46,7 @@ export default function PayrollClient({
           <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
             Payroll
           </h1>
-          <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>Monthly salary breakdown for your team</p>
+          <p className="text-sm mt-1" style={{ color: "#83858c" }}>Monthly salary breakdown for your team</p>
         </div>
         {/* Month picker */}
         <div className="flex items-center gap-2">
@@ -66,7 +66,7 @@ export default function PayrollClient({
       {/* Summary chips */}
       <div className="flex flex-wrap gap-3 mb-6">
         {[
-          { label: "Total Payroll",   value: fmt(totalNet), color: "#DC2626", bg: "rgba(220,38,38,0.06)", border: "rgba(220,38,38,0.15)" },
+          { label: "Total Payroll",   value: fmt(totalNet), color: "#de1a1a", bg: "rgba(222,26,26,0.06)", border: "rgba(222,26,26,0.15)" },
           { label: "Total OT Pay",    value: fmt(totalOT),  color: "#EA580C", bg: "rgba(234,88,12,0.06)", border: "rgba(234,88,12,0.15)" },
           { label: "Total Deductions",value: fmt(totalDed), color: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
           { label: "Working Days",    value: `${workDays} days`, color: "#6B7280", bg: "#FFFFFF", border: "#E5E7EB" },
@@ -75,7 +75,7 @@ export default function PayrollClient({
           <div key={s.label} className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
             style={{ background: s.bg, border: `1px solid ${s.border}` }}>
             <span className="text-[17px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: s.color }}>{s.value}</span>
-            <span className="text-[11px]" style={{ color: "#9CA3AF" }}>{s.label}</span>
+            <span className="text-[11px]" style={{ color: "#83858c" }}>{s.label}</span>
           </div>
         ))}
       </div>
@@ -87,7 +87,7 @@ export default function PayrollClient({
             <tr style={{ background: "rgba(0,0,0,0.02)", borderBottom: "1px solid #E5E7EB" }}>
               {["Employee", "Type", "Present", "Absent", "Hours", "OT", "Base Pay", "Deduction", "OT Pay", "Net Pay", "Slip"].map(h => (
                 <th key={h} className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-[0.15em]"
-                  style={{ color: "#9CA3AF" }}>{h}</th>
+                  style={{ color: "#83858c" }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -99,7 +99,7 @@ export default function PayrollClient({
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                 <td className="px-4 py-3.5">
                   <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{r.name}</p>
-                  <p className="text-[10px]" style={{ color: "#9CA3AF" }}>#{r.employee_id}</p>
+                  <p className="text-[10px]" style={{ color: "#83858c" }}>#{r.employee_id}</p>
                 </td>
                 <td className="px-4 py-3.5">
                   <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize"
@@ -111,7 +111,7 @@ export default function PayrollClient({
                   <span className="text-[13px] font-semibold" style={{ color: "#16A34A" }}>{r.presentDays}</span>
                 </td>
                 <td className="px-4 py-3.5">
-                  <span className="text-[13px] font-semibold" style={{ color: r.absentDays > 0 ? "#DC2626" : "#D1D5DB" }}>
+                  <span className="text-[13px] font-semibold" style={{ color: r.absentDays > 0 ? "#de1a1a" : "#D1D5DB" }}>
                     {r.absentDays}
                   </span>
                 </td>
@@ -139,7 +139,7 @@ export default function PayrollClient({
                   </span>
                 </td>
                 <td className="px-4 py-3.5">
-                  <span className="text-[14px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: r.netPay > 0 ? "#DC2626" : "#9CA3AF" }}>
+                  <span className="text-[14px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: r.netPay > 0 ? "#de1a1a" : "#83858c" }}>
                     {r.netPay > 0 ? fmt(r.netPay) : "—"}
                   </span>
                 </td>
@@ -149,19 +149,19 @@ export default function PayrollClient({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                    style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.12)" }}
+                    style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}
                     title="Download Salary Slip"
                   >
-                    <FileText size={13} style={{ color: "#DC2626" }} />
+                    <FileText size={13} style={{ color: "#de1a1a" }} />
                   </a>
                 </td>
               </tr>
             ))}
 
             {/* Totals row */}
-            <tr style={{ borderTop: "2px solid #E5E7EB", background: "rgba(220,38,38,0.02)" }}>
+            <tr style={{ borderTop: "2px solid #E5E7EB", background: "rgba(222,26,26,0.02)" }}>
               <td className="px-4 py-3" colSpan={7}>
-                <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Total</span>
+                <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: "#83858c" }}>Total</span>
               </td>
               <td className="px-4 py-3">
                 <span className="text-[13px] font-bold" style={{ color: "#374151" }}>
@@ -179,7 +179,7 @@ export default function PayrollClient({
                 </span>
               </td>
               <td className="px-4 py-3">
-                <span className="text-[16px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
+                <span className="text-[16px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>
                   {fmt(totalNet)}
                 </span>
               </td>

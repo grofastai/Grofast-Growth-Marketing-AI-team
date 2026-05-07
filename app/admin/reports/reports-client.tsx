@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useRouter } from "next/navigation"
 import {
@@ -55,7 +55,7 @@ function getLongDate(dateStr: string) {
 
 // ── Section Shell ──────────────────────────────────────────────────────────────
 
-function Section({ title, icon: Icon, iconColor = "#DC2626", children }: {
+function Section({ title, icon: Icon, iconColor = "#de1a1a", children }: {
   title: string
   icon: React.ElementType
   iconColor?: string
@@ -141,11 +141,11 @@ export default function ReportsClient({
             style={{ fontFamily: "var(--font-jakarta)" }}>
             Daily Intelligence
           </h1>
-          <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>
+          <p className="text-sm mt-1" style={{ color: "#83858c" }}>
             {getLongDate(date)}
             {isToday && (
               <span className="ml-2 text-[11px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+                style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
                 Today
               </span>
             )}
@@ -173,7 +173,7 @@ export default function ReportsClient({
           {!isToday && (
             <button onClick={() => go(today)}
               className="px-3 py-2 rounded-lg text-[12px] font-bold transition-all"
-              style={{ background: "rgba(220,38,38,0.1)", border: "1px solid rgba(220,38,38,0.2)", color: "#DC2626" }}>
+              style={{ background: "rgba(222,26,26,0.1)", border: "1px solid rgba(222,26,26,0.2)", color: "#de1a1a" }}>
               Today
             </button>
           )}
@@ -186,16 +186,16 @@ export default function ReportsClient({
           { label: "Hours Worked",  value: `${totalHours.toFixed(1)}h`,    color: "#F59E0B", bg: "rgba(245,158,11,0.05)",  border: "rgba(245,158,11,0.15)",  icon: Clock },
           { label: "Shoots",        value: totalShoots,                     color: "#111111",  bg: "#FFFFFF",               border: "#E5E7EB",                 icon: Camera },
           { label: "Learning Hrs",  value: `${totalLearning.toFixed(1)}h`, color: "#6B7280", bg: "#FFFFFF", border: "#E5E7EB",                 icon: BookOpen },
-          { label: "Present",       value: presentCount,                    color: "#DC2626",  bg: "rgba(220,38,38,0.05)", border: "rgba(220,38,38,0.15)",  icon: Users },
-          { label: "Absent",        value: absentCount,                     color: absentCount > 0 ? "#FF6B57" : "#9CA3AF", bg: absentCount > 0 ? "rgba(255,107,87,0.05)" : "#FFFFFF", border: absentCount > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB", icon: UserX },
-          { label: "Not Updated",   value: notUpdatedMembers.length,        color: notUpdatedMembers.length > 0 ? "#FF6B57" : "#9CA3AF", bg: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.05)" : "#FFFFFF", border: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB", icon: AlertTriangle },
+          { label: "Present",       value: presentCount,                    color: "#de1a1a",  bg: "rgba(222,26,26,0.05)", border: "rgba(222,26,26,0.15)",  icon: Users },
+          { label: "Absent",        value: absentCount,                     color: absentCount > 0 ? "#FF6B57" : "#83858c", bg: absentCount > 0 ? "rgba(255,107,87,0.05)" : "#FFFFFF", border: absentCount > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB", icon: UserX },
+          { label: "Not Updated",   value: notUpdatedMembers.length,        color: notUpdatedMembers.length > 0 ? "#FF6B57" : "#83858c", bg: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.05)" : "#FFFFFF", border: notUpdatedMembers.length > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB", icon: AlertTriangle },
         ].map(({ label, value, color, bg, border, icon: Icon }) => (
           <div key={label} className="rounded-xl p-4 flex flex-col gap-2"
             style={{ background: bg, border: `1px solid ${border}` }}>
             <Icon size={13} style={{ color: "#D1D5DB" }} />
             <p className="text-[26px] font-black leading-none"
               style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
-            <p className="text-[10px] font-medium" style={{ color: "#9CA3AF" }}>{label}</p>
+            <p className="text-[10px] font-medium" style={{ color: "#83858c" }}>{label}</p>
           </div>
         ))}
       </div>
@@ -205,7 +205,7 @@ export default function ReportsClient({
         <div className="flex flex-col items-center justify-center py-20 rounded-xl mb-8"
           style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
           <Clock size={36} style={{ color: "rgba(0,0,0,0.05)" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#9CA3AF" }}>
+          <p className="text-[14px] font-semibold" style={{ color: "#83858c" }}>
             No updates submitted for this date
           </p>
           <p className="text-[12px] mt-1" style={{ color: "rgba(0,0,0,0.08)" }}>
@@ -235,33 +235,33 @@ export default function ReportsClient({
                       <div key={p.employee_id}
                         className="flex items-center gap-4 px-3 py-3.5 rounded-xl mb-1"
                         style={isTop
-                          ? { background: "rgba(220,38,38,0.05)", border: "1px solid rgba(220,38,38,0.1)" }
+                          ? { background: "rgba(222,26,26,0.05)", border: "1px solid rgba(222,26,26,0.1)" }
                           : {}
                         }>
                         {/* Rank */}
                         <div className="w-6 text-center flex-shrink-0">
                           {isTop
-                            ? <Zap size={14} style={{ color: "#DC2626" }} />
+                            ? <Zap size={14} style={{ color: "#de1a1a" }} />
                             : <span className="text-[11px] font-bold" style={{ color: "#D1D5DB" }}>#{i + 1}</span>
                           }
                         </div>
                         {/* Avatar */}
                         <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                           style={{
-                            background: isTop ? "rgba(220,38,38,0.12)" : "rgba(0,0,0,0.04)",
-                            border: `1px solid ${isTop ? "rgba(220,38,38,0.2)" : "rgba(0,0,0,0.06)"}`,
+                            background: isTop ? "rgba(222,26,26,0.12)" : "rgba(0,0,0,0.04)",
+                            border: `1px solid ${isTop ? "rgba(222,26,26,0.2)" : "rgba(0,0,0,0.06)"}`,
                           }}>
                           <span className="text-[10px] font-bold"
-                            style={{ color: isTop ? "#DC2626" : "#6B7280" }}>
+                            style={{ color: isTop ? "#de1a1a" : "#6B7280" }}>
                             {getInitials(p.name)}
                           </span>
                         </div>
                         {/* Info */}
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-semibold truncate" style={{ color: "#111111" }}>{p.name}</p>
-                          <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: "#F8F9FA" }}>
+                          <div className="mt-1.5 h-1.5 rounded-full overflow-hidden" style={{ background: "#fbf5f7" }}>
                             <div className="h-full rounded-full transition-all"
-                              style={{ width: `${barPct}%`, background: isTop ? "#DC2626" : "rgba(0,0,0,0.1)" }} />
+                              style={{ width: `${barPct}%`, background: isTop ? "#de1a1a" : "rgba(0,0,0,0.1)" }} />
                           </div>
                         </div>
                         {/* Stats */}
@@ -270,7 +270,7 @@ export default function ReportsClient({
                             {p.hours.toFixed(1)}h
                           </p>
                           {p.shoots > 0 && (
-                            <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
+                            <p className="text-[11px]" style={{ color: "#83858c" }}>
                               {p.shoots} shoot{p.shoots !== 1 ? "s" : ""}
                             </p>
                           )}
@@ -286,11 +286,11 @@ export default function ReportsClient({
             <Section
               title={totalProblems > 0 ? `Problems — ${totalProblems} flagged` : "Problems"}
               icon={AlertTriangle}
-              iconColor={totalProblems > 0 ? "#F59E0B" : "#DC2626"}>
+              iconColor={totalProblems > 0 ? "#F59E0B" : "#de1a1a"}>
               {totalProblems === 0 ? (
                 <div className="flex flex-col items-center py-12">
-                  <CheckCircle2 size={28} style={{ color: "rgba(220,38,38,0.2)" }} className="mb-2" />
-                  <p className="text-[13px] font-semibold" style={{ color: "rgba(220,38,38,0.6)" }}>All clear</p>
+                  <CheckCircle2 size={28} style={{ color: "rgba(222,26,26,0.2)" }} className="mb-2" />
+                  <p className="text-[13px] font-semibold" style={{ color: "rgba(222,26,26,0.6)" }}>All clear</p>
                   <p className="text-[12px] mt-1" style={{ color: "rgba(0,0,0,0.1)" }}>
                     No issues detected for this date
                   </p>
@@ -328,16 +328,16 @@ export default function ReportsClient({
               <div className="p-5 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { label: "Active Tasks",    value: totalActiveTasks,        color: "#111111",  bg: "#F8F9FA",                   border: "#E5E7EB" },
-                    { label: "Overdue Tasks",   value: overdueTasks.length,     color: overdueTasks.length > 0 ? "#FF6B57" : "#9CA3AF", bg: overdueTasks.length > 0 ? "rgba(255,107,87,0.08)" : "#F8F9FA", border: overdueTasks.length > 0 ? "rgba(255,107,87,0.18)" : "#E5E7EB" },
-                    { label: "No Activity",     value: tasksNoActivity.length,  color: tasksNoActivity.length > 0 ? "#F59E0B" : "#9CA3AF", bg: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.08)" : "#F8F9FA", border: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.18)" : "#E5E7EB" },
-                    { label: "Completion Rate", value: totalActiveTasks > 0 ? "—" : "100%", color: "#DC2626", bg: "#F8F9FA", border: "#E5E7EB" },
+                    { label: "Active Tasks",    value: totalActiveTasks,        color: "#111111",  bg: "#fbf5f7",                   border: "#E5E7EB" },
+                    { label: "Overdue Tasks",   value: overdueTasks.length,     color: overdueTasks.length > 0 ? "#FF6B57" : "#83858c", bg: overdueTasks.length > 0 ? "rgba(255,107,87,0.08)" : "#fbf5f7", border: overdueTasks.length > 0 ? "rgba(255,107,87,0.18)" : "#E5E7EB" },
+                    { label: "No Activity",     value: tasksNoActivity.length,  color: tasksNoActivity.length > 0 ? "#F59E0B" : "#83858c", bg: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.08)" : "#fbf5f7", border: tasksNoActivity.length > 0 ? "rgba(245,158,11,0.18)" : "#E5E7EB" },
+                    { label: "Completion Rate", value: totalActiveTasks > 0 ? "—" : "100%", color: "#de1a1a", bg: "#fbf5f7", border: "#E5E7EB" },
                   ].map(({ label, value, color, bg, border }) => (
                     <div key={label} className="rounded-xl px-4 py-3"
                       style={{ background: bg, border: `1px solid ${border}` }}>
                       <p className="text-[22px] font-black leading-none mb-1"
                         style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
-                      <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{label}</p>
+                      <p className="text-[10px]" style={{ color: "#83858c" }}>{label}</p>
                     </div>
                   ))}
                 </div>
@@ -363,16 +363,16 @@ export default function ReportsClient({
               <div className="p-5 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    { label: "Active Projects",   value: activeProjects,          color: "#DC2626",  bg: "rgba(220,38,38,0.05)", border: "rgba(220,38,38,0.12)" },
-                    { label: "Overdue Projects",  value: overdueProjects.length,  color: overdueProjects.length > 0 ? "#FF6B57" : "#9CA3AF", bg: overdueProjects.length > 0 ? "rgba(255,107,87,0.08)" : "#F8F9FA", border: overdueProjects.length > 0 ? "rgba(255,107,87,0.18)" : "#E5E7EB" },
-                    { label: "On Track",          value: activeProjects - overdueProjects.length, color: "#DC2626", bg: "#F8F9FA", border: "#E5E7EB" },
-                    { label: "Health Score",      value: activeProjects > 0 ? `${Math.round(((activeProjects - overdueProjects.length) / activeProjects) * 100)}%` : "—", color: "#111111", bg: "#F8F9FA", border: "#E5E7EB" },
+                    { label: "Active Projects",   value: activeProjects,          color: "#de1a1a",  bg: "rgba(222,26,26,0.05)", border: "rgba(222,26,26,0.12)" },
+                    { label: "Overdue Projects",  value: overdueProjects.length,  color: overdueProjects.length > 0 ? "#FF6B57" : "#83858c", bg: overdueProjects.length > 0 ? "rgba(255,107,87,0.08)" : "#fbf5f7", border: overdueProjects.length > 0 ? "rgba(255,107,87,0.18)" : "#E5E7EB" },
+                    { label: "On Track",          value: activeProjects - overdueProjects.length, color: "#de1a1a", bg: "#fbf5f7", border: "#E5E7EB" },
+                    { label: "Health Score",      value: activeProjects > 0 ? `${Math.round(((activeProjects - overdueProjects.length) / activeProjects) * 100)}%` : "—", color: "#111111", bg: "#fbf5f7", border: "#E5E7EB" },
                   ].map(({ label, value, color, bg, border }) => (
                     <div key={label} className="rounded-xl px-4 py-3"
                       style={{ background: bg, border: `1px solid ${border}` }}>
                       <p className="text-[22px] font-black leading-none mb-1"
                         style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
-                      <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{label}</p>
+                      <p className="text-[10px]" style={{ color: "#83858c" }}>{label}</p>
                     </div>
                   ))}
                 </div>

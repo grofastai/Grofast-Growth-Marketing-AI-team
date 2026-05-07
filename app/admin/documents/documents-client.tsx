@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useTransition, useRef } from "react"
 import { useRouter } from "next/navigation"
@@ -44,8 +44,8 @@ function formatDate(s: string) {
 }
 
 const DOC_COLOR: Record<string, string> = {
-  "Offer Letter": "#DC2626", "Contract": "#6366F1", "ID Proof": "#F59E0B",
-  "Certificate": "#16A34A", "Payslip": "#0EA5E9", "Other": "#9CA3AF",
+  "Offer Letter": "#de1a1a", "Contract": "#6366F1", "ID Proof": "#F59E0B",
+  "Certificate": "#16A34A", "Payslip": "#0EA5E9", "Other": "#83858c",
 }
 
 function InfoRow({ icon: Icon, label, value, url }: {
@@ -55,10 +55,10 @@ function InfoRow({ icon: Icon, label, value, url }: {
   return (
     <div className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>
       <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.03)" }}>
-        <Icon size={12} style={{ color: empty ? "#D1D5DB" : "#9CA3AF" }} />
+        <Icon size={12} style={{ color: empty ? "#D1D5DB" : "#83858c" }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{label}</p>
+        <p className="text-[10px] uppercase tracking-wider" style={{ color: "#83858c" }}>{label}</p>
         <p className="text-[12px] font-semibold truncate" style={{ color: empty ? "#D1D5DB" : "#111111" }}>{value || "—"}</p>
       </div>
       {url && (
@@ -68,7 +68,7 @@ function InfoRow({ icon: Icon, label, value, url }: {
           <ExternalLink size={9} /> View
         </a>
       )}
-      {empty && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(220,38,38,0.07)", color: "#DC2626" }}>—</span>}
+      {empty && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(222,26,26,0.07)", color: "#de1a1a" }}>—</span>}
     </div>
   )
 }
@@ -148,37 +148,37 @@ export default function DocumentsClient({
           <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
             Documents
           </h1>
-          <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>Upload and manage team member documents</p>
+          <p className="text-sm mt-1" style={{ color: "#83858c" }}>Upload and manage team member documents</p>
         </div>
         <button onClick={() => setShowUpload(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold"
-          style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF" }}>
+          style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF" }}>
           <Upload size={14} /> Upload Document
         </button>
       </div>
 
       {/* Member filter */}
       <div className="flex items-center gap-3 mb-5">
-        <Users size={13} style={{ color: "#9CA3AF" }} />
+        <Users size={13} style={{ color: "#83858c" }} />
         <select value={memberFilter} onChange={e => setMemberFilter(e.target.value)}
           className="text-[13px] px-3 py-2 rounded-xl outline-none"
           style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#111111" }}>
           <option value="">All Members</option>
           {members.map(m => <option key={m.id} value={m.id}>{m.name} (#{m.employee_id})</option>)}
         </select>
-        <span className="text-[12px]" style={{ color: "#9CA3AF" }}>{shown.length} documents</span>
+        <span className="text-[12px]" style={{ color: "#83858c" }}>{shown.length} documents</span>
       </div>
 
       {/* Member profile card (shown when a member is selected) */}
       {selectedMember && (
         <div className="rounded-2xl mb-6 overflow-hidden" style={{ border: "1px solid #F0F0F0" }}>
           {/* Profile header */}
-          <div className="px-5 py-4 flex items-center gap-4" style={{ background: "linear-gradient(135deg, rgba(220,38,38,0.06), rgba(220,38,38,0.02))", borderBottom: "1px solid #F0F0F0" }}>
+          <div className="px-5 py-4 flex items-center gap-4" style={{ background: "linear-gradient(135deg, rgba(222,26,26,0.06), rgba(222,26,26,0.02))", borderBottom: "1px solid #F0F0F0" }}>
             <div className="w-14 h-14 rounded-2xl overflow-hidden flex items-center justify-center font-black text-[22px] flex-shrink-0"
               style={{
-                background: selectedMember.photo_url ? "transparent" : "linear-gradient(135deg, rgba(220,38,38,0.2), rgba(220,38,38,0.06))",
-                border: "2px solid rgba(220,38,38,0.25)",
-                fontFamily: "var(--font-jakarta)", color: "#DC2626",
+                background: selectedMember.photo_url ? "transparent" : "linear-gradient(135deg, rgba(222,26,26,0.2), rgba(222,26,26,0.06))",
+                border: "2px solid rgba(222,26,26,0.25)",
+                fontFamily: "var(--font-jakarta)", color: "#de1a1a",
               }}>
               {selectedMember.photo_url
                 ? <img src={selectedMember.photo_url} alt="photo" className="w-full h-full object-cover" />
@@ -189,10 +189,10 @@ export default function DocumentsClient({
                 {selectedMember.name}
               </h2>
               <div className="flex flex-wrap gap-1.5 mt-1.5">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
                   #{selectedMember.employee_id}
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.1)", color: "#B91C1C" }}>
                   {selectedMember.role}
                 </span>
                 {selectedMember.team && (
@@ -212,7 +212,7 @@ export default function DocumentsClient({
           <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Account details */}
             <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#9CA3AF" }}>Account</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#83858c" }}>Account</p>
               <div className="space-y-1.5">
                 <InfoRow icon={Mail}      label="Email"       value={selectedMember.email} />
                 <InfoRow icon={Phone}     label="Phone"       value={selectedMember.phone} />
@@ -223,7 +223,7 @@ export default function DocumentsClient({
 
             {/* Personal details */}
             <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#9CA3AF" }}>Personal</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#83858c" }}>Personal</p>
               <div className="space-y-1.5">
                 <InfoRow icon={HeartPulse} label="Blood Group"       value={selectedMember.blood_group} />
                 <InfoRow icon={MapPin}     label="Address"           value={selectedMember.address} />
@@ -237,7 +237,7 @@ export default function DocumentsClient({
 
             {/* KYC / Bank */}
             <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#9CA3AF" }}>KYC & Bank</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#83858c" }}>KYC & Bank</p>
               <div className="space-y-1.5">
                 <InfoRow icon={Landmark}   label="Bank"       value={selectedKYC?.bank_name ?? null} />
                 <InfoRow icon={CreditCard} label="Account No" value={selectedKYC?.bank_account ? `****${selectedKYC.bank_account.slice(-4)}` : null} />
@@ -252,7 +252,7 @@ export default function DocumentsClient({
 
       {/* Documents list */}
       {selectedMember && (
-        <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-3" style={{ color: "#9CA3AF" }}>
+        <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-3" style={{ color: "#83858c" }}>
           Uploaded Documents ({shown.length})
         </p>
       )}
@@ -260,11 +260,11 @@ export default function DocumentsClient({
         <div className="flex flex-col items-center py-16 rounded-2xl"
           style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F0F0F0" }}>
           <FolderOpen size={32} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[13px] font-semibold" style={{ color: "#9CA3AF" }}>No documents uploaded yet</p>
+          <p className="text-[13px] font-semibold" style={{ color: "#83858c" }}>No documents uploaded yet</p>
           {selectedMember && (
             <button onClick={() => { setUploadFor(selectedMember.id); setShowUpload(true) }}
               className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
-              style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
+              style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}>
               <Upload size={12} /> Upload for {selectedMember.name}
             </button>
           )}
@@ -287,7 +287,7 @@ export default function DocumentsClient({
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
                       style={{ background: `${color}14`, color }}>{doc.doc_type}</span>
                   </div>
-                  <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>
+                  <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>
                     {user?.name ?? "Unknown"} #{user?.employee_id} · {formatDate(doc.created_at)}
                     {doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}
                   </p>
@@ -300,8 +300,8 @@ export default function DocumentsClient({
                   </a>
                   <button onClick={() => handleDelete(doc.id)} disabled={isPending}
                     className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                    style={{ background: "rgba(220,38,38,0.06)" }}>
-                    <Trash2 size={13} style={{ color: "#DC2626" }} />
+                    style={{ background: "rgba(222,26,26,0.06)" }}>
+                    <Trash2 size={13} style={{ color: "#de1a1a" }} />
                   </button>
                 </div>
               </div>
@@ -317,7 +317,7 @@ export default function DocumentsClient({
             onClick={() => setShowUpload(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="w-full max-w-[420px] rounded-2xl shadow-2xl"
-              style={{ background: "#FFFFFF", border: "1px solid rgba(220,38,38,0.15)" }}>
+              style={{ background: "#FFFFFF", border: "1px solid rgba(222,26,26,0.15)" }}>
               <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: "1px solid #F0F0F0" }}>
                 <h2 className="text-[16px] font-bold" style={{ color: "#111111" }}>Upload Document</h2>
                 <button onClick={() => setShowUpload(false)} className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -327,7 +327,7 @@ export default function DocumentsClient({
               </div>
               <div className="px-6 py-5 space-y-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#9CA3AF" }}>Member *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#83858c" }}>Member *</label>
                   <select value={uploadFor} onChange={e => setUploadFor(e.target.value)}
                     className="w-full text-[13px] px-3 py-2.5 rounded-xl outline-none"
                     style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}>
@@ -336,14 +336,14 @@ export default function DocumentsClient({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#9CA3AF" }}>Document Name *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#83858c" }}>Document Name *</label>
                   <input placeholder="e.g. Offer Letter May 2025"
                     className="w-full text-[13px] px-3 py-2.5 rounded-xl outline-none"
                     style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}
                     value={docName} onChange={e => setDocName(e.target.value)} />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#9CA3AF" }}>Document Type</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#83858c" }}>Document Type</label>
                   <select value={docType} onChange={e => setDocType(e.target.value)}
                     className="w-full text-[13px] px-3 py-2.5 rounded-xl outline-none"
                     style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}>
@@ -351,18 +351,18 @@ export default function DocumentsClient({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#9CA3AF" }}>File *</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#83858c" }}>File *</label>
                   <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
                     onChange={e => setFile(e.target.files?.[0] ?? null)} className="hidden" />
                   <button onClick={() => fileRef.current?.click()}
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed text-[13px] font-medium transition-all"
-                    style={{ borderColor: file ? "#DC2626" : "#E5E7EB", color: file ? "#DC2626" : "#9CA3AF", background: file ? "rgba(220,38,38,0.04)" : "#F9FAFB" }}>
+                    style={{ borderColor: file ? "#de1a1a" : "#E5E7EB", color: file ? "#de1a1a" : "#83858c", background: file ? "rgba(222,26,26,0.04)" : "#F9FAFB" }}>
                     <Upload size={14} />
                     {file ? file.name : "Click to choose file (PDF, DOC, JPG, PNG)"}
                   </button>
                 </div>
                 {uploadError && (
-                  <p className="text-[12px] px-3 py-2 rounded-lg" style={{ background: "rgba(220,38,38,0.06)", color: "#DC2626" }}>
+                  <p className="text-[12px] px-3 py-2 rounded-lg" style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>
                     {uploadError}
                   </p>
                 )}
@@ -375,7 +375,7 @@ export default function DocumentsClient({
                 </button>
                 <button onClick={handleUpload} disabled={isUploading || isPending}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 disabled:opacity-60"
-                  style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF" }}>
+                  style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF" }}>
                   {(isUploading || isPending) && <Loader2 size={13} className="animate-spin" />}
                   Upload
                 </button>

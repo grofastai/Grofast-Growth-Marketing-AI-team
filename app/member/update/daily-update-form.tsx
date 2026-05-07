@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
@@ -58,7 +58,7 @@ function newEntry(type: "shoot" | "edit" = "shoot"): WorkEntryInput {
 
 // ── Style constants ────────────────────────────────────────────
 const FIELD: React.CSSProperties = {
-  background: "#F8F9FA", border: "1px solid #E5E7EB",
+  background: "#fbf5f7", border: "1px solid #E5E7EB",
   color: "#111111", borderRadius: "10px",
   padding: "10px 14px", fontSize: "13px",
   outline: "none", width: "100%",
@@ -79,7 +79,7 @@ function ClientSelect({ projects, value, onChange, required }: {
   return (
     <div>
       <label style={LABEL}>
-        Client {required && <span style={{ color: "#DC2626" }}>*</span>}
+        Client {required && <span style={{ color: "#de1a1a" }}>*</span>}
       </label>
       {projects.length > 0 ? (
         <div className="relative">
@@ -97,7 +97,7 @@ function ClientSelect({ projects, value, onChange, required }: {
             ))}
           </select>
           <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#9CA3AF" }} />
+            style={{ color: "#83858c" }} />
         </div>
       ) : (
         <input style={FIELD} placeholder="Client name" className="du"
@@ -119,24 +119,24 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
 }) {
   return (
     <div className="rounded-2xl overflow-hidden"
-      style={{ border: "1px solid rgba(220,38,38,0.2)", boxShadow: "0 2px 8px rgba(220,38,38,0.06)" }}>
+      style={{ border: "1px solid rgba(222,26,26,0.2)", boxShadow: "0 2px 8px rgba(222,26,26,0.06)" }}>
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3"
-        style={{ background: "rgba(220,38,38,0.06)", borderBottom: "1px solid rgba(220,38,38,0.12)" }}>
+        style={{ background: "rgba(222,26,26,0.06)", borderBottom: "1px solid rgba(222,26,26,0.12)" }}>
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(220,38,38,0.15)" }}>
-            <Camera size={14} style={{ color: "#DC2626" }} />
+            style={{ background: "rgba(222,26,26,0.15)" }}>
+            <Camera size={14} style={{ color: "#de1a1a" }} />
           </div>
-          <span className="text-[13px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
+          <span className="text-[13px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>
             SHOOT {i + 1}
           </span>
         </div>
         <button type="button" onClick={onRemove}
           className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}>
-          <Trash2 size={12} style={{ color: "#DC2626" }} />
+          style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)" }}>
+          <Trash2 size={12} style={{ color: "#de1a1a" }} />
         </button>
       </div>
 
@@ -152,7 +152,7 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
         {/* Timing row */}
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label style={LABEL}>Start Time <span style={{ color: "#DC2626" }}>*</span></label>
+            <label style={LABEL}>Start Time <span style={{ color: "#de1a1a" }}>*</span></label>
             <input type="time" className="du" style={FIELD}
               value={entry.start_time}
               onChange={(e) => {
@@ -161,7 +161,7 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
               }} />
           </div>
           <div>
-            <label style={LABEL}>End Time <span style={{ color: "#DC2626" }}>*</span></label>
+            <label style={LABEL}>End Time <span style={{ color: "#de1a1a" }}>*</span></label>
             <input type="time" className="du" style={FIELD}
               value={entry.end_time}
               onChange={(e) => {
@@ -173,8 +173,8 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
             <label style={LABEL}>Duration</label>
             <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
               style={{
-                height: "42px", background: "#F8F9FA", border: "1px solid #E5E7EB",
-                color: entry.duration_hours > 0 ? "#DC2626" : "#D1D5DB",
+                height: "42px", background: "#fbf5f7", border: "1px solid #E5E7EB",
+                color: entry.duration_hours > 0 ? "#de1a1a" : "#D1D5DB",
               }}>
               {entry.duration_hours > 0 ? `${entry.duration_hours}h` : "—"}
             </div>
@@ -203,7 +203,7 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
               <option value="3+ hours">3+ hours</option>
             </select>
             <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: "#9CA3AF" }} />
+              style={{ color: "#83858c" }} />
           </div>
         </div>
 
@@ -228,7 +228,7 @@ function ShootCard({ entry, i, projects, onChange, onRemove }: {
         {/* Google Drive link — required */}
         <div>
           <label style={LABEL}>
-            Google Drive Link <span style={{ color: "#DC2626" }}>*</span>
+            Google Drive Link <span style={{ color: "#de1a1a" }}>*</span>
           </label>
           <input
             className="du"
@@ -262,15 +262,15 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
 }) {
   return (
     <div className="rounded-xl p-4 space-y-3"
-      style={{ background: "#F8F9FA", border: "1px solid #E5E7EB" }}>
+      style={{ background: "#fbf5f7", border: "1px solid #E5E7EB" }}>
 
       <div className="flex items-center justify-between">
         <span className="text-[11px] font-black uppercase tracking-[0.15em]"
           style={{ color: "#6366F1" }}>Video {index + 1}</span>
         <button type="button" onClick={onRemove}
           className="w-6 h-6 rounded-lg flex items-center justify-center"
-          style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}>
-          <Trash2 size={10} style={{ color: "#DC2626" }} />
+          style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)" }}>
+          <Trash2 size={10} style={{ color: "#de1a1a" }} />
         </button>
       </div>
 
@@ -296,7 +296,7 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
                 {projects.map((p) => <option key={p.id} value={p.id}>{p.business_name}</option>)}
               </select>
               <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: "#9CA3AF" }} />
+                style={{ color: "#83858c" }} />
             </div>
           ) : (
             <input className="du" style={FIELD} placeholder="Client name"
@@ -314,7 +314,7 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
               {VIDEO_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
             <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: "#9CA3AF" }} />
+              style={{ color: "#83858c" }} />
           </div>
         </div>
       </div>
@@ -365,15 +365,15 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
               className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all"
               style={video.drive_updated
                 ? { background: "rgba(34,197,94,0.12)", color: "#16A34A", border: "1.5px solid rgba(34,197,94,0.4)" }
-                : { background: "#FFFFFF", color: "#9CA3AF", border: "1px solid #E5E7EB" }}>
+                : { background: "#FFFFFF", color: "#83858c", border: "1px solid #E5E7EB" }}>
               <CheckCircle2 size={11} /> Yes
             </button>
             <button type="button"
               onClick={() => onChange({ drive_updated: false, drive_link: "" })}
               className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all"
               style={!video.drive_updated
-                ? { background: "rgba(239,68,68,0.08)", color: "#DC2626", border: "1.5px solid rgba(220,38,38,0.25)" }
-                : { background: "#FFFFFF", color: "#9CA3AF", border: "1px solid #E5E7EB" }}>
+                ? { background: "rgba(239,68,68,0.08)", color: "#de1a1a", border: "1.5px solid rgba(222,26,26,0.25)" }
+                : { background: "#FFFFFF", color: "#83858c", border: "1px solid #E5E7EB" }}>
               <XCircle size={11} /> No
             </button>
           </div>
@@ -384,7 +384,7 @@ function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
         <div className="space-y-1.5">
           <label style={{ ...LABEL, color: "#16A34A", marginBottom: 2 }}>
             <FolderOpen size={10} style={{ display: "inline", marginRight: 4 }} />
-            Google Drive Link <span style={{ color: "#DC2626" }}>*</span>
+            Google Drive Link <span style={{ color: "#de1a1a" }}>*</span>
           </label>
           <input
             className="du"
@@ -509,22 +509,22 @@ function GenWorkCard({ entry, index, projects, onChange, onRemove, canRemove }: 
 }) {
   return (
     <div className="rounded-2xl overflow-hidden"
-      style={{ border: "1px solid rgba(220,38,38,0.2)", boxShadow: "0 2px 8px rgba(220,38,38,0.06)" }}>
+      style={{ border: "1px solid rgba(222,26,26,0.2)", boxShadow: "0 2px 8px rgba(222,26,26,0.06)" }}>
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3"
-        style={{ background: "rgba(220,38,38,0.06)", borderBottom: "1px solid rgba(220,38,38,0.12)" }}>
+        style={{ background: "rgba(222,26,26,0.06)", borderBottom: "1px solid rgba(222,26,26,0.12)" }}>
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(220,38,38,0.15)" }}>
-            <Briefcase size={14} style={{ color: "#DC2626" }} />
+            style={{ background: "rgba(222,26,26,0.15)" }}>
+            <Briefcase size={14} style={{ color: "#de1a1a" }} />
           </div>
-          <span className="text-[13px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
+          <span className="text-[13px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>
             WORK ENTRY {index + 1}
           </span>
           {entry.duration_hours > 0 && (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(220,38,38,0.12)", color: "#DC2626" }}>
+              style={{ background: "rgba(222,26,26,0.12)", color: "#de1a1a" }}>
               {entry.duration_hours}h
             </span>
           )}
@@ -532,8 +532,8 @@ function GenWorkCard({ entry, index, projects, onChange, onRemove, canRemove }: 
         {canRemove && (
           <button type="button" onClick={onRemove}
             className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)" }}>
-            <Trash2 size={12} style={{ color: "#DC2626" }} />
+            style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)" }}>
+            <Trash2 size={12} style={{ color: "#de1a1a" }} />
           </button>
         )}
       </div>
@@ -541,7 +541,7 @@ function GenWorkCard({ entry, index, projects, onChange, onRemove, canRemove }: 
       <div className="p-4 space-y-4" style={{ background: "#FFFFFF" }}>
         {/* Title */}
         <div>
-          <label style={LABEL}>Title <span style={{ color: "#DC2626" }}>*</span></label>
+          <label style={LABEL}>Title <span style={{ color: "#de1a1a" }}>*</span></label>
           <input className="du" style={FIELD}
             placeholder="e.g. Client Strategy Meeting, Website Development, Campaign Setup…"
             value={entry.title}
@@ -559,7 +559,7 @@ function GenWorkCard({ entry, index, projects, onChange, onRemove, canRemove }: 
         {/* From / To / Duration */}
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label style={LABEL}>From <span style={{ color: "#DC2626" }}>*</span></label>
+            <label style={LABEL}>From <span style={{ color: "#de1a1a" }}>*</span></label>
             <input type="time" className="du" style={FIELD}
               value={entry.start_time}
               onChange={(e) => {
@@ -568,7 +568,7 @@ function GenWorkCard({ entry, index, projects, onChange, onRemove, canRemove }: 
               }} />
           </div>
           <div>
-            <label style={LABEL}>To <span style={{ color: "#DC2626" }}>*</span></label>
+            <label style={LABEL}>To <span style={{ color: "#de1a1a" }}>*</span></label>
             <input type="time" className="du" style={FIELD}
               value={entry.end_time}
               onChange={(e) => {
@@ -580,8 +580,8 @@ function GenWorkCard({ entry, index, projects, onChange, onRemove, canRemove }: 
             <label style={LABEL}>Duration</label>
             <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
               style={{
-                height: "42px", background: "#F8F9FA", border: "1px solid #E5E7EB",
-                color: entry.duration_hours > 0 ? "#DC2626" : "#D1D5DB",
+                height: "42px", background: "#fbf5f7", border: "1px solid #E5E7EB",
+                color: entry.duration_hours > 0 ? "#de1a1a" : "#D1D5DB",
               }}>
               {entry.duration_hours > 0 ? `${entry.duration_hours}h` : "—"}
             </div>
@@ -591,7 +591,7 @@ function GenWorkCard({ entry, index, projects, onChange, onRemove, canRemove }: 
         {/* Notes */}
         <div>
           <label style={LABEL}>
-            Notes — What did you work on? <span style={{ color: "#DC2626" }}>*</span>
+            Notes — What did you work on? <span style={{ color: "#de1a1a" }}>*</span>
           </label>
           <textarea rows={4} className="du resize-none" style={FIELD}
             placeholder="Describe clearly what you worked on, tasks completed, progress made, outcomes achieved, and any challenges faced…"
@@ -681,8 +681,8 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
   return (
     <>
       <style>{`
-        .du::placeholder { color: #9CA3AF; }
-        .du:focus { border-color: rgba(220,38,38,0.4) !important; box-shadow: 0 0 0 2px rgba(220,38,38,0.06); }
+        .du::placeholder { color: #83858c; }
+        .du:focus { border-color: rgba(222,26,26,0.4) !important; box-shadow: 0 0 0 2px rgba(222,26,26,0.06); }
         .du-sel { appearance: none; }
       `}</style>
 
@@ -693,14 +693,14 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                style={{ background: "rgba(220,38,38,0.1)" }}>
-                <Briefcase size={17} style={{ color: "#DC2626" }} />
+                style={{ background: "rgba(222,26,26,0.1)" }}>
+                <Briefcase size={17} style={{ color: "#de1a1a" }} />
               </div>
               <div>
                 <h2 className="text-[17px] font-black leading-none"
                   style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>Work Update</h2>
                 {totalWorkHours > 0 && (
-                  <p className="text-[11px] font-semibold mt-0.5" style={{ color: "#DC2626" }}>
+                  <p className="text-[11px] font-semibold mt-0.5" style={{ color: "#de1a1a" }}>
                     {totalWorkHours}h total · {entries.length} entr{entries.length === 1 ? "y" : "ies"}
                   </p>
                 )}
@@ -710,9 +710,9 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
               type="button"
               onClick={() => setEntries(prev => [...prev, newGenEntry()])}
               className="flex items-center gap-1.5 text-[12px] font-bold px-3 py-1.5 rounded-lg transition-all"
-              style={{ background: "rgba(220,38,38,0.07)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.13)"}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.07)"}>
+              style={{ background: "rgba(222,26,26,0.07)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.13)"}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.07)"}>
               <Plus size={13} /> Add Entry
             </button>
           </div>
@@ -766,7 +766,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
             <div className="p-4 space-y-4" style={{ background: "#FFFFFF" }}>
               {/* Title */}
               <div>
-                <label style={LABEL}>Title <span style={{ color: "#DC2626" }}>*</span></label>
+                <label style={LABEL}>Title <span style={{ color: "#de1a1a" }}>*</span></label>
                 <input className="du" style={FIELD}
                   placeholder="e.g. Meta Ads Strategy, SEO Techniques, Client Communication Skills…"
                   value={learning.title}
@@ -776,7 +776,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
               {/* From / To / Duration */}
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label style={LABEL}>From <span style={{ color: "#DC2626" }}>*</span></label>
+                  <label style={LABEL}>From <span style={{ color: "#de1a1a" }}>*</span></label>
                   <input type="time" className="du" style={FIELD}
                     value={learning.start_time}
                     onChange={(e) => {
@@ -785,7 +785,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
                     }} />
                 </div>
                 <div>
-                  <label style={LABEL}>To <span style={{ color: "#DC2626" }}>*</span></label>
+                  <label style={LABEL}>To <span style={{ color: "#de1a1a" }}>*</span></label>
                   <input type="time" className="du" style={FIELD}
                     value={learning.end_time}
                     onChange={(e) => {
@@ -797,7 +797,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
                   <label style={LABEL}>Duration</label>
                   <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
                     style={{
-                      height: "42px", background: "#F8F9FA", border: "1px solid #E5E7EB",
+                      height: "42px", background: "#fbf5f7", border: "1px solid #E5E7EB",
                       color: learning.duration_hours > 0 ? "#6366F1" : "#D1D5DB",
                     }}>
                     {learning.duration_hours > 0 ? `${learning.duration_hours}h` : "—"}
@@ -808,7 +808,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
               {/* Notes */}
               <div>
                 <label style={LABEL}>
-                  Notes — Key takeaways & insights <span style={{ color: "#DC2626" }}>*</span>
+                  Notes — Key takeaways & insights <span style={{ color: "#de1a1a" }}>*</span>
                 </label>
                 <textarea rows={4} className="du resize-none" style={FIELD}
                   placeholder="Explain clearly what you learned, key insights gained, resources used, and how it applies to your work…"
@@ -822,9 +822,9 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
         {/* Error */}
         {error && (
           <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl"
-            style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)" }}>
-            <AlertCircle size={15} className="flex-shrink-0 mt-0.5" style={{ color: "#DC2626" }} />
-            <span className="text-[13px]" style={{ color: "#DC2626" }}>{error}</span>
+            style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.2)" }}>
+            <AlertCircle size={15} className="flex-shrink-0 mt-0.5" style={{ color: "#de1a1a" }} />
+            <span className="text-[13px]" style={{ color: "#de1a1a" }}>{error}</span>
           </div>
         )}
 
@@ -832,9 +832,9 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
         <button type="submit" disabled={pending}
           className="w-full py-3.5 rounded-xl text-[14px] font-black flex items-center justify-center gap-2 transition-all"
           style={{
-            background: pending ? "rgba(220,38,38,0.5)" : "linear-gradient(135deg, #DC2626, #7F1D1D)",
+            background: pending ? "rgba(222,26,26,0.5)" : "linear-gradient(135deg, #de1a1a, #7F1D1D)",
             color: "#FFFFFF",
-            boxShadow: pending ? "none" : "0 4px 16px rgba(220,38,38,0.3)",
+            boxShadow: pending ? "none" : "0 4px 16px rgba(222,26,26,0.3)",
             cursor: pending ? "not-allowed" : "pointer",
           }}>
           {pending && <Loader2 size={16} className="animate-spin" />}
@@ -976,8 +976,8 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
   return (
     <>
       <style>{`
-        .du::placeholder { color: #9CA3AF; }
-        .du:focus { border-color: rgba(220,38,38,0.4) !important; box-shadow: 0 0 0 2px rgba(220,38,38,0.06); }
+        .du::placeholder { color: #83858c; }
+        .du:focus { border-color: rgba(222,26,26,0.4) !important; box-shadow: 0 0 0 2px rgba(222,26,26,0.06); }
         .du-sel { appearance: none; }
       `}</style>
 
@@ -985,27 +985,27 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
       {step === "type-select" && (
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.16em] mb-5"
-            style={{ color: "#9CA3AF" }}>What did you work on today?</p>
+            style={{ color: "#83858c" }}>What did you work on today?</p>
 
           <div className="grid grid-cols-3 gap-4">
             {/* Shooting */}
             <button type="button" onClick={() => selectType("shoot")}
               className="flex flex-col items-center justify-center gap-3 rounded-2xl transition-all"
-              style={{ aspectRatio: "1", background: "rgba(220,38,38,0.04)", border: "2px solid rgba(220,38,38,0.18)" }}
+              style={{ aspectRatio: "1", background: "rgba(222,26,26,0.04)", border: "2px solid rgba(222,26,26,0.18)" }}
               onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.1)"
-                ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(220,38,38,0.4)"
+                (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.1)"
+                ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(222,26,26,0.4)"
               }}
               onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.04)"
-                ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(220,38,38,0.18)"
+                (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.04)"
+                ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(222,26,26,0.18)"
               }}>
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                style={{ background: "rgba(220,38,38,0.12)" }}>
-                <Camera size={28} style={{ color: "#DC2626" }} />
+                style={{ background: "rgba(222,26,26,0.12)" }}>
+                <Camera size={28} style={{ color: "#de1a1a" }} />
               </div>
-              <p className="text-[15px] font-black" style={{ color: "#DC2626" }}>Shooting</p>
-              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#9CA3AF" }}>Sessions, travel & expenses</p>
+              <p className="text-[15px] font-black" style={{ color: "#de1a1a" }}>Shooting</p>
+              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#83858c" }}>Sessions, travel & expenses</p>
             </button>
 
             {/* Editing */}
@@ -1025,19 +1025,19 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
                 <Scissors size={28} style={{ color: "#6366F1" }} />
               </div>
               <p className="text-[15px] font-black" style={{ color: "#6366F1" }}>Editing</p>
-              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#9CA3AF" }}>Videos & Drive uploads</p>
+              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#83858c" }}>Videos & Drive uploads</p>
             </button>
 
             {/* Learning */}
             <button type="button" onClick={() => selectType("learning")}
               className="flex flex-col items-center justify-center gap-3 rounded-2xl transition-all"
-              style={{ aspectRatio: "1", background: "#F8F9FA", border: "2px solid #E5E7EB" }}
+              style={{ aspectRatio: "1", background: "#fbf5f7", border: "2px solid #E5E7EB" }}
               onMouseEnter={e => {
                 (e.currentTarget as HTMLElement).style.background = "#F1F5F9"
                 ;(e.currentTarget as HTMLElement).style.borderColor = "#D1D5DB"
               }}
               onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.background = "#F8F9FA"
+                (e.currentTarget as HTMLElement).style.background = "#fbf5f7"
                 ;(e.currentTarget as HTMLElement).style.borderColor = "#E5E7EB"
               }}>
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
@@ -1045,7 +1045,7 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
                 <BookOpen size={28} style={{ color: "#6B7280" }} />
               </div>
               <p className="text-[15px] font-black" style={{ color: "#6B7280" }}>Learning</p>
-              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#9CA3AF" }}>Study & skill building</p>
+              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#83858c" }}>Study & skill building</p>
             </button>
           </div>
         </div>
@@ -1056,7 +1056,7 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
         <div className="space-y-6">
           <button type="button" onClick={goBack}
             className="flex items-center gap-1.5 text-[12px] font-semibold"
-            style={{ color: "#9CA3AF" }}>
+            style={{ color: "#83858c" }}>
             <ArrowLeft size={14} /> Back
           </button>
 
@@ -1064,7 +1064,7 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
             <p className="text-[22px] font-black mb-1" style={{ color: "#111111" }}>
               {mode === "shoot" ? "How many shoots today?" : "How many videos edited?"}
             </p>
-            <p className="text-[13px]" style={{ color: "#9CA3AF" }}>
+            <p className="text-[13px]" style={{ color: "#83858c" }}>
               {mode === "shoot"
                 ? "Each shoot session gets its own card"
                 : "Each editing session gets its own card"}
@@ -1080,18 +1080,18 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
                 className="flex items-center justify-center rounded-2xl text-[24px] font-black transition-all"
                 style={{
                   height: "72px",
-                  background: mode === "shoot" ? "rgba(220,38,38,0.06)" : "rgba(99,102,241,0.06)",
-                  border: mode === "shoot" ? "2px solid rgba(220,38,38,0.18)" : "2px solid rgba(99,102,241,0.18)",
-                  color: mode === "shoot" ? "#DC2626" : "#6366F1",
+                  background: mode === "shoot" ? "rgba(222,26,26,0.06)" : "rgba(99,102,241,0.06)",
+                  border: mode === "shoot" ? "2px solid rgba(222,26,26,0.18)" : "2px solid rgba(99,102,241,0.18)",
+                  color: mode === "shoot" ? "#de1a1a" : "#6366F1",
                 }}
                 onMouseEnter={e => {
                   (e.currentTarget as HTMLElement).style.background = mode === "shoot"
-                    ? "rgba(220,38,38,0.14)" : "rgba(99,102,241,0.14)"
+                    ? "rgba(222,26,26,0.14)" : "rgba(99,102,241,0.14)"
                   ;(e.currentTarget as HTMLElement).style.transform = "scale(1.04)"
                 }}
                 onMouseLeave={e => {
                   (e.currentTarget as HTMLElement).style.background = mode === "shoot"
-                    ? "rgba(220,38,38,0.06)" : "rgba(99,102,241,0.06)"
+                    ? "rgba(222,26,26,0.06)" : "rgba(99,102,241,0.06)"
                   ;(e.currentTarget as HTMLElement).style.transform = "scale(1)"
                 }}>
                 {n}
@@ -1113,14 +1113,14 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
           <div className="flex items-center justify-between">
             <button type="button" onClick={goBack}
               className="flex items-center gap-1.5 text-[12px] font-semibold"
-              style={{ color: "#9CA3AF" }}>
+              style={{ color: "#83858c" }}>
               <ArrowLeft size={14} /> Back
             </button>
             {mode !== "learning" && (
               <div className="flex items-center gap-2">
                 {shootCount > 0 && (
                   <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
-                    style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+                    style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
                     {shootCount} Shoot{shootCount > 1 ? "s" : ""}
                   </span>
                 )}
@@ -1132,7 +1132,7 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
                 )}
                 {totalHours > 0 && (
                   <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
-                    style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>
+                    style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
                     {totalHours}h total
                   </span>
                 )}
@@ -1169,8 +1169,8 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
                 </div>
               </div>
               <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg"
-                style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.15)" }}>
-                <BookOpen size={13} style={{ color: "#DC2626" }} />
+                style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.15)" }}>
+                <BookOpen size={13} style={{ color: "#de1a1a" }} />
                 <p className="text-[12px]" style={{ color: "#6B7280" }}>
                   Learning hours count toward your daily productivity score.
                 </p>
@@ -1205,9 +1205,9 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
                   type="button"
                   onClick={() => setEntries((prev) => [...prev, newEntry("shoot")])}
                   className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[13px] font-bold transition-all"
-                  style={{ background: "rgba(220,38,38,0.05)", color: "#DC2626", border: "2px dashed rgba(220,38,38,0.22)" }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.1)"}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.05)"}>
+                  style={{ background: "rgba(222,26,26,0.05)", color: "#de1a1a", border: "2px dashed rgba(222,26,26,0.22)" }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.1)"}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.05)"}>
                   <Plus size={15} /> Add Another Shoot
                 </button>
               )}
@@ -1217,9 +1217,9 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
           {/* Error */}
           {error && (
             <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl"
-              style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.2)" }}>
-              <AlertCircle size={15} className="flex-shrink-0 mt-0.5" style={{ color: "#DC2626" }} />
-              <span className="text-[13px]" style={{ color: "#DC2626" }}>{error}</span>
+              style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.2)" }}>
+              <AlertCircle size={15} className="flex-shrink-0 mt-0.5" style={{ color: "#de1a1a" }} />
+              <span className="text-[13px]" style={{ color: "#de1a1a" }}>{error}</span>
             </div>
           )}
 
@@ -1227,9 +1227,9 @@ function MediaTeamForm({ projects }: { projects: Project[] }) {
           <button type="submit" disabled={pending}
             className="w-full py-3.5 rounded-xl text-[14px] font-black flex items-center justify-center gap-2 transition-all"
             style={{
-              background: pending ? "rgba(220,38,38,0.5)" : "linear-gradient(135deg, #DC2626, #7F1D1D)",
+              background: pending ? "rgba(222,26,26,0.5)" : "linear-gradient(135deg, #de1a1a, #7F1D1D)",
               color: "#FFFFFF",
-              boxShadow: pending ? "none" : "0 4px 16px rgba(220,38,38,0.3)",
+              boxShadow: pending ? "none" : "0 4px 16px rgba(222,26,26,0.3)",
               cursor: pending ? "not-allowed" : "pointer",
             }}>
             {pending && <Loader2 size={16} className="animate-spin" />}

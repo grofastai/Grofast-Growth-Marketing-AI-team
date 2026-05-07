@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useState, useEffect, useRef } from "react";
 import { ArrowRight, Link, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -168,7 +168,7 @@ export default function RadialOrbitalTimeline({
                 <div
                   className={`absolute rounded-full -inset-1 ${isPulsing ? "animate-pulse" : ""}`}
                   style={{
-                    background: "radial-gradient(circle, rgba(220,38,38,0.25) 0%, rgba(255,255,255,0) 70%)",
+                    background: "radial-gradient(circle, rgba(222,26,26,0.25) 0%, rgba(255,255,255,0) 70%)",
                     width: `${item.energy * 0.5 + 40}px`,
                     height: `${item.energy * 0.5 + 40}px`,
                     left: `-${(item.energy * 0.5 + 40 - 40) / 2}px`,

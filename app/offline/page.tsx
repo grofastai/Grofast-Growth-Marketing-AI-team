@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export default function OfflinePage() {
   return (
@@ -7,9 +7,9 @@ export default function OfflinePage() {
 
       <div
         className="w-20 h-20 rounded-2xl flex items-center justify-center mb-6"
-        style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.22)' }}
+        style={{ background: 'rgba(222,26,26,0.1)', border: '1px solid rgba(222,26,26,0.22)' }}
       >
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#de1a1a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <line x1="1" y1="1" x2="23" y2="23" />
           <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
           <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
@@ -31,7 +31,7 @@ export default function OfflinePage() {
         onClick={() => window.location.reload()}
         className="px-6 py-3 rounded-xl font-semibold text-sm transition-all"
         style={{
-          background: '#DC2626',
+          background: '#de1a1a',
           color: '#0D0D0D',
         }}
       >

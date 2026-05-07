@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useTransition, useRef } from "react"
 import { useRouter } from "next/navigation"
@@ -62,7 +62,7 @@ interface RecentUpdate {
 }
 
 const IS: React.CSSProperties = {
-  background: "#F8F9FA", border: "1px solid #E5E7EB", color: "#111111",
+  background: "#fbf5f7", border: "1px solid #E5E7EB", color: "#111111",
   borderRadius: "10px", padding: "10px 14px", fontSize: "13px",
   outline: "none", width: "100%",
 }
@@ -167,18 +167,18 @@ function WeekChart({ data }: { data: ChartDay[] }) {
                 {hasHours && (
                   <div className="absolute -top-5 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                     <span className="text-[10px] font-bold whitespace-nowrap px-1.5 py-0.5 rounded"
-                      style={{ background: "#E5E7EB", color: "#DC2626" }}>{day.hours}h</span>
+                      style={{ background: "#E5E7EB", color: "#de1a1a" }}>{day.hours}h</span>
                   </div>
                 )}
                 <div className="w-full rounded-t-sm" style={{ height: 64, display: "flex", alignItems: "flex-end" }}>
                   <div className="w-full rounded-sm transition-all" style={{
                     height: `${Math.max(pct, day.isFuture ? 0 : 3)}%`,
                     minHeight: !day.isFuture && hasHours ? 4 : 0,
-                    background: day.isFuture ? "transparent" : isToday ? "#DC2626" : hasHours ? "rgba(220,38,38,0.4)" : "rgba(0,0,0,0.05)",
+                    background: day.isFuture ? "transparent" : isToday ? "#de1a1a" : hasHours ? "rgba(222,26,26,0.4)" : "rgba(0,0,0,0.05)",
                   }} />
                 </div>
               </div>
-              <span className="text-[10px] font-medium" style={{ color: isToday ? "#DC2626" : "#9CA3AF" }}>{day.label}</span>
+              <span className="text-[10px] font-medium" style={{ color: isToday ? "#de1a1a" : "#83858c" }}>{day.label}</span>
             </div>
           )
         })}
@@ -334,21 +334,21 @@ export default function ProfileClient({
 
   return (
     <div className="p-6 md:p-8 max-w-[1100px]">
-      <style>{`.pf-in::placeholder{color:rgba(0,0,0,0.25);} .pf-in:focus{border-color:rgba(220,38,38,0.4)!important;}`}</style>
+      <style>{`.pf-in::placeholder{color:rgba(0,0,0,0.25);} .pf-in:focus{border-color:rgba(222,26,26,0.4)!important;}`}</style>
 
       {/* ── Page title ── */}
       <div className="mb-5">
         <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>My Profile</h1>
-        <p className="text-[13px] mt-1" style={{ color: "#9CA3AF" }}>Your identity, documents, and account settings.</p>
+        <p className="text-[13px] mt-1" style={{ color: "#83858c" }}>Your identity, documents, and account settings.</p>
       </div>
 
       {/* ── Profile Completion Banner ── */}
       {score < 100 && (
         <div className="rounded-2xl p-4 mb-5 flex items-center gap-4"
-          style={{ background: score >= 60 ? "rgba(217,119,6,0.06)" : "rgba(220,38,38,0.06)", border: `1px solid ${score >= 60 ? "rgba(217,119,6,0.2)" : "rgba(220,38,38,0.2)"}` }}>
+          style={{ background: score >= 60 ? "rgba(217,119,6,0.06)" : "rgba(222,26,26,0.06)", border: `1px solid ${score >= 60 ? "rgba(217,119,6,0.2)" : "rgba(222,26,26,0.2)"}` }}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: score >= 60 ? "rgba(217,119,6,0.12)" : "rgba(220,38,38,0.12)" }}>
-            <AlertTriangle size={16} style={{ color: score >= 60 ? "#D97706" : "#DC2626" }} />
+            style={{ background: score >= 60 ? "rgba(217,119,6,0.12)" : "rgba(222,26,26,0.12)" }}>
+            <AlertTriangle size={16} style={{ color: score >= 60 ? "#D97706" : "#de1a1a" }} />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-bold" style={{ color: "#111111" }}>
@@ -357,16 +357,16 @@ export default function ProfileClient({
             <div className="flex flex-wrap gap-1.5 mt-2">
               {completionItems.filter(i => !i.done).map(i => (
                 <span key={i.label} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>
+                  style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
                   Missing: {i.label}
                 </span>
               ))}
             </div>
           </div>
           <div className="flex-shrink-0 text-right">
-            <p className="text-[28px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: score >= 60 ? "#D97706" : "#DC2626" }}>{score}%</p>
+            <p className="text-[28px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: score >= 60 ? "#D97706" : "#de1a1a" }}>{score}%</p>
             <div className="w-20 h-1.5 rounded-full mt-1" style={{ background: "#E5E7EB" }}>
-              <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, background: score >= 60 ? "#D97706" : "#DC2626" }} />
+              <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, background: score >= 60 ? "#D97706" : "#de1a1a" }} />
             </div>
           </div>
         </div>
@@ -393,10 +393,10 @@ export default function ProfileClient({
               <div className="relative flex-shrink-0">
                 <div className="w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center font-black text-[26px]"
                   style={{
-                    background: profile?.photo_url ? "transparent" : "linear-gradient(135deg, rgba(220,38,38,0.2), rgba(220,38,38,0.06))",
-                    border: "2px solid rgba(220,38,38,0.3)",
+                    background: profile?.photo_url ? "transparent" : "linear-gradient(135deg, rgba(222,26,26,0.2), rgba(222,26,26,0.06))",
+                    border: "2px solid rgba(222,26,26,0.3)",
                     fontFamily: "var(--font-jakarta)",
-                    color: "#DC2626",
+                    color: "#de1a1a",
                   }}>
                   {profile?.photo_url
                     ? <img src={profile.photo_url} alt="photo" className="w-full h-full object-cover" />
@@ -407,7 +407,7 @@ export default function ProfileClient({
                   onClick={() => photoRef.current?.click()}
                   disabled={photoBusy}
                   className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ background: "#DC2626", border: "2px solid #FFFFFF" }}
+                  style={{ background: "#de1a1a", border: "2px solid #FFFFFF" }}
                   title="Change photo"
                 >
                   {photoBusy ? <Loader2 size={10} className="animate-spin" style={{ color: "#FFFFFF" }} /> : <Camera size={10} style={{ color: "#FFFFFF" }} />}
@@ -421,11 +421,11 @@ export default function ProfileClient({
                   <div className="space-y-2">
                     <input className="pf-in text-[15px] font-bold" style={IS} value={editName} onChange={e => setEditName(e.target.value)} placeholder="Full name" />
                     <input className="pf-in" style={IS} value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Phone number" />
-                    {editError && <p className="text-[12px]" style={{ color: "#DC2626" }}>{editError}</p>}
+                    {editError && <p className="text-[12px]" style={{ color: "#de1a1a" }}>{editError}</p>}
                     <div className="flex gap-2">
                       <button onClick={handleSave} disabled={savePending}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
-                        style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
+                        style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}>
                         {savePending ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Save
                       </button>
                       <button onClick={() => { setEditing(false); setEditName(profile?.name ?? ""); setEditPhone(profile?.phone ?? "") }}
@@ -442,21 +442,21 @@ export default function ProfileClient({
                         {profile?.name ?? authEmail.split("@")[0]}
                       </h2>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
-                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+                        <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
                           {profile?.role ?? "MEMBER"}
                         </span>
-                        <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
+                        <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.1)", color: "#B91C1C" }}>
                           #{profile?.employee_id ?? "—"}
                         </span>
                         <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
-                          style={{ background: profile?.status === "active" ? "rgba(16,185,129,0.1)" : "rgba(255,107,87,0.1)", color: profile?.status === "active" ? "#10B981" : "#DC2626" }}>
+                          style={{ background: profile?.status === "active" ? "rgba(16,185,129,0.1)" : "rgba(255,107,87,0.1)", color: profile?.status === "active" ? "#10B981" : "#de1a1a" }}>
                           {profile?.status ?? "active"}
                         </span>
                       </div>
                     </div>
                     <button onClick={() => setEditing(true)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold flex-shrink-0"
-                      style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
+                      style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}>
                       <Edit2 size={11} /> Edit
                     </button>
                   </div>
@@ -467,21 +467,21 @@ export default function ProfileClient({
             {!editing && (
               <div className="grid grid-cols-2 gap-3 mt-4 pt-4" style={{ borderTop: "1px solid #F0F0F0" }}>
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(220,38,38,0.08)" }}>
-                    <Zap size={13} style={{ color: "#DC2626" }} />
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(222,26,26,0.08)" }}>
+                    <Zap size={13} style={{ color: "#de1a1a" }} />
                   </div>
                   <div>
                     <p className="text-[16px] font-black leading-none" style={{ color: "#111111" }}>{stats.avgHoursPerDay > 0 ? `${stats.avgHoursPerDay}h` : "—"}</p>
-                    <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Avg hours/day</p>
+                    <p className="text-[10px]" style={{ color: "#83858c" }}>Avg hours/day</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(220,38,38,0.08)" }}>
-                    <Target size={13} style={{ color: "#DC2626" }} />
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(222,26,26,0.08)" }}>
+                    <Target size={13} style={{ color: "#de1a1a" }} />
                   </div>
                   <div>
                     <p className="text-[16px] font-black leading-none" style={{ color: "#111111" }}>{stats.totalCompleted}</p>
-                    <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Tasks completed</p>
+                    <p className="text-[10px]" style={{ color: "#83858c" }}>Tasks completed</p>
                   </div>
                 </div>
               </div>
@@ -490,7 +490,7 @@ export default function ProfileClient({
 
           {/* Account Details */}
           <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
-            <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4" style={{ color: "#9CA3AF" }}>Account Details</p>
+            <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4" style={{ color: "#83858c" }}>Account Details</p>
             <div className="space-y-2">
               {[
                 { icon: Mail,      label: "Email",       value: profile?.email || authEmail },
@@ -501,10 +501,10 @@ export default function ProfileClient({
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.03)" }}>
-                    <Icon size={13} style={{ color: "#9CA3AF" }} />
+                    <Icon size={13} style={{ color: "#83858c" }} />
                   </div>
                   <div className="flex-1">
-                    <p className="text-[10px] uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{label}</p>
+                    <p className="text-[10px] uppercase tracking-wider" style={{ color: "#83858c" }}>{label}</p>
                     <p className="text-[13px] font-semibold capitalize" style={{ color: "#111111" }}>{value}</p>
                   </div>
                 </div>
@@ -515,11 +515,11 @@ export default function ProfileClient({
           {/* Personal Details */}
           <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: "#9CA3AF" }}>Personal Details</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: "#83858c" }}>Personal Details</p>
               {!editPersonal && (
                 <button onClick={() => setEditPersonal(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
-                  style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
+                  style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}>
                   <Edit2 size={11} /> Edit
                 </button>
               )}
@@ -528,13 +528,13 @@ export default function ProfileClient({
             {editPersonal ? (
               <div className="space-y-3">
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Blood Group</label>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#83858c" }}>Blood Group</label>
                   <div className="flex flex-wrap gap-2">
                     {BLOOD_GROUPS.map(bg => (
                       <button key={bg} onClick={() => setPersonal(p => ({ ...p, blood_group: bg }))}
                         className="px-3 py-1.5 rounded-lg text-[12px] font-bold transition-all"
                         style={personal.blood_group === bg
-                          ? { background: "#DC2626", color: "#FFFFFF", border: "1px solid #DC2626" }
+                          ? { background: "#de1a1a", color: "#FFFFFF", border: "1px solid #de1a1a" }
                           : { background: "#F9FAFB", color: "#6B7280", border: "1px solid #E5E7EB" }}>
                         {bg}
                       </button>
@@ -542,7 +542,7 @@ export default function ProfileClient({
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Residential Address</label>
+                  <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#83858c" }}>Residential Address</label>
                   <textarea value={personal.address} onChange={e => setPersonal(p => ({ ...p, address: e.target.value }))}
                     rows={2} placeholder="Full address..."
                     className="pf-in w-full px-3 py-2.5 rounded-xl text-[13px] outline-none resize-none"
@@ -550,21 +550,21 @@ export default function ProfileClient({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Emergency Contact Name</label>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#83858c" }}>Emergency Contact Name</label>
                     <input value={personal.emergency_contact_name} onChange={e => setPersonal(p => ({ ...p, emergency_contact_name: e.target.value }))}
                       placeholder="e.g. Mother's name" className="pf-in" style={IS} />
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Emergency Phone</label>
+                    <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#83858c" }}>Emergency Phone</label>
                     <input value={personal.emergency_contact_phone} onChange={e => setPersonal(p => ({ ...p, emergency_contact_phone: e.target.value }))}
                       placeholder="Phone number" className="pf-in" style={IS} />
                   </div>
                 </div>
-                {personalError && <p className="text-[12px]" style={{ color: "#DC2626" }}>{personalError}</p>}
+                {personalError && <p className="text-[12px]" style={{ color: "#de1a1a" }}>{personalError}</p>}
                 <div className="flex gap-2 pt-1">
                   <button onClick={handlePersonalSave} disabled={personalPending}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
-                    style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF" }}>
+                    style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF" }}>
                     {personalPending ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Save
                   </button>
                   <button onClick={() => setEditPersonal(false)}
@@ -583,13 +583,13 @@ export default function ProfileClient({
                 ].map(({ icon: Icon, label, value }) => (
                   <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.03)" }}>
-                      <Icon size={13} style={{ color: value === "—" ? "#D1D5DB" : "#9CA3AF" }} />
+                      <Icon size={13} style={{ color: value === "—" ? "#D1D5DB" : "#83858c" }} />
                     </div>
                     <div className="flex-1">
-                      <p className="text-[10px] uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{label}</p>
+                      <p className="text-[10px] uppercase tracking-wider" style={{ color: "#83858c" }}>{label}</p>
                       <p className="text-[13px] font-semibold" style={{ color: value === "—" ? "#D1D5DB" : "#111111" }}>{value}</p>
                     </div>
-                    {value === "—" && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>Missing</span>}
+                    {value === "—" && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>Missing</span>}
                   </div>
                 ))}
               </div>
@@ -599,11 +599,11 @@ export default function ProfileClient({
           {/* KYC Documents */}
           <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: "#9CA3AF" }}>KYC &amp; Bank Details</p>
+              <p className="text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: "#83858c" }}>KYC &amp; Bank Details</p>
               {!editKYC && (
                 <button onClick={() => { setEditKYC(true); setKycSuccess(false) }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
-                  style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
+                  style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}>
                   <Edit2 size={11} /> Edit
                 </button>
               )}
@@ -641,17 +641,17 @@ export default function ProfileClient({
                   <p className="text-[11px] font-bold mb-2" style={{ color: "#374151" }}>Identity Details</p>
                   <div className="space-y-2">
                     <div>
-                      <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Aadhaar Number</label>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#83858c" }}>Aadhaar Number</label>
                       <input value={kycForm.aadhaar_number} onChange={e => setKYCForm(p => ({ ...p, aadhaar_number: e.target.value }))}
                         placeholder="12-digit Aadhaar number" maxLength={14} className="pf-in" style={IS} />
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>PAN Number</label>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#83858c" }}>PAN Number</label>
                       <input value={kycForm.pan_number} onChange={e => setKYCForm(p => ({ ...p, pan_number: e.target.value.toUpperCase() }))}
                         placeholder="e.g. ABCDE1234F" maxLength={10} className="pf-in" style={IS} />
                     </div>
                     <div>
-                      <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#9CA3AF" }}>Aadhaar Photo <span style={{ color: "#DC2626" }}>*</span></label>
+                      <label className="text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5 block" style={{ color: "#83858c" }}>Aadhaar Photo <span style={{ color: "#de1a1a" }}>*</span></label>
                       <DocUploadButton
                         label="Upload Aadhaar Photo (required)"
                         url={kycForm.govt_id_url}
@@ -673,11 +673,11 @@ export default function ProfileClient({
                   />
                 </div>
 
-                {kycError && <p className="text-[12px]" style={{ color: "#DC2626" }}>{kycError}</p>}
+                {kycError && <p className="text-[12px]" style={{ color: "#de1a1a" }}>{kycError}</p>}
                 <div className="flex gap-2 pt-1">
                   <button onClick={handleKYCSave} disabled={kycPending}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
-                    style={{ background: "linear-gradient(135deg, #DC2626, #7F1D1D)", color: "#FFFFFF" }}>
+                    style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF" }}>
                     {kycPending ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} />} Save
                   </button>
                   <button onClick={() => setEditKYC(false)}
@@ -699,10 +699,10 @@ export default function ProfileClient({
                 ].map(({ icon: Icon, label, value, url }) => (
                   <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.03)" }}>
-                      <Icon size={13} style={{ color: value === "—" ? "#D1D5DB" : "#9CA3AF" }} />
+                      <Icon size={13} style={{ color: value === "—" ? "#D1D5DB" : "#83858c" }} />
                     </div>
                     <div className="flex-1">
-                      <p className="text-[10px] uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{label}</p>
+                      <p className="text-[10px] uppercase tracking-wider" style={{ color: "#83858c" }}>{label}</p>
                       <p className="text-[13px] font-semibold" style={{ color: value === "—" ? "#D1D5DB" : "#111111" }}>{value}</p>
                     </div>
                     {url && (
@@ -712,7 +712,7 @@ export default function ProfileClient({
                         <CheckCircle2 size={11} /> View
                       </a>
                     )}
-                    {!url && value === "—" && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>Missing</span>}
+                    {!url && value === "—" && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>Missing</span>}
                   </div>
                 ))}
               </div>
@@ -721,19 +721,19 @@ export default function ProfileClient({
 
           {/* Account Actions */}
           <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
-            <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4" style={{ color: "#9CA3AF" }}>Account Actions</p>
+            <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4" style={{ color: "#83858c" }}>Account Actions</p>
             <div className="space-y-2">
               <button onClick={() => router.push("/change-password")}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
-                style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.15)" }}>
+                style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.15)" }}>
                 <KeyRound size={15} style={{ color: "#B91C1C" }} />
                 <span className="text-[13px] font-semibold" style={{ color: "#B91C1C" }}>Change Password</span>
               </button>
               <button onClick={() => startLogout(async () => { await logoutAction() })} disabled={logoutPending}
                 className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
                 style={{ background: "rgba(255,107,87,0.06)", border: "1px solid rgba(255,107,87,0.15)" }}>
-                {logoutPending ? <Loader2 size={15} className="animate-spin" style={{ color: "#DC2626" }} /> : <LogOut size={15} style={{ color: "#DC2626" }} />}
-                <span className="text-[13px] font-semibold" style={{ color: "#DC2626" }}>{logoutPending ? "Signing out…" : "Sign Out"}</span>
+                {logoutPending ? <Loader2 size={15} className="animate-spin" style={{ color: "#de1a1a" }} /> : <LogOut size={15} style={{ color: "#de1a1a" }} />}
+                <span className="text-[13px] font-semibold" style={{ color: "#de1a1a" }}>{logoutPending ? "Signing out…" : "Sign Out"}</span>
               </button>
             </div>
           </div>
@@ -745,8 +745,8 @@ export default function ProfileClient({
             <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-4" style={{ color: "#D1D5DB" }}>This Week</p>
             <div className="space-y-3">
               {[
-                { icon: Clock,       label: "Hours Worked",    value: stats.weekHours > 0 ? `${stats.weekHours}h` : "—", color: "#DC2626", bg: "rgba(220,38,38,0.08)" },
-                { icon: Target,      label: "Tasks Completed", value: stats.totalCompleted, color: "#DC2626", bg: "rgba(220,38,38,0.08)" },
+                { icon: Clock,       label: "Hours Worked",    value: stats.weekHours > 0 ? `${stats.weekHours}h` : "—", color: "#de1a1a", bg: "rgba(222,26,26,0.08)" },
+                { icon: Target,      label: "Tasks Completed", value: stats.totalCompleted, color: "#de1a1a", bg: "rgba(222,26,26,0.08)" },
                 { icon: AlertCircle, label: "Missed Updates",  value: stats.weekMissed, color: stats.weekMissed > 0 ? "#F59E0B" : "#10B981", bg: stats.weekMissed > 0 ? "rgba(245,158,11,0.08)" : "rgba(16,185,129,0.08)" },
                 { icon: TrendingUp,  label: "Leave Requests",  value: stats.totalLeaves, color: "#6B7280", bg: "rgba(0,0,0,0.03)" },
               ].map(({ icon: Icon, label, value, color, bg }) => (
@@ -754,7 +754,7 @@ export default function ProfileClient({
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: bg }}>
                     <Icon size={13} style={{ color }} />
                   </div>
-                  <div className="flex-1"><p className="text-[11px]" style={{ color: "#9CA3AF" }}>{label}</p></div>
+                  <div className="flex-1"><p className="text-[11px]" style={{ color: "#83858c" }}>{label}</p></div>
                   <p className="text-[16px] font-black" style={{ fontFamily: "var(--font-jakarta)", color }}>{value}</p>
                 </div>
               ))}
@@ -773,10 +773,10 @@ export default function ProfileClient({
               <div className="space-y-2.5">
                 {recentUpdates.map((upd) => (
                   <div key={upd.date} className="flex items-start gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: "#DC2626" }} />
+                    <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: "#de1a1a" }} />
                     <div className="flex-1">
                       <p className="text-[12px] font-semibold" style={{ color: "#111111" }}>{relativeDate(upd.date)}</p>
-                      <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
+                      <p className="text-[11px]" style={{ color: "#83858c" }}>
                         {upd.working_hours != null ? `${upd.working_hours}h worked` : "Update submitted"}
                         {upd.shoot_count && upd.shoot_count > 0 ? ` · ${upd.shoot_count} shoot${upd.shoot_count !== 1 ? "s" : ""}` : ""}
                       </p>
@@ -802,7 +802,7 @@ function DocUploadButton({ label, url, loading, onFile }: {
         onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f) }} />
       <button onClick={() => ref.current?.click()} disabled={loading}
         className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed text-[13px] font-medium transition-all"
-        style={{ borderColor: url ? "#16A34A" : "#E5E7EB", color: url ? "#16A34A" : "#9CA3AF", background: url ? "rgba(22,163,74,0.04)" : "#F9FAFB" }}>
+        style={{ borderColor: url ? "#16A34A" : "#E5E7EB", color: url ? "#16A34A" : "#83858c", background: url ? "rgba(22,163,74,0.04)" : "#F9FAFB" }}>
         {loading ? <Loader2 size={14} className="animate-spin" /> : url ? <CheckCircle2 size={14} /> : <Upload size={14} />}
         {loading ? "Uploading…" : url ? "Uploaded — click to replace" : label}
       </button>

@@ -1,4 +1,4 @@
-export const revalidate = 60
+﻿export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
@@ -90,7 +90,7 @@ export default async function ShootsPage() {
           style={{ fontFamily: "var(--font-jakarta)" }}>
           Shoot Log
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>
+        <p className="text-sm mt-1" style={{ color: "#83858c" }}>
           All your shoot sessions logged from daily updates
         </p>
       </div>
@@ -99,7 +99,7 @@ export default async function ShootsPage() {
       <div className="grid grid-cols-3 gap-3 mb-6">
         {[
           { label: "Total Shoots",       value: totalShoots,                            icon: Camera, color: "#F59E0B" },
-          { label: "Shoot Hours",        value: totalHours > 0 ? `${totalHours}h` : "—", icon: Clock,  color: "#DC2626" },
+          { label: "Shoot Hours",        value: totalHours > 0 ? `${totalHours}h` : "—", icon: Clock,  color: "#de1a1a" },
           { label: "Clients Shot For",   value: uniqueClients,                          icon: Users,  color: "#6366F1" },
         ].map(s => {
           const Icon = s.icon
@@ -108,7 +108,7 @@ export default async function ShootsPage() {
               style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
               <div className="flex items-center gap-2 mb-2">
                 <Icon size={13} style={{ color: s.color }} />
-                <p className="text-[10px] uppercase tracking-[0.15em] font-bold" style={{ color: "#9CA3AF" }}>
+                <p className="text-[10px] uppercase tracking-[0.15em] font-bold" style={{ color: "#83858c" }}>
                   {s.label}
                 </p>
               </div>
@@ -125,7 +125,7 @@ export default async function ShootsPage() {
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
           style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F0F0F0" }}>
           <Camera size={36} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#9CA3AF" }}>No shoots logged yet</p>
+          <p className="text-[14px] font-semibold" style={{ color: "#83858c" }}>No shoots logged yet</p>
           <p className="text-[12px] mt-1" style={{ color: "#D1D5DB" }}>
             Add shoot entries in your daily update to see them here.
           </p>
@@ -155,7 +155,7 @@ export default async function ShootsPage() {
                       </div>
                       <div className="flex items-center gap-3">
                         {c.hours > 0 && (
-                          <span className="text-[11px] font-medium" style={{ color: "#9CA3AF" }}>{c.hours}h</span>
+                          <span className="text-[11px] font-medium" style={{ color: "#83858c" }}>{c.hours}h</span>
                         )}
                         <span className="text-[12px] font-bold px-2 py-0.5 rounded-full"
                           style={{ background: "rgba(245,158,11,0.1)", color: "#F59E0B" }}>
@@ -182,7 +182,7 @@ export default async function ShootsPage() {
                   <div className="flex items-center gap-3 mb-4">
                     <CalendarDays size={13} style={{ color: "#F59E0B" }} />
                     <p className="text-[11px] font-bold uppercase tracking-[0.2em]"
-                      style={{ color: "#9CA3AF" }}>{month}</p>
+                      style={{ color: "#83858c" }}>{month}</p>
                     <div className="flex-1 h-px" style={{ background: "#F0F0F0" }} />
                     {monthHrs > 0 && (
                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
@@ -217,7 +217,7 @@ export default async function ShootsPage() {
                                     style={{ color: "#F59E0B" }}>{s.duration_hours}h</span>
                                 )}
                               </div>
-                              <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>{formatDate(s.date)}</p>
+                              <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>{formatDate(s.date)}</p>
                               {s.notes && (
                                 <p className="text-[11px] mt-2 line-clamp-2 leading-relaxed"
                                   style={{ color: "#6B7280" }}>{s.notes}</p>

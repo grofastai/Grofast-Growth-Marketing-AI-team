@@ -1,11 +1,11 @@
-"use client"
+﻿"use client"
 
 import { useState, useMemo } from "react"
 import { Search, ChevronDown, MapPin, Calendar, User, Briefcase } from "lucide-react"
 import type { SheetClient } from "@/lib/google/sheets"
 
 const INDUSTRY_COLORS: Record<string, { bg: string; color: string }> = {
-  default: { bg: "rgba(220,38,38,0.08)", color: "#B91C1C" },
+  default: { bg: "rgba(222,26,26,0.08)", color: "#B91C1C" },
 }
 
 function getIndustryStyle(industry: string) {
@@ -14,7 +14,7 @@ function getIndustryStyle(industry: string) {
 
 function ClientCard({ c, type }: { c: SheetClient; type: "active" | "past" }) {
   const isActive = type === "active"
-  const accentColor = isActive ? "#DC2626" : "#9CA3AF"
+  const accentColor = isActive ? "#de1a1a" : "#83858c"
   const ind = getIndustryStyle(c.industry)
 
   return (
@@ -29,8 +29,8 @@ function ClientCard({ c, type }: { c: SheetClient; type: "active" | "past" }) {
     >
       {/* Accent top bar */}
       <div style={{ height: "3px", background: isActive
-        ? "linear-gradient(90deg, #DC2626 0%, #F87171 100%)"
-        : "linear-gradient(90deg, #9CA3AF 0%, #D1D5DB 100%)" }} />
+        ? "linear-gradient(90deg, #de1a1a 0%, #F87171 100%)"
+        : "linear-gradient(90deg, #83858c 0%, #D1D5DB 100%)" }} />
 
       <div className="p-5 flex flex-col gap-3 flex-1">
 
@@ -46,7 +46,7 @@ function ClientCard({ c, type }: { c: SheetClient; type: "active" | "past" }) {
           </div>
           {c.sno && (
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-              style={{ background: "#F3F4F6", color: "#9CA3AF" }}>
+              style={{ background: "#F3F4F6", color: "#83858c" }}>
               #{c.sno}
             </span>
           )}
@@ -60,7 +60,7 @@ function ClientCard({ c, type }: { c: SheetClient; type: "active" | "past" }) {
           </h3>
           {c.customer_name && (
             <div className="flex items-center gap-1.5 mt-1">
-              <User size={10} style={{ color: "#9CA3AF" }} />
+              <User size={10} style={{ color: "#83858c" }} />
               <p className="text-[12px]" style={{ color: "#6B7280" }}>{c.customer_name}</p>
             </div>
           )}
@@ -70,7 +70,7 @@ function ClientCard({ c, type }: { c: SheetClient; type: "active" | "past" }) {
         <div className="flex flex-wrap gap-1.5">
           {c.service && (
             <span className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
-              style={{ background: "rgba(220,38,38,0.07)", color: "#B91C1C" }}>
+              style={{ background: "rgba(222,26,26,0.07)", color: "#B91C1C" }}>
               {c.service}
             </span>
           )}
@@ -89,20 +89,20 @@ function ClientCard({ c, type }: { c: SheetClient; type: "active" | "past" }) {
         <div className="flex flex-col gap-1.5">
           {c.period && (
             <div className="flex items-center gap-2">
-              <Briefcase size={10} style={{ color: "#9CA3AF" }} />
+              <Briefcase size={10} style={{ color: "#83858c" }} />
               <span className="text-[11px] font-semibold" style={{ color: "#374151" }}>{c.period}</span>
             </div>
           )}
           {c.place && (
             <div className="flex items-center gap-2">
-              <MapPin size={10} style={{ color: "#9CA3AF" }} />
+              <MapPin size={10} style={{ color: "#83858c" }} />
               <span className="text-[11px]" style={{ color: "#6B7280" }}>{c.place}</span>
             </div>
           )}
           {c.onboarded_month && (
             <div className="flex items-center gap-2">
-              <Calendar size={10} style={{ color: "#9CA3AF" }} />
-              <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Since {c.onboarded_month}</span>
+              <Calendar size={10} style={{ color: "#83858c" }} />
+              <span className="text-[11px]" style={{ color: "#83858c" }}>Since {c.onboarded_month}</span>
             </div>
           )}
         </div>
@@ -169,7 +169,7 @@ export default function ClientsSheetView({
       <div className="mb-6">
         <h1 className="gradient-heading text-[30px] font-black leading-tight"
           style={{ fontFamily: "var(--font-jakarta)" }}>Clients</h1>
-        <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>
+        <p className="text-sm mt-1" style={{ color: "#83858c" }}>
           Synced from Google Sheets · auto-updates every 60 s
         </p>
       </div>
@@ -213,7 +213,7 @@ export default function ClientsSheetView({
           <button onClick={() => onTabChange("active")}
             className="px-4 py-2 rounded-lg text-[12px] font-bold transition-all"
             style={tab === "active"
-              ? { background: "#FFFFFF", color: "#DC2626", boxShadow: "0 1px 4px rgba(0,0,0,0.1)" }
+              ? { background: "#FFFFFF", color: "#de1a1a", boxShadow: "0 1px 4px rgba(0,0,0,0.1)" }
               : { color: "#6B7280" }}>
             Active · {activeClients.length}
           </button>
@@ -229,7 +229,7 @@ export default function ClientsSheetView({
         {/* Search */}
         <div className="relative flex-1 min-w-[180px] max-w-[260px]">
           <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#9CA3AF" }} />
+            style={{ color: "#83858c" }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search…"
             className="w-full pl-9 pr-4 py-2 rounded-xl text-[12px] outline-none"
@@ -243,7 +243,7 @@ export default function ClientsSheetView({
               {industries.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
             <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: "#9CA3AF" }} />
+              style={{ color: "#83858c" }} />
           </div>
         )}
 
@@ -254,11 +254,11 @@ export default function ClientsSheetView({
               {places.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
             <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: "#9CA3AF" }} />
+              style={{ color: "#83858c" }} />
           </div>
         )}
 
-        <span className="ml-auto text-[11px] font-medium" style={{ color: "#9CA3AF" }}>
+        <span className="ml-auto text-[11px] font-medium" style={{ color: "#83858c" }}>
           {filtered.length} of {allClients.length}
         </span>
       </div>
@@ -268,7 +268,7 @@ export default function ClientsSheetView({
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
           style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
           <Search size={32} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[13px] font-semibold" style={{ color: "#9CA3AF" }}>No clients match your filter</p>
+          <p className="text-[13px] font-semibold" style={{ color: "#83858c" }}>No clients match your filter</p>
         </div>
       ) : (
         <div className="grid gap-4"

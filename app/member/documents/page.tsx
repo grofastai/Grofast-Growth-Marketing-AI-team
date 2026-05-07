@@ -1,4 +1,4 @@
-export const revalidate = 60
+﻿export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
@@ -15,12 +15,12 @@ type Doc = {
 }
 
 const DOC_TYPE_COLOR: Record<string, { color: string; bg: string }> = {
-  "Offer Letter":  { color: "#DC2626", bg: "rgba(220,38,38,0.08)"  },
+  "Offer Letter":  { color: "#de1a1a", bg: "rgba(222,26,26,0.08)"  },
   "Contract":      { color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
   "ID Proof":      { color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
   "Certificate":   { color: "#16A34A", bg: "rgba(22,163,74,0.08)"  },
   "Payslip":       { color: "#0EA5E9", bg: "rgba(14,165,233,0.08)" },
-  "Other":         { color: "#9CA3AF", bg: "rgba(0,0,0,0.04)"      },
+  "Other":         { color: "#83858c", bg: "rgba(0,0,0,0.04)"      },
 }
 
 function formatSize(bytes: number | null) {
@@ -60,7 +60,7 @@ export default async function MemberDocumentsPage() {
       <div className="mb-7">
         <h1 className="gradient-heading text-[30px] font-black leading-tight"
           style={{ fontFamily: "var(--font-jakarta)" }}>My Documents</h1>
-        <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>
+        <p className="text-sm mt-1" style={{ color: "#83858c" }}>
           Documents shared with you by your admin
         </p>
       </div>
@@ -69,7 +69,7 @@ export default async function MemberDocumentsPage() {
         <div className="flex flex-col items-center py-24 rounded-2xl"
           style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F0F0F0" }}>
           <FolderOpen size={36} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#9CA3AF" }}>No documents yet</p>
+          <p className="text-[14px] font-semibold" style={{ color: "#83858c" }}>No documents yet</p>
           <p className="text-[12px] mt-1" style={{ color: "#D1D5DB" }}>
             Your admin will upload documents here when available.
           </p>
@@ -98,12 +98,12 @@ export default async function MemberDocumentsPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] font-semibold truncate" style={{ color: "#111111" }}>{doc.name}</p>
-                        <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>
+                        <p className="text-[11px] mt-0.5" style={{ color: "#83858c" }}>
                           {formatDate(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}
                         </p>
                       </div>
                       <Download size={14} className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                        style={{ color: "#9CA3AF" }} />
+                        style={{ color: "#83858c" }} />
                     </a>
                   ))}
                 </div>

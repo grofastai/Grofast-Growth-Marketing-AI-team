@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useRouter, usePathname } from "next/navigation"
 import { useState } from "react"
@@ -35,7 +35,7 @@ export default function DashboardFilterBar({
           onClick={() => { setShowCustom(false); apply(f) }}
           className="px-4 py-2 rounded-lg text-[12px] font-bold capitalize transition-all"
           style={currentFilter === f && !showCustom
-            ? { background: "#DC2626", color: "#FFFFFF" }
+            ? { background: "#de1a1a", color: "#FFFFFF" }
             : { background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.15)" }
           }>
           {f.charAt(0).toUpperCase() + f.slice(1)}
@@ -46,7 +46,7 @@ export default function DashboardFilterBar({
         onClick={() => setShowCustom((v) => !v)}
         className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold transition-all"
         style={currentFilter === "custom"
-          ? { background: "#DC2626", color: "#FFFFFF" }
+          ? { background: "#de1a1a", color: "#FFFFFF" }
           : { background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.15)" }
         }>
         <Calendar size={12} /> Custom Range

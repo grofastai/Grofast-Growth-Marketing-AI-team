@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useActionState, useState } from 'react'
 import { changePasswordAction } from '@/lib/actions/auth'
@@ -39,7 +39,7 @@ export function ChangePasswordForm() {
     <>
       <style>{`
         .cp-input::placeholder { color: rgba(255,255,255,0.22); }
-        .cp-input:focus { border-color: rgba(220,38,38,0.5) !important; background: #1E1E1E !important; }
+        .cp-input:focus { border-color: rgba(222,26,26,0.5) !important; background: #1E1E1E !important; }
       `}</style>
 
       <form action={action} className="space-y-4">
@@ -105,7 +105,7 @@ export function ChangePasswordForm() {
           disabled={pending}
           className="w-full font-bold rounded-lg py-3.5 text-[14px] transition-all"
           style={{
-            background: '#DC2626',
+            background: '#de1a1a',
             color: '#FFFFFF',
             opacity: pending ? 0.65 : 1,
             cursor: pending ? 'not-allowed' : 'pointer',

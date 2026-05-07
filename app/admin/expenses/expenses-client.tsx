@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
@@ -21,7 +21,7 @@ type Expense = {
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }> = {
   pending:  { label: "Pending",  color: "#F59E0B", bg: "rgba(245,158,11,0.1)"  },
   approved: { label: "Approved", color: "#16A34A", bg: "rgba(22,163,74,0.1)"   },
-  rejected: { label: "Rejected", color: "#DC2626", bg: "rgba(220,38,38,0.1)"   },
+  rejected: { label: "Rejected", color: "#de1a1a", bg: "rgba(222,26,26,0.1)"   },
 }
 
 function formatDate(s: string) {
@@ -55,7 +55,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
         <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
           Expense Claims
         </h1>
-        <p className="text-sm mt-1" style={{ color: "#9CA3AF" }}>Review and approve team expense submissions</p>
+        <p className="text-sm mt-1" style={{ color: "#83858c" }}>Review and approve team expense submissions</p>
       </div>
 
       {/* Stats */}
@@ -69,7 +69,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
           <div key={s.label} className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
             style={{ background: s.bg, border: `1px solid ${s.border}` }}>
             <span className="text-[17px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: s.color }}>{s.value}</span>
-            <span className="text-[11px]" style={{ color: "#9CA3AF" }}>{s.label}</span>
+            <span className="text-[11px]" style={{ color: "#83858c" }}>{s.label}</span>
           </div>
         ))}
       </div>
@@ -82,7 +82,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
             className="px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
             style={tab === v
               ? { background: "#FFFFFF", color: "#111111", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }
-              : { color: "#9CA3AF" }}>
+              : { color: "#83858c" }}>
             {label}
           </button>
         ))}
@@ -92,7 +92,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
         <div className="flex flex-col items-center py-20 rounded-2xl"
           style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F0F0F0" }}>
           <Receipt size={32} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[13px] font-semibold" style={{ color: "#9CA3AF" }}>
+          <p className="text-[13px] font-semibold" style={{ color: "#83858c" }}>
             {tab === "pending" ? "No pending claims" : "No claims found"}
           </p>
         </div>
@@ -106,7 +106,7 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
                 style={{ background: "#FFFFFF", border: "1px solid #F0F0F0" }}>
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
-                    style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626" }}>
+                    style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
                     {user?.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase() ?? "?"}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -114,12 +114,12 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
                       <div>
                         <div className="flex items-center gap-2">
                           <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{user?.name ?? "Unknown"}</p>
-                          <span className="text-[11px]" style={{ color: "#9CA3AF" }}>#{user?.employee_id}</span>
+                          <span className="text-[11px]" style={{ color: "#83858c" }}>#{user?.employee_id}</span>
                         </div>
                         <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
-                          {e.description} · <span style={{ color: "#9CA3AF" }}>{e.category}</span> · {formatDate(e.date)}
+                          {e.description} · <span style={{ color: "#83858c" }}>{e.category}</span> · {formatDate(e.date)}
                         </p>
-                        {e.notes && <p className="text-[12px] mt-1" style={{ color: "#9CA3AF" }}>{e.notes}</p>}
+                        {e.notes && <p className="text-[12px] mt-1" style={{ color: "#83858c" }}>{e.notes}</p>}
                         {e.review_notes && (
                           <p className="text-[12px] mt-1.5 italic" style={{ color: "#6B7280" }}>
                             Note: {e.review_notes}
@@ -150,15 +150,15 @@ export default function ExpensesClient({ expenses }: { expenses: Expense[] }) {
                               style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }} />
                             <button onClick={() => reject(e.id)} disabled={isPending}
                               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
-                              style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }}>
+                              style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}>
                               {isPending ? <Loader2 size={11} className="animate-spin" /> : <XCircle size={12} />} Confirm
                             </button>
-                            <button onClick={() => setReviewId(null)} className="text-[12px]" style={{ color: "#9CA3AF" }}>Cancel</button>
+                            <button onClick={() => setReviewId(null)} className="text-[12px]" style={{ color: "#83858c" }}>Cancel</button>
                           </div>
                         ) : (
                           <button onClick={() => setReviewId(e.id)}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-bold"
-                            style={{ background: "rgba(220,38,38,0.06)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.15)" }}>
+                            style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.15)" }}>
                             <XCircle size={12} /> Reject
                           </button>
                         )}

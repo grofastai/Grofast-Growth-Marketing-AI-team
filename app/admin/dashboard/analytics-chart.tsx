@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -35,22 +35,22 @@ export default function AnalyticsChart({ data }: { data: ChartPoint[] }) {
       <AreaChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
         <defs>
           <linearGradient id="redGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#DC2626" stopOpacity={0.18} />
-            <stop offset="100%" stopColor="#DC2626" stopOpacity={0} />
+            <stop offset="0%" stopColor="#de1a1a" stopOpacity={0.18} />
+            <stop offset="100%" stopColor="#de1a1a" stopOpacity={0} />
           </linearGradient>
           <linearGradient id="grayGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#9CA3AF" stopOpacity={0.12} />
-            <stop offset="100%" stopColor="#9CA3AF" stopOpacity={0} />
+            <stop offset="0%" stopColor="#83858c" stopOpacity={0.12} />
+            <stop offset="100%" stopColor="#83858c" stopOpacity={0} />
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false} />
         <XAxis
           dataKey="day"
-          tick={{ fontSize: 11, fill: "#9CA3AF", fontWeight: 500 }}
+          tick={{ fontSize: 11, fill: "#83858c", fontWeight: 500 }}
           tickLine={false} axisLine={false}
         />
         <YAxis
-          tick={{ fontSize: 11, fill: "#9CA3AF" }}
+          tick={{ fontSize: 11, fill: "#83858c" }}
           tickLine={false} axisLine={false}
           allowDecimals={false}
         />
@@ -62,17 +62,17 @@ export default function AnalyticsChart({ data }: { data: ChartPoint[] }) {
         />
         <Area
           type="monotone" dataKey="present" name="Present"
-          stroke="#DC2626" strokeWidth={2.5}
+          stroke="#de1a1a" strokeWidth={2.5}
           fill="url(#redGrad)"
-          dot={{ fill: "#DC2626", r: 3.5, strokeWidth: 0 }}
-          activeDot={{ r: 5, fill: "#DC2626", stroke: "#fff", strokeWidth: 2 }}
+          dot={{ fill: "#de1a1a", r: 3.5, strokeWidth: 0 }}
+          activeDot={{ r: 5, fill: "#de1a1a", stroke: "#fff", strokeWidth: 2 }}
         />
         <Area
           type="monotone" dataKey="absent" name="Absent"
-          stroke="#9CA3AF" strokeWidth={2}
+          stroke="#83858c" strokeWidth={2}
           fill="url(#grayGrad)"
-          dot={{ fill: "#9CA3AF", r: 3, strokeWidth: 0 }}
-          activeDot={{ r: 4.5, fill: "#9CA3AF", stroke: "#fff", strokeWidth: 2 }}
+          dot={{ fill: "#83858c", r: 3, strokeWidth: 0 }}
+          activeDot={{ r: 4.5, fill: "#83858c", stroke: "#fff", strokeWidth: 2 }}
         />
       </AreaChart>
     </ResponsiveContainer>

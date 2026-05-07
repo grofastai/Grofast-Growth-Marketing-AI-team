@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -54,7 +54,7 @@ export default function AttendanceDateNav({ selectedDate, today }: Props) {
         <button
           onClick={() => go(today)}
           className="text-[12px] font-semibold px-3 py-1.5 rounded-lg transition-colors hover:opacity-80"
-          style={{ background: 'rgba(220,38,38,0.1)', color: '#DC2626' }}
+          style={{ background: 'rgba(222,26,26,0.1)', color: '#de1a1a' }}
         >
           Today
         </button>

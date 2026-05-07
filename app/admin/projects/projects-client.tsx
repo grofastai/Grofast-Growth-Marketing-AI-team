@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useMemo, useTransition } from "react"
 import Link from "next/link"
@@ -36,13 +36,13 @@ interface Project {
 interface TaskStats { total: number; completed: number; active: number }
 
 const STATUS_CONFIG = {
-  active:    { label: "Active",    color: "#DC2626", bg: "rgba(220,38,38,0.1)",  border: "rgba(220,38,38,0.2)",  dot: "#DC2626",  icon: Clock },
+  active:    { label: "Active",    color: "#de1a1a", bg: "rgba(222,26,26,0.1)",  border: "rgba(222,26,26,0.2)",  dot: "#de1a1a",  icon: Clock },
   completed: { label: "Completed", color: "#16A34A", bg: "rgba(22,163,74,0.1)",  border: "rgba(22,163,74,0.2)",  dot: "#16A34A",  icon: CheckCircle2 },
   on_hold:   { label: "On Hold",   color: "#F59E0B", bg: "rgba(245,158,11,0.1)", border: "rgba(245,158,11,0.2)", dot: "#F59E0B",  icon: PauseCircle },
 }
 
 const inputStyle: React.CSSProperties = {
-  background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#111111",
+  background: "#fbf5f7", border: "1px solid #2E2E2E", color: "#111111",
   borderRadius: "10px", padding: "10px 14px", fontSize: "13px",
   outline: "none", width: "100%", fontFamily: "inherit", colorScheme: "dark",
 }
@@ -121,7 +121,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
   const labelStyle: React.CSSProperties = {
     display: "block", fontSize: "10px", fontWeight: 700,
     textTransform: "uppercase", letterSpacing: "0.16em",
-    marginBottom: "8px", color: "#9CA3AF",
+    marginBottom: "8px", color: "#83858c",
   }
 
   return (
@@ -129,7 +129,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
       <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(4px)" }} onClick={onClose} />
       <div className="fixed right-0 top-0 h-full w-[440px] z-50 flex flex-col"
         style={{ background: "#0D0D0D", borderLeft: "1px solid rgba(255,255,255,0.08)" }}>
-        <style>{`.ps-input::placeholder{color:rgba(255,255,255,0.2)}.ps-input:focus{border-color:rgba(220,38,38,0.4)!important}`}</style>
+        <style>{`.ps-input::placeholder{color:rgba(255,255,255,0.2)}.ps-input:focus{border-color:rgba(222,26,26,0.4)!important}`}</style>
 
         {/* Header */}
         <div className="px-6 py-5 flex items-center justify-between flex-shrink-0"
@@ -138,12 +138,12 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
             <h2 className="text-[17px] font-black text-white" style={{ fontFamily: "var(--font-jakarta)" }}>
               {isEdit ? "Edit Client" : "Add New Client"}
             </h2>
-            <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>
+            <p className="text-[12px] mt-0.5" style={{ color: "#83858c" }}>
               {isEdit ? "Update client details" : "Create and track a new client engagement"}
             </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "#F8F9FA" }}>
+            style={{ background: "#fbf5f7" }}>
             <X size={14} style={{ color: "#6B7280" }} />
           </button>
         </div>
@@ -166,8 +166,8 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
                   <button key={s} type="button" onClick={() => toggleService(s)}
                     className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all border"
                     style={active
-                      ? { background: "rgba(220,38,38,0.12)", borderColor: "rgba(220,38,38,0.35)", color: "#F87171" }
-                      : { background: "#F8F9FA", borderColor: "#2E2E2E", color: "#9CA3AF" }
+                      ? { background: "rgba(222,26,26,0.12)", borderColor: "rgba(222,26,26,0.35)", color: "#F87171" }
+                      : { background: "#fbf5f7", borderColor: "#2E2E2E", color: "#83858c" }
                     }>
                     {active && "✓ "}{s}
                   </button>
@@ -240,7 +240,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
                     className="flex-1 py-2.5 rounded-lg text-[12px] font-bold transition-all"
                     style={isActive
                       ? { background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }
-                      : { background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#9CA3AF" }
+                      : { background: "#fbf5f7", border: "1px solid #2E2E2E", color: "#83858c" }
                     }>
                     {cfg.label}
                   </button>
@@ -259,7 +259,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
             <input type="range" min={0} max={100} step={5}
               value={form.progress_pct}
               onChange={e => setForm(p => ({ ...p, progress_pct: Number(e.target.value) }))}
-              className="w-full" style={{ accentColor: "#DC2626" }} />
+              className="w-full" style={{ accentColor: "#de1a1a" }} />
             <div className="flex justify-between text-[10px] mt-1" style={{ color: "rgba(0,0,0,0.1)" }}>
               <span>0% — Not started</span><span>50%</span><span>100% — Done</span>
             </div>
@@ -270,7 +270,7 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
 
           {error && (
             <p className="text-[12px] px-4 py-3 rounded-lg"
-              style={{ background: "rgba(220,38,38,0.07)", color: "#F87171", border: "1px solid rgba(220,38,38,0.18)" }}>
+              style={{ background: "rgba(222,26,26,0.07)", color: "#F87171", border: "1px solid rgba(222,26,26,0.18)" }}>
               {error}
             </p>
           )}
@@ -281,12 +281,12 @@ function ProjectSheet({ open, onClose, project }: { open: boolean; onClose: () =
           style={{ borderTop: "1px solid rgba(255,255,255,0.07)" }}>
           <button onClick={onClose}
             className="flex-1 py-3 rounded-xl text-[13px] font-semibold"
-            style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#6B7280" }}>
+            style={{ background: "#fbf5f7", border: "1px solid #2E2E2E", color: "#6B7280" }}>
             Cancel
           </button>
           <button onClick={handleSubmit} disabled={isPending}
             className="flex-1 py-3 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2"
-            style={{ background: "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)", color: "#FFFFFF", opacity: isPending ? 0.65 : 1 }}>
+            style={{ background: "linear-gradient(135deg, #de1a1a 0%, #991B1B 100%)", color: "#FFFFFF", opacity: isPending ? 0.65 : 1 }}>
             {isPending && <Loader2 size={13} className="animate-spin" />}
             {isEdit ? "Save Changes" : "Add Client"}
           </button>
@@ -312,24 +312,24 @@ function DeleteConfirm({ project, onCancel }: { project: Project; onCancel: () =
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="rounded-2xl p-6 w-full max-w-sm" style={{ background: "#0D0D0D", border: "1px solid #2A2A2A" }}>
           <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4"
-            style={{ background: "rgba(220,38,38,0.1)" }}>
-            <Trash2 size={16} style={{ color: "#DC2626" }} />
+            style={{ background: "rgba(222,26,26,0.1)" }}>
+            <Trash2 size={16} style={{ color: "#de1a1a" }} />
           </div>
           <h3 className="text-[16px] font-black mb-1 text-white" style={{ fontFamily: "var(--font-jakarta)" }}>
             Delete Client?
           </h3>
-          <p className="text-[13px] mb-6" style={{ color: "#9CA3AF" }}>
+          <p className="text-[13px] mb-6" style={{ color: "#83858c" }}>
             <span className="text-white font-semibold">{project.business_name}</span> will be permanently removed.
           </p>
           <div className="flex gap-3">
             <button onClick={onCancel}
               className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
-              style={{ background: "#F8F9FA", border: "1px solid #2E2E2E", color: "#6B7280" }}>
+              style={{ background: "#fbf5f7", border: "1px solid #2E2E2E", color: "#6B7280" }}>
               Cancel
             </button>
             <button onClick={handleDelete} disabled={isPending}
               className="flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2"
-              style={{ background: "rgba(220,38,38,0.15)", border: "1px solid rgba(220,38,38,0.3)", color: "#F87171", opacity: isPending ? 0.65 : 1 }}>
+              style={{ background: "rgba(222,26,26,0.15)", border: "1px solid rgba(222,26,26,0.3)", color: "#F87171", opacity: isPending ? 0.65 : 1 }}>
               {isPending && <Loader2 size={12} className="animate-spin" />}
               Delete
             </button>
@@ -405,7 +405,7 @@ export default function ProjectsClient({
         ) : (
           <button onClick={() => { setEditProject(null); setSheetOpen(true) }}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
-            style={{ background: "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)", color: "#FFFFFF" }}>
+            style={{ background: "linear-gradient(135deg, #de1a1a 0%, #991B1B 100%)", color: "#FFFFFF" }}>
             <Plus size={14} /> Add Client
           </button>
         )}
@@ -414,8 +414,8 @@ export default function ProjectsClient({
       {/* Stats */}
       <div className="grid grid-cols-4 gap-3 mb-6">
         {[
-          { label: "Total Clients", value: stats.total,     color: "#DC2626",  bg: "rgba(220,38,38,0.08)",  border: "rgba(220,38,38,0.15)",  icon: FolderOpen },
-          { label: "Active",        value: stats.active,    color: "#DC2626",  bg: "rgba(220,38,38,0.06)",  border: "rgba(220,38,38,0.12)",  icon: Clock },
+          { label: "Total Clients", value: stats.total,     color: "#de1a1a",  bg: "rgba(222,26,26,0.08)",  border: "rgba(222,26,26,0.15)",  icon: FolderOpen },
+          { label: "Active",        value: stats.active,    color: "#de1a1a",  bg: "rgba(222,26,26,0.06)",  border: "rgba(222,26,26,0.12)",  icon: Clock },
           { label: "Completed",     value: stats.completed, color: "#16A34A",  bg: "rgba(22,163,74,0.06)",  border: "rgba(22,163,74,0.12)",  icon: CheckCircle2 },
           { label: "On Hold",       value: stats.on_hold,   color: "#F59E0B",  bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.12)", icon: PauseCircle },
         ].map(({ label, value, color, bg, border, icon: Icon }) => (
@@ -436,7 +436,7 @@ export default function ProjectsClient({
       <div className="flex items-center gap-3 flex-wrap mb-6">
         <div className="relative flex-1 min-w-[200px] max-w-[280px]">
           <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#9CA3AF" }} />
+            style={{ color: "#83858c" }} />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search client, business, package…"
             className="w-full pl-9 pr-4 py-2.5 rounded-xl text-[13px] outline-none"
@@ -444,7 +444,7 @@ export default function ProjectsClient({
         </div>
         <div className="relative">
           <Briefcase size={12} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#9CA3AF" }} />
+            style={{ color: "#83858c" }} />
           <select value={serviceFilter} onChange={e => setServiceFilter(e.target.value)}
             className="appearance-none pl-8 pr-8 py-2.5 rounded-xl text-[12px] outline-none min-w-[190px]"
             style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", color: "#374151" }}>
@@ -452,7 +452,7 @@ export default function ProjectsClient({
             {SERVICES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
           <ChevronDown size={11} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#9CA3AF" }} />
+            style={{ color: "#83858c" }} />
         </div>
         <div className="flex items-center gap-1 p-1 rounded-xl"
           style={{ background: "#F3F4F6", border: "1px solid #E5E7EB" }}>
@@ -460,14 +460,14 @@ export default function ProjectsClient({
             <button key={s} onClick={() => setStatusFilter(s)}
               className="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
               style={statusFilter === s
-                ? { background: "#FFFFFF", color: "#DC2626", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }
+                ? { background: "#FFFFFF", color: "#de1a1a", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }
                 : { color: "#6B7280" }
               }>
               {s === "ALL" ? "All" : STATUS_CONFIG[s].label}
             </button>
           ))}
         </div>
-        <span className="ml-auto text-[12px]" style={{ color: "#9CA3AF" }}>
+        <span className="ml-auto text-[12px]" style={{ color: "#83858c" }}>
           {filtered.length} of {projects.length}
         </span>
       </div>
@@ -477,13 +477,13 @@ export default function ProjectsClient({
         <div className="flex flex-col items-center justify-center py-24 rounded-2xl"
           style={{ background: "#FFFFFF", border: "1px solid #F0F0F0", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
           <FolderOpen size={36} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#9CA3AF" }}>
+          <p className="text-[14px] font-semibold" style={{ color: "#83858c" }}>
             {projects.length === 0 ? "No clients yet" : "No clients match your filter"}
           </p>
           {projects.length === 0 && !readOnly && (
             <button onClick={() => { setEditProject(null); setSheetOpen(true) }}
               className="mt-5 px-5 py-2.5 rounded-xl text-[13px] font-bold"
-              style={{ background: "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)", color: "#FFFFFF" }}>
+              style={{ background: "linear-gradient(135deg, #de1a1a 0%, #991B1B 100%)", color: "#FFFFFF" }}>
               Add First Client
             </button>
           )}
@@ -520,7 +520,7 @@ export default function ProjectsClient({
                       </span>
                       {durationLabel && (
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                          style={{ background: "rgba(220,38,38,0.07)", color: "#B91C1C" }}>
+                          style={{ background: "rgba(222,26,26,0.07)", color: "#B91C1C" }}>
                           {durationLabel}
                         </span>
                       )}
@@ -534,7 +534,7 @@ export default function ProjectsClient({
                       <div className="flex flex-wrap gap-1 mt-1.5">
                         {project.service_types.slice(0, 2).map(s => (
                           <span key={s} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                            style={{ background: "rgba(220,38,38,0.07)", color: "#B91C1C" }}>
+                            style={{ background: "rgba(222,26,26,0.07)", color: "#B91C1C" }}>
                             {s}
                           </span>
                         ))}
@@ -564,7 +564,7 @@ export default function ProjectsClient({
                           </button>
                           <button onClick={() => { setDeleteTarget(project); setOpenDropdown(null) }}
                             className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all hover:bg-red-50"
-                            style={{ color: "#DC2626" }}>
+                            style={{ color: "#de1a1a" }}>
                             <Trash2 size={12} /> Delete
                           </button>
                         </div>
@@ -576,18 +576,18 @@ export default function ProjectsClient({
                 {/* Client + Location + Package + Period */}
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <User size={11} style={{ color: "#9CA3AF" }} />
+                    <User size={11} style={{ color: "#83858c" }} />
                     <span className="text-[12px] truncate" style={{ color: "#374151" }}>{project.client_name}</span>
                   </div>
                   {project.location && (
                     <div className="flex items-center gap-2">
-                      <MapPin size={11} style={{ color: "#9CA3AF" }} />
+                      <MapPin size={11} style={{ color: "#83858c" }} />
                       <span className="text-[12px] truncate" style={{ color: "#6B7280" }}>{project.location}</span>
                     </div>
                   )}
                   {project.package_name && (
                     <div className="flex items-start gap-2">
-                      <Package size={11} style={{ color: "#DC2626", marginTop: 1, flexShrink: 0 }} />
+                      <Package size={11} style={{ color: "#de1a1a", marginTop: 1, flexShrink: 0 }} />
                       <span className="text-[12px] leading-snug" style={{ color: "#374151", fontWeight: 500 }}>
                         {project.package_name}
                       </span>
@@ -595,7 +595,7 @@ export default function ProjectsClient({
                   )}
                   {(project.start_month || project.end_month) && (
                     <div className="flex items-center gap-2">
-                      <CalendarRange size={11} style={{ color: "#9CA3AF" }} />
+                      <CalendarRange size={11} style={{ color: "#83858c" }} />
                       <span className="text-[12px]" style={{ color: "#6B7280" }}>
                         {fmtMonth(project.start_month)} → {fmtMonth(project.end_month)}
                       </span>
@@ -606,9 +606,9 @@ export default function ProjectsClient({
                 {/* Task stats */}
                 {ts && (
                   <div className="flex items-center gap-3 px-3 py-2 rounded-xl"
-                    style={{ background: "rgba(220,38,38,0.05)", border: "1px solid rgba(220,38,38,0.1)" }}>
-                    <Target size={11} style={{ color: "#DC2626" }} />
-                    <span className="text-[11px] font-semibold" style={{ color: "#DC2626" }}>{ts.active} active</span>
+                    style={{ background: "rgba(222,26,26,0.05)", border: "1px solid rgba(222,26,26,0.1)" }}>
+                    <Target size={11} style={{ color: "#de1a1a" }} />
+                    <span className="text-[11px] font-semibold" style={{ color: "#de1a1a" }}>{ts.active} active</span>
                     <span className="text-[11px]" style={{ color: "#D1D5DB" }}>·</span>
                     <span className="text-[11px]" style={{ color: "#6B7280" }}>{ts.completed}/{ts.total} done</span>
                   </div>
@@ -617,7 +617,7 @@ export default function ProjectsClient({
                 {/* Work Completion bar */}
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>
+                    <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#83858c" }}>
                       Work Completion
                     </span>
                     <span className="text-[12px] font-bold" style={{ color: "#111827" }}>
@@ -633,7 +633,7 @@ export default function ProjectsClient({
                           ? "#16A34A"
                           : project.status === "on_hold"
                           ? "#F59E0B"
-                          : `linear-gradient(90deg, #DC2626 0%, #B91C1C 100%)`,
+                          : `linear-gradient(90deg, #de1a1a 0%, #B91C1C 100%)`,
                       }}
                     />
                   </div>
@@ -646,7 +646,7 @@ export default function ProjectsClient({
                 {!readOnly && (
                   <Link href={`/admin/clients/${project.id}`}
                     className="flex items-center justify-center gap-1.5 w-full py-2.5 rounded-xl text-[12px] font-semibold transition-all hover:opacity-90"
-                    style={{ background: "rgba(220,38,38,0.08)", border: "1px solid rgba(220,38,38,0.15)", color: "#DC2626" }}>
+                    style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)", color: "#de1a1a" }}>
                     View Details <ArrowRight size={12} />
                   </Link>
                 )}

@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
@@ -23,13 +23,13 @@ interface Task {
 const PRIORITY = {
   low:    { color: "#6B7280", bg: "rgba(0,0,0,0.04)", label: "Low"    },
   medium: { color: "#F59E0B",               bg: "rgba(245,158,11,0.1)",   label: "Medium" },
-  high:   { color: "#DC2626",               bg: "rgba(255,107,87,0.1)",   label: "High"   },
+  high:   { color: "#de1a1a",               bg: "rgba(255,107,87,0.1)",   label: "High"   },
 }
 
 const STATUS_META = {
   todo:        { icon: Circle,       color: "#6B7280", label: "To Do",       next: "in_progress" as const },
   in_progress: { icon: Clock,        color: "#F59E0B",               label: "In Progress", next: "completed"   as const },
-  completed:   { icon: CheckCircle2, color: "#DC2626",               label: "Done",        next: "todo"        as const },
+  completed:   { icon: CheckCircle2, color: "#de1a1a",               label: "Done",        next: "todo"        as const },
 }
 
 const FILTER_TABS = [
@@ -43,13 +43,13 @@ function dueDateLabel(due: string | null, today: string): { text: string; color:
   if (!due) return null
   if (due < today) {
     const days = Math.round((new Date(today).getTime() - new Date(due).getTime()) / 86400000)
-    return { text: days === 1 ? "Yesterday" : `${days}d overdue`, color: "#DC2626" }
+    return { text: days === 1 ? "Yesterday" : `${days}d overdue`, color: "#de1a1a" }
   }
   if (due === today) return { text: "Due Today",     color: "#F59E0B" }
   const days = Math.round((new Date(due).getTime() - new Date(today).getTime()) / 86400000)
-  if (days === 1)  return { text: "Due Tomorrow",    color: "#DC2626" }
+  if (days === 1)  return { text: "Due Tomorrow",    color: "#de1a1a" }
   if (days <= 7)   return { text: `${days}d left`,   color: "#6B7280" }
-  return { text: due, color: "#9CA3AF" }
+  return { text: due, color: "#83858c" }
 }
 
 function ProgressBar({ done, total }: { done: number; total: number }) {
@@ -62,15 +62,15 @@ function ProgressBar({ done, total }: { done: number; total: number }) {
         <span className="text-[11px] font-bold uppercase tracking-wider"
           style={{ color: "#D1D5DB" }}>Today&apos;s Progress</span>
         <span className="text-[12px] font-black"
-          style={{ color: pct === 100 ? "#DC2626" : "#FFFFFF" }}>{done}/{total} tasks</span>
+          style={{ color: pct === 100 ? "#de1a1a" : "#FFFFFF" }}>{done}/{total} tasks</span>
       </div>
       <div className="flex gap-1">
         {Array.from({ length: blocks }).map((_, i) => (
           <div key={i} className="flex-1 h-2 rounded-full"
-            style={{ background: i < filled ? "#DC2626" : "rgba(0,0,0,0.06)" }} />
+            style={{ background: i < filled ? "#de1a1a" : "rgba(0,0,0,0.06)" }} />
         ))}
       </div>
-      <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>
+      <p className="text-[11px] mt-1.5" style={{ color: "#83858c" }}>
         {pct === 100 ? "All tasks done for today 🎉" : `${pct}% complete`}
       </p>
     </div>
@@ -131,9 +131,9 @@ export default function MemberTasksClient({
         <div>
           <h1 className="gradient-heading text-[30px] font-black leading-tight"
             style={{ fontFamily: "var(--font-jakarta)" }}>My Tasks</h1>
-          <p className="text-[13px] mt-1" style={{ color: "#9CA3AF" }}>
+          <p className="text-[13px] mt-1" style={{ color: "#83858c" }}>
             {active.length > 0
-              ? <>{active.length} active task{active.length !== 1 ? "s" : ""}{overdue.length > 0 && <span style={{ color: "#DC2626" }}> · {overdue.length} overdue ⚠</span>}</>
+              ? <>{active.length} active task{active.length !== 1 ? "s" : ""}{overdue.length > 0 && <span style={{ color: "#de1a1a" }}> · {overdue.length} overdue ⚠</span>}</>
               : "You're all caught up 🎉"
             }
           </p>
@@ -144,24 +144,24 @@ export default function MemberTasksClient({
           style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
           <div className="text-center">
             <p className="text-[18px] font-black leading-none"
-              style={{ fontFamily: "var(--font-jakarta)", color: todayHours > 0 ? "#DC2626" : "#9CA3AF" }}>
+              style={{ fontFamily: "var(--font-jakarta)", color: todayHours > 0 ? "#de1a1a" : "#83858c" }}>
               {todayHours > 0 ? `${todayHours}h` : "—"}
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>Worked</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "#83858c" }}>Worked</p>
           </div>
           <div className="w-px h-8" style={{ background: "#E5E7EB" }} />
           <div className="text-center">
             <p className="text-[18px] font-black leading-none"
               style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>{active.length}</p>
-            <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>Active</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "#83858c" }}>Active</p>
           </div>
           <div className="w-px h-8" style={{ background: "#E5E7EB" }} />
           <div className="text-center">
             <p className="text-[18px] font-black leading-none"
-              style={{ fontFamily: "var(--font-jakarta)", color: overdue.length > 0 ? "#DC2626" : "#9CA3AF" }}>
+              style={{ fontFamily: "var(--font-jakarta)", color: overdue.length > 0 ? "#de1a1a" : "#83858c" }}>
               {overdue.length}
             </p>
-            <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>Overdue</p>
+            <p className="text-[10px] mt-0.5" style={{ color: "#83858c" }}>Overdue</p>
           </div>
         </div>
       </div>
@@ -172,8 +172,8 @@ export default function MemberTasksClient({
           style={{ border: "1px solid rgba(255,107,87,0.25)" }}>
           <div className="flex items-center gap-2 px-4 py-2.5"
             style={{ background: "rgba(255,107,87,0.06)" }}>
-            <AlertTriangle size={13} style={{ color: "#DC2626" }} />
-            <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#DC2626" }}>
+            <AlertTriangle size={13} style={{ color: "#de1a1a" }} />
+            <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#de1a1a" }}>
               {overdue.length} Overdue Task{overdue.length !== 1 ? "s" : ""}
             </p>
           </div>
@@ -197,8 +197,8 @@ export default function MemberTasksClient({
             <button key={tab.key} onClick={() => setFilter(tab.key)}
               className="px-4 py-2 rounded-lg text-[13px] font-semibold transition-all"
               style={isActive
-                ? { background: "rgba(220,38,38,0.1)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.2)" }
-                : { background: "rgba(0,0,0,0.02)", color: "#9CA3AF", border: "1px solid #F0F0F0" }
+                ? { background: "rgba(222,26,26,0.1)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }
+                : { background: "rgba(0,0,0,0.02)", color: "#83858c", border: "1px solid #F0F0F0" }
               }>
               {tab.label}
               <span className="ml-1.5 text-[11px] opacity-70">({count})</span>
@@ -210,9 +210,9 @@ export default function MemberTasksClient({
       {/* ── Task list ── */}
       {displayed.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 rounded-xl"
-          style={{ background: "#F8F9FA", border: "1px solid #2A2A2A" }}>
+          style={{ background: "#fbf5f7", border: "1px solid #2A2A2A" }}>
           <Target size={36} style={{ color: "rgba(0,0,0,0.06)" }} className="mb-3" />
-          <p className="text-[15px] font-bold" style={{ color: "#9CA3AF" }}>
+          <p className="text-[15px] font-bold" style={{ color: "#83858c" }}>
             {filter === "all" ? "No tasks assigned 🎉" : `No ${filter.replace("_", " ")} tasks`}
           </p>
           <p className="text-[12px] mt-1" style={{ color: "rgba(0,0,0,0.1)" }}>
@@ -295,15 +295,15 @@ function TaskCard({
         {/* Title row */}
         <div className="flex items-start justify-between gap-3 mb-3">
           <p className={`text-[14px] font-semibold leading-snug flex-1 ${isDone ? "line-through" : ""}`}
-            style={{ color: isDone ? "#9CA3AF" : "#FFFFFF" }}>
+            style={{ color: isDone ? "#83858c" : "#FFFFFF" }}>
             {task.title}
           </p>
           <button onClick={() => setExpanded(v => !v)}
             className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center"
             style={{ background: "rgba(255,255,255,0.05)" }}>
             {expanded
-              ? <ChevronUp size={13} style={{ color: "#9CA3AF" }} />
-              : <ChevronDown size={13} style={{ color: "#9CA3AF" }} />
+              ? <ChevronUp size={13} style={{ color: "#83858c" }} />
+              : <ChevronDown size={13} style={{ color: "#83858c" }} />
             }
           </button>
         </div>
@@ -312,7 +312,7 @@ function TaskCard({
         <div className="flex items-center gap-2 flex-wrap mb-3">
           {project && (
             <span className="text-[11px] px-2 py-0.5 rounded font-medium"
-              style={{ background: "rgba(220,38,38,0.1)", color: "#B91C1C" }}>
+              style={{ background: "rgba(222,26,26,0.1)", color: "#B91C1C" }}>
               {project.business_name}
             </span>
           )}
@@ -328,7 +328,7 @@ function TaskCard({
           )}
           {isOverdue && (
             <span className="flex items-center gap-1 text-[11px] font-bold ml-auto"
-              style={{ color: "#DC2626" }}>
+              style={{ color: "#de1a1a" }}>
               <AlertTriangle size={11} /> Overdue
             </span>
           )}
@@ -354,7 +354,7 @@ function TaskCard({
         {/* Log Work button */}
         <button onClick={onLogWork}
           className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-bold transition-all"
-          style={{ background: "rgba(220,38,38,0.06)", color: "#B91C1C", border: "1px solid rgba(220,38,38,0.15)" }}>
+          style={{ background: "rgba(222,26,26,0.06)", color: "#B91C1C", border: "1px solid rgba(222,26,26,0.15)" }}>
           <FileEdit size={11} /> Log Work
         </button>
       </div>
@@ -367,24 +367,24 @@ function TaskCard({
 
             {assigner?.name && (
               <div className="flex items-center gap-2">
-                <User size={12} style={{ color: "#9CA3AF" }} />
-                <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Assigned by</span>
+                <User size={12} style={{ color: "#83858c" }} />
+                <span className="text-[11px]" style={{ color: "#83858c" }}>Assigned by</span>
                 <span className="text-[12px] font-bold" style={{ color: "#E5E7EB" }}>{assigner.name}</span>
               </div>
             )}
 
             {project && (
               <div className="flex items-center gap-2">
-                <Target size={12} style={{ color: "#9CA3AF" }} />
-                <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Project</span>
+                <Target size={12} style={{ color: "#83858c" }} />
+                <span className="text-[11px]" style={{ color: "#83858c" }}>Project</span>
                 <span className="text-[12px] font-bold" style={{ color: "#E5E7EB" }}>{project.business_name}</span>
               </div>
             )}
 
             {task.due_date && (
               <div className="flex items-center gap-2">
-                <Calendar size={12} style={{ color: "#9CA3AF" }} />
-                <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Due date</span>
+                <Calendar size={12} style={{ color: "#83858c" }} />
+                <span className="text-[11px]" style={{ color: "#83858c" }}>Due date</span>
                 <span className="text-[12px] font-bold" style={{ color: "#E5E7EB" }}>
                   {new Date(task.due_date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                 </span>
@@ -393,7 +393,7 @@ function TaskCard({
 
             {task.description && (
               <div>
-                <p className="text-[11px] mb-1" style={{ color: "#9CA3AF" }}>Description</p>
+                <p className="text-[11px] mb-1" style={{ color: "#83858c" }}>Description</p>
                 <p className="text-[13px] leading-relaxed" style={{ color: "#D1D5DB" }}>{task.description}</p>
               </div>
             )}

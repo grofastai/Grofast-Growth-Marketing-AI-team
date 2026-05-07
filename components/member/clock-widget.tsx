@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useTransition } from "react"
 import { LogIn, LogOut, Loader2, Home, Building2, XCircle, CheckCircle2 } from "lucide-react"
@@ -92,8 +92,8 @@ export default function ClockWidget({ clockInTime, clockOutTime, workType, atten
         style={{ background: "#262626", border: "1px solid #2A2A2A" }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(220,38,38,0.08)" }}>
-            <CheckCircle2 size={20} style={{ color: "#DC2626" }} />
+            style={{ background: "rgba(222,26,26,0.08)" }}>
+            <CheckCircle2 size={20} style={{ color: "#de1a1a" }} />
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-[0.2em] font-bold mb-1"
@@ -106,7 +106,7 @@ export default function ClockWidget({ clockInTime, clockOutTime, workType, atten
                 Out: <strong>{fmtTime(clockOutTime)}</strong>
               </span>
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+                style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
                 {calcDuration(clockInTime!, clockOutTime)}
               </span>
             </div>
@@ -121,7 +121,7 @@ export default function ClockWidget({ clockInTime, clockOutTime, workType, atten
             </span>
           )}
           <span className="text-[11px] font-bold px-3 py-1.5 rounded-full"
-            style={{ background: "rgba(220,38,38,0.08)", color: "#DC2626", border: "1px solid rgba(220,38,38,0.15)" }}>
+            style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.15)" }}>
             Present ✓
           </span>
         </div>
@@ -134,23 +134,23 @@ export default function ClockWidget({ clockInTime, clockOutTime, workType, atten
     const WorkIcon = workType ? WORK_TYPE_ICON[workType] : Building2
     return (
       <div className="rounded-xl p-5 flex items-center justify-between"
-        style={{ background: "#262626", border: "1px solid rgba(220,38,38,0.25)" }}>
+        style={{ background: "#262626", border: "1px solid rgba(222,26,26,0.25)" }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center relative"
-            style={{ background: "rgba(220,38,38,0.1)" }}>
-            <LogIn size={18} style={{ color: "#DC2626" }} />
+            style={{ background: "rgba(222,26,26,0.1)" }}>
+            <LogIn size={18} style={{ color: "#de1a1a" }} />
             <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full"
-              style={{ background: "#DC2626", boxShadow: "0 0 0 2px #262626" }} />
+              style={{ background: "#de1a1a", boxShadow: "0 0 0 2px #262626" }} />
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-[0.2em] font-bold mb-1"
-              style={{ color: "#DC2626" }}>Currently Working</p>
+              style={{ color: "#de1a1a" }}>Currently Working</p>
             <div className="flex items-center gap-3 flex-wrap">
               <span className="text-[13px]" style={{ color: "#FFFFFF" }}>
                 Since <strong>{fmtTime(clockInTime)}</strong>
               </span>
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(220,38,38,0.1)", color: "#DC2626" }}>
+                style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
                 {calcDuration(clockInTime!, null)}
               </span>
               {workType && (
@@ -196,7 +196,7 @@ export default function ClockWidget({ clockInTime, clockOutTime, workType, atten
                 disabled={isPending}
                 className="flex items-center gap-1.5 px-4 py-2.5 text-[12px] font-bold transition-all"
                 style={{
-                  background: active ? "#DC2626" : "transparent",
+                  background: active ? "#de1a1a" : "transparent",
                   color: active ? "#0D0D0D" : "rgba(255,255,255,0.35)",
                 }}>
                 <Icon size={12} />
@@ -211,7 +211,7 @@ export default function ClockWidget({ clockInTime, clockOutTime, workType, atten
           onClick={handleClockIn}
           disabled={isPending}
           className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-[13px] font-bold disabled:opacity-50 transition-all"
-          style={{ background: "#DC2626", color: "#FFFFFF" }}>
+          style={{ background: "#de1a1a", color: "#FFFFFF" }}>
           {isPending ? <Loader2 size={13} className="animate-spin" /> : <LogIn size={13} />}
           Clock In
         </button>

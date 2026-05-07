@@ -221,20 +221,7 @@ export async function createMember(input: {
   const skipNotification = input.employment_type === 'part_time' || input.employment_type === 'freelancer'
 
   if (input.phone && !recentlySent && !skipNotification) {
-    const appUrl = process.env.APP_BASE_URL?.replace(/\/$/, '') ?? ''
-    let loginLink = `${appUrl}/login`
-
-    try {
-      const { data: linkData } = await admin.auth.admin.generateLink({
-        type: 'magiclink',
-        email: input.email,
-      })
-      if (linkData?.properties?.action_link) {
-        loginLink = linkData.properties.action_link
-      }
-    } catch {
-      // non-fatal: falls back to plain login URL
-    }
+    const loginLink = 'https://grofastteam.vercel.app/'
 
     let cleanPhone = input.phone.replace(/\D/g, '')
     // Auto-add India country code for 10-digit numbers

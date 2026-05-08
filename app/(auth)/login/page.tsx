@@ -32,7 +32,7 @@ export default function LoginPage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Manrope:wght@300;400;500;600;700&display=swap');
 
         *, *::before, *::after { box-sizing: border-box; }
 
@@ -42,7 +42,7 @@ export default function LoginPage() {
           align-items: center;
           justify-content: center;
           padding: 24px;
-          font-family: 'DM Sans', sans-serif;
+          font-family: 'Manrope', sans-serif;
           background: linear-gradient(145deg, #E8F0FE 0%, #EDE8FF 50%, #E8F4FF 100%);
         }
 
@@ -170,7 +170,7 @@ export default function LoginPage() {
         }
 
         .panel-tagline {
-          font-family: 'Syne', sans-serif;
+          font-family: 'Sora', sans-serif;
           font-size: 28px;
           font-weight: 800;
           line-height: 1.1;
@@ -242,7 +242,7 @@ export default function LoginPage() {
         }
 
         .form-logo-text {
-          font-family: 'Syne', sans-serif;
+          font-family: 'Sora', sans-serif;
           font-size: 13px;
           font-weight: 800;
           letter-spacing: 0.18em;
@@ -252,7 +252,7 @@ export default function LoginPage() {
 
         /* Heading */
         .form-heading {
-          font-family: 'Syne', sans-serif;
+          font-family: 'Sora', sans-serif;
           font-size: 26px;
           font-weight: 800;
           color: #0F172A;
@@ -298,7 +298,7 @@ export default function LoginPage() {
           border: 1.5px solid #E2E8F0;
           background: #FFFFFF;
           font-size: 14px;
-          font-family: 'DM Sans', sans-serif;
+          font-family: 'Manrope', sans-serif;
           color: #0F172A;
           outline: none;
           transition: border-color 0.18s, box-shadow 0.18s;
@@ -318,7 +318,7 @@ export default function LoginPage() {
           border-radius: 10px;
           border: none;
           cursor: pointer;
-          font-family: 'Syne', sans-serif;
+          font-family: 'Sora', sans-serif;
           font-size: 14px;
           font-weight: 700;
           letter-spacing: 0.06em;

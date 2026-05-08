@@ -19,10 +19,7 @@ export default function LoginPage() {
   useEffect(() => {
     const t = setInterval(() => {
       setFading(true)
-      setTimeout(() => {
-        setSlide(s => (s + 1) % SLIDES.length)
-        setFading(false)
-      }, 500)
+      setTimeout(() => { setSlide(s => (s + 1) % SLIDES.length); setFading(false) }, 450)
     }, 4000)
     return () => clearInterval(t)
   }, [])
@@ -32,501 +29,545 @@ export default function LoginPage() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Manrope:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Manrope:wght@400;500;600;700&display=swap');
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        *, *::before, *::after { box-sizing: border-box; }
-
-        .lg-page {
+        /* ─── PAGE ─── */
+        .lp-page {
           min-height: 100vh;
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 24px;
+          padding: 32px 20px;
           font-family: 'Manrope', sans-serif;
-          background: linear-gradient(145deg, #E8F0FE 0%, #EDE8FF 50%, #E8F4FF 100%);
+          background: #0C0C0F;
+          position: relative;
+          overflow: hidden;
         }
 
-        /* ── Main card ── */
-        .lg-card {
+        /* Ambient glows in background */
+        .lp-page::before {
+          content: '';
+          position: fixed;
+          top: -20%; left: 50%;
+          transform: translateX(-50%);
+          width: 900px; height: 600px;
+          border-radius: 50%;
+          background: radial-gradient(ellipse, rgba(180,10,10,0.12) 0%, transparent 65%);
+          pointer-events: none;
+        }
+        .lp-page::after {
+          content: '';
+          position: fixed;
+          bottom: -20%; left: 50%;
+          transform: translateX(-50%);
+          width: 700px; height: 500px;
+          border-radius: 50%;
+          background: radial-gradient(ellipse, rgba(60,20,120,0.08) 0%, transparent 65%);
+          pointer-events: none;
+        }
+
+        /* ─── CARD ─── */
+        .lp-card {
+          position: relative;
+          z-index: 10;
           display: flex;
           width: 100%;
-          max-width: 920px;
-          min-height: 580px;
-          border-radius: 28px;
+          max-width: 960px;
+          min-height: 620px;
+          border-radius: 24px;
           overflow: hidden;
           box-shadow:
-            0 0 0 1px rgba(255,255,255,0.7),
-            0 4px 6px rgba(0,0,0,0.03),
-            0 12px 40px rgba(0,0,0,0.1),
-            0 40px 80px rgba(0,0,0,0.08);
-          background: #FFFFFF;
+            0 0 0 1px rgba(255,255,255,0.06),
+            0 8px 16px rgba(0,0,0,0.4),
+            0 32px 80px rgba(0,0,0,0.55),
+            0 80px 120px rgba(0,0,0,0.3);
+          animation: card-rise 0.65s cubic-bezier(0.22,1,0.36,1) both;
         }
 
-        /* ── Left image panel ── */
-        .lg-image-panel {
-          width: 42%;
+        @keyframes card-rise {
+          from { opacity: 0; transform: translateY(28px) scale(0.97); }
+          to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* ─── LEFT PANEL ─── */
+        .lp-left {
+          width: 44%;
           flex-shrink: 0;
           position: relative;
           overflow: hidden;
-          background: linear-gradient(170deg, #0D0707 0%, #1C0404 35%, #3D0000 70%, #5C1010 100%);
+          background: linear-gradient(155deg, #160202 0%, #2a0404 30%, #4a0808 65%, #6b1010 100%);
           display: flex;
           flex-direction: column;
         }
 
-        /* Dot-grid texture overlay */
-        .lg-image-panel::before {
+        /* Subtle grid pattern */
+        .lp-left::before {
           content: '';
-          position: absolute;
-          inset: 0;
-          background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
-          background-size: 24px 24px;
+          position: absolute; inset: 0;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+          background-size: 32px 32px;
           pointer-events: none;
         }
 
-        /* Ambient red glow */
-        .panel-glow {
+        /* Top-right corner radial glow */
+        .lp-left-glow {
           position: absolute;
           border-radius: 50%;
           pointer-events: none;
         }
 
-        /* ── Service icon area ── */
-        .service-stage {
+        /* ─── ICON STAGE ─── */
+        .lp-stage {
           flex: 1;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 48px 32px 24px;
+          padding: 52px 32px 20px;
           position: relative;
           z-index: 2;
         }
 
-        .service-icon-wrap {
+        .lp-icon-ring {
           position: relative;
-          width: 260px;
-          height: 260px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          transition: opacity 0.5s ease, transform 0.5s ease;
+          width: 270px; height: 270px;
+          display: flex; align-items: center; justify-content: center;
+          transition: opacity 0.45s ease, transform 0.45s ease;
         }
-
-        .service-icon-wrap.fading {
+        .lp-icon-ring.fading {
           opacity: 0;
-          transform: scale(0.92) translateY(8px);
+          transform: scale(0.9) translateY(10px);
         }
 
-        .icon-glow {
+        /* Outer ring */
+        .lp-icon-ring::before {
+          content: '';
           position: absolute;
-          inset: -20px;
+          inset: 0;
           border-radius: 50%;
-          background: radial-gradient(circle, rgba(222,26,26,0.35) 0%, transparent 70%);
-          animation: breathe 3s ease-in-out infinite;
+          border: 1px solid rgba(220,38,38,0.2);
+          animation: ring-pulse 3s ease-in-out infinite;
+        }
+        /* Inner ring */
+        .lp-icon-ring::after {
+          content: '';
+          position: absolute;
+          inset: 28px;
+          border-radius: 50%;
+          border: 1px solid rgba(220,38,38,0.12);
         }
 
-        @keyframes breathe {
-          0%, 100% { transform: scale(1); opacity: 0.8; }
-          50%       { transform: scale(1.12); opacity: 1; }
+        @keyframes ring-pulse {
+          0%,100% { transform: scale(1); opacity: 0.6; }
+          50%      { transform: scale(1.05); opacity: 1; }
         }
 
-        .service-tag {
+        .lp-icon-glow {
+          position: absolute;
+          inset: 20px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(200,30,30,0.35) 0%, transparent 70%);
+          animation: glow-breathe 3s ease-in-out infinite;
+        }
+
+        @keyframes glow-breathe {
+          0%,100% { transform: scale(0.9); opacity: 0.7; }
+          50%      { transform: scale(1.15); opacity: 1; }
+        }
+
+        /* Service tag */
+        .lp-tag {
           margin-top: 20px;
-          padding: 6px 16px;
+          padding: 7px 18px;
           border-radius: 100px;
-          border: 1px solid rgba(255,255,255,0.14);
-          background: rgba(255,255,255,0.06);
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.12em;
+          background: rgba(255,255,255,0.05);
+          border: 1px solid rgba(255,255,255,0.1);
+          font-size: 10.5px;
+          font-weight: 700;
+          letter-spacing: 0.16em;
           text-transform: uppercase;
-          color: rgba(255,255,255,0.55);
-          transition: opacity 0.5s ease;
+          color: rgba(255,255,255,0.45);
+          transition: opacity 0.45s;
         }
 
-        /* Slide dots */
-        .slide-dots {
-          display: flex;
-          gap: 7px;
-          margin-top: 18px;
-          position: relative;
-          z-index: 2;
+        /* Dots */
+        .lp-dots {
+          display: flex; gap: 8px; margin-top: 16px;
+          position: relative; z-index: 2;
         }
-
-        .dot {
-          height: 5px;
-          border-radius: 100px;
-          background: rgba(255,255,255,0.25);
+        .lp-dot {
+          height: 4px; border-radius: 100px;
           cursor: pointer;
           transition: width 0.35s ease, background 0.35s ease;
         }
 
-        /* ── Bottom text overlay ── */
-        .panel-bottom {
-          position: relative;
-          z-index: 2;
-          padding: 24px 32px 32px;
-          background: linear-gradient(0deg, rgba(0,0,0,0.55) 0%, transparent 100%);
+        /* ─── LEFT BOTTOM ─── */
+        .lp-bottom {
+          position: relative; z-index: 2;
+          padding: 0 36px 36px;
         }
 
-        .panel-tagline {
+        .lp-tagline {
           font-family: 'Sora', sans-serif;
-          font-size: 28px;
           font-weight: 800;
-          line-height: 1.1;
+          font-size: 34px;
+          line-height: 1.08;
           color: #FFFFFF;
-          letter-spacing: -0.01em;
+          letter-spacing: -0.02em;
           text-transform: uppercase;
-          margin-bottom: 10px;
+          margin-bottom: 14px;
         }
 
-        .panel-tagline span {
-          color: rgba(255,255,255,0.5);
+        .lp-tagline-eyebrow {
           display: block;
-          font-size: 11px;
-          font-weight: 500;
-          letter-spacing: 0.2em;
-          text-transform: uppercase;
-          margin-bottom: 6px;
-        }
-
-        .panel-features {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px;
-          margin-top: 12px;
-        }
-
-        .panel-feat-chip {
           font-size: 10px;
-          font-weight: 500;
-          color: rgba(255,255,255,0.4);
-          padding: 3px 8px;
-          border-radius: 100px;
-          border: 1px solid rgba(255,255,255,0.1);
-          letter-spacing: 0.05em;
+          font-weight: 600;
+          letter-spacing: 0.22em;
+          text-transform: uppercase;
+          color: rgba(255,255,255,0.3);
+          margin-bottom: 10px;
+          font-family: 'Manrope', sans-serif;
         }
 
-        /* ── Right form panel ── */
-        .lg-form-panel {
+        /* Thin divider line */
+        .lp-line {
+          width: 36px; height: 2px;
+          background: linear-gradient(90deg, #DC2626, transparent);
+          border-radius: 2px;
+          margin-bottom: 14px;
+        }
+
+        /* ─── RIGHT PANEL ─── */
+        .lp-right {
           flex: 1;
           background: #FFFFFF;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          padding: 52px 52px 44px;
+          padding: 56px 52px;
+          position: relative;
         }
 
-        .form-inner {
+        /* Subtle top-left corner accent */
+        .lp-right::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 0;
+          width: 120px; height: 120px;
+          background: radial-gradient(circle at top left, rgba(220,38,38,0.04) 0%, transparent 70%);
+          pointer-events: none;
+        }
+
+        .lp-form-wrap {
           width: 100%;
-          max-width: 320px;
+          max-width: 340px;
+          position: relative;
+          z-index: 1;
         }
 
         /* Logo */
-        .form-logo {
+        .lp-logo {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 8px;
-          margin-bottom: 28px;
+          margin-bottom: 32px;
         }
 
-        .form-logo-img {
-          width: 48px;
-          height: 48px;
-          border-radius: 14px;
+        .lp-logo-img {
+          width: 52px; height: 52px;
+          border-radius: 16px;
           overflow: hidden;
-          box-shadow: 0 4px 16px rgba(220,38,38,0.18);
-          border: 1.5px solid rgba(220,38,38,0.12);
+          border: 1.5px solid rgba(220,38,38,0.15);
+          box-shadow: 0 4px 20px rgba(220,38,38,0.12);
+          margin-bottom: 10px;
         }
 
-        .form-logo-text {
+        .lp-logo-name {
           font-family: 'Sora', sans-serif;
-          font-size: 13px;
-          font-weight: 800;
-          letter-spacing: 0.18em;
-          color: #0F172A;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.22em;
+          color: #1A1A1A;
           text-transform: uppercase;
         }
 
         /* Heading */
-        .form-heading {
+        .lp-h1 {
           font-family: 'Sora', sans-serif;
-          font-size: 26px;
+          font-size: 28px;
           font-weight: 800;
-          color: #0F172A;
-          letter-spacing: -0.01em;
+          color: #0D0D12;
+          letter-spacing: -0.02em;
           text-align: center;
-          margin-bottom: 6px;
+          line-height: 1.15;
+          margin-bottom: 8px;
           text-transform: uppercase;
         }
 
-        .form-subheading {
+        .lp-sub {
           font-size: 13.5px;
           color: #94A3B8;
           text-align: center;
-          line-height: 1.5;
-          margin-bottom: 28px;
+          line-height: 1.6;
+          font-weight: 400;
+          margin-bottom: 32px;
         }
 
-        /* Divider */
-        .form-divider {
-          height: 1px;
-          background: #F1F5F9;
-          margin-bottom: 24px;
-        }
+        /* ─── INPUTS ─── */
+        .lp-field { margin-bottom: 18px; }
 
-        /* Inputs */
-        .lf-group {
-          margin-bottom: 16px;
-        }
-
-        .lf-label {
+        .lp-label {
           display: block;
           font-size: 12px;
           font-weight: 600;
-          color: #334155;
+          color: #374151;
           margin-bottom: 7px;
           letter-spacing: 0.01em;
         }
 
-        .lf-input {
+        .lp-input {
           width: 100%;
-          padding: 12px 14px;
-          border-radius: 10px;
-          border: 1.5px solid #E2E8F0;
-          background: #FFFFFF;
+          padding: 13px 16px;
+          border-radius: 12px;
+          border: 1.5px solid #E5E9F0;
+          background: #FAFBFC;
           font-size: 14px;
           font-family: 'Manrope', sans-serif;
-          color: #0F172A;
+          font-weight: 500;
+          color: #0D0D12;
           outline: none;
-          transition: border-color 0.18s, box-shadow 0.18s;
+          transition: border-color 0.18s, box-shadow 0.18s, background 0.18s;
+        }
+        .lp-input::placeholder { color: #BDC5D1; font-weight: 400; }
+        .lp-input:focus {
+          border-color: #DC2626;
+          background: #FFFFFF;
+          box-shadow: 0 0 0 4px rgba(220,38,38,0.08);
         }
 
-        .lf-input::placeholder { color: #C8D3DE; }
-
-        .lf-input:focus {
-          border-color: #0F172A;
-          box-shadow: 0 0 0 3px rgba(15,23,42,0.06);
+        /* Password row label */
+        .lp-pass-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 7px;
         }
+        .lp-forgot {
+          font-size: 12px;
+          color: #9CA3AF;
+          font-weight: 500;
+          cursor: default;
+          transition: color 0.15s;
+        }
+        .lp-forgot:hover { color: #DC2626; }
 
-        /* Sign in button */
-        .lf-btn {
+        /* Eye toggle */
+        .lp-eye {
+          position: absolute;
+          right: 14px; top: 50%;
+          transform: translateY(-50%);
+          background: none; border: none;
+          cursor: pointer; line-height: 0;
+          color: #BDC5D1;
+          padding: 4px;
+          transition: color 0.15s;
+        }
+        .lp-eye:hover { color: #6B7280; }
+        .lp-pw-wrap { position: relative; }
+        .lp-pw-wrap .lp-input { padding-right: 46px; }
+
+        /* ─── SUBMIT BUTTON ─── */
+        .lp-btn {
           width: 100%;
-          padding: 14px;
-          border-radius: 10px;
+          padding: 15px;
+          margin-top: 6px;
+          border-radius: 12px;
           border: none;
           cursor: pointer;
           font-family: 'Sora', sans-serif;
           font-size: 14px;
           font-weight: 700;
-          letter-spacing: 0.06em;
+          letter-spacing: 0.05em;
           color: #FFFFFF;
-          background: #0F172A;
-          margin-top: 8px;
-          transition: background 0.15s, transform 0.12s, box-shadow 0.15s;
-          box-shadow: 0 4px 16px rgba(15,23,42,0.2);
+          background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+          box-shadow: 0 4px 20px rgba(220,38,38,0.3), 0 1px 4px rgba(220,38,38,0.2);
+          transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s;
+          position: relative;
+          overflow: hidden;
         }
-
-        .lf-btn:hover:not(:disabled) {
-          background: #1E293B;
-          transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(15,23,42,0.28);
+        .lp-btn::before {
+          content: '';
+          position: absolute; inset: 0;
+          background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+          pointer-events: none;
         }
-
-        .lf-btn:active:not(:disabled) {
+        .lp-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 28px rgba(220,38,38,0.4), 0 2px 8px rgba(220,38,38,0.25);
+        }
+        .lp-btn:active:not(:disabled) {
           transform: translateY(0);
-          background: #0F172A;
+          box-shadow: 0 3px 12px rgba(220,38,38,0.3);
         }
-
-        .lf-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
+        .lp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         /* Error */
-        .lf-error {
-          display: flex;
-          align-items: flex-start;
-          gap: 8px;
-          padding: 11px 13px;
-          border-radius: 9px;
-          background: rgba(220,38,38,0.05);
-          border: 1px solid rgba(220,38,38,0.15);
-          color: #DC2626;
-          font-size: 13px;
-          margin-bottom: 6px;
+        .lp-error {
+          display: flex; gap: 9px; align-items: flex-start;
+          padding: 11px 14px; border-radius: 10px;
+          background: #FEF2F2; border: 1px solid #FECACA;
+          color: #DC2626; font-size: 13px; font-weight: 500;
+          margin-bottom: 4px;
         }
 
         /* Footer */
-        .form-footer {
-          margin-top: 22px;
+        .lp-footer {
+          margin-top: 24px;
+          padding-top: 20px;
+          border-top: 1px solid #F1F5F9;
           text-align: center;
           font-size: 12px;
-          color: #94A3B8;
+          color: #B0BAC8;
           line-height: 1.6;
         }
+
+        /* Divider between logo and form */
+        .lp-sep {
+          display: flex; align-items: center; gap: 12px;
+          margin-bottom: 24px;
+        }
+        .lp-sep-line { flex: 1; height: 1px; background: #F1F5F9; }
+        .lp-sep-text { font-size: 11px; color: #CBD5E1; font-weight: 500; letter-spacing: 0.08em; white-space: nowrap; }
 
         /* Animations */
         @keyframes spin { to { transform: rotate(360deg); } }
         .spin { animation: spin 0.8s linear infinite; }
 
-        @keyframes card-enter {
-          from { opacity: 0; transform: translateY(20px) scale(0.98); }
-          to   { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .card-enter { animation: card-enter 0.6s cubic-bezier(0.34,1.1,0.64,1) forwards; }
-
-        /* Eye button */
-        .eye-btn {
-          position: absolute;
-          right: 13px;
-          top: 50%;
-          transform: translateY(-50%);
-          background: none;
-          border: none;
-          cursor: pointer;
-          padding: 4px;
-          color: #C8D3DE;
-          line-height: 0;
-          transition: color 0.15s;
-        }
-
-        .eye-btn:hover { color: #64748B; }
-
-        /* Show password wrapper */
-        .pass-wrap { position: relative; }
-
-        .pass-wrap .lf-input { padding-right: 44px; }
-
         /* Mobile */
-        @media (max-width: 700px) {
-          .lg-image-panel { display: none; }
-          .lg-page { padding: 16px; }
-          .lg-card { max-width: 400px; }
-          .lg-form-panel { padding: 44px 32px 40px; }
+        @media (max-width: 720px) {
+          .lp-left { display: none; }
+          .lp-page { padding: 0; background: #FFFFFF; }
+          .lp-card { border-radius: 0; box-shadow: none; min-height: 100vh; }
+          .lp-right { padding: 44px 28px; }
+          .lp-page::before, .lp-page::after { display: none; }
         }
       `}</style>
 
-      <div className="lg-page">
-        <div className="lg-card card-enter">
+      <div className="lp-page">
+        <div className="lp-card">
 
           {/* ══════════════════════════════
-               LEFT — IMAGE PANEL
+               LEFT PANEL
           ══════════════════════════════ */}
-          <div className="lg-image-panel">
+          <div className="lp-left">
 
-            {/* Glow accents */}
-            <div className="panel-glow" style={{
-              width: 280, height: 280,
-              top: '25%', left: '50%', transform: 'translate(-50%, -50%)',
-              background: 'radial-gradient(circle, rgba(220,38,38,0.3) 0%, transparent 70%)',
+            {/* Background glows */}
+            <div className="lp-left-glow" style={{
+              width: 320, height: 320, top: '10%', right: '-60px',
+              background: 'radial-gradient(circle, rgba(220,38,38,0.22) 0%, transparent 65%)',
             }}/>
-            <div className="panel-glow" style={{
-              width: 160, height: 160,
-              bottom: 80, right: -40,
-              background: 'radial-gradient(circle, rgba(220,38,38,0.15) 0%, transparent 70%)',
+            <div className="lp-left-glow" style={{
+              width: 200, height: 200, bottom: '15%', left: '-40px',
+              background: 'radial-gradient(circle, rgba(220,38,38,0.12) 0%, transparent 65%)',
             }}/>
 
-            {/* Service icon stage */}
-            <div className="service-stage">
-              <div className={`service-icon-wrap ${fading ? 'fading' : ''}`}>
-                <div className="icon-glow"/>
+            {/* Icon stage */}
+            <div className="lp-stage">
+              <div className={`lp-icon-ring ${fading ? 'fading' : ''}`}>
+                <div className="lp-icon-glow"/>
                 <Image
                   src={current.img}
                   alt={current.tag}
-                  width={220}
-                  height={220}
+                  width={220} height={220}
                   style={{
-                    width: 220, height: 220,
+                    width: 200, height: 200,
                     objectFit: 'contain',
                     filter: 'brightness(0) invert(1)',
-                    opacity: 0.9,
-                    position: 'relative',
-                    zIndex: 1,
+                    opacity: 0.88,
+                    position: 'relative', zIndex: 1,
+                    dropShadow: '0 0 40px rgba(255,80,80,0.4)',
                   }}
                 />
               </div>
 
-              <div className="service-tag" style={{ opacity: fading ? 0 : 1 }}>
+              <div className="lp-tag" style={{ opacity: fading ? 0 : 1 }}>
                 {current.tag}
               </div>
 
-              {/* Slide dots */}
-              <div className="slide-dots">
+              <div className="lp-dots">
                 {SLIDES.map((_, i) => (
-                  <div
-                    key={i}
-                    className="dot"
-                    onClick={() => { setFading(true); setTimeout(() => { setSlide(i); setFading(false) }, 500) }}
+                  <div key={i} className="lp-dot"
+                    onClick={() => { setFading(true); setTimeout(() => { setSlide(i); setFading(false) }, 450) }}
                     style={{
-                      width: slide === i ? 22 : 5,
-                      background: slide === i ? '#DC2626' : 'rgba(255,255,255,0.25)',
+                      width: slide === i ? 24 : 5,
+                      background: slide === i ? '#EF4444' : 'rgba(255,255,255,0.2)',
                     }}
                   />
                 ))}
               </div>
             </div>
 
-            {/* Bottom text */}
-            <div className="panel-bottom">
-              <p className="panel-tagline">
-                <span>Your Team</span>
+            {/* Bottom tagline */}
+            <div className="lp-bottom">
+              <div className="lp-line"/>
+              <p className="lp-tagline">
+                <span className="lp-tagline-eyebrow">Your Team Portal</span>
                 Track.<br/>Grow.<br/>Succeed.
               </p>
             </div>
           </div>
 
           {/* ══════════════════════════════
-               RIGHT — FORM PANEL
+               RIGHT PANEL — FORM
           ══════════════════════════════ */}
-          <div className="lg-form-panel">
-            <div className="form-inner">
+          <div className="lp-right">
+            <div className="lp-form-wrap">
 
               {/* Logo */}
-              <div className="form-logo">
-                <div className="form-logo-img">
-                  <Image src="/brand/logo.jpg" alt="GroFast" width={48} height={48}
+              <div className="lp-logo">
+                <div className="lp-logo-img">
+                  <Image src="/brand/logo.jpg" alt="GroFast" width={52} height={52}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
                 </div>
-                <span className="form-logo-text">GROFAST</span>
+                <span className="lp-logo-name">GROFAST</span>
               </div>
 
               {/* Heading */}
-              <h1 className="form-heading">Welcome Back</h1>
-              <p className="form-subheading">
+              <h1 className="lp-h1">Welcome Back</h1>
+              <p className="lp-sub">
                 Enter your email and password<br/>to access your account
               </p>
 
-              <div className="form-divider"/>
+              <div className="lp-sep">
+                <div className="lp-sep-line"/>
+                <span className="lp-sep-text">Sign In</span>
+                <div className="lp-sep-line"/>
+              </div>
 
-              {/* Form */}
               <form action={action}>
-                <div className="lf-group">
-                  <label className="lf-label">Email</label>
-                  <input
-                    className="lf-input" name="email" type="email"
+                <div className="lp-field">
+                  <label className="lp-label">Email</label>
+                  <input className="lp-input" name="email" type="email"
                     placeholder="Enter your email" required
-                    autoComplete="email" autoCapitalize="none"
-                  />
+                    autoComplete="email" autoCapitalize="none"/>
                 </div>
 
-                <div className="lf-group">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-                    <label className="lf-label" style={{ margin: 0 }}>Password</label>
-                    <span style={{ fontSize: 12, color: '#94A3B8', fontWeight: 500, cursor: 'default' }}>
-                      Forgot Password?
-                    </span>
+                <div className="lp-field">
+                  <div className="lp-pass-header">
+                    <label className="lp-label" style={{ margin: 0 }}>Password</label>
+                    <span className="lp-forgot">Forgot Password?</span>
                   </div>
-                  <div className="pass-wrap">
-                    <input
-                      className="lf-input" name="password"
+                  <div className="lp-pw-wrap">
+                    <input className="lp-input" name="password"
                       type={showPassword ? 'text' : 'password'}
                       placeholder="Enter your password" required
-                      autoComplete="current-password"
-                    />
-                    <button type="button" className="eye-btn" onClick={() => setShowPassword(v => !v)} tabIndex={-1}>
+                      autoComplete="current-password"/>
+                    <button type="button" className="lp-eye" tabIndex={-1}
+                      onClick={() => setShowPassword(v => !v)}>
                       {showPassword ? (
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
@@ -544,7 +585,7 @@ export default function LoginPage() {
                 </div>
 
                 {state?.error && (
-                  <div className="lf-error">
+                  <div className="lp-error">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0, marginTop: 1 }}>
                       <circle cx="12" cy="12" r="10"/>
                       <line x1="12" y1="8" x2="12" y2="12"/>
@@ -554,7 +595,7 @@ export default function LoginPage() {
                   </div>
                 )}
 
-                <button type="submit" disabled={pending} className="lf-btn">
+                <button type="submit" disabled={pending} className="lp-btn">
                   {pending ? (
                     <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                       <svg className="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -566,9 +607,10 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              <p className="form-footer">
+              <div className="lp-footer">
                 Forgot your password? Contact your administrator.
-              </p>
+              </div>
+
             </div>
           </div>
 

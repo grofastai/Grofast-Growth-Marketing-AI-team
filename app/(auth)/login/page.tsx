@@ -63,10 +63,10 @@ export default function LoginPage() {
           position: relative; overflow: hidden;
           background: linear-gradient(155deg, #160202 0%, #2a0404 30%, #4a0808 65%, #6b1010 100%);
           display: flex; flex-direction: column;
-          justify-content: center;
+          justify-content: flex-start;
           align-items: center;
           text-align: center;
-          padding: 48px 44px;
+          padding: 64px 44px 48px;
         }
 
         /* Subtle grid */
@@ -329,7 +329,7 @@ export default function LoginPage() {
             }}/>
 
             {/* Top: logo */}
-            <div className="lp-left-logo" style={{ marginBottom: 48 }}>
+            <div className="lp-left-logo" style={{ marginBottom: 36 }}>
               <div className="lp-left-logo-img">
                 <Image src="/brand/logo.jpg" alt="GroFast" width={40} height={40}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>

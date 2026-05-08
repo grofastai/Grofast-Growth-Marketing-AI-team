@@ -150,30 +150,6 @@ export default function LoginPage() {
           pointer-events:none;
         }
 
-        /* ── 4 Floating dark badges + red arrow ── */
-        .l-badges {
-          position:absolute;
-          bottom:88px; left:38px;
-          width:280px; height:100px;
-          z-index:6; pointer-events:none;
-        }
-        /* Red arrow SVG */
-        .l-arrow-svg {
-          position:absolute; top:0; left:0; width:100%; height:100%; z-index:0;
-        }
-        .l-b {
-          position:absolute;
-          width:52px; height:52px; border-radius:14px;
-          background:#181818;
-          border:1px solid rgba(255,255,255,0.1);
-          display:flex; align-items:center; justify-content:center;
-          z-index:1;
-          box-shadow:0 4px 16px rgba(0,0,0,0.4);
-        }
-        .l-b1 { bottom:30px; left:0; }
-        .l-b2 { bottom:6px;  left:68px; width:46px; height:46px; border-radius:12px; }
-        .l-b3 { bottom:26px; left:134px; }
-        .l-b4 { bottom:4px;  left:210px; width:46px; height:46px; border-radius:12px; }
 
         /* ── Particles ── */
         .pt {
@@ -311,45 +287,6 @@ export default function LoginPage() {
                 priority
                 style={{width:'100%',height:'auto',objectFit:'contain',display:'block'}}
               />
-            </div>
-
-            {/* 4 dark badges + red arrow */}
-            <div className="l-badges">
-              {/* Red arrow */}
-              <svg className="l-arrow-svg" viewBox="0 0 280 100" fill="none">
-                <path d="M22 85 Q90 20 258 55" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" fill="none"/>
-                <path d="M250 46 L258 55 L248 59" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-
-              {/* Badge 1 — chart */}
-              <div className="l-b l-b1">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M3 17l4-6 4 4 4-8 4 4" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-
-              {/* Badge 2 — chat */}
-              <div className="l-b l-b2">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinejoin="round"/>
-                  <circle cx="9" cy="11" r="1" fill="rgba(255,255,255,0.6)"/>
-                  <circle cx="12" cy="11" r="1" fill="rgba(255,255,255,0.6)"/>
-                  <circle cx="15" cy="11" r="1" fill="rgba(255,255,255,0.6)"/>
-                </svg>
-              </div>
-
-              {/* Badge 3 — AI */}
-              <div className="l-b l-b3">
-                <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:16,fontWeight:800,color:'#DC2626',letterSpacing:'0.05em'}}>AI</span>
-              </div>
-
-              {/* Badge 4 — tasks */}
-              <div className="l-b l-b4">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                  <path d="M9 11l3 3L22 4" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-              </div>
             </div>
 
             {/* Feature strip */}

@@ -63,7 +63,9 @@ export default function LoginPage() {
           position: relative; overflow: hidden;
           background: linear-gradient(155deg, #160202 0%, #2a0404 30%, #4a0808 65%, #6b1010 100%);
           display: flex; flex-direction: column;
-          justify-content: flex-end;
+          justify-content: center;
+          align-items: center;
+          text-align: center;
           padding: 48px 44px;
         }
 
@@ -118,12 +120,14 @@ export default function LoginPage() {
           letter-spacing: 0.22em; text-transform: uppercase;
           color: rgba(255,255,255,0.28);
           margin-bottom: 12px; display: block;
+          text-align: center;
         }
         .lp-tagline {
           font-family: 'Sora', sans-serif;
           font-size: 72px; font-weight: 800;
           line-height: 1.0; letter-spacing: -0.03em;
           color: #FFFFFF; text-transform: uppercase;
+          text-align: center;
         }
         .lp-tagline em {
           font-style: normal;
@@ -131,6 +135,7 @@ export default function LoginPage() {
         }
         .lp-services {
           display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap;
+          justify-content: center;
         }
         .lp-svc {
           font-size: 10.5px; font-weight: 600;
@@ -324,7 +329,7 @@ export default function LoginPage() {
             }}/>
 
             {/* Top: logo */}
-            <div className="lp-left-logo" style={{ marginBottom: 'auto' }}>
+            <div className="lp-left-logo" style={{ marginBottom: 48 }}>
               <div className="lp-left-logo-img">
                 <Image src="/brand/logo.jpg" alt="GroFast" width={40} height={40}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>

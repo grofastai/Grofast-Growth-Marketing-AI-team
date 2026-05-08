@@ -104,8 +104,8 @@ export default function LoginPage() {
 
         .service-icon-wrap {
           position: relative;
-          width: 200px;
-          height: 200px;
+          width: 260px;
+          height: 260px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -436,10 +436,10 @@ export default function LoginPage() {
                 <Image
                   src={current.img}
                   alt={current.tag}
-                  width={160}
-                  height={160}
+                  width={220}
+                  height={220}
                   style={{
-                    width: 160, height: 160,
+                    width: 220, height: 220,
                     objectFit: 'contain',
                     filter: 'brightness(0) invert(1)',
                     opacity: 0.9,
@@ -475,11 +475,6 @@ export default function LoginPage() {
                 <span>Your Team</span>
                 Track.<br/>Grow.<br/>Succeed.
               </p>
-              <div className="panel-features">
-                {['Daily Reports', 'Task Tracking', 'Leave Mgmt', 'Analytics'].map(f => (
-                  <span key={f} className="panel-feat-chip">{f}</span>
-                ))}
-              </div>
             </div>
           </div>
 

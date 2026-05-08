@@ -61,23 +61,10 @@ export default function LoginPage() {
         .lp-left {
           width: 44%; flex-shrink: 0;
           position: relative; overflow: hidden;
-          background: linear-gradient(155deg, #160202 0%, #2a0404 30%, #4a0808 65%, #6b1010 100%);
+          background: #111111;
           display: flex; flex-direction: column;
           justify-content: space-between;
-          align-items: center;
-          text-align: center;
-          padding: 40px 36px 36px;
-        }
-
-        /* Subtle grid */
-        .lp-left::before {
-          content: '';
-          position: absolute; inset: 0;
-          background-image:
-            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-          background-size: 36px 36px;
-          pointer-events: none;
+          padding: 36px 32px;
         }
 
         .lp-orb { display: none; }
@@ -118,62 +105,63 @@ export default function LoginPage() {
           align-items: center; justify-content: center;
           padding: 0 8px;
         }
-        /* character image card */
-        .lp-character {
-          position: relative; z-index: 2;
-          flex: 1;
-          display: flex; align-items: flex-end; justify-content: center;
-          width: 88%;
-          margin: 16px 0 0;
-          background: rgba(255,255,255,0.97);
-          border-radius: 20px;
-          overflow: hidden;
-          box-shadow: 0 8px 40px rgba(0,0,0,0.35);
+        /* ── POSTER TEXT (behind character) ── */
+        .lp-poster {
+          position: absolute;
+          top: 50%; left: 50%;
+          transform: translate(-50%, -52%);
+          z-index: 1;
+          width: 100%;
+          text-align: center;
+          pointer-events: none;
+        }
+        .lp-poster-word {
+          font-family: 'Sora', sans-serif;
+          font-size: 88px; font-weight: 800;
+          line-height: 0.92; letter-spacing: -0.04em;
+          color: #FFFFFF; text-transform: uppercase;
+          display: block;
+          white-space: nowrap;
         }
 
-        .lp-eyebrow {
-          font-size: 10px; font-weight: 600;
-          letter-spacing: 0.24em; text-transform: uppercase;
-          color: rgba(255,255,255,0.35);
-          margin-bottom: 8px; display: block;
+        /* ── CHARACTER (in front of text) ── */
+        .lp-character {
+          position: absolute;
+          bottom: 110px; left: 50%;
+          transform: translateX(-50%);
+          z-index: 2;
+          width: 110%;
+          display: flex; justify-content: center;
         }
-        .lp-tagline {
-          font-family: 'Sora', sans-serif;
-          font-size: 40px; font-weight: 800;
-          line-height: 1.05; letter-spacing: -0.025em;
-          color: #FFFFFF; text-transform: uppercase;
-          text-align: center;
+
+        /* ── BOTTOM STRIP ── */
+        .lp-bottom-strip {
+          position: relative; z-index: 3;
+          margin-top: auto;
         }
         .lp-tagline-desc {
-          font-size: 12.5px; font-weight: 400;
-          color: rgba(255,255,255,0.4);
-          line-height: 1.6; margin-top: 8px;
-          max-width: 260px; text-align: center;
+          font-size: 11px; font-weight: 500;
+          color: rgba(255,255,255,0.3);
+          letter-spacing: 0.1em; text-transform: uppercase;
+          text-align: left; margin-bottom: 16px;
         }
-        /* ─── LEFT: BOTTOM STATS ─── */
         .lp-stats {
-          position: relative; z-index: 3;
           display: flex; gap: 0;
           border-top: 1px solid rgba(255,255,255,0.08);
-          width: 100%; padding-top: 20px;
+          padding-top: 18px;
         }
-        .lp-stat {
-          flex: 1; text-align: center; padding: 0 8px;
-        }
-        .lp-stat + .lp-stat {
-          border-left: 1px solid rgba(255,255,255,0.08);
-        }
+        .lp-stat { flex: 1; }
+        .lp-stat + .lp-stat { border-left: 1px solid rgba(255,255,255,0.08); padding-left: 16px; margin-left: 0; }
         .lp-stat-num {
           font-family: 'Sora', sans-serif;
-          font-size: 20px; font-weight: 800;
-          color: #FFFFFF; letter-spacing: -0.02em;
-          display: block;
+          font-size: 18px; font-weight: 800;
+          color: #FFFFFF; display: block; letter-spacing: -0.02em;
         }
         .lp-stat-label {
-          font-size: 9.5px; font-weight: 500;
-          color: rgba(255,255,255,0.3);
-          letter-spacing: 0.08em; text-transform: uppercase;
-          display: block; margin-top: 3px;
+          font-size: 9px; font-weight: 500;
+          color: rgba(255,255,255,0.28);
+          letter-spacing: 0.1em; text-transform: uppercase;
+          display: block; margin-top: 2px;
         }
 
         /* ─── RIGHT PANEL ─── */
@@ -345,7 +333,7 @@ export default function LoginPage() {
           <div className="lp-left">
 
             {/* Top: logo */}
-            {/* Top: logo */}
+            {/* Logo — top left */}
             <div className="lp-left-logo">
               <div className="lp-left-logo-img">
                 <Image src="/brand/logo.jpg" alt="GroFast" width={40} height={40}
@@ -357,39 +345,43 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Middle: character image */}
+            {/* Big text BEHIND character */}
+            <div className="lp-poster">
+              <span className="lp-poster-word">TRACK.</span>
+              <span className="lp-poster-word">GROW.</span>
+              <span className="lp-poster-word">SUCCEED.</span>
+            </div>
+
+            {/* Character image IN FRONT of text */}
             <div className="lp-character">
               <Image
                 src="/brand/character.png"
-                alt="GroFast"
-                width={380} height={420}
-                style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center bottom' }}
+                alt="GroFast mascot"
+                width={400} height={460}
                 priority
+                style={{
+                  width: '100%', height: 'auto',
+                  objectFit: 'contain',
+                  marginTop: '-30%',
+                }}
               />
             </div>
 
-            {/* Tagline */}
-            <div className="lp-mid" style={{ flex: 'none', paddingBottom: 20 }}>
-              <div className="lp-tagline">
-                Track. Grow.<br/>Succeed.
+            {/* Bottom strip */}
+            <div className="lp-bottom-strip">
+              <p className="lp-tagline-desc">One platform · AI powered · Real-time</p>
+              <div className="lp-stats">
+                {[
+                  { num: '24/7', label: 'AI Support' },
+                  { num: '100%', label: 'Visibility' },
+                  { num: 'Live', label: 'Updates' },
+                ].map(({ num, label }) => (
+                  <div key={label} className="lp-stat">
+                    <span className="lp-stat-num">{num}</span>
+                    <span className="lp-stat-label">{label}</span>
+                  </div>
+                ))}
               </div>
-              <p className="lp-tagline-desc">
-                One platform to manage your team, track progress, and grow your business with AI.
-              </p>
-            </div>
-
-            {/* Bottom: stats */}
-            <div className="lp-stats">
-              {[
-                { num: '24/7', label: 'AI Support' },
-                { num: '100%', label: 'Visibility' },
-                { num: 'Live', label: 'Updates' },
-              ].map(({ num, label }) => (
-                <div key={label} className="lp-stat">
-                  <span className="lp-stat-num">{num}</span>
-                  <span className="lp-stat-label">{label}</span>
-                </div>
-              ))}
             </div>
           </div>
 

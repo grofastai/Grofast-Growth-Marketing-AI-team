@@ -348,43 +348,6 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Floating badges — z-index 3 */}
-            <div className="lp-badges">
-              {/* Chart badge */}
-              <div className="lp-badge">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
-                  <path d="M3 17l4-6 4 4 4-8 4 4" stroke="#DC2626" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="19" cy="11" r="2" fill="#DC2626" opacity="0.3"/>
-                </svg>
-              </div>
-              {/* Chat badge */}
-              <div className="lp-badge lp-badge-sm">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinejoin="round"/>
-                  <circle cx="9" cy="11" r="1" fill="rgba(255,255,255,0.5)"/>
-                  <circle cx="12" cy="11" r="1" fill="rgba(255,255,255,0.5)"/>
-                  <circle cx="15" cy="11" r="1" fill="rgba(255,255,255,0.5)"/>
-                </svg>
-              </div>
-              {/* AI badge */}
-              <div className="lp-badge">
-                <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 800, color: '#DC2626', letterSpacing: '-0.02em' }}>AI</span>
-              </div>
-              {/* Tasks badge */}
-              <div className="lp-badge lp-badge-sm">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path d="M9 11l3 3L22 4" stroke="#DC2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-            </div>
-
-            {/* Red arrow */}
-            <svg className="lp-arrow" width="200" height="70" viewBox="0 0 200 70" fill="none">
-              <path d="M10 60 Q80 10 190 30" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" fill="none" opacity="0.7"/>
-              <path d="M182 22 L190 30 L180 34" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7"/>
-            </svg>
-
             {/* Stats */}
             <div className="lp-stats">
               <div className="lp-stat">

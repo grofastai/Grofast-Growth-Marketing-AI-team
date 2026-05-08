@@ -63,10 +63,10 @@ export default function LoginPage() {
           position: relative; overflow: hidden;
           background: linear-gradient(155deg, #160202 0%, #2a0404 30%, #4a0808 65%, #6b1010 100%);
           display: flex; flex-direction: column;
-          justify-content: flex-start;
+          justify-content: space-between;
           align-items: center;
           text-align: center;
-          padding: 64px 44px 48px;
+          padding: 48px 40px;
         }
 
         /* Subtle grid */
@@ -111,43 +111,59 @@ export default function LoginPage() {
         /* ─── LEFT: CENTER ABSTRACT ─── */
         .lp-center-art { display: none; }
 
-        /* ─── LEFT: BOTTOM TAGLINE ─── */
-        .lp-tagline-block {
+        /* ─── LEFT: MIDDLE CONTENT ─── */
+        .lp-mid {
           position: relative; z-index: 2;
+          text-align: center;
+          flex: 1;
+          display: flex; flex-direction: column;
+          align-items: center; justify-content: center;
+          padding: 0 8px;
         }
         .lp-eyebrow {
           font-size: 10px; font-weight: 600;
-          letter-spacing: 0.22em; text-transform: uppercase;
-          color: rgba(255,255,255,0.28);
-          margin-bottom: 12px; display: block;
-          text-align: center;
+          letter-spacing: 0.24em; text-transform: uppercase;
+          color: rgba(255,255,255,0.3);
+          margin-bottom: 16px; display: block;
         }
         .lp-tagline {
           font-family: 'Sora', sans-serif;
-          font-size: 72px; font-weight: 800;
-          line-height: 1.0; letter-spacing: -0.03em;
+          font-size: 46px; font-weight: 800;
+          line-height: 1.05; letter-spacing: -0.025em;
           color: #FFFFFF; text-transform: uppercase;
           text-align: center;
         }
-        .lp-tagline em {
-          font-style: normal;
-          color: rgba(255,255,255,0.22);
+        .lp-tagline-desc {
+          font-size: 13.5px; font-weight: 400;
+          color: rgba(255,255,255,0.4);
+          line-height: 1.6; margin-top: 16px;
+          max-width: 260px; text-align: center;
         }
-        .lp-services {
-          display: flex; gap: 8px; margin-top: 20px; flex-wrap: wrap;
-          justify-content: center;
+        /* ─── LEFT: BOTTOM STATS ─── */
+        .lp-stats {
+          position: relative; z-index: 2;
+          display: flex; gap: 0;
+          border-top: 1px solid rgba(255,255,255,0.07);
+          width: 100%; padding-top: 24px;
         }
-        .lp-svc {
-          font-size: 10.5px; font-weight: 600;
-          color: rgba(255,255,255,0.38);
-          letter-spacing: 0.05em;
-          display: flex; align-items: center; gap: 5px;
+        .lp-stat {
+          flex: 1; text-align: center;
+          padding: 0 8px;
         }
-        .lp-svc::before {
-          content: '';
-          width: 3px; height: 3px; border-radius: 50%;
-          background: rgba(220,38,38,0.7);
-          flex-shrink: 0;
+        .lp-stat + .lp-stat {
+          border-left: 1px solid rgba(255,255,255,0.07);
+        }
+        .lp-stat-num {
+          font-family: 'Sora', sans-serif;
+          font-size: 22px; font-weight: 800;
+          color: #FFFFFF; letter-spacing: -0.02em;
+          display: block;
+        }
+        .lp-stat-label {
+          font-size: 10px; font-weight: 500;
+          color: rgba(255,255,255,0.3);
+          letter-spacing: 0.08em; text-transform: uppercase;
+          display: block; margin-top: 4px;
         }
 
         /* ─── RIGHT PANEL ─── */
@@ -329,7 +345,8 @@ export default function LoginPage() {
             }}/>
 
             {/* Top: logo */}
-            <div className="lp-left-logo" style={{ marginBottom: 36 }}>
+            {/* Top: logo */}
+            <div className="lp-left-logo">
               <div className="lp-left-logo-img">
                 <Image src="/brand/logo.jpg" alt="GroFast" width={40} height={40}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
@@ -340,19 +357,29 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Bottom: tagline */}
-            <div className="lp-tagline-block">
+            {/* Middle: tagline */}
+            <div className="lp-mid">
               <span className="lp-eyebrow">Your Team Portal</span>
               <div className="lp-tagline">
-                Track.<br/>
-                Grow.<br/>
-                <em>Succeed.</em>
+                Track.<br/>Grow.<br/>Succeed.
               </div>
-              <div className="lp-services">
-                {['AI Automation', 'Digital Growth', 'Influencer Marketing'].map(s => (
-                  <span key={s} className="lp-svc">{s}</span>
-                ))}
-              </div>
+              <p className="lp-tagline-desc">
+                One platform to manage your team, track progress, and grow your business with AI.
+              </p>
+            </div>
+
+            {/* Bottom: stats */}
+            <div className="lp-stats">
+              {[
+                { num: '24/7', label: 'AI Support' },
+                { num: '100%', label: 'Visibility' },
+                { num: 'Live', label: 'Updates' },
+              ].map(({ num, label }) => (
+                <div key={label} className="lp-stat">
+                  <span className="lp-stat-num">{num}</span>
+                  <span className="lp-stat-label">{label}</span>
+                </div>
+              ))}
             </div>
           </div>
 

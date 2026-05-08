@@ -21,7 +21,7 @@ export default function LoginPage() {
           justify-content: center;
           padding: 32px 20px;
           font-family: 'Manrope', sans-serif;
-          background: #0C0C0F;
+          background: radial-gradient(ellipse at 60% 40%, #4a0808 0%, #1a0202 50%, #0d0101 100%);
           position: relative;
           overflow: hidden;
         }
@@ -33,7 +33,7 @@ export default function LoginPage() {
           transform: translateX(-50%);
           width: 900px; height: 600px;
           border-radius: 50%;
-          background: radial-gradient(ellipse, rgba(180,10,10,0.12) 0%, transparent 65%);
+          background: radial-gradient(ellipse, rgba(180,10,10,0.25) 0%, transparent 65%);
           pointer-events: none;
         }
 
@@ -130,7 +130,7 @@ export default function LoginPage() {
           bottom: 110px; left: 50%;
           transform: translateX(-50%);
           z-index: 2;
-          width: 110%;
+          width: 72%;
           display: flex; justify-content: center;
         }
 
@@ -362,7 +362,7 @@ export default function LoginPage() {
                 style={{
                   width: '100%', height: 'auto',
                   objectFit: 'contain',
-                  marginTop: '-30%',
+                  marginTop: '-18%',
                 }}
               />
             </div>

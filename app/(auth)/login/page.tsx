@@ -63,7 +63,7 @@ export default function LoginPage() {
           position: relative; overflow: hidden;
           background: linear-gradient(155deg, #160202 0%, #2a0404 30%, #4a0808 65%, #6b1010 100%);
           display: flex; flex-direction: column;
-          justify-content: space-between;
+          justify-content: flex-end;
           padding: 48px 44px;
         }
 
@@ -107,11 +107,7 @@ export default function LoginPage() {
         }
 
         /* ─── LEFT: CENTER ABSTRACT ─── */
-        .lp-center-art {
-          position: relative; z-index: 2;
-          flex: 1;
-          display: flex; align-items: center; justify-content: center;
-        }
+        .lp-center-art { display: none; }
 
         /* ─── LEFT: BOTTOM TAGLINE ─── */
         .lp-tagline-block {
@@ -125,7 +121,7 @@ export default function LoginPage() {
         }
         .lp-tagline {
           font-family: 'Sora', sans-serif;
-          font-size: 42px; font-weight: 800;
+          font-size: 52px; font-weight: 800;
           line-height: 1.0; letter-spacing: -0.03em;
           color: #FFFFFF; text-transform: uppercase;
         }
@@ -328,7 +324,7 @@ export default function LoginPage() {
             }}/>
 
             {/* Top: logo */}
-            <div className="lp-left-logo">
+            <div className="lp-left-logo" style={{ marginBottom: 'auto' }}>
               <div className="lp-left-logo-img">
                 <Image src="/brand/logo.jpg" alt="GroFast" width={40} height={40}
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
@@ -336,94 +332,6 @@ export default function LoginPage() {
               <div>
                 <div className="lp-left-logo-name">GroFast</div>
                 <div className="lp-left-logo-sub">Growth & AI Solutions</div>
-              </div>
-            </div>
-
-            {/* Center: abstract rings art */}
-            <div className="lp-center-art">
-              <div style={{ position: 'relative', width: 220, height: 220 }}>
-
-                {/* Outer rotating dashed ring */}
-                <svg
-                  width="220" height="220" viewBox="0 0 220 220"
-                  style={{ position: 'absolute', inset: 0, animation: 'slow-spin 18s linear infinite' }}
-                >
-                  <circle cx="110" cy="110" r="104"
-                    fill="none" stroke="rgba(220,38,38,0.18)"
-                    strokeWidth="1" strokeDasharray="6 10"/>
-                  {/* 8 small dots on the ring */}
-                  {[0,45,90,135,180,225,270,315].map((deg, i) => {
-                    const rad = (deg * Math.PI) / 180
-                    const x = 110 + 104 * Math.cos(rad)
-                    const y = 110 + 104 * Math.sin(rad)
-                    return <circle key={i} cx={x} cy={y} r="3" fill="rgba(220,38,38,0.5)"/>
-                  })}
-                </svg>
-
-                {/* Middle ring counter-rotating */}
-                <svg
-                  width="220" height="220" viewBox="0 0 220 220"
-                  style={{ position: 'absolute', inset: 0, animation: 'slow-spin-r 12s linear infinite' }}
-                >
-                  <circle cx="110" cy="110" r="72"
-                    fill="none" stroke="rgba(220,38,38,0.12)"
-                    strokeWidth="1" strokeDasharray="3 14"/>
-                  {[0,60,120,180,240,300].map((deg, i) => {
-                    const rad = (deg * Math.PI) / 180
-                    const x = 110 + 72 * Math.cos(rad)
-                    const y = 110 + 72 * Math.sin(rad)
-                    return <circle key={i} cx={x} cy={y} r="2.5" fill="rgba(255,100,100,0.4)"/>
-                  })}
-                </svg>
-
-                {/* Inner static ring */}
-                <svg width="220" height="220" viewBox="0 0 220 220"
-                  style={{ position: 'absolute', inset: 0 }}>
-                  <circle cx="110" cy="110" r="40"
-                    fill="none" stroke="rgba(220,38,38,0.15)" strokeWidth="1"/>
-                </svg>
-
-                {/* Center glow + GroFast G mark */}
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <div style={{
-                    width: 64, height: 64, borderRadius: '50%',
-                    background: 'radial-gradient(circle, rgba(220,38,38,0.35) 0%, rgba(180,10,10,0.15) 50%, transparent 70%)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    animation: 'float-y 4s ease-in-out infinite',
-                  }}>
-                    <div style={{
-                      width: 42, height: 42, borderRadius: '50%',
-                      background: 'rgba(220,38,38,0.12)',
-                      border: '1px solid rgba(220,38,38,0.3)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <span style={{
-                        fontFamily: "'Sora', sans-serif",
-                        fontSize: 20, fontWeight: 800,
-                        color: 'rgba(255,80,80,0.8)',
-                        letterSpacing: '-0.02em',
-                      }}>G</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Floating dots around the art */}
-                {[
-                  { top: '2%', left: '12%', delay: '0s' },
-                  { top: '8%', right: '10%', delay: '0.7s' },
-                  { bottom: '10%', right: '8%', delay: '1.2s' },
-                  { bottom: '5%', left: '18%', delay: '0.4s' },
-                ].map((pos, i) => (
-                  <div key={i} style={{
-                    position: 'absolute', ...pos,
-                    width: 5, height: 5, borderRadius: '50%',
-                    background: 'rgba(220,38,38,0.5)',
-                    animation: `pulse-dot 2.5s ease-in-out infinite ${pos.delay}`,
-                  }}/>
-                ))}
               </div>
             </div>
 

@@ -61,12 +61,23 @@ export default function LoginPage() {
         .lp-left {
           width: 44%; flex-shrink: 0;
           position: relative; overflow: hidden;
-          background: #F7F3EE;
+          background: linear-gradient(155deg, #160202 0%, #2a0404 30%, #4a0808 65%, #6b1010 100%);
           display: flex; flex-direction: column;
           justify-content: space-between;
           align-items: center;
           text-align: center;
           padding: 40px 36px 36px;
+        }
+
+        /* Subtle grid */
+        .lp-left::before {
+          content: '';
+          position: absolute; inset: 0;
+          background-image:
+            linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+          background-size: 36px 36px;
+          pointer-events: none;
         }
 
         .lp-orb { display: none; }
@@ -79,19 +90,18 @@ export default function LoginPage() {
         }
         .lp-left-logo-img {
           width: 40px; height: 40px; border-radius: 10px; overflow: hidden;
-          border: 1px solid rgba(0,0,0,0.08);
-          box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          border: 1px solid rgba(255,255,255,0.15);
           flex-shrink: 0;
         }
         .lp-left-logo-name {
           font-family: 'Sora', sans-serif;
           font-size: 13px; font-weight: 700;
-          letter-spacing: 0.2em; color: #0F172A;
+          letter-spacing: 0.2em; color: #FFFFFF;
           text-transform: uppercase;
         }
         .lp-left-logo-sub {
           font-size: 9px; letter-spacing: 0.18em;
-          color: #94A3B8;
+          color: rgba(255,255,255,0.35);
           text-transform: uppercase; font-weight: 500;
           margin-top: 2px;
         }
@@ -108,57 +118,60 @@ export default function LoginPage() {
           align-items: center; justify-content: center;
           padding: 0 8px;
         }
-        /* character image */
+        /* character image card */
         .lp-character {
           position: relative; z-index: 2;
           flex: 1;
           display: flex; align-items: flex-end; justify-content: center;
-          width: 100%;
-          margin: 0 -36px;
+          width: 88%;
+          margin: 16px 0 0;
+          background: rgba(255,255,255,0.97);
+          border-radius: 20px;
           overflow: hidden;
+          box-shadow: 0 8px 40px rgba(0,0,0,0.35);
         }
 
         .lp-eyebrow {
           font-size: 10px; font-weight: 600;
           letter-spacing: 0.24em; text-transform: uppercase;
-          color: #94A3B8;
-          margin-bottom: 10px; display: block;
+          color: rgba(255,255,255,0.35);
+          margin-bottom: 8px; display: block;
         }
         .lp-tagline {
           font-family: 'Sora', sans-serif;
-          font-size: 38px; font-weight: 800;
+          font-size: 40px; font-weight: 800;
           line-height: 1.05; letter-spacing: -0.025em;
-          color: #0F172A; text-transform: uppercase;
+          color: #FFFFFF; text-transform: uppercase;
           text-align: center;
         }
         .lp-tagline-desc {
-          font-size: 13px; font-weight: 400;
-          color: #64748B;
-          line-height: 1.6; margin-top: 10px;
+          font-size: 12.5px; font-weight: 400;
+          color: rgba(255,255,255,0.4);
+          line-height: 1.6; margin-top: 8px;
           max-width: 260px; text-align: center;
         }
         /* ─── LEFT: BOTTOM STATS ─── */
         .lp-stats {
           position: relative; z-index: 3;
           display: flex; gap: 0;
-          border-top: 1px solid rgba(0,0,0,0.07);
+          border-top: 1px solid rgba(255,255,255,0.08);
           width: 100%; padding-top: 20px;
         }
         .lp-stat {
           flex: 1; text-align: center; padding: 0 8px;
         }
         .lp-stat + .lp-stat {
-          border-left: 1px solid rgba(0,0,0,0.07);
+          border-left: 1px solid rgba(255,255,255,0.08);
         }
         .lp-stat-num {
           font-family: 'Sora', sans-serif;
           font-size: 20px; font-weight: 800;
-          color: #DC2626; letter-spacing: -0.02em;
+          color: #FFFFFF; letter-spacing: -0.02em;
           display: block;
         }
         .lp-stat-label {
           font-size: 9.5px; font-weight: 500;
-          color: #94A3B8;
+          color: rgba(255,255,255,0.3);
           letter-spacing: 0.08em; text-transform: uppercase;
           display: block; margin-top: 3px;
         }
@@ -357,10 +370,12 @@ export default function LoginPage() {
 
             {/* Tagline */}
             <div className="lp-mid" style={{ flex: 'none', paddingBottom: 20 }}>
-              <span className="lp-eyebrow">Your Team Portal</span>
               <div className="lp-tagline">
                 Track. Grow.<br/>Succeed.
               </div>
+              <p className="lp-tagline-desc">
+                One platform to manage your team, track progress, and grow your business with AI.
+              </p>
             </div>
 
             {/* Bottom: stats */}

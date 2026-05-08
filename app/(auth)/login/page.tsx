@@ -490,7 +490,7 @@ export default function LoginPage() {
                   <Image src="/brand/logo.jpg" alt="GroFast" width={48} height={48}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}/>
                 </div>
-                <span className="form-logo-text">Grofast.ai</span>
+                <span className="form-logo-text">GROFAST</span>
               </div>
 
               {/* Heading */}

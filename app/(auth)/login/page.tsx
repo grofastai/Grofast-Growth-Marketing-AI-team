@@ -335,6 +335,72 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Middle: feature cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 40, position: 'relative', zIndex: 2 }}>
+              {[
+                {
+                  icon: (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+                    </svg>
+                  ),
+                  title: 'AI Automation',
+                  desc: 'Smart workflows that run 24/7',
+                },
+                {
+                  icon: (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                  ),
+                  title: 'Team Tracking',
+                  desc: 'Daily updates & attendance in one place',
+                },
+                {
+                  icon: (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/>
+                    </svg>
+                  ),
+                  title: 'Growth Analytics',
+                  desc: 'Real-time insights & performance data',
+                },
+              ].map(({ icon, title, desc }, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: 14,
+                  padding: '14px 16px',
+                  borderRadius: 14,
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  backdropFilter: 'blur(4px)',
+                  animation: `card-rise 0.5s cubic-bezier(0.22,1,0.36,1) ${i * 0.1 + 0.2}s both`,
+                }}>
+                  <div style={{
+                    width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                    background: 'rgba(220,38,38,0.12)',
+                    border: '1px solid rgba(220,38,38,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'rgba(255,120,120,0.9)',
+                  }}>
+                    {icon}
+                  </div>
+                  <div>
+                    <div style={{
+                      fontFamily: "'Sora', sans-serif",
+                      fontSize: 13, fontWeight: 700,
+                      color: 'rgba(255,255,255,0.9)',
+                      marginBottom: 2,
+                    }}>{title}</div>
+                    <div style={{
+                      fontSize: 11.5, fontWeight: 400,
+                      color: 'rgba(255,255,255,0.35)',
+                      lineHeight: 1.4,
+                    }}>{desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             {/* Bottom: tagline */}
             <div className="lp-tagline-block">
               <span className="lp-eyebrow">Your Team Portal</span>

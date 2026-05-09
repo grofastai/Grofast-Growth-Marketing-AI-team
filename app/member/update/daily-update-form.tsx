@@ -120,7 +120,7 @@ function SlotRow({
       <div className="flex items-center gap-2">
         <div>
           <p className="text-[12px] font-black leading-none" style={{ color: accentColor }}>{fmtHour(slot.hour)}</p>
-          <p className="text-[10px] mt-0.5 leading-none" style={{ color: "#9CA3AF" }}>– {fmtHour(slot.hour + 1)}</p>
+          <p className="text-[10px] mt-0.5 leading-none" style={{ color: "#6B7280" }}>– {fmtHour(slot.hour + 1)}</p>
         </div>
         <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all"
           style={{ borderColor: isFilled ? accentColor : "#E5E7EB", background: isFilled ? accentColor : "#FFFFFF" }}>
@@ -353,7 +353,7 @@ export default function DailyUpdateForm({
               <div className="px-5 py-3" style={{ borderBottom: "1px solid #F5F5F7" }}>
                 <div className="grid gap-3 items-center" style={{ gridTemplateColumns: COLS }}>
                   {["Time", "What did you work on?", "Project", "Status", ""].map(lbl => (
-                    <span key={lbl} className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#6B7280" }}>{lbl}</span>
+                    <span key={lbl} className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "#374151" }}>{lbl}</span>
                   ))}
                 </div>
               </div>

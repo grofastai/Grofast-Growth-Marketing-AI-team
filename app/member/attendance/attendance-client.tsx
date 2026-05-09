@@ -143,13 +143,13 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
         {/* LEFT — Character + Timer card */}
         <div className="rounded-3xl overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.07)" }}>
-          {/* Character image */}
+          {/* Laptop / character image */}
           <div className="relative w-full" style={{ height: 280, background: "linear-gradient(135deg, #fafafa 0%, #f5f5f7 100%)" }}>
             <Image
-              src="/brand/character-desk.png"
+              src="/brand/alarm-clock.png"
               alt="Working character"
               fill
-              style={{ objectFit: "cover", objectPosition: "center top" }}
+              style={{ objectFit: "contain", objectPosition: "center" }}
             />
           </div>
 
@@ -213,9 +213,9 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   </button>
                   {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
                 </div>
-                {/* Alarm clock illustration */}
+                {/* Clock illustration */}
                 <div className="flex-shrink-0 w-28 h-28 relative">
-                  <Image src="/brand/alarm-clock.png" alt="Alarm clock" fill style={{ objectFit: "contain" }} />
+                  <Image src="/brand/character-desk.png" alt="Alarm clock" fill style={{ objectFit: "contain" }} />
                 </div>
               </div>
             )}

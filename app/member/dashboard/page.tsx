@@ -7,21 +7,32 @@ import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
 
 /* ── tiny inline sparkline ──────────────────────────────────────── */
-function Sparkline({ points, color }: { points: number[]; color: string }) {
-  const w = 100, h = 44, pad = 6
+function Sparkline({ points, color, id }: { points: number[]; color: string; id: string }) {
+  const w = 100, h = 48, pad = 5
   const min = Math.min(...points)
   const max = Math.max(...points)
   const range = max - min || 1
   const xs = points.map((_, i) => pad + (i / (points.length - 1)) * (w - pad * 2))
-  const ys = points.map(v => h - pad - ((v - min) / range) * (h - pad * 2))
+  const ys = points.map(v => h - pad * 2 - ((v - min) / range) * (h - pad * 3))
+  const linePts = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ")
+  const areaPath = `${linePts} L${xs[xs.length - 1].toFixed(1)},${h} L${xs[0].toFixed(1)},${h} Z`
+  const gradId = `sg-${id}`
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 44 }} preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 48 }} preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaPath} fill={`url(#${gradId})`} />
+      <path d={linePts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
       {xs.map((x, i) => {
         const isLast = i === xs.length - 1
         return (
           <g key={i}>
-            {isLast && <circle cx={x} cy={ys[i]} r="6" fill={color} opacity="0.15" />}
-            <circle cx={x} cy={ys[i]} r={isLast ? "3.5" : "2.5"} fill={color} opacity={isLast ? 1 : 0.55} />
+            {isLast && <circle cx={x} cy={ys[i]} r="5" fill={color} opacity="0.15" />}
+            <circle cx={x} cy={ys[i]} r={isLast ? "3" : "2"} fill={color} opacity={isLast ? 1 : 0.6} />
           </g>
         )
       })}
@@ -191,7 +202,7 @@ export default async function MemberDashboardPage() {
               <p className="text-[12px] font-medium mb-4 ml-0.5" style={{ color: "#6B7280" }}>{s.label}</p>
               {/* Full-width sparkline — bleeds to card edge */}
               <div className="-mx-5 mb-3">
-                <Sparkline points={[...s.spark]} color={s.sparkColor} />
+                <Sparkline points={[...s.spark]} color={s.sparkColor} id={s.label.replace(/\s/g, "")} />
               </div>
               {/* Trend */}
               <p className="text-[11px] font-semibold" style={{ color: s.up === true ? s.sparkColor : "#9CA3AF" }}>

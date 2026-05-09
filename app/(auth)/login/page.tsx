@@ -56,7 +56,7 @@ export default function LoginPage() {
            LEFT PANEL  60%
         ══════════════════════════════ */
         .left {
-          width:60%; flex-shrink:0;
+          width:50%; flex-shrink:0;
           border-radius:32px 0 0 32px;
           background:#060606;
           position:relative; overflow:hidden;

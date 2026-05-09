@@ -5,7 +5,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, ClipboardList, Target, CalendarOff,
-  Megaphone, User, LogOut, Clock, History, LifeBuoy,
+  Megaphone, User, LogOut, Clock, History, LifeBuoy, ChevronRight,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 import PushSubscribeButton from "@/components/PushSubscribeButton"
@@ -14,9 +14,9 @@ const navItems = [
   { label: "Dashboard",     href: "/member/dashboard",     icon: LayoutDashboard },
   { label: "Attendance",    href: "/member/attendance",    icon: Clock },
   { label: "Daily Update",  href: "/member/update",        icon: ClipboardList },
-  { label: "History",       href: "/member/history",       icon: History },
   { label: "My Tasks",      href: "/member/tasks",         icon: Target },
   { label: "Leaves",        href: "/member/leaves",        icon: CalendarOff },
+  { label: "History",       href: "/member/history",       icon: History },
   { label: "Announcements", href: "/member/announcements", icon: Megaphone },
   { label: "Profile",       href: "/member/profile",       icon: User },
   { label: "Support",       href: "/member/support",       icon: LifeBuoy },
@@ -30,11 +30,8 @@ const bottomNavItems = [
   { label: "Profile",    href: "/member/profile",       icon: User },
 ]
 
-const SIDEBAR_BG = "linear-gradient(160deg, #0a100d 0%, #520000 55%, #de1a1a 100%)"
-const MOBILE_BG  = "linear-gradient(90deg, #0a100d 0%, #de1a1a 100%)"
-const ACTIVE_BG  = "rgba(255,255,255,0.14)"
-const HOVER_BG   = "rgba(255,255,255,0.07)"
-const DIVIDER    = "rgba(255,255,255,0.1)"
+const DIVIDER = "rgba(255,255,255,0.08)"
+const MOBILE_BG = "linear-gradient(90deg, #0a0a0a 0%, #1a0000 60%, #de1a1a 100%)"
 
 export default function MemberSidebar({ name, employeeId }: { name: string; employeeId: string }) {
   const pathname = usePathname()
@@ -46,114 +43,174 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
 
   return (
     <>
-      {/* ── Desktop Sidebar (lg+: 1024px+) ─────────────────── */}
+      {/* ── Desktop Sidebar (lg+) ─────────────────────────── */}
       <aside
-        className="hidden lg:flex fixed left-0 top-0 h-screen w-[240px] flex-col z-50 select-none"
-        style={{ background: SIDEBAR_BG, borderRight: "1px solid rgba(201,13,22,0.25)" }}
+        className="hidden lg:flex fixed left-0 top-0 h-screen w-[240px] flex-col z-50 select-none overflow-hidden"
+        style={{ background: "#080808", borderRight: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <div className="px-5 py-[18px]" style={{ borderBottom: `1px solid ${DIVIDER}` }}>
+        {/* ── Red wave background art ── */}
+        <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 0 }}>
+          <svg
+            viewBox="0 0 240 860"
+            className="absolute bottom-0 right-0"
+            style={{ width: "100%", height: "65%", opacity: 1 }}
+            preserveAspectRatio="xMidYMax slice"
+          >
+            <defs>
+              <radialGradient id="wg1" cx="80%" cy="80%" r="60%">
+                <stop offset="0%" stopColor="#de1a1a" stopOpacity="0.55"/>
+                <stop offset="100%" stopColor="#080808" stopOpacity="0"/>
+              </radialGradient>
+              <radialGradient id="wg2" cx="60%" cy="100%" r="50%">
+                <stop offset="0%" stopColor="#9b0000" stopOpacity="0.4"/>
+                <stop offset="100%" stopColor="#080808" stopOpacity="0"/>
+              </radialGradient>
+              <radialGradient id="wg3" cx="100%" cy="70%" r="40%">
+                <stop offset="0%" stopColor="#ff3333" stopOpacity="0.3"/>
+                <stop offset="100%" stopColor="#080808" stopOpacity="0"/>
+              </radialGradient>
+            </defs>
+            {/* Base glow blobs */}
+            <ellipse cx="200" cy="750" rx="160" ry="120" fill="url(#wg1)"/>
+            <ellipse cx="160" cy="820" rx="140" ry="80"  fill="url(#wg2)"/>
+            <ellipse cx="220" cy="680" rx="100" ry="100" fill="url(#wg3)"/>
+            {/* Wave strokes */}
+            <path d="M280,860 C220,780 80,800 40,720 C0,640 120,580 160,500 C200,420 100,360 140,280" fill="none" stroke="#de1a1a" strokeWidth="1.2" strokeOpacity="0.35"/>
+            <path d="M300,860 C240,800 120,820 80,740 C40,660 160,600 180,520 C200,440 80,360 120,260" fill="none" stroke="#ff4444" strokeWidth="0.8" strokeOpacity="0.2"/>
+            <path d="M260,860 C180,800 60,760 80,680 C100,600 200,560 200,480 C200,400 100,320 160,220" fill="none" stroke="#c00000" strokeWidth="1.5" strokeOpacity="0.25"/>
+            {/* Bright accent streaks */}
+            <path d="M240,860 C200,820 240,780 220,740 C200,700 160,720 180,680 C200,640 240,640 240,600" fill="none" stroke="#ff6666" strokeWidth="0.6" strokeOpacity="0.3"/>
+            <path d="M200,860 C240,840 280,800 260,760 C240,720 180,700 200,660 C220,620 260,600 240,560" fill="none" stroke="#ff2222" strokeWidth="0.5" strokeOpacity="0.2"/>
+            {/* Particle dots */}
+            {[
+              [195, 520, 1.5], [210, 560, 1], [175, 600, 2], [220, 640, 1.2],
+              [185, 680, 1.8], [230, 700, 1], [160, 740, 1.4], [215, 760, 0.8],
+              [190, 800, 1.6], [240, 820, 1.2], [170, 840, 1],
+            ].map(([cx, cy, r], i) => (
+              <circle key={i} cx={cx} cy={cy} r={r} fill="#ff4444" opacity="0.5"/>
+            ))}
+          </svg>
+        </div>
+
+        {/* ── Logo ── */}
+        <div className="relative z-10 px-5 py-5" style={{ borderBottom: `1px solid ${DIVIDER}` }}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0" style={{ border: "1.5px solid rgba(255,255,255,0.2)" }}>
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0" style={{ border: "1.5px solid rgba(255,255,255,0.15)" }}>
               <Image src="/brand/logo.jpg" alt="GroFast" width={40} height={40} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
             <div>
-              <p style={{ color: "#FFFFFF", fontFamily: "var(--font-bebas), sans-serif", fontSize: 18, letterSpacing: "0.16em", lineHeight: 1 }}>GROFAST</p>
-              <p className="text-[9px] tracking-[0.22em] uppercase font-semibold mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Member Portal</p>
+              <p style={{ color: "#FFFFFF", fontFamily: "var(--font-bebas), sans-serif", fontSize: 20, letterSpacing: "0.18em", lineHeight: 1 }}>GROFAST</p>
+              <p className="text-[9px] tracking-[0.24em] uppercase font-semibold mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>Member Portal</p>
             </div>
           </div>
         </div>
 
-        <nav className="flex-1 px-3 pt-5 pb-2 overflow-y-auto">
-          <p className="text-[9px] tracking-[0.28em] uppercase px-3 pb-3 font-bold" style={{ color: "rgba(255,255,255,0.3)" }}>Navigation</p>
-          <div className="space-y-[1px]">
+        {/* ── Nav ── */}
+        <nav className="relative z-10 flex-1 px-3 pt-4 pb-2 overflow-y-auto">
+          <div className="space-y-0.5">
             {navItems.map(({ label, href, icon: Icon }) => {
               const active = isActive(href)
               return (
                 <Link
-                  key={href} href={href}
-                  className="relative flex items-center gap-3 px-3 py-[10px] rounded-lg transition-all duration-150"
-                  style={active ? { background: ACTIVE_BG, color: "#FFFFFF" } : { color: "rgba(255,255,255,0.65)" }}
-                  onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = HOVER_BG; (e.currentTarget as HTMLElement).style.color = "#FFFFFF" } }}
-                  onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.65)" } }}
+                  key={href}
+                  href={href}
+                  className="relative flex items-center gap-3 px-3 py-[10px] rounded-xl transition-all duration-150"
+                  style={active
+                    ? { background: "#de1a1a", color: "#FFFFFF" }
+                    : { color: "rgba(255,255,255,0.55)" }
+                  }
+                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "#FFFFFF" }}
+                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)" }}
                 >
-                  {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full" style={{ height: "22px", background: "#FFFFFF" }} />}
-                  <Icon size={15} className="flex-shrink-0" strokeWidth={active ? 2.2 : 1.7} />
-                  <span className="text-[13px] font-semibold">{label}</span>
-                  {active && <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#FFFFFF", opacity: 0.7 }} />}
+                  <Icon size={16} className="flex-shrink-0" strokeWidth={active ? 2.2 : 1.7} />
+                  <span className="text-[13px] font-semibold flex-1">{label}</span>
+                  {active && <ChevronRight size={14} strokeWidth={2.5} style={{ color: "rgba(255,255,255,0.8)" }} />}
                 </Link>
               )
             })}
           </div>
         </nav>
 
-        <div className="px-3 pb-4 pt-3" style={{ borderTop: `1px solid ${DIVIDER}` }}>
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg mb-1" style={{ background: "rgba(255,255,255,0.07)" }}>
-            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,255,255,0.3)" }}>
-              <span className="text-[11px] font-bold" style={{ color: "#FFFFFF" }}>{initials}</span>
+        {/* ── User + Sign Out ── */}
+        <div className="relative z-10 px-3 pb-4 pt-3" style={{ borderTop: `1px solid ${DIVIDER}` }}>
+          {/* User card */}
+          <div className="flex items-center gap-3 px-3 py-3 rounded-xl mb-1"
+            style={{ background: "rgba(255,255,255,0.06)" }}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: "#de1a1a", border: "2px solid rgba(255,255,255,0.2)" }}>
+              <span className="text-[12px] font-black" style={{ color: "#FFFFFF" }}>{initials}</span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-bold leading-none truncate" style={{ color: "#FFFFFF" }}>{name}</p>
-              <p className="text-[10px] mt-0.5 font-medium" style={{ color: "rgba(255,255,255,0.45)" }}>#{employeeId}</p>
+              <p className="text-[10px] mt-1 font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>#{employeeId}</p>
+              <div className="flex items-center gap-1 mt-1">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#22C55E" }} />
+                <span className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>Online</span>
+              </div>
             </div>
             <PushSubscribeButton />
           </div>
+
+          {/* Sign Out */}
           <form action={logoutAction}>
-            <button type="submit"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all w-full"
-              style={{ color: "rgba(255,255,255,0.55)" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = HOVER_BG; (e.currentTarget as HTMLElement).style.color = "#FFFFFF" }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)" }}
+            <button
+              type="submit"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all w-full mt-1"
+              style={{ color: "rgba(255,255,255,0.45)" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#FFFFFF" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.45)" }}
             >
-              <LogOut size={14} />
+              <LogOut size={15} />
               <span className="text-[13px] font-medium">Sign Out</span>
             </button>
           </form>
         </div>
       </aside>
 
-      {/* ── Tablet Sidebar (md–lg: 768px–1023px) ────────────── */}
+      {/* ── Tablet Sidebar (md–lg) ────────────────────────── */}
       <aside
-        className="hidden md:flex lg:hidden fixed left-0 top-0 h-screen w-[64px] flex-col z-50 select-none"
-        style={{ background: SIDEBAR_BG, borderRight: "1px solid rgba(201,13,22,0.25)" }}
+        className="hidden md:flex lg:hidden fixed left-0 top-0 h-screen w-[64px] flex-col z-50 select-none overflow-hidden"
+        style={{ background: "#080808", borderRight: "1px solid rgba(255,255,255,0.06)" }}
       >
-        <div className="flex items-center justify-center py-[18px]" style={{ borderBottom: `1px solid ${DIVIDER}` }}>
-          <div className="w-9 h-9 rounded-xl overflow-hidden" style={{ border: "1.5px solid rgba(255,255,255,0.2)" }}>
+        {/* wave bg */}
+        <div className="absolute bottom-0 right-0 w-full h-1/2 pointer-events-none"
+          style={{ background: "radial-gradient(ellipse at 80% 100%, rgba(222,26,26,0.45) 0%, transparent 70%)" }} />
+
+        <div className="relative z-10 flex items-center justify-center py-5" style={{ borderBottom: `1px solid ${DIVIDER}` }}>
+          <div className="w-9 h-9 rounded-xl overflow-hidden" style={{ border: "1.5px solid rgba(255,255,255,0.15)" }}>
             <Image src="/brand/logo.jpg" alt="GroFast" width={36} height={36} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
         </div>
 
-        <nav className="flex-1 flex flex-col items-center pt-3 pb-2 gap-[2px] overflow-y-auto">
+        <nav className="relative z-10 flex-1 flex flex-col items-center pt-3 pb-2 gap-0.5 overflow-y-auto">
           {navItems.map(({ label, href, icon: Icon }) => {
             const active = isActive(href)
             return (
               <Link
                 key={href} href={href} title={label}
-                className="relative w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-150"
-                style={active ? { background: ACTIVE_BG, color: "#FFFFFF" } : { color: "rgba(255,255,255,0.55)" }}
-                onMouseEnter={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = HOVER_BG; (e.currentTarget as HTMLElement).style.color = "#FFFFFF" } }}
-                onMouseLeave={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)" } }}
+                className="relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-150"
+                style={active ? { background: "#de1a1a", color: "#FFFFFF" } : { color: "rgba(255,255,255,0.5)" }}
+                onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "#FFFFFF" }}
+                onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.5)" }}
               >
-                {active && <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full" style={{ height: "18px", background: "#FFFFFF" }} />}
                 <Icon size={16} strokeWidth={active ? 2.2 : 1.7} />
               </Link>
             )
           })}
         </nav>
 
-        <div className="flex flex-col items-center pb-4 pt-3 gap-2" style={{ borderTop: `1px solid ${DIVIDER}` }}>
-          <div
-            className="w-9 h-9 rounded-full flex items-center justify-center"
+        <div className="relative z-10 flex flex-col items-center pb-4 pt-3 gap-2" style={{ borderTop: `1px solid ${DIVIDER}` }}>
+          <div className="w-9 h-9 rounded-full flex items-center justify-center"
             title={`${name} #${employeeId}`}
-            style={{ background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.25)" }}
-          >
-            <span className="text-[10px] font-bold" style={{ color: "#FFFFFF" }}>{initials}</span>
+            style={{ background: "#de1a1a", border: "1.5px solid rgba(255,255,255,0.2)" }}>
+            <span className="text-[10px] font-black" style={{ color: "#FFFFFF" }}>{initials}</span>
           </div>
           <form action={logoutAction}>
             <button type="submit" title="Sign Out"
-              className="w-9 h-9 rounded-lg flex items-center justify-center transition-all"
-              style={{ color: "rgba(255,255,255,0.55)" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = HOVER_BG; (e.currentTarget as HTMLElement).style.color = "#FFFFFF" }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)" }}
+              className="w-9 h-9 rounded-xl flex items-center justify-center transition-all"
+              style={{ color: "rgba(255,255,255,0.5)" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#FFFFFF" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.5)" }}
             >
               <LogOut size={15} />
             </button>
@@ -161,33 +218,31 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
         </div>
       </aside>
 
-      {/* ── Mobile Top Bar (< md: 768px) ─────────────────────── */}
+      {/* ── Mobile Top Bar ────────────────────────────────── */}
       <header
         className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
         style={{ background: MOBILE_BG, borderBottom: `1px solid ${DIVIDER}` }}
       >
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0" style={{ border: "1px solid rgba(255,255,255,0.15)" }}>
             <Image src="/brand/logo.jpg" alt="GroFast" width={32} height={32} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
-          <span style={{ color: "#FFFFFF", fontFamily: "var(--font-bebas), sans-serif", fontSize: 18, letterSpacing: "0.14em" }}>GROFAST</span>
+          <span style={{ color: "#FFFFFF", fontFamily: "var(--font-bebas), sans-serif", fontSize: 18, letterSpacing: "0.16em" }}>GROFAST</span>
         </div>
         <div className="flex items-center gap-2">
           <PushSubscribeButton />
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold"
-            style={{ background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,255,255,0.3)", color: "#FFFFFF" }}
-          >
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black"
+            style={{ background: "#de1a1a", border: "1.5px solid rgba(255,255,255,0.2)", color: "#FFFFFF" }}>
             {initials}
           </div>
         </div>
       </header>
 
-      {/* ── Mobile Bottom Nav (< md: 768px) ──────────────────── */}
+      {/* ── Mobile Bottom Nav ─────────────────────────────── */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2"
         style={{
-          background: "linear-gradient(90deg, #0a100d 0%, #de1a1a 100%)",
+          background: "#0a0a0a",
           borderTop: `1px solid ${DIVIDER}`,
           height: "64px",
           paddingBottom: "env(safe-area-inset-bottom)",
@@ -199,10 +254,13 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
             <Link
               key={href} href={href}
               className="flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl transition-all"
-              style={active ? { color: "#FFFFFF", background: "rgba(255,255,255,0.12)" } : { color: "rgba(255,255,255,0.5)" }}
+              style={active ? { color: "#FFFFFF" } : { color: "rgba(255,255,255,0.4)" }}
             >
+              {active && (
+                <div className="absolute bottom-[52px] w-6 h-0.5 rounded-full" style={{ background: "#de1a1a" }} />
+              )}
               <Icon size={20} strokeWidth={active ? 2.5 : 1.8} />
-              <span className="text-[10px] font-semibold leading-none">{label}</span>
+              <span className="text-[10px] font-semibold leading-none" style={{ color: active ? "#de1a1a" : "rgba(255,255,255,0.4)" }}>{label}</span>
             </Link>
           )
         })}

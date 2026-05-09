@@ -3,6 +3,7 @@ export const revalidate = 60
 import { createServerClient } from "@/lib/supabase/server"
 import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, Bell, Search, ChevronRight, Zap } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 
 /* ── tiny inline sparkline ──────────────────────────────────────── */
 function Sparkline({ points, color }: { points: number[]; color: string }) {
@@ -278,35 +279,14 @@ export default async function MemberDashboardPage() {
           </div>
 
           {myTasks.length === 0 ? (
-            <div className="flex flex-col items-center py-10 gap-3">
-              {/* 3D checklist illustration */}
-              <svg viewBox="0 0 200 180" width="200" height="180" fill="none">
-                {/* Shadow */}
-                <ellipse cx="100" cy="168" rx="60" ry="10" fill="#E5E7EB" opacity="0.7"/>
-                {/* Back card */}
-                <rect x="28" y="28" width="130" height="120" rx="16" fill="#F3F4F6" stroke="#E5E7EB" strokeWidth="1"/>
-                <rect x="28" y="28" width="130" height="120" rx="16" fill="white" opacity="0.5"/>
-                {/* Front card */}
-                <rect x="40" y="18" width="130" height="128" rx="16" fill="white" stroke="#F3F4F6" strokeWidth="1.5"/>
-                {/* Sparkle top-left */}
-                <path d="M22 22l2-6 2 6-6-2 6 2" stroke="#FF6464" strokeWidth="1.5" strokeLinecap="round"/>
-                <path d="M14 38l1.5-4 1.5 4-4-1.5 4 1.5" stroke="#FF9090" strokeWidth="1" strokeLinecap="round"/>
-                {/* Row 1 checkbox */}
-                <rect x="60" y="46" width="22" height="22" rx="6" fill="#de1a1a"/>
-                <path d="M66 57l4 4 8-8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                {/* Row 1 lines */}
-                <rect x="90" y="50" width="62" height="7" rx="3.5" fill="#D1D5DB"/>
-                <rect x="90" y="60" width="44" height="5" rx="2.5" fill="#E5E7EB"/>
-                {/* Row 2 checkbox */}
-                <rect x="60" y="84" width="22" height="22" rx="6" fill="#de1a1a"/>
-                <path d="M66 95l4 4 8-8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                {/* Row 2 lines */}
-                <rect x="90" y="88" width="62" height="7" rx="3.5" fill="#D1D5DB"/>
-                <rect x="90" y="98" width="50" height="5" rx="2.5" fill="#E5E7EB"/>
-                {/* Big checkmark badge */}
-                <circle cx="148" cy="132" r="24" fill="#de1a1a" stroke="white" strokeWidth="3"/>
-                <path d="M138 132l7 8 14-16" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+            <div className="flex flex-col items-center py-8 gap-3">
+              <Image
+                src="/brand/tasks-complete.png"
+                alt="All tasks completed"
+                width={200}
+                height={180}
+                style={{ objectFit: "contain", filter: "drop-shadow(0 8px 24px rgba(222,26,26,0.15))" }}
+              />
               <div className="text-center">
                 <p className="text-[15px] font-bold" style={{ color: "#111111" }}>All tasks completed</p>
                 <p className="text-[12px] mt-1" style={{ color: "#9CA3AF" }}>Great job! You&apos;re all caught up.</p>

@@ -3,6 +3,7 @@ export const revalidate = 60
 import { createServerClient } from "@/lib/supabase/server"
 import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, Bell, Search, ChevronRight, Zap } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 
 /* ── tiny inline sparkline ──────────────────────────────────────── */
 function Sparkline({ points, color }: { points: number[]; color: string }) {
@@ -311,32 +312,14 @@ export default async function MemberDashboardPage() {
           </div>
 
           {myTasks.length === 0 ? (
-            <div className="flex flex-col items-center py-12 gap-3">
-              {/* 3D-style task illustration */}
-              <div className="relative w-28 h-28 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-3xl" style={{ background: "rgba(222,26,26,0.04)" }} />
-                <svg viewBox="0 0 80 80" width="80" height="80" fill="none">
-                  {/* Clipboard body */}
-                  <rect x="10" y="14" width="50" height="58" rx="6" fill="#F3F4F6" stroke="#E5E7EB" strokeWidth="1.5"/>
-                  <rect x="10" y="14" width="50" height="58" rx="6" fill="url(#cardGrad)"/>
-                  {/* Clip */}
-                  <rect x="26" y="8" width="18" height="12" rx="4" fill="#E5E7EB"/>
-                  <rect x="28" y="10" width="14" height="8" rx="3" fill="#D1D5DB"/>
-                  {/* Lines */}
-                  <rect x="20" y="32" width="30" height="2.5" rx="1.25" fill="#E5E7EB"/>
-                  <rect x="20" y="40" width="22" height="2.5" rx="1.25" fill="#E5E7EB"/>
-                  <rect x="20" y="48" width="26" height="2.5" rx="1.25" fill="#E5E7EB"/>
-                  {/* Big checkmark circle */}
-                  <circle cx="55" cy="58" r="14" fill="#de1a1a"/>
-                  <path d="M48 58l5 5 9-9" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <defs>
-                    <linearGradient id="cardGrad" x1="10" y1="14" x2="60" y2="72" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#fff" stopOpacity="0.9"/>
-                      <stop offset="1" stopColor="#F9FAFB" stopOpacity="0.6"/>
-                    </linearGradient>
-                  </defs>
-                </svg>
-              </div>
+            <div className="flex flex-col items-center py-10 gap-3">
+              <Image
+                src="/brand/tasks-complete.png"
+                alt="All tasks completed"
+                width={180}
+                height={160}
+                style={{ objectFit: "contain", filter: "drop-shadow(0 8px 24px rgba(222,26,26,0.12))" }}
+              />
               <div className="text-center">
                 <p className="text-[15px] font-bold" style={{ color: "#111111" }}>All tasks completed</p>
                 <p className="text-[12px] mt-1" style={{ color: "#9CA3AF" }}>Great job! You&apos;re all caught up.</p>

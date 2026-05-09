@@ -6,54 +6,31 @@ import Link from "next/link"
 import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
 
-/* ── Smooth Curved Red Sparkline KPI Chart ───────────────────────── */
-function Sparkline({ points, color, id }: { points: number[]; color: string; id: string }) {
-  const w = 110, h = 58, padX = 2, padY = 8
-  const min = Math.min(...points), max = Math.max(...points), range = max - min || 1
-  const xs = points.map((_, i) => padX + (i / (points.length - 1)) * (w - padX * 2))
-  const ys = points.map(v => h - padY - ((v - min) / range) * (h - padY * 2))
+/* ── Mini Sparkline (same style as Tasks page) ───────────────────── */
+function MiniSparkline({ data, color, id }: { data: number[]; color: string; id: string }) {
+  const w = 80, h = 28, px = 1, py = 3
+  const min = Math.min(...data), max = Math.max(...data), range = max - min || 1
+  const xs = data.map((_, i) => px + (i / (data.length - 1)) * (w - px * 2))
+  const ys = data.map(v => h - py - ((v - min) / range) * (h - py * 2))
+  const gid = `sg${id}`
 
-  // Catmull-Rom → cubic Bezier smooth interpolation
-  function smooth(xArr: number[], yArr: number[]): string {
-    const n = xArr.length
-    let d = `M${xArr[0].toFixed(1)},${yArr[0].toFixed(1)}`
-    for (let i = 0; i < n - 1; i++) {
-      const x0 = i > 0 ? xArr[i - 1] : xArr[0]
-      const y0 = i > 0 ? yArr[i - 1] : yArr[0]
-      const x1 = xArr[i],     y1 = yArr[i]
-      const x2 = xArr[i + 1], y2 = yArr[i + 1]
-      const x3 = i < n - 2 ? xArr[i + 2] : xArr[n - 1]
-      const y3 = i < n - 2 ? yArr[i + 2] : yArr[n - 1]
-      const t = 0.35
-      const cp1x = x1 + (x2 - x0) * t, cp1y = y1 + (y2 - y0) * t
-      const cp2x = x2 - (x3 - x1) * t, cp2y = y2 - (y3 - y1) * t
-      d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`
-    }
-    return d
+  let d = `M${xs[0].toFixed(1)},${ys[0].toFixed(1)}`
+  for (let i = 0; i < xs.length - 1; i++) {
+    const cpx = (xs[i] + xs[i + 1]) / 2
+    d += ` C${cpx.toFixed(1)},${ys[i].toFixed(1)} ${cpx.toFixed(1)},${ys[i + 1].toFixed(1)} ${xs[i + 1].toFixed(1)},${ys[i + 1].toFixed(1)}`
   }
-
-  const curve    = smooth(xs, ys)
-  const areaPath = `${curve} L${xs[xs.length - 1].toFixed(1)},${h} L${xs[0].toFixed(1)},${h} Z`
-  const lastX    = xs[xs.length - 1]
-  const lastY    = ys[ys.length - 1]
-  const gradId   = `sg-${id}`
+  const area = `${d} L${xs[xs.length - 1].toFixed(1)},${h} L${xs[0].toFixed(1)},${h} Z`
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`}
-      style={{ width: "100%", height: "100%", display: "block" }}
-      preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: 80, height: 28, flexShrink: 0 }}>
       <defs>
-        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor={color} stopOpacity="0.45" />
-          <stop offset="65%"  stopColor={color} stopOpacity="0.1"  />
-          <stop offset="100%" stopColor={color} stopOpacity="0"    />
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path d={areaPath} fill={`url(#${gradId})`} />
-      <path d={curve} fill="none" stroke={color} strokeWidth="2.5"
-        strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={lastX} cy={lastY} r="6" fill={color} opacity="0.18" />
-      <circle cx={lastX} cy={lastY} r="3" fill={color} />
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" />
     </svg>
   )
 }
@@ -203,33 +180,30 @@ export default async function MemberDashboardPage() {
         ] as const).map((s) => {
           const Icon = s.icon
           return (
-            <div key={s.label} className="rounded-2xl overflow-hidden relative"
-              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+            <div key={s.label} className="rounded-2xl p-4 flex flex-col"
+              style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
 
-              {/* Text content — sits above the sparkline */}
-              <div className="px-5 pt-5 relative z-10" style={{ paddingBottom: 76 }}>
-                {/* Icon + label */}
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: s.iconBg }}>
-                    <Icon size={18} style={{ color: s.iconColor }} />
-                  </div>
-                  <p className="text-[12px] font-semibold leading-tight" style={{ color: "#9CA3AF" }}>{s.label}</p>
+              {/* Icon + label */}
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: s.iconBg }}>
+                  <Icon size={15} style={{ color: s.iconColor }} />
                 </div>
-                {/* Big value */}
-                <p className="text-[32px] font-black leading-none mb-2"
-                  style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
-                  {s.value}
-                </p>
-                {/* Trend */}
+                <p className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{s.label}</p>
+              </div>
+
+              {/* Big value */}
+              <p className="text-[30px] font-black leading-none mb-3"
+                style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+                {s.value}
+              </p>
+
+              {/* Bottom: trend text + mini sparkline */}
+              <div className="flex items-end justify-between mt-auto">
                 <p className="text-[11px] font-semibold" style={{ color: s.up === true ? s.sparkColor : "#9CA3AF" }}>
                   {s.up === true && "↑ "}{s.trend}
                 </p>
-              </div>
-
-              {/* Sparkline — absolute, bleeds to bottom/left/right card edges */}
-              <div className="absolute bottom-0 left-0 right-0" style={{ height: 72 }}>
-                <Sparkline points={[...s.spark]} color={s.sparkColor} id={s.label.replace(/\s/g, "")} />
+                <MiniSparkline data={[...s.spark]} color={s.sparkColor} id={s.label.replace(/\s/g, "")} />
               </div>
             </div>
           )

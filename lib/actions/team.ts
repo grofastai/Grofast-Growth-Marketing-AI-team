@@ -291,6 +291,89 @@ export async function updateMember(input: {
   return { success: true }
 }
 
+export async function assignTask(input: {
+  member_id: string
+  member_name: string
+  member_phone: string | null
+  title: string
+  description: string
+  due_date: string | null
+}): Promise<{ success: boolean; error?: string; whatsappSent?: boolean }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: adminProfile } = await admin
+    .from('users')
+    .select('name, company_id')
+    .eq('id', user.id)
+    .single()
+  if (!adminProfile) return { success: false, error: 'Admin profile not found' }
+
+  const { error: taskError } = await admin.from('tasks').insert({
+    company_id: adminProfile.company_id,
+    project_id: null,
+    assigned_to: input.member_id,
+    title: input.title,
+    status: 'todo',
+    priority: 'medium',
+    due_date: input.due_date || null,
+  })
+  if (taskError) return { success: false, error: taskError.message }
+
+  let whatsappSent = false
+  const metaToken   = process.env.META_WHATSAPP_TOKEN
+  const metaPhoneId = process.env.META_PHONE_NUMBER_ID
+  const template    = process.env.WHATSAPP_TASK_TEMPLATE ?? 'grofast_task_assigned'
+
+  if (input.member_phone && metaToken && metaPhoneId) {
+    let cleanPhone = input.member_phone.replace(/\D/g, '')
+    if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone
+    else if (cleanPhone.startsWith('0') && cleanPhone.length === 11) cleanPhone = '91' + cleanPhone.slice(1)
+
+    const dueLine = input.due_date
+      ? `Due: ${new Date(input.due_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}`
+      : 'No deadline'
+    const detailLine = input.description ? `${input.description} | ${dueLine}` : dueLine
+
+    try {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${metaPhoneId}/messages`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${metaToken}` },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            to: cleanPhone,
+            type: 'template',
+            template: {
+              name: template,
+              language: { code: 'en' },
+              components: [{
+                type: 'body',
+                parameters: [
+                  { type: 'text', text: input.member_name },
+                  { type: 'text', text: adminProfile.name },
+                  { type: 'text', text: input.title },
+                  { type: 'text', text: detailLine },
+                ],
+              }],
+            },
+          }),
+        }
+      )
+      if (res.ok) whatsappSent = true
+    } catch {
+      // silent — task was still created
+    }
+  }
+
+  revalidatePath('/admin/team')
+  revalidatePath('/member/tasks')
+  return { success: true, whatsappSent }
+}
+
 export async function deleteMember(id: string): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()

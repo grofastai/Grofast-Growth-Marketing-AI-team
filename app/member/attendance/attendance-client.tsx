@@ -119,7 +119,13 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const weekDates = Array.from({ length: 6 }, (_, i) => addDays(weekStart, i))
   const logByDate = Object.fromEntries(weekLogs.map(l => [l.date, l]))
 
-  const isBelowExpected = isIn && hoursWorked > 0 && hoursWorked < SHIFT_HOURS
+  const isBelowExpected  = isIn && hoursWorked > 0 && hoursWorked < SHIFT_HOURS
+
+  const presentCount    = weekLogs.filter(l => l.status === "present").length
+  const absentCount     = weekLogs.filter(l => l.status === "absent").length
+  const wfhCount        = weekLogs.filter(l => l.work_type === "wfh" && l.status === "present").length
+  const officeCount     = weekLogs.filter(l => l.work_type === "office" && l.status === "present").length
+  const totalWeekHours  = weekLogs.filter(l => l.clock_in && l.status === "present").reduce((sum, l) => sum + calcHours(l.clock_in!, l.clock_out), 0)
 
   return (
     <div className="p-5 md:p-6 xl:p-8 max-w-[1400px]" style={{ background: "#F1F2F6", minHeight: "100vh" }}>
@@ -138,8 +144,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         </div>
       </div>
 
-      {/* ── Main 2-col ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,640px)_380px] gap-5 mb-5">
+      {/* ── Main grid ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] xl:grid-cols-[1fr_360px_260px] gap-5 mb-5">
 
         {/* LEFT — Character + Timer card */}
         <div className="rounded-3xl overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "0 4px 32px rgba(0,0,0,0.09)" }}>
@@ -346,6 +352,69 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             </div>
           </div>
         </div>
+
+        {/* THIRD COL — Week Performance + Tips (xl only) */}
+        <div className="hidden xl:block space-y-4">
+
+          {/* Week Performance */}
+          <div className="rounded-3xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
+                <Target size={16} style={{ color: "#6366F1" }} />
+              </div>
+              <h3 className="text-[15px] font-bold" style={{ color: "#111111" }}>Week Performance</h3>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {[
+                { label: "Present", value: presentCount, color: "#22C55E", bg: "rgba(34,197,94,0.08)" },
+                { label: "Absent",  value: absentCount,  color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
+                { label: "Office",  value: officeCount,  color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
+                { label: "WFH",     value: wfhCount,     color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+              ].map(stat => (
+                <div key={stat.label} className="rounded-2xl p-3 text-center" style={{ background: stat.bg }}>
+                  <p className="text-[24px] font-black leading-none mb-1" style={{ color: stat.color, fontFamily: "var(--font-jakarta)" }}>
+                    {stat.value}
+                    <span className="text-[11px] font-semibold opacity-60">/6</span>
+                  </p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: stat.color }}>{stat.label}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Total Hours This Week</p>
+              <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+                {totalWeekHours > 0 ? fmtHoursShort(totalWeekHours) : "0h"}
+              </p>
+            </div>
+          </div>
+
+          {/* Attendance Tips */}
+          <div className="rounded-3xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(245,158,11,0.1)" }}>
+                <span className="text-[16px]">💡</span>
+              </div>
+              <h3 className="text-[15px] font-bold" style={{ color: "#111111" }}>Attendance Tips</h3>
+            </div>
+            <div className="space-y-2">
+              {[
+                { emoji: "⏰", tip: "Log in before 9 AM to be counted on-time." },
+                { emoji: "📍", tip: "Enable location for office attendance tracking." },
+                { emoji: "🔔", tip: "Always log out before leaving for the day." },
+                { emoji: "📅", tip: "Apply leaves in advance for a clean record." },
+              ].map((item, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-xl" style={{ background: "#F8F9FB" }}>
+                  <span className="text-[15px] flex-shrink-0 mt-0.5">{item.emoji}</span>
+                  <p className="text-[12px] leading-relaxed" style={{ color: "#6B7280" }}>{item.tip}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>{/* end third col */}
+
       </div>
 
       {/* ── Absent confirm ── */}

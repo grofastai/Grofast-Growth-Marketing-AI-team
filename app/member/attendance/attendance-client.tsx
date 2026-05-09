@@ -142,124 +142,132 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-5 mb-5">
 
         {/* LEFT — Character + Timer card */}
-        <div className="rounded-3xl overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.07)" }}>
-          {/* Laptop / character image */}
-          <div className="relative w-full" style={{ height: 280, background: "linear-gradient(135deg, #fafafa 0%, #f5f5f7 100%)" }}>
+        <div className="rounded-3xl overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "0 4px 32px rgba(0,0,0,0.09)" }}>
+
+          {/* ── Hero character image ── */}
+          <div className="relative w-full" style={{ height: 320, background: "#f5f5f7" }}>
             <Image
               src="/brand/alarm-clock.png"
               alt="Working character"
               fill
-              style={{ objectFit: "contain", objectPosition: "center" }}
+              style={{ objectFit: "cover", objectPosition: "center top" }}
             />
+            {/* Fade-out at bottom so the card below feels connected */}
+            <div className="absolute inset-x-0 bottom-0 h-20 pointer-events-none"
+              style={{ background: "linear-gradient(to top, #FFFFFF 10%, transparent)" }} />
           </div>
 
-          {/* Timer / action panel */}
-          <div className="p-6">
-            {/* NOT LOGGED IN */}
-            {notLogged && (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-[12px] font-semibold mb-2" style={{ color: "#9CA3AF" }}>Select Work Mode</p>
-                  <div className="flex gap-2">
-                    {(["office", "wfh"] as const).map((mode) => {
-                      const Icon = mode === "wfh" ? Home : Building2
-                      const active = selectedMode === mode
-                      return (
-                        <button key={mode} onClick={() => setSelectedMode(mode)} disabled={isPending}
-                          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
-                          style={{ background: active ? "#de1a1a" : "#F9FAFB", color: active ? "#FFFFFF" : "#6B7280", border: active ? "none" : "1px solid #E5E7EB" }}>
-                          <Icon size={14} />{mode === "wfh" ? "Work From Home" : "Office"}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <button onClick={handleLogIn} disabled={isPending || geoLoading}
-                    className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
-                    style={{ background: "#de1a1a", color: "#FFFFFF" }}>
-                    {geoLoading ? <><MapPin size={14} className="animate-pulse" />Verifying…</> : isPending ? <Loader2 size={14} className="animate-spin" /> : <><LogIn size={14} />Log In</>}
-                  </button>
-                  <button onClick={() => setConfirmAbsent(true)} disabled={isPending}
-                    className="text-[12px] font-medium underline underline-offset-2" style={{ color: "#EF4444" }}>
-                    Mark Absent
-                  </button>
-                </div>
-                {error && <p className="text-[12px] font-medium" style={{ color: "#EF4444" }}>{error}</p>}
-              </div>
-            )}
+          {/* ── Timer / action inner card ── */}
+          <div className="px-5 pb-5 -mt-4">
+            <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.07)", border: "1px solid #F0F0F0" }}>
 
-            {/* CLOCKED IN */}
-            {isIn && todayLog?.clock_in && (
-              <div className="flex items-end justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="text-[13px] font-bold" style={{ color: "#111111" }}>
-                      Logged in at {fmtTime(todayLog.clock_in)}
+              {/* NOT LOGGED IN */}
+              {notLogged && (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[12px] font-semibold mb-2" style={{ color: "#9CA3AF" }}>Select Work Mode</p>
+                    <div className="flex gap-2">
+                      {(["office", "wfh"] as const).map((mode) => {
+                        const Icon = mode === "wfh" ? Home : Building2
+                        const active = selectedMode === mode
+                        return (
+                          <button key={mode} onClick={() => setSelectedMode(mode)} disabled={isPending}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
+                            style={{ background: active ? "#de1a1a" : "#F9FAFB", color: active ? "#FFFFFF" : "#6B7280", border: active ? "none" : "1px solid #E5E7EB" }}>
+                            <Icon size={14} />{mode === "wfh" ? "Work From Home" : "Office"}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button onClick={handleLogIn} disabled={isPending || geoLoading}
+                      className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
+                      style={{ background: "#de1a1a", color: "#FFFFFF" }}>
+                      {geoLoading ? <><MapPin size={14} className="animate-pulse" />Verifying…</> : isPending ? <Loader2 size={14} className="animate-spin" /> : <><LogIn size={14} />Log In</>}
+                    </button>
+                    <button onClick={() => setConfirmAbsent(true)} disabled={isPending}
+                      className="text-[12px] font-medium underline underline-offset-2" style={{ color: "#EF4444" }}>
+                      Mark Absent
+                    </button>
+                  </div>
+                  {error && <p className="text-[12px] font-medium" style={{ color: "#EF4444" }}>{error}</p>}
+                </div>
+              )}
+
+              {/* CLOCKED IN */}
+              {isIn && todayLog?.clock_in && (
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <p className="text-[13px] font-bold" style={{ color: "#111111" }}>
+                        Logged in at {fmtTime(todayLog.clock_in)}
+                      </p>
+                      <CheckCircle2 size={15} style={{ color: "#22C55E" }} />
+                    </div>
+                    <p className="text-[12px] mb-1.5" style={{ color: "#9CA3AF" }}>Working for</p>
+                    <LiveTimer clockInIso={todayLog.clock_in} />
+                    <SegmentBar hoursWorked={hoursWorked} />
+                    <p className="text-[12px] mb-4" style={{ color: "#9CA3AF" }}>
+                      {fmtHoursShort(hoursWorked)} / {SHIFT_HOURS}h
                     </p>
-                    <CheckCircle2 size={15} style={{ color: "#22C55E" }} />
+                    <button onClick={() => handle(clockOut)} disabled={isPending}
+                      className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
+                      style={{ background: "#de1a1a", color: "#FFFFFF" }}>
+                      {isPending ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
+                      Log Out
+                    </button>
+                    {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
                   </div>
-                  <p className="text-[12px] mb-2" style={{ color: "#9CA3AF" }}>Working for</p>
-                  <LiveTimer clockInIso={todayLog.clock_in} />
-                  <SegmentBar hoursWorked={hoursWorked} />
-                  <p className="text-[12px] mb-4" style={{ color: "#9CA3AF" }}>
-                    {fmtHoursShort(hoursWorked)} / {SHIFT_HOURS}h
-                  </p>
-                  <button onClick={() => handle(clockOut)} disabled={isPending}
-                    className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
-                    style={{ background: "#de1a1a", color: "#FFFFFF" }}>
-                    {isPending ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
-                    Log Out
-                  </button>
-                  {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
-                </div>
-                {/* Clock illustration */}
-                <div className="flex-shrink-0 w-28 h-28 relative">
-                  <Image src="/brand/character-desk.png" alt="Alarm clock" fill style={{ objectFit: "contain" }} />
-                </div>
-              </div>
-            )}
-
-            {/* DONE */}
-            {isDone && todayLog?.clock_in && todayLog?.clock_out && (
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(34,197,94,0.1)" }}>
-                  <CheckCircle2 size={24} style={{ color: "#22C55E" }} />
-                </div>
-                <div>
-                  <p className="text-[15px] font-bold mb-2" style={{ color: "#111111" }}>Completed for today ✓</p>
-                  <div className="flex gap-6">
-                    {[
-                      { label: "Log In",  value: fmtTime(todayLog.clock_in) },
-                      { label: "Log Out", value: fmtTime(todayLog.clock_out) },
-                      { label: "Total",   value: fmtHoursShort(hoursWorked) },
-                    ].map(r => (
-                      <div key={r.label}>
-                        <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>{r.label}</p>
-                        <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{r.value}</p>
-                      </div>
-                    ))}
+                  {/* Large alarm clock illustration */}
+                  <div className="flex-shrink-0 relative" style={{ width: 160, height: 160 }}>
+                    <Image src="/brand/character-desk.png" alt="Alarm clock" fill style={{ objectFit: "contain" }} />
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* ABSENT */}
-            {isAbsent && (
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(239,68,68,0.08)" }}>
-                  <span className="text-[20px]">✗</span>
+              {/* DONE */}
+              {isDone && todayLog?.clock_in && todayLog?.clock_out && (
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "rgba(34,197,94,0.1)" }}>
+                    <CheckCircle2 size={24} style={{ color: "#22C55E" }} />
+                  </div>
+                  <div>
+                    <p className="text-[15px] font-bold mb-2" style={{ color: "#111111" }}>Completed for today ✓</p>
+                    <div className="flex gap-6">
+                      {[
+                        { label: "Log In",  value: fmtTime(todayLog.clock_in) },
+                        { label: "Log Out", value: fmtTime(todayLog.clock_out) },
+                        { label: "Total",   value: fmtHoursShort(hoursWorked) },
+                      ].map(r => (
+                        <div key={r.label}>
+                          <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>{r.label}</p>
+                          <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{r.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[15px] font-bold" style={{ color: "#111111" }}>Absent Today</p>
-                  <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>Absence recorded for today.</p>
+              )}
+
+              {/* ABSENT */}
+              {isAbsent && (
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "rgba(239,68,68,0.08)" }}>
+                    <span className="text-[20px]">✗</span>
+                  </div>
+                  <div>
+                    <p className="text-[15px] font-bold" style={{ color: "#111111" }}>Absent Today</p>
+                    <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>Absence recorded for today.</p>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
+              )}
+
+            </div>{/* inner timer card */}
+          </div>{/* px-5 pb-5 */}
+        </div>{/* outer card */}
 
         {/* RIGHT — Today Status + This Week */}
         <div className="space-y-4">

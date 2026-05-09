@@ -6,8 +6,9 @@ import {
   Search, Plus, Users, Shield, UserCheck, UserX,
   MoreVertical, Phone, CalendarDays, X, Pencil,
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
+  ClipboardList, CheckCircle2, Send,
 } from "lucide-react"
-import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword } from "@/lib/actions/team"
+import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask } from "@/lib/actions/team"
 
 const TEAMS = [
   "Media & Technology Team",
@@ -332,6 +333,182 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
   )
 }
 
+// ── Assign Task Modal ─────────────────────────────────────────────────────────
+
+interface AssignTaskModalProps {
+  member: Member
+  onClose: () => void
+}
+
+function AssignTaskModal({ member, onClose }: AssignTaskModalProps) {
+  const [title, setTitle] = useState("")
+  const [description, setDescription] = useState("")
+  const [dueDate, setDueDate] = useState("")
+  const [error, setError] = useState("")
+  const [success, setSuccess] = useState<{ whatsappSent: boolean } | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  function handleAssign() {
+    if (!title.trim()) { setError("Task title is required"); return }
+    setError("")
+    startTransition(async () => {
+      const result = await assignTask({
+        member_id: member.id,
+        member_name: member.name,
+        member_phone: member.phone,
+        title: title.trim(),
+        description: description.trim(),
+        due_date: dueDate || null,
+      })
+      if (result.success) {
+        setSuccess({ whatsappSent: result.whatsappSent ?? false })
+      } else {
+        setError(result.error ?? "Something went wrong")
+      }
+    })
+  }
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }} onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-[420px] rounded-2xl shadow-2xl flex flex-col"
+          style={{ background: "#FFFFFF", border: "1px solid rgba(99,102,241,0.2)" }}>
+
+          {/* Header */}
+          <div className="px-6 pt-6 pb-4 flex items-start justify-between"
+            style={{ borderBottom: "1px solid #F3F4F6" }}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)" }}>
+                <ClipboardList size={18} style={{ color: "#6366F1" }} />
+              </div>
+              <div>
+                <h3 className="text-[15px] font-bold" style={{ color: "#111111" }}>Assign Task</h3>
+                <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
+                  To <strong style={{ color: "#111111" }}>{member.name}</strong>
+                  {member.team ? <span style={{ color: "#D1D5DB" }}> · {member.team}</span> : null}
+                </p>
+              </div>
+            </div>
+            <button onClick={onClose}
+              className="w-8 h-8 rounded-full flex items-center justify-center"
+              style={{ border: "1px solid #E5E7EB" }}>
+              <X size={13} style={{ color: "#6B7280" }} />
+            </button>
+          </div>
+
+          {success ? (
+            <div className="px-6 py-8 flex flex-col items-center gap-4 text-center">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                style={{ background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)" }}>
+                <CheckCircle2 size={26} style={{ color: "#22C55E" }} />
+              </div>
+              <div>
+                <p className="text-[15px] font-bold" style={{ color: "#111111" }}>Task Assigned!</p>
+                {success.whatsappSent ? (
+                  <p className="text-[13px] mt-1.5 flex items-center justify-center gap-1.5" style={{ color: "#22C55E" }}>
+                    <Send size={12} /> WhatsApp sent to {member.name}
+                  </p>
+                ) : (
+                  <p className="text-[12px] mt-1.5" style={{ color: "#D1D5DB" }}>
+                    {member.phone ? "WhatsApp notification failed — task still created." : "No phone number on record — task created without notification."}
+                  </p>
+                )}
+              </div>
+              <button onClick={onClose}
+                className="mt-2 px-6 py-2.5 rounded-xl text-[13px] font-semibold"
+                style={{ background: "rgba(0,0,0,0.04)", color: "#374151", border: "1px solid #E5E7EB" }}>
+                Done
+              </button>
+            </div>
+          ) : (
+            <div className="px-6 py-5 space-y-4">
+              {/* WhatsApp info */}
+              <div className="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-[12px]"
+                style={member.phone
+                  ? { background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)", color: "#16A34A" }
+                  : { background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", color: "#B45309" }}>
+                <Send size={11} className="flex-shrink-0" />
+                {member.phone
+                  ? <>WhatsApp notification will be sent to <strong>{member.phone}</strong></>
+                  : "No phone number — task will be assigned without WhatsApp notification"}
+              </div>
+
+              {/* Task title */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-1.5"
+                  style={{ color: "#6B7280" }}>Task Title *</label>
+                <input
+                  value={title}
+                  onChange={e => setTitle(e.target.value)}
+                  placeholder="e.g. Upload shoot clips to Drive"
+                  className="w-full rounded-xl px-4 py-2.5 text-[13px] outline-none"
+                  style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111", fontFamily: "inherit" }}
+                  onFocus={e => (e.currentTarget.style.borderColor = "rgba(99,102,241,0.5)")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "#E5E7EB")}
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-1.5"
+                  style={{ color: "#6B7280" }}>Description <span style={{ color: "#D1D5DB", fontWeight: 400 }}>(optional)</span></label>
+                <textarea
+                  rows={3}
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                  placeholder="Add context, links, or instructions…"
+                  className="w-full rounded-xl px-4 py-2.5 text-[13px] outline-none resize-none"
+                  style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111", fontFamily: "inherit" }}
+                  onFocus={e => (e.currentTarget.style.borderColor = "rgba(99,102,241,0.5)")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "#E5E7EB")}
+                />
+              </div>
+
+              {/* Due date */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-1.5"
+                  style={{ color: "#6B7280" }}>Due Date <span style={{ color: "#D1D5DB", fontWeight: 400 }}>(optional)</span></label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={e => setDueDate(e.target.value)}
+                  className="w-full rounded-xl px-4 py-2.5 text-[13px] outline-none"
+                  style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111", colorScheme: "light", fontFamily: "inherit" }}
+                  onFocus={e => (e.currentTarget.style.borderColor = "rgba(99,102,241,0.5)")}
+                  onBlur={e => (e.currentTarget.style.borderColor = "#E5E7EB")}
+                />
+              </div>
+
+              {error && (
+                <p className="text-[12px] rounded-xl px-4 py-2.5"
+                  style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.15)" }}>
+                  {error}
+                </p>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button onClick={onClose}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
+                  style={{ background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }}>
+                  Cancel
+                </button>
+                <button onClick={handleAssign} disabled={isPending || !title.trim()}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-50 transition-all"
+                  style={{ background: "linear-gradient(135deg, #6366F1, #4F46E5)", color: "#FFFFFF", boxShadow: "0 4px 14px rgba(99,102,241,0.3)" }}>
+                  {isPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                  {isPending ? "Assigning…" : "Assign + Notify"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TeamClient({ members, pastMembers }: { members: Member[]; pastMembers: Member[] }) {
@@ -348,6 +525,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
   const [resetPassword, setResetPassword] = useState("")
   const [resetError, setResetError] = useState("")
   const [resetSuccess, setResetSuccess] = useState(false)
+  const [assignTarget, setAssignTarget] = useState<Member | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const filtered = useMemo(() => {
@@ -576,6 +754,16 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.15)"}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.08)"}>
                       <Pencil size={11} /> Edit
+                    </button>
+
+                    {/* Assign Task button */}
+                    <button onClick={() => setAssignTarget(member)}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                      title="Assign Task"
+                      style={{ color: "#6366F1" }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.1)"}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                      <ClipboardList size={14} />
                     </button>
 
                     <button onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
@@ -815,6 +1003,8 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
           </div>
         </>
       )}
+
+      {assignTarget && <AssignTaskModal member={assignTarget} onClose={() => setAssignTarget(null)} />}
 
       <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} />
     </div>

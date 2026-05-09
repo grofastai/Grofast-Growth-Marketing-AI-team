@@ -181,29 +181,35 @@ export default async function MemberDashboardPage() {
       {/* ── 4 Stat Cards ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         {([
-          { icon: Calendar,      iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: workingDays || 1,   label: "Present Days",  sparkColor: "#de1a1a", spark: sparkPresent, trend: "↑ 10% from last week",   up: true  },
-          { icon: Clock,         iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : `${todayHours > 0 ? todayHours : 10}h`, label: "Total Hours", sparkColor: "#6366F1", spark: sparkHours, trend: "↑ 8% from last week", up: true },
-          { icon: AlertCircle,   iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: pendingLeaves,      label: "Pending Leave", sparkColor: "#F59E0B", spark: sparkLeaves,  trend: "No change",               up: null  },
-          { icon: CheckCircle2,  iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks",  sparkColor: "#16A34A", spark: sparkTasks,   trend: activeTasks === 0 ? "↓ 100% from last week" : "↑ 5% from last week", up: activeTasks > 0 },
+          { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: workingDays || 1,   label: "Present Days",  sparkColor: "#de1a1a", spark: sparkPresent, trend: "+10% from last week", up: true  },
+          { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : `${todayHours > 0 ? todayHours : 10}h`, label: "Total Hours", sparkColor: "#6366F1", spark: sparkHours, trend: "+8% from last week", up: true },
+          { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: pendingLeaves,      label: "Pending Leave", sparkColor: "#F59E0B", spark: sparkLeaves,  trend: "No change",          up: null  },
+          { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks",  sparkColor: "#16A34A", spark: sparkTasks,   trend: activeTasks === 0 ? "↓ 100% from last week" : "+5% from last week", up: activeTasks > 0 },
         ] as const).map((s) => {
           const Icon = s.icon
           return (
-            <div key={s.label} className="rounded-2xl p-5 flex flex-col"
+            <div key={s.label} className="rounded-2xl pt-5 px-5 pb-4 flex flex-col overflow-hidden"
               style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>
-              <div className="w-11 h-11 rounded-full flex items-center justify-center mb-3"
-                style={{ background: s.iconBg }}>
-                <Icon size={18} style={{ color: s.iconColor }} />
+              {/* Icon (rounded square) + Number row */}
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: s.iconBg }}>
+                  <Icon size={20} style={{ color: s.iconColor }} />
+                </div>
+                <p className="text-[34px] font-black leading-none"
+                  style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+                  {s.value}
+                </p>
               </div>
-              <p className="text-[30px] font-black leading-none mb-0.5"
-                style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
-                {s.value}
-              </p>
-              <p className="text-[12px] font-medium mb-3" style={{ color: "#6B7280" }}>{s.label}</p>
-              <div className="-mx-1 mb-2">
+              {/* Label */}
+              <p className="text-[12px] font-medium mb-4 ml-0.5" style={{ color: "#6B7280" }}>{s.label}</p>
+              {/* Full-width sparkline — bleeds to card edge */}
+              <div className="-mx-5 mb-3">
                 <Sparkline points={[...s.spark]} color={s.sparkColor} />
               </div>
-              <p className="text-[11px] font-semibold" style={{ color: s.up === true ? s.sparkColor : "#6B7280" }}>
-                {s.trend}
+              {/* Trend */}
+              <p className="text-[11px] font-semibold" style={{ color: s.up === true ? s.sparkColor : "#9CA3AF" }}>
+                {s.up === true && "↑ "}{s.trend}
               </p>
             </div>
           )

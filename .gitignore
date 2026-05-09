@@ -28,16 +28,13 @@ yarn-error.log*
 .env*.local
 !.env.local.example
 
-# vercel
-.vercel
+# vercel — keep project.json so CLI always targets the right project
+.vercel/*
+!.vercel/project.json
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
-
 # Claude Code internals
 .superpowers/
-
-.vercel

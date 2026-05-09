@@ -1,1246 +1,442 @@
-﻿"use client"
+"use client"
 
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import {
-  Plus, Trash2, Loader2, BookOpen,
-  Camera, ChevronDown, Clock,
-  CheckCircle2, XCircle, AlertCircle,
-  FolderOpen, ArrowLeft, Scissors,
+  Clock, ChevronDown, CheckCircle2, Loader2,
+  SendHorizonal, Sparkles, MoreHorizontal,
 } from "lucide-react"
 import { submitDailyUpdate } from "@/lib/actions/daily-updates"
-import type { WorkEntryInput, EditingVideo } from "@/lib/validations/daily-update"
 
 interface Project { id: string; business_name: string }
 
-type FlowStep = "type-select" | "count-select" | "form"
-type FlowMode = "shoot" | "edit" | "learning"
-
-// ── Helpers ────────────────────────────────────────────────────
-function calcDuration(start: string, end: string): number {
-  if (!start || !end) return 0
-  const [sh, sm] = start.split(":").map(Number)
-  const [eh, em] = end.split(":").map(Number)
-  const mins = eh * 60 + em - (sh * 60 + sm)
-  return mins <= 0 ? 0 : Math.round((mins / 60) * 10) / 10
+type Slot = {
+  hour: number
+  description: string
+  projectId: string
+  projectName: string
+  status: "not_started" | "in_progress" | "completed"
 }
 
-const VIDEO_TYPES = [
-  "Reel", "YouTube Video", "TikTok", "Ad / Commercial",
-  "Short Film", "Documentary", "Story", "Other",
-] as const
+type Mood = "very_tired" | "tired" | "neutral" | "good" | "very_good"
 
-function newEditingVideo(): EditingVideo {
-  return {
-    id: crypto.randomUUID(),
-    date_given: "", date_finished: "",
-    video_name: "", client_id: null, client_name: "",
-    duration: "", video_type: "",
-    time_taken: 0, drive_updated: false, drive_link: "", revisions: 0,
-  }
-}
+const SLOT_HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17]
 
-function newEntry(type: "shoot" | "edit" = "shoot"): WorkEntryInput {
-  return {
-    id: crypto.randomUUID(),
-    client_id: null, client_name: "",
-    task_type: type,
-    title: type === "shoot" ? "Shoot Session" : "Editing Session",
-    start_time: "", end_time: "", duration_hours: 0,
-    notes: "",
-    video_uploaded: false, screenshot_url: "",
-    petrol_expense: undefined,
-    other_expense: undefined,
-    travel_time: "",
-    video_link: "", editing_videos: [],
-  }
-}
-
-// ── Style constants ────────────────────────────────────────────
-const FIELD: React.CSSProperties = {
-  background: "#F4F5F7", border: "1px solid #E5E7EB",
-  color: "#111111", borderRadius: "10px",
-  padding: "10px 14px", fontSize: "13px",
-  outline: "none", width: "100%",
-}
-const LABEL: React.CSSProperties = {
-  display: "block", fontSize: "10px", fontWeight: 700,
-  textTransform: "uppercase", letterSpacing: "0.16em",
-  marginBottom: "6px", color: "#6B7280",
-}
-
-// ── Proof Upload ───────────────────────────────────────────────
-// ── Client select ──────────────────────────────────────────────
-function ClientSelect({ projects, value, onChange, required }: {
-  projects: Project[]
-  value: string
-  onChange: (id: string, name: string) => void
-  required?: boolean
-}) {
-  return (
-    <div>
-      <label style={LABEL}>
-        Client {required && <span style={{ color: "#de1a1a" }}>*</span>}
-      </label>
-      {projects.length > 0 ? (
-        <div className="relative">
-          <select
-            value={value}
-            onChange={(e) => {
-              const proj = projects.find((p) => p.id === e.target.value)
-              onChange(e.target.value, proj?.business_name ?? "")
-            }}
-            style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}
-            className="du-sel">
-            <option value="">Select client…</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>{p.business_name}</option>
-            ))}
-          </select>
-          <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            style={{ color: "#6B7280" }} />
-        </div>
-      ) : (
-        <input style={FIELD} placeholder="Client name" className="du"
-          value={value}
-          onChange={(e) => onChange("", e.target.value)} />
-      )}
-    </div>
-  )
-}
-
-
-// ── Shoot card ─────────────────────────────────────────────────
-function ShootCard({ entry, i, projects, onChange, onRemove }: {
-  entry: WorkEntryInput
-  i: number
-  projects: Project[]
-  onChange: (patch: Partial<WorkEntryInput>) => void
-  onRemove: () => void
-}) {
-  return (
-    <div className="rounded-2xl overflow-hidden"
-      style={{ border: "1px solid rgba(222,26,26,0.2)", boxShadow: "0 2px 8px rgba(222,26,26,0.06)" }}>
-
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3"
-        style={{ background: "rgba(222,26,26,0.06)", borderBottom: "1px solid rgba(222,26,26,0.12)" }}>
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(222,26,26,0.15)" }}>
-            <Camera size={14} style={{ color: "#de1a1a" }} />
-          </div>
-          <span className="text-[13px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>
-            SHOOT {i + 1}
-          </span>
-        </div>
-        <button type="button" onClick={onRemove}
-          className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-          style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)" }}>
-          <Trash2 size={12} style={{ color: "#de1a1a" }} />
-        </button>
-      </div>
-
-      <div className="p-4 space-y-4" style={{ background: "#FFFFFF" }}>
-        {/* Client */}
-        <ClientSelect
-          projects={projects}
-          value={entry.client_id ?? ""}
-          onChange={(id, name) => onChange({ client_id: id || null, client_name: name })}
-          required
-        />
-
-        {/* Timing row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div>
-            <label style={LABEL}>Start Time <span style={{ color: "#de1a1a" }}>*</span></label>
-            <input type="time" className="du" style={FIELD}
-              value={entry.start_time}
-              onChange={(e) => {
-                const dur = calcDuration(e.target.value, entry.end_time)
-                onChange({ start_time: e.target.value, duration_hours: dur })
-              }} />
-          </div>
-          <div>
-            <label style={LABEL}>End Time <span style={{ color: "#de1a1a" }}>*</span></label>
-            <input type="time" className="du" style={FIELD}
-              value={entry.end_time}
-              onChange={(e) => {
-                const dur = calcDuration(entry.start_time, e.target.value)
-                onChange({ end_time: e.target.value, duration_hours: dur })
-              }} />
-          </div>
-          <div>
-            <label style={LABEL}>Duration</label>
-            <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
-              style={{
-                height: "42px", background: "#F4F5F7", border: "1px solid #E5E7EB",
-                color: entry.duration_hours > 0 ? "#de1a1a" : "#D1D5DB",
-              }}>
-              {entry.duration_hours > 0 ? `${entry.duration_hours}h` : "—"}
-            </div>
-          </div>
-        </div>
-
-        {/* Travel time */}
-        <div>
-          <label style={LABEL}>Travel Time</label>
-          <div className="relative">
-            <select
-              className="du-sel"
-              style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}
-              value={entry.travel_time ?? ""}
-              onChange={(e) => onChange({ travel_time: e.target.value })}
-            >
-              <option value="">No travel</option>
-              <option value="15 mins">15 mins</option>
-              <option value="30 mins">30 mins</option>
-              <option value="45 mins">45 mins</option>
-              <option value="1 hour">1 hour</option>
-              <option value="1.5 hours">1.5 hours</option>
-              <option value="2 hours">2 hours</option>
-              <option value="2.5 hours">2.5 hours</option>
-              <option value="3 hours">3 hours</option>
-              <option value="3+ hours">3+ hours</option>
-            </select>
-            <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: "#6B7280" }} />
-          </div>
-        </div>
-
-        {/* Expenses row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label style={LABEL}>Petrol Expense (₹)</label>
-            <input type="number" min="0" step="1" className="du" style={FIELD}
-              placeholder="e.g. 250"
-              value={entry.petrol_expense ?? ""}
-              onChange={(e) => onChange({ petrol_expense: parseFloat(e.target.value) || undefined })} />
-          </div>
-          <div>
-            <label style={LABEL}>Other Expense (₹)</label>
-            <input type="number" min="0" step="1" className="du" style={FIELD}
-              placeholder="e.g. 100"
-              value={entry.other_expense ?? ""}
-              onChange={(e) => onChange({ other_expense: parseFloat(e.target.value) || undefined })} />
-          </div>
-        </div>
-
-        {/* Google Drive link — required */}
-        <div>
-          <label style={LABEL}>
-            Google Drive Link <span style={{ color: "#de1a1a" }}>*</span>
-          </label>
-          <input
-            className="du"
-            style={FIELD}
-            placeholder="Upload clips to Drive, then paste the link here…"
-            value={entry.screenshot_url ?? ""}
-            onChange={(e) => onChange({ screenshot_url: e.target.value, video_uploaded: !!e.target.value })}
-          />
-        </div>
-
-        {/* Notes */}
-        <div>
-          <label style={LABEL}>Notes</label>
-          <textarea rows={2} className="du resize-none" style={FIELD}
-            placeholder="Location, content details, any blockers…"
-            value={entry.notes ?? ""}
-            onChange={(e) => onChange({ notes: e.target.value })} />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Editing video row ──────────────────────────────────────────
-function EditingVideoRow({ video, index, projects, onChange, onRemove }: {
-  video: EditingVideo
-  index: number
-  projects: Project[]
-  onChange: (patch: Partial<EditingVideo>) => void
-  onRemove: () => void
-}) {
-  return (
-    <div className="rounded-xl p-4 space-y-3"
-      style={{ background: "#F4F5F7", border: "1px solid #E5E7EB" }}>
-
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-black uppercase tracking-[0.15em]"
-          style={{ color: "#6366F1" }}>Video {index + 1}</span>
-        <button type="button" onClick={onRemove}
-          className="w-6 h-6 rounded-lg flex items-center justify-center"
-          style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)" }}>
-          <Trash2 size={10} style={{ color: "#de1a1a" }} />
-        </button>
-      </div>
-
-      {/* Video Name | Client | Video Type */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-        <div>
-          <label style={LABEL}>Video Name *</label>
-          <input className="du" style={FIELD} placeholder="e.g. Promo Reel"
-            value={video.video_name}
-            onChange={(e) => onChange({ video_name: e.target.value })} />
-        </div>
-        <div>
-          <label style={LABEL}>Client *</label>
-          {projects.length > 0 ? (
-            <div className="relative">
-              <select value={video.client_id ?? ""}
-                onChange={(e) => {
-                  const proj = projects.find((p) => p.id === e.target.value)
-                  onChange({ client_id: e.target.value || null, client_name: proj?.business_name ?? "" })
-                }}
-                style={{ ...FIELD, appearance: "none", paddingRight: "28px" }} className="du-sel">
-                <option value="">Select…</option>
-                {projects.map((p) => <option key={p.id} value={p.id}>{p.business_name}</option>)}
-              </select>
-              <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-                style={{ color: "#6B7280" }} />
-            </div>
-          ) : (
-            <input className="du" style={FIELD} placeholder="Client name"
-              value={video.client_name}
-              onChange={(e) => onChange({ client_name: e.target.value })} />
-          )}
-        </div>
-        <div>
-          <label style={LABEL}>Video Type *</label>
-          <div className="relative">
-            <select value={video.video_type}
-              onChange={(e) => onChange({ video_type: e.target.value })}
-              style={{ ...FIELD, appearance: "none", paddingRight: "28px" }} className="du-sel">
-              <option value="">Select…</option>
-              {VIDEO_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <ChevronDown size={11} className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
-              style={{ color: "#6B7280" }} />
-          </div>
-        </div>
-      </div>
-
-      {/* Date Given | Date Finished | Duration */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-        <div>
-          <label style={LABEL}>Date Given</label>
-          <input type="date" className="du" style={FIELD}
-            value={video.date_given}
-            onChange={(e) => onChange({ date_given: e.target.value })} />
-        </div>
-        <div>
-          <label style={LABEL}>Date Finished</label>
-          <input type="date" className="du" style={FIELD}
-            value={video.date_finished}
-            onChange={(e) => onChange({ date_finished: e.target.value })} />
-        </div>
-        <div>
-          <label style={LABEL}>Video Duration</label>
-          <input className="du" style={FIELD} placeholder="e.g. 0:30"
-            value={video.duration}
-            onChange={(e) => onChange({ duration: e.target.value })} />
-        </div>
-      </div>
-
-      {/* Time Taken | Revisions | Drive Updated */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-        <div>
-          <label style={LABEL}>Time Taken (hrs) *</label>
-          <input type="number" min="0.5" step="0.5" className="du" style={FIELD}
-            placeholder="e.g. 3"
-            value={video.time_taken || ""}
-            onChange={(e) => onChange({ time_taken: parseFloat(e.target.value) || 0 })} />
-        </div>
-        <div>
-          <label style={LABEL}>Revisions</label>
-          <input type="number" min="0" step="1" className="du" style={FIELD}
-            placeholder="0"
-            value={video.revisions || ""}
-            onChange={(e) => onChange({ revisions: parseInt(e.target.value) || 0 })} />
-        </div>
-        <div>
-          <label style={LABEL}>Drive Updated?</label>
-          <div className="flex gap-1.5">
-            <button type="button"
-              onClick={() => onChange({ drive_updated: true })}
-              className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all"
-              style={video.drive_updated
-                ? { background: "rgba(34,197,94,0.12)", color: "#16A34A", border: "1.5px solid rgba(34,197,94,0.4)" }
-                : { background: "#FFFFFF", color: "#6B7280", border: "1px solid #E5E7EB" }}>
-              <CheckCircle2 size={11} /> Yes
-            </button>
-            <button type="button"
-              onClick={() => onChange({ drive_updated: false, drive_link: "" })}
-              className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[11px] font-bold transition-all"
-              style={!video.drive_updated
-                ? { background: "rgba(239,68,68,0.08)", color: "#de1a1a", border: "1.5px solid rgba(222,26,26,0.25)" }
-                : { background: "#FFFFFF", color: "#6B7280", border: "1px solid #E5E7EB" }}>
-              <XCircle size={11} /> No
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {video.drive_updated && (
-        <div className="space-y-1.5">
-          <label style={{ ...LABEL, color: "#16A34A", marginBottom: 2 }}>
-            <FolderOpen size={10} style={{ display: "inline", marginRight: 4 }} />
-            Google Drive Link <span style={{ color: "#de1a1a" }}>*</span>
-          </label>
-          <input
-            className="du"
-            style={FIELD}
-            placeholder="Upload final video to Drive, then paste the link here…"
-            value={video.drive_link ?? ""}
-            onChange={(e) => onChange({ drive_link: e.target.value })}
-          />
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Edit session card ──────────────────────────────────────────
-function EditCard({ entry, i, projects, onChange, onRemove }: {
-  entry: WorkEntryInput
-  i: number
-  projects: Project[]
-  onChange: (patch: Partial<WorkEntryInput>) => void
-  onRemove: () => void
-}) {
-  const videos = entry.editing_videos ?? []
-  const totalTime = Math.round(videos.reduce((s, v) => s + v.time_taken, 0) * 10) / 10
-
-  function updateVideo(idx: number, patch: Partial<EditingVideo>) {
-    const next = [...videos]
-    next[idx] = { ...next[idx], ...patch }
-    onChange({ editing_videos: next, duration_hours: Math.round(next.reduce((s, v) => s + v.time_taken, 0) * 10) / 10 })
-  }
-
-  function removeVideo(idx: number) {
-    const next = videos.filter((_, j) => j !== idx)
-    onChange({ editing_videos: next, duration_hours: Math.round(next.reduce((s, v) => s + v.time_taken, 0) * 10) / 10 })
-  }
-
-  return (
-    <div className="rounded-2xl overflow-hidden"
-      style={{ border: "1px solid rgba(99,102,241,0.2)", boxShadow: "0 2px 8px rgba(99,102,241,0.06)" }}>
-
-      <div className="flex items-center justify-between px-4 py-3"
-        style={{ background: "rgba(99,102,241,0.06)", borderBottom: "1px solid rgba(99,102,241,0.12)" }}>
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(99,102,241,0.15)" }}>
-            <Scissors size={14} style={{ color: "#6366F1" }} />
-          </div>
-          <span className="text-[13px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#6366F1" }}>
-            EDITING SESSION {i + 1}
-          </span>
-          {videos.length > 0 && (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(99,102,241,0.15)", color: "#6366F1" }}>
-              {videos.length} video{videos.length > 1 ? "s" : ""} · {totalTime}h
-            </span>
-          )}
-        </div>
-        <button type="button" onClick={onRemove}
-          className="w-7 h-7 rounded-lg flex items-center justify-center"
-          style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)" }}>
-          <Trash2 size={12} style={{ color: "#6366F1" }} />
-        </button>
-      </div>
-
-      <div className="p-4 space-y-3" style={{ background: "#FFFFFF" }}>
-        {videos.map((video, idx) => (
-          <EditingVideoRow
-            key={video.id}
-            video={video}
-            index={idx}
-            projects={projects}
-            onChange={(patch) => updateVideo(idx, patch)}
-            onRemove={() => removeVideo(idx)}
-          />
-        ))}
-
-      </div>
-    </div>
-  )
-}
-
-// ═══════════════════════════════════════════════════════════════
-// GENERAL TEAM FORM (all teams except Media Team)
-// ═══════════════════════════════════════════════════════════════
-
-const HOUR_DEFS = [
-  { label: "10 AM – 11 AM", start: "10:00", end: "11:00" },
-  { label: "11 AM – 12 PM", start: "11:00", end: "12:00" },
-  { label: "12 PM – 1 PM",  start: "12:00", end: "13:00" },
-  { label: "1 PM – 2 PM",   start: "13:00", end: "14:00" },
-  { label: "2 PM – 3 PM",   start: "14:00", end: "15:00" },
-  { label: "3 PM – 4 PM",   start: "15:00", end: "16:00" },
-  { label: "4 PM – 5 PM",   start: "16:00", end: "17:00" },
-  { label: "5 PM – 6 PM",   start: "17:00", end: "18:00" },
+const MOODS: { key: Mood; emoji: string; label: string }[] = [
+  { key: "very_tired", emoji: "😫", label: "Very tired" },
+  { key: "tired",      emoji: "😐", label: "Tired" },
+  { key: "neutral",    emoji: "😊", label: "Neutral" },
+  { key: "good",       emoji: "😄", label: "Good" },
+  { key: "very_good",  emoji: "😁", label: "Very good" },
 ]
 
-type HourSlot = {
-  label: string
-  start: string
-  end: string
-  task: string
-  client_id: string | null
-  client_name: string
+const STATUS_STYLE = {
+  completed:   { bg: "rgba(22,163,74,0.1)",    color: "#16A34A", label: "Completed",   dot: "#22C55E" },
+  in_progress: { bg: "rgba(245,158,11,0.1)",   color: "#D97706", label: "In Progress", dot: "#F59E0B" },
+  not_started: { bg: "rgba(156,163,175,0.12)", color: "#9CA3AF", label: "Not Started", dot: "#D1D5DB" },
+} as const
+
+const STATUS_CYCLE: Record<Slot["status"], Slot["status"]> = {
+  not_started: "in_progress",
+  in_progress: "completed",
+  completed:   "not_started",
 }
 
-type GenLearning = {
-  title: string
-  start_time: string
-  end_time: string
-  duration_hours: number
-  notes: string
+const PROJECT_COLORS = ["#de1a1a", "#6366F1", "#0EA5E9", "#10B981", "#F59E0B", "#EC4899"]
+
+function fmtHour(h: number) {
+  if (h === 0) return "12 AM"
+  if (h < 12) return `${h} AM`
+  if (h === 12) return "12 PM"
+  return `${h - 12} PM`
 }
 
-function initHourSlots(): HourSlot[] {
-  return HOUR_DEFS.map(d => ({ ...d, task: "", client_id: null, client_name: "" }))
+function projectColor(name: string) {
+  if (!name) return "#9CA3AF"
+  const i = name.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % PROJECT_COLORS.length
+  return PROJECT_COLORS[i]
 }
 
-// ── Hour Slot Row ──────────────────────────────────────────────
-function HourSlotRow({ slot, projects, onChange }: {
-  slot: HourSlot
-  projects: Project[]
-  onChange: (p: Partial<HourSlot>) => void
-}) {
-  const filled = slot.task.trim().length > 0
-  const [showClient, setShowClient] = useState(false)
-
+function GaugeChart({ score }: { score: number }) {
+  const r = 56, cx = 80, cy = 72
+  const circ = Math.PI * r
+  const filled = Math.min(score / 100, 1) * circ
+  const arc = `M ${cx - r},${cy} A ${r},${r} 0 0,1 ${cx + r},${cy}`
+  const label = score >= 70 ? "Good" : score >= 40 ? "Fair" : "Low"
+  const msg   = score >= 70 ? "Keep it up! You're on fire! 🔥" : score >= 40 ? "Good effort, keep going! 💪" : "Fill in your hourly work! ✍️"
   return (
-    <div className="rounded-xl overflow-hidden transition-all duration-150"
-      style={{
-        border: filled ? "1px solid rgba(222,26,26,0.22)" : "1px solid #EBEBEB",
-        boxShadow: filled ? "0 2px 8px rgba(222,26,26,0.05)" : "none",
-        background: "#FFFFFF",
-      }}>
-      <div className="flex">
-        {/* Time label */}
-        <div className="flex-shrink-0 flex items-start justify-center pt-3.5 px-2"
-          style={{
-            width: 88,
-            background: filled ? "rgba(222,26,26,0.03)" : "#FAFAFA",
-            borderRight: "1px solid #F3F3F3",
-          }}>
-          <div className="text-center">
-            <span className="text-[11px] font-black block leading-tight"
-              style={{ color: filled ? "#de1a1a" : "#BDBDBD" }}>
-              {slot.label.split(" – ")[0]}
-            </span>
-            <span className="text-[9px] block mt-0.5"
-              style={{ color: filled ? "rgba(222,26,26,0.5)" : "#D9D9D9" }}>
-              – {slot.label.split(" – ")[1]}
-            </span>
-          </div>
-        </div>
-
-        {/* Task input */}
-        <div className="flex-1 p-3 space-y-2">
-          <textarea
-            rows={2}
-            className="du resize-none w-full"
-            style={{ ...FIELD, lineHeight: "1.5", background: filled ? "#FEFEFE" : "#F9FAFB" }}
-            placeholder="What did you work on this hour?"
-            value={slot.task}
-            onChange={(e) => onChange({ task: e.target.value })}
-          />
-
-          {(!showClient && !slot.client_id && !slot.client_name) ? (
-            <button type="button"
-              onClick={() => setShowClient(true)}
-              className="text-[11px] font-medium flex items-center gap-1 transition-all"
-              style={{ color: "rgba(222,26,26,0.4)" }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#de1a1a"}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "rgba(222,26,26,0.4)"}>
-              <Plus size={10} /> Tag client
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <div className="flex-1">
-                <ClientSelect
-                  projects={projects}
-                  value={slot.client_id ?? ""}
-                  onChange={(id, name) => onChange({ client_id: id || null, client_name: name })}
-                />
-              </div>
-              {(!slot.client_id && !slot.client_name) && (
-                <button type="button"
-                  onClick={() => setShowClient(false)}
-                  className="flex-shrink-0 w-6 h-6 rounded flex items-center justify-center text-[11px]"
-                  style={{ color: "#D1D5DB", background: "#F4F5F7" }}>
-                  ✕
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+    <div className="flex flex-col items-center">
+      <svg viewBox="0 0 160 85" className="w-full" style={{ maxWidth: 200 }}>
+        <defs>
+          <linearGradient id="gaugeG" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#FCA5A5" />
+            <stop offset="100%" stopColor="#de1a1a" />
+          </linearGradient>
+        </defs>
+        <path d={arc} fill="none" stroke="#F3F4F6" strokeWidth="13" strokeLinecap="round" />
+        <path d={arc} fill="none" stroke="url(#gaugeG)" strokeWidth="13" strokeLinecap="round"
+          strokeDasharray={`${filled} ${circ}`} style={{ transition: "stroke-dasharray 0.5s ease" }} />
+        <text x={cx} y={cy - 6} textAnchor="middle" fontSize="26" fontWeight="900" fill="#111111">{score}</text>
+        <text x={cx} y={cy + 10} textAnchor="middle" fontSize="11" fill="#6B7280">{label}</text>
+      </svg>
+      <p className="text-[11px] text-center mt-1" style={{ color: "#6B7280" }}>{msg}</p>
     </div>
   )
 }
 
-// ── General Team Form ──────────────────────────────────────────
-function GeneralTeamForm({ projects }: { projects: Project[] }) {
+export default function DailyUpdateForm({
+  projects,
+  userName,
+}: {
+  projects: Project[]
+  team: string | null
+  userName: string
+}) {
   const router = useRouter()
-  const [pending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
 
-  const [slots, setSlots] = useState<HourSlot[]>(initHourSlots)
-  const [hasLearning, setHasLearning] = useState(false)
-  const [learning, setLearning] = useState<GenLearning>({
-    title: "", start_time: "", end_time: "", duration_hours: 0, notes: "",
-  })
+  const firstName = userName.split(" ")[0] || "there"
+  const h = new Date().getHours()
+  const greeting = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"
+  const now = new Date()
+  const dateLabel = now.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+  const dayName   = now.toLocaleDateString("en-US", { weekday: "long" })
+  const dateStr   = now.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
 
-  function updateSlot(i: number, p: Partial<HourSlot>) {
-    setSlots(prev => { const next = [...prev]; next[i] = { ...next[i], ...p }; return next })
+  const [slots, setSlots] = useState<Slot[]>(
+    SLOT_HOURS.map(hr => ({ hour: hr, description: "", projectId: "", projectName: "", status: "not_started" }))
+  )
+  const [mood, setMood]         = useState<Mood>("good")
+  const [error, setError]       = useState<string | null>(null)
+  const [submitted, setSubmitted] = useState(false)
+
+  const filledSlots    = slots.filter(s => s.description.trim().length > 0)
+  const completedCount = filledSlots.filter(s => s.status === "completed").length
+  const productivity   = filledSlots.length > 0 ? Math.round((completedCount / filledSlots.length) * 100) : 0
+  const hoursWorked    = filledSlots.length
+  const totalHours     = SLOT_HOURS.length
+  const progressPct    = Math.round((hoursWorked / totalHours) * 100)
+  const circum         = 2 * Math.PI * 17
+
+  function updateSlot(hour: number, patch: Partial<Slot>) {
+    setSlots(prev => prev.map(s => s.hour === hour ? { ...s, ...patch } : s))
   }
 
-  const filledSlots = slots.filter(s => s.task.trim().length > 0)
-
-  function validate(): string | null {
-    if (filledSlots.length === 0) return "Please fill in at least one hourly slot"
-    if (hasLearning) {
-      if (!learning.title.trim())                     return "Learning: Title is required"
-      if (!learning.start_time || !learning.end_time) return "Learning: Start and end time are required"
-      if (learning.duration_hours <= 0)               return "Learning: End time must be after start time"
-      if (!learning.notes.trim())                     return "Learning: Notes are required"
-    }
-    return null
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  function handleSubmit() {
+    if (filledSlots.length === 0) { setError("Please fill in at least one hour slot."); return }
     setError(null)
-    const err = validate()
-    if (err) { setError(err); return }
-
     startTransition(async () => {
-      const result = await submitDailyUpdate({
-        active_tab: "working",
-        work_entries: filledSlots.map(s => ({
-          id: crypto.randomUUID(),
-          client_id: s.client_id,
-          client_name: s.client_name,
-          task_type: "other" as const,
-          title: s.label,
-          start_time: s.start,
-          end_time: s.end,
-          duration_hours: 1,
-          notes: s.task,
-          editing_videos: [],
-        })),
-        links: [],
-        shoot_count: 0,
+      const work_entries = filledSlots.map(s => ({
+        id:             crypto.randomUUID(),
+        client_id:      s.projectId || null,
+        client_name:    s.projectName || "Internal",
+        task_type:      "other" as const,
+        title:          s.description,
+        start_time:     `${String(s.hour).padStart(2, "0")}:00`,
+        end_time:       `${String(s.hour + 1).padStart(2, "0")}:00`,
+        duration_hours: 1,
+        notes:          "",
+        video_uploaded: null,
+        screenshot_url: "",
+        video_link:     "",
+        editing_videos: [],
+      }))
+      const res = await submitDailyUpdate({
+        active_tab:    "working",
+        work_entries,
+        links:         [],
+        shoot_count:   0,
         editing_count: 0,
-        learning_topic: hasLearning ? learning.title : undefined,
-        learning_hours: hasLearning ? learning.duration_hours : 0,
-        learning_notes: hasLearning ? `[${learning.start_time}–${learning.end_time}] ${learning.notes}` : undefined,
+        learning_hours: 0,
       })
-
-      if (result.success) {
-        router.push("/member/dashboard")
-        router.refresh()
-      } else {
-        setError(result.error ?? "Something went wrong")
-      }
+      if (!res.success) setError(res.error ?? "Submission failed")
+      else { setSubmitted(true); router.refresh() }
     })
   }
 
   return (
-    <>
-      <style>{`
-        .du::placeholder { color: #9CA3AF; }
-        .du:focus { border-color: rgba(222,26,26,0.4) !important; box-shadow: 0 0 0 2px rgba(222,26,26,0.06); }
-        .du-sel { appearance: none; }
-      `}</style>
+    <div style={{ background: "#F1F2F6", minHeight: "100vh" }} className="p-4 md:p-5 xl:p-7 max-w-[1600px]">
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      {/* ── PAGE HEADER ───────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        {/* Title */}
+        <div className="flex-1 min-w-[200px]">
+          <h1 className="text-[28px] md:text-[32px] font-black leading-tight" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
+            Daily Update
+          </h1>
+          <p className="text-[13px] mt-0.5" style={{ color: "#6B7280" }}>{dateStr}</p>
+        </div>
 
-        {/* ── Hourly Work Log ───────────────────────────────── */}
-        <div>
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                style={{ background: "rgba(222,26,26,0.1)" }}>
-                <Clock size={17} style={{ color: "#de1a1a" }} />
-              </div>
-              <div>
-                <h2 className="text-[17px] font-black leading-none"
-                  style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>Hourly Work Log</h2>
-                <p className="text-[11px] font-semibold mt-0.5"
-                  style={{ color: filledSlots.length > 0 ? "#de1a1a" : "#9CA3AF" }}>
-                  {filledSlots.length > 0
-                    ? `${filledSlots.length}h logged · ${filledSlots.length}/8 slots filled`
-                    : "Log what you worked on each hour"}
-                </p>
-              </div>
-            </div>
+        {/* Girl character + greeting */}
+        <div className="flex items-end gap-3 px-5 py-2.5 rounded-2xl flex-shrink-0"
+          style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
+          <div className="relative w-14 h-18 flex-shrink-0" style={{ height: 72 }}>
+            <Image src="/brand/assistant-girl.png" alt="Assistant" fill style={{ objectFit: "contain", objectPosition: "bottom" }} />
+          </div>
+          <div className="pb-1">
+            <p className="text-[15px] font-black leading-tight" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
+              {greeting}, {firstName}! 👋
+            </p>
+            <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>Let&apos;s make today productive.</p>
+          </div>
+        </div>
 
-            {/* Slot progress dots */}
-            <div className="flex items-center gap-1.5">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="w-2 h-2 rounded-full transition-all"
-                  style={{ background: i < filledSlots.length ? "#de1a1a" : "#E5E7EB" }} />
+        {/* Date widget */}
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl flex-shrink-0"
+          style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(222,26,26,0.1)" }}>
+            <Clock size={16} style={{ color: "#de1a1a" }} />
+          </div>
+          <div>
+            <p className="text-[13px] font-black" style={{ color: "#111111" }}>{dateLabel}</p>
+            <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{dayName}</p>
+          </div>
+        </div>
+
+        {/* Day progress circle */}
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl flex-shrink-0"
+          style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
+          <div className="relative w-11 h-11 flex-shrink-0">
+            <svg viewBox="0 0 44 44" className="w-full h-full" style={{ transform: "rotate(-90deg)" }}>
+              <circle cx="22" cy="22" r="17" fill="none" stroke="#F3F4F6" strokeWidth="5" />
+              <circle cx="22" cy="22" r="17" fill="none" stroke="#de1a1a" strokeWidth="5" strokeLinecap="round"
+                strokeDasharray={`${(hoursWorked / totalHours) * circum} ${circum}`}
+                style={{ transition: "stroke-dasharray 0.5s ease" }} />
+            </svg>
+            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black" style={{ color: "#111111" }}>
+              {progressPct}%
+            </span>
+          </div>
+          <div>
+            <p className="text-[12px] font-bold" style={{ color: "#111111" }}>Day Progress</p>
+            <p className="text-[10px]" style={{ color: "#6B7280" }}>{hoursWorked} / {totalHours} hrs completed</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── MAIN 2-COL ─────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
+
+        {/* LEFT — Timeline card */}
+        <div className="rounded-3xl overflow-hidden flex flex-col"
+          style={{ background: "#FFFFFF", boxShadow: "0 2px 20px rgba(0,0,0,0.06)" }}>
+
+          {/* Column headers */}
+          <div className="px-6 py-3" style={{ borderBottom: "1px solid #F5F5F7" }}>
+            <div className="grid gap-3 items-center"
+              style={{ gridTemplateColumns: "90px 1fr 160px 148px 32px" }}>
+              {["Time", "What did you work on?", "Project", "Status", ""].map(lbl => (
+                <span key={lbl} className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#C4C4C4" }}>{lbl}</span>
               ))}
             </div>
           </div>
 
-          <div className="space-y-2">
-            {slots.map((slot, i) => (
-              <HourSlotRow
-                key={slot.label}
-                slot={slot}
-                projects={projects}
-                onChange={(p) => updateSlot(i, p)}
-              />
-            ))}
-          </div>
-        </div>
+          {/* Hourly slots */}
+          <div className="flex-1">
+            {slots.map((slot, i) => {
+              const st      = STATUS_STYLE[slot.status]
+              const isFilled = slot.description.trim().length > 0
+              const isLunch  = slot.hour === 12
+              const pColor   = projectColor(slot.projectName)
+              return (
+                <div key={slot.hour}
+                  className="grid gap-3 items-center px-6 py-3 transition-colors hover:bg-[#FAFAFA] group"
+                  style={{ gridTemplateColumns: "90px 1fr 160px 148px 32px", borderBottom: i < slots.length - 1 ? "1px solid #F5F5F7" : "none" }}>
 
-        {/* Divider */}
-        <div style={{ height: "1px", background: "linear-gradient(90deg, transparent, #E5E7EB 20%, #E5E7EB 80%, transparent)" }} />
-
-        {/* ── Learning Section ────────────────────────────────── */}
-        <div>
-          <div className="flex items-center justify-between gap-3 mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                style={{ background: "rgba(99,102,241,0.1)" }}>
-                <BookOpen size={17} style={{ color: "#6366F1" }} />
-              </div>
-              <div>
-                <h2 className="text-[17px] font-black leading-none"
-                  style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>Learning</h2>
-                {hasLearning && learning.duration_hours > 0 && (
-                  <p className="text-[11px] font-semibold mt-0.5" style={{ color: "#6366F1" }}>
-                    {learning.duration_hours}h
-                  </p>
-                )}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setHasLearning(prev => !prev)}
-              className="flex items-center gap-2 text-[12px] font-bold px-3 py-1.5 rounded-lg transition-all"
-              style={hasLearning
-                ? { background: "rgba(99,102,241,0.12)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.3)" }
-                : { background: "rgba(99,102,241,0.06)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.15)" }
-              }
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.15)"}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = hasLearning ? "rgba(99,102,241,0.12)" : "rgba(99,102,241,0.06)"}
-            >
-              {hasLearning ? "Remove Learning" : "+ Add Learning"}
-            </button>
-          </div>
-
-          {!hasLearning && (
-            <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl"
-              style={{ background: "rgba(99,102,241,0.04)", border: "1px dashed rgba(99,102,241,0.2)" }}>
-              <BookOpen size={15} style={{ color: "rgba(99,102,241,0.4)" }} />
-              <span className="text-[13px]" style={{ color: "#9CA3AF" }}>
-                Did you learn something today? Tap <strong style={{ color: "#6366F1" }}>+ Add Learning</strong> to log it — it&apos;s optional.
-              </span>
-            </div>
-          )}
-
-          {hasLearning && (
-            <div className="rounded-2xl overflow-hidden"
-              style={{ border: "1px solid rgba(99,102,241,0.2)", boxShadow: "0 2px 8px rgba(99,102,241,0.06)" }}>
-              <div className="px-4 py-3"
-                style={{ background: "rgba(99,102,241,0.06)", borderBottom: "1px solid rgba(99,102,241,0.12)" }}>
-                <span className="text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: "#6366F1" }}>
-                  What did you learn today?
-                </span>
-              </div>
-              <div className="p-4 space-y-4" style={{ background: "#FFFFFF" }}>
-                <div>
-                  <label style={LABEL}>Title <span style={{ color: "#de1a1a" }}>*</span></label>
-                  <input className="du" style={FIELD}
-                    placeholder="e.g. Meta Ads Strategy, SEO Techniques, Client Communication Skills…"
-                    value={learning.title}
-                    onChange={(e) => setLearning(prev => ({ ...prev, title: e.target.value }))} />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  <div>
-                    <label style={LABEL}>From <span style={{ color: "#de1a1a" }}>*</span></label>
-                    <input type="time" className="du" style={FIELD}
-                      value={learning.start_time}
-                      onChange={(e) => {
-                        const dur = calcDuration(e.target.value, learning.end_time)
-                        setLearning(prev => ({ ...prev, start_time: e.target.value, duration_hours: dur }))
-                      }} />
-                  </div>
-                  <div>
-                    <label style={LABEL}>To <span style={{ color: "#de1a1a" }}>*</span></label>
-                    <input type="time" className="du" style={FIELD}
-                      value={learning.end_time}
-                      onChange={(e) => {
-                        const dur = calcDuration(learning.start_time, e.target.value)
-                        setLearning(prev => ({ ...prev, end_time: e.target.value, duration_hours: dur }))
-                      }} />
-                  </div>
-                  <div>
-                    <label style={LABEL}>Duration</label>
-                    <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
-                      style={{
-                        height: "42px", background: "#F4F5F7", border: "1px solid #E5E7EB",
-                        color: learning.duration_hours > 0 ? "#6366F1" : "#D1D5DB",
-                      }}>
-                      {learning.duration_hours > 0 ? `${learning.duration_hours}h` : "—"}
+                  {/* Time + dot */}
+                  <div className="flex items-center gap-2.5">
+                    <div>
+                      <p className="text-[12px] font-black leading-none" style={{ color: "#de1a1a" }}>{fmtHour(slot.hour)}</p>
+                      <p className="text-[10px] mt-0.5 leading-none" style={{ color: "#D1D5DB" }}>– {fmtHour(slot.hour + 1)}</p>
+                    </div>
+                    <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all"
+                      style={{ borderColor: isFilled ? "#de1a1a" : "#E5E7EB", background: isFilled ? "#de1a1a" : "#FFFFFF" }}>
+                      {isFilled && <div className="w-2 h-2 rounded-full bg-white" />}
                     </div>
                   </div>
+
+                  {/* Description input */}
+                  <div>
+                    <input
+                      value={slot.description}
+                      onChange={e => {
+                        const v = e.target.value
+                        updateSlot(slot.hour, {
+                          description: v,
+                          status: v && slot.status === "not_started" ? "in_progress" : slot.status,
+                        })
+                      }}
+                      placeholder={isLunch ? "Lunch break 🍱" : "What did you work on this hour?"}
+                      className="w-full bg-transparent outline-none text-[13px] placeholder:font-normal"
+                      style={{ color: isFilled ? "#111111" : "#D1D5DB", fontWeight: isFilled ? 500 : 400 }}
+                    />
+                  </div>
+
+                  {/* Project selector */}
+                  <div>
+                    {projects.length > 0 ? (
+                      <div className="relative">
+                        <select
+                          value={slot.projectId}
+                          onChange={e => {
+                            const p = projects.find(x => x.id === e.target.value)
+                            updateSlot(slot.hour, { projectId: e.target.value, projectName: p?.business_name ?? "" })
+                          }}
+                          className="w-full text-[11px] font-semibold rounded-lg px-2.5 py-1.5 appearance-none outline-none pr-6 cursor-pointer"
+                          style={{
+                            background: slot.projectName ? `${pColor}18` : "#F9FAFB",
+                            color:      slot.projectName ? pColor : "#9CA3AF",
+                            border:     `1px solid ${slot.projectName ? `${pColor}35` : "#E5E7EB"}`,
+                          }}>
+                          <option value="">Select Project</option>
+                          {projects.map(p => <option key={p.id} value={p.id}>{p.business_name}</option>)}
+                        </select>
+                        <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#9CA3AF" }} />
+                      </div>
+                    ) : (
+                      <input
+                        value={slot.projectName}
+                        onChange={e => updateSlot(slot.hour, { projectName: e.target.value })}
+                        placeholder="Project..."
+                        className="w-full text-[11px] rounded-lg px-2.5 py-1.5 outline-none"
+                        style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#374151" }}
+                      />
+                    )}
+                  </div>
+
+                  {/* Status chip */}
+                  <button
+                    onClick={() => updateSlot(slot.hour, { status: STATUS_CYCLE[slot.status] })}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all w-full justify-center"
+                    style={{ background: st.bg, color: st.color }}>
+                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: st.dot }} />
+                    <span>{st.label}</span>
+                    <ChevronDown size={9} className="flex-shrink-0" />
+                  </button>
+
+                  {/* More menu */}
+                  <button className="w-7 h-7 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-gray-100">
+                    <MoreHorizontal size={13} style={{ color: "#9CA3AF" }} />
+                  </button>
+
                 </div>
-                <div>
-                  <label style={LABEL}>Notes — Key takeaways & insights <span style={{ color: "#de1a1a" }}>*</span></label>
-                  <textarea rows={4} className="du resize-none" style={FIELD}
-                    placeholder="Explain clearly what you learned, key insights gained, resources used, and how it applies to your work…"
-                    value={learning.notes}
-                    onChange={(e) => setLearning(prev => ({ ...prev, notes: e.target.value }))} />
-                </div>
+              )
+            })}
+          </div>
+
+          {/* Bottom bar */}
+          <div className="px-6 py-4 flex flex-wrap items-center gap-4 justify-between"
+            style={{ borderTop: "1px solid #F0F0F0" }}>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 size={14} style={{ color: "#22C55E" }} />
+              <span className="text-[12px] font-medium" style={{ color: "#6B7280" }}>Auto-saved just now</span>
+            </div>
+            {error && <p className="text-[12px] font-semibold" style={{ color: "#EF4444" }}>{error}</p>}
+            <button
+              onClick={handleSubmit}
+              disabled={isPending || submitted}
+              className="flex items-center gap-2 px-7 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-60 transition-all"
+              style={{ background: submitted ? "#22C55E" : "#de1a1a", color: "#FFFFFF", boxShadow: "0 4px 16px rgba(222,26,26,0.3)" }}>
+              {isPending   ? <Loader2 size={15} className="animate-spin" />
+               : submitted ? <CheckCircle2 size={15} />
+               : <SendHorizonal size={15} />}
+              {isPending ? "Submitting…" : submitted ? "Submitted!" : "Submit Daily Update"}
+            </button>
+          </div>
+        </div>
+
+        {/* RIGHT — Stats panel */}
+        <div className="space-y-4">
+
+          {/* Today's Overview */}
+          <div className="rounded-3xl overflow-hidden"
+            style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+            <div className="relative w-full flex items-center justify-center" style={{ height: 160, background: "#FAFAFA" }}>
+              <Image src="/brand/alarm-clock.png" alt="Overview" fill style={{ objectFit: "contain", objectPosition: "center" }} />
+            </div>
+            <div className="p-4">
+              <h3 className="text-[13px] font-black mb-3" style={{ color: "#111111" }}>Today&apos;s Overview</h3>
+              <div className="space-y-2.5">
+                {[
+                  { icon: "⏱", label: "Hours Logged",  value: `${hoursWorked} / ${totalHours} hrs` },
+                  { icon: "🎯", label: "Focus Time",    value: hoursWorked > 1 ? `${hoursWorked - 1}h 30m` : "—" },
+                  { icon: "📈", label: "Productivity",  value: `${productivity}%` },
+                  { icon: "⚡", label: "Status",        value: hoursWorked === 0 ? "Not started" : hoursWorked >= 7 ? "On track" : "In Progress",
+                    color: hoursWorked >= 7 ? "#22C55E" : hoursWorked > 0 ? "#F59E0B" : "#9CA3AF" },
+                ].map(r => (
+                  <div key={r.label} className="flex items-center justify-between">
+                    <span className="text-[12px] flex items-center gap-1.5" style={{ color: "#9CA3AF" }}>
+                      <span>{r.icon}</span>{r.label}
+                    </span>
+                    <span className="text-[12px] font-bold" style={{ color: (r as { color?: string }).color ?? "#111111" }}>
+                      {r.value}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
-          )}
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl"
-            style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.2)" }}>
-            <AlertCircle size={15} className="flex-shrink-0 mt-0.5" style={{ color: "#de1a1a" }} />
-            <span className="text-[13px]" style={{ color: "#de1a1a" }}>{error}</span>
-          </div>
-        )}
-
-        {/* Submit */}
-        <button type="submit" disabled={pending}
-          className="w-full py-3.5 rounded-xl text-[14px] font-black flex items-center justify-center gap-2 transition-all"
-          style={{
-            background: pending ? "rgba(222,26,26,0.5)" : "linear-gradient(135deg, #de1a1a, #7F1D1D)",
-            color: "#FFFFFF",
-            boxShadow: pending ? "none" : "0 4px 16px rgba(222,26,26,0.3)",
-            cursor: pending ? "not-allowed" : "pointer",
-          }}>
-          {pending && <Loader2 size={16} className="animate-spin" />}
-          {pending ? "Submitting…" : "Submit Daily Update →"}
-        </button>
-      </form>
-    </>
-  )
-}
-
-// ═══════════════════════════════════════════════════════════════
-// MEDIA TEAM FORM (shooting / editing / learning flow)
-// ═══════════════════════════════════════════════════════════════
-function MediaTeamForm({ projects }: { projects: Project[] }) {
-  const router = useRouter()
-  const [pending, startTransition] = useTransition()
-  const [error, setError] = useState<string | null>(null)
-
-  // Step flow
-  const [step, setStep] = useState<FlowStep>("type-select")
-  const [mode, setMode] = useState<FlowMode | null>(null)
-
-  // Form data
-  const [entries, setEntries] = useState<WorkEntryInput[]>([])
-  const [learningTopic, setLearningTopic] = useState("")
-  const [learningHours, setLearningHours] = useState("")
-  const [learningNotes, setLearningNotes] = useState("")
-
-  function updateEntry(i: number, patch: Partial<WorkEntryInput>) {
-    setEntries((prev) => {
-      const next = [...prev]
-      next[i] = { ...next[i], ...patch }
-      return next
-    })
-  }
-
-  function removeEntry(i: number) {
-    setEntries((prev) => prev.filter((_, idx) => idx !== i))
-  }
-
-  function selectType(m: FlowMode) {
-    setMode(m)
-    setError(null)
-    if (m === "learning") {
-      setStep("form")
-    } else if (m === "edit") {
-      const session = newEntry("edit")
-      session.editing_videos = [newEditingVideo()]
-      setEntries([session])
-      setStep("form")
-    } else {
-      setStep("count-select")
-    }
-  }
-
-  function selectCount(count: number) {
-    const type = mode === "shoot" ? "shoot" : "edit"
-    if (entries.length < count) {
-      const extra = Array.from({ length: count - entries.length }, () => newEntry(type))
-      setEntries((prev) => [...prev, ...extra])
-    } else if (entries.length > count) {
-      setEntries((prev) => prev.slice(0, count))
-    }
-    setStep("form")
-  }
-
-  function goBack() {
-    setError(null)
-    if (step === "form" && mode !== "learning") {
-      setStep("count-select")
-    } else {
-      setStep("type-select")
-      setMode(null)
-      setEntries([])
-    }
-  }
-
-  function validate(): string | null {
-    for (let i = 0; i < entries.length; i++) {
-      const e = entries[i]
-      const n = i + 1
-      if (e.task_type === "shoot") {
-        if (!e.client_id && !e.client_name) return `Shoot ${n}: Client is required`
-        if (!e.start_time || !e.end_time) return `Shoot ${n}: Start and end time are required`
-        if (e.duration_hours <= 0) return `Shoot ${n}: End time must be after start time`
-        if (!e.screenshot_url?.trim()) return `Shoot ${n}: Google Drive link is required`
-      }
-      if (e.task_type === "edit") {
-        const vids = e.editing_videos ?? []
-        if (vids.length === 0) return `Editing Session ${n}: Add at least one video`
-        for (let v = 0; v < vids.length; v++) {
-          const vid = vids[v]
-          if (!vid.video_name.trim()) return `Session ${n} · Video ${v + 1}: Video name required`
-          if (!vid.video_type) return `Session ${n} · Video ${v + 1}: Video type required`
-          if (vid.time_taken <= 0) return `Session ${n} · Video ${v + 1}: Time taken required`
-          if (vid.drive_updated && !vid.drive_link?.trim()) return `Session ${n} · Video ${v + 1}: Upload file or uncheck Drive Updated`
-        }
-      }
-    }
-    return null
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-
-    if (mode !== "learning") {
-      const err = validate()
-      if (err) { setError(err); return }
-    }
-
-    const tab = mode === "learning" ? "learning" : "working"
-
-    startTransition(async () => {
-      const result = await submitDailyUpdate({
-        active_tab: tab,
-        work_entries: tab === "working" ? entries : [],
-        links: [],
-        shoot_count: entries.filter((e) => e.task_type === "shoot").length,
-        editing_count: entries.filter((e) => e.task_type === "edit").length,
-        learning_topic: learningTopic || undefined,
-        learning_hours: parseFloat(learningHours) || 0,
-        learning_notes: learningNotes || undefined,
-      })
-
-      if (result.success) {
-        router.push("/member/dashboard")
-        router.refresh()
-      } else {
-        setError(result.error ?? "Something went wrong")
-      }
-    })
-  }
-
-  const shootCount = entries.filter((e) => e.task_type === "shoot").length
-  const editCount  = entries.filter((e) => e.task_type === "edit").length
-  const totalHours = Math.round(entries.reduce((s, e) => s + e.duration_hours, 0) * 10) / 10
-
-  return (
-    <>
-      <style>{`
-        .du::placeholder { color: #6B7280; }
-        .du:focus { border-color: rgba(222,26,26,0.4) !important; box-shadow: 0 0 0 2px rgba(222,26,26,0.06); }
-        .du-sel { appearance: none; }
-      `}</style>
-
-      {/* ── STEP 1: Type Select ─────────────────────────────── */}
-      {step === "type-select" && (
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] mb-5"
-            style={{ color: "#6B7280" }}>What did you work on today?</p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Shooting */}
-            <button type="button" onClick={() => selectType("shoot")}
-              className="flex flex-col items-center justify-center gap-3 rounded-2xl transition-all"
-              style={{ aspectRatio: "1", background: "rgba(222,26,26,0.04)", border: "2px solid rgba(222,26,26,0.18)" }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.1)"
-                ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(222,26,26,0.4)"
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.04)"
-                ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(222,26,26,0.18)"
-              }}>
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                style={{ background: "rgba(222,26,26,0.12)" }}>
-                <Camera size={28} style={{ color: "#de1a1a" }} />
-              </div>
-              <p className="text-[15px] font-black" style={{ color: "#de1a1a" }}>Shooting</p>
-              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#6B7280" }}>Sessions, travel & expenses</p>
-            </button>
-
-            {/* Editing */}
-            <button type="button" onClick={() => selectType("edit")}
-              className="flex flex-col items-center justify-center gap-3 rounded-2xl transition-all"
-              style={{ aspectRatio: "1", background: "rgba(99,102,241,0.04)", border: "2px solid rgba(99,102,241,0.18)" }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.1)"
-                ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(99,102,241,0.4)"
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.04)"
-                ;(e.currentTarget as HTMLElement).style.borderColor = "rgba(99,102,241,0.18)"
-              }}>
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                style={{ background: "rgba(99,102,241,0.12)" }}>
-                <Scissors size={28} style={{ color: "#6366F1" }} />
-              </div>
-              <p className="text-[15px] font-black" style={{ color: "#6366F1" }}>Editing</p>
-              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#6B7280" }}>Videos & Drive uploads</p>
-            </button>
-
-            {/* Learning */}
-            <button type="button" onClick={() => selectType("learning")}
-              className="flex flex-col items-center justify-center gap-3 rounded-2xl transition-all"
-              style={{ aspectRatio: "1", background: "#F4F5F7", border: "2px solid #E5E7EB" }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.background = "#F1F5F9"
-                ;(e.currentTarget as HTMLElement).style.borderColor = "#D1D5DB"
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.background = "#F4F5F7"
-                ;(e.currentTarget as HTMLElement).style.borderColor = "#E5E7EB"
-              }}>
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
-                style={{ background: "rgba(0,0,0,0.05)" }}>
-                <BookOpen size={28} style={{ color: "#6B7280" }} />
-              </div>
-              <p className="text-[15px] font-black" style={{ color: "#6B7280" }}>Learning</p>
-              <p className="text-[11px] text-center px-2 leading-snug" style={{ color: "#6B7280" }}>Study & skill building</p>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ── STEP 2: Count Select ────────────────────────────── */}
-      {step === "count-select" && (
-        <div className="space-y-6">
-          <button type="button" onClick={goBack}
-            className="flex items-center gap-1.5 text-[12px] font-semibold"
-            style={{ color: "#6B7280" }}>
-            <ArrowLeft size={14} /> Back
-          </button>
-
-          <div>
-            <p className="text-[22px] font-black mb-1" style={{ color: "#111111" }}>
-              {mode === "shoot" ? "How many shoots today?" : "How many videos edited?"}
-            </p>
-            <p className="text-[13px]" style={{ color: "#6B7280" }}>
-              {mode === "shoot"
-                ? "Each shoot session gets its own card"
-                : "Each editing session gets its own card"}
-            </p>
           </div>
 
-          <div className="grid grid-cols-5 gap-2">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => selectCount(n)}
-                className="flex items-center justify-center rounded-2xl text-[24px] font-black transition-all"
-                style={{
-                  height: "72px",
-                  background: mode === "shoot" ? "rgba(222,26,26,0.06)" : "rgba(99,102,241,0.06)",
-                  border: mode === "shoot" ? "2px solid rgba(222,26,26,0.18)" : "2px solid rgba(99,102,241,0.18)",
-                  color: mode === "shoot" ? "#de1a1a" : "#6366F1",
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.background = mode === "shoot"
-                    ? "rgba(222,26,26,0.14)" : "rgba(99,102,241,0.14)"
-                  ;(e.currentTarget as HTMLElement).style.transform = "scale(1.04)"
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLElement).style.background = mode === "shoot"
-                    ? "rgba(222,26,26,0.06)" : "rgba(99,102,241,0.06)"
-                  ;(e.currentTarget as HTMLElement).style.transform = "scale(1)"
-                }}>
-                {n}
-              </button>
-            ))}
+          {/* Productivity Score */}
+          <div className="rounded-3xl p-4" style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+            <h3 className="text-[13px] font-black mb-1" style={{ color: "#111111" }}>Productivity Score</h3>
+            <GaugeChart score={productivity} />
           </div>
 
-          <p className="text-[11px] text-center" style={{ color: "#D1D5DB" }}>
-            You can add more sessions after
-          </p>
-        </div>
-      )}
-
-      {/* ── STEP 3: Form ────────────────────────────────────── */}
-      {step === "form" && (
-        <form onSubmit={handleSubmit} className="space-y-5">
-
-          {/* Back + summary header */}
-          <div className="flex items-center justify-between">
-            <button type="button" onClick={goBack}
-              className="flex items-center gap-1.5 text-[12px] font-semibold"
-              style={{ color: "#6B7280" }}>
-              <ArrowLeft size={14} /> Back
-            </button>
-            {mode !== "learning" && (
-              <div className="flex items-center gap-2">
-                {shootCount > 0 && (
-                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
-                    style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
-                    {shootCount} Shoot{shootCount > 1 ? "s" : ""}
-                  </span>
-                )}
-                {editCount > 0 && (
-                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
-                    style={{ background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
-                    {editCount} Editing
-                  </span>
-                )}
-                {totalHours > 0 && (
-                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
-                    style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
-                    {totalHours}h total
-                  </span>
-                )}
-              </div>
-            )}
+          {/* Mood */}
+          <div className="rounded-3xl p-4" style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+            <h3 className="text-[13px] font-black mb-3" style={{ color: "#111111" }}>How do you feel today?</h3>
+            <div className="flex justify-between">
+              {MOODS.map(m => (
+                <button key={m.key} onClick={() => setMood(m.key)}
+                  className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all flex-1"
+                  style={{
+                    background: mood === m.key ? "rgba(222,26,26,0.07)" : "transparent",
+                    border:     mood === m.key ? "2px solid rgba(222,26,26,0.25)" : "2px solid transparent",
+                  }}>
+                  <span className="text-[22px] leading-none">{m.emoji}</span>
+                  <span className="text-[9px] font-semibold text-center leading-tight"
+                    style={{ color: mood === m.key ? "#de1a1a" : "#9CA3AF" }}>{m.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* ── Learning form ── */}
-          {mode === "learning" && (
-            <div className="space-y-4">
-              <div className="rounded-xl p-5 space-y-4"
-                style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-                <div>
-                  <label style={LABEL}>Topic *</label>
-                  <input className="du" style={FIELD}
-                    placeholder="e.g. Color grading, Meta Ads, React hooks…"
-                    value={learningTopic}
-                    onChange={(e) => setLearningTopic(e.target.value)} />
-                </div>
-                <div>
-                  <label style={LABEL}>Time Spent (hours) *</label>
-                  <input type="number" min="0.5" max="24" step="0.5" className="du"
-                    style={{ ...FIELD, maxWidth: 160 }}
-                    placeholder="e.g. 1.5"
-                    value={learningHours}
-                    onChange={(e) => setLearningHours(e.target.value)} />
-                </div>
-                <div>
-                  <label style={LABEL}>Notes</label>
-                  <textarea rows={4} className="du resize-none" style={FIELD}
-                    placeholder="Key takeaways, resources used…"
-                    value={learningNotes}
-                    onChange={(e) => setLearningNotes(e.target.value)} />
-                </div>
+          {/* AI Assistant */}
+          <div className="rounded-3xl p-4" style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+            <div className="flex items-start gap-3 mb-3">
+              <div className="relative w-14 h-14 flex-shrink-0">
+                <Image src="/brand/ai-robot.png" alt="AI Assistant" fill style={{ objectFit: "contain" }} />
               </div>
-              <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg"
-                style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.15)" }}>
-                <BookOpen size={13} style={{ color: "#de1a1a" }} />
-                <p className="text-[12px]" style={{ color: "#6B7280" }}>
-                  Learning hours count toward your daily productivity score.
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-black leading-tight" style={{ color: "#111111" }}>AI Assistant</p>
+                <p className="text-[11px] mt-1 leading-snug" style={{ color: "#6B7280" }}>
+                  Hi {firstName}! 👋 Need help logging your update?
                 </p>
               </div>
             </div>
-          )}
+            <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all hover:opacity-80"
+              style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.18)" }}>
+              <Sparkles size={12} />
+              Get AI Suggestion
+            </button>
+          </div>
 
-          {/* ── Shoot / Edit session cards ── */}
-          {mode !== "learning" && (
-            <>
-              {entries.length === 0 && (
-                <div className="text-center py-10 rounded-2xl"
-                  style={{ border: "2px dashed #E5E7EB" }}>
-                  <p className="text-[13px]" style={{ color: "#D1D5DB" }}>No sessions yet</p>
-                </div>
-              )}
+        </div>
+      </div>
 
-              <div className="space-y-4">
-                {entries.map((entry, i) => {
-                  const commonProps = {
-                    entry, i, projects,
-                    onChange: (p: Partial<WorkEntryInput>) => updateEntry(i, p),
-                    onRemove: () => removeEntry(i),
-                  }
-                  if (entry.task_type === "shoot") return <ShootCard key={entry.id} {...commonProps} />
-                  return <EditCard key={entry.id} {...commonProps} />
-                })}
-              </div>
+      {/* ── BOTTOM PROGRESS BAR ───────────────────────────────── */}
+      <div className="mt-4 flex items-center gap-4 px-5 py-3 rounded-2xl"
+        style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>
+        <span className="text-[12px] font-bold flex-shrink-0" style={{ color: "#111111" }}>🏆 Keep going!</span>
+        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ background: "#F3F4F6" }}>
+          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPct}%`, background: "linear-gradient(90deg, #FCA5A5, #de1a1a)" }} />
+        </div>
+        <span className="text-[12px] font-bold flex-shrink-0" style={{ color: "#de1a1a" }}>{progressPct}%</span>
+        <span className="text-[12px] flex-shrink-0 hidden sm:block" style={{ color: "#6B7280" }}>You&apos;re doing great today.</span>
+      </div>
 
-              {mode === "shoot" && (
-                <button
-                  type="button"
-                  onClick={() => setEntries((prev) => [...prev, newEntry("shoot")])}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl text-[13px] font-bold transition-all"
-                  style={{ background: "rgba(222,26,26,0.05)", color: "#de1a1a", border: "2px dashed rgba(222,26,26,0.22)" }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.1)"}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.05)"}>
-                  <Plus size={15} /> Add Another Shoot
-                </button>
-              )}
-            </>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl"
-              style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.2)" }}>
-              <AlertCircle size={15} className="flex-shrink-0 mt-0.5" style={{ color: "#de1a1a" }} />
-              <span className="text-[13px]" style={{ color: "#de1a1a" }}>{error}</span>
-            </div>
-          )}
-
-          {/* Submit */}
-          <button type="submit" disabled={pending}
-            className="w-full py-3.5 rounded-xl text-[14px] font-black flex items-center justify-center gap-2 transition-all"
-            style={{
-              background: pending ? "rgba(222,26,26,0.5)" : "linear-gradient(135deg, #de1a1a, #7F1D1D)",
-              color: "#FFFFFF",
-              boxShadow: pending ? "none" : "0 4px 16px rgba(222,26,26,0.3)",
-              cursor: pending ? "not-allowed" : "pointer",
-            }}>
-            {pending && <Loader2 size={16} className="animate-spin" />}
-            {pending ? "Submitting…" : "Submit Daily Update →"}
-          </button>
-        </form>
-      )}
-    </>
+    </div>
   )
-}
-
-// ═══════════════════════════════════════════════════════════════
-// EXPORTED ROUTER — picks form based on team
-// ═══════════════════════════════════════════════════════════════
-export default function DailyUpdateForm({
-  projects,
-  team,
-}: {
-  projects: Project[]
-  team: string | null
-}) {
-  if (team === "Media Team") {
-    return <MediaTeamForm projects={projects} />
-  }
-  return <GeneralTeamForm projects={projects} />
 }

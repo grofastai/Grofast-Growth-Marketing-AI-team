@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   Clock, ChevronDown, CheckCircle2, Loader2,
-  SendHorizonal, Sparkles, MoreHorizontal,
+  SendHorizonal, Sparkles, MoreHorizontal, Plus, Zap,
 } from "lucide-react"
 import { submitDailyUpdate } from "@/lib/actions/daily-updates"
 
@@ -21,7 +21,10 @@ type Slot = {
 
 type Mood = "very_tired" | "tired" | "neutral" | "good" | "very_good"
 
-const SLOT_HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17]
+// 9 AM → 11 PM  (slot shows e.g. "10 PM – 11 PM")
+const SLOT_HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22]
+// Overtime: 11 PM → 3 AM
+const OVERTIME_HOURS = [23, 0, 1, 2]
 
 const MOODS: { key: Mood; emoji: string; label: string }[] = [
   { key: "very_tired", emoji: "😫", label: "Very tired" },
@@ -46,10 +49,11 @@ const STATUS_CYCLE: Record<Slot["status"], Slot["status"]> = {
 const PROJECT_COLORS = ["#de1a1a", "#6366F1", "#0EA5E9", "#10B981", "#F59E0B", "#EC4899"]
 
 function fmtHour(h: number) {
-  if (h === 0) return "12 AM"
-  if (h < 12) return `${h} AM`
-  if (h === 12) return "12 PM"
-  return `${h - 12} PM`
+  const hr = h % 24
+  if (hr === 0) return "12 AM"
+  if (hr < 12) return `${hr} AM`
+  if (hr === 12) return "12 PM"
+  return `${hr - 12} PM`
 }
 
 function projectColor(name: string) {
@@ -85,6 +89,113 @@ function GaugeChart({ score }: { score: number }) {
   )
 }
 
+// ── Shared slot row component ────────────────────────────────────────────────
+function SlotRow({
+  slot, index, total, projects, isOvertime,
+  onUpdate,
+}: {
+  slot: Slot
+  index: number
+  total: number
+  projects: Project[]
+  isOvertime: boolean
+  onUpdate: (hour: number, patch: Partial<Slot>) => void
+}) {
+  const st      = STATUS_STYLE[slot.status]
+  const isFilled = slot.description.trim().length > 0
+  const isLunch  = slot.hour === 12
+  const pColor   = projectColor(slot.projectName)
+  const accentColor = isOvertime ? "#F59E0B" : "#de1a1a"
+
+  return (
+    <div
+      className="grid gap-3 items-center px-5 py-3 transition-colors hover:bg-[#FAFAFA] group"
+      style={{
+        gridTemplateColumns: "76px 1fr 144px 124px 28px",
+        borderBottom: index < total - 1 ? "1px solid #F5F5F7" : "none",
+        background: isOvertime ? "rgba(245,158,11,0.02)" : undefined,
+      }}>
+
+      {/* Time + filled indicator */}
+      <div className="flex items-center gap-2">
+        <div>
+          <p className="text-[12px] font-black leading-none" style={{ color: accentColor }}>{fmtHour(slot.hour)}</p>
+          <p className="text-[10px] mt-0.5 leading-none" style={{ color: "#D1D5DB" }}>– {fmtHour(slot.hour + 1)}</p>
+        </div>
+        <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all"
+          style={{ borderColor: isFilled ? accentColor : "#E5E7EB", background: isFilled ? accentColor : "#FFFFFF" }}>
+          {isFilled && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+        </div>
+      </div>
+
+      {/* Description */}
+      <div>
+        <input
+          value={slot.description}
+          onChange={e => {
+            const v = e.target.value
+            onUpdate(slot.hour, {
+              description: v,
+              status: v && slot.status === "not_started" ? "in_progress" : slot.status,
+            })
+          }}
+          placeholder={isLunch ? "Lunch break 🍱" : isOvertime ? "Overtime work…" : "What did you work on this hour?"}
+          className="w-full bg-transparent outline-none text-[13px] placeholder:font-normal"
+          style={{ color: isFilled ? "#111111" : "#D1D5DB", fontWeight: isFilled ? 500 : 400 }}
+        />
+      </div>
+
+      {/* Project selector */}
+      <div>
+        {projects.length > 0 ? (
+          <div className="relative">
+            <select
+              value={slot.projectId}
+              onChange={e => {
+                const p = projects.find(x => x.id === e.target.value)
+                onUpdate(slot.hour, { projectId: e.target.value, projectName: p?.business_name ?? "" })
+              }}
+              className="w-full text-[11px] font-semibold rounded-lg px-2 py-1.5 appearance-none outline-none pr-5 cursor-pointer"
+              style={{
+                background: slot.projectName ? `${pColor}18` : "#F9FAFB",
+                color:      slot.projectName ? pColor : "#9CA3AF",
+                border:     `1px solid ${slot.projectName ? `${pColor}35` : "#E5E7EB"}`,
+              }}>
+              <option value="">Select Project</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.business_name}</option>)}
+            </select>
+            <ChevronDown size={9} className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#9CA3AF" }} />
+          </div>
+        ) : (
+          <input
+            value={slot.projectName}
+            onChange={e => onUpdate(slot.hour, { projectName: e.target.value })}
+            placeholder="Project..."
+            className="w-full text-[11px] rounded-lg px-2 py-1.5 outline-none"
+            style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#374151" }}
+          />
+        )}
+      </div>
+
+      {/* Status chip */}
+      <button
+        onClick={() => onUpdate(slot.hour, { status: STATUS_CYCLE[slot.status] })}
+        className="flex items-center gap-1 px-2 py-1.5 rounded-full text-[10px] font-bold transition-all w-full justify-center"
+        style={{ background: st.bg, color: st.color }}>
+        <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: st.dot }} />
+        <span>{st.label}</span>
+        <ChevronDown size={8} className="flex-shrink-0" />
+      </button>
+
+      {/* More menu */}
+      <button className="w-7 h-7 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-gray-100">
+        <MoreHorizontal size={13} style={{ color: "#9CA3AF" }} />
+      </button>
+    </div>
+  )
+}
+
+// ── Main component ───────────────────────────────────────────────────────────
 export default function DailyUpdateForm({
   projects,
   userName,
@@ -107,34 +218,43 @@ export default function DailyUpdateForm({
   const [slots, setSlots] = useState<Slot[]>(
     SLOT_HOURS.map(hr => ({ hour: hr, description: "", projectId: "", projectName: "", status: "not_started" }))
   )
+  const [overtimeSlots, setOvertimeSlots] = useState<Slot[]>(
+    OVERTIME_HOURS.map(hr => ({ hour: hr, description: "", projectId: "", projectName: "", status: "not_started" }))
+  )
+  const [showOvertime, setShowOvertime] = useState(false)
   const [mood, setMood]         = useState<Mood>("good")
   const [error, setError]       = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
 
   const filledSlots    = slots.filter(s => s.description.trim().length > 0)
-  const completedCount = filledSlots.filter(s => s.status === "completed").length
-  const productivity   = filledSlots.length > 0 ? Math.round((completedCount / filledSlots.length) * 100) : 0
-  const hoursWorked    = filledSlots.length
-  const totalHours     = SLOT_HOURS.length
-  const progressPct    = Math.round((hoursWorked / totalHours) * 100)
+  const filledOvertime = overtimeSlots.filter(s => s.description.trim().length > 0)
+  const allFilled      = [...filledSlots, ...filledOvertime]
+  const completedCount = allFilled.filter(s => s.status === "completed").length
+  const productivity   = allFilled.length > 0 ? Math.round((completedCount / allFilled.length) * 100) : 0
+  const hoursWorked    = allFilled.length
+  const totalHours     = SLOT_HOURS.length    // 14 regular hours
+  const progressPct    = Math.round((filledSlots.length / totalHours) * 100)
   const circum         = 2 * Math.PI * 17
 
   function updateSlot(hour: number, patch: Partial<Slot>) {
     setSlots(prev => prev.map(s => s.hour === hour ? { ...s, ...patch } : s))
   }
+  function updateOvertimeSlot(hour: number, patch: Partial<Slot>) {
+    setOvertimeSlots(prev => prev.map(s => s.hour === hour ? { ...s, ...patch } : s))
+  }
 
   function handleSubmit() {
-    if (filledSlots.length === 0) { setError("Please fill in at least one hour slot."); return }
+    if (allFilled.length === 0) { setError("Please fill in at least one hour slot."); return }
     setError(null)
     startTransition(async () => {
-      const work_entries = filledSlots.map(s => ({
+      const work_entries = allFilled.map(s => ({
         id:             crypto.randomUUID(),
         client_id:      s.projectId || null,
         client_name:    s.projectName || "Internal",
         task_type:      "other" as const,
         title:          s.description,
-        start_time:     `${String(s.hour).padStart(2, "0")}:00`,
-        end_time:       `${String(s.hour + 1).padStart(2, "0")}:00`,
+        start_time:     `${String(s.hour % 24).padStart(2, "0")}:00`,
+        end_time:       `${String((s.hour + 1) % 24).padStart(2, "0")}:00`,
         duration_hours: 1,
         notes:          "",
         video_uploaded: null,
@@ -155,41 +275,44 @@ export default function DailyUpdateForm({
     })
   }
 
-  return (
-    <div style={{ background: "#F1F2F6", minHeight: "100vh" }} className="p-4 md:p-5 xl:p-7 max-w-[1600px]">
+  // ── Column header template (must match SlotRow gridTemplateColumns) ────────
+  const COLS = "76px 1fr 144px 124px 28px"
 
-      {/* ── PAGE HEADER ───────────────────────────────────────── */}
+  return (
+    <div style={{ background: "#F1F2F6", minHeight: "100vh" }} className="p-3 md:p-5 xl:p-6">
+
+      {/* ── PAGE HEADER ─────────────────────────────────────────── */}
       <div className="flex flex-wrap items-center gap-3 mb-5">
         {/* Title */}
-        <div className="flex-1 min-w-[200px]">
-          <h1 className="text-[28px] md:text-[32px] font-black leading-tight" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
+        <div className="flex-1 min-w-[160px]">
+          <h1 className="text-[26px] md:text-[30px] font-black leading-tight" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
             Daily Update
           </h1>
-          <p className="text-[13px] mt-0.5" style={{ color: "#6B7280" }}>{dateStr}</p>
+          <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>{dateStr}</p>
         </div>
 
-        {/* Girl character + greeting */}
-        <div className="flex items-end gap-3 px-5 py-2.5 rounded-2xl flex-shrink-0"
+        {/* Girl + greeting */}
+        <div className="flex items-end gap-3 px-4 py-2 rounded-2xl flex-shrink-0"
           style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
-          <div className="relative w-14 h-18 flex-shrink-0" style={{ height: 72 }}>
+          <div className="relative w-12 flex-shrink-0" style={{ height: 64 }}>
             <Image src="/brand/assistant-girl.jpg" alt="Assistant" fill style={{ objectFit: "contain", objectPosition: "bottom" }} />
           </div>
           <div className="pb-1">
-            <p className="text-[15px] font-black leading-tight" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
+            <p className="text-[14px] font-black leading-tight" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
               {greeting}, {firstName}! 👋
             </p>
-            <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>Let&apos;s make today productive.</p>
+            <p className="text-[11px] mt-0.5" style={{ color: "#6B7280" }}>Let&apos;s make today productive.</p>
           </div>
         </div>
 
         {/* Date widget */}
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl flex-shrink-0"
           style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(222,26,26,0.1)" }}>
-            <Clock size={16} style={{ color: "#de1a1a" }} />
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "rgba(222,26,26,0.1)" }}>
+            <Clock size={14} style={{ color: "#de1a1a" }} />
           </div>
           <div>
-            <p className="text-[13px] font-black" style={{ color: "#111111" }}>{dateLabel}</p>
+            <p className="text-[12px] font-black" style={{ color: "#111111" }}>{dateLabel}</p>
             <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{dayName}</p>
           </div>
         </div>
@@ -197,150 +320,127 @@ export default function DailyUpdateForm({
         {/* Day progress circle */}
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl flex-shrink-0"
           style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
-          <div className="relative w-11 h-11 flex-shrink-0">
+          <div className="relative w-10 h-10 flex-shrink-0">
             <svg viewBox="0 0 44 44" className="w-full h-full" style={{ transform: "rotate(-90deg)" }}>
               <circle cx="22" cy="22" r="17" fill="none" stroke="#F3F4F6" strokeWidth="5" />
               <circle cx="22" cy="22" r="17" fill="none" stroke="#de1a1a" strokeWidth="5" strokeLinecap="round"
-                strokeDasharray={`${(hoursWorked / totalHours) * circum} ${circum}`}
+                strokeDasharray={`${(filledSlots.length / totalHours) * circum} ${circum}`}
                 style={{ transition: "stroke-dasharray 0.5s ease" }} />
             </svg>
-            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black" style={{ color: "#111111" }}>
+            <span className="absolute inset-0 flex items-center justify-center text-[9px] font-black" style={{ color: "#111111" }}>
               {progressPct}%
             </span>
           </div>
           <div>
-            <p className="text-[12px] font-bold" style={{ color: "#111111" }}>Day Progress</p>
-            <p className="text-[10px]" style={{ color: "#6B7280" }}>{hoursWorked} / {totalHours} hrs completed</p>
+            <p className="text-[11px] font-bold" style={{ color: "#111111" }}>Day Progress</p>
+            <p className="text-[10px]" style={{ color: "#6B7280" }}>{filledSlots.length} / {totalHours} hrs</p>
           </div>
         </div>
       </div>
 
       {/* ── MAIN 2-COL ─────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] gap-4">
 
         {/* LEFT — Timeline card */}
-        <div className="rounded-3xl overflow-hidden flex flex-col"
-          style={{ background: "#FFFFFF", boxShadow: "0 2px 20px rgba(0,0,0,0.06)" }}>
+        <div className="rounded-3xl flex flex-col"
+          style={{ background: "#FFFFFF", boxShadow: "0 2px 20px rgba(0,0,0,0.06)", overflow: "hidden" }}>
 
-          {/* Column headers */}
-          <div className="px-6 py-3" style={{ borderBottom: "1px solid #F5F5F7" }}>
-            <div className="grid gap-3 items-center"
-              style={{ gridTemplateColumns: "90px 1fr 160px 148px 32px" }}>
-              {["Time", "What did you work on?", "Project", "Status", ""].map(lbl => (
-                <span key={lbl} className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#C4C4C4" }}>{lbl}</span>
-              ))}
+          {/* Scrollable timeline */}
+          <div style={{ overflowX: "auto" }}>
+            <div style={{ minWidth: 540 }}>
+
+              {/* Column headers */}
+              <div className="px-5 py-3" style={{ borderBottom: "1px solid #F5F5F7" }}>
+                <div className="grid gap-3 items-center" style={{ gridTemplateColumns: COLS }}>
+                  {["Time", "What did you work on?", "Project", "Status", ""].map(lbl => (
+                    <span key={lbl} className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#C4C4C4" }}>{lbl}</span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Regular slots 9 AM → 11 PM */}
+              <div>
+                {slots.map((slot, i) => (
+                  <SlotRow
+                    key={slot.hour}
+                    slot={slot}
+                    index={i}
+                    total={slots.length}
+                    projects={projects}
+                    isOvertime={false}
+                    onUpdate={updateSlot}
+                  />
+                ))}
+              </div>
+
+              {/* ── OVERTIME SECTION ─────────────────────────── */}
+              <div style={{ borderTop: "2px dashed #FDE68A" }}>
+                {/* Overtime toggle header */}
+                <button
+                  onClick={() => setShowOvertime(v => !v)}
+                  className="w-full flex items-center gap-3 px-5 py-3 transition-colors hover:bg-amber-50"
+                  style={{ background: "rgba(245,158,11,0.04)" }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+                    style={{ background: "rgba(245,158,11,0.15)" }}>
+                    <Zap size={12} style={{ color: "#F59E0B" }} />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-[12px] font-black" style={{ color: "#D97706" }}>Overtime</p>
+                    <p className="text-[10px]" style={{ color: "#9CA3AF" }}>11 PM → 3 AM · Log late-night work</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {filledOvertime.length > 0 && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                        style={{ background: "rgba(245,158,11,0.15)", color: "#D97706" }}>
+                        {filledOvertime.length}h logged
+                      </span>
+                    )}
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center"
+                      style={{ background: "rgba(245,158,11,0.12)" }}>
+                      {showOvertime
+                        ? <ChevronDown size={12} style={{ color: "#F59E0B" }} />
+                        : <Plus size={12} style={{ color: "#F59E0B" }} />
+                      }
+                    </div>
+                  </div>
+                </button>
+
+                {showOvertime && (
+                  <div style={{ background: "rgba(254,243,199,0.3)" }}>
+                    {overtimeSlots.map((slot, i) => (
+                      <SlotRow
+                        key={slot.hour}
+                        slot={slot}
+                        index={i}
+                        total={overtimeSlots.length}
+                        projects={projects}
+                        isOvertime={true}
+                        onUpdate={updateOvertimeSlot}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+
             </div>
           </div>
 
-          {/* Hourly slots */}
-          <div className="flex-1">
-            {slots.map((slot, i) => {
-              const st      = STATUS_STYLE[slot.status]
-              const isFilled = slot.description.trim().length > 0
-              const isLunch  = slot.hour === 12
-              const pColor   = projectColor(slot.projectName)
-              return (
-                <div key={slot.hour}
-                  className="grid gap-3 items-center px-6 py-3 transition-colors hover:bg-[#FAFAFA] group"
-                  style={{ gridTemplateColumns: "90px 1fr 160px 148px 32px", borderBottom: i < slots.length - 1 ? "1px solid #F5F5F7" : "none" }}>
-
-                  {/* Time + dot */}
-                  <div className="flex items-center gap-2.5">
-                    <div>
-                      <p className="text-[12px] font-black leading-none" style={{ color: "#de1a1a" }}>{fmtHour(slot.hour)}</p>
-                      <p className="text-[10px] mt-0.5 leading-none" style={{ color: "#D1D5DB" }}>– {fmtHour(slot.hour + 1)}</p>
-                    </div>
-                    <div className="w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all"
-                      style={{ borderColor: isFilled ? "#de1a1a" : "#E5E7EB", background: isFilled ? "#de1a1a" : "#FFFFFF" }}>
-                      {isFilled && <div className="w-2 h-2 rounded-full bg-white" />}
-                    </div>
-                  </div>
-
-                  {/* Description input */}
-                  <div>
-                    <input
-                      value={slot.description}
-                      onChange={e => {
-                        const v = e.target.value
-                        updateSlot(slot.hour, {
-                          description: v,
-                          status: v && slot.status === "not_started" ? "in_progress" : slot.status,
-                        })
-                      }}
-                      placeholder={isLunch ? "Lunch break 🍱" : "What did you work on this hour?"}
-                      className="w-full bg-transparent outline-none text-[13px] placeholder:font-normal"
-                      style={{ color: isFilled ? "#111111" : "#D1D5DB", fontWeight: isFilled ? 500 : 400 }}
-                    />
-                  </div>
-
-                  {/* Project selector */}
-                  <div>
-                    {projects.length > 0 ? (
-                      <div className="relative">
-                        <select
-                          value={slot.projectId}
-                          onChange={e => {
-                            const p = projects.find(x => x.id === e.target.value)
-                            updateSlot(slot.hour, { projectId: e.target.value, projectName: p?.business_name ?? "" })
-                          }}
-                          className="w-full text-[11px] font-semibold rounded-lg px-2.5 py-1.5 appearance-none outline-none pr-6 cursor-pointer"
-                          style={{
-                            background: slot.projectName ? `${pColor}18` : "#F9FAFB",
-                            color:      slot.projectName ? pColor : "#9CA3AF",
-                            border:     `1px solid ${slot.projectName ? `${pColor}35` : "#E5E7EB"}`,
-                          }}>
-                          <option value="">Select Project</option>
-                          {projects.map(p => <option key={p.id} value={p.id}>{p.business_name}</option>)}
-                        </select>
-                        <ChevronDown size={10} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#9CA3AF" }} />
-                      </div>
-                    ) : (
-                      <input
-                        value={slot.projectName}
-                        onChange={e => updateSlot(slot.hour, { projectName: e.target.value })}
-                        placeholder="Project..."
-                        className="w-full text-[11px] rounded-lg px-2.5 py-1.5 outline-none"
-                        style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#374151" }}
-                      />
-                    )}
-                  </div>
-
-                  {/* Status chip */}
-                  <button
-                    onClick={() => updateSlot(slot.hour, { status: STATUS_CYCLE[slot.status] })}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all w-full justify-center"
-                    style={{ background: st.bg, color: st.color }}>
-                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: st.dot }} />
-                    <span>{st.label}</span>
-                    <ChevronDown size={9} className="flex-shrink-0" />
-                  </button>
-
-                  {/* More menu */}
-                  <button className="w-7 h-7 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-gray-100">
-                    <MoreHorizontal size={13} style={{ color: "#9CA3AF" }} />
-                  </button>
-
-                </div>
-              )
-            })}
-          </div>
-
-          {/* Bottom bar */}
-          <div className="px-6 py-4 flex flex-wrap items-center gap-4 justify-between"
+          {/* Bottom action bar */}
+          <div className="px-5 py-4 flex flex-wrap items-center gap-4 justify-between mt-auto"
             style={{ borderTop: "1px solid #F0F0F0" }}>
             <div className="flex items-center gap-2">
-              <CheckCircle2 size={14} style={{ color: "#22C55E" }} />
-              <span className="text-[12px] font-medium" style={{ color: "#6B7280" }}>Auto-saved just now</span>
+              <CheckCircle2 size={13} style={{ color: "#22C55E" }} />
+              <span className="text-[11px] font-medium" style={{ color: "#6B7280" }}>Auto-saved just now</span>
             </div>
             {error && <p className="text-[12px] font-semibold" style={{ color: "#EF4444" }}>{error}</p>}
             <button
               onClick={handleSubmit}
               disabled={isPending || submitted}
-              className="flex items-center gap-2 px-7 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-60 transition-all"
+              className="flex items-center gap-2 px-6 py-2.5 rounded-2xl text-[13px] font-bold disabled:opacity-60 transition-all"
               style={{ background: submitted ? "#22C55E" : "#de1a1a", color: "#FFFFFF", boxShadow: "0 4px 16px rgba(222,26,26,0.3)" }}>
-              {isPending   ? <Loader2 size={15} className="animate-spin" />
-               : submitted ? <CheckCircle2 size={15} />
-               : <SendHorizonal size={15} />}
+              {isPending   ? <Loader2 size={14} className="animate-spin" />
+               : submitted ? <CheckCircle2 size={14} />
+               : <SendHorizonal size={14} />}
               {isPending ? "Submitting…" : submitted ? "Submitted!" : "Submit Daily Update"}
             </button>
           </div>
@@ -352,7 +452,7 @@ export default function DailyUpdateForm({
           {/* Today's Overview */}
           <div className="rounded-3xl overflow-hidden"
             style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
-            <div className="relative w-full flex items-center justify-center" style={{ height: 160, background: "#FAFAFA" }}>
+            <div className="relative w-full flex items-center justify-center" style={{ height: 150, background: "#FAFAFA" }}>
               <Image src="/brand/daily-boy.png" alt="Overview" fill style={{ objectFit: "contain", objectPosition: "center" }} />
             </div>
             <div className="p-4">
@@ -362,14 +462,15 @@ export default function DailyUpdateForm({
                   { icon: "⏱", label: "Hours Logged",  value: `${hoursWorked} / ${totalHours} hrs` },
                   { icon: "🎯", label: "Focus Time",    value: hoursWorked > 1 ? `${hoursWorked - 1}h 30m` : "—" },
                   { icon: "📈", label: "Productivity",  value: `${productivity}%` },
-                  { icon: "⚡", label: "Status",        value: hoursWorked === 0 ? "Not started" : hoursWorked >= 7 ? "On track" : "In Progress",
-                    color: hoursWorked >= 7 ? "#22C55E" : hoursWorked > 0 ? "#F59E0B" : "#9CA3AF" },
+                  { icon: "⚡", label: "Status",        value: hoursWorked === 0 ? "Not started" : hoursWorked >= 10 ? "On track" : "In Progress",
+                    color: hoursWorked >= 10 ? "#22C55E" : hoursWorked > 0 ? "#F59E0B" : "#9CA3AF" },
+                  ...(filledOvertime.length > 0 ? [{ icon: "🌙", label: "Overtime", value: `${filledOvertime.length}h`, color: "#D97706" }] : []),
                 ].map(r => (
                   <div key={r.label} className="flex items-center justify-between">
-                    <span className="text-[12px] flex items-center gap-1.5" style={{ color: "#9CA3AF" }}>
+                    <span className="text-[11px] flex items-center gap-1.5" style={{ color: "#9CA3AF" }}>
                       <span>{r.icon}</span>{r.label}
                     </span>
-                    <span className="text-[12px] font-bold" style={{ color: (r as { color?: string }).color ?? "#111111" }}>
+                    <span className="text-[11px] font-bold" style={{ color: (r as { color?: string }).color ?? "#111111" }}>
                       {r.value}
                     </span>
                   </div>
@@ -390,13 +491,13 @@ export default function DailyUpdateForm({
             <div className="flex justify-between">
               {MOODS.map(m => (
                 <button key={m.key} onClick={() => setMood(m.key)}
-                  className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all flex-1"
+                  className="flex flex-col items-center gap-1 p-1.5 rounded-xl transition-all flex-1"
                   style={{
                     background: mood === m.key ? "rgba(222,26,26,0.07)" : "transparent",
                     border:     mood === m.key ? "2px solid rgba(222,26,26,0.25)" : "2px solid transparent",
                   }}>
-                  <span className="text-[22px] leading-none">{m.emoji}</span>
-                  <span className="text-[9px] font-semibold text-center leading-tight"
+                  <span className="text-[20px] leading-none">{m.emoji}</span>
+                  <span className="text-[8px] font-semibold text-center leading-tight"
                     style={{ color: mood === m.key ? "#de1a1a" : "#9CA3AF" }}>{m.label}</span>
                 </button>
               ))}
@@ -406,7 +507,7 @@ export default function DailyUpdateForm({
           {/* AI Assistant */}
           <div className="rounded-3xl p-4" style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
             <div className="flex items-start gap-3 mb-3">
-              <div className="relative w-14 h-14 flex-shrink-0">
+              <div className="relative w-12 h-12 flex-shrink-0">
                 <Image src="/brand/ai-robot.jpg" alt="AI Assistant" fill style={{ objectFit: "contain" }} />
               </div>
               <div className="flex-1 min-w-0">

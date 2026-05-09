@@ -6,36 +6,74 @@ import Link from "next/link"
 import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
 
-/* ── tiny inline sparkline ──────────────────────────────────────── */
+/* ── premium smooth bezier sparkline ────────────────────────────── */
 function Sparkline({ points, color, id }: { points: number[]; color: string; id: string }) {
-  const w = 100, h = 48, pad = 5
-  const min = Math.min(...points)
-  const max = Math.max(...points)
-  const range = max - min || 1
-  const xs = points.map((_, i) => pad + (i / (points.length - 1)) * (w - pad * 2))
-  const ys = points.map(v => h - pad * 2 - ((v - min) / range) * (h - pad * 3))
-  const linePts = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ")
-  const areaPath = `${linePts} L${xs[xs.length - 1].toFixed(1)},${h} L${xs[0].toFixed(1)},${h} Z`
-  const gradId = `sg-${id}`
+  const w = 100, h = 52, padX = 3, padY = 10
+  const min = Math.min(...points), max = Math.max(...points), range = max - min || 1
+  const xs = points.map((_, i) => padX + (i / (points.length - 1)) * (w - padX * 2))
+  const ys = points.map(v => h - padY - ((v - min) / range) * (h - padY * 2))
+
+  // Catmull-Rom → Bezier smooth curve
+  function smooth(xArr: number[], yArr: number[]): string {
+    const n = xArr.length
+    let d = `M${xArr[0].toFixed(1)},${yArr[0].toFixed(1)}`
+    for (let i = 0; i < n - 1; i++) {
+      const x0 = i > 0 ? xArr[i - 1] : xArr[0]
+      const y0 = i > 0 ? yArr[i - 1] : yArr[0]
+      const x1 = xArr[i], y1 = yArr[i]
+      const x2 = xArr[i + 1], y2 = yArr[i + 1]
+      const x3 = i < n - 2 ? xArr[i + 2] : xArr[n - 1]
+      const y3 = i < n - 2 ? yArr[i + 2] : yArr[n - 1]
+      const t = 0.35
+      const cp1x = x1 + (x2 - x0) * t, cp1y = y1 + (y2 - y0) * t
+      const cp2x = x2 - (x3 - x1) * t, cp2y = y2 - (y3 - y1) * t
+      d += ` C${cp1x.toFixed(1)},${cp1y.toFixed(1)} ${cp2x.toFixed(1)},${cp2y.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`
+    }
+    return d
+  }
+
+  const curve    = smooth(xs, ys)
+  const areaPath = `${curve} L${xs[xs.length - 1].toFixed(1)},${h} L${xs[0].toFixed(1)},${h} Z`
+  const lastX = xs[xs.length - 1], lastY = ys[ys.length - 1]
+  const gradId = `sg-${id}`, glowId = `gw-${id}`, gridId = `gr-${id}`
+
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 48 }} preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 52 }} preserveAspectRatio="none">
       <defs>
+        {/* Gradient fill under curve */}
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+          <stop offset="0%"   stopColor={color} stopOpacity="0.28" />
+          <stop offset="55%"  stopColor={color} stopOpacity="0.08" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
+        {/* Soft glow filter for the line */}
+        <filter id={glowId} x="-20%" y="-60%" width="140%" height="220%">
+          <feGaussianBlur stdDeviation="1.8" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+        {/* Subtle dot grid */}
+        <pattern id={gridId} x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+          <circle cx="5" cy="5" r="0.5" fill={color} opacity="0.12" />
+        </pattern>
       </defs>
+
+      {/* Dot grid background */}
+      <rect x="0" y="0" width={w} height={h} fill={`url(#${gridId})`} />
+
+      {/* Gradient area */}
       <path d={areaPath} fill={`url(#${gradId})`} />
-      <path d={linePts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-      {xs.map((x, i) => {
-        const isLast = i === xs.length - 1
-        return (
-          <g key={i}>
-            {isLast && <circle cx={x} cy={ys[i]} r="5" fill={color} opacity="0.15" />}
-            <circle cx={x} cy={ys[i]} r={isLast ? "3" : "2"} fill={color} opacity={isLast ? 1 : 0.6} />
-          </g>
-        )
-      })}
+
+      {/* Glow shadow line */}
+      <path d={curve} fill="none" stroke={color} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
+        opacity="0.22" filter={`url(#${glowId})`} />
+
+      {/* Main smooth curve */}
+      <path d={curve} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="1" />
+
+      {/* Last point — pulse ring + solid dot */}
+      <circle cx={lastX} cy={lastY} r="7"  fill={color} opacity="0.10" />
+      <circle cx={lastX} cy={lastY} r="4"  fill={color} opacity="0.20" />
+      <circle cx={lastX} cy={lastY} r="2.5" fill={color} opacity="1" />
     </svg>
   )
 }

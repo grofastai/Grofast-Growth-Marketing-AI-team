@@ -139,26 +139,26 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
       </div>
 
       {/* ── Main 2-col ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-5 mb-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,640px)_380px] gap-5 mb-5">
 
         {/* LEFT — Character + Timer card */}
         <div className="rounded-3xl overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "0 4px 32px rgba(0,0,0,0.09)" }}>
 
           {/* ── Cinematic hero image ── */}
-          <div className="relative w-full" style={{ height: 320, background: "#1a1008" }}>
+          <div className="relative w-full" style={{ height: 380, background: "#1a1008" }}>
             <Image
               src="/brand/cinematic-boy.png"
               alt="Working character"
               fill
-              style={{ objectFit: "cover", objectPosition: "center top" }}
+              style={{ objectFit: "cover", objectPosition: "center 10%" }}
             />
-            {/* Fade-out at bottom so the card below feels connected */}
-            <div className="absolute inset-x-0 bottom-0 h-20 pointer-events-none"
-              style={{ background: "linear-gradient(to top, #FFFFFF 10%, transparent)" }} />
+            {/* Fade-out at bottom */}
+            <div className="absolute inset-x-0 bottom-0 h-24 pointer-events-none"
+              style={{ background: "linear-gradient(to top, #FFFFFF 5%, transparent)" }} />
           </div>
 
           {/* ── Timer / action inner card ── */}
-          <div className="px-5 pb-5 -mt-4">
+          <div className="px-5 pb-5 -mt-2">
             <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.07)", border: "1px solid #F0F0F0" }}>
 
               {/* NOT LOGGED IN */}

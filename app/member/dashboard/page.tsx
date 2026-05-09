@@ -1,7 +1,7 @@
 export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
-import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, Bell, Search, ChevronRight, Zap } from "lucide-react"
+import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, Search, ChevronRight, Bell, Zap } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -40,7 +40,6 @@ export default async function MemberDashboardPage() {
   type AttLog        = { clock_in: string | null; clock_out: string | null }
   type MonthlyUpdate = { working_hours: number | null; work_type: string | null; attendance_status: string }
   type LeaveRow      = { from_date: string; to_date: string }
-  type AnnRow        = { id: string; title: string; message: string; created_at: string }
 
   const [
     { data: profileRaw },
@@ -52,7 +51,6 @@ export default async function MemberDashboardPage() {
     { data: clockLogRaw },
     { data: monthlyUpdatesRaw },
     { data: approvedLeavesRaw },
-    { data: announcementsRaw },
   ] = await Promise.all([
     supabase.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name").eq("id", user.id).single(),
     supabase.from("daily_updates").select("working_hours, shoot_count").eq("user_id", user.id).eq("date", today).maybeSingle(),
@@ -63,7 +61,6 @@ export default async function MemberDashboardPage() {
     supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", user.id).eq("date", today).maybeSingle(),
     supabase.from("daily_updates").select("working_hours, work_type, attendance_status").eq("user_id", user.id).gte("date", monthStart).lte("date", today),
     supabase.from("leaves").select("from_date, to_date").eq("user_id", user.id).eq("status", "approved").gte("from_date", monthStart),
-    supabase.from("announcements").select("id, title, message, created_at").order("pinned", { ascending: false }).order("created_at", { ascending: false }).limit(3),
   ])
 
   const profile        = profileRaw as unknown as ProfileRow | null
@@ -72,8 +69,6 @@ export default async function MemberDashboardPage() {
   const clockLog       = clockLogRaw as unknown as AttLog | null
   const monthlyUpdates = (monthlyUpdatesRaw ?? []) as unknown as MonthlyUpdate[]
   const approvedLeaves = (approvedLeavesRaw ?? []) as unknown as LeaveRow[]
-  const announcements  = (announcementsRaw ?? []) as unknown as AnnRow[]
-
   // Today hours
   let todayHours = 0
   if (clockLog?.clock_in) {
@@ -134,17 +129,6 @@ export default async function MemberDashboardPage() {
   const sparkHours   = [6, 8, 7, 9, 8, totalMonthHrs > 0 ? Math.min(totalMonthHrs, 12) : 1]
   const sparkLeaves  = [0, 1, 0, 1, 1, pendingLeaves]
   const sparkTasks   = [3, 2, 4, 3, 2, activeTasks]
-
-  const upcomingAnn = announcements[0] ?? null
-
-  function timeAgo(iso: string) {
-    const diff = Date.now() - new Date(iso).getTime()
-    const mins = Math.floor(diff / 60000)
-    if (mins < 60) return `${mins}m ago`
-    const hrs = Math.floor(mins / 60)
-    if (hrs < 24) return `${hrs}h ago`
-    return `${Math.floor(hrs / 24)}d ago`
-  }
 
   // Monthly stats grid config
   const avgColor = avgHoursPerDay >= 9 ? "#16A34A" : avgHoursPerDay >= 7 ? "#D97706" : avgHoursPerDay > 0 ? "#de1a1a" : "#D1D5DB"
@@ -400,104 +384,6 @@ export default async function MemberDashboardPage() {
         </div>
       </div>
 
-      {/* ── Bottom 2-col: Recent Activity + Upcoming Schedule ─── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
-        {/* Recent Activity */}
-        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Zap size={14} style={{ color: "#de1a1a" }} />
-              <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>Recent Activity</h3>
-            </div>
-            <Link href="/member/history" className="text-[12px] font-semibold" style={{ color: "#de1a1a" }}>View all →</Link>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(222,26,26,0.08)" }}>
-                <AlertCircle size={15} style={{ color: "#de1a1a" }} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>Daily update reminder</p>
-                <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>Don&apos;t forget to submit your daily update</p>
-              </div>
-              <div className="flex items-center gap-1 flex-shrink-0">
-                <span className="text-[11px]" style={{ color: "#9CA3AF" }}>1h ago</span>
-                <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#de1a1a" }} />
-              </div>
-            </div>
-            {announcements.map((ann) => (
-              <div key={ann.id} className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(99,102,241,0.08)" }}>
-                  <Bell size={15} style={{ color: "#6366F1" }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold truncate" style={{ color: "#111111" }}>{ann.title}</p>
-                  <p className="text-[11px] mt-0.5 truncate" style={{ color: "#9CA3AF" }}>{ann.message}</p>
-                </div>
-                <span className="text-[11px] flex-shrink-0" style={{ color: "#9CA3AF" }}>{timeAgo(ann.created_at)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Upcoming Schedule */}
-        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Calendar size={14} style={{ color: "#de1a1a" }} />
-              <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>Upcoming Schedule</h3>
-            </div>
-            <Link href="/member/leaves" className="text-[12px] font-semibold" style={{ color: "#de1a1a" }}>View all →</Link>
-          </div>
-          <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 rounded-xl overflow-hidden" style={{ width: 52, border: "1px solid #E5E7EB" }}>
-              <div className="text-center py-1" style={{ background: "#de1a1a" }}>
-                <p className="text-[8px] font-black uppercase tracking-wider" style={{ color: "#FFFFFF" }}>
-                  {now.toLocaleDateString("en-US", { month: "short" })}
-                </p>
-              </div>
-              <div className="text-center py-1.5" style={{ background: "#FFFFFF" }}>
-                <p className="text-[18px] font-black leading-none" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
-                  {now.getDate()}
-                </p>
-              </div>
-            </div>
-            <div className="flex-1">
-              {upcomingAnn ? (
-                <>
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-[13px] font-bold" style={{ color: "#111111" }}>{upcomingAnn.title}</p>
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "#de1a1a" }} />
-                  </div>
-                  <p className="text-[11px] mt-1 line-clamp-2" style={{ color: "#6B7280" }}>{upcomingAnn.message}</p>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-[13px] font-bold" style={{ color: "#111111" }}>General Meeting</p>
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "#de1a1a" }} />
-                  </div>
-                  <p className="text-[11px] mt-1" style={{ color: "#6B7280" }}>10:00 AM – 11:00 AM</p>
-                </>
-              )}
-            </div>
-          </div>
-          {leaveDays > 0 && (
-            <div className="mt-4 pt-4 flex items-center gap-3" style={{ borderTop: "1px solid #F3F4F6" }}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(245,158,11,0.08)" }}>
-                <CalendarOff size={14} style={{ color: "#F59E0B" }} />
-              </div>
-              <div>
-                <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>Approved Leave</p>
-                <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{leaveDays} day{leaveDays !== 1 ? "s" : ""} this month</p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* ── This Month ────────────────────────────────────────── */}
       <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>

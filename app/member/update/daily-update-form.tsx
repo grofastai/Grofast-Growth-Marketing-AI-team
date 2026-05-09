@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
-  Plus, Trash2, Loader2, BookOpen, Briefcase,
-  Camera, ChevronDown,
+  Plus, Trash2, Loader2, BookOpen,
+  Camera, ChevronDown, Clock,
   CheckCircle2, XCircle, AlertCircle,
   FolderOpen, ArrowLeft, Scissors,
 } from "lucide-react"
@@ -471,15 +471,25 @@ function EditCard({ entry, i, projects, onChange, onRemove }: {
 // GENERAL TEAM FORM (all teams except Media Team)
 // ═══════════════════════════════════════════════════════════════
 
-type GenEntry = {
-  id: string
-  title: string
+const HOUR_DEFS = [
+  { label: "10 AM – 11 AM", start: "10:00", end: "11:00", isLunch: false },
+  { label: "11 AM – 12 PM", start: "11:00", end: "12:00", isLunch: false },
+  { label: "12 PM – 1 PM",  start: "12:00", end: "13:00", isLunch: true  },
+  { label: "1 PM – 2 PM",   start: "13:00", end: "14:00", isLunch: false },
+  { label: "2 PM – 3 PM",   start: "14:00", end: "15:00", isLunch: false },
+  { label: "3 PM – 4 PM",   start: "15:00", end: "16:00", isLunch: false },
+  { label: "4 PM – 5 PM",   start: "16:00", end: "17:00", isLunch: false },
+  { label: "5 PM – 6 PM",   start: "17:00", end: "18:00", isLunch: false },
+]
+
+type HourSlot = {
+  label: string
+  start: string
+  end: string
+  isLunch: boolean
+  task: string
   client_id: string | null
   client_name: string
-  start_time: string
-  end_time: string
-  duration_hours: number
-  notes: string
 }
 
 type GenLearning = {
@@ -490,114 +500,102 @@ type GenLearning = {
   notes: string
 }
 
-function newGenEntry(): GenEntry {
-  return {
-    id: crypto.randomUUID(),
-    title: "", client_id: null, client_name: "",
-    start_time: "", end_time: "", duration_hours: 0,
-    notes: "",
-  }
+function initHourSlots(): HourSlot[] {
+  return HOUR_DEFS.map(d => ({ ...d, task: "", client_id: null, client_name: "" }))
 }
 
-// ── General Work Entry card ────────────────────────────────────
-function GenWorkCard({ entry, index, projects, onChange, onRemove, canRemove }: {
-  entry: GenEntry
-  index: number
+// ── Hour Slot Row ──────────────────────────────────────────────
+function HourSlotRow({ slot, projects, onChange }: {
+  slot: HourSlot
   projects: Project[]
-  onChange: (p: Partial<GenEntry>) => void
-  onRemove: () => void
-  canRemove: boolean
+  onChange: (p: Partial<HourSlot>) => void
 }) {
-  return (
-    <div className="rounded-2xl overflow-hidden"
-      style={{ border: "1px solid rgba(222,26,26,0.2)", boxShadow: "0 2px 8px rgba(222,26,26,0.06)" }}>
+  const filled = slot.task.trim().length > 0
+  const [showClient, setShowClient] = useState(false)
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3"
-        style={{ background: "rgba(222,26,26,0.06)", borderBottom: "1px solid rgba(222,26,26,0.12)" }}>
+  if (slot.isLunch) {
+    return (
+      <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
+        style={{ background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.18)" }}>
+        <div className="flex-shrink-0 text-center" style={{ width: 88 }}>
+          <span className="text-[11px] font-black block leading-tight" style={{ color: "#16A34A" }}>12 PM</span>
+          <span className="text-[9px] block mt-0.5" style={{ color: "rgba(22,163,74,0.6)" }}>– 1 PM</span>
+        </div>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(222,26,26,0.15)" }}>
-            <Briefcase size={14} style={{ color: "#de1a1a" }} />
-          </div>
-          <span className="text-[13px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>
-            WORK ENTRY {index + 1}
-          </span>
-          {entry.duration_hours > 0 && (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(222,26,26,0.12)", color: "#de1a1a" }}>
-              {entry.duration_hours}h
-            </span>
-          )}
+          <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: "rgba(34,197,94,0.15)", fontSize: 10 }}>🍽</div>
+          <span className="text-[13px] font-semibold" style={{ color: "#16A34A" }}>Lunch Break</span>
         </div>
-        {canRemove && (
-          <button type="button" onClick={onRemove}
-            className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)" }}>
-            <Trash2 size={12} style={{ color: "#de1a1a" }} />
-          </button>
-        )}
       </div>
+    )
+  }
 
-      <div className="p-4 space-y-4" style={{ background: "#FFFFFF" }}>
-        {/* Title */}
-        <div>
-          <label style={LABEL}>Title <span style={{ color: "#de1a1a" }}>*</span></label>
-          <input className="du" style={FIELD}
-            placeholder="e.g. Client Strategy Meeting, Website Development, Campaign Setup…"
-            value={entry.title}
-            onChange={(e) => onChange({ title: e.target.value })} />
+  return (
+    <div className="rounded-xl overflow-hidden transition-all duration-150"
+      style={{
+        border: filled ? "1px solid rgba(222,26,26,0.22)" : "1px solid #EBEBEB",
+        boxShadow: filled ? "0 2px 8px rgba(222,26,26,0.05)" : "none",
+        background: "#FFFFFF",
+      }}>
+      <div className="flex">
+        {/* Time label */}
+        <div className="flex-shrink-0 flex items-start justify-center pt-3.5 px-2"
+          style={{
+            width: 88,
+            background: filled ? "rgba(222,26,26,0.03)" : "#FAFAFA",
+            borderRight: "1px solid #F3F3F3",
+          }}>
+          <div className="text-center">
+            <span className="text-[11px] font-black block leading-tight"
+              style={{ color: filled ? "#de1a1a" : "#BDBDBD" }}>
+              {slot.label.split(" – ")[0]}
+            </span>
+            <span className="text-[9px] block mt-0.5"
+              style={{ color: filled ? "rgba(222,26,26,0.5)" : "#D9D9D9" }}>
+              – {slot.label.split(" – ")[1]}
+            </span>
+          </div>
         </div>
 
-        {/* Client */}
-        <ClientSelect
-          projects={projects}
-          value={entry.client_id ?? ""}
-          onChange={(id, name) => onChange({ client_id: id || null, client_name: name })}
-          required
-        />
+        {/* Task input */}
+        <div className="flex-1 p-3 space-y-2">
+          <textarea
+            rows={2}
+            className="du resize-none w-full"
+            style={{ ...FIELD, lineHeight: "1.5", background: filled ? "#FEFEFE" : "#F9FAFB" }}
+            placeholder="What did you work on this hour?"
+            value={slot.task}
+            onChange={(e) => onChange({ task: e.target.value })}
+          />
 
-        {/* From / To / Duration */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div>
-            <label style={LABEL}>From <span style={{ color: "#de1a1a" }}>*</span></label>
-            <input type="time" className="du" style={FIELD}
-              value={entry.start_time}
-              onChange={(e) => {
-                const dur = calcDuration(e.target.value, entry.end_time)
-                onChange({ start_time: e.target.value, duration_hours: dur })
-              }} />
-          </div>
-          <div>
-            <label style={LABEL}>To <span style={{ color: "#de1a1a" }}>*</span></label>
-            <input type="time" className="du" style={FIELD}
-              value={entry.end_time}
-              onChange={(e) => {
-                const dur = calcDuration(entry.start_time, e.target.value)
-                onChange({ end_time: e.target.value, duration_hours: dur })
-              }} />
-          </div>
-          <div>
-            <label style={LABEL}>Duration</label>
-            <div className="flex items-center justify-center rounded-[10px] text-[15px] font-black"
-              style={{
-                height: "42px", background: "#F4F5F7", border: "1px solid #E5E7EB",
-                color: entry.duration_hours > 0 ? "#de1a1a" : "#D1D5DB",
-              }}>
-              {entry.duration_hours > 0 ? `${entry.duration_hours}h` : "—"}
+          {(!showClient && !slot.client_id && !slot.client_name) ? (
+            <button type="button"
+              onClick={() => setShowClient(true)}
+              className="text-[11px] font-medium flex items-center gap-1 transition-all"
+              style={{ color: "rgba(222,26,26,0.4)" }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#de1a1a"}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "rgba(222,26,26,0.4)"}>
+              <Plus size={10} /> Tag client
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <ClientSelect
+                  projects={projects}
+                  value={slot.client_id ?? ""}
+                  onChange={(id, name) => onChange({ client_id: id || null, client_name: name })}
+                />
+              </div>
+              {(!slot.client_id && !slot.client_name) && (
+                <button type="button"
+                  onClick={() => setShowClient(false)}
+                  className="flex-shrink-0 w-6 h-6 rounded flex items-center justify-center text-[11px]"
+                  style={{ color: "#D1D5DB", background: "#F4F5F7" }}>
+                  ✕
+                </button>
+              )}
             </div>
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div>
-          <label style={LABEL}>
-            Notes — What did you work on? <span style={{ color: "#de1a1a" }}>*</span>
-          </label>
-          <textarea rows={4} className="du resize-none" style={FIELD}
-            placeholder="Describe clearly what you worked on, tasks completed, progress made, outcomes achieved, and any challenges faced…"
-            value={entry.notes}
-            onChange={(e) => onChange({ notes: e.target.value })} />
+          )}
         </div>
       </div>
     </div>
@@ -610,33 +608,25 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
-  const [entries, setEntries] = useState<GenEntry[]>([newGenEntry()])
+  const [slots, setSlots] = useState<HourSlot[]>(initHourSlots)
   const [hasLearning, setHasLearning] = useState(false)
   const [learning, setLearning] = useState<GenLearning>({
     title: "", start_time: "", end_time: "", duration_hours: 0, notes: "",
   })
-  function updateEntry(i: number, p: Partial<GenEntry>) {
-    setEntries(prev => { const next = [...prev]; next[i] = { ...next[i], ...p }; return next })
+
+  function updateSlot(i: number, p: Partial<HourSlot>) {
+    setSlots(prev => { const next = [...prev]; next[i] = { ...next[i], ...p }; return next })
   }
 
-  function removeEntry(i: number) {
-    setEntries(prev => prev.filter((_, j) => j !== i))
-  }
+  const filledSlots = slots.filter(s => !s.isLunch && s.task.trim().length > 0)
 
   function validate(): string | null {
-    for (let i = 0; i < entries.length; i++) {
-      const e = entries[i]; const n = i + 1
-      if (!e.title.trim())                          return `Work Entry ${n}: Title is required`
-      if (!e.client_id && !e.client_name.trim())    return `Work Entry ${n}: Client is required`
-      if (!e.start_time || !e.end_time)             return `Work Entry ${n}: Start and end time are required`
-      if (e.duration_hours <= 0)                    return `Work Entry ${n}: End time must be after start time`
-      if (!e.notes.trim())                          return `Work Entry ${n}: Notes are required — explain what you worked on`
-    }
+    if (filledSlots.length === 0) return "Please fill in at least one hourly slot"
     if (hasLearning) {
       if (!learning.title.trim())                     return "Learning: Title is required"
       if (!learning.start_time || !learning.end_time) return "Learning: Start and end time are required"
       if (learning.duration_hours <= 0)               return "Learning: End time must be after start time"
-      if (!learning.notes.trim())                     return "Learning: Notes are required — explain what you learned"
+      if (!learning.notes.trim())                     return "Learning: Notes are required"
     }
     return null
   }
@@ -650,16 +640,16 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
     startTransition(async () => {
       const result = await submitDailyUpdate({
         active_tab: "working",
-        work_entries: entries.map(e => ({
-          id: e.id,
-          client_id: e.client_id,
-          client_name: e.client_name,
+        work_entries: filledSlots.map(s => ({
+          id: crypto.randomUUID(),
+          client_id: s.client_id,
+          client_name: s.client_name,
           task_type: "other" as const,
-          title: e.title,
-          start_time: e.start_time,
-          end_time: e.end_time,
-          duration_hours: e.duration_hours,
-          notes: e.notes,
+          title: s.label,
+          start_time: s.start,
+          end_time: s.end,
+          duration_hours: 1,
+          notes: s.task,
           editing_videos: [],
         })),
         links: [],
@@ -679,57 +669,52 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
     })
   }
 
-  const totalWorkHours = Math.round(entries.reduce((s, e) => s + e.duration_hours, 0) * 10) / 10
-
   return (
     <>
       <style>{`
-        .du::placeholder { color: #6B7280; }
+        .du::placeholder { color: #9CA3AF; }
         .du:focus { border-color: rgba(222,26,26,0.4) !important; box-shadow: 0 0 0 2px rgba(222,26,26,0.06); }
         .du-sel { appearance: none; }
       `}</style>
 
       <form onSubmit={handleSubmit} className="space-y-8">
 
-        {/* ── Work Update Section ─────────────────────────────── */}
+        {/* ── Hourly Work Log ───────────────────────────────── */}
         <div>
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center"
                 style={{ background: "rgba(222,26,26,0.1)" }}>
-                <Briefcase size={17} style={{ color: "#de1a1a" }} />
+                <Clock size={17} style={{ color: "#de1a1a" }} />
               </div>
               <div>
                 <h2 className="text-[17px] font-black leading-none"
-                  style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>Work Update</h2>
-                {totalWorkHours > 0 && (
-                  <p className="text-[11px] font-semibold mt-0.5" style={{ color: "#de1a1a" }}>
-                    {totalWorkHours}h total · {entries.length} entr{entries.length === 1 ? "y" : "ies"}
-                  </p>
-                )}
+                  style={{ fontFamily: "var(--font-jakarta)", color: "#111827" }}>Hourly Work Log</h2>
+                <p className="text-[11px] font-semibold mt-0.5"
+                  style={{ color: filledSlots.length > 0 ? "#de1a1a" : "#9CA3AF" }}>
+                  {filledSlots.length > 0
+                    ? `${filledSlots.length}h logged · ${filledSlots.length}/7 slots filled`
+                    : "Log what you worked on each hour"}
+                </p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => setEntries(prev => [...prev, newGenEntry()])}
-              className="flex items-center gap-1.5 text-[12px] font-bold px-3 py-1.5 rounded-lg transition-all"
-              style={{ background: "rgba(222,26,26,0.07)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.13)"}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.07)"}>
-              <Plus size={13} /> Add Entry
-            </button>
+
+            {/* Slot progress dots */}
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <div key={i} className="w-2 h-2 rounded-full transition-all"
+                  style={{ background: i < filledSlots.length ? "#de1a1a" : "#E5E7EB" }} />
+              ))}
+            </div>
           </div>
 
-          <div className="space-y-4">
-            {entries.map((entry, i) => (
-              <GenWorkCard
-                key={entry.id}
-                entry={entry}
-                index={i}
+          <div className="space-y-2">
+            {slots.map((slot, i) => (
+              <HourSlotRow
+                key={slot.label}
+                slot={slot}
                 projects={projects}
-                canRemove={entries.length > 1}
-                onChange={(p) => updateEntry(i, p)}
-                onRemove={() => removeEntry(i)}
+                onChange={(p) => updateSlot(i, p)}
               />
             ))}
           </div>
@@ -776,7 +761,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
               style={{ background: "rgba(99,102,241,0.04)", border: "1px dashed rgba(99,102,241,0.2)" }}>
               <BookOpen size={15} style={{ color: "rgba(99,102,241,0.4)" }} />
               <span className="text-[13px]" style={{ color: "#9CA3AF" }}>
-                Did you learn something today? Tap <strong style={{ color: "#6366F1" }}>+ Add Learning</strong> to log it — it's optional.
+                Did you learn something today? Tap <strong style={{ color: "#6366F1" }}>+ Add Learning</strong> to log it — it&apos;s optional.
               </span>
             </div>
           )}
@@ -784,16 +769,13 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
           {hasLearning && (
             <div className="rounded-2xl overflow-hidden"
               style={{ border: "1px solid rgba(99,102,241,0.2)", boxShadow: "0 2px 8px rgba(99,102,241,0.06)" }}>
-
               <div className="px-4 py-3"
                 style={{ background: "rgba(99,102,241,0.06)", borderBottom: "1px solid rgba(99,102,241,0.12)" }}>
                 <span className="text-[12px] font-bold uppercase tracking-[0.14em]" style={{ color: "#6366F1" }}>
                   What did you learn today?
                 </span>
               </div>
-
               <div className="p-4 space-y-4" style={{ background: "#FFFFFF" }}>
-                {/* Title */}
                 <div>
                   <label style={LABEL}>Title <span style={{ color: "#de1a1a" }}>*</span></label>
                   <input className="du" style={FIELD}
@@ -801,8 +783,6 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
                     value={learning.title}
                     onChange={(e) => setLearning(prev => ({ ...prev, title: e.target.value }))} />
                 </div>
-
-                {/* From / To / Duration */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   <div>
                     <label style={LABEL}>From <span style={{ color: "#de1a1a" }}>*</span></label>
@@ -833,12 +813,8 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
                     </div>
                   </div>
                 </div>
-
-                {/* Notes */}
                 <div>
-                  <label style={LABEL}>
-                    Notes — Key takeaways & insights <span style={{ color: "#de1a1a" }}>*</span>
-                  </label>
+                  <label style={LABEL}>Notes — Key takeaways & insights <span style={{ color: "#de1a1a" }}>*</span></label>
                   <textarea rows={4} className="du resize-none" style={FIELD}
                     placeholder="Explain clearly what you learned, key insights gained, resources used, and how it applies to your work…"
                     value={learning.notes}

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   Clock, ChevronDown, CheckCircle2, Loader2,
-  SendHorizonal, Sparkles, MoreHorizontal, Plus, Zap,
+  SendHorizonal, MoreHorizontal, Plus, Zap,
 } from "lucide-react"
 import { submitDailyUpdate } from "@/lib/actions/daily-updates"
 
@@ -500,31 +500,6 @@ export default function DailyUpdateForm({
                   <span className="text-[8px] font-semibold text-center leading-tight"
                     style={{ color: mood === m.key ? "#de1a1a" : "#9CA3AF" }}>{m.label}</span>
                 </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Focus Tips */}
-          <div className="rounded-3xl p-4" style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(222,26,26,0.1)" }}>
-                <Sparkles size={13} style={{ color: "#de1a1a" }} />
-              </div>
-              <p className="text-[13px] font-black" style={{ color: "#111111" }}>Focus Tips</p>
-            </div>
-            <div className="space-y-2.5">
-              {[
-                { icon: "🎯", tip: "Log each hour right after you finish it — don't wait until end of day." },
-                { icon: "⏱", tip: "Work in 90-min deep focus blocks. Mark breaks in your hourly log." },
-                { icon: "📋", tip: "Link every slot to a project so your manager sees clear progress." },
-                { icon: "✅", tip: "Mark slots 'Completed' as you go — it tracks your actual productivity." },
-              ].map((t, i) => (
-                <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl"
-                  style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
-                  <span className="text-[14px] leading-none flex-shrink-0 mt-0.5">{t.icon}</span>
-                  <p className="text-[11px] leading-snug" style={{ color: "#374151" }}>{t.tip}</p>
-                </div>
               ))}
             </div>
           </div>

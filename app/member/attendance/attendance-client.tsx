@@ -390,29 +390,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             </div>
           </div>
 
-          {/* Attendance Tips */}
-          <div className="rounded-3xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(245,158,11,0.1)" }}>
-                <span className="text-[16px]">💡</span>
-              </div>
-              <h3 className="text-[15px] font-bold" style={{ color: "#111111" }}>Attendance Tips</h3>
-            </div>
-            <div className="space-y-2">
-              {[
-                { emoji: "⏰", tip: "Log in before 9 AM to be counted on-time." },
-                { emoji: "📍", tip: "Enable location for office attendance tracking." },
-                { emoji: "🔔", tip: "Always log out before leaving for the day." },
-                { emoji: "📅", tip: "Apply leaves in advance for a clean record." },
-              ].map((item, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 rounded-xl" style={{ background: "#F8F9FB" }}>
-                  <span className="text-[15px] flex-shrink-0 mt-0.5">{item.emoji}</span>
-                  <p className="text-[12px] leading-relaxed" style={{ color: "#6B7280" }}>{item.tip}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
         </div>{/* end third col */}
 
       </div>

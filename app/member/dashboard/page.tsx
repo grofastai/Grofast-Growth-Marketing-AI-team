@@ -39,7 +39,9 @@ function Sparkline({ points, color, id }: { points: number[]; color: string; id:
   const gradId   = `sg-${id}`
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: 110, height: 58, flexShrink: 0 }}>
+    <svg viewBox={`0 0 ${w} ${h}`}
+      style={{ width: "100%", height: "100%", display: "block" }}
+      preserveAspectRatio="none">
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%"   stopColor={color} stopOpacity="0.45" />
@@ -47,14 +49,11 @@ function Sparkline({ points, color, id }: { points: number[]; color: string; id:
           <stop offset="100%" stopColor={color} stopOpacity="0"    />
         </linearGradient>
       </defs>
-      {/* Soft gradient area fill */}
       <path d={areaPath} fill={`url(#${gradId})`} />
-      {/* Smooth curved line */}
       <path d={curve} fill="none" stroke={color} strokeWidth="2.5"
         strokeLinecap="round" strokeLinejoin="round" />
-      {/* End-point: outer pulse ring + solid dot */}
-      <circle cx={lastX} cy={lastY} r="6"   fill={color} opacity="0.18" />
-      <circle cx={lastX} cy={lastY} r="3"   fill={color} />
+      <circle cx={lastX} cy={lastY} r="6" fill={color} opacity="0.18" />
+      <circle cx={lastX} cy={lastY} r="3" fill={color} />
     </svg>
   )
 }
@@ -204,29 +203,32 @@ export default async function MemberDashboardPage() {
         ] as const).map((s) => {
           const Icon = s.icon
           return (
-            <div key={s.label} className="rounded-2xl p-5 flex flex-col overflow-hidden"
+            <div key={s.label} className="rounded-2xl overflow-hidden relative"
               style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
 
-              {/* Row 1: icon + label */}
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: s.iconBg }}>
-                  <Icon size={18} style={{ color: s.iconColor }} />
+              {/* Text content — sits above the sparkline */}
+              <div className="px-5 pt-5 relative z-10" style={{ paddingBottom: 76 }}>
+                {/* Icon + label */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: s.iconBg }}>
+                    <Icon size={18} style={{ color: s.iconColor }} />
+                  </div>
+                  <p className="text-[12px] font-semibold leading-tight" style={{ color: "#9CA3AF" }}>{s.label}</p>
                 </div>
-                <p className="text-[12px] font-semibold leading-tight" style={{ color: "#9CA3AF" }}>{s.label}</p>
+                {/* Big value */}
+                <p className="text-[32px] font-black leading-none mb-2"
+                  style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+                  {s.value}
+                </p>
+                {/* Trend */}
+                <p className="text-[11px] font-semibold" style={{ color: s.up === true ? s.sparkColor : "#9CA3AF" }}>
+                  {s.up === true && "↑ "}{s.trend}
+                </p>
               </div>
 
-              {/* Row 2: big value on left, sparkline on right — fills to card edge */}
-              <div className="flex items-end justify-between gap-2 -mb-5 -mr-5">
-                <div className="pb-5">
-                  <p className="text-[32px] font-black leading-none mb-2"
-                    style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
-                    {s.value}
-                  </p>
-                  <p className="text-[11px] font-semibold" style={{ color: s.up === true ? s.sparkColor : "#9CA3AF" }}>
-                    {s.up === true && "↑ "}{s.trend}
-                  </p>
-                </div>
+              {/* Sparkline — absolute, bleeds to bottom/left/right card edges */}
+              <div className="absolute bottom-0 left-0 right-0" style={{ height: 72 }}>
                 <Sparkline points={[...s.spark]} color={s.sparkColor} id={s.label.replace(/\s/g, "")} />
               </div>
             </div>

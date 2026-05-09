@@ -1,9 +1,10 @@
 export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
-import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, Search, ChevronRight, Bell, Zap } from "lucide-react"
+import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
 
 /* ── tiny inline sparkline ──────────────────────────────────────── */
 function Sparkline({ points, color }: { points: number[]; color: string }) {
@@ -157,29 +158,10 @@ export default async function MemberDashboardPage() {
           <p className="text-[13px] mt-1 font-medium" style={{ color: "#6B7280" }}>{dateStr}</p>
         </div>
 
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <div className="hidden md:flex items-center gap-2 px-4 py-2.5 rounded-xl"
-            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", minWidth: 220 }}>
-            <Search size={14} style={{ color: "#9CA3AF" }} />
-            <span className="text-[13px]" style={{ color: "#9CA3AF" }}>Search anything...</span>
-          </div>
-          <div className="relative w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-            <Bell size={16} style={{ color: "#374151" }} />
-            {pendingLeaves > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center"
-                style={{ background: "#de1a1a", color: "#FFFFFF" }}>
-                {pendingLeaves}
-              </span>
-            )}
-          </div>
-          <div className="text-right">
-            <p className="text-[9px] uppercase tracking-[0.2em] font-bold" style={{ color: "#9CA3AF" }}>Employee ID</p>
-            <p className="text-[15px] font-black" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-              {profile?.employee_id ? `#${profile.employee_id}` : "—"}
-            </p>
-          </div>
-        </div>
+        <DashboardHeaderControls
+          pendingLeaves={pendingLeaves}
+          employeeId={profile?.employee_id ?? ""}
+        />
       </div>
 
       {/* ── 4 Stat Cards ─────────────────────────────────────── */}

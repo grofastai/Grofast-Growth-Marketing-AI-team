@@ -25,6 +25,7 @@ interface Member {
   phone: string | null
   status: "active" | "inactive"
   team: string | null
+  position: string | null
   created_at: string
   employment_type: "regular" | "part_time" | "freelancer" | null
   monthly_salary: number | null
@@ -72,6 +73,7 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
     phone: member?.phone ?? "",
     role: (member?.role ?? "MEMBER") as "ADMIN" | "MEMBER",
     team: member?.team ?? "",
+    position: member?.position ?? "",
     password: "",
     employment_type: (member?.employment_type ?? "regular") as "regular" | "part_time" | "freelancer",
     monthly_salary: member?.monthly_salary?.toString() ?? "",
@@ -102,8 +104,8 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
         joined_at:     form.joined_at     || null,
       }
       const result = isEdit
-        ? await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, ...salaryFields, ...dateFields })
-        : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, password: form.password, ...salaryFields, ...dateFields })
+        ? await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, ...salaryFields, ...dateFields })
+        : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, ...salaryFields, ...dateFields })
 
       if (result.success) {
         router.refresh()
@@ -189,6 +191,14 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
               <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
                 style={{ color: "#6B7280" }} />
             </div>
+          </div>
+
+          {/* Position */}
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2"
+              style={{ color: "#6B7280" }}>Position / Designation</label>
+            <input className="sheet-input" value={form.position} onChange={set("position")}
+              placeholder="e.g. Social Media Executive, Videographer, Developer…" style={FIELD} />
           </div>
 
           {/* Role */}

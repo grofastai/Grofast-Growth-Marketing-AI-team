@@ -96,6 +96,7 @@ export async function createMember(input: {
   phone: string
   role: 'ADMIN' | 'MEMBER'
   team: string
+  position?: string | null
   password: string
   employment_type?: 'regular' | 'part_time' | 'freelancer'
   monthly_salary?: number | null
@@ -190,6 +191,7 @@ export async function createMember(input: {
     phone: input.phone || null,
     email: input.email,
     team: input.team || null,
+    position: input.position ?? null,
     status: 'active',
     must_change_password: true,
     employment_type: input.employment_type ?? 'regular',
@@ -252,6 +254,7 @@ export async function updateMember(input: {
   phone: string
   role: 'ADMIN' | 'MEMBER'
   team: string
+  position?: string | null
   employment_type?: 'regular' | 'part_time' | 'freelancer'
   monthly_salary?: number | null
   hourly_rate?: number | null
@@ -272,6 +275,7 @@ export async function updateMember(input: {
       phone: input.phone || null,
       role: input.role,
       team: input.team || null,
+      position: input.position ?? null,
       employment_type: input.employment_type ?? 'regular',
       monthly_salary: input.monthly_salary ?? null,
       hourly_rate: input.hourly_rate ?? null,

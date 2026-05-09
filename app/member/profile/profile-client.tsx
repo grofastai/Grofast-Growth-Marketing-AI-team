@@ -23,6 +23,7 @@ interface ProfileData {
   status:      string
   joined:      string
   photo_url:               string | null
+  position:                string | null
   blood_group:             string | null
   address:                 string | null
   emergency_contact_name:  string | null
@@ -521,6 +522,7 @@ export default function ProfileClient({
                 { icon: Phone,     label: "Phone",       value: profile?.phone || "—" },
                 { icon: Briefcase, label: "Employee ID", value: `#${profile?.employee_id ?? "—"}` },
                 { icon: Shield,    label: "Role",        value: profile?.role ?? "MEMBER" },
+                { icon: Zap,       label: "Position",    value: profile?.position || "—" },
                 { icon: Calendar,  label: "Joined",      value: profile?.joined ?? "—" },
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>

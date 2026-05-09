@@ -31,6 +31,7 @@ export default async function ProfilePage() {
     email: string | null; phone: string | null
     status: string; created_at: string
     photo_url: string | null
+    position: string | null
     blood_group: string | null
     address: string | null
     emergency_contact_name: string | null
@@ -55,7 +56,7 @@ export default async function ProfilePage() {
   ] = await Promise.all([
     supabase
       .from("users")
-      .select("name, employee_id, role, email, phone, status, created_at, photo_url, blood_group, address, emergency_contact_name, emergency_contact_phone")
+      .select("name, employee_id, role, email, phone, status, created_at, photo_url, position, blood_group, address, emergency_contact_name, emergency_contact_phone")
       .eq("id", user.id)
       .single(),
     supabase
@@ -131,6 +132,7 @@ export default async function ProfilePage() {
         status:      profile.status,
         joined,
         photo_url:               profile.photo_url ?? null,
+        position:                profile.position ?? null,
         blood_group:             profile.blood_group ?? null,
         address:                 profile.address ?? null,
         emergency_contact_name:  profile.emergency_contact_name ?? null,

@@ -472,21 +472,20 @@ function EditCard({ entry, i, projects, onChange, onRemove }: {
 // ═══════════════════════════════════════════════════════════════
 
 const HOUR_DEFS = [
-  { label: "10 AM – 11 AM", start: "10:00", end: "11:00", isLunch: false },
-  { label: "11 AM – 12 PM", start: "11:00", end: "12:00", isLunch: false },
-  { label: "12 PM – 1 PM",  start: "12:00", end: "13:00", isLunch: true  },
-  { label: "1 PM – 2 PM",   start: "13:00", end: "14:00", isLunch: false },
-  { label: "2 PM – 3 PM",   start: "14:00", end: "15:00", isLunch: false },
-  { label: "3 PM – 4 PM",   start: "15:00", end: "16:00", isLunch: false },
-  { label: "4 PM – 5 PM",   start: "16:00", end: "17:00", isLunch: false },
-  { label: "5 PM – 6 PM",   start: "17:00", end: "18:00", isLunch: false },
+  { label: "10 AM – 11 AM", start: "10:00", end: "11:00" },
+  { label: "11 AM – 12 PM", start: "11:00", end: "12:00" },
+  { label: "12 PM – 1 PM",  start: "12:00", end: "13:00" },
+  { label: "1 PM – 2 PM",   start: "13:00", end: "14:00" },
+  { label: "2 PM – 3 PM",   start: "14:00", end: "15:00" },
+  { label: "3 PM – 4 PM",   start: "15:00", end: "16:00" },
+  { label: "4 PM – 5 PM",   start: "16:00", end: "17:00" },
+  { label: "5 PM – 6 PM",   start: "17:00", end: "18:00" },
 ]
 
 type HourSlot = {
   label: string
   start: string
   end: string
-  isLunch: boolean
   task: string
   client_id: string | null
   client_name: string
@@ -512,23 +511,6 @@ function HourSlotRow({ slot, projects, onChange }: {
 }) {
   const filled = slot.task.trim().length > 0
   const [showClient, setShowClient] = useState(false)
-
-  if (slot.isLunch) {
-    return (
-      <div className="flex items-center gap-3 px-4 py-3 rounded-xl"
-        style={{ background: "rgba(34,197,94,0.05)", border: "1px solid rgba(34,197,94,0.18)" }}>
-        <div className="flex-shrink-0 text-center" style={{ width: 88 }}>
-          <span className="text-[11px] font-black block leading-tight" style={{ color: "#16A34A" }}>12 PM</span>
-          <span className="text-[9px] block mt-0.5" style={{ color: "rgba(22,163,74,0.6)" }}>– 1 PM</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: "rgba(34,197,94,0.15)", fontSize: 10 }}>🍽</div>
-          <span className="text-[13px] font-semibold" style={{ color: "#16A34A" }}>Lunch Break</span>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="rounded-xl overflow-hidden transition-all duration-150"
@@ -618,7 +600,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
     setSlots(prev => { const next = [...prev]; next[i] = { ...next[i], ...p }; return next })
   }
 
-  const filledSlots = slots.filter(s => !s.isLunch && s.task.trim().length > 0)
+  const filledSlots = slots.filter(s => s.task.trim().length > 0)
 
   function validate(): string | null {
     if (filledSlots.length === 0) return "Please fill in at least one hourly slot"
@@ -693,7 +675,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
                 <p className="text-[11px] font-semibold mt-0.5"
                   style={{ color: filledSlots.length > 0 ? "#de1a1a" : "#9CA3AF" }}>
                   {filledSlots.length > 0
-                    ? `${filledSlots.length}h logged · ${filledSlots.length}/7 slots filled`
+                    ? `${filledSlots.length}h logged · ${filledSlots.length}/8 slots filled`
                     : "Log what you worked on each hour"}
                 </p>
               </div>
@@ -701,7 +683,7 @@ function GeneralTeamForm({ projects }: { projects: Project[] }) {
 
             {/* Slot progress dots */}
             <div className="flex items-center gap-1.5">
-              {Array.from({ length: 7 }).map((_, i) => (
+              {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="w-2 h-2 rounded-full transition-all"
                   style={{ background: i < filledSlots.length ? "#de1a1a" : "#E5E7EB" }} />
               ))}

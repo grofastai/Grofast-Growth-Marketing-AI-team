@@ -144,10 +144,10 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         {/* LEFT — Character + Timer card */}
         <div className="rounded-3xl overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "0 4px 32px rgba(0,0,0,0.09)" }}>
 
-          {/* ── Hero character image ── */}
-          <div className="relative w-full" style={{ height: 320, background: "#f5f5f7" }}>
+          {/* ── Cinematic hero image ── */}
+          <div className="relative w-full" style={{ height: 320, background: "#1a1008" }}>
             <Image
-              src="/brand/alarm-clock.png"
+              src="/brand/cinematic-boy.png"
               alt="Working character"
               fill
               style={{ objectFit: "cover", objectPosition: "center top" }}

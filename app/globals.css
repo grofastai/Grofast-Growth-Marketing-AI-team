@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 @theme inline {
-  --font-display: var(--font-jakarta);
+  --font-display: var(--font-bebas);
   --font-sans: var(--font-jakarta);
+  --font-bebas: var(--font-bebas);
 
   /* ── Color Tokens ─────────────────────────────────────── */
   --color-red:            #de1a1a;
@@ -78,7 +79,7 @@
 
 /* ── Base ──────────────────────────────────────────────── */
 body {
-  background-color: #F4F5F7;
+  background-color: #EDEEF2;
   color: #111827;
   font-family: var(--font-jakarta), sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -149,27 +150,27 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(222,26,26,0.6); }
 /* ── Card system ───────────────────────────────────────── */
 .card {
   background: #FFFFFF;
-  border: 1px solid #E5E7EB;
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  border: 1px solid rgba(0,0,0,0.07);
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04);
   transition: box-shadow 0.2s, border-color 0.2s;
 }
 .card:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  border-color: #D1D5DB;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.09);
+  border-color: rgba(0,0,0,0.12);
 }
 
 .card-elevated {
   background: #FFFFFF;
-  border: 1px solid #E5E7EB;
-  border-radius: 16px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04);
+  border: 1px solid rgba(0,0,0,0.07);
+  border-radius: 20px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.05);
   transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
 }
 .card-elevated:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.06);
-  transform: translateY(-1px);
-  border-color: #D1D5DB;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.11), 0 2px 6px rgba(0,0,0,0.07);
+  transform: translateY(-2px);
+  border-color: rgba(0,0,0,0.12);
 }
 
 /* ── Table ─────────────────────────────────────────────── */
@@ -357,25 +358,39 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(222,26,26,0.6); }
 /* ── Stat card ─────────────────────────────────────────── */
 .stat-card {
   background: #FFFFFF;
-  border: 1px solid #E5E7EB;
-  border-radius: 14px;
-  padding: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  border: 1px solid rgba(0,0,0,0.07);
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05), 0 6px 18px rgba(0,0,0,0.04);
   transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s;
   position: relative;
   overflow: hidden;
 }
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #de1a1a, #ff6b6b, transparent);
+  border-radius: 18px 18px 0 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
 .stat-card:hover {
-  box-shadow: 0 4px 16px rgba(0,0,0,0.09);
-  transform: translateY(-1px);
-  border-color: #D1D5DB;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+  border-color: rgba(0,0,0,0.12);
+}
+.stat-card:hover::before {
+  opacity: 1;
 }
 .stat-value {
-  font-size: 32px;
+  font-size: 34px;
   font-weight: 900;
-  color: #111827;
+  color: #0D0D12;
   line-height: 1;
-  font-family: var(--font-jakarta), sans-serif;
+  font-family: var(--font-bebas), var(--font-jakarta), sans-serif;
+  letter-spacing: 0.02em;
 }
 .stat-label {
   font-size: 12px;

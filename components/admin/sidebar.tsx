@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, Users, Clock, Target,
@@ -52,17 +53,14 @@ export default function Sidebar() {
         className="hidden lg:flex fixed left-0 top-0 h-screen w-[240px] flex-col z-50 select-none"
         style={{ background: SIDEBAR_BG, borderRight: "1px solid rgba(201,13,22,0.25)" }}
       >
-        <div className="px-5 py-[20px]" style={{ borderBottom: `1px solid ${DIVIDER}` }}>
+        <div className="px-5 py-[18px]" style={{ borderBottom: `1px solid ${DIVIDER}` }}>
           <div className="flex items-center gap-3">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.25)", backdropFilter: "blur(6px)" }}
-            >
-              <span className="text-[16px] font-black" style={{ color: "#FFFFFF" }}>G</span>
+            <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0" style={{ border: "1.5px solid rgba(255,255,255,0.2)" }}>
+              <Image src="/brand/logo.jpg" alt="GroFast" width={40} height={40} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
             </div>
             <div>
-              <p className="text-[14px] tracking-[0.14em] font-black" style={{ color: "#FFFFFF" }}>GROFAST</p>
-              <p className="text-[9px] tracking-[0.22em] uppercase font-semibold mt-0.5" style={{ color: "rgba(255,255,255,0.5)" }}>Admin Portal</p>
+              <p className="text-[14px] tracking-[0.14em] font-black" style={{ color: "#FFFFFF", fontFamily: "var(--font-bebas), sans-serif", fontSize: 18, letterSpacing: "0.16em" }}>GROFAST</p>
+              <p className="text-[9px] tracking-[0.22em] uppercase font-semibold mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Admin Portal</p>
             </div>
           </div>
         </div>
@@ -120,11 +118,8 @@ export default function Sidebar() {
         style={{ background: SIDEBAR_BG, borderRight: "1px solid rgba(201,13,22,0.25)" }}
       >
         <div className="flex items-center justify-center py-[18px]" style={{ borderBottom: `1px solid ${DIVIDER}` }}>
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.25)" }}
-          >
-            <span className="text-[14px] font-black" style={{ color: "#FFFFFF" }}>G</span>
+          <div className="w-9 h-9 rounded-xl overflow-hidden" style={{ border: "1.5px solid rgba(255,255,255,0.2)" }}>
+            <Image src="/brand/logo.jpg" alt="GroFast" width={36} height={36} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
         </div>
 
@@ -173,13 +168,10 @@ export default function Sidebar() {
         style={{ background: MOBILE_BG, borderBottom: `1px solid ${DIVIDER}` }}
       >
         <div className="flex items-center gap-2.5">
-          <div
-            className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)" }}
-          >
-            <span className="text-[13px] font-black" style={{ color: "#FFFFFF" }}>G</span>
+          <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
+            <Image src="/brand/logo.jpg" alt="GroFast" width={32} height={32} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           </div>
-          <span className="text-[14px] tracking-[0.12em] font-black" style={{ color: "#FFFFFF" }}>GROFAST</span>
+          <span style={{ color: "#FFFFFF", fontFamily: "var(--font-bebas), sans-serif", fontSize: 18, letterSpacing: "0.14em" }}>GROFAST</span>
         </div>
         <div
           className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold"

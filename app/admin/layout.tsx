@@ -27,7 +27,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (profile?.must_change_password) redirect("/change-password")
 
   return (
-    <div className="flex min-h-screen" style={{ background: "#F4F5F7" }}>
+    <div className="flex min-h-screen" style={{ background: "#EDEEF2" }}>
       <Sidebar />
       <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0">
         {children}

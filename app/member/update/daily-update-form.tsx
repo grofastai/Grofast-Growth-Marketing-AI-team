@@ -172,7 +172,7 @@ export default function DailyUpdateForm({
         <div className="flex items-end gap-3 px-5 py-2.5 rounded-2xl flex-shrink-0"
           style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
           <div className="relative w-14 h-18 flex-shrink-0" style={{ height: 72 }}>
-            <Image src="/brand/assistant-girl.png" alt="Assistant" fill style={{ objectFit: "contain", objectPosition: "bottom" }} />
+            <Image src="/brand/assistant-girl.jpg" alt="Assistant" fill style={{ objectFit: "contain", objectPosition: "bottom" }} />
           </div>
           <div className="pb-1">
             <p className="text-[15px] font-black leading-tight" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
@@ -353,7 +353,7 @@ export default function DailyUpdateForm({
           <div className="rounded-3xl overflow-hidden"
             style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
             <div className="relative w-full flex items-center justify-center" style={{ height: 160, background: "#FAFAFA" }}>
-              <Image src="/brand/alarm-clock.png" alt="Overview" fill style={{ objectFit: "contain", objectPosition: "center" }} />
+              <Image src="/brand/daily-boy.png" alt="Overview" fill style={{ objectFit: "contain", objectPosition: "center" }} />
             </div>
             <div className="p-4">
               <h3 className="text-[13px] font-black mb-3" style={{ color: "#111111" }}>Today&apos;s Overview</h3>
@@ -407,7 +407,7 @@ export default function DailyUpdateForm({
           <div className="rounded-3xl p-4" style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
             <div className="flex items-start gap-3 mb-3">
               <div className="relative w-14 h-14 flex-shrink-0">
-                <Image src="/brand/ai-robot.png" alt="AI Assistant" fill style={{ objectFit: "contain" }} />
+                <Image src="/brand/ai-robot.jpg" alt="AI Assistant" fill style={{ objectFit: "contain" }} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-black leading-tight" style={{ color: "#111111" }}>AI Assistant</p>

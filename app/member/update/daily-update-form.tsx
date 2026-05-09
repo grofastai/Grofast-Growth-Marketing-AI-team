@@ -292,12 +292,12 @@ export default function DailyUpdateForm({
         </div>
 
         {/* Girl + greeting */}
-        <div className="flex items-end gap-3 px-4 py-2 rounded-2xl flex-shrink-0"
+        <div className="flex items-end gap-0 rounded-2xl flex-shrink-0 overflow-hidden"
           style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
-          <div className="relative w-12 flex-shrink-0" style={{ height: 64 }}>
-            <Image src="/brand/assistant-girl.jpg" alt="Assistant" fill style={{ objectFit: "contain", objectPosition: "bottom" }} />
+          <div className="relative flex-shrink-0" style={{ width: 76, height: 88 }}>
+            <Image src="/brand/assistant-girl.jpg" alt="Assistant" fill style={{ objectFit: "cover", objectPosition: "top center" }} />
           </div>
-          <div className="pb-1">
+          <div className="px-4 pb-3 pt-3 self-center">
             <p className="text-[14px] font-black leading-tight" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>
               {greeting}, {firstName}! 👋
             </p>
@@ -452,8 +452,8 @@ export default function DailyUpdateForm({
           {/* Today's Overview */}
           <div className="rounded-3xl overflow-hidden"
             style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
-            <div className="relative w-full flex items-center justify-center" style={{ height: 150, background: "#FAFAFA" }}>
-              <Image src="/brand/daily-boy.png" alt="Overview" fill style={{ objectFit: "contain", objectPosition: "center" }} />
+            <div className="relative w-full" style={{ height: 170 }}>
+              <Image src="/brand/daily-boy.png" alt="Overview" fill style={{ objectFit: "cover", objectPosition: "center top" }} />
             </div>
             <div className="p-4">
               <h3 className="text-[13px] font-black mb-3" style={{ color: "#111111" }}>Today&apos;s Overview</h3>

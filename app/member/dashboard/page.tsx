@@ -6,21 +6,21 @@ import Link from "next/link"
 import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
 
-/* ── premium smooth bezier sparkline ────────────────────────────── */
+/* ── Smooth Curved Red Sparkline KPI Chart ───────────────────────── */
 function Sparkline({ points, color, id }: { points: number[]; color: string; id: string }) {
-  const w = 100, h = 52, padX = 3, padY = 10
+  const w = 110, h = 58, padX = 2, padY = 8
   const min = Math.min(...points), max = Math.max(...points), range = max - min || 1
   const xs = points.map((_, i) => padX + (i / (points.length - 1)) * (w - padX * 2))
   const ys = points.map(v => h - padY - ((v - min) / range) * (h - padY * 2))
 
-  // Catmull-Rom → Bezier smooth curve
+  // Catmull-Rom → cubic Bezier smooth interpolation
   function smooth(xArr: number[], yArr: number[]): string {
     const n = xArr.length
     let d = `M${xArr[0].toFixed(1)},${yArr[0].toFixed(1)}`
     for (let i = 0; i < n - 1; i++) {
       const x0 = i > 0 ? xArr[i - 1] : xArr[0]
       const y0 = i > 0 ? yArr[i - 1] : yArr[0]
-      const x1 = xArr[i], y1 = yArr[i]
+      const x1 = xArr[i],     y1 = yArr[i]
       const x2 = xArr[i + 1], y2 = yArr[i + 1]
       const x3 = i < n - 2 ? xArr[i + 2] : xArr[n - 1]
       const y3 = i < n - 2 ? yArr[i + 2] : yArr[n - 1]
@@ -34,46 +34,27 @@ function Sparkline({ points, color, id }: { points: number[]; color: string; id:
 
   const curve    = smooth(xs, ys)
   const areaPath = `${curve} L${xs[xs.length - 1].toFixed(1)},${h} L${xs[0].toFixed(1)},${h} Z`
-  const lastX = xs[xs.length - 1], lastY = ys[ys.length - 1]
-  const gradId = `sg-${id}`, glowId = `gw-${id}`, gridId = `gr-${id}`
+  const lastX    = xs[xs.length - 1]
+  const lastY    = ys[ys.length - 1]
+  const gradId   = `sg-${id}`
 
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 52 }} preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: 110, height: 58, flexShrink: 0 }}>
       <defs>
-        {/* Gradient fill under curve */}
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor={color} stopOpacity="0.28" />
-          <stop offset="55%"  stopColor={color} stopOpacity="0.08" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
+          <stop offset="0%"   stopColor={color} stopOpacity="0.45" />
+          <stop offset="65%"  stopColor={color} stopOpacity="0.1"  />
+          <stop offset="100%" stopColor={color} stopOpacity="0"    />
         </linearGradient>
-        {/* Soft glow filter for the line */}
-        <filter id={glowId} x="-20%" y="-60%" width="140%" height="220%">
-          <feGaussianBlur stdDeviation="1.8" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-        {/* Subtle dot grid */}
-        <pattern id={gridId} x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
-          <circle cx="5" cy="5" r="0.5" fill={color} opacity="0.12" />
-        </pattern>
       </defs>
-
-      {/* Dot grid background */}
-      <rect x="0" y="0" width={w} height={h} fill={`url(#${gridId})`} />
-
-      {/* Gradient area */}
+      {/* Soft gradient area fill */}
       <path d={areaPath} fill={`url(#${gradId})`} />
-
-      {/* Glow shadow line */}
-      <path d={curve} fill="none" stroke={color} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"
-        opacity="0.22" filter={`url(#${glowId})`} />
-
-      {/* Main smooth curve */}
-      <path d={curve} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="1" />
-
-      {/* Last point — pulse ring + solid dot */}
-      <circle cx={lastX} cy={lastY} r="7"  fill={color} opacity="0.10" />
-      <circle cx={lastX} cy={lastY} r="4"  fill={color} opacity="0.20" />
-      <circle cx={lastX} cy={lastY} r="2.5" fill={color} opacity="1" />
+      {/* Smooth curved line */}
+      <path d={curve} fill="none" stroke={color} strokeWidth="2.5"
+        strokeLinecap="round" strokeLinejoin="round" />
+      {/* End-point: outer pulse ring + solid dot */}
+      <circle cx={lastX} cy={lastY} r="6"   fill={color} opacity="0.18" />
+      <circle cx={lastX} cy={lastY} r="3"   fill={color} />
     </svg>
   )
 }
@@ -219,33 +200,35 @@ export default async function MemberDashboardPage() {
           { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: workingDays || 1,   label: "Present Days",  sparkColor: "#de1a1a", spark: sparkPresent, trend: "+10% from last week", up: true  },
           { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : `${todayHours > 0 ? todayHours : 10}h`, label: "Total Hours", sparkColor: "#6366F1", spark: sparkHours, trend: "+8% from last week", up: true },
           { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: pendingLeaves,      label: "Pending Leave", sparkColor: "#F59E0B", spark: sparkLeaves,  trend: "No change",          up: null  },
-          { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks",  sparkColor: "#16A34A", spark: sparkTasks,   trend: activeTasks === 0 ? "↓ 100% from last week" : "+5% from last week", up: activeTasks > 0 },
+          { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks",  sparkColor: "#16A34A", spark: sparkTasks,   trend: activeTasks === 0 ? "All done 🎉" : "+5% from last week", up: activeTasks > 0 },
         ] as const).map((s) => {
           const Icon = s.icon
           return (
-            <div key={s.label} className="rounded-2xl pt-5 px-5 pb-4 flex flex-col overflow-hidden"
-              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>
-              {/* Icon (rounded square) + Number row */}
-              <div className="flex items-center gap-3 mb-1">
-                <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+            <div key={s.label} className="rounded-2xl p-5 flex flex-col overflow-hidden"
+              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+
+              {/* Row 1: icon + label */}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: s.iconBg }}>
-                  <Icon size={20} style={{ color: s.iconColor }} />
+                  <Icon size={18} style={{ color: s.iconColor }} />
                 </div>
-                <p className="text-[34px] font-black leading-none"
-                  style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
-                  {s.value}
-                </p>
+                <p className="text-[12px] font-semibold leading-tight" style={{ color: "#9CA3AF" }}>{s.label}</p>
               </div>
-              {/* Label */}
-              <p className="text-[12px] font-medium mb-4 ml-0.5" style={{ color: "#6B7280" }}>{s.label}</p>
-              {/* Full-width sparkline — bleeds to card edge */}
-              <div className="-mx-5 mb-3">
+
+              {/* Row 2: big value on left, sparkline on right — fills to card edge */}
+              <div className="flex items-end justify-between gap-2 -mb-5 -mr-5">
+                <div className="pb-5">
+                  <p className="text-[32px] font-black leading-none mb-2"
+                    style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+                    {s.value}
+                  </p>
+                  <p className="text-[11px] font-semibold" style={{ color: s.up === true ? s.sparkColor : "#9CA3AF" }}>
+                    {s.up === true && "↑ "}{s.trend}
+                  </p>
+                </div>
                 <Sparkline points={[...s.spark]} color={s.sparkColor} id={s.label.replace(/\s/g, "")} />
               </div>
-              {/* Trend */}
-              <p className="text-[11px] font-semibold" style={{ color: s.up === true ? s.sparkColor : "#9CA3AF" }}>
-                {s.up === true && "↑ "}{s.trend}
-              </p>
             </div>
           )
         })}

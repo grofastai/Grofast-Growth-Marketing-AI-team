@@ -7,19 +7,23 @@ import Image from "next/image"
 
 /* ── tiny inline sparkline ──────────────────────────────────────── */
 function Sparkline({ points, color }: { points: number[]; color: string }) {
-  const w = 100, h = 40, pad = 4
+  const w = 100, h = 44, pad = 6
   const min = Math.min(...points)
   const max = Math.max(...points)
   const range = max - min || 1
   const xs = points.map((_, i) => pad + (i / (points.length - 1)) * (w - pad * 2))
   const ys = points.map(v => h - pad - ((v - min) / range) * (h - pad * 2))
-  const d = xs.map((x, i) => `${i === 0 ? "M" : "L"}${x.toFixed(1)},${ys[i].toFixed(1)}`).join(" ")
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 40 }} preserveAspectRatio="none">
-      <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-      {xs.map((x, i) => (
-        <circle key={i} cx={x} cy={ys[i]} r={i === xs.length - 1 ? "3" : "1.5"} fill={color} opacity={i === xs.length - 1 ? 1 : 0.5} />
-      ))}
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: 44 }} preserveAspectRatio="none">
+      {xs.map((x, i) => {
+        const isLast = i === xs.length - 1
+        return (
+          <g key={i}>
+            {isLast && <circle cx={x} cy={ys[i]} r="6" fill={color} opacity="0.15" />}
+            <circle cx={x} cy={ys[i]} r={isLast ? "3.5" : "2.5"} fill={color} opacity={isLast ? 1 : 0.55} />
+          </g>
+        )
+      })}
     </svg>
   )
 }

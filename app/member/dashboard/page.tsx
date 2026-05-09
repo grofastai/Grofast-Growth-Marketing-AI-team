@@ -348,38 +348,70 @@ export default async function MemberDashboardPage() {
             <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
           </Link>
 
-          {/* Today Summary dark card */}
-          <div className="rounded-2xl p-4" style={{ background: "#111111" }}>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>Today Summary</p>
-              <ChevronRight size={14} style={{ color: "rgba(255,255,255,0.4)" }} />
-            </div>
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              {[
-                { label: "Hours",  value: todayHours > 0 ? `${todayHours}h` : "—" },
-                { label: "Done",   value: completedTasks },
-                { label: "Shoots", value: shootCount },
-              ].map((item) => (
-                <div key={item.label} className="rounded-xl p-2.5 text-center"
-                  style={{ background: "rgba(255,255,255,0.07)" }}>
-                  <p className="text-[18px] font-black leading-none mb-1"
-                    style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
-                    {item.value}
-                  </p>
-                  <p className="text-[9px] font-medium uppercase tracking-wide" style={{ color: "rgba(255,255,255,0.45)" }}>{item.label}</p>
-                </div>
+          {/* Today Summary — red wave card */}
+          <div className="rounded-2xl p-4 relative overflow-hidden" style={{ background: "#0a0a0a" }}>
+            {/* Wave background art */}
+            <svg viewBox="0 0 300 160" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid slice" style={{ opacity: 1 }}>
+              <defs>
+                <radialGradient id="sg1" cx="85%" cy="85%" r="55%">
+                  <stop offset="0%" stopColor="#de1a1a" stopOpacity="0.6"/>
+                  <stop offset="100%" stopColor="#0a0a0a" stopOpacity="0"/>
+                </radialGradient>
+                <radialGradient id="sg2" cx="70%" cy="100%" r="45%">
+                  <stop offset="0%" stopColor="#9b0000" stopOpacity="0.45"/>
+                  <stop offset="100%" stopColor="#0a0a0a" stopOpacity="0"/>
+                </radialGradient>
+                <radialGradient id="sg3" cx="100%" cy="60%" r="35%">
+                  <stop offset="0%" stopColor="#ff3333" stopOpacity="0.3"/>
+                  <stop offset="100%" stopColor="#0a0a0a" stopOpacity="0"/>
+                </radialGradient>
+              </defs>
+              <ellipse cx="260" cy="140" rx="160" ry="100" fill="url(#sg1)"/>
+              <ellipse cx="220" cy="160" rx="130" ry="70"  fill="url(#sg2)"/>
+              <ellipse cx="290" cy="100" rx="90" ry="80" fill="url(#sg3)"/>
+              <path d="M340,160 C280,130 180,140 140,110 C100,80 180,55 200,30" fill="none" stroke="#de1a1a" strokeWidth="1" strokeOpacity="0.35"/>
+              <path d="M360,160 C300,140 200,150 160,120 C120,90 200,60 210,35" fill="none" stroke="#ff4444" strokeWidth="0.6" strokeOpacity="0.2"/>
+              <path d="M320,160 C260,140 160,120 180,90 C200,60 280,50 270,20" fill="none" stroke="#c00000" strokeWidth="1.2" strokeOpacity="0.25"/>
+              {([
+                [245,70,1.2],[265,90,0.8],[235,110,1.6],[270,125,1],[250,140,1.4],[280,150,0.8]
+              ] as [number,number,number][]).map(([cx,cy,r],i) => (
+                <circle key={i} cx={cx} cy={cy} r={r} fill="#ff4444" opacity="0.45"/>
               ))}
-            </div>
-            {productivitySignal && (
-              <div className="flex items-center gap-1.5 pt-2.5" style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}>
-                {productivitySignal.icon === "zap"
-                  ? <Zap size={11} style={{ color: productivitySignal.color }} />
-                  : <AlertTriangle size={11} style={{ color: productivitySignal.color }} />}
-                <p className="text-[11px] font-semibold" style={{ color: productivitySignal.color }}>
-                  {productivitySignal.text}
-                </p>
+            </svg>
+
+            {/* Content */}
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[13px] font-bold" style={{ color: "#FFFFFF" }}>Today Summary</p>
+                <ChevronRight size={14} style={{ color: "rgba(255,255,255,0.35)" }} />
               </div>
-            )}
+              <div className="grid grid-cols-3 gap-2 mb-3">
+                {[
+                  { label: "Hours",  value: todayHours > 0 ? `${todayHours}h` : "—" },
+                  { label: "Done",   value: completedTasks },
+                  { label: "Shoots", value: shootCount },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-xl p-3 text-center"
+                    style={{ background: "rgba(255,255,255,0.07)", backdropFilter: "blur(4px)" }}>
+                    <p className="text-[20px] font-black leading-none mb-1"
+                      style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+                      {item.value}
+                    </p>
+                    <p className="text-[9px] font-semibold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.4)" }}>{item.label}</p>
+                  </div>
+                ))}
+              </div>
+              {productivitySignal && (
+                <div className="flex items-center gap-1.5 pt-2.5" style={{ borderTop: "1px solid rgba(255,255,255,0.1)" }}>
+                  {productivitySignal.icon === "zap"
+                    ? <Zap size={12} style={{ color: productivitySignal.color }} />
+                    : <AlertTriangle size={12} style={{ color: productivitySignal.color }} />}
+                  <p className="text-[11px] font-semibold" style={{ color: productivitySignal.color }}>
+                    {productivitySignal.text}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

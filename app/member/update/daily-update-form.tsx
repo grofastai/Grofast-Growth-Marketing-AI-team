@@ -120,7 +120,7 @@ function SlotRow({
       <div className="flex items-center gap-2">
         <div>
           <p className="text-[12px] font-black leading-none" style={{ color: accentColor }}>{fmtHour(slot.hour)}</p>
-          <p className="text-[10px] mt-0.5 leading-none" style={{ color: "#D1D5DB" }}>– {fmtHour(slot.hour + 1)}</p>
+          <p className="text-[10px] mt-0.5 leading-none" style={{ color: "#9CA3AF" }}>– {fmtHour(slot.hour + 1)}</p>
         </div>
         <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all"
           style={{ borderColor: isFilled ? accentColor : "#E5E7EB", background: isFilled ? accentColor : "#FFFFFF" }}>
@@ -140,8 +140,8 @@ function SlotRow({
             })
           }}
           placeholder={isLunch ? "Lunch break 🍱" : isOvertime ? "Overtime work…" : "What did you work on this hour?"}
-          className="w-full bg-transparent outline-none text-[13px] placeholder:font-normal"
-          style={{ color: isFilled ? "#111111" : "#D1D5DB", fontWeight: isFilled ? 500 : 400 }}
+          className="w-full bg-transparent outline-none text-[13px]"
+          style={{ color: isFilled ? "#111111" : "#6B7280", fontWeight: isFilled ? 500 : 400 }}
         />
       </div>
 
@@ -353,7 +353,7 @@ export default function DailyUpdateForm({
               <div className="px-5 py-3" style={{ borderBottom: "1px solid #F5F5F7" }}>
                 <div className="grid gap-3 items-center" style={{ gridTemplateColumns: COLS }}>
                   {["Time", "What did you work on?", "Project", "Status", ""].map(lbl => (
-                    <span key={lbl} className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#C4C4C4" }}>{lbl}</span>
+                    <span key={lbl} className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "#6B7280" }}>{lbl}</span>
                   ))}
                 </div>
               </div>
@@ -504,24 +504,29 @@ export default function DailyUpdateForm({
             </div>
           </div>
 
-          {/* AI Assistant */}
+          {/* Focus Tips */}
           <div className="rounded-3xl p-4" style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
-            <div className="flex items-start gap-3 mb-3">
-              <div className="relative w-12 h-12 flex-shrink-0">
-                <Image src="/brand/ai-robot.jpg" alt="AI Assistant" fill style={{ objectFit: "contain" }} />
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(222,26,26,0.1)" }}>
+                <Sparkles size={13} style={{ color: "#de1a1a" }} />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-black leading-tight" style={{ color: "#111111" }}>AI Assistant</p>
-                <p className="text-[11px] mt-1 leading-snug" style={{ color: "#6B7280" }}>
-                  Hi {firstName}! 👋 Need help logging your update?
-                </p>
-              </div>
+              <p className="text-[13px] font-black" style={{ color: "#111111" }}>Focus Tips</p>
             </div>
-            <button className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all hover:opacity-80"
-              style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.18)" }}>
-              <Sparkles size={12} />
-              Get AI Suggestion
-            </button>
+            <div className="space-y-2.5">
+              {[
+                { icon: "🎯", tip: "Log each hour right after you finish it — don't wait until end of day." },
+                { icon: "⏱", tip: "Work in 90-min deep focus blocks. Mark breaks in your hourly log." },
+                { icon: "📋", tip: "Link every slot to a project so your manager sees clear progress." },
+                { icon: "✅", tip: "Mark slots 'Completed' as you go — it tracks your actual productivity." },
+              ].map((t, i) => (
+                <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-xl"
+                  style={{ background: "#F9FAFB", border: "1px solid #F0F0F0" }}>
+                  <span className="text-[14px] leading-none flex-shrink-0 mt-0.5">{t.icon}</span>
+                  <p className="text-[11px] leading-snug" style={{ color: "#374151" }}>{t.tip}</p>
+                </div>
+              ))}
+            </div>
           </div>
 
         </div>

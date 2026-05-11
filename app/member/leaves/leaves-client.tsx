@@ -465,6 +465,8 @@ export default function MemberLeavesClient({ leaves, userName }: { leaves: Leave
             {/* Right: vacation image — full height, edge to edge */}
             <div style={{ flex: "0 0 44%", position: "relative", minHeight: 300 }}>
               <div style={{ position: "absolute", inset: 0, backgroundImage: "url('/brand/vacation-boy.png')", backgroundRepeat: "no-repeat", backgroundPosition: "center center", backgroundSize: "cover" }} />
+              {/* Blend left edge into cream background */}
+              <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, #FFEFD0 0%, rgba(255,239,208,0.6) 18%, transparent 42%)", zIndex: 1, pointerEvents: "none" }} />
             </div>
           </div>
         </div>

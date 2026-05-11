@@ -3,776 +3,577 @@
 import { useActionState, useState, useEffect } from "react"
 import Image from "next/image"
 import {
-  Plus, X, Loader2, Calendar,
-  CheckCircle2, XCircle, AlertCircle, ChevronDown,
-  MoreVertical, Palmtree, Sparkles, CalendarDays, ArrowUpRight,
+  Plus, X, Loader2, Calendar, CheckCircle2, XCircle,
+  ChevronDown, MoreVertical, Palmtree, Sparkles, CalendarDays,
+  Bell, ArrowUpRight, Clock, SlidersHorizontal,
 } from "lucide-react"
 import { submitLeaveRequest } from "@/lib/actions/leaves"
 
 interface Leave {
-  id: string
-  from_date: string
-  to_date: string
-  reason: string
-  status: string
-  created_at: string
-  leave_type?: string
-  permission_hours?: number | null
-  half_day_period?: string | null
+  id: string; from_date: string; to_date: string; reason: string; status: string
+  created_at: string; leave_type?: string; permission_hours?: number | null; half_day_period?: string | null
 }
-
 type LeaveType = "full_day" | "half_day" | "permission"
 
 const HOLIDAYS = [
-  { date: "2026-05-15", name: "Buddha Purnima",   day: "Friday",   emoji: "🪷" },
-  { date: "2026-08-15", name: "Independence Day", day: "Saturday", emoji: "🇮🇳" },
-  { date: "2026-10-02", name: "Gandhi Jayanti",   day: "Friday",   emoji: "🕊️" },
-  { date: "2026-10-20", name: "Dussehra",         day: "Tuesday",  emoji: "🏹" },
-  { date: "2026-11-09", name: "Diwali",           day: "Monday",   emoji: "🪔" },
-  { date: "2026-12-25", name: "Christmas",        day: "Friday",   emoji: "🎄" },
+  { date: "2026-05-15", name: "Buddha Purnima",   day: "Friday",    emoji: "🪷", img: "🏛️" },
+  { date: "2026-08-15", name: "Independence Day", day: "Friday",    emoji: "🇮🇳", img: "🇮🇳" },
+  { date: "2026-10-02", name: "Gandhi Jayanti",   day: "Thursday",  emoji: "🕊️", img: "👓" },
+  { date: "2026-10-20", name: "Dussehra",         day: "Tuesday",   emoji: "🏹", img: "🏹" },
+  { date: "2026-11-09", name: "Diwali",           day: "Monday",    emoji: "🪔", img: "🪔" },
+  { date: "2026-12-25", name: "Christmas",        day: "Friday",    emoji: "🎄", img: "🎄" },
 ]
 
 const STATUS_CFG = {
-  pending:  { color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  label: "Pending",  icon: AlertCircle  },
-  approved: { color: "#10B981", bg: "rgba(16,185,129,0.1)", label: "Approved", icon: CheckCircle2 },
-  rejected: { color: "#EF4444", bg: "rgba(239,68,68,0.1)",  label: "Rejected", icon: XCircle      },
+  pending:  { color: "#F59E0B", bg: "rgba(245,158,11,0.12)",  label: "Pending",  icon: Clock        },
+  approved: { color: "#10B981", bg: "rgba(16,185,129,0.12)",  label: "Approved", icon: CheckCircle2 },
+  rejected: { color: "#EF4444", bg: "rgba(239,68,68,0.12)",   label: "Rejected", icon: XCircle      },
 }
 
-const LEAVE_EMOJI: Record<string, string> = {
-  full_day: "☀️", half_day: "🌤️", permission: "⏰",
+const TYPE_ILLUSTRATION: Record<string, { emoji: string; bg: string }> = {
+  half_day:   { emoji: "🌤️", bg: "rgba(251,191,36,0.12)"  },
+  full_day:   { emoji: "🌴", bg: "rgba(16,185,129,0.12)"  },
+  permission: { emoji: "⏰", bg: "rgba(99,102,241,0.12)"  },
 }
 
 function daysBetween(from: string, to: string) {
   return Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / 86400000) + 1
 }
-function fmt(d: string) {
-  return new Date(d).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
-}
 function fmtShort(d: string) {
   return new Date(d).toLocaleDateString("en-US", { day: "numeric", month: "short" })
 }
+function fmtFull(d: string) {
+  return new Date(d).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric", weekday: "short" })
+}
 
-// ── Countdown Timer ────────────────────────────────────────────────────────────
+// ── Mini Sparkline ─────────────────────────────────────────────────────────────
+function Sparkline({ color, trend = "up" }: { color: string; trend?: "up" | "flat" | "down" }) {
+  const d = {
+    up:   "M2,20 C14,16 24,12 34,9 C44,6 54,3 62,1",
+    flat: "M2,12 C14,11 24,14 34,11 C44,9  54,13 62,11",
+    down: "M2,2  C14,5  24,9  34,13 C44,17 54,20 62,22",
+  }[trend]
+  return (
+    <svg width="64" height="24" viewBox="0 0 64 24" fill="none">
+      <path d={d} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+// ── Countdown ─────────────────────────────────────────────────────────────────
 function Countdown({ targetDate }: { targetDate: string }) {
   const [diff, setDiff] = useState({ d: 0, h: 0, m: 0, s: 0 })
   useEffect(() => {
     function calc() {
       const ms = new Date(targetDate).getTime() - Date.now()
       if (ms <= 0) return setDiff({ d: 0, h: 0, m: 0, s: 0 })
-      setDiff({
-        d: Math.floor(ms / 86400000),
-        h: Math.floor((ms % 86400000) / 3600000),
-        m: Math.floor((ms % 3600000) / 60000),
-        s: Math.floor((ms % 60000) / 1000),
-      })
+      setDiff({ d: Math.floor(ms / 86400000), h: Math.floor((ms % 86400000) / 3600000), m: Math.floor((ms % 3600000) / 60000), s: Math.floor((ms % 60000) / 1000) })
     }
-    calc()
-    const id = setInterval(calc, 1000)
-    return () => clearInterval(id)
+    calc(); const id = setInterval(calc, 1000); return () => clearInterval(id)
   }, [targetDate])
 
   return (
-    <div className="flex items-center justify-center gap-2 mt-3 mb-2">
-      {[
-        { val: diff.d, label: "Days" },
-        { val: diff.h, label: "Hrs" },
-        { val: diff.m, label: "Min" },
-        { val: diff.s, label: "Sec" },
-      ].map(({ val, label }) => (
-        <div key={label} className="flex flex-col items-center">
-          <div className="flex items-center justify-center rounded-xl tabular-nums"
-            style={{
-              width: 44, height: 38,
-              background: "rgba(222,26,26,0.07)",
-              border: "1px solid rgba(222,26,26,0.14)",
-            }}>
-            <span className="text-[17px] font-black" style={{ color: "#DE1A1A" }}>
-              {String(val).padStart(2, "0")}
-            </span>
+    <div style={{ display: "flex", gap: 6, justifyContent: "center", margin: "14px 0 10px" }}>
+      {[{ v: diff.d, l: "Days" }, { v: diff.h, l: "Hours" }, { v: diff.m, l: "Mins" }, { v: diff.s, l: "Secs" }].map(({ v, l }) => (
+        <div key={l} style={{ textAlign: "center" }}>
+          <div style={{ width: 50, height: 46, borderRadius: 10, background: "#DE1A1A", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(222,26,26,0.45)" }}>
+            <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{String(v).padStart(2, "0")}</span>
           </div>
-          <span className="text-[9px] font-semibold mt-1" style={{ color: "#9CA3AF" }}>{label}</span>
+          <span style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "block", marginTop: 5 }}>{l}</span>
         </div>
       ))}
     </div>
   )
 }
 
-// ── Mood Tracker ───────────────────────────────────────────────────────────────
+// ── Mood Tracker ──────────────────────────────────────────────────────────────
 function MoodTracker() {
   const [mood, setMood] = useState<number | null>(null)
-  const moods = [
-    { icon: "😢", label: "Sad",   val: 1 },
-    { icon: "😕", label: "Meh",   val: 2 },
-    { icon: "😐", label: "Okay",  val: 3 },
-    { icon: "😊", label: "Good",  val: 4 },
-    { icon: "😄", label: "Great", val: 5 },
-  ]
-  const messages = ["", "Hope things look up soon 💙", "Things will get better!", "Hang in there!", "Keep the energy! ✨", "You're on fire! 🔥"]
+  const moods = [{ e: "😢", v: 1 }, { e: "😕", v: 2 }, { e: "😐", v: 3 }, { e: "😊", v: 4 }, { e: "😄", v: 5 }]
   return (
     <div>
-      <p className="text-[12px] mb-3" style={{ color: "#6B7280" }}>How are you feeling today?</p>
-      <div className="flex justify-between px-1">
+      <p style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 10 }}>How are you feeling today?</p>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
         {moods.map(m => (
-          <button key={m.val} onClick={() => setMood(m.val)}
-            className="flex flex-col items-center gap-1 transition-all">
-            <span className="text-[22px] leading-none transition-all duration-200"
-              style={{
-                transform: mood === m.val ? "scale(1.3)" : "scale(1)",
-                filter: mood !== null && mood !== m.val ? "grayscale(0.7) opacity(0.4)" : "none",
-              }}>
-              {m.icon}
-            </span>
-            <span className="text-[9px] font-semibold transition-colors"
-              style={{ color: mood === m.val ? "#DE1A1A" : "#C4C9D4" }}>
-              {m.label}
-            </span>
+          <button key={m.v} onClick={() => setMood(m.v)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, lineHeight: 1, transition: "transform 0.2s", transform: mood === m.v ? "scale(1.35)" : "scale(1)", filter: mood !== null && mood !== m.v ? "grayscale(0.7) opacity(0.45)" : "none" }}>
+            {m.e}
           </button>
         ))}
       </div>
-      {mood && (
-        <p className="text-[11px] text-center mt-3 font-semibold py-2 rounded-xl"
-          style={{ color: "#DE1A1A", background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.1)" }}>
-          {messages[mood]}
+      {mood !== null && (
+        <p style={{ fontSize: 10, textAlign: "center", marginTop: 8, color: "#DE1A1A", fontWeight: 700 }}>
+          {["", "Hope things improve! 💙", "It'll get better!", "Hang in there!", "Keep it up! ✨", "You're crushing it! 🔥"][mood]}
         </p>
       )}
     </div>
   )
 }
 
-// ── Work-Life Balance Ring ─────────────────────────────────────────────────────
+// ── Balance Ring ──────────────────────────────────────────────────────────────
 function BalanceRing({ pct }: { pct: number }) {
-  const r = 28, circ = 2 * Math.PI * r
-  const color = pct >= 70 ? "#10B981" : pct >= 50 ? "#F59E0B" : "#DE1A1A"
+  const r = 38, circ = 2 * Math.PI * r
+  const color = pct >= 70 ? "#10B981" : pct >= 50 ? "#F59E0B" : "#EF4444"
+  const label = pct >= 70 ? "Balanced" : pct >= 50 ? "Moderate" : "Low"
   return (
-    <div className="flex flex-col items-center flex-shrink-0">
-      <div className="relative" style={{ width: 70, height: 70 }}>
-        <svg viewBox="0 0 70 70" style={{ width: 70, height: 70, transform: "rotate(-90deg)" }}>
-          <circle cx={35} cy={35} r={r} fill="none" stroke="#F0F1F5" strokeWidth={7} />
-          <circle cx={35} cy={35} r={r} fill="none" stroke={color} strokeWidth={7}
-            strokeDasharray={`${(pct / 100) * circ} ${circ}`}
-            strokeLinecap="round" style={{ transition: "stroke-dasharray 1s ease" }} />
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <div style={{ position: "relative", width: 90, height: 90 }}>
+        <svg viewBox="0 0 90 90" width={90} height={90} style={{ transform: "rotate(-90deg)" }}>
+          <circle cx={45} cy={45} r={r} fill="none" stroke="#F0F1F5" strokeWidth={9} />
+          <circle cx={45} cy={45} r={r} fill="none" stroke={color} strokeWidth={9}
+            strokeDasharray={`${(pct / 100) * circ} ${circ}`} strokeLinecap="round"
+            style={{ transition: "stroke-dasharray 1s ease" }} />
         </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[13px] font-black" style={{ color }}>{pct}%</span>
+        <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: 17, fontWeight: 900, color }}>{pct}%</span>
         </div>
       </div>
-      <p className="text-[10px] font-semibold mt-1.5" style={{ color: "#9CA3AF" }}>
-        {pct >= 70 ? "Balanced" : pct >= 50 ? "Moderate" : "Needs rest"}
-      </p>
+      <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", marginTop: 4 }}>{label}</span>
     </div>
   )
 }
 
-// ── Main Component ─────────────────────────────────────────────────────────────
-export default function MemberLeavesClient({
-  leaves, userName,
-}: {
-  leaves: Leave[]
-  userName: string
-}) {
+// ═══════════════════════════════════════════════════════════════════════════════
+export default function MemberLeavesClient({ leaves, userName }: { leaves: Leave[]; userName: string }) {
   const [showForm, setShowForm]     = useState(false)
   const [leaveType, setLeaveType]   = useState<LeaveType>("full_day")
   const [halfPeriod, setHalfPeriod] = useState<"morning" | "afternoon">("morning")
   const [filterStatus, setFilter]   = useState("all")
+  const [filterOpen, setFilterOpen] = useState(false)
   const [showMore, setShowMore]     = useState(false)
   const [state, action, pending]    = useActionState(submitLeaveRequest, null)
 
   if (state && "success" in state && state.success && showForm) setShowForm(false)
 
-  const approved  = leaves.filter(l => l.status === "approved")
-  const pendingL  = leaves.filter(l => l.status === "pending")
-  const rejected  = leaves.filter(l => l.status === "rejected")
-
-  const usedDays = approved
-    .filter(l => (l.leave_type ?? "full_day") === "full_day")
-    .reduce((s, l) => s + daysBetween(l.from_date, l.to_date), 0)
+  const approved = leaves.filter(l => l.status === "approved")
+  const pendingL = leaves.filter(l => l.status === "pending")
+  const rejected = leaves.filter(l => l.status === "rejected")
+  const usedDays = approved.filter(l => (l.leave_type ?? "full_day") === "full_day").reduce((s, l) => s + daysBetween(l.from_date, l.to_date), 0)
   const balance    = Math.max(0, 24 - usedDays)
   const balancePct = Math.round((balance / 24) * 100)
-
   const today       = new Date().toISOString().split("T")[0]
   const nextHoliday = HOLIDAYS.find(h => h.date >= today)
-  const wlbScore    = Math.min(100, Math.max(30, Math.round(72 - (pendingL.length * 3) + (approved.length * 2))))
+  const wlbScore    = Math.min(100, Math.max(30, Math.round(72 - pendingL.length * 3 + approved.length * 2)))
 
   const filteredLeaves = leaves.filter(l => filterStatus === "all" || l.status === filterStatus)
   const visibleLeaves  = showMore ? filteredLeaves : filteredLeaves.slice(0, 5)
 
-  const FIELD: React.CSSProperties = {
-    background: "#F9FAFB", border: "1.5px solid #E8EAED",
-    color: "#111827", borderRadius: "12px",
-    padding: "11px 14px", fontSize: "13px",
-    outline: "none", width: "100%",
-    transition: "border-color 0.15s",
-  }
-
-  const CARD: React.CSSProperties = {
-    background: "#FFFFFF",
-    borderRadius: "20px",
-    border: "1px solid #EBEDF2",
-    boxShadow: "0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)",
-  }
+  const FIELD: React.CSSProperties = { background: "#F9FAFB", border: "1.5px solid #E8EAED", color: "#111827", borderRadius: "12px", padding: "11px 14px", fontSize: "13px", outline: "none", width: "100%" }
 
   return (
-    <div style={{ background: "#F4F5F8", minHeight: "100vh", display: "flex" }}>
+    <div style={{ display: "flex", background: "#F5F6FA", minHeight: "100vh" }}>
 
-      {/* ════ MAIN CONTENT ════════════════════════════════════════════════════ */}
-      <div className="flex-1 min-w-0 overflow-auto" style={{ padding: "24px 24px 32px" }}>
+      {/* ════ MAIN CONTENT ═══════════════════════════════════════════════════ */}
+      <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
 
-        {/* ── Hero Banner ─────────────────────────────────────────────────── */}
-        <div className="relative overflow-hidden mb-6 flex items-stretch"
-          style={{
-            background: "linear-gradient(135deg, #FFFCF5 0%, #FFF6E8 50%, #FFF9F0 100%)",
-            borderRadius: "24px",
-            border: "1px solid #F0E6D0",
-            boxShadow: "0 2px 8px rgba(222,180,100,0.08), 0 8px 32px rgba(222,180,100,0.06)",
-            minHeight: 210,
-          }}>
+        {/* ── Hero ─────────────────────────────────────────────────────────── */}
+        <div style={{ background: "#FFFFFF", padding: "28px 32px 0", position: "relative", overflow: "hidden" }}>
 
-          {/* Subtle dot pattern */}
-          <div className="absolute inset-0 pointer-events-none" style={{
-            backgroundImage: "radial-gradient(circle, rgba(222,26,26,0.04) 1px, transparent 1px)",
-            backgroundSize: "24px 24px",
-          }} />
-
-          {/* Left content */}
-          <div className="relative z-10 flex-1 flex flex-col justify-center"
-            style={{ padding: "36px 40px" }}>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[11px] font-bold px-3 py-1 rounded-full"
-                style={{ background: "rgba(222,26,26,0.1)", color: "#DE1A1A", letterSpacing: "0.04em" }}>
-                Leave Management
-              </span>
-            </div>
-            <p className="text-[13px] font-semibold mb-1.5" style={{ color: "#9CA3AF" }}>
-              Hello, {userName}! 👋
-            </p>
-            <h1 className="font-black leading-tight mb-3"
-              style={{
-                fontSize: "clamp(28px, 3vw, 40px)",
-                fontFamily: "var(--font-jakarta)",
-                color: "#0A0A0B",
-                letterSpacing: "-0.02em",
-              }}>
-              Leave{" "}
-              <span className="gradient-heading">Requests</span>
-            </h1>
-            <p className="text-[13px] mb-5 max-w-xs" style={{ color: "#6B7280", lineHeight: 1.6 }}>
-              Apply for leave and track all your requests in one beautifully organized place.
-            </p>
-            <button onClick={() => setShowForm(true)}
-              className="self-start flex items-center gap-2 text-white font-bold transition-all hover:opacity-90 active:scale-95"
-              style={{
-                background: "#DE1A1A",
-                boxShadow: "0 4px 14px rgba(222,26,26,0.35), 0 1px 3px rgba(222,26,26,0.2)",
-                borderRadius: "14px",
-                padding: "12px 24px",
-                fontSize: "13px",
-              }}>
-              <Plus size={14} strokeWidth={2.5} /> Apply Leave
-            </button>
-          </div>
-
-          {/* Right illustration — framed container, explicit dimensions */}
-          <div className="hidden sm:flex items-end justify-center flex-shrink-0 relative z-10"
-            style={{ width: 280, paddingBottom: 0, paddingRight: 16, paddingTop: 16 }}>
-            <Image
-              src="/brand/leave-hero.png"
-              alt="Leave requests illustration"
-              width={250}
-              height={200}
-              style={{ objectFit: "contain", objectPosition: "bottom center", display: "block" }}
-              priority
-            />
-          </div>
-        </div>
-
-        {/* ── Stats Grid ──────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
-          {[
-            { label: "Total",     val: leaves.length,   color: "#6366F1", bg: "rgba(99,102,241,0.08)",  icon: "📋", accent: "#6366F1" },
-            { label: "Pending",   val: pendingL.length, color: "#F59E0B", bg: "rgba(245,158,11,0.08)",  icon: "⏳", accent: "#F59E0B" },
-            { label: "Approved",  val: approved.length, color: "#10B981", bg: "rgba(16,185,129,0.08)",  icon: "✅", accent: "#10B981" },
-            { label: "Rejected",  val: rejected.length, color: "#EF4444", bg: "rgba(239,68,68,0.08)",   icon: "❌", accent: "#EF4444" },
-            { label: "Days Left", val: balance,         color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",  icon: "🏖️", accent: "#0EA5E9" },
-            { label: "Holidays",  val: HOLIDAYS.filter(h => h.date >= today).length, color: "#8B5CF6", bg: "rgba(139,92,246,0.08)", icon: "🎉", accent: "#8B5CF6" },
-          ].map(s => (
-            <div key={s.label} className="flex flex-col"
-              style={{ ...CARD, padding: "18px 16px", position: "relative", overflow: "hidden" }}>
-              {/* Colored top accent bar */}
-              <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-[20px]"
-                style={{ background: s.color, opacity: 0.6 }} />
-
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-[20px] leading-none">{s.icon}</span>
-                {s.label === "Days Left" && (
-                  <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full"
-                    style={{ background: s.bg, color: s.color }}>
-                    {balancePct}%
-                  </span>
-                )}
-              </div>
-              <p className="font-black leading-none mb-1.5"
-                style={{ color: s.color, fontSize: "clamp(22px,2.5vw,28px)", fontFamily: "var(--font-jakarta)" }}>
-                {s.val}
+          {/* Top bar */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <div>
+              <p style={{ fontSize: 13, color: "#9CA3AF", fontWeight: 600, marginBottom: 6 }}>Hello, {userName}! 👋</p>
+              <h1 style={{ fontSize: "clamp(28px,3.5vw,42px)", fontWeight: 900, letterSpacing: "-0.025em", lineHeight: 1.05, fontFamily: "var(--font-jakarta)", margin: 0 }}>
+                <span style={{ color: "#0A0A0B" }}>Leave </span>
+                <span style={{ color: "#DE1A1A" }}>Requests</span>
+              </h1>
+              <p style={{ fontSize: 13, color: "#6B7280", marginTop: 10, lineHeight: 1.6, maxWidth: 320 }}>
+                Apply for leave and track your requests<br />in one beautiful place.
               </p>
-              <p className="text-[10px] font-semibold" style={{ color: "#9CA3AF" }}>{s.label}</p>
+              <div style={{ width: 36, height: 3, background: "linear-gradient(90deg,#DE1A1A,#F59E0B)", borderRadius: 99, marginTop: 14 }} />
+            </div>
 
-              {s.label === "Days Left" && (
-                <div className="mt-2.5 h-[3px] rounded-full overflow-hidden" style={{ background: "#EEF0F5" }}>
-                  <div className="h-full rounded-full" style={{ width: `${balancePct}%`, background: "#0EA5E9", transition: "width 0.6s ease" }} />
+            {/* Illustration + actions */}
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 28 }}>
+              <div className="hidden sm:block" style={{ width: "clamp(220px,28vw,360px)", flexShrink: 0 }}>
+                <Image src="/brand/leave-hero.png" alt="Leave illustration" width={360} height={240}
+                  style={{ objectFit: "contain", objectPosition: "bottom center", display: "block" }} priority />
+              </div>
+
+              {/* Actions column */}
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 18, paddingBottom: 20, flexShrink: 0 }}>
+                {/* Notification + avatar */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{ position: "relative" }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, background: "#F5F6FA", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Bell size={18} style={{ color: "#6B7280" }} />
+                    </div>
+                    <span style={{ position: "absolute", top: -4, right: -4, width: 18, height: 18, background: "#DE1A1A", borderRadius: "50%", fontSize: 9, fontWeight: 800, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>3</span>
+                  </div>
+                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,#6366F1,#8B5CF6)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, border: "2.5px solid #10B981" }}>
+                    {userName.slice(0, 2).toUpperCase()}
+                  </div>
                 </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* ── Leave Timeline ──────────────────────────────────────────────── */}
-        <div style={{ ...CARD, padding: "24px" }}>
-
-          {/* Header row */}
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-            <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center rounded-2xl"
-                style={{ width: 36, height: 36, background: "rgba(222,26,26,0.08)" }}>
-                <CalendarDays size={16} style={{ color: "#DE1A1A" }} />
-              </div>
-              <div>
-                <h2 className="text-[15px] font-black" style={{ color: "#0A0A0B" }}>Your Leave Timeline</h2>
-                <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{filteredLeaves.length} request{filteredLeaves.length !== 1 ? "s" : ""}</p>
-              </div>
-            </div>
-
-            {/* Filter pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5" style={{ scrollbarWidth: "none" }}>
-              {["all", "pending", "approved", "rejected"].map(s => (
-                <button key={s} onClick={() => setFilter(s)}
-                  className="flex-shrink-0 capitalize font-semibold transition-all"
-                  style={{
-                    padding: "6px 14px", borderRadius: "20px", fontSize: "11px",
-                    ...(filterStatus === s
-                      ? { background: "#DE1A1A", color: "#FFF", boxShadow: "0 2px 8px rgba(222,26,26,0.3)" }
-                      : { background: "#F0F1F5", color: "#6B7280" }
-                    ),
-                  }}>
-                  {s === "all" ? "All Status" : s}
+                {/* CTA */}
+                <button onClick={() => setShowForm(true)}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 28px", borderRadius: "14px", background: "#DE1A1A", color: "#fff", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", boxShadow: "0 6px 20px rgba(222,26,26,0.4), 0 2px 6px rgba(222,26,26,0.2)", whiteSpace: "nowrap" }}>
+                  <Plus size={16} strokeWidth={2.5} /> Apply Leave
                 </button>
-              ))}
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Empty state */}
-          {filteredLeaves.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 rounded-2xl"
-              style={{ background: "#FAFBFC", border: "2px dashed #E8EAED" }}>
-              <span className="text-[48px] mb-4">🏖️</span>
-              <p className="text-[15px] font-black mb-1" style={{ color: "#374151" }}>No leave requests</p>
-              <p className="text-[12px]" style={{ color: "#9CA3AF" }}>Apply for leave using the button above.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {visibleLeaves.map((leave) => {
-                const sc    = STATUS_CFG[leave.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.pending
-                const type  = leave.leave_type ?? "full_day"
-                const isPerm  = type === "permission"
-                const isHalf  = type === "half_day"
-                const days    = (!isPerm && !isHalf) ? daysBetween(leave.from_date, leave.to_date) : null
-                const dateObj = new Date(leave.from_date)
-                const StatusIcon = sc.icon
+        <div style={{ padding: "24px 32px 32px" }}>
 
-                return (
-                  <div key={leave.id} className="flex items-stretch gap-3 group">
+          {/* ── Stats Cards ──────────────────────────────────────────────── */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 14, marginBottom: 24 }}>
+            {[
+              { label: "Total Leaves\nThis Year",       val: leaves.length,   color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: "up"   as const, sub: "↑ 10% from last year",   subColor: "#10B981" },
+              { label: "Pending\nRequests",             val: pendingL.length, color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "⏳", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
+              { label: "Approved\nLeaves",              val: approved.length, color: "#10B981", bg: "rgba(16,185,129,0.1)",  icon: "✅", trend: "up"   as const, sub: "↑ 22% from last week",   subColor: "#10B981" },
+              { label: "Rejected\nRequests",            val: rejected.length, color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "❌", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
+              { label: "Days Left\nVacation Balance",   val: balance,         color: "#0EA5E9", bg: "rgba(14,165,233,0.1)",  icon: "🏖️", trend: null,            sub: null,                        subColor: "" },
+              { label: "Upcoming\nHolidays",            val: HOLIDAYS.filter(h => h.date >= today).length, color: "#EC4899", bg: "rgba(236,72,153,0.1)", icon: "🎁", trend: null, sub: null, subColor: "" },
+            ].map((s, i) => (
+              <div key={i} style={{ background: "#fff", borderRadius: 18, padding: "18px 16px 14px", border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", gap: 0, position: "relative", overflow: "hidden" }}>
+                {/* Icon badge */}
+                <div style={{ width: 38, height: 38, borderRadius: 11, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, marginBottom: 12 }}>
+                  {s.icon}
+                </div>
+                {/* Number */}
+                <p style={{ fontSize: "clamp(22px,2vw,30px)", fontWeight: 900, color: s.color, lineHeight: 1, marginBottom: 4, fontFamily: "var(--font-jakarta)" }}>{s.val}</p>
+                {/* Label */}
+                <p style={{ fontSize: 10, fontWeight: 600, color: "#9CA3AF", lineHeight: 1.4, whiteSpace: "pre-line", marginBottom: 10 }}>{s.label}</p>
 
-                    {/* Date badge */}
-                    <div className="hidden md:flex flex-col items-center justify-center rounded-2xl flex-shrink-0"
-                      style={{
-                        width: 54, minHeight: 62,
-                        background: `${sc.color}10`,
-                        border: `1px solid ${sc.color}20`,
-                      }}>
-                      <span className="text-[8px] font-black tracking-widest uppercase" style={{ color: sc.color }}>
-                        {dateObj.toLocaleDateString("en-US", { month: "short" })}
-                      </span>
-                      <span className="text-[22px] font-black leading-none" style={{ color: sc.color }}>
-                        {dateObj.getDate()}
-                      </span>
-                      <span className="text-[8px] font-semibold" style={{ color: "#9CA3AF" }}>
-                        {dateObj.toLocaleDateString("en-US", { weekday: "short" })}
-                      </span>
+                {/* Bottom: sparkline or progress */}
+                {s.trend ? (
+                  <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginTop: "auto" }}>
+                    <p style={{ fontSize: 9, color: s.subColor, fontWeight: 600 }}>{s.sub}</p>
+                    <Sparkline color={s.color} trend={s.trend} />
+                  </div>
+                ) : s.label.includes("Days Left") ? (
+                  <div>
+                    <div style={{ height: 4, borderRadius: 99, background: "#EEF0F5", marginBottom: 8, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${balancePct}%`, background: "#0EA5E9", borderRadius: 99 }} />
                     </div>
+                    <p style={{ fontSize: 10, color: "#0EA5E9", fontWeight: 700, cursor: "pointer" }}>View Calendar →</p>
+                  </div>
+                ) : null}
+              </div>
+            ))}
+          </div>
 
-                    {/* Card */}
-                    <div className="flex-1 rounded-2xl p-4 transition-all duration-200 group-hover:shadow-md"
-                      style={{
-                        background: "#FAFBFC",
-                        border: "1px solid #EBEDF2",
-                        transform: "translateY(0)",
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-1px)")}
-                      onMouseLeave={e => (e.currentTarget.style.transform = "translateY(0)")}>
+          {/* ── Leave Timeline ───────────────────────────────────────────── */}
+          <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.04)", padding: "24px", marginBottom: 20 }}>
 
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          {/* Type row */}
-                          <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                            <span className="text-[16px] leading-none">{LEAVE_EMOJI[type] ?? "📅"}</span>
-                            <span className="text-[13px] font-black" style={{ color: "#0A0A0B" }}>
-                              {type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : "Permission"}
-                            </span>
-                            {(type === "full_day" && days) && (
-                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
-                                style={{ background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
-                                {days} Day{days > 1 ? "s" : ""}
-                              </span>
-                            )}
-                            {type === "half_day" && leave.half_day_period && (
-                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full capitalize"
-                                style={{ background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
-                                {leave.half_day_period}
-                              </span>
-                            )}
-                            {type === "permission" && leave.permission_hours && (
-                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full"
-                                style={{ background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
-                                {leave.permission_hours}h
-                              </span>
-                            )}
-                          </div>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(222,26,26,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <CalendarDays size={16} style={{ color: "#DE1A1A" }} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: 15, fontWeight: 900, color: "#0A0A0B", margin: 0 }}>Your Leave Timeline</h2>
+                  <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>{filteredLeaves.length} request{filteredLeaves.length !== 1 ? "s" : ""}</p>
+                </div>
+              </div>
 
-                          {/* Reason */}
-                          <p className="text-[12px] font-medium truncate mb-2" style={{ color: "#6B7280", maxWidth: 380 }}>
-                            {leave.reason}
-                          </p>
+              {/* Filters */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {/* Dropdown */}
+                <div style={{ position: "relative" }}>
+                  <button onClick={() => setFilterOpen(o => !o)}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#374151", cursor: "pointer" }}>
+                    {filterStatus === "all" ? "All Status" : filterStatus}
+                    <ChevronDown size={13} style={{ transform: filterOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+                  </button>
+                  {filterOpen && (
+                    <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", borderRadius: 12, border: "1px solid #EBEDF2", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 20, minWidth: 140, overflow: "hidden" }}>
+                      {["all", "pending", "approved", "rejected"].map(s => (
+                        <button key={s} onClick={() => { setFilter(s); setFilterOpen(false) }}
+                          style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 12, fontWeight: 600, color: filterStatus === s ? "#DE1A1A" : "#374151", background: filterStatus === s ? "rgba(222,26,26,0.05)" : "none", border: "none", cursor: "pointer", textTransform: "capitalize" }}>
+                          {s === "all" ? "All Status" : s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button style={{ width: 36, height: 36, borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                  <SlidersHorizontal size={14} style={{ color: "#6B7280" }} />
+                </button>
+                <button style={{ width: 36, height: 36, borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                  <Calendar size={14} style={{ color: "#6B7280" }} />
+                </button>
+              </div>
+            </div>
 
-                          {/* Meta */}
-                          <div className="flex flex-wrap items-center gap-2 text-[10px]" style={{ color: "#9CA3AF" }}>
-                            <span className="flex items-center gap-1">
-                              <Calendar size={9} />
-                              {isHalf || isPerm
-                                ? fmt(leave.from_date)
-                                : `${fmtShort(leave.from_date)} — ${fmtShort(leave.to_date)}`
-                              }
-                            </span>
-                            <span style={{ color: "#D1D5DB" }}>·</span>
-                            <span>Requested {fmtShort(leave.created_at)}</span>
-                          </div>
+            {/* Timeline entries */}
+            {filteredLeaves.length === 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "64px 0", background: "#FAFBFC", borderRadius: 16, border: "2px dashed #E8EAED" }}>
+                <span style={{ fontSize: 48, marginBottom: 12 }}>🏖️</span>
+                <p style={{ fontSize: 15, fontWeight: 800, color: "#374151", margin: "0 0 4px" }}>No leave requests</p>
+                <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>Apply for leave using the button above.</p>
+              </div>
+            ) : (
+              <div style={{ position: "relative" }}>
+                {/* Vertical timeline line */}
+                <div style={{ position: "absolute", left: 55, top: 16, bottom: 16, width: 2, background: "linear-gradient(to bottom, #DE1A1A30, #10B98130, #EF444430)", borderRadius: 99, zIndex: 0 }} />
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  {visibleLeaves.map((leave, idx) => {
+                    const sc    = STATUS_CFG[leave.status as keyof typeof STATUS_CFG] ?? STATUS_CFG.pending
+                    const type  = leave.leave_type ?? "full_day"
+                    const illus = TYPE_ILLUSTRATION[type] ?? TYPE_ILLUSTRATION.full_day
+                    const isPerm  = type === "permission"
+                    const isHalf  = type === "half_day"
+                    const days    = (!isPerm && !isHalf) ? daysBetween(leave.from_date, leave.to_date) : null
+                    const dateObj = new Date(leave.from_date)
+                    const mon     = dateObj.toLocaleDateString("en-US", { month: "short" }).toUpperCase()
+                    const day     = dateObj.getDate()
+                    const yr      = dateObj.getFullYear()
+                    const wd      = dateObj.toLocaleDateString("en-US", { weekday: "short" })
+                    const StatusIcon = sc.icon
+                    const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : "Permission"
+                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}` : `${leave.permission_hours ?? 1}h`
+                    const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : "rgba(245,158,11,0.12)"
+                    const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : "#F59E0B"
+                    const duration  = isPerm ? `${leave.permission_hours}h session` : isHalf ? "1 Session" : `${days} Day${days && days > 1 ? "s" : ""}`
+
+                    return (
+                      <div key={leave.id} style={{ display: "flex", alignItems: "stretch", gap: 12, position: "relative", zIndex: 1 }}>
+                        {/* Timeline dot */}
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0, paddingTop: 14, width: 20 }}>
+                          <div style={{ width: 14, height: 14, borderRadius: "50%", background: sc.color, border: "3px solid #fff", boxShadow: `0 0 0 3px ${sc.color}30`, flexShrink: 0 }} />
                         </div>
 
-                        {/* Status + menu */}
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1.5 rounded-xl"
-                            style={{ background: sc.bg, color: sc.color }}>
-                            <StatusIcon size={11} />
-                            {sc.label}
-                          </span>
-                          <button className="opacity-0 group-hover:opacity-50 transition-opacity rounded-lg p-1 hover:bg-gray-100">
-                            <MoreVertical size={14} style={{ color: "#9CA3AF" }} />
-                          </button>
+                        {/* Date badge */}
+                        <div style={{ width: 72, flexShrink: 0, borderRadius: 14, border: `1.5px solid ${sc.color}25`, background: `${sc.color}08`, padding: "10px 0", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1 }}>
+                          <span style={{ fontSize: 8, fontWeight: 900, color: sc.color, letterSpacing: "0.1em" }}>{mon}</span>
+                          <span style={{ fontSize: 26, fontWeight: 900, color: sc.color, lineHeight: 1 }}>{day}</span>
+                          <span style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600 }}>{yr}</span>
+                          <span style={{ fontSize: 8, color: "#9CA3AF" }}>{wd} · {isHalf ? (leave.half_day_period ?? "Morning") : isPerm ? "Session" : "Full Day"}</span>
+                        </div>
+
+                        {/* Card */}
+                        <div style={{ flex: 1, background: "#FAFBFC", borderRadius: 16, border: "1px solid #EBEDF2", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                          {/* Left info */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 6 }}>
+                              <span style={{ fontSize: 14, fontWeight: 900, color: "#0A0A0B" }}>{typeName}</span>
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 99, background: badgeBg, color: badgeCol }}>{badgeText}</span>
+                            </div>
+                            <p style={{ fontSize: 12, color: "#6B7280", margin: "0 0 5px", display: "flex", alignItems: "center", gap: 5 }}>
+                              <span style={{ fontSize: 13 }}>⭐</span> {leave.reason}
+                            </p>
+                            <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: sc.color, display: "inline-block", flexShrink: 0 }} />
+                              {isHalf || isPerm ? fmtFull(leave.from_date) : `${fmtShort(leave.from_date)} — ${fmtShort(leave.to_date)}`} · {duration}
+                            </p>
+                            {leave.status === "rejected" && (
+                              <p style={{ fontSize: 10, color: "#9CA3AF", margin: "4px 0 0", fontStyle: "italic" }}>Reviewed by HR Team</p>
+                            )}
+                          </div>
+
+                          {/* 3D illustration */}
+                          <div style={{ width: 68, height: 68, borderRadius: 18, background: illus.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 34, flexShrink: 0 }}>
+                            {illus.emoji}
+                          </div>
+
+                          {/* Status + menu */}
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+                            <span style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 20, background: sc.bg, color: sc.color, fontSize: 11, fontWeight: 700 }}>
+                              <StatusIcon size={11} /> {sc.label}
+                            </span>
+                            {leave.status === "approved" && (
+                              <div style={{ display: "flex" }}>
+                                {["#6366F1", "#10B981", "#F59E0B"].map((c, i) => (
+                                  <div key={i} style={{ width: 22, height: 22, borderRadius: "50%", background: c, border: "2px solid #fff", marginLeft: i > 0 ? -6 : 0, fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800 }}>
+                                    {["A", "B", "C"][i]}
+                                  </div>
+                                ))}
+                                <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#F3F4F6", border: "2px solid #fff", marginLeft: -6, fontSize: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", fontWeight: 700 }}>+2</div>
+                              </div>
+                            )}
+                            {leave.status === "approved" && (
+                              <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0 }}>Requested on {fmtShort(leave.created_at)}</p>
+                            )}
+                            <button style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}>
+                              <MoreVertical size={14} style={{ color: "#9CA3AF" }} />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )
+                  })}
+                </div>
+
+                {filteredLeaves.length > 5 && (
+                  <div style={{ display: "flex", justifyContent: "center", marginTop: 20 }}>
+                    <button onClick={() => setShowMore(s => !s)}
+                      style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 24px", borderRadius: 20, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#6B7280", cursor: "pointer" }}>
+                      {showMore ? "Show Less" : `Load More`}
+                      <ChevronDown size={12} style={{ transform: showMore ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+                    </button>
                   </div>
-                )
-              })}
-
-              {filteredLeaves.length > 5 && (
-                <button onClick={() => setShowMore(s => !s)}
-                  className="w-full flex items-center justify-center gap-2 font-semibold transition-all hover:bg-gray-50"
-                  style={{
-                    padding: "12px 0", borderRadius: "14px", fontSize: "12px",
-                    background: "#F9FAFB", border: "1px solid #E8EAED", color: "#6B7280",
-                  }}>
-                  {showMore ? "Show Less" : `Show ${filteredLeaves.length - 5} More`}
-                  <ChevronDown size={13} style={{ transform: showMore ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ── Bottom Row ──────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-
-          {/* Promo card — vacation boy */}
-          <div className="relative overflow-hidden"
-            style={{
-              borderRadius: "20px",
-              background: "linear-gradient(135deg, #FFF8EE 0%, #FFF4E0 100%)",
-              border: "1px solid #F0E4C8",
-              minHeight: 160,
-            }}>
-            {/* Vacation boy — CSS bg, always contained */}
-            <div className="absolute inset-0" style={{
-              backgroundImage: "url('/brand/vacation-boy.png')",
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "right bottom",
-              backgroundSize: "155px auto",
-            }} />
-            <div className="relative z-10" style={{ padding: "28px 28px", maxWidth: "calc(100% - 140px)" }}>
-              <div className="flex items-center gap-1.5 mb-2">
-                <Palmtree size={13} style={{ color: "#F59E0B" }} />
-                <span className="text-[10px] font-bold" style={{ color: "#F59E0B", letterSpacing: "0.06em" }}>VACATION MODE</span>
+                )}
               </div>
-              <p className="font-black leading-snug mb-1.5"
-                style={{ fontSize: "17px", color: "#0A0A0B", fontFamily: "var(--font-jakarta)" }}>
-                Work hard,<br />travel harder! ✈️
-              </p>
-              <p className="text-[11px] mb-4" style={{ color: "#78716C", lineHeight: 1.5 }}>
-                You&apos;ve earned your break. Take time off and recharge!
-              </p>
-              <button onClick={() => setShowForm(true)}
-                className="flex items-center gap-1.5 font-bold text-white transition-all hover:opacity-90 active:scale-95"
-                style={{
-                  background: "#DE1A1A",
-                  boxShadow: "0 4px 12px rgba(222,26,26,0.3)",
-                  borderRadius: "12px",
-                  padding: "9px 18px",
-                  fontSize: "11px",
-                }}>
-                <Palmtree size={11} /> Plan My Vacation
-              </button>
-            </div>
+            )}
           </div>
 
-          {/* Smart Leave Suggestions */}
-          <div style={{ ...CARD, padding: "24px" }}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Sparkles size={14} style={{ color: "#F59E0B" }} />
-                <h3 className="text-[14px] font-black" style={{ color: "#0A0A0B" }}>Smart Suggestions</h3>
-              </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(245,158,11,0.1)", color: "#F59E0B" }}>✨ AI</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2.5">
-              {[
-                { icon: "📅", title: "Long Weekend", sub: "May 15–17 · 3-day break" },
-                { icon: "⏰", title: "Plan Ahead",   sub: "Apply early for better planning" },
-                { icon: "🤖", title: "AI Planner",   sub: "Let AI plan your perfect vacation" },
-              ].map(s => (
-                <div key={s.title}
-                  className="rounded-2xl p-3 text-center cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5"
-                  style={{ background: "#F8F9FC", border: "1px solid #EBEDF2" }}>
-                  <span className="text-[22px] leading-none block mb-2">{s.icon}</span>
-                  <p className="text-[10px] font-black leading-tight mb-1" style={{ color: "#0A0A0B" }}>{s.title}</p>
-                  <p className="text-[9px] leading-snug" style={{ color: "#9CA3AF" }}>{s.sub}</p>
+          {/* ── Bottom Row ───────────────────────────────────────────────── */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+
+            {/* Promo card */}
+            <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", background: "linear-gradient(135deg,#FFF8EE,#FFF4E0)", border: "1px solid #F0E4C8", minHeight: 160 }}>
+              <div style={{ position: "absolute", inset: 0, backgroundImage: "url('/brand/vacation-boy.png')", backgroundRepeat: "no-repeat", backgroundPosition: "right bottom", backgroundSize: "160px auto" }} />
+              <div style={{ position: "relative", zIndex: 1, padding: "28px 28px", maxWidth: "calc(100% - 145px)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>
+                  <Palmtree size={12} style={{ color: "#F59E0B" }} />
+                  <span style={{ fontSize: 9, fontWeight: 800, color: "#F59E0B", letterSpacing: "0.08em" }}>VACATION MODE</span>
                 </div>
-              ))}
+                <p style={{ fontSize: 17, fontWeight: 900, color: "#0A0A0B", lineHeight: 1.3, margin: "0 0 8px", fontFamily: "var(--font-jakarta)" }}>Work hard,<br />travel harder! ✈️</p>
+                <p style={{ fontSize: 11, color: "#78716C", margin: "0 0 16px", lineHeight: 1.5 }}>You&apos;ve earned your break. Take time off and recharge!</p>
+                <button onClick={() => setShowForm(true)}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 12, background: "#DE1A1A", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", boxShadow: "0 4px 12px rgba(222,26,26,0.35)" }}>
+                  <Palmtree size={12} /> Plan My Vacation
+                </button>
+              </div>
+            </div>
+
+            {/* Smart suggestions */}
+            <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.04)", padding: "22px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <Sparkles size={14} style={{ color: "#F59E0B" }} />
+                  <span style={{ fontSize: 14, fontWeight: 900, color: "#0A0A0B" }}>Smart Leave Suggestions</span>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 99, background: "rgba(245,158,11,0.1)", color: "#F59E0B" }}>✨ AI</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                {[
+                  { icon: "📅", title: "Long Weekend!", sub: "May 15–17\n3 Days break" },
+                  { icon: "⏰", title: "Plan Ahead",    sub: "Apply leaves early\nfor better planning" },
+                  { icon: "🤖", title: "Need Help?",    sub: "Let AI plan your\nperfect vacation" },
+                ].map(s => (
+                  <div key={s.title} style={{ background: "#F8F9FC", borderRadius: 14, padding: "14px 10px", textAlign: "center", border: "1px solid #EBEDF2", cursor: "pointer", transition: "all 0.2s" }}>
+                    <span style={{ fontSize: 24, display: "block", marginBottom: 8 }}>{s.icon}</span>
+                    <p style={{ fontSize: 11, fontWeight: 800, color: "#0A0A0B", margin: "0 0 4px", lineHeight: 1.3 }}>{s.title}</p>
+                    <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0, lineHeight: 1.4, whiteSpace: "pre-line" }}>{s.sub}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ════ RIGHT SIDEBAR ═══════════════════════════════════════════════════ */}
-      <div className="hidden xl:flex flex-col flex-shrink-0 gap-4 overflow-y-auto"
-        style={{
-          width: 300,
-          padding: "24px 20px 32px",
-          borderLeft: "1px solid #EBEDF2",
-          background: "#F8F9FC",
-          position: "sticky",
-          top: 0,
-          maxHeight: "100vh",
-          scrollbarWidth: "none",
-        }}>
+      {/* ════ RIGHT SIDEBAR ══════════════════════════════════════════════════ */}
+      <div className="hidden xl:flex" style={{ width: 300, flexDirection: "column", gap: 16, padding: "24px 20px 32px", borderLeft: "1px solid #EBEDF2", background: "#FAFBFD", position: "sticky", top: 0, maxHeight: "100vh", overflowY: "auto", scrollbarWidth: "none", flexShrink: 0 }}>
 
-        {/* ── Next Vacation Awaits ───────────────────────────────────────── */}
-        <div className="overflow-hidden" style={{ ...CARD, borderRadius: "20px" }}>
-          {/* Beach scene — CSS background, fully contained */}
-          <div style={{
-            height: 130,
-            backgroundImage: "url('/brand/vacation-beach.png')",
-            backgroundSize: "cover",
-            backgroundPosition: "center center",
-            position: "relative",
-          }}>
-            {/* Gradient fade to white at bottom */}
-            <div style={{
-              position: "absolute", inset: 0,
-              background: "linear-gradient(to top, #FFFFFF 0%, rgba(255,255,255,0.5) 50%, transparent 100%)",
-            }} />
-            {/* Badge overlay */}
-            <div style={{ position: "absolute", top: 12, left: 12 }}>
-              <span className="text-[9px] font-black px-2 py-1 rounded-full"
-                style={{ background: "rgba(255,255,255,0.9)", color: "#DE1A1A", backdropFilter: "blur(4px)" }}>
-                🌴 NEXT BREAK
-              </span>
+        {/* Countdown card */}
+        <div style={{ borderRadius: 20, overflow: "hidden", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.04)", border: "1px solid #EBEDF2" }}>
+          {/* Beach image */}
+          <div style={{ height: 130, backgroundImage: "url('/brand/vacation-beach.png')", backgroundSize: "cover", backgroundPosition: "center center", position: "relative" }}>
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,#fff 0%,rgba(255,255,255,0.3) 55%,transparent 100%)" }} />
+            <div style={{ position: "absolute", top: 10, left: 12 }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: "#DE1A1A", background: "rgba(255,255,255,0.92)", padding: "4px 10px", borderRadius: 99, backdropFilter: "blur(4px)" }}>🌴 NEXT BREAK</span>
             </div>
           </div>
-          <div style={{ padding: "4px 16px 20px" }}>
-            <p className="text-[14px] font-black mb-0.5" style={{ color: "#0A0A0B" }}>
-              Next Vacation Awaits!
-            </p>
-            {nextHoliday && (
-              <p className="text-[11px] mb-1" style={{ color: "#9CA3AF" }}>
-                {nextHoliday.emoji} {nextHoliday.name} · {nextHoliday.day}
-              </p>
-            )}
+          <div style={{ padding: "8px 16px 18px" }}>
+            <p style={{ fontSize: 14, fontWeight: 900, color: "#0A0A0B", margin: "0 0 2px" }}>Next Vacation Awaits! 🌴</p>
+            {nextHoliday && <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>{nextHoliday.emoji} {nextHoliday.name}</p>}
             {nextHoliday && <Countdown targetDate={nextHoliday.date} />}
-            <p className="text-[10px] text-center font-medium" style={{ color: "#C4C9D4" }}>
-              Your next break is closer than you think!
-            </p>
+            <p style={{ fontSize: 10, color: "#C4C9D4", textAlign: "center", margin: 0 }}>Your next break is closer than you think!</p>
           </div>
         </div>
 
-        {/* ── Upcoming Holidays ─────────────────────────────────────────── */}
-        <div style={{ ...CARD, padding: "20px" }}>
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-[14px] font-black" style={{ color: "#0A0A0B" }}>Upcoming Holidays</p>
-            <button className="flex items-center gap-0.5 text-[10px] font-bold transition-opacity hover:opacity-70"
-              style={{ color: "#DE1A1A" }}>
-              View All <ArrowUpRight size={10} />
+        {/* Upcoming Holidays */}
+        <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.04)", padding: "18px 16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <p style={{ fontSize: 14, fontWeight: 900, color: "#0A0A0B", margin: 0 }}>Upcoming Holidays</p>
+            <button style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>
+              View All <ArrowUpRight size={11} />
             </button>
           </div>
-          <div className="space-y-3">
-            {HOLIDAYS.filter(h => h.date >= today).slice(0, 4).map(h => {
-              const d   = new Date(h.date)
-              const mon = d.toLocaleDateString("en-US", { month: "short" }).toUpperCase()
-              const day = d.getDate()
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {HOLIDAYS.filter(h => h.date >= today).slice(0, 3).map(h => {
+              const d = new Date(h.date)
               return (
-                <div key={h.date} className="flex items-center gap-3">
-                  <div className="flex flex-col items-center justify-center rounded-2xl flex-shrink-0"
-                    style={{ width: 42, height: 42, background: "rgba(222,26,26,0.07)", border: "1px solid rgba(222,26,26,0.1)" }}>
-                    <span className="text-[7px] font-black tracking-widest" style={{ color: "#DE1A1A" }}>{mon}</span>
-                    <span className="text-[16px] font-black leading-none" style={{ color: "#DE1A1A" }}>{day}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[12px] font-bold truncate" style={{ color: "#0A0A0B" }}>
-                      {h.emoji} {h.name}
+                <div key={h.date} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  {/* Date pill */}
+                  <div style={{ flexShrink: 0, width: 44, textAlign: "center", background: "rgba(222,26,26,0.07)", borderRadius: 12, padding: "6px 0", border: "1px solid rgba(222,26,26,0.1)" }}>
+                    <p style={{ fontSize: 7, fontWeight: 900, color: "#DE1A1A", letterSpacing: "0.1em", margin: 0 }}>
+                      {d.toLocaleDateString("en-US", { month: "short" }).toUpperCase()}
                     </p>
-                    <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{h.day}</p>
+                    <p style={{ fontSize: 17, fontWeight: 900, color: "#DE1A1A", lineHeight: 1, margin: "1px 0" }}>{d.getDate()}</p>
                   </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#0A0A0B", margin: "0 0 2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</p>
+                    <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>{h.day}</p>
+                  </div>
+                  <span style={{ fontSize: 20, flexShrink: 0 }}>{h.img}</span>
                 </div>
               )
             })}
           </div>
         </div>
 
-        {/* ── Mood Tracker ──────────────────────────────────────────────── */}
-        <div style={{ ...CARD, padding: "20px" }}>
-          <p className="text-[14px] font-black mb-4" style={{ color: "#0A0A0B" }}>Mood Tracker</p>
-          <MoodTracker />
-        </div>
-
-        {/* ── Work-Life Balance ─────────────────────────────────────────── */}
-        <div style={{ ...CARD, padding: "20px" }}>
-          <p className="text-[14px] font-black mb-0.5" style={{ color: "#0A0A0B" }}>Work-Life Balance</p>
-          <p className="text-[11px] mb-4" style={{ color: "#9CA3AF" }}>This Month</p>
-          <div className="flex items-center gap-4">
+        {/* Mood + Balance side by side */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04)", padding: "16px 14px" }}>
+            <p style={{ fontSize: 13, fontWeight: 900, color: "#0A0A0B", margin: "0 0 12px" }}>Mood Tracker</p>
+            <MoodTracker />
+          </div>
+          <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04)", padding: "16px 14px", display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <p style={{ fontSize: 13, fontWeight: 900, color: "#0A0A0B", margin: "0 0 2px", alignSelf: "flex-start" }}>Work-Life Balance</p>
+            <p style={{ fontSize: 10, color: "#9CA3AF", margin: "0 0 12px", alignSelf: "flex-start" }}>This Month</p>
             <BalanceRing pct={wlbScore} />
-            <div className="flex-1 space-y-2.5">
-              {[
-                { label: "Work time",  pct: Math.min(90, 100 - wlbScore + 30), color: "#DE1A1A" },
-                { label: "Leave days", pct: Math.min(100, balancePct),          color: "#10B981" },
-                { label: "Focus",      pct: wlbScore,                           color: "#6366F1" },
-              ].map(r => (
-                <div key={r.label}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[10px] font-semibold" style={{ color: "#6B7280" }}>{r.label}</span>
-                    <span className="text-[10px] font-bold" style={{ color: r.color }}>{r.pct}%</span>
-                  </div>
-                  <div className="h-[3px] rounded-full overflow-hidden" style={{ background: "#EEF0F5" }}>
-                    <div className="h-full rounded-full transition-all duration-700"
-                      style={{ width: `${r.pct}%`, background: r.color }} />
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
-
       </div>
 
-      {/* ── Apply Leave Modal ─────────────────────────────────────────────────── */}
+      {/* ── Modal ────────────────────────────────────────────────────────────── */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(10,10,11,0.65)", backdropFilter: "blur(8px)" }}>
-          <div className="w-full max-w-[420px] overflow-hidden"
-            style={{
-              background: "#FFFFFF",
-              borderRadius: "24px",
-              boxShadow: "0 24px 80px rgba(0,0,0,0.25), 0 8px 24px rgba(0,0,0,0.1)",
-            }}>
-
-            {/* Modal header */}
-            <div className="flex items-center justify-between"
-              style={{
-                padding: "20px 24px",
-                background: "linear-gradient(135deg, #DE1A1A 0%, #991B1B 100%)",
-                borderBottom: "1px solid rgba(255,255,255,0.08)",
-              }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(10,10,11,0.65)", backdropFilter: "blur(8px)" }}>
+          <div style={{ width: "100%", maxWidth: 420, background: "#fff", borderRadius: 24, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.25)" }}>
+            {/* Header */}
+            <div style={{ padding: "20px 24px", background: "linear-gradient(135deg,#DE1A1A,#991B1B)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <p className="text-[16px] font-black text-white">Apply for Leave</p>
-                <p className="text-[11px]" style={{ color: "rgba(255,255,255,0.6)" }}>Fill in the details below</p>
+                <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: "0 0 2px" }}>Apply for Leave</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Fill in the details below</p>
               </div>
               <button onClick={() => { setShowForm(false); setLeaveType("full_day"); setHalfPeriod("morning") }}
-                className="flex items-center justify-center rounded-full transition-colors hover:bg-white/20"
-                style={{ width: 32, height: 32 }}>
-                <X size={16} className="text-white" />
+                style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <X size={16} color="#fff" />
               </button>
             </div>
 
-            <div style={{ padding: "24px" }}>
-              <form action={action} className="space-y-4">
+            <div style={{ padding: 24 }}>
+              <form action={action} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <input type="hidden" name="leave_type" value={leaveType} />
                 {leaveType === "half_day" && <input type="hidden" name="half_day_period" value={halfPeriod} />}
 
-                {/* Leave type */}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.14em] mb-2"
-                    style={{ color: "#374151" }}>Leave Type *</label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Leave Type *</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                     {([
-                      { key: "full_day",   label: "Full Day",   emoji: "☀️" },
-                      { key: "half_day",   label: "Half Day",   emoji: "🌤️" },
+                      { key: "full_day", label: "Full Day", emoji: "☀️" },
+                      { key: "half_day", label: "Half Day", emoji: "🌤️" },
                       { key: "permission", label: "Permission", emoji: "⏰" },
                     ] as { key: LeaveType; label: string; emoji: string }[]).map(({ key, label, emoji }) => (
                       <button key={key} type="button" onClick={() => setLeaveType(key)}
-                        className="flex flex-col items-center gap-1.5 py-3 text-[12px] font-bold transition-all"
-                        style={{
-                          borderRadius: "14px",
-                          ...(leaveType === key
-                            ? { background: "#DE1A1A", color: "#FFFFFF", boxShadow: "0 4px 12px rgba(222,26,26,0.35)" }
-                            : { background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2" }
-                          ),
-                        }}>
-                        <span className="text-[20px]">{emoji}</span>
-                        {label}
+                        style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 0", borderRadius: 14, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", ...(leaveType === key ? { background: "#DE1A1A", color: "#fff", boxShadow: "0 4px 12px rgba(222,26,26,0.35)" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
+                        <span style={{ fontSize: 20 }}>{emoji}</span>{label}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Date fields */}
                 {leaveType === "full_day" && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.14em] mb-1.5" style={{ color: "#374151" }}>From *</label>
-                      <input name="from_date" type="date" required style={FIELD} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.14em] mb-1.5" style={{ color: "#374151" }}>To *</label>
-                      <input name="to_date" type="date" required style={FIELD} />
-                    </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>From *</label><input name="from_date" type="date" required style={FIELD} /></div>
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>To *</label><input name="to_date" type="date" required style={FIELD} /></div>
                   </div>
                 )}
                 {leaveType === "half_day" && (
                   <>
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} /></div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.14em] mb-1.5" style={{ color: "#374151" }}>Date *</label>
-                      <input name="from_date" type="date" required style={FIELD} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.14em] mb-2" style={{ color: "#374151" }}>Which Half? *</label>
-                      <div className="grid grid-cols-2 gap-2">
+                      <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Which Half? *</label>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                         {(["morning", "afternoon"] as const).map(p => (
                           <button key={p} type="button" onClick={() => setHalfPeriod(p)}
-                            className="py-2.5 font-bold capitalize transition-all"
-                            style={{
-                              borderRadius: "12px", fontSize: "12px",
-                              ...(halfPeriod === p
-                                ? { background: "#DE1A1A", color: "#FFF" }
-                                : { background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2" }
-                              ),
-                            }}>{p}</button>
+                            style={{ padding: "10px 0", borderRadius: 12, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", textTransform: "capitalize", ...(halfPeriod === p ? { background: "#DE1A1A", color: "#fff" } : { background: "#F6F7FA", color: "#6B7280" }) }}>{p}</button>
                         ))}
                       </div>
                     </div>
@@ -780,51 +581,26 @@ export default function MemberLeavesClient({
                 )}
                 {leaveType === "permission" && (
                   <>
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.14em] mb-1.5" style={{ color: "#374151" }}>Date *</label>
-                      <input name="from_date" type="date" required style={FIELD} />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.14em] mb-1.5" style={{ color: "#374151" }}>Hours *</label>
-                      <input name="permission_hours" type="number" min="0.5" max="8" step="0.5" required
-                        placeholder="e.g. 2" style={FIELD} />
-                    </div>
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} /></div>
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Hours *</label><input name="permission_hours" type="number" min="0.5" max="8" step="0.5" required placeholder="e.g. 2" style={FIELD} /></div>
                   </>
                 )}
 
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.14em] mb-1.5" style={{ color: "#374151" }}>Reason *</label>
-                  <textarea name="reason" required rows={3} placeholder="Explain the reason…"
-                    className="resize-none" style={FIELD} />
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Reason *</label>
+                  <textarea name="reason" required rows={3} placeholder="Explain the reason…" className="resize-none" style={FIELD} />
                 </div>
 
                 {state && "error" in state && state.error && (
-                  <p className="text-[12px] font-semibold py-2 px-3 rounded-xl"
-                    style={{ color: "#DE1A1A", background: "rgba(222,26,26,0.07)" }}>
-                    {state.error}
-                  </p>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>{state.error}</p>
                 )}
 
-                <div className="flex gap-3 pt-1">
-                  <button type="button"
-                    onClick={() => { setShowForm(false); setLeaveType("full_day"); setHalfPeriod("morning") }}
-                    className="flex-1 font-semibold transition-colors hover:bg-gray-50"
-                    style={{
-                      padding: "12px 0", borderRadius: "14px", fontSize: "13px",
-                      background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2",
-                    }}>
-                    Cancel
-                  </button>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button type="button" onClick={() => { setShowForm(false); setLeaveType("full_day"); setHalfPeriod("morning") }}
+                    style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
                   <button type="submit" disabled={pending}
-                    className="flex-1 font-bold flex items-center justify-center gap-2 text-white transition-all hover:opacity-90"
-                    style={{
-                      padding: "12px 0", borderRadius: "14px", fontSize: "13px",
-                      background: "linear-gradient(135deg, #DE1A1A, #991B1B)",
-                      boxShadow: "0 4px 12px rgba(222,26,26,0.3)",
-                      opacity: pending ? 0.7 : 1,
-                    }}>
-                    {pending && <Loader2 size={13} className="animate-spin" />}
-                    Submit Request
+                    style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: pending ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>
+                    {pending && <Loader2 size={13} className="animate-spin" />} Submit Request
                   </button>
                 </div>
               </form>

@@ -6,7 +6,7 @@ import {
   Camera, Film, Clock, CalendarDays, MoreVertical,
   ChevronDown, TrendingUp, Zap, BookOpen, Users,
   CheckCircle2, ChevronRight, Search, Bell,
-  ArrowRight, Flame, Star, Trophy,
+  ArrowRight, Flame, Star,
 } from "lucide-react"
 
 interface WorkEntry {
@@ -512,42 +512,6 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
               <ProductivityRing pct={stats.productivity} />
             </div>
 
-            {/* AI Assistant */}
-            <div style={{ background:"rgba(255,235,235,0.6)", borderRadius:20, border:"1px solid rgba(222,26,26,0.12)", padding:"16px", boxShadow:"0 2px 12px rgba(222,26,26,0.06)" }}>
-              <div style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:10 }}>
-                <div style={{ width:44, height:44, borderRadius:14, background:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 2px 8px rgba(0,0,0,0.1)", fontSize:22 }}>
-                  🤖
-                </div>
-                <div>
-                  <p style={{ fontSize:13, fontWeight:800, color:"#DE1A1A", margin:"0 0 3px" }}>AI Assistant</p>
-                  <p style={{ fontSize:11, fontWeight:600, color:"#374151", margin:0 }}>Here&apos;s your daily insight</p>
-                </div>
-              </div>
-              <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 12px", lineHeight:1.5 }}>
-                You completed <strong style={{ color:"#111111" }}>{stats.totalTasks} tasks</strong> this month. Focus on planning tomorrow&apos;s work to stay ahead!
-              </p>
-              <button style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:10, background:"#DE1A1A", border:"none", cursor:"pointer", fontSize:11, fontWeight:700, color:"#fff" }}>
-                View Suggestions <ArrowRight size={11}/>
-              </button>
-            </div>
-
-            {/* Achievements */}
-            <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", display:"flex", alignItems:"center", gap:14 }}>
-              <div style={{ width:54, height:54, borderRadius:16, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:28 }}>
-                🏆
-              </div>
-              <div style={{ flex:1 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
-                  <Trophy size={12} style={{ color:"#F59E0B" }}/>
-                  <span style={{ fontSize:12, fontWeight:800, color:"#F59E0B", textTransform:"uppercase", letterSpacing:"0.08em" }}>Achievements</span>
-                </div>
-                <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 2px" }}>Great Job!</p>
-                <p style={{ fontSize:11, color:"#6B7280", margin:0 }}>You&apos;ve earned <strong>5 badges</strong> this month.</p>
-                <button style={{ display:"flex", alignItems:"center", gap:4, background:"none", border:"none", cursor:"pointer", padding:"6px 0 0", fontSize:11, fontWeight:700, color:"#DE1A1A" }}>
-                  View All <ArrowRight size={11}/>
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 

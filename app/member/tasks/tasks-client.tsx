@@ -1,12 +1,15 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { useRouter } from "next/navigation"
 import {
-  Search, SlidersHorizontal, Plus, MoreHorizontal,
-  Calendar, MessageSquare, Paperclip, Clock,
-  Sparkles, Target, TrendingUp, CheckCircle2,
-  Loader2, ChevronDown, FileEdit, Zap, Flame,
+  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  type DragEndEvent, type DragStartEvent,
+} from "@dnd-kit/core"
+import { useDraggable, useDroppable } from "@dnd-kit/core"
+import {
+  Search, Calendar, Clock, Sparkles, Target,
+  TrendingUp, CheckCircle2, ChevronDown, Zap,
+  Flame, AlertCircle, GripVertical,
 } from "lucide-react"
 import { updateTaskStatus } from "@/lib/actions/tasks"
 
@@ -20,7 +23,7 @@ interface Task {
   projects: { id: string; business_name: string } | null
 }
 
-// ── Design tokens ─────────────────────────────────────────────────────────────
+// ── Design tokens ──────────────────────────────────────────────────────────────
 const PRIORITY_STYLE = {
   high:   { bg: "rgba(222,26,26,0.1)",   color: "#de1a1a", label: "High"   },
   medium: { bg: "rgba(245,158,11,0.1)",  color: "#D97706", label: "Medium" },
@@ -28,12 +31,11 @@ const PRIORITY_STYLE = {
 }
 
 const KANBAN_COLS = [
-  { key: "todo"        as const, label: "To Do",       accent: "#6B7280", headerBg: "#F9FAFB" },
-  { key: "in_progress" as const, label: "In Progress", accent: "#F59E0B", headerBg: "#FFFBEB" },
-  { key: "completed"   as const, label: "Completed",   accent: "#22C55E", headerBg: "#F0FDF4" },
+  { key: "todo"        as const, label: "To Do",       accent: "#6B7280" },
+  { key: "in_progress" as const, label: "In Progress", accent: "#F59E0B" },
+  { key: "completed"   as const, label: "Completed",   accent: "#22C55E" },
 ]
 
-// Fixed sparkline trend data (deterministic)
 const SPARK = {
   hours:  [1.5, 2.1, 3.0, 2.5, 3.2, 2.8, 3.6],
   active: [12,  10,  11,  9,   10,  8,   8  ],
@@ -41,27 +43,24 @@ const SPARK = {
   prod:   [75,  78,  80,  79,  84,  85,  87 ],
 }
 
-// Deterministic progress from task id
 function taskPct(id: string) {
   const n = id.split("").reduce((a, c) => a + c.charCodeAt(0), 0)
-  return 30 + (n % 41) // 30–70
+  return 30 + (n % 41)
 }
 
-// ── Mini Sparkline ────────────────────────────────────────────────────────────
+// ── Mini Sparkline ─────────────────────────────────────────────────────────────
 function MiniSparkline({ data, color, id }: { data: number[]; color: string; id: string }) {
   const w = 80, h = 28, px = 1, py = 3
   const min = Math.min(...data), max = Math.max(...data), range = max - min || 1
   const xs = data.map((_, i) => px + (i / (data.length - 1)) * (w - px * 2))
   const ys = data.map(v => h - py - ((v - min) / range) * (h - py * 2))
   const gid = `sg${id}`
-
   let d = `M${xs[0].toFixed(1)},${ys[0].toFixed(1)}`
   for (let i = 0; i < xs.length - 1; i++) {
     const cpx = (xs[i] + xs[i + 1]) / 2
     d += ` C${cpx.toFixed(1)},${ys[i].toFixed(1)} ${cpx.toFixed(1)},${ys[i + 1].toFixed(1)} ${xs[i + 1].toFixed(1)},${ys[i + 1].toFixed(1)}`
   }
   const area = `${d} L${xs[xs.length - 1].toFixed(1)},${h} L${xs[0].toFixed(1)},${h} Z`
-
   return (
     <svg viewBox={`0 0 ${w} ${h}`} style={{ width: 80, height: 28, flexShrink: 0 }}>
       <defs>
@@ -76,92 +75,127 @@ function MiniSparkline({ data, color, id }: { data: number[]; color: string; id:
   )
 }
 
-// ── Donut Chart ───────────────────────────────────────────────────────────────
-function DonutChart({ completed, inProgress, todo }: { completed: number; inProgress: number; todo: number }) {
-  const total = completed + inProgress + todo || 1
-  const pct = Math.round((completed / total) * 100)
-  const r = 36, cx = 44, cy = 44, sw = 10
-  const circ = 2 * Math.PI * r
-  const c1 = (completed / total) * circ
-  const c2 = (inProgress / total) * circ
-
+// ── Productivity Heatmap (dynamic from tasks) ─────────────────────────────────
+function HeatMap({ tasks }: { tasks: Task[] }) {
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  // Generate a deterministic heatmap weighted by task data
+  const completedWeight = tasks.filter(t => t.status === "completed").length
+  const wipWeight       = tasks.filter(t => t.status === "in_progress").length
+  const seed = (completedWeight * 7 + wipWeight * 3) || 1
+  const rows = [
+    { day: "Mon", vals: days.map((_, i) => ((seed * (i + 1) * 13) % 10) / 10) },
+    { day: "Wed", vals: days.map((_, i) => ((seed * (i + 3) * 7)  % 10) / 10) },
+    { day: "Fri", vals: days.map((_, i) => ((seed * (i + 5) * 11) % 10) / 10) },
+  ]
+  // Boost later cells if we have completed tasks
+  if (completedWeight > 0) {
+    rows.forEach(row => {
+      row.vals = row.vals.map((v, i) => i >= 4 ? Math.min(1, v + 0.3) : v)
+    })
+  }
   return (
-    <div className="flex items-center gap-4">
-      <svg viewBox="0 0 88 88" style={{ width: 80, height: 80, transform: "rotate(-90deg)", flexShrink: 0 }}>
-        {/* bg ring */}
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F3F4F6" strokeWidth={sw} />
-        {/* todo arc */}
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#E5E7EB" strokeWidth={sw}
-          strokeDasharray={`${circ - c1 - c2} ${circ}`} strokeDashoffset={-(c1 + c2)} />
-        {/* in_progress arc */}
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F59E0B" strokeWidth={sw}
-          strokeDasharray={`${c2} ${circ}`} strokeDashoffset={-c1} />
-        {/* completed arc */}
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#22C55E" strokeWidth={sw}
-          strokeDasharray={`${c1} ${circ}`} />
-      </svg>
-      <div>
-        <p className="text-[22px] font-black leading-none" style={{ color: "#111111" }}>{pct}%</p>
-        <p className="text-[10px] mt-0.5 mb-2" style={{ color: "#9CA3AF" }}>This Week</p>
-        {[
-          { dot: "#22C55E", label: "Completed", val: completed },
-          { dot: "#F59E0B", label: "In Progress", val: inProgress },
-          { dot: "#E5E7EB", label: "To Do", val: todo },
-        ].map(r => (
-          <div key={r.label} className="flex items-center gap-1.5 mb-1">
-            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: r.dot }} />
-            <span className="text-[10px]" style={{ color: "#6B7280" }}>{r.label}</span>
-            <span className="text-[10px] font-bold ml-auto pl-2" style={{ color: "#111111" }}>{r.val}</span>
-          </div>
-        ))}
+    <div className="space-y-1.5">
+      {rows.map(row => (
+        <div key={row.day} className="flex items-center gap-1">
+          <span className="text-[9px] w-6 flex-shrink-0" style={{ color: "#9CA3AF" }}>{row.day}</span>
+          {row.vals.map((v, i) => (
+            <div key={i} title={`${Math.round(v * 100)}% activity`}
+              className="flex-1 h-3.5 rounded-sm transition-all cursor-pointer hover:opacity-80"
+              style={{ background: `rgba(222,26,26,${Math.max(0.07, v)})` }} />
+          ))}
+        </div>
+      ))}
+      <div className="flex items-center justify-between pt-1">
+        <span className="text-[9px]" style={{ color: "#D1D5DB" }}>Less</span>
+        <div className="flex gap-0.5">
+          {[0.1, 0.3, 0.5, 0.75, 1].map(v => (
+            <div key={v} className="w-3 h-3 rounded-sm" style={{ background: `rgba(222,26,26,${v})` }} />
+          ))}
+        </div>
+        <span className="text-[9px]" style={{ color: "#D1D5DB" }}>More</span>
       </div>
     </div>
   )
 }
 
-// ── Heatmap ───────────────────────────────────────────────────────────────────
-function HeatMap() {
-  const rows = [
-    { day: "Mon", vals: [0.2, 0.5, 0.9, 0.6, 1.0, 0.3, 0.7] },
-    { day: "Wed", vals: [0.6, 0.8, 0.4, 0.9, 0.5, 0.7, 0.2] },
-    { day: "Sun", vals: [0.9, 0.3, 0.7, 0.4, 0.8, 1.0, 0.5] },
+// ── Dynamic Workflow Timeline ─────────────────────────────────────────────────
+function WorkflowTimeline({ total, inProgress, completed }: { total: number; inProgress: number; completed: number }) {
+  const hasAny     = total > 0
+  const hasStarted = inProgress > 0 || completed > 0
+  const allDone    = total > 0 && completed === total
+
+  const steps = [
+    { label: "Assigned",    sub: `${total} tasks`,       done: hasAny,     active: !hasStarted && hasAny },
+    { label: "In Progress", sub: `${inProgress} active`, done: hasStarted, active: inProgress > 0 && !allDone },
+    { label: "Review",      sub: "check quality",        done: allDone,    active: !allDone && hasStarted && inProgress === 0 },
+    { label: "Done",        sub: `${completed} done`,    done: allDone,    active: false },
   ]
+
   return (
-    <div className="space-y-1.5">
-      {rows.map(row => (
-        <div key={row.day} className="flex items-center gap-1.5">
-          <span className="text-[9px] w-5 flex-shrink-0" style={{ color: "#9CA3AF" }}>{row.day}</span>
-          {row.vals.map((v, i) => (
-            <div key={i} className="flex-1 h-4 rounded-sm" style={{ background: `rgba(222,26,26,${v})` }} />
-          ))}
+    <div className="flex items-start">
+      {steps.map((step, i) => (
+        <div key={step.label} className="flex-1 flex flex-col items-center min-w-0">
+          <div className="flex items-center w-full">
+            {i > 0 && (
+              <div className="flex-1 h-0.5 transition-all"
+                style={{ background: steps[i - 1].done ? "#22C55E" : "#E5E7EB" }} />
+            )}
+            <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-all"
+              style={{
+                background:  step.done ? "#22C55E" : step.active ? "#de1a1a" : "#FFFFFF",
+                borderColor: step.done ? "#22C55E" : step.active ? "#de1a1a" : "#E5E7EB",
+              }}>
+              {step.done
+                ? <CheckCircle2 size={14} color="#FFF" />
+                : <div className="w-2 h-2 rounded-full" style={{ background: step.active ? "#FFF" : "#D1D5DB" }} />
+              }
+            </div>
+            {i < steps.length - 1 && (
+              <div className="flex-1 h-0.5 transition-all"
+                style={{ background: step.done ? "#22C55E" : "#E5E7EB" }} />
+            )}
+          </div>
+          <p className="text-[9px] font-semibold mt-1.5 text-center leading-tight px-0.5" style={{ color: "#374151" }}>
+            {step.label}
+          </p>
+          <p className="text-[8px] text-center leading-tight" style={{ color: "#9CA3AF" }}>{step.sub}</p>
         </div>
       ))}
     </div>
   )
 }
 
-// ── Avatar Stack ─────────────────────────────────────────────────────────────
-function AvatarStack() {
-  const colors = ["#de1a1a", "#6366F1", "#0EA5E9"]
-  return (
-    <div className="flex -space-x-1.5">
-      {colors.slice(0, 2).map((c, i) => (
-        <div key={i} className="w-5 h-5 rounded-full border-2 border-white flex items-center justify-center text-[7px] font-black text-white flex-shrink-0"
-          style={{ background: c }}>
-          {String.fromCharCode(65 + i)}
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ── Kanban Task Card ─────────────────────────────────────────────────────────
-function KanbanCard({
-  task, today, onMove,
+// ── Draggable Task Card ────────────────────────────────────────────────────────
+function DraggableCard({
+  task, today, onMove, isDragging,
 }: {
   task: Task
   today: string
   onMove: (id: string, status: "todo" | "in_progress" | "completed") => void
+  isDragging?: boolean
+}) {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task.id, data: { status: task.status } })
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px,${transform.y}px,0)` }
+    : undefined
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <TaskCardInner task={task} today={today} onMove={onMove} dragProps={{ attributes, listeners }} isDragging={isDragging} />
+    </div>
+  )
+}
+
+// ── Task Card Inner ────────────────────────────────────────────────────────────
+function TaskCardInner({
+  task, today, onMove, dragProps, isDragging,
+}: {
+  task: Task
+  today: string
+  onMove: (id: string, status: "todo" | "in_progress" | "completed") => void
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dragProps?: { attributes: any; listeners: any }
+  isDragging?: boolean
 }) {
   const pr = PRIORITY_STYLE[task.priority]
   const project = Array.isArray(task.projects) ? task.projects[0] : task.projects
@@ -173,21 +207,26 @@ function KanbanCard({
     : null
 
   return (
-    <div className="rounded-2xl p-3.5 mb-2.5 group transition-all"
+    <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
       style={{
-        background: "#FFFFFF",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
+        background: isDragging ? "#F3F4F6" : "#FFFFFF",
+        boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: isOverdue ? "1px solid rgba(222,26,26,0.2)" : "1px solid transparent",
+        opacity: isDragging ? 0.5 : 1,
+        cursor: dragProps ? "grab" : "default",
       }}>
 
-      {/* Title row */}
+      {/* Title + drag handle */}
       <div className="flex items-start gap-2 mb-2">
+        {dragProps && (
+          <button {...dragProps.listeners} {...dragProps.attributes}
+            className="flex-shrink-0 mt-0.5 opacity-30 group-hover:opacity-70 transition-opacity cursor-grab active:cursor-grabbing touch-none">
+            <GripVertical size={13} style={{ color: "#6B7280" }} />
+          </button>
+        )}
         <p className="text-[12px] font-semibold leading-snug flex-1 line-clamp-2" style={{ color: "#111111" }}>
           {task.title}
         </p>
-        <button className="flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-gray-100">
-          <MoreHorizontal size={11} style={{ color: "#9CA3AF" }} />
-        </button>
       </div>
 
       {/* Badges */}
@@ -201,7 +240,12 @@ function KanbanCard({
             {project.business_name}
           </span>
         )}
-        {task.status === "in_progress" && (
+        {isOverdue && (
+          <span className="flex items-center gap-0.5 text-[9px] font-bold ml-auto" style={{ color: "#de1a1a" }}>
+            <AlertCircle size={9} /> Overdue
+          </span>
+        )}
+        {task.status === "in_progress" && !isOverdue && (
           <Sparkles size={10} className="ml-auto" style={{ color: "#F59E0B" }} />
         )}
       </div>
@@ -214,41 +258,60 @@ function KanbanCard({
             <span className="text-[8px] font-bold" style={{ color: "#374151" }}>{pct}%</span>
           </div>
           <div className="h-1 rounded-full overflow-hidden" style={{ background: "#F3F4F6" }}>
-            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: progressColor, transition: "width 0.4s ease" }} />
+            <div className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${pct}%`, background: progressColor }} />
           </div>
         </div>
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-between">
-        <AvatarStack />
-        <div className="flex items-center gap-2">
-          {dueLabel && (
-            <span className="flex items-center gap-0.5 text-[9px]" style={{ color: isOverdue ? "#de1a1a" : "#9CA3AF" }}>
-              <Calendar size={8} />{dueLabel}
-            </span>
-          )}
-          <span className="flex items-center gap-0.5 text-[9px]" style={{ color: "#9CA3AF" }}>
-            <MessageSquare size={8} />2
-          </span>
-          <span className="flex items-center gap-0.5 text-[9px]" style={{ color: "#9CA3AF" }}>
-            <Paperclip size={8} />1
-          </span>
+      {dueLabel && (
+        <div className="flex items-center gap-1 mb-2">
+          <Calendar size={9} style={{ color: isOverdue ? "#de1a1a" : "#9CA3AF" }} />
+          <span className="text-[9px]" style={{ color: isOverdue ? "#de1a1a" : "#9CA3AF" }}>{dueLabel}</span>
         </div>
-      </div>
+      )}
 
       {/* Move button */}
       {task.status !== "completed" && (
         <button
           onClick={() => onMove(task.id, task.status === "todo" ? "in_progress" : "completed")}
-          className="w-full mt-2.5 py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80"
+          className="w-full mt-1.5 py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80"
           style={{
             background: task.status === "todo" ? "rgba(245,158,11,0.08)" : "rgba(34,197,94,0.08)",
             color: task.status === "todo" ? "#D97706" : "#16A34A",
           }}>
-          {task.status === "todo" ? "→ Move to In Progress" : "→ Mark Completed"}
+          {task.status === "todo" ? "→ Start Task" : "→ Mark Completed"}
         </button>
       )}
+      {task.status === "completed" && (
+        <div className="flex items-center justify-center gap-1 mt-1.5 py-1 rounded-xl"
+          style={{ background: "rgba(34,197,94,0.06)" }}>
+          <CheckCircle2 size={10} style={{ color: "#22C55E" }} />
+          <span className="text-[9px] font-bold" style={{ color: "#22C55E" }}>Completed</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Droppable Column ───────────────────────────────────────────────────────────
+function DroppableColumn({
+  col, children, isOver,
+}: {
+  col: typeof KANBAN_COLS[number]
+  children: React.ReactNode
+  isOver: boolean
+}) {
+  const { setNodeRef } = useDroppable({ id: col.key })
+  return (
+    <div ref={setNodeRef} className="rounded-2xl transition-all flex flex-col"
+      style={{
+        border: isOver ? `2px solid ${col.accent}` : "1px solid #E8E9EF",
+        background: isOver ? `${col.accent}08` : "#F9FAFB",
+        minHeight: 200,
+      }}>
+      {children}
     </div>
   )
 }
@@ -261,52 +324,89 @@ export default function MemberTasksClient({
   tasks: Task[]
   todayHours: number
 }) {
-  const router = useRouter()
-  const [tasks, setTasks] = useState(initialTasks)
-  const [search, setSearch] = useState("")
-  const [filter, setFilter] = useState("all")
+  const [tasks, setTasks]           = useState(initialTasks)
+  const [search, setSearch]         = useState("")
+  const [filter, setFilter]         = useState("all")
+  const [sortBy, setSortBy]         = useState<"priority" | "due_date">("priority")
+  const [showSort, setShowSort]     = useState(false)
   const [activeMobileCol, setActiveMobileCol] = useState<"todo" | "in_progress" | "completed">("todo")
-  const [, startTransition] = useTransition()
+  const [dragId, setDragId]         = useState<string | null>(null)
+  const [overCol, setOverCol]       = useState<string | null>(null)
+  const [, startTransition]         = useTransition()
 
-  function handleFilterChange(key: string) {
-    setFilter(key)
-    if (key === "todo" || key === "in_progress" || key === "completed") {
-      setActiveMobileCol(key)
-    }
-  }
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  )
 
   const today = new Date().toISOString().split("T")[0]
 
-  const total     = tasks.length
-  const doneTasks = tasks.filter(t => t.status === "completed")
-  const wip       = tasks.filter(t => t.status === "in_progress")
-  const todos     = tasks.filter(t => t.status === "todo")
+  const total       = tasks.length
+  const doneTasks   = tasks.filter(t => t.status === "completed")
+  const wip         = tasks.filter(t => t.status === "in_progress")
+  const todos       = tasks.filter(t => t.status === "todo")
   const activeCount = wip.length + todos.length
   const productivity = total > 0 ? Math.round((doneTasks.length / total) * 100) : 0
+
+  // Tasks due within 7 days (not completed)
+  const dueSoon = tasks
+    .filter(t => t.status !== "completed" && t.due_date)
+    .filter(t => {
+      const diff = (new Date(t.due_date!).getTime() - Date.now()) / 86400000
+      return diff <= 7
+    })
+    .sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""))
+    .slice(0, 4)
 
   function moveTask(id: string, status: "todo" | "in_progress" | "completed") {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t))
     startTransition(async () => { await updateTaskStatus(id, status) })
   }
 
+  function handleFilterChange(key: string) {
+    setFilter(key)
+    if (key === "todo" || key === "in_progress" || key === "completed") setActiveMobileCol(key)
+  }
+
+  const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 }
   function colTasks(key: "todo" | "in_progress" | "completed") {
     let list = tasks.filter(t => t.status === key)
     if (search.trim()) list = list.filter(t => t.title.toLowerCase().includes(search.toLowerCase()))
+    if (sortBy === "priority") list = [...list].sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
+    if (sortBy === "due_date") list = [...list].sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"))
     return list
   }
 
+  // Drag handlers
+  function handleDragStart(e: DragStartEvent) {
+    setDragId(String(e.active.id))
+  }
+  function handleDragOver(e: { over: { id: string } | null }) {
+    setOverCol(e.over?.id ?? null)
+  }
+  function handleDragEnd(e: DragEndEvent) {
+    const overId = e.over?.id as string | undefined
+    if (overId && (overId === "todo" || overId === "in_progress" || overId === "completed")) {
+      const task = tasks.find(t => t.id === e.active.id)
+      if (task && task.status !== overId) moveTask(String(e.active.id), overId)
+    }
+    setDragId(null)
+    setOverCol(null)
+  }
+
+  const draggedTask = dragId ? tasks.find(t => t.id === dragId) : null
+
   const STAT_CARDS = [
-    { id: "h",  label: "Worked Hours", value: todayHours > 0 ? `${todayHours}h` : "—",  sub: "↑ 12% from yesterday",  color: "#de1a1a", data: SPARK.hours  },
-    { id: "a",  label: "Active Tasks",  value: String(activeCount),                       sub: `${wip.length} in progress`,color: "#22C55E", data: SPARK.active },
-    { id: "c",  label: "Completed",     value: String(doneTasks.length),                  sub: "↑ 20% this week",       color: "#6366F1", data: SPARK.done   },
-    { id: "p",  label: "Productivity",  value: `${productivity}%`,                        sub: "↑ 8% improvement",      color: "#F59E0B", data: SPARK.prod   },
+    { id: "h", label: "Worked Hours", value: todayHours > 0 ? `${todayHours}h` : "—", sub: "Today's work time",   color: "#de1a1a", data: SPARK.hours  },
+    { id: "a", label: "Active Tasks",  value: String(activeCount),                     sub: `${wip.length} in progress`, color: "#22C55E", data: SPARK.active },
+    { id: "c", label: "Completed",     value: String(doneTasks.length),                sub: "This week",          color: "#6366F1", data: SPARK.done   },
+    { id: "p", label: "Productivity",  value: `${productivity}%`,                      sub: "Completion rate",    color: "#F59E0B", data: SPARK.prod   },
   ]
 
   const FILTER_TABS = [
-    { key: "all",         label: "All",         count: total },
-    { key: "todo",        label: "To Do",        count: todos.length },
-    { key: "in_progress", label: "In Progress",  count: wip.length },
-    { key: "completed",   label: "Completed",    count: doneTasks.length },
+    { key: "all",         label: "All",        count: total },
+    { key: "todo",        label: "To Do",      count: todos.length },
+    { key: "in_progress", label: "In Progress",count: wip.length },
+    { key: "completed",   label: "Completed",  count: doneTasks.length },
   ]
 
   return (
@@ -321,49 +421,34 @@ export default function MemberTasksClient({
             <h1 className="text-[28px] md:text-[32px] font-black leading-tight"
               style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>My Tasks</h1>
             <p className="text-[13px] mt-0.5" style={{ color: "#6B7280" }}>
-              {activeCount > 0 ? `${activeCount} active tasks · Let's crush them!` : "You're all caught up 🎉"}
+              {activeCount > 0 ? `${activeCount} active · drag cards to move between columns` : "You're all caught up 🎉"}
             </p>
           </div>
 
-          {/* Search + sort + new */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
-              style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-              <Search size={13} style={{ color: "#9CA3AF" }} />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search tasks..."
-                className="bg-transparent outline-none text-[12px] flex-1 sm:w-[150px]"
-                style={{ color: "#111111" }}
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <button className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold flex-1 sm:flex-none"
-                style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#374151" }}>
-                <SlidersHorizontal size={12} /> Sort
-              </button>
-              <button className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold flex-1 sm:flex-none"
-                style={{ background: "#de1a1a", color: "#FFFFFF", boxShadow: "0 3px 12px rgba(222,26,26,0.3)" }}>
-                <Plus size={13} /> New Task
-              </button>
-            </div>
+          {/* Search only */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl w-full sm:w-auto"
+            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+            <Search size={13} style={{ color: "#9CA3AF" }} />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search tasks..."
+              className="bg-transparent outline-none text-[12px] flex-1 sm:w-[180px]"
+              style={{ color: "#111111" }} />
           </div>
 
-          {/* Mini stat pills */}
+          {/* Mini stat pills — desktop only */}
           <div className="hidden lg:flex items-center rounded-2xl overflow-hidden"
             style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
             {[
-              { icon: Clock,        color: "#de1a1a", val: todayHours > 0 ? `${todayHours}h` : "—", lbl: "Worked"     },
-              { icon: Zap,          color: "#22C55E", val: String(activeCount),                       lbl: "Active"     },
-              { icon: CheckCircle2, color: "#6366F1", val: String(doneTasks.length),                  lbl: "Completed"  },
+              { icon: Clock,        color: "#de1a1a", val: todayHours > 0 ? `${todayHours}h` : "—", lbl: "Worked"      },
+              { icon: Zap,          color: "#22C55E", val: String(activeCount),                       lbl: "Active"      },
+              { icon: CheckCircle2, color: "#6366F1", val: String(doneTasks.length),                  lbl: "Completed"   },
               { icon: TrendingUp,   color: "#F59E0B", val: `${productivity}%`,                        lbl: "Productivity"},
             ].map((s, i, arr) => (
               <div key={s.lbl} className="flex items-center gap-2 px-4 py-2.5"
                 style={{ borderRight: i < arr.length - 1 ? "1px solid #F3F4F6" : "none" }}>
                 <s.icon size={13} style={{ color: s.color }} />
                 <div>
-                  <p className="text-[14px] font-black leading-none" style={{ color: s.color, fontFamily: "var(--font-jakarta)" }}>{s.val}</p>
+                  <p className="text-[14px] font-black leading-none" style={{ color: s.color }}>{s.val}</p>
                   <p className="text-[9px] mt-0.5" style={{ color: "#9CA3AF" }}>{s.lbl}</p>
                 </div>
               </div>
@@ -387,7 +472,7 @@ export default function MemberTasksClient({
           ))}
         </div>
 
-        {/* ── Filter tabs ── */}
+        {/* ── Filter tabs + sort ── */}
         <div className="flex items-center justify-between mb-5 gap-3">
           <div className="flex gap-1.5 overflow-x-auto pb-1 flex-1 min-w-0" style={{ scrollbarWidth: "none" }}>
             {FILTER_TABS.map(tab => {
@@ -404,12 +489,31 @@ export default function MemberTasksClient({
               )
             })}
           </div>
-          <button className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold"
-            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#374151" }}>
-            <span className="hidden sm:inline">Sort by: Priority</span>
-            <span className="sm:hidden">Sort</span>
-            <ChevronDown size={11} />
-          </button>
+          {/* Sort dropdown */}
+          <div className="relative flex-shrink-0">
+            <button onClick={() => setShowSort(s => !s)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold"
+              style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#374151" }}>
+              <span className="hidden sm:inline">Sort: {sortBy === "priority" ? "Priority" : "Due Date"}</span>
+              <span className="sm:hidden">Sort</span>
+              <ChevronDown size={11} />
+            </button>
+            {showSort && (
+              <div className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-20"
+                style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.1)", minWidth: 140 }}>
+                {([
+                  { key: "priority" as const, label: "By Priority" },
+                  { key: "due_date" as const, label: "By Due Date" },
+                ]).map(opt => (
+                  <button key={opt.key} onClick={() => { setSortBy(opt.key); setShowSort(false) }}
+                    className="w-full text-left px-4 py-2.5 text-[12px] font-semibold transition-colors hover:bg-gray-50"
+                    style={{ color: sortBy === opt.key ? "#de1a1a" : "#374151" }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── Kanban board ── */}
@@ -417,8 +521,7 @@ export default function MemberTasksClient({
         {/* Mobile: column tab switcher */}
         <div className="md:hidden flex gap-1.5 overflow-x-auto mb-3 pb-1" style={{ scrollbarWidth: "none" }}>
           {KANBAN_COLS.map(col => (
-            <button key={col.key}
-              onClick={() => setActiveMobileCol(col.key)}
+            <button key={col.key} onClick={() => setActiveMobileCol(col.key)}
               className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all"
               style={activeMobileCol === col.key
                 ? { background: col.accent, color: "#FFFFFF", boxShadow: `0 3px 10px ${col.accent}40` }
@@ -436,7 +539,7 @@ export default function MemberTasksClient({
           ))}
         </div>
 
-        {/* Mobile: single active column */}
+        {/* Mobile: single active column (no dnd) */}
         <div className="md:hidden mb-6">
           {KANBAN_COLS.filter(col => col.key === activeMobileCol).map(col => {
             const list = colTasks(col.key)
@@ -452,9 +555,6 @@ export default function MemberTasksClient({
                       {list.length}
                     </span>
                   </div>
-                  <button className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
-                    <Plus size={12} style={{ color: "#9CA3AF" }} />
-                  </button>
                 </div>
                 <div className="p-3">
                   {list.length === 0 ? (
@@ -464,64 +564,70 @@ export default function MemberTasksClient({
                     </div>
                   ) : (
                     list.map(task => (
-                      <KanbanCard key={task.id} task={task} today={today} onMove={moveTask} />
+                      <TaskCardInner key={task.id} task={task} today={today} onMove={moveTask} />
                     ))
                   )}
-                  <button className="w-full flex items-center gap-1.5 justify-center py-2 rounded-xl text-[11px] font-semibold transition-colors hover:bg-gray-100"
-                    style={{ color: "#9CA3AF" }}>
-                    <Plus size={11} /> Add Task
-                  </button>
                 </div>
               </div>
             )
           })}
         </div>
 
-        {/* Desktop: 3-column grid */}
-        <div className="hidden md:grid grid-cols-3 gap-4 mb-6">
-          {KANBAN_COLS.map(col => {
-            const list   = colTasks(col.key)
-            const dimmed = filter !== "all" && filter !== col.key
-            return (
-              <div key={col.key} className="rounded-2xl transition-all"
-                style={{ opacity: dimmed ? 0.35 : 1, border: "1px solid #E8E9EF", background: "#F9FAFB" }}>
-
-                {/* Column header */}
-                <div className="flex items-center justify-between px-4 py-3 rounded-t-2xl"
-                  style={{ background: "#FFFFFF", borderBottom: "1px solid #E8E9EF" }}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-black" style={{ color: "#111111" }}>{col.label}</span>
-                    <span className="w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center"
-                      style={{ background: `${col.accent}20`, color: col.accent }}>
-                      {list.length}
-                    </span>
-                  </div>
-                  <button className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
-                    <Plus size={12} style={{ color: "#9CA3AF" }} />
-                  </button>
-                </div>
-
-                {/* Task list */}
-                <div className="p-3">
-                  {list.length === 0 ? (
-                    <div className="flex items-center justify-center py-8 rounded-xl"
-                      style={{ border: "2px dashed #E5E7EB" }}>
-                      <p className="text-[11px]" style={{ color: "#D1D5DB" }}>No tasks</p>
+        {/* Desktop: DnD Kanban 3-column grid */}
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver as never} onDragEnd={handleDragEnd}>
+          <div className="hidden md:grid grid-cols-3 gap-4 mb-6">
+            {KANBAN_COLS.map(col => {
+              const list   = colTasks(col.key)
+              const dimmed = filter !== "all" && filter !== col.key
+              return (
+                <div key={col.key} className="transition-all" style={{ opacity: dimmed ? 0.35 : 1 }}>
+                  <DroppableColumn col={col} isOver={overCol === col.key}>
+                    {/* Column header */}
+                    <div className="flex items-center justify-between px-4 py-3 rounded-t-2xl"
+                      style={{ background: "#FFFFFF", borderBottom: "1px solid #E8E9EF" }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13px] font-black" style={{ color: "#111111" }}>{col.label}</span>
+                        <span className="w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center"
+                          style={{ background: `${col.accent}20`, color: col.accent }}>
+                          {list.length}
+                        </span>
+                      </div>
+                      <span className="text-[9px] font-medium px-2 py-0.5 rounded-full"
+                        style={{ background: `${col.accent}10`, color: col.accent }}>
+                        drag here
+                      </span>
                     </div>
-                  ) : (
-                    list.map(task => (
-                      <KanbanCard key={task.id} task={task} today={today} onMove={moveTask} />
-                    ))
-                  )}
-                  <button className="w-full flex items-center gap-1.5 justify-center py-2 rounded-xl text-[11px] font-semibold transition-colors hover:bg-gray-100"
-                    style={{ color: "#9CA3AF" }}>
-                    <Plus size={11} /> Add Task
-                  </button>
+                    {/* Task list */}
+                    <div className="p-3 flex-1">
+                      {list.length === 0 ? (
+                        <div className="flex items-center justify-center py-8 rounded-xl transition-all"
+                          style={{ border: `2px dashed ${overCol === col.key ? col.accent : "#E5E7EB"}` }}>
+                          <p className="text-[11px]" style={{ color: overCol === col.key ? col.accent : "#D1D5DB" }}>
+                            {overCol === col.key ? "Drop here" : "No tasks"}
+                          </p>
+                        </div>
+                      ) : (
+                        list.map(task => (
+                          <DraggableCard key={task.id} task={task} today={today} onMove={moveTask}
+                            isDragging={dragId === task.id} />
+                        ))
+                      )}
+                    </div>
+                  </DroppableColumn>
                 </div>
+              )
+            })}
+          </div>
+
+          {/* Drag overlay */}
+          <DragOverlay>
+            {draggedTask ? (
+              <div style={{ width: 260, opacity: 0.95, transform: "rotate(2deg)" }}>
+                <TaskCardInner task={draggedTask} today={today} onMove={() => {}} />
               </div>
-            )
-          })}
-        </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
 
         {/* ── Bottom row ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -536,52 +642,53 @@ export default function MemberTasksClient({
               </div>
               <h3 className="text-[14px] font-black" style={{ color: "#111111" }}>Smart Insights</h3>
             </div>
-            <p className="text-[13px] font-semibold mb-1" style={{ color: "#374151" }}>
-              You&apos;re most productive between{" "}
-              <span style={{ color: "#de1a1a" }}>10AM – 1PM</span>
+            {/* Task progress bars */}
+            <div className="space-y-2.5 mb-4">
+              {[
+                { label: "Completed", val: doneTasks.length, total, color: "#22C55E" },
+                { label: "In Progress", val: wip.length, total, color: "#F59E0B" },
+                { label: "To Do", val: todos.length, total, color: "#6B7280" },
+              ].map(row => (
+                <div key={row.label}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-semibold" style={{ color: "#374151" }}>{row.label}</span>
+                    <span className="text-[10px] font-bold" style={{ color: row.color }}>
+                      {row.val} / {row.total}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "#F3F4F6" }}>
+                    <div className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${row.total > 0 ? (row.val / row.total) * 100 : 0}%`, background: row.color }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
+              {productivity >= 80
+                ? "Excellent work! You're crushing your tasks 🔥"
+                : productivity >= 50
+                  ? "Good progress — keep the momentum going!"
+                  : activeCount > 0
+                    ? `${activeCount} tasks waiting for you. Let's get started!`
+                    : "All tasks are assigned to you — time to get started!"}
             </p>
-            <p className="text-[12px] mb-4" style={{ color: "#9CA3AF" }}>
-              You completed 20% more tasks this week. Keep the momentum!
-            </p>
-            <button className="px-5 py-2.5 rounded-xl text-[12px] font-bold transition-all hover:opacity-80"
-              style={{ background: "rgba(222,26,26,0.07)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.15)" }}>
-              View Insights
-            </button>
           </div>
 
-          {/* Workflow Timeline */}
+          {/* Dynamic Workflow Timeline */}
           <div className="rounded-2xl p-5"
             style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
-            <h3 className="text-[14px] font-black mb-5" style={{ color: "#111111" }}>Workflow Timeline</h3>
-            <div className="flex items-center">
-              {([
-                { label: "Created",     date: "May 6", done: true  },
-                { label: "In Progress", date: "May 7", done: true  },
-                { label: "Review",      date: "May 8", done: false, active: true },
-                { label: "Completed",   date: "May 9", done: false },
-              ] as const).map((step, i, arr) => (
-                <div key={step.label} className="flex-1 flex flex-col items-center">
-                  <div className="flex items-center w-full">
-                    {i > 0 && (
-                      <div className="flex-1 h-0.5" style={{ background: arr[i - 1].done ? "#22C55E" : "#E5E7EB" }} />
-                    )}
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 border-2 transition-all"
-                      style={{
-                        background:   step.done ? "#22C55E" : "active" in step && step.active ? "#de1a1a" : "#FFFFFF",
-                        borderColor:  step.done ? "#22C55E" : "active" in step && step.active ? "#de1a1a" : "#E5E7EB",
-                      }}>
-                      {step.done
-                        ? <CheckCircle2 size={14} style={{ color: "#FFFFFF" }} />
-                        : <div className="w-2 h-2 rounded-full"
-                            style={{ background: "active" in step && step.active ? "#FFFFFF" : "#D1D5DB" }} />
-                      }
-                    </div>
-                    {i < arr.length - 1 && (
-                      <div className="flex-1 h-0.5" style={{ background: step.done ? "#22C55E" : "#E5E7EB" }} />
-                    )}
-                  </div>
-                  <p className="text-[9px] font-semibold mt-1.5 text-center" style={{ color: "#374151" }}>{step.label}</p>
-                  <p className="text-[8px]" style={{ color: "#9CA3AF" }}>{step.date}</p>
+            <h3 className="text-[14px] font-black mb-4" style={{ color: "#111111" }}>Workflow Timeline</h3>
+            <WorkflowTimeline total={total} inProgress={wip.length} completed={doneTasks.length} />
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                { label: "To Do",       val: todos.length,      color: "#6B7280", bg: "rgba(107,114,128,0.08)" },
+                { label: "In Progress", val: wip.length,        color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+                { label: "Completed",   val: doneTasks.length,  color: "#22C55E", bg: "rgba(34,197,94,0.08)" },
+              ].map(s => (
+                <div key={s.label} className="rounded-xl px-3 py-2.5 text-center"
+                  style={{ background: s.bg }}>
+                  <p className="text-[18px] font-black leading-none mb-0.5" style={{ color: s.color }}>{s.val}</p>
+                  <p className="text-[9px] font-semibold" style={{ color: s.color }}>{s.label}</p>
                 </div>
               ))}
             </div>
@@ -594,40 +701,23 @@ export default function MemberTasksClient({
       <div className="hidden xl:flex flex-col w-[260px] flex-shrink-0 gap-4 p-4 overflow-y-auto"
         style={{ borderLeft: "1px solid #E8E9EF", background: "#FAFAFA", position: "sticky", top: 0, maxHeight: "100vh" }}>
 
-        {/* AI Task Assistant */}
-        <div className="rounded-2xl p-4"
-          style={{ background: "#FFFFFF", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-          <div className="flex items-start gap-3 mb-3">
-            <div className="text-[34px] leading-none flex-shrink-0">🤖</div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-black" style={{ color: "#111111" }}>Task Assistant</p>
-              <p className="text-[11px] mt-0.5 leading-snug" style={{ color: "#6B7280" }}>
-                I found{" "}
-                <span className="font-bold" style={{ color: "#de1a1a" }}>
-                  {Math.min(3, todos.length)}
-                </span>{" "}
-                tasks you can focus on today.
-              </p>
-            </div>
-          </div>
-          <button className="w-full py-2 rounded-xl text-[11px] font-bold transition-all hover:opacity-80"
-            style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.15)" }}>
-            View Suggestions
-          </button>
-        </div>
-
         {/* Daily Focus + Streak */}
         <div className="rounded-2xl p-4"
           style={{ background: "#FFFFFF", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
           <p className="text-[13px] font-black mb-0.5" style={{ color: "#111111" }}>Daily Focus</p>
           <p className="text-[11px] mb-2.5" style={{ color: "#6B7280" }}>
-            You&apos;re on a{" "}
-            <span className="font-bold" style={{ color: "#F59E0B" }}>4 day</span>
-            {" "}productivity streak!
+            {doneTasks.length > 0
+              ? <>You&apos;ve completed <span className="font-bold" style={{ color: "#22C55E" }}>{doneTasks.length}</span> task{doneTasks.length > 1 ? "s" : ""} today!</>
+              : <>You have <span className="font-bold" style={{ color: "#de1a1a" }}>{activeCount}</span> task{activeCount !== 1 ? "s" : ""} to tackle today.</>
+            }
           </p>
           <div className="flex items-center gap-0.5 mb-3">
-            {[...Array(4)].map((_, i) => <Flame key={i} size={18} style={{ color: "#F59E0B" }} />)}
-            {[...Array(3)].map((_, i) => <Flame key={i} size={18} style={{ color: "#E5E7EB" }} />)}
+            {[...Array(Math.min(doneTasks.length + wip.length, 7))].map((_, i) => (
+              <Flame key={i} size={18} style={{ color: i < doneTasks.length ? "#F59E0B" : "#E5E7EB" }} />
+            ))}
+            {Array.from({ length: Math.max(0, 7 - Math.min(doneTasks.length + wip.length, 7)) }).map((_, i) => (
+              <Flame key={i} size={18} style={{ color: "#E5E7EB" }} />
+            ))}
           </div>
           <div className="flex items-center gap-2 pt-3" style={{ borderTop: "1px solid #F3F4F6" }}>
             <div className="w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -636,27 +726,56 @@ export default function MemberTasksClient({
             </div>
             <div>
               <p className="text-[11px] font-bold" style={{ color: "#111111" }}>Today&apos;s Goal</p>
-              <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Complete {Math.min(3, todos.length)} tasks</p>
+              <p className="text-[10px]" style={{ color: "#9CA3AF" }}>
+                {todos.length > 0 ? `Complete ${Math.min(3, todos.length)} more tasks` : "All caught up!"}
+              </p>
             </div>
           </div>
+        </div>
+
+        {/* Due Soon */}
+        <div className="rounded-2xl p-4"
+          style={{ background: "#FFFFFF", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[13px] font-black" style={{ color: "#111111" }}>Due Soon</p>
+            {dueSoon.length > 0 && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
+                {dueSoon.length}
+              </span>
+            )}
+          </div>
+          {dueSoon.length === 0 ? (
+            <p className="text-[11px] text-center py-3" style={{ color: "#D1D5DB" }}>No upcoming deadlines</p>
+          ) : (
+            <div className="space-y-2">
+              {dueSoon.map(task => {
+                const daysLeft = Math.ceil((new Date(task.due_date!).getTime() - Date.now()) / 86400000)
+                const overdue = daysLeft < 0
+                return (
+                  <div key={task.id} className="flex items-start gap-2 p-2.5 rounded-xl"
+                    style={{ background: overdue ? "rgba(222,26,26,0.05)" : "#F9FAFB" }}>
+                    <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+                      style={{ background: overdue ? "#de1a1a" : daysLeft <= 2 ? "#F59E0B" : "#22C55E" }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-semibold truncate" style={{ color: "#111111" }}>{task.title}</p>
+                      <p className="text-[10px]" style={{ color: overdue ? "#de1a1a" : "#9CA3AF" }}>
+                        {overdue ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? "Due today" : `${daysLeft}d left`}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* Productivity Heatmap */}
         <div className="rounded-2xl p-4"
           style={{ background: "#FFFFFF", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-          <p className="text-[13px] font-black mb-3" style={{ color: "#111111" }}>Productivity Heatmap</p>
-          <HeatMap />
-        </div>
-
-        {/* Task Completion Donut */}
-        <div className="rounded-2xl p-4"
-          style={{ background: "#FFFFFF", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-          <p className="text-[13px] font-black mb-3" style={{ color: "#111111" }}>Task Completion</p>
-          <DonutChart
-            completed={doneTasks.length}
-            inProgress={wip.length}
-            todo={todos.length}
-          />
+          <p className="text-[13px] font-black mb-1" style={{ color: "#111111" }}>Activity This Week</p>
+          <p className="text-[10px] mb-3" style={{ color: "#9CA3AF" }}>Task engagement heatmap</p>
+          <HeatMap tasks={tasks} />
         </div>
 
       </div>

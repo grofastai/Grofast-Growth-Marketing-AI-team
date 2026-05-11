@@ -407,9 +407,16 @@ export default function MemberLeavesClient({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
 
           {/* Work hard, travel harder */}
-          <div className="rounded-2xl overflow-hidden flex items-stretch"
-            style={{ background: "linear-gradient(135deg, #FFF7ED, #FEF9C3)", minHeight: 140 }}>
-            <div className="flex-1 p-5 flex flex-col justify-center">
+          <div className="relative rounded-2xl overflow-hidden p-5"
+            style={{ background: "linear-gradient(135deg, #FFF7ED, #FEF9C3)", minHeight: 148 }}>
+            {/* vacation-boy via CSS background — always stays inside overflow-hidden */}
+            <div className="absolute inset-0" style={{
+              backgroundImage: "url('/brand/vacation-boy.png')",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right bottom",
+              backgroundSize: "160px auto",
+            }} />
+            <div className="relative z-10" style={{ maxWidth: "calc(100% - 150px)" }}>
               <p className="text-[16px] font-black leading-tight mb-1" style={{ color: "#111111" }}>
                 Work hard,<br />travel harder! ✈️
               </p>
@@ -421,17 +428,6 @@ export default function MemberLeavesClient({
                 style={{ background: "#de1a1a", boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>
                 <Palmtree size={12} /> Plan My Vacation
               </button>
-            </div>
-            {/* vacation-boy image — explicit size, no fill */}
-            <div className="flex-shrink-0 flex items-end justify-end overflow-hidden"
-              style={{ width: 150 }}>
-              <Image
-                src="/brand/vacation-boy.png"
-                alt="Vacation illustration"
-                width={150}
-                height={150}
-                style={{ objectFit: "contain", objectPosition: "bottom right", display: "block" }}
-              />
             </div>
           </div>
 
@@ -467,17 +463,20 @@ export default function MemberLeavesClient({
         {/* Next Vacation Awaits */}
         <div className="rounded-2xl overflow-hidden"
           style={{ background: "#FFFFFF", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-          {/* Beach image — explicit width/height, no fill */}
-          <div className="relative overflow-hidden" style={{ height: 110 }}>
-            <Image
-              src="/brand/vacation-beach.png"
-              alt="Beach vacation"
-              width={280}
-              height={110}
-              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-            />
-            <div className="absolute inset-0"
-              style={{ background: "linear-gradient(to top, rgba(255,255,255,0.95) 20%, transparent 100%)" }} />
+          {/* Beach — CSS background-image so it never escapes its container */}
+          <div style={{
+            height: 110,
+            backgroundImage: "url('/brand/vacation-beach.png')",
+            backgroundSize: "cover",
+            backgroundPosition: "center bottom",
+            position: "relative",
+            borderRadius: "16px 16px 0 0",
+          }}>
+            <div style={{
+              position: "absolute", inset: 0,
+              background: "linear-gradient(to top, rgba(255,255,255,1) 0%, rgba(255,255,255,0.4) 60%, transparent 100%)",
+              borderRadius: "16px 16px 0 0",
+            }} />
           </div>
           <div className="px-4 pb-4 pt-2">
             <p className="text-[13px] font-black" style={{ color: "#111111" }}>Next Vacation Awaits! 🌴</p>

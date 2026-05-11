@@ -73,13 +73,13 @@ function Countdown({ targetDate }: { targetDate: string }) {
   }, [targetDate])
 
   return (
-    <div style={{ display: "flex", gap: 6, justifyContent: "center", margin: "14px 0 10px" }}>
+    <div style={{ display: "flex", gap: 5, justifyContent: "center", margin: "8px 0 6px" }}>
       {[{ v: diff.d, l: "Days" }, { v: diff.h, l: "Hours" }, { v: diff.m, l: "Mins" }, { v: diff.s, l: "Secs" }].map(({ v, l }) => (
         <div key={l} style={{ textAlign: "center" }}>
-          <div style={{ width: 50, height: 46, borderRadius: 10, background: "#DE1A1A", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(222,26,26,0.45)" }}>
-            <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{String(v).padStart(2, "0")}</span>
+          <div style={{ width: 42, height: 38, borderRadius: 9, background: "#DE1A1A", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 3px 10px rgba(222,26,26,0.4)" }}>
+            <span style={{ fontSize: 16, fontWeight: 900, color: "#fff", fontVariantNumeric: "tabular-nums" }}>{String(v).padStart(2, "0")}</span>
           </div>
-          <span style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF", display: "block", marginTop: 5 }}>{l}</span>
+          <span style={{ fontSize: 8, fontWeight: 600, color: "#9CA3AF", display: "block", marginTop: 3 }}>{l}</span>
         </div>
       ))}
     </div>
@@ -92,10 +92,10 @@ function MoodTracker() {
   const moods = [{ e: "😢", v: 1 }, { e: "😕", v: 2 }, { e: "😐", v: 3 }, { e: "😊", v: 4 }, { e: "😄", v: 5 }]
   return (
     <div>
-      <p style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 10 }}>How are you feeling today?</p>
+      <p style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 8 }}>How are you feeling today?</p>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         {moods.map(m => (
-          <button key={m.v} onClick={() => setMood(m.v)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 22, lineHeight: 1, transition: "transform 0.2s", transform: mood === m.v ? "scale(1.35)" : "scale(1)", filter: mood !== null && mood !== m.v ? "grayscale(0.7) opacity(0.45)" : "none" }}>
+          <button key={m.v} onClick={() => setMood(m.v)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, transition: "transform 0.2s", transform: mood === m.v ? "scale(1.3)" : "scale(1)", filter: mood !== null && mood !== m.v ? "grayscale(0.7) opacity(0.45)" : "none" }}>
             {m.e}
           </button>
         ))}
@@ -111,23 +111,23 @@ function MoodTracker() {
 
 // ── Balance Ring ──────────────────────────────────────────────────────────────
 function BalanceRing({ pct }: { pct: number }) {
-  const r = 38, circ = 2 * Math.PI * r
+  const r = 30, circ = 2 * Math.PI * r
   const color = pct >= 70 ? "#10B981" : pct >= 50 ? "#F59E0B" : "#EF4444"
   const label = pct >= 70 ? "Balanced" : pct >= 50 ? "Moderate" : "Low"
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-      <div style={{ position: "relative", width: 90, height: 90 }}>
-        <svg viewBox="0 0 90 90" width={90} height={90} style={{ transform: "rotate(-90deg)" }}>
-          <circle cx={45} cy={45} r={r} fill="none" stroke="#F0F1F5" strokeWidth={9} />
-          <circle cx={45} cy={45} r={r} fill="none" stroke={color} strokeWidth={9}
+      <div style={{ position: "relative", width: 72, height: 72 }}>
+        <svg viewBox="0 0 72 72" width={72} height={72} style={{ transform: "rotate(-90deg)" }}>
+          <circle cx={36} cy={36} r={r} fill="none" stroke="#F0F1F5" strokeWidth={8} />
+          <circle cx={36} cy={36} r={r} fill="none" stroke={color} strokeWidth={8}
             strokeDasharray={`${(pct / 100) * circ} ${circ}`} strokeLinecap="round"
             style={{ transition: "stroke-dasharray 1s ease" }} />
         </svg>
         <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: 17, fontWeight: 900, color }}>{pct}%</span>
+          <span style={{ fontSize: 14, fontWeight: 900, color }}>{pct}%</span>
         </div>
       </div>
-      <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", marginTop: 4 }}>{label}</span>
+      <span style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", marginTop: 3 }}>{label}</span>
     </div>
   )
 }
@@ -166,7 +166,7 @@ export default function MemberLeavesClient({ leaves, userName }: { leaves: Leave
       <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
 
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
-        <div style={{ background: "#FFFFFF", padding: "28px 32px 0", position: "relative", overflow: "hidden" }}>
+        <div style={{ background: "#FFFFFF", padding: "20px 28px 0", position: "relative", overflow: "hidden" }}>
 
           {/* Top bar */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
@@ -458,65 +458,68 @@ export default function MemberLeavesClient({ leaves, userName }: { leaves: Leave
       </div>
 
       {/* ════ RIGHT SIDEBAR ══════════════════════════════════════════════════ */}
-      <div className="hidden xl:flex" style={{ width: 300, flexDirection: "column", gap: 16, padding: "24px 20px 32px", borderLeft: "1px solid #EBEDF2", background: "#FAFBFD", position: "sticky", top: 0, maxHeight: "100vh", overflowY: "auto", scrollbarWidth: "none", flexShrink: 0 }}>
+      <div className="hidden xl:flex" style={{ width: 288, flexDirection: "column", gap: 10, padding: "16px 14px 16px", borderLeft: "1px solid #EBEDF2", background: "#FAFBFD", position: "sticky", top: 0, height: "100vh", overflow: "hidden", flexShrink: 0 }}>
 
-        {/* Countdown card */}
-        <div style={{ borderRadius: 20, overflow: "hidden", background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.04)", border: "1px solid #EBEDF2" }}>
-          {/* Beach image */}
-          <div style={{ height: 130, backgroundImage: "url('/brand/vacation-beach.png')", backgroundSize: "cover", backgroundPosition: "center center", position: "relative" }}>
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,#fff 0%,rgba(255,255,255,0.3) 55%,transparent 100%)" }} />
-            <div style={{ position: "absolute", top: 10, left: 12 }}>
-              <span style={{ fontSize: 9, fontWeight: 800, color: "#DE1A1A", background: "rgba(255,255,255,0.92)", padding: "4px 10px", borderRadius: 99, backdropFilter: "blur(4px)" }}>🌴 NEXT BREAK</span>
+        {/* ── Next Vacation Awaits — compact card with beach strip ── */}
+        <div style={{ borderRadius: 16, overflow: "hidden", background: "#fff", border: "1px solid #EBEDF2", boxShadow: "0 1px 3px rgba(0,0,0,0.04),0 3px 10px rgba(0,0,0,0.04)", flexShrink: 0 }}>
+          {/* Compact beach strip — 72px only */}
+          <div style={{ height: 72, backgroundImage: "url('/brand/vacation-beach.png')", backgroundSize: "cover", backgroundPosition: "center 40%", position: "relative" }}>
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,rgba(255,255,255,1) 0%,rgba(255,255,255,0.2) 60%,transparent 100%)" }} />
+            <div style={{ position: "absolute", top: 8, left: 10 }}>
+              <span style={{ fontSize: 8, fontWeight: 800, color: "#DE1A1A", background: "rgba(255,255,255,0.93)", padding: "3px 8px", borderRadius: 99 }}>🌴 NEXT BREAK</span>
             </div>
           </div>
-          <div style={{ padding: "8px 16px 18px" }}>
-            <p style={{ fontSize: 14, fontWeight: 900, color: "#0A0A0B", margin: "0 0 2px" }}>Next Vacation Awaits! 🌴</p>
-            {nextHoliday && <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>{nextHoliday.emoji} {nextHoliday.name}</p>}
+          <div style={{ padding: "6px 14px 12px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 1 }}>
+              <p style={{ fontSize: 13, fontWeight: 900, color: "#0A0A0B", margin: 0 }}>Next Vacation Awaits! 🌴</p>
+            </div>
+            {nextHoliday && <p style={{ fontSize: 10, color: "#9CA3AF", margin: "1px 0 0" }}>{nextHoliday.emoji} {nextHoliday.name}</p>}
             {nextHoliday && <Countdown targetDate={nextHoliday.date} />}
-            <p style={{ fontSize: 10, color: "#C4C9D4", textAlign: "center", margin: 0 }}>Your next break is closer than you think!</p>
+            <p style={{ fontSize: 9, color: "#C4C9D4", textAlign: "center", margin: 0 }}>Your next break is closer than you think!</p>
           </div>
         </div>
 
-        {/* Upcoming Holidays */}
-        <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.04)", padding: "18px 16px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <p style={{ fontSize: 14, fontWeight: 900, color: "#0A0A0B", margin: 0 }}>Upcoming Holidays</p>
-            <button style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>
-              View All <ArrowUpRight size={11} />
+        {/* ── Upcoming Holidays — compact rows ── */}
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #EBEDF2", boxShadow: "0 1px 3px rgba(0,0,0,0.04),0 3px 10px rgba(0,0,0,0.04)", padding: "14px 14px", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <p style={{ fontSize: 13, fontWeight: 900, color: "#0A0A0B", margin: 0 }}>Upcoming Holidays</p>
+            <button style={{ display: "flex", alignItems: "center", gap: 2, fontSize: 10, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>
+              View All <ArrowUpRight size={10} />
             </button>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {HOLIDAYS.filter(h => h.date >= today).slice(0, 3).map(h => {
               const d = new Date(h.date)
               return (
-                <div key={h.date} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  {/* Date pill */}
-                  <div style={{ flexShrink: 0, width: 44, textAlign: "center", background: "rgba(222,26,26,0.07)", borderRadius: 12, padding: "6px 0", border: "1px solid rgba(222,26,26,0.1)" }}>
-                    <p style={{ fontSize: 7, fontWeight: 900, color: "#DE1A1A", letterSpacing: "0.1em", margin: 0 }}>
+                <div key={h.date} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ flexShrink: 0, width: 38, textAlign: "center", background: "rgba(222,26,26,0.07)", borderRadius: 10, padding: "4px 0", border: "1px solid rgba(222,26,26,0.1)" }}>
+                    <p style={{ fontSize: 6, fontWeight: 900, color: "#DE1A1A", letterSpacing: "0.1em", margin: 0 }}>
                       {d.toLocaleDateString("en-US", { month: "short" }).toUpperCase()}
                     </p>
-                    <p style={{ fontSize: 17, fontWeight: 900, color: "#DE1A1A", lineHeight: 1, margin: "1px 0" }}>{d.getDate()}</p>
+                    <p style={{ fontSize: 15, fontWeight: 900, color: "#DE1A1A", lineHeight: 1, margin: "1px 0" }}>{d.getDate()}</p>
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: "#0A0A0B", margin: "0 0 2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</p>
-                    <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>{h.day}</p>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#0A0A0B", margin: "0 0 1px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</p>
+                    <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0 }}>{h.day}</p>
                   </div>
-                  <span style={{ fontSize: 20, flexShrink: 0 }}>{h.img}</span>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{h.img}</span>
                 </div>
               )
             })}
           </div>
         </div>
 
-        {/* Mood + Balance side by side */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04)", padding: "16px 14px" }}>
-            <p style={{ fontSize: 13, fontWeight: 900, color: "#0A0A0B", margin: "0 0 12px" }}>Mood Tracker</p>
+        {/* ── Mood + Balance side by side — compact ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, flexShrink: 0 }}>
+          {/* Mood */}
+          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #EBEDF2", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", padding: "12px 11px" }}>
+            <p style={{ fontSize: 12, fontWeight: 900, color: "#0A0A0B", margin: "0 0 8px" }}>Mood Tracker</p>
             <MoodTracker />
           </div>
-          <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04)", padding: "16px 14px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <p style={{ fontSize: 13, fontWeight: 900, color: "#0A0A0B", margin: "0 0 2px", alignSelf: "flex-start" }}>Work-Life Balance</p>
-            <p style={{ fontSize: 10, color: "#9CA3AF", margin: "0 0 12px", alignSelf: "flex-start" }}>This Month</p>
+          {/* Balance */}
+          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #EBEDF2", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", padding: "12px 11px", display: "flex", flexDirection: "column" }}>
+            <p style={{ fontSize: 12, fontWeight: 900, color: "#0A0A0B", margin: "0 0 1px" }}>Work-Life</p>
+            <p style={{ fontSize: 9, color: "#9CA3AF", margin: "0 0 8px" }}>This Month</p>
             <BalanceRing pct={wlbScore} />
           </div>
         </div>

@@ -407,7 +407,7 @@ export default function MemberLeavesClient({ leaves, userName }: { leaves: Leave
           </div>
 
           {/* ── Bottom Banner — redesigned ───────────────────────────────── */}
-          <div style={{ position: "relative", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg,#FFF8EE 0%,#FFEFD0 55%,#FFF4E0 100%)", border: "1px solid #F0E4C8", minHeight: 280, display: "flex" }}>
+          <div style={{ position: "relative", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg,#FFF8EE 0%,#FFEFD0 55%,#FFF4E0 100%)", border: "1px solid #F0E4C8", minHeight: 300, display: "flex" }}>
 
             {/* Left content */}
             <div style={{ position: "relative", zIndex: 2, padding: "32px 40px 28px", flex: "0 0 56%", display: "flex", flexDirection: "column" }}>
@@ -462,9 +462,9 @@ export default function MemberLeavesClient({ leaves, userName }: { leaves: Leave
               </div>
             </div>
 
-            {/* Right: vacation image — full height */}
-            <div style={{ flex: 1, position: "relative" }}>
-              <div style={{ position: "absolute", inset: 0, backgroundImage: "url('/brand/vacation-boy.png')", backgroundRepeat: "no-repeat", backgroundPosition: "center bottom", backgroundSize: "contain" }} />
+            {/* Right: vacation image — full height, edge to edge */}
+            <div style={{ flex: "0 0 44%", position: "relative", minHeight: 300 }}>
+              <div style={{ position: "absolute", inset: 0, backgroundImage: "url('/brand/vacation-boy.png')", backgroundRepeat: "no-repeat", backgroundPosition: "center center", backgroundSize: "cover" }} />
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 ﻿"use client"
 
-import { useState, useTransition, useActionState } from "react"
+import { useState, useTransition, useActionState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import {
   Plus, X, Trash2, Loader2, Target, Calendar, Users,
   LayoutGrid, Columns, CheckCircle2, Clock, Circle,
@@ -154,6 +155,7 @@ export default function GoalsClient({
   members: Member[]
   projects: Project[]
 }) {
+  const router = useRouter()
   const [tasks, setTasks] = useState(initialTasks)
   const [showForm, setShowForm] = useState(false)
   const [viewMode, setViewMode] = useState<"member" | "status">("member")
@@ -163,6 +165,18 @@ export default function GoalsClient({
   const [movingId, setMovingId] = useState<string | null>(null)
   type TaskActionState = { error: string } | { success: true } | null
   const [state, action, formPending] = useActionState<TaskActionState, FormData>(createTask, null)
+
+  // Re-sync local state after server re-fetches (triggered by router.refresh())
+  useEffect(() => { setTasks(initialTasks) }, [initialTasks])
+
+  // On successful create: refresh server data and close modal
+  useEffect(() => {
+    if (state && "success" in state) {
+      router.refresh()
+      setShowForm(false)
+      setSelectedMembers([])
+    }
+  }, [state]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleMember(id: string) {
     setSelectedMembers(prev =>
@@ -312,13 +326,7 @@ export default function GoalsClient({
               .task-input:focus { border-color: rgba(222,26,26,0.5) !important; box-shadow: 0 0 0 3px rgba(222,26,26,0.06) !important; }
             `}</style>
 
-            <form action={(fd) => {
-              startTransition(() => {
-                action(fd)
-                setShowForm(false)
-                setSelectedMembers([])
-              })
-            }} className="space-y-4">
+            <form action={action} className="space-y-4">
 
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.16em] mb-1.5"

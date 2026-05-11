@@ -265,7 +265,15 @@ export default function MemberTasksClient({
   const [tasks, setTasks] = useState(initialTasks)
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState("all")
+  const [activeMobileCol, setActiveMobileCol] = useState<"todo" | "in_progress" | "completed">("todo")
   const [, startTransition] = useTransition()
+
+  function handleFilterChange(key: string) {
+    setFilter(key)
+    if (key === "todo" || key === "in_progress" || key === "completed") {
+      setActiveMobileCol(key)
+    }
+  }
 
   const today = new Date().toISOString().split("T")[0]
 
@@ -318,7 +326,7 @@ export default function MemberTasksClient({
           </div>
 
           {/* Search + sort + new */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full lg:w-auto">
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
               style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
               <Search size={13} style={{ color: "#9CA3AF" }} />
@@ -326,18 +334,20 @@ export default function MemberTasksClient({
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search tasks..."
-                className="bg-transparent outline-none text-[12px] w-[150px]"
+                className="bg-transparent outline-none text-[12px] flex-1 sm:w-[150px]"
                 style={{ color: "#111111" }}
               />
             </div>
-            <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold"
-              style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#374151" }}>
-              <SlidersHorizontal size={12} /> Sort
-            </button>
-            <button className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
-              style={{ background: "#de1a1a", color: "#FFFFFF", boxShadow: "0 3px 12px rgba(222,26,26,0.3)" }}>
-              <Plus size={13} /> New Task
-            </button>
+            <div className="flex items-center gap-2">
+              <button className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold flex-1 sm:flex-none"
+                style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#374151" }}>
+                <SlidersHorizontal size={12} /> Sort
+              </button>
+              <button className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold flex-1 sm:flex-none"
+                style={{ background: "#de1a1a", color: "#FFFFFF", boxShadow: "0 3px 12px rgba(222,26,26,0.3)" }}>
+                <Plus size={13} /> New Task
+              </button>
+            </div>
           </div>
 
           {/* Mini stat pills */}
@@ -378,13 +388,13 @@ export default function MemberTasksClient({
         </div>
 
         {/* ── Filter tabs ── */}
-        <div className="flex items-center justify-between mb-5 gap-3 flex-wrap">
-          <div className="flex gap-1.5 flex-wrap">
+        <div className="flex items-center justify-between mb-5 gap-3">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 flex-1 min-w-0" style={{ scrollbarWidth: "none" }}>
             {FILTER_TABS.map(tab => {
               const active = filter === tab.key
               return (
-                <button key={tab.key} onClick={() => setFilter(tab.key)}
-                  className="px-4 py-2 rounded-xl text-[12px] font-semibold transition-all"
+                <button key={tab.key} onClick={() => handleFilterChange(tab.key)}
+                  className="flex-shrink-0 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all"
                   style={active
                     ? { background: "#de1a1a", color: "#FFFFFF", boxShadow: "0 3px 10px rgba(222,26,26,0.25)" }
                     : { background: "#FFFFFF", color: "#6B7280", border: "1px solid #E5E7EB" }
@@ -394,14 +404,81 @@ export default function MemberTasksClient({
               )
             })}
           </div>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold"
+          <button className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold"
             style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#374151" }}>
-            Sort by: Priority <ChevronDown size={11} />
+            <span className="hidden sm:inline">Sort by: Priority</span>
+            <span className="sm:hidden">Sort</span>
+            <ChevronDown size={11} />
           </button>
         </div>
 
         {/* ── Kanban board ── */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
+        {/* Mobile: column tab switcher */}
+        <div className="md:hidden flex gap-1.5 overflow-x-auto mb-3 pb-1" style={{ scrollbarWidth: "none" }}>
+          {KANBAN_COLS.map(col => (
+            <button key={col.key}
+              onClick={() => setActiveMobileCol(col.key)}
+              className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all"
+              style={activeMobileCol === col.key
+                ? { background: col.accent, color: "#FFFFFF", boxShadow: `0 3px 10px ${col.accent}40` }
+                : { background: "#FFFFFF", color: "#6B7280", border: "1px solid #E5E7EB" }
+              }>
+              {col.label}
+              <span className="w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center"
+                style={{
+                  background: activeMobileCol === col.key ? "rgba(255,255,255,0.25)" : `${col.accent}20`,
+                  color: activeMobileCol === col.key ? "#FFFFFF" : col.accent,
+                }}>
+                {colTasks(col.key).length}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Mobile: single active column */}
+        <div className="md:hidden mb-6">
+          {KANBAN_COLS.filter(col => col.key === activeMobileCol).map(col => {
+            const list = colTasks(col.key)
+            return (
+              <div key={col.key} className="rounded-2xl"
+                style={{ border: "1px solid #E8E9EF", background: "#F9FAFB" }}>
+                <div className="flex items-center justify-between px-4 py-3 rounded-t-2xl"
+                  style={{ background: "#FFFFFF", borderBottom: "1px solid #E8E9EF" }}>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-black" style={{ color: "#111111" }}>{col.label}</span>
+                    <span className="w-5 h-5 rounded-full text-[9px] font-black flex items-center justify-center"
+                      style={{ background: `${col.accent}20`, color: col.accent }}>
+                      {list.length}
+                    </span>
+                  </div>
+                  <button className="w-6 h-6 rounded-lg flex items-center justify-center hover:bg-gray-100 transition-colors">
+                    <Plus size={12} style={{ color: "#9CA3AF" }} />
+                  </button>
+                </div>
+                <div className="p-3">
+                  {list.length === 0 ? (
+                    <div className="flex items-center justify-center py-8 rounded-xl"
+                      style={{ border: "2px dashed #E5E7EB" }}>
+                      <p className="text-[11px]" style={{ color: "#D1D5DB" }}>No tasks</p>
+                    </div>
+                  ) : (
+                    list.map(task => (
+                      <KanbanCard key={task.id} task={task} today={today} onMove={moveTask} />
+                    ))
+                  )}
+                  <button className="w-full flex items-center gap-1.5 justify-center py-2 rounded-xl text-[11px] font-semibold transition-colors hover:bg-gray-100"
+                    style={{ color: "#9CA3AF" }}>
+                    <Plus size={11} /> Add Task
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Desktop: 3-column grid */}
+        <div className="hidden md:grid grid-cols-3 gap-4 mb-6">
           {KANBAN_COLS.map(col => {
             const list   = colTasks(col.key)
             const dimmed = filter !== "all" && filter !== col.key

@@ -406,22 +406,65 @@ export default function MemberLeavesClient({ leaves, userName }: { leaves: Leave
             )}
           </div>
 
-          {/* ── Bottom Banner — full width ────────────────────────────────── */}
-          <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", background: "linear-gradient(120deg,#FFF8EE 0%,#FFF1D6 50%,#FFF8EE 100%)", border: "1px solid #F0E4C8", minHeight: 160, display: "flex", alignItems: "center" }}>
-            {/* Vacation boy — large, right side */}
-            <div style={{ position: "absolute", right: 0, bottom: 0, top: 0, width: "45%", backgroundImage: "url('/brand/vacation-boy.png')", backgroundRepeat: "no-repeat", backgroundPosition: "right bottom", backgroundSize: "contain" }} />
-            {/* Left text */}
-            <div style={{ position: "relative", zIndex: 1, padding: "32px 36px", maxWidth: "55%" }}>
-              <p style={{ fontSize: 20, fontWeight: 900, color: "#0A0A0B", lineHeight: 1.25, margin: "0 0 8px", fontFamily: "var(--font-jakarta)" }}>
-                Work hard, travel harder! ✈️
-              </p>
-              <p style={{ fontSize: 12, color: "#78716C", margin: "0 0 20px", lineHeight: 1.6 }}>
+          {/* ── Bottom Banner — redesigned ───────────────────────────────── */}
+          <div style={{ position: "relative", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg,#FFF8EE 0%,#FFEFD0 55%,#FFF4E0 100%)", border: "1px solid #F0E4C8", minHeight: 280, display: "flex" }}>
+
+            {/* Left content */}
+            <div style={{ position: "relative", zIndex: 2, padding: "32px 40px 28px", flex: "0 0 56%", display: "flex", flexDirection: "column" }}>
+
+              {/* Badge */}
+              <div style={{ marginBottom: 16 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 14px", borderRadius: 99, background: "rgba(222,26,26,0.07)", border: "1.5px solid rgba(222,26,26,0.18)", fontSize: 12, fontWeight: 700, color: "#DE1A1A" }}>
+                  ✈️ Time to Recharge
+                </span>
+              </div>
+
+              {/* Two-line heading */}
+              <div style={{ marginBottom: 10 }}>
+                <p style={{ fontSize: "clamp(26px,2.8vw,36px)", fontWeight: 900, color: "#0A0A0B", lineHeight: 1.15, margin: "0 0 2px", fontFamily: "var(--font-jakarta)" }}>
+                  Work hard,
+                </p>
+                <p style={{ fontSize: "clamp(26px,2.8vw,36px)", fontWeight: 900, color: "#DE1A1A", lineHeight: 1.15, margin: 0, fontFamily: "var(--font-jakarta)" }}>
+                  travel harder! ✈️ <span style={{ fontSize: "0.6em" }}>✨</span>
+                </p>
+              </div>
+
+              {/* Subtitle */}
+              <p style={{ fontSize: 13, color: "#78716C", margin: "0 0 22px", lineHeight: 1.7 }}>
                 You&apos;ve earned your break.<br />Take time off and recharge!
               </p>
-              <button onClick={() => setShowForm(true)}
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 24px", borderRadius: 12, background: "#DE1A1A", color: "#fff", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", boxShadow: "0 4px 14px rgba(222,26,26,0.35)" }}>
-                <Palmtree size={14} /> Plan My Vacation →
-              </button>
+
+              {/* Pill button */}
+              <div style={{ marginBottom: 28 }}>
+                <button onClick={() => setShowForm(true)}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "13px 30px", borderRadius: 99, background: "#DE1A1A", color: "#fff", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", boxShadow: "0 6px 22px rgba(222,26,26,0.42)" }}>
+                  <Palmtree size={16} /> Plan My Vacation →
+                </button>
+              </div>
+
+              {/* Feature items */}
+              <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginTop: "auto" }}>
+                {[
+                  { icon: "🏖️", title: "Relax & Unwind",       sub: "Take a well-deserved break"      },
+                  { icon: "📷", title: "Explore New Places",    sub: "Create unforgettable memories"   },
+                  { icon: "⚡", title: "Come Back Stronger",    sub: "Recharge and stay productive"    },
+                ].map(f => (
+                  <div key={f.title} style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>
+                      {f.icon}
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 11, fontWeight: 800, color: "#0A0A0B", margin: 0, lineHeight: 1.3 }}>{f.title}</p>
+                      <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>{f.sub}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: vacation image — full height */}
+            <div style={{ flex: 1, position: "relative" }}>
+              <div style={{ position: "absolute", inset: 0, backgroundImage: "url('/brand/vacation-boy.png')", backgroundRepeat: "no-repeat", backgroundPosition: "center bottom", backgroundSize: "contain" }} />
             </div>
           </div>
         </div>

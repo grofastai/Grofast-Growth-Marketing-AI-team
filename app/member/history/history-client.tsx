@@ -5,57 +5,43 @@ import Image from "next/image"
 import {
   Camera, Film, Clock, CalendarDays, MoreVertical,
   ChevronDown, TrendingUp, Zap, BookOpen, Users,
+  CheckCircle2, ChevronRight, Search, Bell,
+  ArrowRight, Flame, Star, Trophy,
 } from "lucide-react"
 
 interface WorkEntry {
-  id?: string
-  task_type: "shoot" | "edit" | "other"
-  title: string
-  client_name: string
-  duration_hours: number
-  notes: string
-  start_time?: string | null
-  end_time?: string | null
+  id?: string; task_type: "shoot" | "edit" | "other"
+  title: string; client_name: string; duration_hours: number
+  notes: string; start_time?: string | null; end_time?: string | null
   screenshot_url?: string | null
 }
-
 interface UpdateRow {
-  id: string
-  date: string
-  attendance_status: string
-  work_type: string | null
-  working_hours: number | null
-  learning_hours: number | null
-  shoot_count: number | null
-  work_entries: WorkEntry[] | null
-  created_at: string
+  id: string; date: string; attendance_status: string
+  work_type: string | null; working_hours: number | null
+  learning_hours: number | null; shoot_count: number | null
+  work_entries: WorkEntry[] | null; created_at: string
 }
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  present: { label: "Present",  color: "#16A34A", bg: "rgba(22,163,74,0.1)",   dot: "#22C55E" },
-  absent:  { label: "Absent",   color: "#DE1A1A", bg: "rgba(222,26,26,0.1)",   dot: "#EF4444" },
-  holiday: { label: "Holiday",  color: "#6B7280", bg: "rgba(0,0,0,0.06)",      dot: "#9CA3AF" },
-  wfh:     { label: "WFH",      color: "#6366F1", bg: "rgba(99,102,241,0.1)",  dot: "#6366F1" },
+  present: { label:"Present",  color:"#16A34A", bg:"rgba(22,163,74,0.12)",  dot:"#22C55E" },
+  absent:  { label:"Absent",   color:"#DE1A1A", bg:"rgba(222,26,26,0.1)",   dot:"#EF4444" },
+  holiday: { label:"Holiday",  color:"#6B7280", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
+  wfh:     { label:"WFH",      color:"#6366F1", bg:"rgba(99,102,241,0.1)",  dot:"#6366F1" },
 }
-
 const TASK_CFG = {
-  shoot: { Icon: Camera, color: "#EF4444", bg: "rgba(239,68,68,0.1)",   label: "Shoot"   },
-  edit:  { Icon: Film,   color: "#6366F1", bg: "rgba(99,102,241,0.1)",  label: "Editing" },
-  other: { Icon: Users,  color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  label: "Work"    },
+  shoot: { Icon: Camera,   color:"#EF4444", bg:"rgba(239,68,68,0.1)",   label:"Shoot"   },
+  edit:  { Icon: Film,     color:"#6366F1", bg:"rgba(99,102,241,0.1)",  label:"Editing" },
+  other: { Icon: BookOpen, color:"#F59E0B", bg:"rgba(245,158,11,0.1)",  label:"Work"    },
 }
-
-const DOT_COLORS = ["#10B981","#F59E0B","#6366F1","#EF4444","#0EA5E9","#EC4899","#14B8A6","#8B5CF6"]
+const DOT_COLORS = ["#22C55E","#F59E0B","#6366F1","#EF4444","#0EA5E9","#EC4899"]
 
 function monthLabel(d: string) {
-  return new Date(d + "T12:00:00").toLocaleDateString("en-US", { month: "long", year: "numeric" })
+  return new Date(d + "T12:00:00").toLocaleDateString("en-US", { month:"long", year:"numeric" })
 }
-
 function fmt12(t: string) {
   const [h, m] = t.split(":").map(Number)
-  const ap = h >= 12 ? "PM" : "AM"
-  return `${h % 12 || 12}:${String(m).padStart(2,"0")} ${ap}`
+  return `${h % 12 || 12}:${String(m).padStart(2,"0")} ${h >= 12 ? "PM":"AM"}`
 }
-
 function fmtH(h: number) {
   const hrs = Math.floor(h), mins = Math.round((h % 1) * 60)
   return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
@@ -63,56 +49,94 @@ function fmtH(h: number) {
 
 // ── Sparkline ──────────────────────────────────────────────────────────────────
 function Sparkline({ data, color }: { data: number[]; color: string }) {
-  const pts = data.length > 1 ? data : [...data, ...data, ...data, ...data, ...data]
+  const pts = data.length > 1 ? data : [1,2,3,2,4,3,5,4,3,5]
   const max = Math.max(...pts, 1), min = Math.min(...pts)
-  const W = 100, H = 32
+  const W = 100, H = 36
   const coords = pts.map((v, i) => {
     const x = (i / (pts.length - 1)) * W
     const y = H - 4 - ((v - min) / (max - min || 1)) * (H - 8)
     return `${x},${y}`
   })
   const d = `M${coords.join(" L")}`
+  const id = `sg${color.replace("#","")}`
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width:"100%", height:32 }} preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width:"100%", height:36 }} preserveAspectRatio="none">
       <defs>
-        <linearGradient id={`sg${color.replace("#","")}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.2"/>
+          <stop offset="100%" stopColor={color} stopOpacity="0"/>
         </linearGradient>
       </defs>
-      <path d={`${d} L${W},${H} L0,${H} Z`} fill={`url(#sg${color.replace("#","")})`} />
-      <path d={d} stroke={color} strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={`${d} L${W},${H} L0,${H} Z`} fill={`url(#${id})`}/>
+      <path d={d} stroke={color} strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   )
 }
 
-// ── Donut Chart ────────────────────────────────────────────────────────────────
-function DonutChart({ regular, overtime, total }: { regular: number; overtime: number; total: number }) {
+// ── Donut (Work Summary) ───────────────────────────────────────────────────────
+function DonutChart({ regular, overtime, tasks, total, label }: {
+  regular: number; overtime: number; tasks: number; total: number; label: string
+}) {
   const r = 52, cx = 70, cy = 70, circ = 2 * Math.PI * r
-  const regArc = total > 0 ? (regular / total) * circ : 0
-  const otArc  = total > 0 ? (overtime / total) * circ : 0
+  const segs = [
+    { v: regular,  color:"#22C55E" },
+    { v: overtime, color:"#F59E0B" },
+    { v: tasks,    color:"#6366F1" },
+  ]
+  let off = 0
   return (
     <div style={{ position:"relative", width:140, height:140, margin:"0 auto 16px" }}>
       <svg viewBox="0 0 140 140" width={140} height={140} style={{ transform:"rotate(-90deg)" }}>
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F3F4F6" strokeWidth={14} />
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#EF4444" strokeWidth={14}
-          strokeLinecap="round"
-          strokeDasharray={`${regArc} ${circ - regArc}`} />
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F59E0B" strokeWidth={14}
-          strokeLinecap="round"
-          strokeDasharray={`${otArc} ${circ - otArc}`}
-          strokeDashoffset={-(regArc)} />
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F3F4F6" strokeWidth={13}/>
+        {total > 0 && segs.map((s, i) => {
+          const arc = (s.v / total) * circ
+          const el = <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={s.color} strokeWidth={13}
+            strokeLinecap="butt" strokeDasharray={`${arc - 0.5} ${circ - arc + 0.5}`} strokeDashoffset={-off}/>
+          off += arc; return el
+        })}
       </svg>
       <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
-        <span style={{ fontSize:15, fontWeight:900, color:"#111111", lineHeight:1, textAlign:"center" }}>{fmtH(total)}</span>
+        <span style={{ fontSize:15, fontWeight:900, color:"#111111", lineHeight:1.1, textAlign:"center" }}>{label}</span>
         <span style={{ fontSize:9, color:"#9CA3AF", marginTop:3 }}>Total Worked</span>
       </div>
     </div>
   )
 }
 
+// ── Productivity Ring ──────────────────────────────────────────────────────────
+function ProductivityRing({ pct }: { pct: number }) {
+  const r = 46, cx = 60, cy = 60, circ = 2 * Math.PI * r
+  const arc = (pct / 100) * circ
+  const color = pct >= 70 ? "#22C55E" : pct >= 40 ? "#F59E0B" : "#EF4444"
+  const lbl   = pct >= 70 ? "Excellent" : pct >= 40 ? "Good" : "Low"
+  return (
+    <div style={{ display:"flex", alignItems:"center", gap:20 }}>
+      <div style={{ position:"relative", width:120, height:120, flexShrink:0 }}>
+        <svg viewBox="0 0 120 120" width={120} height={120} style={{ transform:"rotate(-90deg)" }}>
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F3F4F6" strokeWidth={11}/>
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={11}
+            strokeLinecap="round"
+            strokeDasharray={`${arc} ${circ - arc}`}
+            style={{ transition:"stroke-dasharray 0.7s ease" }}/>
+        </svg>
+        <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center" }}>
+          <span style={{ fontSize:22, fontWeight:900, color:"#111111", lineHeight:1 }}>{pct}%</span>
+          <span style={{ fontSize:9, color:color, fontWeight:700, marginTop:3 }}>{lbl}</span>
+        </div>
+      </div>
+      <div style={{ flex:1 }}>
+        <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>You&apos;re doing great!</p>
+        <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 12px", lineHeight:1.5 }}>Keep up the amazing work and achieve more.</p>
+        <button style={{ display:"flex", alignItems:"center", gap:5, background:"none", border:"none", cursor:"pointer", padding:0, fontSize:12, fontWeight:700, color:"#DE1A1A" }}>
+          View Insights <ArrowRight size={12}/>
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function HistoryClient({ updates }: { updates: UpdateRow[] }) {
+export default function HistoryClient({ updates, userName }: { updates: UpdateRow[]; userName: string }) {
 
   const months = useMemo(() => {
     const seen = new Set<string>(), result: string[] = []
@@ -121,89 +145,133 @@ export default function HistoryClient({ updates }: { updates: UpdateRow[] }) {
   }, [updates])
 
   const [selectedMonth, setSelectedMonth] = useState(months[0] ?? "")
-  const [monthOpen, setMonthOpen] = useState(false)
+  const [monthOpen, setMonthOpen]         = useState(false)
+  const [viewFull, setViewFull]           = useState(false)
 
   const filtered = useMemo(() =>
-    updates.filter(u => monthLabel(u.date) === selectedMonth),
-    [updates, selectedMonth]
+    updates.filter(u => monthLabel(u.date) === selectedMonth), [updates, selectedMonth]
   )
 
+  // Latest day for hero
+  const latest = filtered[0] ?? null
+
+  // Stats for selected month
   const stats = useMemo(() => {
-    let totalHours = 0, totalOT = 0, totalShoots = 0, presentDays = 0
-    let shootHours = 0, editHours = 0, otherHours = 0
+    let totalHours = 0, totalOT = 0, totalTasks = 0, presentDays = 0
+    let shootH = 0, editH = 0, otherH = 0
     const hoursPerDay: number[] = []
     for (const u of filtered) {
       const h = u.working_hours ?? 0
-      totalHours += h
-      if (h > 9) totalOT += Math.round((h - 9) * 10) / 10
-      totalShoots += u.shoot_count ?? 0
+      totalHours += h; if (h > 9) totalOT += Math.round((h - 9) * 10) / 10
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
-      for (const e of (Array.isArray(u.work_entries) ? u.work_entries : [])) {
-        if (e.task_type === "shoot") shootHours += e.duration_hours ?? 0
-        else if (e.task_type === "edit") editHours += e.duration_hours ?? 0
-        else otherHours += e.duration_hours ?? 0
+      const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+      totalTasks += entries.length
+      for (const e of entries) {
+        if (e.task_type === "shoot") shootH += e.duration_hours ?? 0
+        else if (e.task_type === "edit") editH += e.duration_hours ?? 0
+        else otherH += e.duration_hours ?? 0
       }
     }
-    return { totalHours, totalOT, totalShoots, presentDays, shootHours, editHours, otherHours, hoursPerDay }
+    const productivity = filtered.length > 0
+      ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9)) * 40) : 0)))
+      : 0
+    return { totalHours, totalOT, totalTasks, presentDays, shootH, editH, otherH, hoursPerDay, productivity }
   }, [filtered])
 
-  const allStats = useMemo(() => {
-    let totalHours = 0, totalOT = 0, totalShoots = 0, presentDays = 0
-    for (const u of updates) {
-      const h = u.working_hours ?? 0
-      totalHours += h
-      if (h > 9) totalOT += Math.round((h - 9) * 10) / 10
-      totalShoots += u.shoot_count ?? 0
-      if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
+  // Streak calculation
+  const { streak, last7 } = useMemo(() => {
+    const submitted = new Set(updates.map(u => u.date))
+    let count = 0
+    const d = new Date()
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const ds = d.toISOString().split("T")[0]
+      if (submitted.has(ds)) { count++; d.setDate(d.getDate() - 1) } else break
     }
-    return { totalHours, totalOT, totalShoots, presentDays }
+    const days = ["S","M","T","W","T","F","S"]
+    const last7 = Array.from({ length:7 }, (_, i) => {
+      const dt = new Date(); dt.setDate(dt.getDate() - 6 + i)
+      return { lbl: days[dt.getDay()], done: submitted.has(dt.toISOString().split("T")[0]) }
+    })
+    return { streak: count, last7 }
   }, [updates])
 
-  const activities = [
-    { label: "Shoot",    Icon: Camera,   color: "#EF4444", hours: stats.shootHours },
-    { label: "Editing",  Icon: Film,     color: "#6366F1", hours: stats.editHours  },
-    { label: "Planning", Icon: BookOpen, color: "#F59E0B", hours: stats.otherHours * 0.55 },
-    { label: "Meetings", Icon: Users,    color: "#10B981", hours: stats.otherHours * 0.45 },
-  ].sort((a, b) => b.hours - a.hours)
+  // Top activity
+  const topActivity = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const u of filtered) {
+      for (const e of (Array.isArray(u.work_entries) ? u.work_entries : [])) {
+        const k = e.client_name || e.title || "Internal"
+        map[k] = (map[k] ?? 0) + (e.duration_hours ?? 0)
+      }
+    }
+    const top = Object.entries(map).sort((a, b) => b[1] - a[1])[0]
+    return top ? { name: top[0], hours: top[1] } : null
+  }, [filtered])
 
-  const maxAct = Math.max(...activities.map(a => a.hours), 1)
+  // Meeting hours (approx from "other" entries)
+  const meetingH = Math.round(stats.otherH * 0.45 * 10) / 10
+
+  const now = new Date()
+  const greeting = now.getHours() < 12 ? "Good Morning" : now.getHours() < 17 ? "Good Afternoon" : "Good Evening"
+  const fn = userName.split(" ")[0] || "there"
+
+  // Latest day stats
+  const latestH  = latest?.working_hours ?? 0
+  const latestOT = latestH > 9 ? Math.round((latestH - 9) * 10) / 10 : 0
+  const latestTasks = latest ? (Array.isArray(latest.work_entries) ? latest.work_entries : []).length : 0
+  const latestSt = latest ? (STATUS_STYLE[latest.attendance_status] ?? STATUS_STYLE.present) : STATUS_STYLE.present
+
+  // Latest day entries
+  const latestEntries = latest ? (Array.isArray(latest.work_entries) ? latest.work_entries : []) : []
+  const shownEntries  = viewFull ? latestEntries : latestEntries.slice(0, 4)
+
+  // Latest day date label
+  const latestDateLabel = latest
+    ? new Date(latest.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
+    : ""
 
   return (
-    <div style={{ background: "#F5F6FA", minHeight: "100vh", padding: "24px 28px 40px" }}>
+    <div style={{ background:"#F8F9FC", minHeight:"100vh", padding:"0" }}>
 
-      {/* ── Header ──────────────────────────────────────────────────────────── */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:24, flexWrap:"wrap", gap:12 }}>
+      {/* ── TOPBAR ────────────────────────────────────────────────────────── */}
+      <div style={{ background:"#fff", borderBottom:"1px solid #EBEDF2", padding:"14px 28px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
         <div>
-          <h1 style={{ fontSize:30, fontWeight:900, color:"#111111", fontFamily:"var(--font-jakarta)", margin:"0 0 4px" }}>
+          <h1 style={{ fontSize:26, fontWeight:900, color:"#111111", fontFamily:"var(--font-jakarta)", margin:0 }}>
             Update <span style={{ color:"#DE1A1A" }}>History</span>
           </h1>
-          <p style={{ fontSize:13, color:"#6B7280", margin:0 }}>Your daily work logs — last 90 days</p>
+          <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Your daily work logs — last 90 days</p>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-          {stats.totalOT > 0 && (
-            <span style={{ padding:"5px 13px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706", fontSize:12, fontWeight:700 }}>
-              {fmtH(stats.totalOT)} OT
-            </span>
-          )}
-          {filtered.length > 0 && (
-            <span style={{ padding:"5px 13px", borderRadius:99, background:"rgba(239,68,68,0.1)", color:"#EF4444", fontSize:12, fontWeight:700 }}>
-              {filtered.length} day{filtered.length !== 1 ? "s" : ""}
-            </span>
-          )}
+
+        {/* Search */}
+        <div style={{ flex:1, maxWidth:340, position:"relative" }}>
+          <Search size={14} style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF" }}/>
+          <input placeholder="Search anything…" style={{ width:"100%", background:"#F5F6FA", border:"1px solid #EBEDF2", borderRadius:12, padding:"9px 12px 9px 34px", fontSize:13, color:"#374151", outline:"none" }}/>
+        </div>
+
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          {/* Bell */}
+          <div style={{ position:"relative" }}>
+            <div style={{ width:38, height:38, borderRadius:12, background:"#F5F6FA", border:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <Bell size={16} style={{ color:"#374151" }}/>
+            </div>
+            <span style={{ position:"absolute", top:-4, right:-4, width:16, height:16, background:"#DE1A1A", borderRadius:"50%", fontSize:8, fontWeight:900, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", border:"2px solid #fff" }}>3</span>
+          </div>
+
           {/* Month picker */}
           <div style={{ position:"relative" }}>
             <button onClick={() => setMonthOpen(o => !o)}
-              style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 14px", borderRadius:12, background:"#fff", border:"1px solid #E5E7EB", fontSize:13, fontWeight:600, color:"#374151", cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.06)" }}>
-              <CalendarDays size={14} style={{ color:"#DE1A1A" }} />
+              style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 14px", borderRadius:12, background:"#fff", border:"1px solid #EBEDF2", fontSize:13, fontWeight:600, color:"#374151", cursor:"pointer" }}>
+              <CalendarDays size={14} style={{ color:"#DE1A1A" }}/>
               {selectedMonth || "Select Month"}
-              <ChevronDown size={12} style={{ transform: monthOpen ? "rotate(180deg)" : "none", transition:"0.2s" }} />
+              <ChevronDown size={12} style={{ transform:monthOpen?"rotate(180deg)":"none", transition:"0.2s" }}/>
             </button>
             {monthOpen && (
-              <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, background:"#fff", border:"1px solid #E5E7EB", borderRadius:12, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", zIndex:30, minWidth:180, overflow:"hidden" }}>
+              <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, background:"#fff", border:"1px solid #E5E7EB", borderRadius:12, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", zIndex:40, minWidth:180, overflow:"hidden" }}>
                 {months.map(m => (
                   <button key={m} onClick={() => { setSelectedMonth(m); setMonthOpen(false) }}
-                    style={{ display:"block", width:"100%", textAlign:"left", padding:"10px 14px", fontSize:13, fontWeight: m === selectedMonth ? 700 : 500, color: m === selectedMonth ? "#DE1A1A" : "#374151", background: m === selectedMonth ? "rgba(222,26,26,0.05)" : "none", border:"none", cursor:"pointer" }}>
+                    style={{ display:"block", width:"100%", textAlign:"left", padding:"10px 14px", fontSize:13, fontWeight: m === selectedMonth ? 700:500, color: m === selectedMonth ? "#DE1A1A":"#374151", background: m === selectedMonth ? "rgba(222,26,26,0.05)":"none", border:"none", cursor:"pointer" }}>
                     {m}
                   </button>
                 ))}
@@ -213,261 +281,349 @@ export default function HistoryClient({ updates }: { updates: UpdateRow[] }) {
         </div>
       </div>
 
-      {/* ── Main 2-col ──────────────────────────────────────────────────────── */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 290px", gap:20, marginBottom:20, alignItems:"start" }}>
+      <div style={{ padding:"20px 28px 40px" }}>
+        {/* ── MAIN 2-COL GRID ─────────────────────────────────────────────── */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 300px", gap:20, alignItems:"start" }}>
 
-        {/* LEFT: Timeline */}
-        <div>
-          {filtered.length === 0 ? (
-            <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"80px 0", background:"#fff", borderRadius:20, border:"2px dashed #E5E7EB" }}>
-              <span style={{ fontSize:40, marginBottom:12 }}>📋</span>
-              <p style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No updates for {selectedMonth}</p>
-              <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Submit your daily updates to see them here.</p>
-            </div>
-          ) : (
-            <div style={{ position:"relative", paddingLeft:30 }}>
-              {/* Vertical line */}
-              <div style={{ position:"absolute", left:11, top:28, bottom:28, width:2, background:"linear-gradient(to bottom,#E5E7EB,#D1D5DB)", borderRadius:99 }} />
+          {/* LEFT ── Hero + Entries ──────────────────────────────────────── */}
+          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
 
-              <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-                {filtered.map((u, idx) => {
-                  const st = STATUS_STYLE[u.attendance_status] ?? STATUS_STYLE.present
-                  const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-                  const h = u.working_hours ?? 0
-                  const ot = h > 9 ? Math.round((h - 9) * 10) / 10 : 0
-                  const dot = DOT_COLORS[idx % DOT_COLORS.length]
-                  const dateObj = new Date(u.date + "T12:00:00")
-                  const dayName = dateObj.toLocaleDateString("en-US", { weekday: "short" }).toUpperCase()
-                  const dayNum  = dateObj.getDate()
-                  const monName = dateObj.toLocaleDateString("en-US", { month: "short", year: "numeric" })
+            {/* ── HERO BANNER ─────────────────────────────────────────────── */}
+            <div style={{ background:"#fff", borderRadius:22, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 4px 20px rgba(0,0,0,0.07)", position:"relative", minHeight:240 }}>
 
-                  return (
-                    <div key={u.id} style={{ position:"relative" }}>
-                      {/* Timeline dot */}
-                      <div style={{ position:"absolute", left:-30+5, top:22, width:14, height:14, borderRadius:"50%", background:dot, border:"3px solid #fff", boxShadow:`0 0 0 3px ${dot}30`, zIndex:1 }} />
+              {/* Background illustration — right 55% */}
+              <div style={{ position:"absolute", right:0, top:0, bottom:0, width:"58%" }}>
+                <Image src="/brand/daily-boy.png" alt="" fill style={{ objectFit:"cover", objectPosition:"center top" }}/>
+                {/* Fade to left */}
+                <div style={{ position:"absolute", left:0, top:0, bottom:0, width:"35%", background:"linear-gradient(to right,#ffffff,transparent)" }}/>
+              </div>
 
-                      <div style={{ background:"#fff", borderRadius:18, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              {/* Heart icon top-right */}
+              <div style={{ position:"absolute", right:20, top:20, zIndex:3, width:34, height:34, borderRadius:"50%", background:"#DE1A1A", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 14px rgba(222,26,26,0.4)" }}>
+                <span style={{ fontSize:16 }}>❤️</span>
+              </div>
 
-                        {/* Day header */}
-                        <div style={{ display:"flex", alignItems:"center", gap:16, padding:"16px 20px", borderBottom: entries.length > 0 ? "1px solid #F5F6FA" : "none", position:"relative" }}>
+              {/* Quote bubble */}
+              <div style={{ position:"absolute", right:72, top:20, zIndex:3, background:"#fff", borderRadius:16, padding:"10px 14px", boxShadow:"0 4px 20px rgba(0,0,0,0.1)", maxWidth:170, border:"1px solid #EBEDF2" }}>
+                <span style={{ fontSize:14, color:"#6B7280" }}>"</span>
+                <p style={{ fontSize:11, fontWeight:600, color:"#374151", margin:"0 0 3px", lineHeight:1.4 }}>Discipline today</p>
+                <p style={{ fontSize:11, fontWeight:800, color:"#DE1A1A", margin:"0 0 3px" }}>Success tomorrow.</p>
+                <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Keep going!</p>
+              </div>
 
-                          {/* Date badge */}
-                          <div style={{ textAlign:"center", flexShrink:0, minWidth:52 }}>
-                            <div style={{ background:"#DE1A1A", borderRadius:8, padding:"3px 8px", marginBottom:4, display:"inline-block" }}>
-                              <span style={{ fontSize:8, fontWeight:900, color:"#fff", letterSpacing:"0.12em" }}>{dayName}</span>
-                            </div>
-                            <p style={{ fontSize:34, fontWeight:900, color:"#111111", lineHeight:1, margin:"0 0 2px", fontFamily:"var(--font-jakarta)" }}>{dayNum}</p>
-                            <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>{monName}</p>
-                          </div>
+              {/* Left content */}
+              <div style={{ position:"relative", zIndex:2, padding:"28px 28px 0 28px", maxWidth:"44%" }}>
+                <p style={{ fontSize:13, fontWeight:600, color:"#6B7280", margin:"0 0 10px" }}>{greeting}, {fn}! 👋</p>
+                <h2 style={{ fontSize:28, fontWeight:900, color:"#111111", margin:"0 0 8px", fontFamily:"var(--font-jakarta)", lineHeight:1.2 }}>
+                  Let&apos;s make today
+                </h2>
+                <h2 style={{ fontSize:28, fontWeight:900, color:"#DE1A1A", margin:"0 0 16px", fontFamily:"var(--font-jakarta)", lineHeight:1.2 }}>
+                  productive &amp; impactful.
+                </h2>
+                {/* Red accent bar */}
+                <div style={{ width:48, height:4, background:"linear-gradient(90deg,#DE1A1A,#F59E0B)", borderRadius:99, marginBottom:0 }}/>
+              </div>
 
-                          <div style={{ width:1, alignSelf:"stretch", background:"#F0F1F5", margin:"0 4px" }} />
-
-                          {/* Status + stats */}
-                          <div style={{ flex:1 }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12, flexWrap:"wrap" }}>
-                              <div style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 10px", borderRadius:99, background:st.bg }}>
-                                <div style={{ width:7, height:7, borderRadius:"50%", background:st.dot }} />
-                                <span style={{ fontSize:11, fontWeight:700, color:st.color }}>{st.label}</span>
-                              </div>
-                              {u.work_type === "wfh" && (
-                                <span style={{ fontSize:10, fontWeight:600, padding:"3px 9px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>WFH</span>
-                              )}
-                            </div>
-                            <div style={{ display:"flex", alignItems:"center", gap:18, flexWrap:"wrap" }}>
-                              {h > 0 && (
-                                <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                                  <div style={{ width:30, height:30, borderRadius:9, background:"rgba(239,68,68,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                                    <Clock size={13} style={{ color:"#EF4444" }} />
-                                  </div>
-                                  <div>
-                                    <p style={{ fontSize:15, fontWeight:900, color:"#111111", margin:0, lineHeight:1 }}>{h}h</p>
-                                    <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>Worked</p>
-                                  </div>
-                                </div>
-                              )}
-                              {ot > 0 && (
-                                <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                                  <div style={{ width:30, height:30, borderRadius:9, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                                    <Zap size={13} style={{ color:"#F59E0B" }} />
-                                  </div>
-                                  <div>
-                                    <p style={{ fontSize:15, fontWeight:900, color:"#F59E0B", margin:0, lineHeight:1 }}>+{ot}h</p>
-                                    <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>Overtime</p>
-                                  </div>
-                                </div>
-                              )}
-                              {(u.shoot_count ?? 0) > 0 && (
-                                <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                                  <div style={{ width:30, height:30, borderRadius:9, background:"rgba(99,102,241,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                                    <Camera size={13} style={{ color:"#6366F1" }} />
-                                  </div>
-                                  <div>
-                                    <p style={{ fontSize:15, fontWeight:900, color:"#111111", margin:0, lineHeight:1 }}>{u.shoot_count}</p>
-                                    <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>Shoots</p>
-                                  </div>
-                                </div>
-                              )}
-                              {(u.learning_hours ?? 0) > 0 && (
-                                <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                                  <div style={{ width:30, height:30, borderRadius:9, background:"rgba(16,185,129,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                                    <BookOpen size={13} style={{ color:"#10B981" }} />
-                                  </div>
-                                  <div>
-                                    <p style={{ fontSize:15, fontWeight:900, color:"#111111", margin:0, lineHeight:1 }}>{u.learning_hours}h</p>
-                                    <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>Learning</p>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Day illustration */}
-                          <div style={{ width:96, height:76, borderRadius:14, overflow:"hidden", flexShrink:0 }}>
-                            <Image src="/brand/daily-boy.png" alt="" width={96} height={76}
-                              style={{ objectFit:"cover", objectPosition:"center top", width:"100%", height:"100%" }} />
-                          </div>
-                        </div>
-
-                        {/* Work entries */}
-                        {entries.map((entry, ei) => {
-                          const cfg = TASK_CFG[entry.task_type] ?? TASK_CFG.other
-                          const hasTime = entry.start_time && entry.end_time
-                          const isOT = ot > 0 && ei === entries.length - 1
-
-                          return (
-                            <div key={ei} style={{ display:"flex", alignItems:"center", gap:14, padding:"13px 20px", borderBottom: ei < entries.length - 1 ? "1px solid #F8F9FA" : "none" }}>
-                              {/* Time + badge */}
-                              <div style={{ width:130, flexShrink:0 }}>
-                                <p style={{ fontSize:11, fontWeight:600, color:"#374151", margin:"0 0 5px", whiteSpace:"nowrap" }}>
-                                  {hasTime ? `${fmt12(entry.start_time!)} - ${fmt12(entry.end_time!)}` : "—"}
-                                </p>
-                                <span style={{ fontSize:9, fontWeight:700, padding:"2px 8px", borderRadius:99,
-                                  background: isOT ? "rgba(245,158,11,0.12)" : "rgba(16,185,129,0.1)",
-                                  color:      isOT ? "#D97706" : "#16A34A" }}>
-                                  {isOT ? `+${ot}h OT` : "Full Day"}
-                                </span>
-                              </div>
-
-                              {/* Thumbnail */}
-                              {entry.screenshot_url ? (
-                                <div style={{ width:58, height:48, borderRadius:10, overflow:"hidden", flexShrink:0 }}>
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={entry.screenshot_url} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                                </div>
-                              ) : (
-                                <div style={{ width:58, height:48, borderRadius:10, background:cfg.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                                  <cfg.Icon size={20} style={{ color:cfg.color }} />
-                                </div>
-                              )}
-
-                              {/* Details */}
-                              <div style={{ flex:1, minWidth:0 }}>
-                                <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 3px", textTransform:"uppercase", letterSpacing:"0.02em", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                                  {entry.client_name || entry.title || "—"}
-                                </p>
-                                <p style={{ fontSize:11, color:"#6B7280", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                                  {entry.client_name ? entry.title : entry.notes || cfg.label}
-                                </p>
-                              </div>
-
-                              {/* Hours circle */}
-                              <div style={{ width:40, height:40, borderRadius:"50%", background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                                <span style={{ fontSize:11, fontWeight:800, color:"#D97706" }}>{entry.duration_hours}h</span>
-                              </div>
-
-                              <button style={{ background:"none", border:"none", cursor:"pointer", padding:4 }}>
-                                <MoreVertical size={14} style={{ color:"#D1D5DB" }} />
-                              </button>
-                            </div>
-                          )
-                        })}
+              {/* Stats strip */}
+              {latest && (
+                <div style={{ position:"relative", zIndex:2, display:"flex", alignItems:"center", gap:10, padding:"20px 28px 24px", flexWrap:"wrap" }}>
+                  {latestH > 0 && (
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:14, background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.15)" }}>
+                      <Clock size={14} style={{ color:"#EF4444" }}/>
+                      <div>
+                        <p style={{ fontSize:14, fontWeight:900, color:"#111111", margin:0, lineHeight:1 }}>{fmtH(latestH)}</p>
+                        <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>Worked</p>
                       </div>
                     </div>
-                  )
-                })}
+                  )}
+                  {latestOT > 0 && (
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:14, background:"rgba(245,158,11,0.06)", border:"1px solid rgba(245,158,11,0.18)" }}>
+                      <Zap size={14} style={{ color:"#F59E0B" }}/>
+                      <div>
+                        <p style={{ fontSize:14, fontWeight:900, color:"#F59E0B", margin:0, lineHeight:1 }}>+{fmtH(latestOT)}</p>
+                        <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>Overtime</p>
+                      </div>
+                    </div>
+                  )}
+                  {latestTasks > 0 && (
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:14, background:"rgba(99,102,241,0.06)", border:"1px solid rgba(99,102,241,0.15)" }}>
+                      <CheckCircle2 size={14} style={{ color:"#6366F1" }}/>
+                      <div>
+                        <p style={{ fontSize:14, fontWeight:900, color:"#111111", margin:0, lineHeight:1 }}>{latestTasks}</p>
+                        <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>Tasks Done</p>
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 16px", borderRadius:14, background:latestSt.bg, border:`1px solid ${latestSt.dot}30` }}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", background:latestSt.dot }}/>
+                    <span style={{ fontSize:12, fontWeight:700, color:latestSt.color }}>{latestSt.label}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── ENTRIES SECTION ─────────────────────────────────────────── */}
+            {filtered.length === 0 ? (
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 0", background:"#fff", borderRadius:20, border:"2px dashed #E5E7EB" }}>
+                <span style={{ fontSize:40, marginBottom:12 }}>📋</span>
+                <p style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No updates for {selectedMonth}</p>
+                <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Submit your daily updates to see them here.</p>
+              </div>
+            ) : (
+              <div style={{ background:"#fff", borderRadius:22, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                {/* Entries header */}
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 22px", borderBottom:"1px solid #F5F6FA" }}>
+                  <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:0 }}>
+                    Today • {latestDateLabel}
+                  </p>
+                  <div style={{ display:"flex", alignItems:"center", gap:4, background:"#F5F6FA", borderRadius:10, padding:3 }}>
+                    {["Timeline View","List View"].map((v, i) => (
+                      <button key={v} style={{ padding:"5px 12px", borderRadius:8, fontSize:11, fontWeight:700, border:"none", cursor:"pointer",
+                        background: i === 0 ? "#fff" : "transparent",
+                        color:      i === 0 ? "#DE1A1A" : "#9CA3AF",
+                        boxShadow:  i === 0 ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
+                        {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Timeline entries */}
+                <div style={{ position:"relative", padding:"0 22px" }}>
+                  <div style={{ position:"absolute", left:30, top:0, bottom:0, width:2, background:"linear-gradient(to bottom,#E5E7EB,transparent)" }}/>
+
+                  {shownEntries.map((entry, ei) => {
+                    const cfg     = TASK_CFG[entry.task_type] ?? TASK_CFG.other
+                    const dot     = DOT_COLORS[ei % DOT_COLORS.length]
+                    const hasTime = entry.start_time && entry.end_time
+                    const isOT    = latestOT > 0 && ei === latestEntries.length - 1
+                    return (
+                      <div key={ei} style={{ display:"flex", alignItems:"center", gap:14, padding:"15px 0", borderBottom: ei < shownEntries.length - 1 ? "1px solid #F8F9FA":"none", position:"relative" }}>
+                        {/* Dot */}
+                        <div style={{ position:"absolute", left:0, width:16, height:16, borderRadius:"50%", background:dot, border:"3px solid #fff", boxShadow:`0 0 0 2px ${dot}30`, flexShrink:0 }}/>
+
+                        {/* Time + badge */}
+                        <div style={{ width:140, flexShrink:0, paddingLeft:24 }}>
+                          <p style={{ fontSize:11, fontWeight:600, color:"#374151", margin:"0 0 5px", whiteSpace:"nowrap" }}>
+                            {hasTime ? `${fmt12(entry.start_time!)} - ${fmt12(entry.end_time!)}` : "—"}
+                          </p>
+                          {isOT ? (
+                            <span style={{ fontSize:9, fontWeight:800, padding:"2px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>+{fmtH(latestOT)} OT</span>
+                          ) : (
+                            <span style={{ fontSize:9, fontWeight:800, padding:"2px 8px", borderRadius:99, background:"rgba(22,163,74,0.1)", color:"#16A34A" }}>Completed</span>
+                          )}
+                        </div>
+
+                        {/* Icon */}
+                        <div style={{ width:50, height:44, borderRadius:13, background:cfg.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <cfg.Icon size={18} style={{ color:cfg.color }}/>
+                        </div>
+
+                        {/* Title */}
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:"0 0 3px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textTransform:"uppercase", letterSpacing:"0.02em" }}>
+                            {entry.client_name || entry.title || "—"}
+                          </p>
+                          <p style={{ fontSize:11, color:"#6B7280", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                            {entry.client_name ? entry.title : entry.notes || cfg.label}
+                          </p>
+                        </div>
+
+                        {/* Hours badge */}
+                        <div style={{ padding:"6px 14px", borderRadius:99, background: isOT ? "rgba(245,158,11,0.1)" : "rgba(22,163,74,0.08)", border: `1.5px solid ${isOT ? "rgba(245,158,11,0.2)" : "rgba(22,163,74,0.2)"}`, flexShrink:0 }}>
+                          <span style={{ fontSize:12, fontWeight:800, color: isOT ? "#D97706" : "#16A34A" }}>{entry.duration_hours}h</span>
+                        </div>
+
+                        <button style={{ background:"none", border:"none", cursor:"pointer", padding:4 }}>
+                          <MoreVertical size={14} style={{ color:"#D1D5DB" }}/>
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* View Full Day Logs */}
+                <div style={{ padding:"12px 22px", borderTop:"1px solid #F5F6FA" }}>
+                  <button onClick={() => setViewFull(v => !v)}
+                    style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:700, color:"#374151", padding:0 }}>
+                    {viewFull ? "View Less" : "View Full Day Logs"}
+                    <ArrowRight size={14} style={{ transform: viewFull ? "rotate(90deg)":"none", transition:"0.2s" }}/>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT ── Stats panel ─────────────────────────────────────────── */}
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+
+            {/* Work Summary */}
+            <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                  <TrendingUp size={14} style={{ color:"#DE1A1A" }}/>
+                  <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>Work Summary</span>
+                </div>
+                <span style={{ fontSize:10, fontWeight:600, color:"#9CA3AF" }}>This Month</span>
+              </div>
+              <DonutChart
+                regular={stats.totalHours - stats.totalOT}
+                overtime={stats.totalOT}
+                tasks={stats.totalTasks * 0.8}
+                total={Math.max(stats.totalHours + stats.totalTasks * 0.8, 1)}
+                label={fmtH(stats.totalHours)}
+              />
+              <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                {[
+                  { label:"Regular Hours",   value: fmtH(stats.totalHours - stats.totalOT), color:"#22C55E" },
+                  { label:"Overtime",        value: fmtH(stats.totalOT),                   color:"#F59E0B" },
+                  { label:"Tasks Completed", value: String(stats.totalTasks),               color:"#6366F1" },
+                  { label:"Present Days",    value: String(stats.presentDays),              color:"#EF4444" },
+                ].map(r => (
+                  <div key={r.label} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                      <div style={{ width:8, height:8, borderRadius:"50%", background:r.color }}/>
+                      <span style={{ fontSize:11, color:"#6B7280" }}>{r.label}</span>
+                    </div>
+                    <span style={{ fontSize:11, fontWeight:700, color:"#111111" }}>{r.value}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Trend footer */}
+              <div style={{ marginTop:12, paddingTop:10, borderTop:"1px solid #F5F6FA", display:"flex", alignItems:"center", gap:5 }}>
+                <TrendingUp size={11} style={{ color:"#22C55E" }}/>
+                <span style={{ fontSize:10, color:"#22C55E", fontWeight:700 }}>14% more hours</span>
+                <span style={{ fontSize:10, color:"#9CA3AF" }}>than last month</span>
               </div>
             </div>
-          )}
+
+            {/* Productivity Score */}
+            <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+                <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>Productivity Score</span>
+                <span style={{ fontSize:10, fontWeight:600, color:"#9CA3AF" }}>This Month</span>
+              </div>
+              <ProductivityRing pct={stats.productivity} />
+            </div>
+
+            {/* AI Assistant */}
+            <div style={{ background:"rgba(255,235,235,0.6)", borderRadius:20, border:"1px solid rgba(222,26,26,0.12)", padding:"16px", boxShadow:"0 2px 12px rgba(222,26,26,0.06)" }}>
+              <div style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:10 }}>
+                <div style={{ width:44, height:44, borderRadius:14, background:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, boxShadow:"0 2px 8px rgba(0,0,0,0.1)", fontSize:22 }}>
+                  🤖
+                </div>
+                <div>
+                  <p style={{ fontSize:13, fontWeight:800, color:"#DE1A1A", margin:"0 0 3px" }}>AI Assistant</p>
+                  <p style={{ fontSize:11, fontWeight:600, color:"#374151", margin:0 }}>Here&apos;s your daily insight</p>
+                </div>
+              </div>
+              <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 12px", lineHeight:1.5 }}>
+                You completed <strong style={{ color:"#111111" }}>{stats.totalTasks} tasks</strong> this month. Focus on planning tomorrow&apos;s work to stay ahead!
+              </p>
+              <button style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:10, background:"#DE1A1A", border:"none", cursor:"pointer", fontSize:11, fontWeight:700, color:"#fff" }}>
+                View Suggestions <ArrowRight size={11}/>
+              </button>
+            </div>
+
+            {/* Achievements */}
+            <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)", display:"flex", alignItems:"center", gap:14 }}>
+              <div style={{ width:54, height:54, borderRadius:16, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, fontSize:28 }}>
+                🏆
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
+                  <Trophy size={12} style={{ color:"#F59E0B" }}/>
+                  <span style={{ fontSize:12, fontWeight:800, color:"#F59E0B", textTransform:"uppercase", letterSpacing:"0.08em" }}>Achievements</span>
+                </div>
+                <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 2px" }}>Great Job!</p>
+                <p style={{ fontSize:11, color:"#6B7280", margin:0 }}>You&apos;ve earned <strong>5 badges</strong> this month.</p>
+                <button style={{ display:"flex", alignItems:"center", gap:4, background:"none", border:"none", cursor:"pointer", padding:"6px 0 0", fontSize:11, fontWeight:700, color:"#DE1A1A" }}>
+                  View All <ArrowRight size={11}/>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* RIGHT: Stats */}
-        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+        {/* ── BOTTOM STATS ROW ─────────────────────────────────────────────── */}
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginTop:20 }}>
 
-          {/* Work Summary */}
-          <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                <TrendingUp size={15} style={{ color:"#DE1A1A" }} />
-                <span style={{ fontSize:14, fontWeight:800, color:"#111111" }}>Work Summary</span>
-              </div>
-              <span style={{ fontSize:11, fontWeight:600, color:"#9CA3AF" }}>This Month</span>
+          {/* Work Streak */}
+          <div style={{ background:"#fff", borderRadius:18, padding:"18px 18px 14px", border:"1px solid #EBEDF2", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+              <Flame size={16} style={{ color:"#EF4444" }}/>
+              <span style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.08em" }}>Work Streak</span>
             </div>
-            <DonutChart regular={stats.totalHours - stats.totalOT} overtime={stats.totalOT} total={stats.totalHours} />
-            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {[
-                { label:"Regular Hours", value: fmtH(stats.totalHours - stats.totalOT), color:"#22C55E" },
-                { label:"Overtime",      value: fmtH(stats.totalOT),                   color:"#F59E0B" },
-                { label:"Shoots",        value: String(stats.totalShoots),              color:"#6366F1" },
-                { label:"Present Days",  value: String(stats.presentDays),             color:"#EF4444" },
-              ].map(r => (
-                <div key={r.label} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                    <div style={{ width:8, height:8, borderRadius:"50%", background:r.color, flexShrink:0 }} />
-                    <span style={{ fontSize:11, color:"#6B7280" }}>{r.label}</span>
+            <p style={{ fontSize:24, fontWeight:900, color:"#111111", margin:"0 0 2px", fontFamily:"var(--font-jakarta)" }}>{streak} Days</p>
+            <p style={{ fontSize:10, color:"#22C55E", fontWeight:600, margin:"0 0 12px" }}>Keep it up!</p>
+            {/* Weekly dots */}
+            <div style={{ display:"flex", justifyContent:"space-between" }}>
+              {last7.map((d, i) => (
+                <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                  <span style={{ fontSize:9, color:"#9CA3AF", fontWeight:600 }}>{d.lbl}</span>
+                  <div style={{ width:22, height:22, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10,
+                    background: d.done ? "rgba(22,163,74,0.12)" : "#F5F6FA",
+                    color:      d.done ? "#16A34A" : "#D1D5DB",
+                  }}>
+                    {d.done ? "✓" : "×"}
                   </div>
-                  <span style={{ fontSize:12, fontWeight:700, color:"#111111" }}>{r.value}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Top Activity */}
-          <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                <TrendingUp size={15} style={{ color:"#F59E0B" }} />
-                <span style={{ fontSize:14, fontWeight:800, color:"#111111" }}>Top Activity</span>
-              </div>
-              <span style={{ fontSize:11, fontWeight:600, color:"#9CA3AF" }}>By Hours</span>
+          <div style={{ background:"#fff", borderRadius:18, padding:"18px 18px 0", border:"1px solid #EBEDF2", boxShadow:"0 2px 8px rgba(0,0,0,0.04)", overflow:"hidden" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+              <Star size={15} style={{ color:"#F59E0B" }}/>
+              <span style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.08em" }}>Top Activity</span>
             </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-              {activities.map(a => (
-                <div key={a.label}>
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:5 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                      <a.Icon size={12} style={{ color:a.color }} />
-                      <span style={{ fontSize:12, fontWeight:600, color:"#374151" }}>{a.label}</span>
-                    </div>
-                    <span style={{ fontSize:11, fontWeight:700, color:a.color }}>{fmtH(a.hours)}</span>
-                  </div>
-                  <div style={{ height:4, borderRadius:99, background:"#F3F4F6", overflow:"hidden" }}>
-                    <div style={{ height:"100%", width:`${(a.hours / maxAct) * 100}%`, background:a.color, borderRadius:99, transition:"width 0.6s ease" }} />
-                  </div>
-                </div>
-              ))}
+            <p style={{ fontSize:16, fontWeight:900, color:"#111111", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+              {topActivity?.name || "—"}
+            </p>
+            <p style={{ fontSize:10, color:"#9CA3AF", fontWeight:600, margin:"0 0 8px" }}>{fmtH(topActivity?.hours ?? 0)}</p>
+            <Sparkline data={stats.hoursPerDay} color="#6366F1"/>
+          </div>
+
+          {/* Meetings */}
+          <div style={{ background:"#fff", borderRadius:18, padding:"18px 18px 14px", border:"1px solid #EBEDF2", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+              <Users size={15} style={{ color:"#0EA5E9" }}/>
+              <span style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.08em" }}>Meetings</span>
+            </div>
+            <p style={{ fontSize:24, fontWeight:900, color:"#111111", margin:"0 0 2px", fontFamily:"var(--font-jakarta)" }}>{fmtH(meetingH)}</p>
+            <p style={{ fontSize:10, color:"#9CA3AF", fontWeight:600, margin:"0 0 14px" }}>Total this month</p>
+            {/* Mini bar chart */}
+            <div style={{ display:"flex", alignItems:"flex-end", gap:4, height:36 }}>
+              {stats.hoursPerDay.slice(-7).map((h, i) => {
+                const max = Math.max(...stats.hoursPerDay, 1)
+                return (
+                  <div key={i} style={{ flex:1, borderRadius:3, background: i === stats.hoursPerDay.slice(-7).length - 1 ? "#0EA5E9" : "#E0F2FE",
+                    height:`${Math.max(8, (h / max) * 36)}px` }}/>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Tasks Completion */}
+          <div style={{ background:"#fff", borderRadius:18, padding:"18px 18px 14px", border:"1px solid #EBEDF2", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+              <CheckCircle2 size={15} style={{ color:"#22C55E" }}/>
+              <span style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.08em" }}>Tasks Completion</span>
+            </div>
+            <p style={{ fontSize:24, fontWeight:900, color:"#111111", margin:"0 0 2px", fontFamily:"var(--font-jakarta)" }}>
+              {stats.totalTasks} / {Math.max(stats.totalTasks + 10, 20)}
+            </p>
+            <p style={{ fontSize:10, color:"#22C55E", fontWeight:600, margin:"0 0 12px" }}>
+              {stats.totalTasks > 0 ? Math.round((stats.totalTasks / Math.max(stats.totalTasks + 10, 20)) * 100) : 0}% Completed
+            </p>
+            <div style={{ height:8, borderRadius:99, background:"#F3F4F6", overflow:"hidden" }}>
+              <div style={{ height:"100%", borderRadius:99, background:"linear-gradient(90deg,#22C55E,#16A34A)",
+                width:`${stats.totalTasks > 0 ? Math.round((stats.totalTasks / Math.max(stats.totalTasks + 10, 20)) * 100) : 0}%`,
+                transition:"width 0.6s ease" }}/>
             </div>
           </div>
         </div>
-      </div>
-
-      {/* ── Bottom stats row ────────────────────────────────────────────────── */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14 }}>
-        {[
-          { label:"Total Hours Worked", value: fmtH(allStats.totalHours),   sub:"+15% from last month", color:"#EF4444", Icon:Clock,       spark: stats.hoursPerDay },
-          { label:"Total Overtime",     value: fmtH(allStats.totalOT),      sub:"+8% from last month",  color:"#F59E0B", Icon:Zap,         spark: stats.hoursPerDay.map(h => Math.max(0, h - 9)) },
-          { label:"Total Shoots",       value: String(allStats.totalShoots), sub:"+4% from last month",  color:"#6366F1", Icon:Camera,      spark: stats.hoursPerDay.map((_,i)=> i % 2 === 0 ? 1 : 2) },
-          { label:"Total Days Present", value: String(allStats.presentDays), sub:"+10% from last month", color:"#10B981", Icon:CalendarDays, spark: stats.hoursPerDay.map((_,i)=> i % 5 === 0 ? 0 : 1) },
-        ].map(s => (
-          <div key={s.label} style={{ background:"#fff", borderRadius:18, padding:"18px 18px 0", border:"1px solid #EBEDF2", boxShadow:"0 2px 8px rgba(0,0,0,0.04)", overflow:"hidden" }}>
-            <div style={{ width:36, height:36, borderRadius:10, background:`${s.color}18`, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:10 }}>
-              <s.Icon size={16} style={{ color:s.color }} />
-            </div>
-            <p style={{ fontSize:11, color:"#9CA3AF", fontWeight:600, margin:"0 0 3px" }}>{s.label}</p>
-            <p style={{ fontSize:24, fontWeight:900, color:"#111111", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", lineHeight:1.1 }}>{s.value}</p>
-            <p style={{ fontSize:10, color:"#22C55E", fontWeight:600, margin:"0 0 10px" }}>{s.sub}</p>
-            <Sparkline color={s.color} data={s.spark.length > 1 ? s.spark : [1,2,3,2,4,3,5,4,3,5]} />
-          </div>
-        ))}
       </div>
     </div>
   )

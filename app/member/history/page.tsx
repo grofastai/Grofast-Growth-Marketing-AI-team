@@ -1,6 +1,7 @@
 export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import HistoryClient from "./history-client"
 
@@ -28,19 +29,37 @@ type UpdateRow = {
   created_at: string
 }
 
+function adminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
+
 export default async function HistoryPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: raw } = await supabase
-    .from("daily_updates")
-    .select("id, date, attendance_status, work_type, working_hours, learning_hours, shoot_count, work_entries, created_at")
-    .eq("user_id", user.id)
-    .order("date", { ascending: false })
-    .limit(90)
+  const admin = adminSupabase()
 
-  const updates = (raw ?? []) as unknown as UpdateRow[]
+  const [updatesResult, profileResult] = await Promise.all([
+    supabase
+      .from("daily_updates")
+      .select("id, date, attendance_status, work_type, working_hours, learning_hours, shoot_count, work_entries, created_at")
+      .eq("user_id", user.id)
+      .order("date", { ascending: false })
+      .limit(90),
+    admin
+      .from("users")
+      .select("name")
+      .eq("id", user.id)
+      .single(),
+  ])
 
-  return <HistoryClient updates={updates} />
+  const updates = (updatesResult.data ?? []) as unknown as UpdateRow[]
+  const name = (profileResult.data?.name ?? "").split(" ")[0] || "there"
+
+  return <HistoryClient updates={updates} userName={name} />
 }

@@ -166,50 +166,46 @@ export default function MemberLeavesClient({ leaves, userName }: { leaves: Leave
       <div style={{ flex: 1, minWidth: 0, overflow: "auto" }}>
 
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
-        <div style={{ background: "#FFFFFF", padding: "20px 28px 0", position: "relative", overflow: "hidden" }}>
+        <div style={{ background: "#FFFFFF", position: "relative", overflow: "hidden", height: 236 }}>
 
-          {/* Top bar */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-            <div>
-              <p style={{ fontSize: 13, color: "#9CA3AF", fontWeight: 600, marginBottom: 6 }}>Hello, {userName}! 👋</p>
-              <h1 style={{ fontSize: "clamp(28px,3.5vw,42px)", fontWeight: 900, letterSpacing: "-0.025em", lineHeight: 1.05, fontFamily: "var(--font-jakarta)", margin: 0 }}>
-                <span style={{ color: "#0A0A0B" }}>Leave </span>
-                <span style={{ color: "#DE1A1A" }}>Requests</span>
-              </h1>
-              <p style={{ fontSize: 13, color: "#6B7280", marginTop: 10, lineHeight: 1.6, maxWidth: 320 }}>
-                Apply for leave and track your requests<br />in one beautiful place.
-              </p>
-              <div style={{ width: 36, height: 3, background: "linear-gradient(90deg,#DE1A1A,#F59E0B)", borderRadius: 99, marginTop: 14 }} />
-            </div>
+          {/* Left: text */}
+          <div style={{ position: "absolute", left: 32, top: 24, zIndex: 2 }}>
+            <p style={{ fontSize: 13, color: "#9CA3AF", fontWeight: 600, margin: "0 0 6px" }}>Hello, {userName}! 👋</p>
+            <h1 style={{ fontSize: "clamp(28px,3vw,42px)", fontWeight: 900, letterSpacing: "-0.025em", lineHeight: 1.05, fontFamily: "var(--font-jakarta)", margin: "0 0 10px" }}>
+              <span style={{ color: "#0A0A0B" }}>Leave </span>
+              <span style={{ color: "#DE1A1A" }}>Requests</span>
+            </h1>
+            <p style={{ fontSize: 13, color: "#6B7280", margin: 0, lineHeight: 1.65, maxWidth: 270 }}>
+              Apply for leave and track your requests<br />in one beautiful place.
+            </p>
+            <div style={{ width: 42, height: 3, background: "linear-gradient(90deg,#DE1A1A,#F59E0B)", borderRadius: 99, marginTop: 14 }} />
+          </div>
 
-            {/* Illustration + actions */}
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 28 }}>
-              <div className="hidden sm:block" style={{ width: "clamp(220px,28vw,360px)", flexShrink: 0 }}>
-                <Image src="/brand/leave-hero.png" alt="Leave illustration" width={360} height={240}
-                  style={{ objectFit: "contain", objectPosition: "bottom center", display: "block" }} priority />
-              </div>
+          {/* Center: large illustration — anchored bottom, centered */}
+          <div style={{ position: "absolute", left: "50%", transform: "translateX(-46%)", bottom: 0, zIndex: 1 }}>
+            <Image src="/brand/leave-hero.png" alt="" width={460} height={236}
+              style={{ objectFit: "contain", objectPosition: "bottom center", display: "block" }} priority />
+          </div>
 
-              {/* Actions column */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 18, paddingBottom: 20, flexShrink: 0 }}>
-                {/* Notification + avatar */}
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{ position: "relative" }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: "#F5F6FA", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <Bell size={18} style={{ color: "#6B7280" }} />
-                    </div>
-                    <span style={{ position: "absolute", top: -4, right: -4, width: 18, height: 18, background: "#DE1A1A", borderRadius: "50%", fontSize: 9, fontWeight: 800, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>3</span>
-                  </div>
-                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: "linear-gradient(135deg,#6366F1,#8B5CF6)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 800, border: "2.5px solid #10B981" }}>
-                    {userName.slice(0, 2).toUpperCase()}
-                  </div>
+          {/* Right: bell + avatar + CTA */}
+          <div style={{ position: "absolute", right: 28, top: 20, zIndex: 3, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 18 }}>
+            {/* Notification + avatar */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ position: "relative" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: "#F5F6FA", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Bell size={18} style={{ color: "#374151" }} />
                 </div>
-                {/* CTA */}
-                <button onClick={() => setShowForm(true)}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 28px", borderRadius: "14px", background: "#DE1A1A", color: "#fff", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", boxShadow: "0 6px 20px rgba(222,26,26,0.4), 0 2px 6px rgba(222,26,26,0.2)", whiteSpace: "nowrap" }}>
-                  <Plus size={16} strokeWidth={2.5} /> Apply Leave
-                </button>
+                <span style={{ position: "absolute", top: -5, right: -5, width: 18, height: 18, background: "#DE1A1A", borderRadius: "50%", fontSize: 9, fontWeight: 800, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>3</span>
+              </div>
+              <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg,#6366F1,#8B5CF6)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, border: "2.5px solid #10B981" }}>
+                {userName.slice(0, 2).toUpperCase()}
               </div>
             </div>
+            {/* Apply Leave CTA */}
+            <button onClick={() => setShowForm(true)}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 30px", borderRadius: 14, background: "#DE1A1A", color: "#fff", fontSize: 14, fontWeight: 700, border: "none", cursor: "pointer", boxShadow: "0 6px 20px rgba(222,26,26,0.45), 0 2px 6px rgba(222,26,26,0.2)", whiteSpace: "nowrap" }}>
+              <Plus size={16} strokeWidth={2.5} /> Apply Leave
+            </button>
           </div>
         </div>
 

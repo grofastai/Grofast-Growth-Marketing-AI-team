@@ -410,117 +410,23 @@ export default function MemberLeavesClient({ leaves, userName }: { leaves: Leave
             )}
           </div>
 
-          {/* ── Bottom Row ───────────────────────────────────────────────── */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-
-            {/* Promo card */}
-            <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", background: "linear-gradient(135deg,#FFF8EE,#FFF4E0)", border: "1px solid #F0E4C8", minHeight: 160 }}>
-              <div style={{ position: "absolute", inset: 0, backgroundImage: "url('/brand/vacation-boy.png')", backgroundRepeat: "no-repeat", backgroundPosition: "right bottom", backgroundSize: "160px auto" }} />
-              <div style={{ position: "relative", zIndex: 1, padding: "28px 28px", maxWidth: "calc(100% - 145px)" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 8 }}>
-                  <Palmtree size={12} style={{ color: "#F59E0B" }} />
-                  <span style={{ fontSize: 9, fontWeight: 800, color: "#F59E0B", letterSpacing: "0.08em" }}>VACATION MODE</span>
-                </div>
-                <p style={{ fontSize: 17, fontWeight: 900, color: "#0A0A0B", lineHeight: 1.3, margin: "0 0 8px", fontFamily: "var(--font-jakarta)" }}>Work hard,<br />travel harder! ✈️</p>
-                <p style={{ fontSize: 11, color: "#78716C", margin: "0 0 16px", lineHeight: 1.5 }}>You&apos;ve earned your break. Take time off and recharge!</p>
-                <button onClick={() => setShowForm(true)}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 18px", borderRadius: 12, background: "#DE1A1A", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", boxShadow: "0 4px 12px rgba(222,26,26,0.35)" }}>
-                  <Palmtree size={12} /> Plan My Vacation
-                </button>
-              </div>
+          {/* ── Bottom Banner — full width ────────────────────────────────── */}
+          <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", background: "linear-gradient(120deg,#FFF8EE 0%,#FFF1D6 50%,#FFF8EE 100%)", border: "1px solid #F0E4C8", minHeight: 160, display: "flex", alignItems: "center" }}>
+            {/* Vacation boy — large, right side */}
+            <div style={{ position: "absolute", right: 0, bottom: 0, top: 0, width: "45%", backgroundImage: "url('/brand/vacation-boy.png')", backgroundRepeat: "no-repeat", backgroundPosition: "right bottom", backgroundSize: "contain" }} />
+            {/* Left text */}
+            <div style={{ position: "relative", zIndex: 1, padding: "32px 36px", maxWidth: "55%" }}>
+              <p style={{ fontSize: 20, fontWeight: 900, color: "#0A0A0B", lineHeight: 1.25, margin: "0 0 8px", fontFamily: "var(--font-jakarta)" }}>
+                Work hard, travel harder! ✈️
+              </p>
+              <p style={{ fontSize: 12, color: "#78716C", margin: "0 0 20px", lineHeight: 1.6 }}>
+                You&apos;ve earned your break.<br />Take time off and recharge!
+              </p>
+              <button onClick={() => setShowForm(true)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 24px", borderRadius: 12, background: "#DE1A1A", color: "#fff", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", boxShadow: "0 4px 14px rgba(222,26,26,0.35)" }}>
+                <Palmtree size={14} /> Plan My Vacation →
+              </button>
             </div>
-
-            {/* Smart suggestions */}
-            <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.04)", padding: "22px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <Sparkles size={14} style={{ color: "#F59E0B" }} />
-                  <span style={{ fontSize: 14, fontWeight: 900, color: "#0A0A0B" }}>Smart Leave Suggestions</span>
-                </div>
-                <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 99, background: "rgba(245,158,11,0.1)", color: "#F59E0B" }}>✨ AI</span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
-                {[
-                  { icon: "📅", title: "Long Weekend!", sub: "May 15–17\n3 Days break" },
-                  { icon: "⏰", title: "Plan Ahead",    sub: "Apply leaves early\nfor better planning" },
-                  { icon: "🤖", title: "Need Help?",    sub: "Let AI plan your\nperfect vacation" },
-                ].map(s => (
-                  <div key={s.title} style={{ background: "#F8F9FC", borderRadius: 14, padding: "14px 10px", textAlign: "center", border: "1px solid #EBEDF2", cursor: "pointer", transition: "all 0.2s" }}>
-                    <span style={{ fontSize: 24, display: "block", marginBottom: 8 }}>{s.icon}</span>
-                    <p style={{ fontSize: 11, fontWeight: 800, color: "#0A0A0B", margin: "0 0 4px", lineHeight: 1.3 }}>{s.title}</p>
-                    <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0, lineHeight: 1.4, whiteSpace: "pre-line" }}>{s.sub}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ════ RIGHT SIDEBAR ══════════════════════════════════════════════════ */}
-      <div className="hidden xl:flex" style={{ width: 288, flexDirection: "column", gap: 10, padding: "16px 14px 16px", borderLeft: "1px solid #EBEDF2", background: "#FAFBFD", position: "sticky", top: 0, height: "100vh", overflow: "hidden", flexShrink: 0 }}>
-
-        {/* ── Next Vacation Awaits — compact card with beach strip ── */}
-        <div style={{ borderRadius: 16, overflow: "hidden", background: "#fff", border: "1px solid #EBEDF2", boxShadow: "0 1px 3px rgba(0,0,0,0.04),0 3px 10px rgba(0,0,0,0.04)", flexShrink: 0 }}>
-          {/* Compact beach strip — 72px only */}
-          <div style={{ height: 72, backgroundImage: "url('/brand/vacation-beach.png')", backgroundSize: "cover", backgroundPosition: "center 40%", position: "relative" }}>
-            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top,rgba(255,255,255,1) 0%,rgba(255,255,255,0.2) 60%,transparent 100%)" }} />
-            <div style={{ position: "absolute", top: 8, left: 10 }}>
-              <span style={{ fontSize: 8, fontWeight: 800, color: "#DE1A1A", background: "rgba(255,255,255,0.93)", padding: "3px 8px", borderRadius: 99 }}>🌴 NEXT BREAK</span>
-            </div>
-          </div>
-          <div style={{ padding: "6px 14px 12px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 1 }}>
-              <p style={{ fontSize: 13, fontWeight: 900, color: "#0A0A0B", margin: 0 }}>Next Vacation Awaits! 🌴</p>
-            </div>
-            {nextHoliday && <p style={{ fontSize: 10, color: "#9CA3AF", margin: "1px 0 0" }}>{nextHoliday.emoji} {nextHoliday.name}</p>}
-            {nextHoliday && <Countdown targetDate={nextHoliday.date} />}
-            <p style={{ fontSize: 9, color: "#C4C9D4", textAlign: "center", margin: 0 }}>Your next break is closer than you think!</p>
-          </div>
-        </div>
-
-        {/* ── Upcoming Holidays — compact rows ── */}
-        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #EBEDF2", boxShadow: "0 1px 3px rgba(0,0,0,0.04),0 3px 10px rgba(0,0,0,0.04)", padding: "14px 14px", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <p style={{ fontSize: 13, fontWeight: 900, color: "#0A0A0B", margin: 0 }}>Upcoming Holidays</p>
-            <button style={{ display: "flex", alignItems: "center", gap: 2, fontSize: 10, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>
-              View All <ArrowUpRight size={10} />
-            </button>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {HOLIDAYS.filter(h => h.date >= today).slice(0, 3).map(h => {
-              const d = new Date(h.date)
-              return (
-                <div key={h.date} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ flexShrink: 0, width: 38, textAlign: "center", background: "rgba(222,26,26,0.07)", borderRadius: 10, padding: "4px 0", border: "1px solid rgba(222,26,26,0.1)" }}>
-                    <p style={{ fontSize: 6, fontWeight: 900, color: "#DE1A1A", letterSpacing: "0.1em", margin: 0 }}>
-                      {d.toLocaleDateString("en-US", { month: "short" }).toUpperCase()}
-                    </p>
-                    <p style={{ fontSize: 15, fontWeight: 900, color: "#DE1A1A", lineHeight: 1, margin: "1px 0" }}>{d.getDate()}</p>
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: "#0A0A0B", margin: "0 0 1px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{h.name}</p>
-                    <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0 }}>{h.day}</p>
-                  </div>
-                  <span style={{ fontSize: 18, flexShrink: 0 }}>{h.img}</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* ── Mood + Balance side by side — compact ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, flexShrink: 0 }}>
-          {/* Mood */}
-          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #EBEDF2", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", padding: "12px 11px" }}>
-            <p style={{ fontSize: 12, fontWeight: 900, color: "#0A0A0B", margin: "0 0 8px" }}>Mood Tracker</p>
-            <MoodTracker />
-          </div>
-          {/* Balance */}
-          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #EBEDF2", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", padding: "12px 11px", display: "flex", flexDirection: "column" }}>
-            <p style={{ fontSize: 12, fontWeight: 900, color: "#0A0A0B", margin: "0 0 1px" }}>Work-Life</p>
-            <p style={{ fontSize: 9, color: "#9CA3AF", margin: "0 0 8px" }}>This Month</p>
-            <BalanceRing pct={wlbScore} />
           </div>
         </div>
       </div>

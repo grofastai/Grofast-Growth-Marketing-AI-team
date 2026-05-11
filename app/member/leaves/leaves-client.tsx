@@ -445,12 +445,12 @@ export default function MemberLeavesClient({ leaves, userName }: { leaves: Leave
               {/* Feature items */}
               <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginTop: "auto" }}>
                 {[
-                  { icon: "🏖️", title: "Relax & Unwind",       sub: "Take a well-deserved break"      },
-                  { icon: "📷", title: "Explore New Places",    sub: "Create unforgettable memories"   },
-                  { icon: "⚡", title: "Come Back Stronger",    sub: "Recharge and stay productive"    },
+                  { icon: "🌴", title: "Relax & Unwind",       sub: "Take a well-deserved break",      iconBg: "rgba(34,197,94,0.12)", iconBorder: "rgba(34,197,94,0.2)" },
+                  { icon: "📷", title: "Explore New Places",    sub: "Create unforgettable memories",   iconBg: "rgba(99,102,241,0.1)",  iconBorder: "rgba(99,102,241,0.18)" },
+                  { icon: "⚡", title: "Come Back Stronger",    sub: "Recharge and stay productive",    iconBg: "rgba(245,158,11,0.12)", iconBorder: "rgba(245,158,11,0.2)"  },
                 ].map(f => (
                   <div key={f.title} style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, background: f.iconBg, border: `1px solid ${f.iconBorder}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>
                       {f.icon}
                     </div>
                     <div>

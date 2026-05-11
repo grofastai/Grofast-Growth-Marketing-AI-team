@@ -265,7 +265,7 @@ export default function ProfileClient({
             </svg>
 
             {/* Boy illustration with dark vignette */}
-            <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "46%", zIndex: 2 }}>
+            <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "54%", zIndex: 2 }}>
               <Image src="/brand/profile-boy.png" fill
                 style={{ objectFit: "contain", objectPosition: "right bottom" }} alt="" priority/>
               {/* Vignette to blend edges */}

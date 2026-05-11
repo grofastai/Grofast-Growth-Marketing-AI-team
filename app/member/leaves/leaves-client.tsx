@@ -203,9 +203,10 @@ export default function MemberLeavesClient({
       <div className="flex-1 min-w-0 overflow-auto p-4 md:p-5 xl:p-6">
 
         {/* ── Hero Banner ── */}
-        <div className="relative rounded-3xl overflow-hidden mb-6"
-          style={{ background: "linear-gradient(135deg, #FFF7ED 0%, #FEF3C7 50%, #F0FDF4 100%)", minHeight: 160 }}>
-          <div className="p-6 md:p-8 max-w-[520px]">
+        <div className="rounded-3xl overflow-hidden mb-6 flex items-stretch"
+          style={{ background: "linear-gradient(135deg, #FFF7ED 0%, #FEF3C7 50%, #F0FDF4 100%)", minHeight: 180 }}>
+          {/* Text */}
+          <div className="flex-1 p-6 md:p-8 flex flex-col justify-center">
             <p className="text-[13px] font-semibold mb-1" style={{ color: "#6B7280" }}>
               Hello, {userName}! 👋
             </p>
@@ -218,14 +219,21 @@ export default function MemberLeavesClient({
               Apply for leave and track your requests in one beautiful place.
             </p>
             <button onClick={() => setShowForm(true)}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[13px] font-bold text-white transition-all hover:opacity-90 active:scale-95"
+              className="self-start flex items-center gap-2 px-6 py-3 rounded-2xl text-[13px] font-bold text-white transition-all hover:opacity-90 active:scale-95"
               style={{ background: "#de1a1a", boxShadow: "0 6px 20px rgba(222,26,26,0.35)" }}>
               <Plus size={15} /> Apply Leave
             </button>
           </div>
-          {/* Hero image */}
-          <div className="absolute right-0 bottom-0 hidden sm:block" style={{ width: 280, height: 160 }}>
-            <Image src="/brand/leave-hero.png" alt="" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
+          {/* Hero image — explicit dimensions, no fill */}
+          <div className="hidden sm:flex items-end justify-end flex-shrink-0 pr-4 pb-0"
+            style={{ width: 260 }}>
+            <Image
+              src="/brand/leave-hero.png"
+              alt="Leave requests illustration"
+              width={260}
+              height={200}
+              style={{ objectFit: "contain", objectPosition: "bottom right", display: "block" }}
+            />
           </div>
         </div>
 
@@ -399,9 +407,9 @@ export default function MemberLeavesClient({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
 
           {/* Work hard, travel harder */}
-          <div className="relative rounded-2xl overflow-hidden p-5"
+          <div className="rounded-2xl overflow-hidden flex items-stretch"
             style={{ background: "linear-gradient(135deg, #FFF7ED, #FEF9C3)", minHeight: 140 }}>
-            <div className="relative z-10 max-w-[200px]">
+            <div className="flex-1 p-5 flex flex-col justify-center">
               <p className="text-[16px] font-black leading-tight mb-1" style={{ color: "#111111" }}>
                 Work hard,<br />travel harder! ✈️
               </p>
@@ -409,13 +417,21 @@ export default function MemberLeavesClient({
                 You&apos;ve earned your break. Take time off and recharge!
               </p>
               <button onClick={() => setShowForm(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-bold text-white transition-all hover:opacity-90"
+                className="self-start flex items-center gap-1.5 px-4 py-2 rounded-xl text-[11px] font-bold text-white transition-all hover:opacity-90"
                 style={{ background: "#de1a1a", boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>
                 <Palmtree size={12} /> Plan My Vacation
               </button>
             </div>
-            <div className="absolute right-0 bottom-0" style={{ width: 160, height: 140 }}>
-              <Image src="/brand/vacation-boy.png" alt="" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
+            {/* vacation-boy image — explicit size, no fill */}
+            <div className="flex-shrink-0 flex items-end justify-end overflow-hidden"
+              style={{ width: 150 }}>
+              <Image
+                src="/brand/vacation-boy.png"
+                alt="Vacation illustration"
+                width={150}
+                height={150}
+                style={{ objectFit: "contain", objectPosition: "bottom right", display: "block" }}
+              />
             </div>
           </div>
 
@@ -451,9 +467,17 @@ export default function MemberLeavesClient({
         {/* Next Vacation Awaits */}
         <div className="rounded-2xl overflow-hidden"
           style={{ background: "#FFFFFF", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-          <div className="relative h-[110px]">
-            <Image src="/brand/vacation-beach.png" alt="" fill style={{ objectFit: "cover" }} />
-            <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(255,255,255,0.9), transparent)" }} />
+          {/* Beach image — explicit width/height, no fill */}
+          <div className="relative overflow-hidden" style={{ height: 110 }}>
+            <Image
+              src="/brand/vacation-beach.png"
+              alt="Beach vacation"
+              width={280}
+              height={110}
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            />
+            <div className="absolute inset-0"
+              style={{ background: "linear-gradient(to top, rgba(255,255,255,0.95) 20%, transparent 100%)" }} />
           </div>
           <div className="px-4 pb-4 pt-2">
             <p className="text-[13px] font-black" style={{ color: "#111111" }}>Next Vacation Awaits! 🌴</p>

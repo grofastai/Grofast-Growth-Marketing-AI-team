@@ -291,37 +291,43 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
             {/* ── HERO BANNER ─────────────────────────────────────────────── */}
             <div style={{ background:"#fff", borderRadius:22, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 4px 20px rgba(0,0,0,0.07)", position:"relative", minHeight:240 }}>
 
-              {/* Background illustration — right 55% */}
-              <div style={{ position:"absolute", right:0, top:0, bottom:0, width:"58%" }}>
-                <Image src="/brand/daily-boy.png" alt="" fill style={{ objectFit:"cover", objectPosition:"center top" }}/>
+              {/* Background illustration — center-right, ~60% width */}
+              <div style={{ position:"absolute", right:0, top:0, bottom:0, width:"62%", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+                <Image
+                  src="/brand/history-girl.png"
+                  alt=""
+                  fill
+                  style={{ objectFit:"contain", objectPosition:"bottom center" }}
+                  priority
+                />
                 {/* Fade to left */}
-                <div style={{ position:"absolute", left:0, top:0, bottom:0, width:"35%", background:"linear-gradient(to right,#ffffff,transparent)" }}/>
+                <div style={{ position:"absolute", left:0, top:0, bottom:0, width:"30%", background:"linear-gradient(to right,#ffffff 20%,transparent)", zIndex:1, pointerEvents:"none" }}/>
               </div>
 
               {/* Heart icon top-right */}
-              <div style={{ position:"absolute", right:20, top:20, zIndex:3, width:34, height:34, borderRadius:"50%", background:"#DE1A1A", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 14px rgba(222,26,26,0.4)" }}>
-                <span style={{ fontSize:16 }}>❤️</span>
+              <div style={{ position:"absolute", right:20, top:20, zIndex:3, width:36, height:36, borderRadius:"50%", background:"#DE1A1A", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 14px rgba(222,26,26,0.4)" }}>
+                <span style={{ fontSize:18 }}>❤️</span>
               </div>
 
-              {/* Quote bubble */}
-              <div style={{ position:"absolute", right:72, top:20, zIndex:3, background:"#fff", borderRadius:16, padding:"10px 14px", boxShadow:"0 4px 20px rgba(0,0,0,0.1)", maxWidth:170, border:"1px solid #EBEDF2" }}>
-                <span style={{ fontSize:14, color:"#6B7280" }}>"</span>
-                <p style={{ fontSize:11, fontWeight:600, color:"#374151", margin:"0 0 3px", lineHeight:1.4 }}>Discipline today</p>
-                <p style={{ fontSize:11, fontWeight:800, color:"#DE1A1A", margin:"0 0 3px" }}>Success tomorrow.</p>
-                <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Keep going!</p>
+              {/* Quote bubble — top right, above illustration */}
+              <div style={{ position:"absolute", right:64, top:22, zIndex:4, background:"#fff", borderRadius:16, padding:"10px 14px 10px 16px", boxShadow:"0 6px 24px rgba(0,0,0,0.12)", maxWidth:180, border:"1px solid #EBEDF2" }}>
+                <span style={{ fontSize:16, color:"#6B7280", lineHeight:1, display:"block", marginBottom:2 }}>"</span>
+                <p style={{ fontSize:12, fontWeight:600, color:"#374151", margin:"0 0 3px", lineHeight:1.5 }}>Discipline today</p>
+                <p style={{ fontSize:12, fontWeight:800, color:"#DE1A1A", margin:"0 0 4px" }}>Success tomorrow.</p>
+                <p style={{ fontSize:10, color:"#9CA3AF", margin:0, fontWeight:500 }}>Keep going!</p>
               </div>
 
               {/* Left content */}
-              <div style={{ position:"relative", zIndex:2, padding:"28px 28px 0 28px", maxWidth:"44%" }}>
+              <div style={{ position:"relative", zIndex:2, padding:"28px 28px 0 28px", maxWidth:"42%" }}>
                 <p style={{ fontSize:13, fontWeight:600, color:"#6B7280", margin:"0 0 10px" }}>{greeting}, {fn}! 👋</p>
-                <h2 style={{ fontSize:28, fontWeight:900, color:"#111111", margin:"0 0 8px", fontFamily:"var(--font-jakarta)", lineHeight:1.2 }}>
+                <h2 style={{ fontSize:27, fontWeight:900, color:"#111111", margin:"0 0 4px", fontFamily:"var(--font-jakarta)", lineHeight:1.25 }}>
                   Let&apos;s make today
                 </h2>
-                <h2 style={{ fontSize:28, fontWeight:900, color:"#DE1A1A", margin:"0 0 16px", fontFamily:"var(--font-jakarta)", lineHeight:1.2 }}>
+                <h2 style={{ fontSize:27, fontWeight:900, color:"#DE1A1A", margin:"0 0 18px", fontFamily:"var(--font-jakarta)", lineHeight:1.25 }}>
                   productive &amp; impactful.
                 </h2>
                 {/* Red accent bar */}
-                <div style={{ width:48, height:4, background:"linear-gradient(90deg,#DE1A1A,#F59E0B)", borderRadius:99, marginBottom:0 }}/>
+                <div style={{ width:48, height:4, background:"linear-gradient(90deg,#DE1A1A,#F59E0B)", borderRadius:99 }}/>
               </div>
 
               {/* Stats strip */}

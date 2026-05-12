@@ -9,7 +9,9 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "generate:images": "ts-node --project scripts/tsconfig.json scripts/generate-brand-images.ts",
+    "chatgpt:login": "ts-node --project scripts/tsconfig.json scripts/generate-brand-images.ts --login-only"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -43,7 +45,9 @@
     "@vitest/coverage-v8": "^4.1.5",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "playwright": "^1.60.0",
     "tailwindcss": "^4",
+    "ts-node": "^10.9.2",
     "typescript": "^5",
     "vitest": "^4.1.5"
   }

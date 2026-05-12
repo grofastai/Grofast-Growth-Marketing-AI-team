@@ -138,7 +138,7 @@ export default async function AttendancePage({
     },
     {
       label: "Not Logged In", value: notLogged,
-      img: "/brand/no-time.png",
+      img: "/brand/team-admin.png",
       bg: "#FFFBEB", border: "rgba(217,119,6,0.15)",
       accent: "#D97706", trendColor: notLogPct === 0 ? "#16A34A" : "#D97706",
       sub: `${notLogPct}% of team`, subUp: false,
@@ -184,24 +184,21 @@ export default async function AttendancePage({
       {/* ── 4 Stat Cards ────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {statCards.map(s => (
-          <div key={s.label} style={{ borderRadius: 16, border: `1px solid ${s.border}`, background: s.bg, padding: "16px 18px", overflow: "hidden", position: "relative", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-            {/* Character illustration */}
-            <div style={{ position: "absolute", right: -6, bottom: 0, width: 90, height: 90, opacity: 0.9 }}>
+          <div key={s.label} style={{ borderRadius: 18, border: `1px solid ${s.border}`, background: s.bg, padding: "18px 18px 18px 20px", overflow: "hidden", position: "relative", minHeight: 145, boxShadow: "0 1px 4px rgba(0,0,0,0.05)", display: "flex", alignItems: "flex-start" }}>
+            {/* Character illustration — large, right side */}
+            <div style={{ position: "absolute", right: 0, bottom: 0, width: 155, height: 140, pointerEvents: "none" }}>
               <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
             </div>
-            <div style={{ position: "relative" }}>
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: `${s.accent}18`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                <CalendarDays size={15} style={{ color: s.accent }} />
+            {/* Text content — left ~55% so it never overlaps character */}
+            <div style={{ position: "relative", zIndex: 1, maxWidth: "52%" }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: `${s.accent}1A`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+                <CalendarDays size={16} style={{ color: s.accent }} />
               </div>
-              <p style={{ fontSize: 36, fontWeight: 900, color: s.accent, margin: 0, lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
-              <p style={{ fontSize: 12, color: "#374151", fontWeight: 600, margin: "4px 0 6px" }}>{s.label}</p>
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                {s.subUp !== null && (
-                  <span style={{ fontSize: 10, fontWeight: 800, color: s.trendColor }}>
-                    {s.subUp ? "↑" : "↓"}
-                  </span>
-                )}
-                {s.subUp === null && <Users size={10} style={{ color: s.trendColor }} />}
+              <p style={{ fontSize: 12, color: "#6B7280", fontWeight: 600, margin: "0 0 4px" }}>{s.label}</p>
+              <p style={{ fontSize: 40, fontWeight: 900, color: "#111827", margin: "0 0 6px", lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                {s.subUp !== null && <span style={{ fontSize: 11, fontWeight: 800, color: s.trendColor }}>{s.subUp ? "↑" : "↓"}</span>}
+                {s.subUp === null  && <Users size={10} style={{ color: s.trendColor }} />}
                 <span style={{ fontSize: 11, fontWeight: 600, color: s.trendColor }}>{s.sub}</span>
               </div>
             </div>

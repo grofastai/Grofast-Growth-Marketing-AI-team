@@ -165,26 +165,29 @@ export default async function DashboardPage() {
     <div style={{ background: "#F5F6FA", minHeight: "100vh" }} className="p-4 lg:p-6 space-y-4">
 
       {/* ── Header ─────────────────────────────────────── */}
-      <div style={{ ...CARD, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 900, color: "#111827", margin: 0, lineHeight: 1.2 }}>
-            {greeting}, <span style={{ color: "#DE1A1A" }}>{firstName}</span> 👋
+      <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #9B1C1C 50%, #450A0A 100%)", borderRadius: 20, padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, position: "relative", overflow: "hidden" }}>
+        {/* Decorative circles */}
+        <div style={{ position: "absolute", top: -30, right: 120, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -40, right: -20, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+        <div style={{ position: "relative" }}>
+          <h1 style={{ fontSize: 22, fontWeight: 900, color: "#FFFFFF", margin: 0, lineHeight: 1.2 }}>
+            {greeting}, <span style={{ color: "#FCA5A5" }}>{firstName}</span> 👋
           </h1>
-          <p style={{ fontSize: 12, color: "#6B7280", margin: "3px 0 0", fontWeight: 500 }}>{dateStr}</p>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", margin: "4px 0 0", fontWeight: 500 }}>{dateStr}</p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10, padding: "7px 12px" }}>
-            <Search size={13} style={{ color: "#9CA3AF", flexShrink: 0 }} />
-            <input placeholder="Search..." readOnly style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "#374151", width: 120 }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "7px 12px", backdropFilter: "blur(8px)" }}>
+            <Search size={13} style={{ color: "rgba(255,255,255,0.6)", flexShrink: 0 }} />
+            <input placeholder="Search..." readOnly style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "#FFFFFF", width: 120 }} />
           </div>
-          <div style={{ position: "relative", width: 36, height: 36, borderRadius: 10, background: "#F9FAFB", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Bell size={15} style={{ color: "#6B7280" }} />
+          <div style={{ position: "relative", width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Bell size={15} style={{ color: "#FFFFFF" }} />
             {(alerts.total > 0) && (
-              <div style={{ position: "absolute", top: 7, right: 7, width: 7, height: 7, borderRadius: "50%", background: "#DE1A1A", border: "1.5px solid #fff" }} />
+              <div style={{ position: "absolute", top: 7, right: 7, width: 7, height: 7, borderRadius: "50%", background: "#FCA5A5", border: "1.5px solid #9B1C1C" }} />
             )}
           </div>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(222,26,26,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: "#DE1A1A" }}>{(adminName[0] ?? "A").toUpperCase()}</span>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 14, fontWeight: 800, color: "#FFFFFF" }}>{(adminName[0] ?? "A").toUpperCase()}</span>
           </div>
         </div>
       </div>
@@ -259,20 +262,10 @@ export default async function DashboardPage() {
           </div>
           <div style={{ padding: "4px 18px 18px" }}>
             <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 2px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Today&apos;s Overview</p>
-            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: "0 0 14px" }}>{adminName}</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              {[
-                { label: "Present",      value: presentToday ?? 0,        color: "#16A34A", bg: "rgba(22,163,74,0.08)"   },
-                { label: "On Leave",     value: onLeaveTodayCount ?? 0,   color: "#D97706", bg: "rgba(217,119,6,0.08)"   },
-                { label: "Updates In",   value: recentUpdates.length,     color: "#6366F1", bg: "rgba(99,102,241,0.08)"  },
-                { label: "Not Updated",  value: alerts.notUpdatedCount,   color: "#DE1A1A", bg: "rgba(222,26,26,0.08)"   },
-              ].map(s => (
-                <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: "10px 14px" }}>
-                  <p style={{ fontSize: 22, fontWeight: 900, color: s.color, margin: 0, lineHeight: 1 }}>{s.value}</p>
-                  <p style={{ fontSize: 10, color: s.color, margin: "2px 0 0", fontWeight: 600, opacity: 0.8 }}>{s.label}</p>
-                </div>
-              ))}
-            </div>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: "0 0 8px" }}>{adminName}</h3>
+            <p style={{ fontSize: 11, color: "#6B7280", margin: 0, lineHeight: 1.6 }}>
+              {presentToday ?? 0} present · {onLeaveTodayCount ?? 0} on leave · {recentUpdates.length} updates submitted
+            </p>
           </div>
         </div>
 

@@ -282,17 +282,9 @@ export default function DailyUpdateForm({
 
               {shoots.length === 0 ? (
                 <div onClick={addShoot}
-                  style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"44px 0", borderRadius:16, border:"2px dashed rgba(239,68,68,0.25)", background:"rgba(239,68,68,0.03)", cursor:"pointer" }}>
-                  {/* Illustrated camera empty state */}
-                  <div style={{ position:"relative" }}>
-                    <div style={{ width:100, height:100, borderRadius:"50%", background:"rgba(239,68,68,0.07)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                      <div style={{ width:76, height:76, borderRadius:"50%", background:"rgba(239,68,68,0.12)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        <Camera size={40} style={{ color:"#EF4444", opacity:0.75 }} />
-                      </div>
-                    </div>
-                    <div style={{ position:"absolute", top:-8, right:-16, width:16, height:16, borderRadius:"50%", background:"rgba(239,68,68,0.18)" }} />
-                    <div style={{ position:"absolute", bottom:-4, left:-14, width:11, height:11, borderRadius:"50%", background:"rgba(239,68,68,0.12)" }} />
-                    <div style={{ position:"absolute", top:10, left:-22, width:8, height:8, borderRadius:"50%", background:"rgba(239,68,68,0.1)" }} />
+                  style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(239,68,68,0.25)", background:"rgba(239,68,68,0.03)", cursor:"pointer" }}>
+                  <div style={{ position:"relative", width:180, height:140 }}>
+                    <Image src="/brand/shoot-illustration.png" alt="Shoots" fill style={{ objectFit:"contain" }} />
                   </div>
                   <p style={{ fontSize:13, fontWeight:600, color:"#4A4A4A", margin:0 }}>No shoots logged yet</p>
                   <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#DE1A1A", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(222,26,26,0.4)" }}>
@@ -398,16 +390,9 @@ export default function DailyUpdateForm({
 
               {edits.length === 0 ? (
                 <div onClick={addEdit}
-                  style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"44px 0", borderRadius:16, border:"2px dashed rgba(99,102,241,0.25)", background:"rgba(99,102,241,0.03)", cursor:"pointer" }}>
-                  <div style={{ position:"relative" }}>
-                    <div style={{ width:100, height:100, borderRadius:"50%", background:"rgba(99,102,241,0.07)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                      <div style={{ width:76, height:76, borderRadius:"50%", background:"rgba(99,102,241,0.12)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        <Film size={40} style={{ color:"#6366F1", opacity:0.75 }} />
-                      </div>
-                    </div>
-                    <div style={{ position:"absolute", top:-8, right:-16, width:16, height:16, borderRadius:"50%", background:"rgba(99,102,241,0.18)" }} />
-                    <div style={{ position:"absolute", bottom:-4, left:-14, width:11, height:11, borderRadius:"50%", background:"rgba(99,102,241,0.12)" }} />
-                    <div style={{ position:"absolute", top:10, left:-22, width:8, height:8, borderRadius:"50%", background:"rgba(99,102,241,0.1)" }} />
+                  style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(99,102,241,0.25)", background:"rgba(99,102,241,0.03)", cursor:"pointer" }}>
+                  <div style={{ position:"relative", width:180, height:140 }}>
+                    <Image src="/brand/edit-illustration.png" alt="Editing" fill style={{ objectFit:"contain" }} />
                   </div>
                   <p style={{ fontSize:13, fontWeight:600, color:"#4A4A4A", margin:0 }}>No editing logged yet</p>
                   <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#6366F1", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(99,102,241,0.4)" }}>

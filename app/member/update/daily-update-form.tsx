@@ -18,8 +18,18 @@ interface ShootEntry {
   notes: string; videoUploaded: boolean
 }
 interface EditEntry {
-  id: string; clientName: string; title: string
-  durationHours: number; videoLink: string; notes: string
+  id: string
+  clientName: string
+  title: string          // Video Name
+  videoType: string      // Reel | Short | Long Form | etc.
+  videoDuration: string  // e.g. "30 sec" or "2:30 min"
+  dateGiven: string      // YYYY-MM-DD
+  dateFinished: string   // YYYY-MM-DD
+  timeTaken: number      // hours spent editing
+  driveUpdated: boolean
+  revisions: number
+  videoLink: string
+  notes: string
 }
 
 const TIME_OPTIONS = [
@@ -116,8 +126,14 @@ export default function DailyUpdateForm({
   const patchShoot  = (id: string, patch: Partial<ShootEntry>) => setShoots(p => p.map(s => s.id === id ? { ...s, ...patch } : s))
   const removeShoot = (id: string) => setShoots(p => p.filter(s => s.id !== id))
 
+  const todayStr   = new Date().toISOString().split("T")[0]
+
   const [edits, setEdits] = useState<EditEntry[]>([])
-  const addEdit    = () => setEdits(p => [...p, { id: crypto.randomUUID(), clientName:"", title:"", durationHours:2, videoLink:"", notes:"" }])
+  const addEdit    = () => setEdits(p => [...p, {
+    id: crypto.randomUUID(), clientName: "", title: "", videoType: "", videoDuration: "",
+    dateGiven: todayStr, dateFinished: todayStr, timeTaken: 2,
+    driveUpdated: false, revisions: 0, videoLink: "", notes: "",
+  }])
   const patchEdit  = (id: string, patch: Partial<EditEntry>) => setEdits(p => p.map(e => e.id === id ? { ...e, ...patch } : e))
   const removeEdit = (id: string) => setEdits(p => p.filter(e => e.id !== id))
 
@@ -128,7 +144,7 @@ export default function DailyUpdateForm({
   const [submitted, setSubmitted] = useState(false)
 
   const totalShootHours = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
-  const totalEditHours  = useMemo(() => edits.reduce((s, e) => s + e.durationHours, 0), [edits])
+  const totalEditHours  = useMemo(() => edits.reduce((s, e) => s + e.timeTaken, 0), [edits])
   const totalHours      = tab === "working" ? totalShootHours + totalEditHours : learningHours
   const productivity    = useMemo(() => {
     if (tab === "learning") return learningHours > 0 ? 80 : 0
@@ -170,12 +186,18 @@ export default function DailyUpdateForm({
         title:          e.title || "Editing",
         start_time:     "",
         end_time:       "",
-        duration_hours: e.durationHours,
+        duration_hours: e.timeTaken,
         notes:          e.notes,
         video_uploaded: null,
         screenshot_url: "",
         video_link:     e.videoLink,
         editing_videos: [],
+        video_type:     e.videoType,
+        video_duration: e.videoDuration,
+        date_given:     e.dateGiven,
+        date_finished:  e.dateFinished,
+        drive_updated:  e.driveUpdated,
+        revisions:      e.revisions,
       })),
     ]
     startTransition(async () => {
@@ -403,16 +425,32 @@ export default function DailyUpdateForm({
                 <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                   {edits.map((e, i) => (
                     <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+
+                      {/* Card header */}
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
                         <span style={{ fontSize:11, fontWeight:800, color:"#6366F1", textTransform:"uppercase", letterSpacing:"0.1em" }}>Edit #{i + 1}</span>
                         <button onClick={() => removeEdit(e.id)}
                           style={{ width:26, height:26, borderRadius:8, background:"rgba(99,102,241,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
                           <Trash2 size={12} style={{ color:"#6366F1" }} />
                         </button>
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 100px", gap:10, marginBottom:10 }}>
+
+                      {/* Row 1 — Dates */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project *</label>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Date Given</label>
+                          <input type="date" value={e.dateGiven} onChange={ev => patchEdit(e.id, { dateGiven: ev.target.value })} style={{ ...F, colorScheme:"light" }} />
+                        </div>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Date Finished</label>
+                          <input type="date" value={e.dateFinished} onChange={ev => patchEdit(e.id, { dateFinished: ev.target.value })} style={{ ...F, colorScheme:"light" }} />
+                        </div>
+                      </div>
+
+                      {/* Row 2 — Client & Video Name */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client Name *</label>
                           {projects.length > 0 ? (
                             <div style={{ position:"relative" }}>
                               <select value={e.clientName} onChange={ev => patchEdit(e.id, { clientName: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
@@ -426,18 +464,61 @@ export default function DailyUpdateForm({
                           )}
                         </div>
                         <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video / Project Title *</label>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Name *</label>
                           <input value={e.title} onChange={ev => patchEdit(e.id, { title: ev.target.value })} placeholder="e.g. Evan Styles Makeover Reel" style={F} />
+                        </div>
+                      </div>
+
+                      {/* Row 3 — Video Type, Duration, Revisions */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 110px", gap:10, marginBottom:10 }}>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Type</label>
+                          <div style={{ position:"relative" }}>
+                            <select value={e.videoType} onChange={ev => patchEdit(e.id, { videoType: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                              <option value="">Select type…</option>
+                              {["Reel","Short Film","Long Form / YouTube","Teaser","Promotional","Interview","Tutorial","Documentary","Social Media","Other"].map(t => (
+                                <option key={t} value={t}>{t}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration</label>
-                          <DurationPicker value={e.durationHours} onChange={v => patchEdit(e.id, { durationHours: v })} />
+                          <input value={e.videoDuration} onChange={ev => patchEdit(e.id, { videoDuration: ev.target.value })} placeholder="e.g. 30 sec, 2:30 min" style={F} />
+                        </div>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Revisions</label>
+                          <input type="number" min="0" max="99" value={e.revisions}
+                            onChange={ev => patchEdit(e.id, { revisions: parseInt(ev.target.value) || 0 })}
+                            placeholder="0" style={F} />
                         </div>
                       </div>
+
+                      {/* Row 4 — Time Taken & Drive Updated */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"end", marginBottom:10 }}>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Time Taken (editing hours)</label>
+                          <DurationPicker value={e.timeTaken} onChange={v => patchEdit(e.id, { timeTaken: v })} />
+                        </div>
+                        <div>
+                          <button onClick={() => patchEdit(e.id, { driveUpdated: !e.driveUpdated })}
+                            style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px", borderRadius:10, border:"1.5px solid", cursor:"pointer", fontSize:11, fontWeight:700, transition:"all 0.15s", whiteSpace:"nowrap",
+                              background:  e.driveUpdated ? "rgba(34,197,94,0.1)"  : "#F9FAFB",
+                              borderColor: e.driveUpdated ? "rgba(34,197,94,0.4)"  : "#EBEDF2",
+                              color:       e.driveUpdated ? "#16A34A" : "#9CA3AF",
+                            }}>
+                            <Upload size={12} />
+                            {e.driveUpdated ? "Drive Updated ✓" : "Drive Updated?"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Row 5 — Notes & Drive Link */}
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Notes</label>
-                          <input value={e.notes} onChange={ev => patchEdit(e.id, { notes: ev.target.value })} placeholder="Revisions, software used…" style={F} />
+                          <input value={e.notes} onChange={ev => patchEdit(e.id, { notes: ev.target.value })} placeholder="Software used, challenges…" style={F} />
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>
@@ -446,6 +527,7 @@ export default function DailyUpdateForm({
                           <input value={e.videoLink} onChange={ev => patchEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
                         </div>
                       </div>
+
                     </div>
                   ))}
                 </div>

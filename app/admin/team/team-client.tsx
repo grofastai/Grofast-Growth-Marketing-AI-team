@@ -920,12 +920,12 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 20% 50%, rgba(222,26,26,0.12) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(99,102,241,0.1) 0%, transparent 50%)" }} />
 
         {/* Boy with laptop illustration */}
-        <div style={{ position: "absolute", right: 40, bottom: 0, width: 200, height: 190, pointerEvents: "none" }}>
+        <div style={{ position: "absolute", right: 16, bottom: 0, width: 290, height: 270, pointerEvents: "none" }}>
           <Image src="/brand/boy-laptop.png" alt="Productivity" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
         </div>
 
         <div style={{ position: "relative", zIndex: 1, padding: "28px 32px" }}>
-          <div className="flex items-start gap-8 flex-wrap" style={{ paddingRight: 220 }}>
+          <div className="flex items-start gap-8 flex-wrap" style={{ paddingRight: 300 }}>
             <div>
               <h2 className="text-[22px] font-black text-white leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
                 Happy Team,<br />Productive Team!

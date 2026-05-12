@@ -521,10 +521,10 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
   }
 
   const STAT_CARDS = [
-    { label: "Total Members", value: stats.total, sub: "All team members", img: "/brand/member-working.png", bg: "linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%)", border: "rgba(236,72,153,0.15)", num: "#EC4899" },
-    { label: "Active Members", value: stats.active, sub: "Currently working", img: "/brand/thumbs-up.png", bg: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "rgba(34,197,94,0.15)", num: "#16A34A" },
-    { label: "Admins", value: stats.admins, sub: "Admin access", img: "/brand/target-goal.png", bg: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "rgba(139,92,246,0.15)", num: "#7C3AED" },
-    { label: "On Leave", value: stats.onLeave, sub: "Away today", img: "/brand/hourglass.png", bg: "linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)", border: "rgba(245,158,11,0.15)", num: "#D97706" },
+    { label: "Total Members", value: stats.total, sub: "All team members", img: "/brand/team-total-members.png", bg: "linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%)", border: "rgba(236,72,153,0.15)", num: "#EC4899" },
+    { label: "Active Members", value: stats.active, sub: "Currently working", img: "/brand/team-active-members.png", bg: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "rgba(34,197,94,0.15)", num: "#16A34A" },
+    { label: "Admins", value: stats.admins, sub: "Admin access", img: "/brand/team-admins.png", bg: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "rgba(139,92,246,0.15)", num: "#7C3AED" },
+    { label: "On Leave", value: stats.onLeave, sub: "Away today", img: "/brand/team-on-leave.png", bg: "linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)", border: "rgba(245,158,11,0.15)", num: "#D97706" },
   ]
 
   return (

@@ -1,14 +1,17 @@
-﻿import { createServerClient } from "@/lib/supabase/server"
+import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
+import type { CSSProperties } from "react"
 import {
   Users, FolderOpen, Target, CalendarOff, Clock, CheckCircle2,
-  AlertTriangle, Plus, Megaphone, ChevronRight, TrendingUp, TrendingDown,
-  Minus, ArrowRight, ListTodo, CalendarDays, UserX, Timer,
+  Plus, Megaphone, Bell, Search, UserX,
+  ArrowRight, ListTodo, CalendarDays, BarChart3,
 } from "lucide-react"
 import Link from "next/link"
-import DashboardFilterBar from "./dashboard-filter"
+import Image from "next/image"
 import { getAlerts } from "@/lib/alerts"
 import PendingApprovalsCard from "./pending-approvals"
+import TaskSummaryChart from "./task-summary-chart"
+import MiniCalendar from "./mini-calendar"
 
 function adminSupabase() {
   return createClient(
@@ -16,14 +19,6 @@ function adminSupabase() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
-}
-
-type UpdateRow = {
-  attendance_status: string
-  work_type: string | null
-  working_hours: number | null
-  created_at: string
-  users: { name: string; employee_id: string } | { name: string; employee_id: string }[] | null
 }
 
 type LeaveRow = {
@@ -34,138 +29,76 @@ type LeaveRow = {
   users: { name: string; employee_id: string } | { name: string; employee_id: string }[] | null
 }
 
-type OnLeaveRow = {
-  from_date: string
-  to_date: string
-  users: { name: string; employee_id: string } | { name: string; employee_id: string }[] | null
-}
-
-type LateRow = {
-  user_id: string
-  clock_in: string
-  users: { name: string; employee_id: string } | { name: string; employee_id: string }[] | null
-}
-
 type CalLeaveRow = {
   from_date: string
   to_date: string
   users: { name: string } | { name: string }[] | null
 }
 
-type PerfRow = {
-  user_id: string
+type UpdateRow = {
+  attendance_status: string
+  work_type: string | null
   working_hours: number | null
+  created_at: string
   users: { name: string; employee_id: string } | { name: string; employee_id: string }[] | null
 }
 
-function toIST(utcStr: string): string {
-  return new Date(utcStr).toLocaleTimeString("en-IN", {
-    hour: "numeric", minute: "2-digit", hour12: true,
-    timeZone: "Asia/Kolkata",
-  })
-}
-
-function latenessStr(clockInUTC: string): string {
-  const d = new Date(clockInUTC)
-  const utcMins = d.getUTCHours() * 60 + d.getUTCMinutes()
-  const istMins = (utcMins + 330) % 1440
-  const lateMins = istMins - 600 // 10:00 AM = 600 mins
-  if (lateMins <= 0) return ""
-  const h = Math.floor(lateMins / 60)
-  const m = lateMins % 60
-  return h > 0 ? `${h}h ${m}m late` : `${m}m late`
-}
-
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ filter?: string; from?: string; to?: string }>
-}) {
-  const params   = await searchParams
-  const filter   = (params.filter ?? "today") as "today" | "yesterday" | "custom"
+export default async function DashboardPage() {
   const supabase = await createServerClient()
-  const now      = new Date()
-  const today    = now.toISOString().split("T")[0]
-  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const now        = new Date()
+  const today      = now.toISOString().split("T")[0]
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
   const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0]
-  const daysInMonth    = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-  const firstDayOfWeek = new Date(now.getFullYear(), now.getMonth(), 1).getDay()
 
-  let dateStart = today, dateEnd = today
-  let prevStart = yesterday, prevEnd = yesterday
-
-  if (filter === "yesterday") {
-    dateStart = yesterday; dateEnd = yesterday
-    prevStart = new Date(Date.now() - 2 * 86400000).toISOString().split("T")[0]
-    prevEnd   = prevStart
-  } else if (filter === "custom" && params.from && params.to) {
-    dateStart = params.from; dateEnd = params.to
-  }
-
-  const { data: { user } } = await supabase.auth.getUser()
   const admin = adminSupabase()
   const { data: profile } = await admin
-    .from("users").select("company_id").eq("id", user!.id).single()
+    .from("users")
+    .select("company_id, name")
+    .eq("id", user!.id)
+    .single()
   const cid = profile?.company_id as string
 
   const [
-    { count: presentSelected },
-    { count: presentPrev },
-    { count: absentSelected },
+    { count: presentToday },
     { count: activeTasks },
-    { count: activeClients },      // FIXED: admin client + company_id
-    { count: pendingLeaves },
+    { count: activeClients },
     { count: onLeaveTodayCount },
-    { data: todayUpdatesRaw },
+    { count: taskCompleted },
+    { count: taskInProgress },
+    { count: taskTodo },
+    { count: taskOverdue },
     { data: pendingLeavesRaw },
-    { data: monthlyPerfRaw },
-    { data: onLeaveTodayRaw },
-    { data: lateArrivalsRaw },
+    { data: recentUpdatesRaw },
     { data: monthLeavesRaw },
     alerts,
   ] = await Promise.all([
     admin.from("attendance_logs").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).gte("date", dateStart).lte("date", dateEnd).eq("status", "present"),
-    admin.from("attendance_logs").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).gte("date", prevStart).lte("date", prevEnd).eq("status", "present"),
-    admin.from("attendance_logs").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).gte("date", dateStart).lte("date", dateEnd).eq("status", "absent"),
+      .eq("company_id", cid).eq("date", today).eq("status", "present"),
     admin.from("tasks").select("*", { count: "exact", head: true })
       .eq("company_id", cid).neq("status", "completed"),
-    // FIXED — was using session client which breaks RLS for admin
     admin.from("projects").select("*", { count: "exact", head: true })
       .eq("company_id", cid).eq("status", "active"),
     admin.from("leaves").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).eq("status", "pending"),
-    // On leave today count
-    admin.from("leaves").select("*", { count: "exact", head: true })
       .eq("company_id", cid).eq("status", "approved")
       .lte("from_date", today).gte("to_date", today),
-    admin.from("daily_updates")
-      .select("attendance_status, work_type, working_hours, created_at, users(name, employee_id)")
-      .eq("company_id", cid).gte("date", dateStart).lte("date", dateEnd)
-      .order("created_at", { ascending: false }).limit(5),
+    admin.from("tasks").select("*", { count: "exact", head: true })
+      .eq("company_id", cid).eq("status", "completed"),
+    admin.from("tasks").select("*", { count: "exact", head: true })
+      .eq("company_id", cid).eq("status", "in_progress"),
+    admin.from("tasks").select("*", { count: "exact", head: true })
+      .eq("company_id", cid).eq("status", "todo"),
+    admin.from("tasks").select("*", { count: "exact", head: true })
+      .eq("company_id", cid).neq("status", "completed").lt("due_date", today),
     admin.from("leaves")
       .select("id, from_date, to_date, reason, users(name, employee_id)")
       .eq("company_id", cid).eq("status", "pending")
       .order("created_at", { ascending: false }).limit(5),
-    // Monthly performance data
     admin.from("daily_updates")
-      .select("user_id, working_hours, users(name, employee_id)")
-      .eq("company_id", cid).gte("date", monthStart).lte("date", today)
-      .eq("attendance_status", "present"),
-    // On leave today names
-    admin.from("leaves")
-      .select("from_date, to_date, users(name, employee_id)")
-      .eq("company_id", cid).eq("status", "approved")
-      .lte("from_date", today).gte("to_date", today),
-    // Late arrivals today — clock_in after 10 AM IST (04:30 UTC)
-    admin.from("attendance_logs")
-      .select("user_id, clock_in, users(name, employee_id)")
-      .eq("company_id", cid).eq("date", dateStart)
-      .gt("clock_in", `${dateStart}T04:30:00.000Z`),
-    // Approved leaves this month for calendar
+      .select("attendance_status, work_type, working_hours, created_at, users(name, employee_id)")
+      .eq("company_id", cid).eq("date", today)
+      .order("created_at", { ascending: false }).limit(6),
     admin.from("leaves")
       .select("from_date, to_date, users(name)")
       .eq("company_id", cid).eq("status", "approved")
@@ -173,39 +106,9 @@ export default async function DashboardPage({
     cid ? getAlerts(cid) : Promise.resolve({ notUpdatedCount: 0, notUpdatedNames: [], overdueTaskCount: 0, overdueProjectCount: 0, total: 0 }),
   ])
 
-  // Build monthly performance per member
-  const perfMap: Record<string, { name: string; employee_id: string; days: number; totalHrs: number }> = {}
-  for (const row of (monthlyPerfRaw ?? []) as unknown as PerfRow[]) {
-    const u = Array.isArray(row.users) ? row.users[0] : row.users
-    if (!perfMap[row.user_id])
-      perfMap[row.user_id] = { name: u?.name ?? "—", employee_id: u?.employee_id ?? "", days: 0, totalHrs: 0 }
-    perfMap[row.user_id].days++
-    perfMap[row.user_id].totalHrs += row.working_hours ?? 0
-  }
-  const memberPerf = Object.values(perfMap)
-    .map(m => ({ ...m, avgHrs: m.days > 0 ? Math.round((m.totalHrs / m.days) * 10) / 10 : 0 }))
-    .sort((a, b) => b.avgHrs - a.avgHrs)
-  const teamAvgHrs = memberPerf.length > 0
-    ? Math.round((memberPerf.reduce((s, m) => s + m.avgHrs, 0) / memberPerf.length) * 10) / 10 : 0
-  const belowTarget = memberPerf.filter(m => m.avgHrs < 9 && m.days > 0).length
-
-  const recentUpdates = (todayUpdatesRaw ?? []) as unknown as UpdateRow[]
-  // Normalize users from join (Supabase may return array) to single object for PendingApprovalsCard
-  const pendingLeavesList = ((pendingLeavesRaw ?? []) as unknown as LeaveRow[]).map(l => ({
-    ...l,
-    users: Array.isArray(l.users) ? (l.users[0] ?? null) : l.users,
-  }))
-  const onLeaveTodayList  = (onLeaveTodayRaw  ?? []) as unknown as OnLeaveRow[]
-  const lateArrivals      = (lateArrivalsRaw  ?? []) as unknown as LateRow[]
-  const monthLeaves       = (monthLeavesRaw   ?? []) as unknown as CalLeaveRow[]
-
-  const presentTodayN     = presentSelected ?? 0
-  const presentYesterdayN = presentPrev ?? 0
-  const presentDiff       = presentTodayN - presentYesterdayN
-
-  // Build leave calendar map: day string → [names]
+  // Build leave calendar map
   const leaveCalMap: Record<string, string[]> = {}
-  for (const leave of monthLeaves) {
+  for (const leave of (monthLeavesRaw ?? []) as unknown as CalLeaveRow[]) {
     const u    = Array.isArray(leave.users) ? leave.users[0] : leave.users
     const name = u?.name ?? "?"
     const curr = new Date(leave.from_date + "T12:00:00")
@@ -218,451 +121,284 @@ export default async function DashboardPage({
     }
   }
 
+  const pendingLeavesList = ((pendingLeavesRaw ?? []) as unknown as LeaveRow[]).map(l => ({
+    ...l,
+    users: Array.isArray(l.users) ? (l.users[0] ?? null) : l.users,
+  }))
+
+  const recentUpdates = (recentUpdatesRaw ?? []) as unknown as UpdateRow[]
+
   const hour     = now.getHours()
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
   const dateStr  = now.toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
-  const monthName = now.toLocaleString("en-US", { month: "long", year: "numeric" })
 
-  // Build action items
-  const actionItems: { label: string; href: string; color: string; bg: string; border: string; emoji: string }[] = []
-  if (alerts.notUpdatedCount > 0) {
-    const names = alerts.notUpdatedNames.slice(0, 2).join(", ")
-    const extra = alerts.notUpdatedCount > 2 ? ` +${alerts.notUpdatedCount - 2} more` : ""
-    actionItems.push({ label: `${alerts.notUpdatedCount} member${alerts.notUpdatedCount > 1 ? "s" : ""} didn't submit update — ${names}${extra}`, href: "/admin/reports", emoji: "❗", color: "#D97706", bg: "rgba(217,119,6,0.06)", border: "rgba(217,119,6,0.18)" })
+  const adminName = profile?.name ?? "Admin"
+  const firstName = adminName.split(" ")[0]
+  const isSanjay  = adminName.toLowerCase().includes("sanjay")
+  const characterImg   = isSanjay ? "/brand/sanjay-ceo.png" : "/brand/karthikeyan-founder.png"
+  const characterTitle = isSanjay ? "CEO" : "Founder"
+
+  const taskBreakdown = {
+    completed:  taskCompleted  ?? 0,
+    inProgress: taskInProgress ?? 0,
+    todo:       taskTodo       ?? 0,
+    overdue:    taskOverdue    ?? 0,
   }
-  if (alerts.overdueTaskCount > 0)
-    actionItems.push({ label: `${alerts.overdueTaskCount} task${alerts.overdueTaskCount > 1 ? "s" : ""} overdue`, href: "/admin/goals", emoji: "⏰", color: "#de1a1a", bg: "rgba(222,26,26,0.06)", border: "rgba(222,26,26,0.15)" })
-  if ((pendingLeaves ?? 0) > 0)
-    actionItems.push({ label: `${pendingLeaves} leave request${(pendingLeaves ?? 0) > 1 ? "s" : ""} waiting for approval`, href: "/admin/leaves", emoji: "📝", color: "#de1a1a", bg: "rgba(222,26,26,0.06)", border: "rgba(222,26,26,0.15)" })
-  if (alerts.overdueProjectCount > 0)
-    actionItems.push({ label: `${alerts.overdueProjectCount} project${alerts.overdueProjectCount > 1 ? "s" : ""} past deadline`, href: "/admin/clients", emoji: "🚨", color: "#de1a1a", bg: "rgba(222,26,26,0.06)", border: "rgba(222,26,26,0.15)" })
 
-  const onLeaveTodayNames = onLeaveTodayList.slice(0, 2).map(l => {
-    const u = Array.isArray(l.users) ? l.users[0] : l.users
-    return u?.name?.split(" ")[0] ?? "?"
-  }).join(", ")
+  const CARD: CSSProperties = {
+    background: "#FFFFFF",
+    borderRadius: 16,
+    border: "1px solid #E5E7EB",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.04)",
+  }
 
-  const stats = [
-    {
-      label: filter === "today" ? "Present Today" : filter === "yesterday" ? "Present Yesterday" : "Present",
-      value: presentTodayN, icon: Users, href: "/admin/attendance",
-      trendLabel: presentDiff > 0 ? `+${presentDiff} from yesterday` : presentDiff < 0 ? `${presentDiff} from yesterday` : "Same as yesterday",
-      trendDir: presentDiff, accent: "#16A34A", accentBg: "rgba(22,163,74,0.1)",
-    },
-    {
-      label: "Active Tasks", value: activeTasks ?? 0, icon: Target, href: "/admin/goals",
-      trendLabel: alerts.overdueTaskCount > 0 ? `${alerts.overdueTaskCount} overdue` : "All on track",
-      trendDir: null, accent: alerts.overdueTaskCount > 0 ? "#D97706" : "#de1a1a",
-      accentBg: alerts.overdueTaskCount > 0 ? "rgba(217,119,6,0.1)" : "rgba(222,26,26,0.1)",
-    },
-    {
-      label: "Active Clients", value: activeClients ?? 0, icon: FolderOpen, href: "/admin/clients",
-      trendLabel: alerts.overdueProjectCount > 0 ? `${alerts.overdueProjectCount} delayed` : "All on track",
-      trendDir: null, accent: "#de1a1a", accentBg: "rgba(222,26,26,0.1)",
-    },
-    {
-      label: "On Leave Today", value: onLeaveTodayCount ?? 0, icon: CalendarOff, href: "/admin/leaves",
-      trendLabel: (onLeaveTodayCount ?? 0) > 0 ? onLeaveTodayNames : "Nobody on leave",
-      trendDir: null,
-      accent: (onLeaveTodayCount ?? 0) > 0 ? "#D97706" : "#16A34A",
-      accentBg: (onLeaveTodayCount ?? 0) > 0 ? "rgba(217,119,6,0.1)" : "rgba(22,163,74,0.1)",
-    },
+  const quickActions = [
+    { label: "Add Member",       href: "/admin/team",          icon: Plus,        color: "#16A34A", bg: "rgba(22,163,74,0.08)"   },
+    { label: "Assign Task",      href: "/admin/goals",         icon: ListTodo,    color: "#DE1A1A", bg: "rgba(222,26,26,0.06)"   },
+    { label: "Announcement",     href: "/admin/announcements", icon: Megaphone,   color: "#D97706", bg: "rgba(217,119,6,0.06)"   },
+    { label: "View Reports",     href: "/admin/reports",       icon: BarChart3,   color: "#6366F1", bg: "rgba(99,102,241,0.06)"  },
+    { label: "Leave Requests",   href: "/admin/leaves",        icon: CalendarOff, color: "#DE1A1A", bg: "rgba(222,26,26,0.06)"   },
+    { label: "Attendance",       href: "/admin/attendance",    icon: CalendarDays,color: "#0EA5E9", bg: "rgba(14,165,233,0.06)"  },
   ]
 
   return (
-    <div className="p-5 lg:p-7 space-y-5 w-full max-w-[1600px]">
+    <div style={{ background: "#F5F6FA", minHeight: "100vh" }} className="p-4 lg:p-6 space-y-4">
 
       {/* ── Header ─────────────────────────────────────── */}
-      <div className="rounded-2xl p-6 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #B91C1C 0%, #7F1D1D 60%, #450A0A 100%)" }}>
-        <div className="absolute top-0 right-0 w-64 h-64 rounded-full opacity-10 pointer-events-none"
-          style={{ background: "radial-gradient(circle, #FFFFFF 0%, transparent 70%)", transform: "translate(30%, -40%)" }} />
-        <div className="relative space-y-4">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-[28px] leading-tight font-black text-white">{greeting} 👋</h1>
-              <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.65)" }}>{dateStr}</p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 mt-1">
-              <Link href="/admin/team"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90"
-                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#FFFFFF" }}>
-                <Plus size={14} /> Add Member
-              </Link>
-              <Link href="/admin/announcements"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all hover:opacity-90"
-                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)", color: "#FFFFFF" }}>
-                <Megaphone size={14} /> Announcement
-              </Link>
-              <Link href="/admin/goals"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-90"
-                style={{ background: "#FFFFFF", color: "#B91C1C" }}>
-                <ListTodo size={14} /> Assign Task
-              </Link>
-            </div>
-          </div>
-          <DashboardFilterBar currentFilter={filter} from={params.from} to={params.to} />
+      <div style={{ ...CARD, padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 900, color: "#111827", margin: 0, lineHeight: 1.2 }}>
+            {greeting}, <span style={{ color: "#DE1A1A" }}>{firstName}</span> 👋
+          </h1>
+          <p style={{ fontSize: 12, color: "#6B7280", margin: "3px 0 0", fontWeight: 500 }}>{dateStr}</p>
         </div>
-      </div>
-
-      {/* ── Stats ──────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        {stats.map(({ label, value, icon: Icon, href, trendLabel, trendDir, accent, accentBg }) => (
-          <Link key={label} href={href}
-            className="stat-card group block"
-            style={{ textDecoration: "none" }}>
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: accentBg }}>
-                <Icon size={16} style={{ color: accent }} />
-              </div>
-              <ChevronRight size={14} style={{ color: "#D1D5DB" }} className="group-hover:translate-x-0.5 transition-transform" />
-            </div>
-            <p className="stat-value">{value}</p>
-            <p className="stat-label">{label}</p>
-            <p className="text-[11px] font-semibold mt-1.5 flex items-center gap-1" style={{ color: accent }}>
-              {trendDir !== null && (trendDir > 0 ? <TrendingUp size={10} /> : trendDir < 0 ? <TrendingDown size={10} /> : <Minus size={10} />)}
-              {trendLabel}
-            </p>
-          </Link>
-        ))}
-      </div>
-
-      {/* ── Not Updated + Late Arrivals ─────────────────── */}
-      {(alerts.notUpdatedCount > 0 || lateArrivals.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          {alerts.notUpdatedCount > 0 && (
-            <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid rgba(217,119,6,0.25)", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(217,119,6,0.1)" }}>
-                  <UserX size={14} style={{ color: "#D97706" }} />
-                </div>
-                <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Not Updated Today</h3>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(217,119,6,0.1)", color: "#D97706" }}>
-                  {alerts.notUpdatedCount}
-                </span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {alerts.notUpdatedNames.map((name, i) => (
-                  <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl"
-                    style={{ background: "rgba(217,119,6,0.06)", border: "1px solid rgba(217,119,6,0.15)" }}>
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold"
-                      style={{ background: "rgba(217,119,6,0.2)", color: "#D97706" }}>
-                      {name[0].toUpperCase()}
-                    </div>
-                    <span className="text-[12px] font-semibold" style={{ color: "#92400E" }}>{name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {lateArrivals.length > 0 && (
-            <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid rgba(222,26,26,0.2)", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(222,26,26,0.1)" }}>
-                  <Timer size={14} style={{ color: "#de1a1a" }} />
-                </div>
-                <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Late Arrivals Today</h3>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
-                  {lateArrivals.length} after 10 AM
-                </span>
-              </div>
-              <div className="space-y-2">
-                {lateArrivals.map((row, i) => {
-                  const u    = Array.isArray(row.users) ? row.users[0] : row.users
-                  const late = latenessStr(row.clock_in)
-                  return (
-                    <div key={i} className="flex items-center gap-3 py-1">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0"
-                        style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
-                        {(u?.name ?? "?")[0].toUpperCase()}
-                      </div>
-                      <p className="text-[12px] font-semibold flex-1" style={{ color: "#111827" }}>{u?.name ?? "—"}</p>
-                      <span className="text-[11px] font-mono flex-shrink-0" style={{ color: "#6B7280" }}>{toIST(row.clock_in)}</span>
-                      {late && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
-                          style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>{late}</span>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Team Performance ────────────────────────────── */}
-      {memberPerf.length > 0 && (
-        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-                style={{ background: belowTarget > 0 ? "rgba(222,26,26,0.1)" : "rgba(22,163,74,0.1)" }}>
-                <Clock size={14} style={{ color: belowTarget > 0 ? "#de1a1a" : "#16A34A" }} />
-              </div>
-              <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Team Performance</h3>
-              <span className="text-[11px]" style={{ color: "#6B7280" }}>{monthName} · 9h/day target</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="text-right">
-                <p className="text-[11px]" style={{ color: "#6B7280" }}>Team avg</p>
-                <p className="text-[16px] font-black" style={{ color: teamAvgHrs >= 9 ? "#16A34A" : "#de1a1a" }}>{teamAvgHrs}h/day</p>
-              </div>
-              {belowTarget > 0 && (
-                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
-                  style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
-                  ⚠ {belowTarget} below 9h
-                </span>
-              )}
-            </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10, padding: "7px 12px" }}>
+            <Search size={13} style={{ color: "#9CA3AF", flexShrink: 0 }} />
+            <input placeholder="Search..." readOnly style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "#374151", width: 120 }} />
           </div>
-          <div className="space-y-1.5">
-            {memberPerf.map(m => {
-              const pct   = Math.min((m.avgHrs / 9) * 100, 100)
-              const color = m.avgHrs >= 9 ? "#16A34A" : m.avgHrs >= 7 ? "#D97706" : "#de1a1a"
-              const bg    = m.avgHrs >= 9 ? "rgba(22,163,74,0.05)" : m.avgHrs >= 7 ? "rgba(217,119,6,0.05)" : "rgba(222,26,26,0.04)"
-              return (
-                <div key={m.employee_id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: bg }}>
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
-                    style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
-                    {m.name[0].toUpperCase()}
-                  </div>
-                  <p className="text-[12px] font-semibold flex-1 truncate" style={{ color: "#111827" }}>{m.name}</p>
-                  <p className="text-[11px] flex-shrink-0" style={{ color: "#6B7280" }}>{m.days}d worked</p>
-                  <div className="w-32 h-1.5 rounded-full overflow-hidden flex-shrink-0" style={{ background: "#E5E7EB" }}>
-                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
-                  </div>
-                  <span className="text-[12px] font-black w-14 text-right flex-shrink-0" style={{ color }}>{m.avgHrs}h/d</span>
-                  {m.avgHrs < 9 && m.days > 0 && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
-                      style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>⚠</span>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Action Required ─────────────────────────────── */}
-      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
-        <div className="flex items-center gap-2.5 mb-4">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: actionItems.length > 0 ? "rgba(222,26,26,0.1)" : "rgba(22,163,74,0.1)" }}>
-            {actionItems.length > 0
-              ? <AlertTriangle size={14} style={{ color: "#de1a1a" }} />
-              : <CheckCircle2  size={14} style={{ color: "#16A34A" }} />}
-          </div>
-          <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Action Required</h3>
-          {actionItems.length > 0 && (
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
-              {actionItems.length} item{actionItems.length > 1 ? "s" : ""}
-            </span>
-          )}
-        </div>
-        {actionItems.length === 0 ? (
-          <div className="flex items-center gap-2">
-            <CheckCircle2 size={15} style={{ color: "#16A34A" }} />
-            <p className="text-[13px] font-medium" style={{ color: "#6B7280" }}>All clear — no actions required right now.</p>
-          </div>
-        ) : (
-          <div className="grid sm:grid-cols-2 gap-2">
-            {actionItems.map((item, i) => (
-              <Link key={i} href={item.href}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:opacity-90"
-                style={{ background: item.bg, border: `1px solid ${item.border}` }}>
-                <span className="text-[15px]">{item.emoji}</span>
-                <p className="text-[12px] font-semibold flex-1 leading-snug" style={{ color: item.color }}>{item.label}</p>
-                <ArrowRight size={13} style={{ color: item.color, opacity: 0.5, flexShrink: 0 }} />
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Team Status + Pending Approvals ─────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(222,26,26,0.1)" }}>
-              <Users size={14} style={{ color: "#de1a1a" }} />
-            </div>
-            <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Today's Team</h3>
-          </div>
-          <p className="text-[10px] mb-4 px-1" style={{ color: "#6B7280" }}>
-            Attendance — who signed in today
-          </p>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            {[
-              { val: presentTodayN,       label: "Present",   color: "#16A34A", bg: "rgba(22,163,74,0.08)"  },
-              { val: absentSelected ?? 0, label: "Absent",    color: "#de1a1a", bg: "rgba(222,26,26,0.06)"  },
-              { val: alerts.notUpdatedCount, label: "No Update", color: "#D97706", bg: "rgba(217,119,6,0.06)" },
-            ].map(s => (
-              <div key={s.label} className="text-center py-3 rounded-xl" style={{ background: s.bg }}>
-                <p className="text-[26px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: s.color }}>{s.val}</p>
-                <p className="text-[10px] font-semibold mt-1" style={{ color: s.color }}>{s.label}</p>
-              </div>
-            ))}
-          </div>
-          <div className="space-y-1">
-            {recentUpdates.slice(0, 4).map((u, i) => {
-              const m = Array.isArray(u.users) ? u.users[0] : u.users
-              return (
-                <div key={i} className="flex items-center gap-2.5 py-1.5">
-                  <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
-                    style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
-                    {(m?.name ?? "?")[0].toUpperCase()}
-                  </div>
-                  <p className="text-[12px] font-medium flex-1 truncate" style={{ color: "#374151" }}>{m?.name ?? "—"}</p>
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style={
-                    u.attendance_status === "present" ? { background: "rgba(22,163,74,0.1)",  color: "#16A34A" } :
-                    u.attendance_status === "absent"  ? { background: "rgba(222,26,26,0.1)",  color: "#de1a1a" } :
-                                                        { background: "rgba(217,119,6,0.1)",  color: "#D97706" }
-                  }>{u.attendance_status}</span>
-                </div>
-              )
-            })}
-            {alerts.notUpdatedNames.slice(0, Math.max(0, 4 - recentUpdates.length)).map((name, i) => (
-              <div key={`nu-${i}`} className="flex items-center gap-2.5 py-1.5">
-                <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
-                  style={{ background: "rgba(217,119,6,0.08)", color: "#D97706" }}>
-                  {name[0].toUpperCase()}
-                </div>
-                <p className="text-[12px] font-medium flex-1 truncate" style={{ color: "#374151" }}>{name}</p>
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-                  style={{ background: "rgba(217,119,6,0.1)", color: "#D97706" }}>No update</span>
-              </div>
-            ))}
-            {recentUpdates.length === 0 && alerts.notUpdatedCount === 0 && (
-              <p className="text-[12px] text-center py-4" style={{ color: "#6B7280" }}>No activity yet today</p>
+          <div style={{ position: "relative", width: 36, height: 36, borderRadius: 10, background: "#F9FAFB", border: "1px solid #E5E7EB", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Bell size={15} style={{ color: "#6B7280" }} />
+            {(alerts.total > 0) && (
+              <div style={{ position: "absolute", top: 7, right: 7, width: 7, height: 7, borderRadius: "50%", background: "#DE1A1A", border: "1.5px solid #fff" }} />
             )}
           </div>
-        </div>
-        <div className="md:col-span-2">
-          <PendingApprovalsCard leaves={pendingLeavesList} />
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(222,26,26,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 14, fontWeight: 800, color: "#DE1A1A" }}>{(adminName[0] ?? "A").toUpperCase()}</span>
+          </div>
         </div>
       </div>
 
-      {/* ── Today's Updates ─────────────────────────────── */}
-      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(222,26,26,0.1)" }}>
-              <Clock size={14} style={{ color: "#de1a1a" }} />
+      {/* ── 4 Stat Cards ───────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          {
+            label: "Present Today", value: presentToday ?? 0,
+            icon: Users, href: "/admin/attendance",
+            color: "#16A34A", bg: "rgba(22,163,74,0.08)",
+            sub: alerts.notUpdatedCount > 0 ? `${alerts.notUpdatedCount} not updated` : "All submitted",
+            subColor: alerts.notUpdatedCount > 0 ? "#D97706" : "#16A34A",
+          },
+          {
+            label: "Active Tasks", value: activeTasks ?? 0,
+            icon: Target, href: "/admin/goals",
+            color: "#DE1A1A", bg: "rgba(222,26,26,0.08)",
+            sub: alerts.overdueTaskCount > 0 ? `${alerts.overdueTaskCount} overdue` : "All on track",
+            subColor: alerts.overdueTaskCount > 0 ? "#DE1A1A" : "#16A34A",
+          },
+          {
+            label: "Active Clients", value: activeClients ?? 0,
+            icon: FolderOpen, href: "/admin/clients",
+            color: "#6366F1", bg: "rgba(99,102,241,0.08)",
+            sub: alerts.overdueProjectCount > 0 ? `${alerts.overdueProjectCount} delayed` : "All on track",
+            subColor: alerts.overdueProjectCount > 0 ? "#DE1A1A" : "#16A34A",
+          },
+          {
+            label: "On Leave Today", value: onLeaveTodayCount ?? 0,
+            icon: CalendarOff, href: "/admin/leaves",
+            color: "#D97706", bg: "rgba(217,119,6,0.08)",
+            sub: (onLeaveTodayCount ?? 0) > 0 ? "View who's away" : "Nobody on leave",
+            subColor: (onLeaveTodayCount ?? 0) > 0 ? "#D97706" : "#16A34A",
+          },
+        ].map(s => {
+          const Icon = s.icon
+          return (
+            <Link key={s.label} href={s.href} style={{ textDecoration: "none" }}>
+              <div style={{ ...CARD, padding: "18px 20px" }} className="hover:shadow-md transition-shadow">
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 11, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Icon size={17} style={{ color: s.color }} />
+                  </div>
+                  <ArrowRight size={13} style={{ color: "#D1D5DB" }} />
+                </div>
+                <p style={{ fontSize: 32, fontWeight: 900, color: "#111827", margin: 0, lineHeight: 1 }}>{s.value}</p>
+                <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 6px", fontWeight: 600 }}>{s.label}</p>
+                <p style={{ fontSize: 11, color: s.subColor, margin: 0, fontWeight: 600 }}>{s.sub}</p>
+              </div>
+            </Link>
+          )
+        })}
+      </div>
+
+      {/* ── Middle Row: Overview | Task Summary | Calendar ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        {/* Today's Overview */}
+        <div style={{ ...CARD, overflow: "hidden" }}>
+          <div style={{ position: "relative", height: 220, background: "#F9FAFB" }}>
+            <Image
+              src={characterImg}
+              alt={adminName}
+              fill
+              style={{ objectFit: "cover", objectPosition: "top center" }}
+            />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 55%, #FFFFFF 100%)" }} />
+            <div style={{ position: "absolute", top: 12, left: 12, background: "rgba(0,0,0,0.45)", borderRadius: 8, padding: "4px 10px" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF" }}>{characterTitle}</span>
             </div>
-            <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Today's Updates</h3>
-            {recentUpdates.length > 0 && (
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
-                {recentUpdates.length} submitted
+          </div>
+          <div style={{ padding: "4px 18px 18px" }}>
+            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 2px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Today&apos;s Overview</p>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: "0 0 14px" }}>{adminName}</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {[
+                { label: "Present",      value: presentToday ?? 0,        color: "#16A34A", bg: "rgba(22,163,74,0.08)"   },
+                { label: "On Leave",     value: onLeaveTodayCount ?? 0,   color: "#D97706", bg: "rgba(217,119,6,0.08)"   },
+                { label: "Updates In",   value: recentUpdates.length,     color: "#6366F1", bg: "rgba(99,102,241,0.08)"  },
+                { label: "Not Updated",  value: alerts.notUpdatedCount,   color: "#DE1A1A", bg: "rgba(222,26,26,0.08)"   },
+              ].map(s => (
+                <div key={s.label} style={{ background: s.bg, borderRadius: 10, padding: "10px 14px" }}>
+                  <p style={{ fontSize: 22, fontWeight: 900, color: s.color, margin: 0, lineHeight: 1 }}>{s.value}</p>
+                  <p style={{ fontSize: 10, color: s.color, margin: "2px 0 0", fontWeight: 600, opacity: 0.8 }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Task Summary */}
+        <div style={{ ...CARD, padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(222,26,26,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Target size={14} style={{ color: "#DE1A1A" }} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Task Summary</h3>
+              <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0, fontWeight: 500 }}>All tasks overview</p>
+            </div>
+          </div>
+          <TaskSummaryChart {...taskBreakdown} />
+          <Link href="/admin/goals"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 14, padding: "9px 0", borderRadius: 10, background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.15)", textDecoration: "none" }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#DE1A1A" }}>Manage Tasks</span>
+            <ArrowRight size={12} style={{ color: "#DE1A1A" }} />
+          </Link>
+        </div>
+
+        {/* Mini Calendar */}
+        <div style={{ ...CARD, padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(222,26,26,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <CalendarDays size={14} style={{ color: "#DE1A1A" }} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Leave Calendar</h3>
+              <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0, fontWeight: 500 }}>Approved leaves</p>
+            </div>
+          </div>
+          <MiniCalendar
+            leaveMap={leaveCalMap}
+            today={today}
+            initYear={now.getFullYear()}
+            initMonth={now.getMonth()}
+          />
+        </div>
+      </div>
+
+      {/* ── Bottom Row: Pending | Not Updated | Quick Actions ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+        {/* Pending Approvals */}
+        <PendingApprovalsCard leaves={pendingLeavesList} />
+
+        {/* Not Updated Today */}
+        <div style={{ ...CARD, padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(217,119,6,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <UserX size={14} style={{ color: "#D97706" }} />
+            </div>
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Not Updated Today</h3>
+            {alerts.notUpdatedCount > 0 && (
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "rgba(217,119,6,0.1)", color: "#D97706", marginLeft: "auto" }}>
+                {alerts.notUpdatedCount}
               </span>
             )}
           </div>
-          <Link href="/admin/reports"
-            className="text-[12px] font-semibold flex items-center gap-1 transition-opacity hover:opacity-70"
-            style={{ color: "#de1a1a" }}>
-            View All <ArrowRight size={12} />
-          </Link>
-        </div>
-        <p className="text-[10px] mb-4 px-1" style={{ color: "#6B7280" }}>
-          Daily work reports — different from attendance. Someone can sign in but not submit a report, or vice versa.
-        </p>
-        {recentUpdates.length === 0 ? (
-          <div className="flex flex-col items-center py-12 gap-2">
-            <Clock size={28} style={{ color: "#E5E7EB" }} />
-            <p className="text-[13px]" style={{ color: "#6B7280" }}>No updates submitted yet today</p>
-          </div>
-        ) : (
-          <div className="divide-y" style={{ borderColor: "#F3F4F6" }}>
-            {recentUpdates.map((u, i) => {
-              const m    = Array.isArray(u.users) ? u.users[0] : u.users
-              const time = new Date(u.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true })
-              return (
-                <div key={i} className="flex items-center gap-4 py-3">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-[12px] font-bold"
-                    style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
-                    {(m?.name ?? "?")[0].toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold" style={{ color: "#111827" }}>{m?.name ?? "—"}</p>
-                    <p className="text-[11px] mt-0.5" style={{ color: "#6B7280" }}>
-                      {u.work_type ?? "—"}{u.working_hours != null ? ` · ${u.working_hours}h` : ""}
-                    </p>
-                  </div>
-                  <p className="text-[11px] flex-shrink-0" style={{ color: "#6B7280" }}>{time}</p>
-                  <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full flex-shrink-0" style={
-                    u.attendance_status === "present"
-                      ? { background: "rgba(22,163,74,0.1)",  color: "#16A34A" }
-                      : { background: "rgba(222,26,26,0.08)", color: "#de1a1a" }
-                  }>{u.attendance_status}</span>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
 
-      {/* ── Monthly Leave Calendar ───────────────────────── */}
-      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.04)" }}>
-        <div className="flex items-center gap-2.5 mb-5">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "rgba(222,26,26,0.1)" }}>
-            <CalendarDays size={14} style={{ color: "#de1a1a" }} />
-          </div>
-          <h3 className="text-[14px] font-bold" style={{ color: "#111827" }}>Leave Calendar</h3>
-          <span className="text-[11px]" style={{ color: "#6B7280" }}>{monthName} — approved leaves</span>
-          {Object.keys(leaveCalMap).length > 0 && (
-            <span className="text-[11px] font-bold px-2 py-0.5 rounded-full ml-auto"
-              style={{ background: "rgba(217,119,6,0.1)", color: "#D97706" }}>
-              {Object.keys(leaveCalMap).length} day{Object.keys(leaveCalMap).length > 1 ? "s" : ""} booked
-            </span>
+          {alerts.notUpdatedCount === 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 0", gap: 8 }}>
+              <CheckCircle2 size={28} style={{ color: "#E5E7EB" }} />
+              <p style={{ fontSize: 13, color: "#6B7280", margin: 0, fontWeight: 500 }}>Everyone has submitted today</p>
+            </div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {alerts.notUpdatedNames.map((name, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.15)" }}>
+                  <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(217,119,6,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: "#D97706" }}>{name[0].toUpperCase()}</span>
+                  </div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: "#111827", flex: 1, margin: 0 }}>{name}</p>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 6, background: "rgba(217,119,6,0.1)", color: "#D97706" }}>Pending</span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
-        {/* Day headers */}
-        <div className="grid grid-cols-7 gap-1 mb-1">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(d => (
-            <div key={d} className="text-center text-[10px] font-bold py-1" style={{ color: "#6B7280" }}>{d}</div>
-          ))}
+        {/* Quick Actions */}
+        <div style={{ ...CARD, padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(99,102,241,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Clock size={14} style={{ color: "#6366F1" }} />
+            </div>
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Quick Actions</h3>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {quickActions.map(a => {
+              const Icon = a.icon
+              return (
+                <Link key={a.label} href={a.href}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, padding: "14px 8px", borderRadius: 12, background: a.bg, border: `1px solid ${a.color}22`, textDecoration: "none", transition: "opacity 0.15s" }}
+                  className="hover:opacity-80">
+                  <Icon size={18} style={{ color: a.color }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: a.color, textAlign: "center", lineHeight: 1.2 }}>{a.label}</span>
+                </Link>
+              )
+            })}
+          </div>
         </div>
+      </div>
 
-        {/* Calendar grid */}
-        <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: firstDayOfWeek }, (_, i) => <div key={`e-${i}`} className="h-14 rounded-lg" />)}
-          {Array.from({ length: daysInMonth }, (_, i) => {
-            const day    = i + 1
-            const dayStr = `${monthStart.slice(0, 7)}-${String(day).padStart(2, "0")}`
-            const leaves = leaveCalMap[dayStr] ?? []
-            const isToday   = dayStr === today
-            const dow       = new Date(dayStr + "T12:00:00").getDay()
-            const isWeekend = dow === 0 || dow === 6
-            return (
-              <div key={day} className="h-14 rounded-lg p-1.5 flex flex-col"
-                style={{
-                  background: isToday ? "rgba(222,26,26,0.08)" : leaves.length > 0 ? "rgba(217,119,6,0.06)" : isWeekend ? "rgba(0,0,0,0.02)" : "#F9FAFB",
-                  border: isToday ? "1.5px solid rgba(222,26,26,0.3)" : leaves.length > 0 ? "1px solid rgba(217,119,6,0.2)" : "1px solid #E5E7EB",
-                }}>
-                <p className="text-[11px] font-bold leading-none" style={{ color: isToday ? "#de1a1a" : isWeekend ? "#D1D5DB" : "#374151" }}>
-                  {day}
-                </p>
-                {leaves.length > 0 && (
-                  <div className="flex flex-wrap gap-0.5 mt-0.5">
-                    {leaves.slice(0, 2).map((name, li) => (
-                      <span key={li} className="text-[8px] font-bold px-1 py-0.5 rounded leading-none"
-                        style={{ background: "rgba(217,119,6,0.15)", color: "#D97706" }}>
-                        {name.split(" ")[0]}
-                      </span>
-                    ))}
-                    {leaves.length > 2 && (
-                      <span className="text-[8px] font-bold leading-none" style={{ color: "#6B7280" }}>+{leaves.length - 2}</span>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
+      {/* ── Stay Productive Banner ──────────────────────── */}
+      <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #7F1D1D 100%)", borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", right: -30, top: -30, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }} />
+        <div style={{ position: "absolute", right: 60, bottom: -40, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
+        <div style={{ position: "relative" }}>
+          <p style={{ fontSize: 18, fontWeight: 900, color: "#FFFFFF", margin: 0 }}>Stay productive! 🚀</p>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: "4px 0 0", fontWeight: 500 }}>
+            Great work managing your team, {firstName}. Keep the momentum going!
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: 10, position: "relative" }}>
+          <Link href="/admin/reports"
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 18px", borderRadius: 10, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.3)", textDecoration: "none" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>View Reports</span>
+            <ArrowRight size={13} style={{ color: "#FFFFFF" }} />
+          </Link>
+          <Link href="/admin/team"
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "10px 18px", borderRadius: 10, background: "#FFFFFF", textDecoration: "none" }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#DE1A1A" }}>Manage Team</span>
+          </Link>
         </div>
       </div>
 

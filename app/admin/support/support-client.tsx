@@ -90,7 +90,7 @@ function NewTicketModal({ onClose }: { onClose: () => void }) {
               <h2 className="text-[16px] font-bold" style={{ color: '#111111', fontFamily: 'var(--font-jakarta)' }}>New Support Ticket</h2>
               <p className="text-[12px] mt-0.5" style={{ color: '#9CA3AF' }}>Create a new support request</p>
             </div>
-            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ border: '1px solid #E5E7EB' }}>
+            <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center" style={{ border: '1px solid #E5E7EB' }}>
               <X size={14} style={{ color: '#6B7280' }} />
             </button>
           </div>
@@ -153,26 +153,22 @@ function NewTicketModal({ onClose }: { onClose: () => void }) {
 
 function TicketDetailModal({ ticket, onClose }: { ticket: Ticket; onClose: () => void }) {
   const [reply, setReply] = useState('')
-  const [pending, startTransition] = useTransition()
-  const [actionId, setActionId] = useState<string | null>(null)
+  const [replyPending, startReplyTransition] = useTransition()
+  const [statusPending, startStatusTransition] = useTransition()
   const cfg = STATUS_CONFIG[ticket.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.closed
   const responses = ticket.support_responses ?? []
 
   function handleReply() {
     if (!reply.trim()) return
-    setActionId('reply')
-    startTransition(async () => {
+    startReplyTransition(async () => {
       await addResponse({ ticket_id: ticket.id, message: reply.trim() })
       setReply('')
-      setActionId(null)
     })
   }
 
   function handleStatus(status: string) {
-    setActionId('status_' + status)
-    startTransition(async () => {
+    startStatusTransition(async () => {
       await updateTicketStatus(ticket.id, status)
-      setActionId(null)
     })
   }
 
@@ -197,7 +193,7 @@ function TicketDetailModal({ ticket, onClose }: { ticket: Ticket; onClose: () =>
                   </span>
                 </div>
               </div>
-              <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+              <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ border: '1px solid #E5E7EB' }}>
                 <X size={14} style={{ color: '#6B7280' }} />
               </button>
@@ -232,10 +228,10 @@ function TicketDetailModal({ ticket, onClose }: { ticket: Ticket; onClose: () =>
                 className="flex-1 rounded-xl px-3 py-2 text-[13px] resize-none outline-none"
                 style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', color: '#111111', fontFamily: 'inherit' }} />
               <button onClick={handleReply}
-                disabled={(pending && actionId === 'reply') || !reply.trim()}
+                disabled={replyPending || !reply.trim()}
                 className="px-4 rounded-xl flex items-center gap-1.5 text-[13px] font-semibold disabled:opacity-50"
                 style={{ background: '#DE1A1A', color: '#FFFFFF' }}>
-                {pending && actionId === 'reply' ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+                {replyPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
                 Send
               </button>
             </div>
@@ -247,7 +243,7 @@ function TicketDetailModal({ ticket, onClose }: { ticket: Ticket; onClose: () =>
                   const c = STATUS_CONFIG[s]
                   return (
                     <button key={s} onClick={() => handleStatus(s)}
-                      disabled={pending && actionId === 'status_' + s}
+                      disabled={statusPending}
                       className="px-3 py-1 rounded-full text-[11px] font-semibold capitalize transition-all disabled:opacity-50"
                       style={{ background: c.bg, color: c.color }}>
                       {c.label}
@@ -268,16 +264,17 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
   const [sort, setSort]                   = useState<'newest' | 'oldest'>('newest')
   const [page, setPage]                   = useState(1)
   const [showNewTicket, setShowNewTicket] = useState(false)
-  const [activeTicket, setActiveTicket]   = useState<Ticket | null>(null)
+  const [activeTicket, setActiveTicket]   = useState<string | null>(null)
   const [openDropdown, setOpenDropdown]   = useState<string | null>(null)
   const [showSortMenu, setShowSortMenu]   = useState(false)
+  const [, startRowStatusTransition]      = useTransition()
 
-  const stats = {
+  const stats = useMemo(() => ({
     open:        tickets.filter(t => t.status === 'open').length,
     in_progress: tickets.filter(t => t.status === 'in_progress').length,
     resolved:    tickets.filter(t => t.status === 'resolved').length,
     closed:      tickets.filter(t => t.status === 'closed').length,
-  }
+  }), [tickets])
 
   const sorted = useMemo(() =>
     [...tickets].sort((a, b) => {
@@ -305,16 +302,19 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
 
   const ticketIndexMap = useMemo(() => {
     const m: Record<string, number> = {}
-    sorted.forEach((t, i) => { m[t.id] = i })
+    const byCreation = [...tickets].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    )
+    byCreation.forEach((t, i) => { m[t.id] = i })
     return m
-  }, [sorted])
+  }, [tickets])
 
-  const STAT_CARDS = [
+  const STAT_CARDS = useMemo(() => [
     { key: 'open',        label: 'Open',        count: stats.open,        color: '#DE1A1A', iconBg: '#FEE2E2', Icon: AlertCircle  },
     { key: 'in_progress', label: 'In Progress',  count: stats.in_progress, color: '#D97706', iconBg: '#FEF3C7', Icon: Clock        },
     { key: 'resolved',    label: 'Resolved',     count: stats.resolved,    color: '#15803D', iconBg: '#DCFCE7', Icon: CheckCircle2 },
     { key: 'closed',      label: 'Closed',       count: stats.closed,      color: '#6B7280', iconBg: '#F3F4F6', Icon: XCircle      },
-  ]
+  ], [stats])
 
   return (
     <div style={{ background: '#F4F5F7', minHeight: '100vh' }}>
@@ -437,8 +437,8 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
               </div>
             )}
           </div>
-          <button className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold"
-            style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', color: '#374151', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', cursor: 'pointer' }}>
+          <button disabled className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold opacity-50"
+            style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', color: '#374151', boxShadow: '0 1px 4px rgba(0,0,0,0.06)', cursor: 'not-allowed' }}>
             <SlidersHorizontal size={14} /> Filter
           </button>
         </div>
@@ -530,7 +530,7 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
                               <div className="absolute right-0 top-9 w-44 rounded-xl shadow-xl overflow-hidden z-50 py-1"
                                 style={{ background: '#FFFFFF', border: '1px solid #E5E7EB' }}>
                                 <button
-                                  onClick={() => { setActiveTicket(ticket); setOpenDropdown(null) }}
+                                  onClick={() => { setActiveTicket(ticket.id); setOpenDropdown(null) }}
                                   className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
                                   style={{ color: '#374151', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
                                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F9FAFB'}
@@ -543,7 +543,12 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
                                     const c = STATUS_CONFIG[s]
                                     return (
                                       <button key={s}
-                                        onClick={() => { updateTicketStatus(ticket.id, s); setOpenDropdown(null) }}
+                                        onClick={() => {
+                                          setOpenDropdown(null)
+                                          startRowStatusTransition(async () => {
+                                            await updateTicketStatus(ticket.id, s)
+                                          })
+                                        }}
                                         className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all capitalize"
                                         style={{ color: c.color, background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
                                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F9FAFB'}
@@ -608,7 +613,10 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
       )}
 
       {showNewTicket && <NewTicketModal onClose={() => setShowNewTicket(false)} />}
-      {activeTicket  && <TicketDetailModal ticket={activeTicket} onClose={() => setActiveTicket(null)} />}
+      {(() => {
+        const liveTicket = activeTicket ? tickets.find(t => t.id === activeTicket) ?? null : null
+        return liveTicket ? <TicketDetailModal ticket={liveTicket} onClose={() => setActiveTicket(null)} /> : null
+      })()}
     </div>
   )
 }

@@ -207,10 +207,10 @@ export default async function AttendancePage({
       </div>
 
       {/* ── Main 2-col Layout ────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4">
 
         {/* ── Left: Attendance Table ───────────────────── */}
-        <div style={{ ...CARD, overflow: "hidden" }}>
+        <div style={{ ...CARD, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "16px 20px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <h2 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>
               Team Attendance — {isToday ? "Today" : displayDate}
@@ -227,12 +227,12 @@ export default async function AttendancePage({
 
           {/* Rows */}
           {!members || members.length === 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 0", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 0", gap: 8, flex: 1 }}>
               <Users size={28} style={{ color: "#E5E7EB" }} />
               <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>No team members found</p>
             </div>
           ) : (
-            <div>
+            <div style={{ flex: 1 }}>
               {(members ?? []).map(m => {
                 const log       = logMap.get(m.id)
                 const isAbsent  = log?.status === "absent" && !log?.clock_in
@@ -285,7 +285,7 @@ export default async function AttendancePage({
         </div>
 
         {/* ── Right: Overview + Trend + Quick Actions ──── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, height: "100%" }}>
 
           {/* Attendance Overview */}
           <div style={{ ...CARD, padding: 20 }}>

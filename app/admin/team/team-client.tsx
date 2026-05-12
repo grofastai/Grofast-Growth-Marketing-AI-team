@@ -570,14 +570,14 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
         {STAT_CARDS.map((s) => (
           <div key={s.label} style={{
             background: s.bg, border: `1px solid ${s.border}`, borderRadius: 18,
-            padding: "20px 18px 0 22px", overflow: "hidden", position: "relative", minHeight: 165,
+            padding: "20px 18px 0 22px", overflow: "hidden", position: "relative", minHeight: 148,
           }}>
-            {/* Illustration */}
-            <div style={{ position: "absolute", right: 0, bottom: 0, width: 200, height: 175, pointerEvents: "none" }}>
+            {/* Illustration — responsive size */}
+            <div className="absolute right-0 bottom-0 w-24 h-24 sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
               <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
             </div>
             {/* Text */}
-            <div style={{ position: "relative", zIndex: 1, maxWidth: "55%" }}>
+            <div style={{ position: "relative", zIndex: 1 }} className="max-w-[70%] sm:max-w-[60%] lg:max-w-[55%]">
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: s.num, opacity: 0.85 }}>{s.label}</p>
               <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: s.num }}>{s.value}</p>
               <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#6B7280" }}>{s.sub}</p>
@@ -587,7 +587,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
       </div>
 
       {/* ── Main 2-column ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] lg:grid-cols-[1fr_300px] gap-5">
 
         {/* LEFT: Table */}
         <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
@@ -920,12 +920,12 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at 20% 50%, rgba(222,26,26,0.12) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(99,102,241,0.1) 0%, transparent 50%)" }} />
 
         {/* Boy with laptop illustration */}
-        <div style={{ position: "absolute", right: 16, bottom: 0, width: 290, height: 270, pointerEvents: "none" }}>
+        <div className="absolute right-4 bottom-0 hidden sm:block pointer-events-none" style={{ width: 240, height: 220 }}>
           <Image src="/brand/boy-laptop.png" alt="Productivity" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
         </div>
 
-        <div style={{ position: "relative", zIndex: 1, padding: "28px 32px" }}>
-          <div className="flex items-start gap-8 flex-wrap" style={{ paddingRight: 300 }}>
+        <div style={{ position: "relative", zIndex: 1, padding: "24px 28px" }}>
+          <div className="flex items-start gap-6 flex-wrap sm:pr-56 lg:pr-64 xl:pr-72">
             <div>
               <h2 className="text-[22px] font-black text-white leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
                 Happy Team,<br />Productive Team!

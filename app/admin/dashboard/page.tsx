@@ -178,7 +178,7 @@ export default async function DashboardPage() {
         <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "7px 12px", backdropFilter: "blur(8px)" }}>
             <Search size={13} style={{ color: "rgba(255,255,255,0.6)", flexShrink: 0 }} />
-            <input placeholder="Search..." readOnly style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "#FFFFFF", width: 120 }} />
+            <input placeholder="Search..." readOnly style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "#FFFFFF", width: 80, minWidth: 60 }} />
           </div>
           <div style={{ position: "relative", width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Bell size={15} style={{ color: "#FFFFFF" }} />
@@ -244,7 +244,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Middle Row: Overview | Task Summary | Calendar ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
         {/* Today's Overview */}
         <div style={{ ...CARD, overflow: "hidden" }}>
@@ -309,7 +309,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* ── Bottom Row: Pending | Not Updated | Quick Actions ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
         {/* Pending Approvals */}
         <PendingApprovalsCard leaves={pendingLeavesList} />

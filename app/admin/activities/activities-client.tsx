@@ -116,8 +116,8 @@ export default function ActivitiesClient({
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 mb-6">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg"
+      <div className="flex flex-wrap gap-3 mb-6">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg flex-shrink-0"
           style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
           <Filter size={12} style={{ color: "#6B7280" }} />
           <input type="date" value={dateFilter}
@@ -126,7 +126,7 @@ export default function ActivitiesClient({
             style={{ color: "#111111", colorScheme: "light" }} />
         </div>
         <select value={memberFilter} onChange={(e) => navigate(dateFilter, e.target.value)}
-          className="px-3 py-2 rounded-lg text-[13px] outline-none"
+          className="px-3 py-2 rounded-lg text-[13px] outline-none flex-1 min-w-[160px]"
           style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#111111", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
           <option value="">All Members</option>
           {members.map((m) => (

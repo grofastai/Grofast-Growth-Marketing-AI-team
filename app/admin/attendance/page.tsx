@@ -184,13 +184,13 @@ export default async function AttendancePage({
       {/* ── 4 Stat Cards ────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {statCards.map(s => (
-          <div key={s.label} style={{ borderRadius: 18, border: `1px solid ${s.border}`, background: s.bg, padding: "20px 18px 20px 22px", overflow: "hidden", position: "relative", minHeight: 175, boxShadow: "0 1px 4px rgba(0,0,0,0.05)", display: "flex", alignItems: "flex-start" }}>
-            {/* Character illustration — large, right side */}
-            <div style={{ position: "absolute", right: 0, bottom: 0, width: 210, height: 185, pointerEvents: "none" }}>
+          <div key={s.label} style={{ borderRadius: 18, border: `1px solid ${s.border}`, background: s.bg, padding: "20px 18px 20px 22px", overflow: "hidden", position: "relative", minHeight: 155, boxShadow: "0 1px 4px rgba(0,0,0,0.05)", display: "flex", alignItems: "flex-start" }}>
+            {/* Character illustration — hidden on xs, grows with screen */}
+            <div className="absolute right-0 bottom-0 w-24 h-24 sm:w-36 sm:h-32 lg:w-[210px] lg:h-[185px] pointer-events-none">
               <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
             </div>
-            {/* Text content — left ~55% so it never overlaps character */}
-            <div style={{ position: "relative", zIndex: 1, maxWidth: "52%" }}>
+            {/* Text content — more space on mobile */}
+            <div style={{ position: "relative", zIndex: 1 }} className="max-w-[72%] sm:max-w-[62%] lg:max-w-[52%]">
               <div style={{ width: 36, height: 36, borderRadius: 10, background: `${s.accent}1A`, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
                 <CalendarDays size={16} style={{ color: s.accent }} />
               </div>
@@ -207,7 +207,7 @@ export default async function AttendancePage({
       </div>
 
       {/* ── Main 2-col Layout ────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_300px] lg:grid-cols-[1fr_340px] gap-4">
 
         {/* ── Left: Attendance Table ───────────────────── */}
         <div style={{ ...CARD, overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -218,22 +218,24 @@ export default async function AttendancePage({
             <span style={{ fontSize: 11, color: "#6B7280" }}>{displayDate}</span>
           </div>
 
-          {/* Column headers */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 100px", gap: 0, padding: "10px 20px", borderBottom: "1px solid #F3F4F6" }}>
-            {["EMPLOYEE", "CLOCK IN", "CLOCK OUT", "DURATION", "STATUS"].map(h => (
-              <span key={h} style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.06em" }}>{h}</span>
-            ))}
-          </div>
-
-          {/* Rows */}
-          {!members || members.length === 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 0", gap: 8, flex: 1 }}>
-              <Users size={28} style={{ color: "#E5E7EB" }} />
-              <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>No team members found</p>
+          {/* Scrollable table body */}
+          <div style={{ overflowX: "auto", flex: 1, display: "flex", flexDirection: "column" }}>
+            {/* Column headers */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 100px", gap: 0, padding: "10px 20px", borderBottom: "1px solid #F3F4F6", minWidth: 520 }}>
+              {["EMPLOYEE", "CLOCK IN", "CLOCK OUT", "DURATION", "STATUS"].map(h => (
+                <span key={h} style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", letterSpacing: "0.06em" }}>{h}</span>
+              ))}
             </div>
-          ) : (
-            <div style={{ flex: 1 }}>
-              {(members ?? []).map(m => {
+
+            {/* Rows */}
+            {!members || members.length === 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "48px 0", gap: 8, flex: 1 }}>
+                <Users size={28} style={{ color: "#E5E7EB" }} />
+                <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>No team members found</p>
+              </div>
+            ) : (
+              <div style={{ flex: 1, minWidth: 520 }}>
+                {(members ?? []).map(m => {
                 const log       = logMap.get(m.id)
                 const isAbsent  = log?.status === "absent" && !log?.clock_in
                 const isWorking = !!(log?.clock_in && !log?.clock_out)
@@ -273,8 +275,9 @@ export default async function AttendancePage({
                   </div>
                 )
               })}
-            </div>
-          )}
+              </div>
+            )}
+          </div>{/* end scrollable wrapper */}
 
           {/* Footer link */}
           <div style={{ padding: "14px 20px", borderTop: "1px solid #F3F4F6", textAlign: "center" }}>
@@ -350,7 +353,7 @@ export default async function AttendancePage({
               const lateByMins = Math.floor(lateByMs / 60000)
               const lateStr    = lateByMins >= 60 ? `${Math.floor(lateByMins / 60)}h ${lateByMins % 60}m late` : `${lateByMins}m late`
               return (
-                <div key={entry.user_id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 20px", borderBottom: "1px solid #F9FAFB" }}>
+                <div key={entry.user_id} style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, padding: "12px 20px", borderBottom: "1px solid #F9FAFB" }}>
                   <div style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(245,158,11,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <span style={{ fontSize: 12, fontWeight: 800, color: "#D97706" }}>{entry.member!.name[0]}</span>
                   </div>

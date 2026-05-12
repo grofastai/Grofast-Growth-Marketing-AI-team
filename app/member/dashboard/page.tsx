@@ -211,7 +211,7 @@ export default async function MemberDashboardPage() {
       </div>
 
       {/* ── Daily Update Alert ────────────────────────────────── */}
-      <div className="rounded-2xl p-5 mb-5 flex items-center gap-4"
+      <div className="rounded-2xl p-4 md:p-5 mb-5 flex items-start md:items-center gap-3 md:gap-4 flex-wrap"
         style={{ background: "#FFFFFF", border: todayUpdate ? "1px solid rgba(22,163,74,0.25)" : "1px solid #E8E9EF" }}>
         <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
           style={{ background: todayUpdate ? "rgba(22,163,74,0.1)" : "rgba(222,26,26,0.1)" }}>
@@ -239,7 +239,7 @@ export default async function MemberDashboardPage() {
       </div>
 
       {/* ── Main 2-col grid ───────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 mb-5">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] lg:grid-cols-[1fr_300px] gap-5 mb-5">
 
         {/* LEFT — My Tasks */}
         <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>

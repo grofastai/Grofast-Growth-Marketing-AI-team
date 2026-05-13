@@ -7,8 +7,19 @@ import {
   Camera, Film, Plus, Trash2, CheckCircle2,
   Loader2, SendHorizonal, Clock, BookOpen,
   ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal,
+  Briefcase, AlertCircle,
 } from "lucide-react"
 import { submitDailyUpdate } from "@/lib/actions/daily-updates"
+
+interface GeneralTaskEntry {
+  id: string
+  clientName: string
+  title: string
+  category: string
+  durationHours: number
+  status: "completed" | "in_progress" | "blocked"
+  notes: string
+}
 
 interface Project { id: string; business_name: string }
 
@@ -137,15 +148,26 @@ export default function DailyUpdateForm({
   const patchEdit  = (id: string, patch: Partial<EditEntry>) => setEdits(p => p.map(e => e.id === id ? { ...e, ...patch } : e))
   const removeEdit = (id: string) => setEdits(p => p.filter(e => e.id !== id))
 
+  // ── General task state (non-media teams) ──────────────────────────────────
+  const [generalTasks, setGeneralTasks] = useState<GeneralTaskEntry[]>([])
+  const addGeneralTask    = () => setGeneralTasks(p => [...p, { id: crypto.randomUUID(), clientName: "", title: "", category: "Development", durationHours: 1, status: "completed", notes: "" }])
+  const patchGeneralTask  = (id: string, patch: Partial<GeneralTaskEntry>) => setGeneralTasks(p => p.map(t => t.id === id ? { ...t, ...patch } : t))
+  const removeGeneralTask = (id: string) => setGeneralTasks(p => p.filter(t => t.id !== id))
+  const totalGeneralHours = useMemo(() => generalTasks.reduce((s, t) => s + t.durationHours, 0), [generalTasks])
+
   const [learningTopic, setLearningTopic] = useState("")
   const [learningHours, setLearningHours] = useState(1)
   const [learningNotes, setLearningNotes] = useState("")
   const [error,     setError]     = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
 
-  const totalShootHours = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
-  const totalEditHours  = useMemo(() => edits.reduce((s, e) => s + e.timeTaken, 0), [edits])
-  const totalHours      = tab === "working" ? totalShootHours + totalEditHours : learningHours
+  const totalShootHours   = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
+  const totalEditHours    = useMemo(() => edits.reduce((s, e) => s + e.timeTaken, 0), [edits])
+  const totalHours        = tab === "working" ? totalShootHours + totalEditHours : learningHours
+  const generalProductivity = useMemo(() => {
+    const filled = generalTasks.filter(t => t.title && t.clientName).length
+    return generalTasks.length === 0 ? 0 : Math.round((filled / generalTasks.length) * 100)
+  }, [generalTasks])
   const productivity    = useMemo(() => {
     if (tab === "learning") return learningHours > 0 ? 80 : 0
     const filled = shoots.filter(s => s.clientName && s.title).length + edits.filter(e => e.clientName && e.title).length
@@ -218,14 +240,268 @@ export default function DailyUpdateForm({
     })
   }
 
-  // ── Non-media team placeholder ─────────────────────────────────────────────
+  // ── Non-media team: 9AM–10AM daily task window ────────────────────────────
+  function handleGeneralSubmit() {
+    setError(null)
+    if (generalTasks.length === 0) { setError("Add at least one task."); return }
+    const work_entries = generalTasks.map(t => ({
+      id:             t.id,
+      client_id:      projects.find(p => p.business_name === t.clientName)?.id ?? null,
+      client_name:    t.clientName || "Internal",
+      task_type:      "other" as const,
+      title:          t.title || t.category,
+      start_time:     "",
+      end_time:       "",
+      duration_hours: t.durationHours,
+      notes:          `[${t.status}] [${t.category}] ${t.notes}`.trim(),
+      video_uploaded: null,
+      screenshot_url: "",
+      video_link:     "",
+      editing_videos: [],
+    }))
+    startTransition(async () => {
+      const res = await submitDailyUpdate({
+        active_tab:         "working",
+        work_entries,
+        links:              [],
+        shoot_count:        0,
+        editing_count:      0,
+        shoot_time_hours:   0,
+        editing_time_hours: 0,
+        learning_hours:     0,
+      })
+      if (!res.success) setError(res.error ?? "Submission failed.")
+      else { setSubmitted(true); router.refresh() }
+    })
+  }
+
+  const TASK_CATEGORIES = ["Development", "Design", "Meeting", "Research", "Testing", "Documentation", "Support", "Planning", "Review", "Other"]
+  const STATUS_OPTIONS: { value: GeneralTaskEntry["status"]; label: string; color: string }[] = [
+    { value: "completed",   label: "Completed",   color: "#22C55E" },
+    { value: "in_progress", label: "In Progress", color: "#F59E0B" },
+    { value: "blocked",     label: "Blocked",     color: "#EF4444" },
+  ]
+
   if (!isMediaTeam) {
+    const now2 = new Date()
+    const h2 = now2.getHours()
+    const isWindow = h2 >= 9 && h2 < 10
+
+    if (submitted) {
+      return (
+        <div style={{ background:"#F5F6FA", minHeight:"100vh", padding:"20px 24px 40px", display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ textAlign:"center" }}>
+            <CheckCircle2 size={56} style={{ color:"#22C55E", marginBottom:16 }} />
+            <p style={{ fontSize:20, fontWeight:900, color:"#111111", margin:"0 0 8px", fontFamily:"var(--font-jakarta)" }}>Daily Update Submitted!</p>
+            <p style={{ fontSize:13, color:"#6B7280", margin:0 }}>Great work, {firstName}. See you tomorrow!</p>
+          </div>
+        </div>
+      )
+    }
+
     return (
-      <div style={{ background:"#F5F6FA", minHeight:"100vh", padding:"20px 24px 40px", display:"flex", alignItems:"center", justifyContent:"center" }}>
-        <div style={{ textAlign:"center" }}>
-          <BookOpen size={48} style={{ color:"#D1D5DB", marginBottom:16 }} />
-          <p style={{ fontSize:16, fontWeight:700, color:"#111111", margin:"0 0 8px" }}>Daily updates for your team</p>
-          <p style={{ fontSize:13, color:"#6B7280", margin:0 }}>Coming soon. Contact your admin for details.</p>
+      <div style={{ background:"#F5F6FA", minHeight:"100vh", padding:"20px 24px 40px" }}>
+
+        {/* Header */}
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:22, flexWrap:"wrap", gap:12 }}>
+          <div>
+            <h1 style={{ fontSize:28, fontWeight:900, color:"#111111", fontFamily:"var(--font-jakarta)", margin:"0 0 3px" }}>
+              Daily <span style={{ color:"#DE1A1A" }}>Update</span>
+            </h1>
+            <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{dateLabel}</p>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:0, borderRadius:16, overflow:"hidden", background:"#FFFFFF", border:"1px solid #EBEDF2", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+            <div style={{ position:"relative", width:68, height:78, flexShrink:0 }}>
+              <Image src="/brand/assistant-girl.jpg" alt="" fill style={{ objectFit:"cover", objectPosition:"top center" }} />
+            </div>
+            <div style={{ padding:"10px 16px" }}>
+              <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 2px", fontFamily:"var(--font-jakarta)" }}>{greeting}, {firstName}! 👋</p>
+              <p style={{ fontSize:11, color:"#6B7280", margin:0 }}>Log your tasks for today.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 9AM–10AM window banner */}
+        <div style={{ background: isWindow ? "rgba(34,197,94,0.07)" : "rgba(222,26,26,0.05)", border:`1.5px solid ${isWindow ? "rgba(34,197,94,0.3)" : "rgba(222,26,26,0.2)"}`, borderRadius:14, padding:"12px 18px", marginBottom:18, display:"flex", alignItems:"center", gap:12 }}>
+          <Clock size={18} style={{ color: isWindow ? "#22C55E" : "#DE1A1A", flexShrink:0 }} />
+          <div>
+            <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 2px" }}>
+              {isWindow ? "Submission Window Open — 9:00 AM to 10:00 AM" : "Daily Task Submission Window: 9:00 AM – 10:00 AM"}
+            </p>
+            <p style={{ fontSize:11, color:"#6B7280", margin:0 }}>
+              {isWindow ? "Submit your daily task update now before the window closes." : "Submit your tasks during the 9 AM to 10 AM window each morning."}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:18, alignItems:"start" }}>
+
+          {/* Left — Task list */}
+          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+
+              {/* Section header */}
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background:"rgba(222,26,26,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <Briefcase size={16} style={{ color:"#DE1A1A" }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Tasks Today</p>
+                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{generalTasks.length} entr{generalTasks.length !== 1 ? "ies" : "y"} · {totalGeneralHours}h total</p>
+                  </div>
+                </div>
+              </div>
+
+              {generalTasks.length === 0 ? (
+                <div onClick={addGeneralTask}
+                  style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"40px 0", borderRadius:16, border:"2px dashed #FECACA", background:"rgba(222,26,26,0.02)", cursor:"pointer" }}>
+                  <Briefcase size={36} style={{ color:"#FCA5A5" }} />
+                  <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No tasks logged yet</p>
+                  <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#DE1A1A", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(222,26,26,0.35)" }}>
+                    + Add Task
+                  </span>
+                </div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                  {generalTasks.map((t, i) => (
+                    <div key={t.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                        <span style={{ fontSize:11, fontWeight:800, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.1em" }}>Task #{i + 1}</span>
+                        <button onClick={() => removeGeneralTask(t.id)}
+                          style={{ width:26, height:26, borderRadius:8, background:"rgba(239,68,68,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Trash2 size={12} style={{ color:"#EF4444" }} />
+                        </button>
+                      </div>
+
+                      {/* Row 1 — Project & Task Title */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Project / Client</label>
+                          {projects.length > 0 ? (
+                            <div style={{ position:"relative" }}>
+                              <select value={t.clientName} onChange={e => patchGeneralTask(t.id, { clientName: e.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                <option value="">Select project…</option>
+                                {projects.map(p => <option key={p.id} value={p.business_name}>{p.business_name}</option>)}
+                              </select>
+                              <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                            </div>
+                          ) : (
+                            <input value={t.clientName} onChange={e => patchGeneralTask(t.id, { clientName: e.target.value })} placeholder="Client / project…" style={F} />
+                          )}
+                        </div>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Task Title *</label>
+                          <input value={t.title} onChange={e => patchGeneralTask(t.id, { title: e.target.value })} placeholder="e.g. Fix login bug, API integration…" style={F} />
+                        </div>
+                      </div>
+
+                      {/* Row 2 — Category, Duration, Status */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 100px 1fr", gap:10, marginBottom:10 }}>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Category</label>
+                          <div style={{ position:"relative" }}>
+                            <select value={t.category} onChange={e => patchGeneralTask(t.id, { category: e.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                              {TASK_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                        </div>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Hours</label>
+                          <DurationPicker value={t.durationHours} onChange={v => patchGeneralTask(t.id, { durationHours: v })} />
+                        </div>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Status</label>
+                          <div style={{ position:"relative" }}>
+                            <select value={t.status} onChange={e => patchGeneralTask(t.id, { status: e.target.value as GeneralTaskEntry["status"] })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                              {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Row 3 — Notes */}
+                      <div>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Notes</label>
+                        <input value={t.notes} onChange={e => patchGeneralTask(t.id, { notes: e.target.value })} placeholder="What did you accomplish, any blockers?" style={F} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {generalTasks.length > 0 && (
+                <button onClick={addGeneralTask}
+                  style={{ display:"flex", alignItems:"center", gap:7, marginTop:12, padding:"9px 16px", borderRadius:10, background:"rgba(222,26,26,0.06)", border:"1.5px dashed rgba(222,26,26,0.3)", color:"#DE1A1A", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  <Plus size={13} /> Add Another Task
+                </button>
+              )}
+            </div>
+
+            {/* Submit bar */}
+            <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <div>
+                {error && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{error}</p>}
+                {!error && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{generalTasks.length} task{generalTasks.length !== 1 ? "s" : ""} · {totalGeneralHours}h total</p>}
+              </div>
+              <button onClick={handleGeneralSubmit} disabled={isPending || submitted}
+                style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor: isPending ? "not-allowed" : "pointer", transition:"all 0.2s", opacity: isPending ? 0.7 : 1,
+                  background: "#DE1A1A", color:"#fff", boxShadow:"0 4px 14px rgba(222,26,26,0.4)" }}>
+                {isPending ? <Loader2 size={14} className="animate-spin" /> : <SendHorizonal size={14} />}
+                {isPending ? "Submitting…" : "Submit Daily Update"}
+              </button>
+            </div>
+          </div>
+
+          {/* Right — Summary panel */}
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <div style={{ position:"relative", height:150 }}>
+                <Image src="/brand/daily-boy.png" alt="" fill style={{ objectFit:"cover", objectPosition:"center top" }} />
+                <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom, transparent 40%, #FFFFFF 100%)" }} />
+              </div>
+              <div style={{ padding:"14px 16px" }}>
+                <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 14px", display:"flex", alignItems:"center", gap:7 }}>
+                  <BarChart2 size={13} style={{ color:"#DE1A1A" }} /> Today&apos;s Overview
+                </p>
+                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                  {([
+                    { icon:<Clock size={12} style={{ color:"#9CA3AF" }} />,    label:"Hours Logged", text: totalGeneralHours > 0 ? `${totalGeneralHours}h` : "—", color: totalGeneralHours >= 8 ? "#22C55E" : "#111111", badge: null },
+                    { icon:<Briefcase size={12} style={{ color:"#DE1A1A" }} />,label:"Tasks Added",   text: String(generalTasks.length), color: generalTasks.length > 0 ? "#DE1A1A" : "#9CA3AF", badge: null },
+                    { icon:<CheckCircle2 size={12} style={{ color:"#22C55E" }}/>,label:"Completed",  text: String(generalTasks.filter(t=>t.status==="completed").length), color:"#22C55E", badge: null },
+                    { icon:<AlertCircle size={12} style={{ color:"#EF4444" }}/>, label:"Blocked",    text: String(generalTasks.filter(t=>t.status==="blocked").length),   color:"#EF4444", badge: null },
+                  ] as Array<{ icon: React.ReactNode; label: string; text: string; color: string; badge: null }>
+                  ).map((r, idx) => (
+                    <div key={idx} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                      <span style={{ fontSize:11, color:"#9CA3AF", display:"flex", alignItems:"center", gap:6 }}>{r.icon}{r.label}</span>
+                      <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:12 }}>
+                <BarChart2 size={14} style={{ color:"#DE1A1A" }} />
+                <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>Productivity Score</p>
+              </div>
+              <GaugeChart score={generalProductivity} />
+              <p style={{ fontSize:10, color:"#9CA3AF", textAlign:"center", marginTop:6 }}>
+                {generalProductivity === 0 ? "Fill in your tasks above ✍️" : generalProductivity >= 70 ? "You're on fire! 🔥" : "Keep going! 💪"}
+              </p>
+            </div>
+
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"18px 16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)", display:"flex", alignItems:"flex-start", gap:14 }}>
+              <div style={{ fontSize:38, flexShrink:0, lineHeight:1 }}>🏆</div>
+              <div>
+                <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>Consistency is the key!</p>
+                <p style={{ fontSize:11, color:"#6B7280", margin:0, lineHeight:1.55 }}>Keep logging your daily tasks to track your progress and improve productivity.</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     )

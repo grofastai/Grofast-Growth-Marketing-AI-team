@@ -153,7 +153,7 @@ function LeaveCard({
           <Image src={avatarImg(name, user?.gender, idx)} alt={name} fill style={{ objectFit: "cover" }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)", truncate: "true" }}>{name}</p>
+          <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
           <p style={{ fontSize: 11, color: "#9CA3AF", margin: "1px 0 0" }}>Team Member</p>
         </div>
         <button style={{ padding: 4, background: "none", border: "none", cursor: "pointer", color: "#9CA3AF" }}>

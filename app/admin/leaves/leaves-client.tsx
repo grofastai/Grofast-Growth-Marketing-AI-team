@@ -277,8 +277,11 @@ export default function LeavesClient({
     startTransition(async () => { await updateLeaveStatus(id, "rejected"); setActionId(null) })
   }
 
+  // Use pending leaves as fallback for upcoming vacations sidebar
+  const vacationItems = upcomingLeaves.length > 0 ? upcomingLeaves : leaves.slice(0, 4)
+
   return (
-    <div style={{ display: "flex", gap: 20, padding: "28px 28px 40px", background: "#F8F9FB", minHeight: "100vh" }}>
+    <div style={{ display: "flex", gap: 20, padding: "28px 28px 40px", background: "#FFFFFF", minHeight: "100vh" }}>
 
       {/* ── Main Column ──────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 20 }}>
@@ -323,21 +326,21 @@ export default function LeavesClient({
         </div>
 
         {/* Hero Banner */}
-        <div style={{ borderRadius: 20, overflow: "hidden", position: "relative", minHeight: 300, background: "#FFF8F0" }}>
-          {/* Illustration */}
-          <div style={{ position: "absolute", left: 0, top: 0, width: "58%", height: "100%" }}>
-            <Image src="/brand/leave/vacation-hero.png" alt="Vacation" fill style={{ objectFit: "cover", objectPosition: "center" }} />
+        <div style={{ borderRadius: 20, overflow: "hidden", position: "relative", minHeight: 320, background: "#FFF8F0" }}>
+          {/* Illustration — full left side */}
+          <div style={{ position: "absolute", left: 0, top: 0, width: "62%", height: "100%" }}>
+            <Image src="/brand/leave/vacation-hero.png" alt="Vacation" fill style={{ objectFit: "cover", objectPosition: "left center" }} />
           </div>
           {/* Gradient overlay */}
           <div style={{
             position: "absolute", inset: 0,
-            background: "linear-gradient(to right, transparent 35%, rgba(255,248,240,0.9) 60%, #FFF8F0 75%)",
+            background: "linear-gradient(to right, transparent 40%, rgba(255,248,240,0.92) 58%, #FFF8F0 72%)",
           }} />
           {/* Content */}
           <div style={{
-            position: "absolute", right: 0, top: 0, width: "45%", height: "100%",
+            position: "absolute", right: 0, top: 0, width: "42%", height: "100%",
             display: "flex", flexDirection: "column", alignItems: "flex-start", justifyContent: "center",
-            padding: "32px 40px 32px 20px",
+            padding: "36px 36px 36px 16px",
           }}>
             {leaves.length === 0 ? (
               <>
@@ -450,38 +453,41 @@ export default function LeavesClient({
           </div>
         </div>
 
-        {/* Upcoming Vacations */}
-        {upcomingLeaves.length > 0 && (
-          <div style={{ background: "#FFF", borderRadius: 16, border: "1px solid #F3F4F6", padding: "20px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>Upcoming Vacations</span>
-              <MoreHorizontal size={16} style={{ color: "#9CA3AF", cursor: "pointer" }} />
-            </div>
+        {/* Upcoming Vacations — always shown, falls back to current pending leaves */}
+        <div style={{ background: "#FFF", borderRadius: 16, border: "1px solid #F3F4F6", padding: "20px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>Upcoming Vacations</span>
+            <MoreHorizontal size={16} style={{ color: "#9CA3AF", cursor: "pointer" }} />
+          </div>
+          {vacationItems.length === 0 ? (
+            <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "12px 0" }}>No upcoming vacations</p>
+          ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {upcomingLeaves.map((leave, i) => {
+              {vacationItems.map((leave, i) => {
                 const user = Array.isArray(leave.users) ? leave.users[0] : leave.users
                 const name = user?.name ?? "Unknown"
                 const type = getLeaveType(leave.reason)
                 const emoji = LEAVE_TYPE_EMOJIS[type]
-                const bg = avatarBg(name)
                 return (
                   <div key={leave.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 34, height: 34, borderRadius: "50%", overflow: "hidden", flexShrink: 0, position: "relative" }}>
+                    <div style={{ width: 36, height: 36, borderRadius: "50%", overflow: "hidden", flexShrink: 0, position: "relative", border: "2px solid #F3F4F6" }}>
                       <Image src={avatarImg(name, user?.gender, i)} alt={name} fill style={{ objectFit: "cover" }} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: "#111827", margin: 0 }}>{name.split(" ")[0]}&apos;s {type.split(" ")[0]}</p>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {type === "Vacation Leave" ? `${name.split(" ")[0]}'s Trip` : type}
+                      </p>
                       <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>
                         {new Date(leave.from_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} – {new Date(leave.to_date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                       </p>
                     </div>
-                    <span style={{ fontSize: 18 }}>{emoji}</span>
+                    <span style={{ fontSize: 18, flexShrink: 0 }}>{emoji}</span>
                   </div>
                 )
               })}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Team Wellness */}
         <div style={{ background: "#FFF", borderRadius: 16, border: "1px solid #F3F4F6", padding: "20px" }}>

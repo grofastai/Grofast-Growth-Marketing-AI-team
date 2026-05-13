@@ -48,7 +48,7 @@ export default async function LeavesPage({
       .gte("to_date", today),
   ])
 
-  const total = memberCount ?? 1
+  const total = Math.max(1, memberCount ?? 0)
   const onLeave = onLeaveCount ?? 0
   const availabilityPct = Math.min(100, Math.max(0, Math.round(((total - onLeave) / total) * 100)))
 

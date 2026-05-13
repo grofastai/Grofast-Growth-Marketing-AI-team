@@ -20,7 +20,7 @@ interface Task {
   projects: { id: string; business_name: string } | null
 }
 
-interface Member { id: string; name: string; employee_id: string; team?: string | null }
+interface Member { id: string; name: string; employee_id: string; team?: string | null; gender?: string | null }
 interface Project { id: string; business_name: string; client_name?: string | null }
 
 const STATUS_CONFIG = {
@@ -35,16 +35,33 @@ const PRIORITY_COLORS = {
   high:   { color: "#de1a1a", bg: "rgba(222,26,26,0.12)" },
 }
 
-// member column empty-state illustrations — cycles through characters
-const MEMBER_ILLUSTRATIONS = [
-  "/brand/task-assign/403283b3-ae8c-4981-afea-ef677ea92427.png", // boy waving
-  "/brand/task-assign/42f20ffc-9997-4648-b3d5-03de4fb78125.png", // boy coding
-  "/brand/task-assign/856821dc-d180-43f4-a82d-98d4b12c7d61.png", // boy thumbs up headset
-  "/brand/task-assign/8e422454-bc36-4a8b-95e0-6ce396fac88d.png", // boy dual screens
-  "/brand/task-assign/cf102e0c-ce87-4562-af99-80abba865e18.png", // boy video editing
-  "/brand/task-assign/ff982d0f-bd33-4085-ba95-bfedef2baf4d.png", // boy design tablet
-  "/brand/task-assign/3a32530b-be9e-4ddd-9e33-47b947bc5b43.png", // boy analytics
+const BOY_ILLUSTRATIONS = [
+  "/brand/task-assign/boy1.png",
+  "/brand/task-assign/boy2.png",
+  "/brand/task-assign/boy3.png",
+  "/brand/task-assign/boy4.png",
+  "/brand/task-assign/boy5.png",
+  "/brand/task-assign/boy6.png",
+  "/brand/task-assign/boy7.png",
+  "/brand/task-assign/boy8.png",
+  "/brand/task-assign/boy9.png",
+  "/brand/task-assign/boy10.png",
 ]
+
+const GIRL_ILLUSTRATIONS = [
+  "/brand/task-assign/girl1.png",
+  "/brand/task-assign/girl2.png",
+  "/brand/task-assign/girl3.png",
+  "/brand/task-assign/girl4.png",
+  "/brand/task-assign/750e4063-2c93-43d7-96f7-07ff6e6fae81.png",
+  "/brand/task-assign/700acfaa-61d1-4f5e-b843-578053835b01.png",
+  "/brand/task-assign/2680ef12-265d-46d1-9eb7-beef6574d23b.png",
+]
+
+function getMemberIllustration(gender: string | null | undefined, index: number): string {
+  const pool = gender === "female" ? GIRL_ILLUSTRATIONS : BOY_ILLUSTRATIONS
+  return pool[index % pool.length]
+}
 
 function fmt(d: string) {
   return new Date(d + "T12:00:00").toLocaleDateString("en-US", { day: "numeric", month: "short" })
@@ -181,8 +198,9 @@ export default function GoalsClient({
       label: m.name,
       initials: m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(),
       team: m.team ?? null,
+      gender: m.gender ?? null,
       tasks: tasks.filter(t => { const u = Array.isArray(t.users) ? t.users[0] : t.users; return u?.id === m.id }),
-      illustration: MEMBER_ILLUSTRATIONS[idx % MEMBER_ILLUSTRATIONS.length],
+      illustration: getMemberIllustration(m.gender, idx),
     })),
   ]
 
@@ -307,7 +325,7 @@ export default function GoalsClient({
           <div style={{ display: "flex", gap: 16, minWidth: `${memberColumns.length * 300}px` }}>
             {memberColumns.map((col, colIdx) => {
               const isUnassigned = col.id === "unassigned"
-              const memberCol = col as typeof col & { illustration?: string }
+              const memberCol = col as typeof col & { illustration?: string; gender?: string | null }
               return (
                 <div key={col.id} style={{
                   width: 280, flexShrink: 0, borderRadius: 20,

@@ -104,6 +104,7 @@ export async function createMember(input: {
   paid_leave_days?: number
   date_of_birth?: string | null
   joined_at?: string | null
+  gender?: 'male' | 'female'
 }): Promise<{ success: boolean; error?: string }> {
   if (!input.name || !input.employee_id || !input.email || !input.password) {
     return { success: false, error: 'Name, Employee ID, Email and Password are required' }
@@ -200,6 +201,7 @@ export async function createMember(input: {
     paid_leave_days: input.paid_leave_days ?? 5,
     date_of_birth: input.date_of_birth ?? null,
     joined_at: input.joined_at ?? null,
+    gender: input.gender ?? 'male',
   })
 
   if (insertError) {
@@ -261,6 +263,7 @@ export async function updateMember(input: {
   paid_leave_days?: number
   date_of_birth?: string | null
   joined_at?: string | null
+  gender?: 'male' | 'female'
 }): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -282,6 +285,7 @@ export async function updateMember(input: {
       paid_leave_days: input.paid_leave_days ?? 5,
       date_of_birth: input.date_of_birth ?? null,
       joined_at: input.joined_at ?? null,
+      gender: input.gender ?? 'male',
     })
     .eq('id', input.id)
 

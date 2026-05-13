@@ -36,6 +36,7 @@ interface Member {
   deleted_at?: string | null
   date_of_birth?: string | null
   joined_at?: string | null
+  gender?: "male" | "female" | null
 }
 
 function getInitials(name: string) {
@@ -115,6 +116,7 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
     paid_leave_days: member?.paid_leave_days?.toString() ?? "5",
     date_of_birth: member?.date_of_birth ?? "",
     joined_at: member?.joined_at ?? new Date().toISOString().split("T")[0],
+    gender: (member?.gender ?? "male") as "male" | "female",
   })
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
@@ -138,8 +140,8 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
         joined_at: form.joined_at || null,
       }
       const result = isEdit
-        ? await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, ...salaryFields, ...dateFields })
-        : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, ...salaryFields, ...dateFields })
+        ? await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, ...salaryFields, ...dateFields })
+        : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, ...salaryFields, ...dateFields })
 
       if (result.success) {
         router.refresh()
@@ -181,6 +183,24 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Full Name *</label>
             <input className="sheet-input" value={form.name} onChange={set("name")} placeholder="e.g. Priya Sharma" style={FIELD} />
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Gender *</label>
+            <div style={{ display: "flex", gap: 10 }}>
+              {(["male", "female"] as const).map(g => (
+                <button key={g} type="button" onClick={() => setForm(p => ({ ...p, gender: g }))}
+                  style={{
+                    flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 700,
+                    border: "1.5px solid", cursor: "pointer", transition: "all 0.15s",
+                    background: form.gender === g ? (g === "male" ? "rgba(59,130,246,0.08)" : "rgba(236,72,153,0.08)") : "#F9FAFB",
+                    borderColor: form.gender === g ? (g === "male" ? "#3B82F6" : "#EC4899") : "#E5E7EB",
+                    color: form.gender === g ? (g === "male" ? "#2563EB" : "#DB2777") : "#6B7280",
+                  }}>
+                  {g === "male" ? "👦 Male" : "👧 Female"}
+                </button>
+              ))}
+            </div>
           </div>
 
           {!isEdit && (

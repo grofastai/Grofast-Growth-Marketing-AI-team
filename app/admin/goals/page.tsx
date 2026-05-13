@@ -27,7 +27,7 @@ export default async function GoalsPage() {
       .eq("company_id", cid)
       .order("created_at", { ascending: false }),
     admin.from("users")
-      .select("id, name, employee_id, team")
+      .select("id, name, employee_id, team, gender")
       .eq("company_id", cid)
       .eq("role", "MEMBER")
       .order("name"),

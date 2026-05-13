@@ -1,16 +1,20 @@
-﻿"use client"
+"use client"
 
-import { useState, useTransition, useRef } from "react"
+import { useState, useTransition, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { createBrowserClient } from "@/lib/supabase/client"
 import { saveDocumentRecord, deleteDocument } from "@/lib/actions/documents"
+import Image from "next/image"
 import {
-  FileText, Upload, Trash2, FolderOpen, Loader2, X, Download, Users,
+  FileText, Upload, Trash2, FolderOpen, Loader2, X, Download,
   Phone, Mail, Briefcase, Calendar, Shield, HeartPulse, MapPin,
-  UserPlus, Landmark, CreditCard, ExternalLink, User,
+  UserPlus, Landmark, CreditCard, ExternalLink, Search,
+  List, CheckCircle2, Eye, MoreVertical, CloudUpload,
+  Building2, LayoutGrid, ArrowUpRight, Layers, ChevronRight,
 } from "lucide-react"
 
 const DOC_TYPES = ["Offer Letter", "Contract", "ID Proof", "Certificate", "Payslip", "Other"]
+const FILTER_CHIPS = ["All", "Offer Letter", "Contract", "ID Proof", "Certificate", "Payslip", "Other"]
 
 type Member = {
   id: string; name: string; employee_id: string; role: string
@@ -25,7 +29,7 @@ type KYCRecord = {
   bank_ifsc: string | null; govt_id_type: string | null
   govt_id_url: string | null; ration_card_url: string | null
 }
-type Document = {
+type Doc = {
   id: string; name: string; file_url: string; file_type: string | null
   file_size: number | null; doc_type: string; created_at: string
   user_id: string
@@ -38,99 +42,382 @@ function formatSize(b: number | null) {
   if (b < 1048576) return `${(b / 1024).toFixed(1)} KB`
   return `${(b / 1048576).toFixed(1)} MB`
 }
-
 function formatDate(s: string) {
   return new Date(s).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
 }
+function formatDateShort(s: string) {
+  return new Date(s).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+}
 
-const DOC_COLOR: Record<string, string> = {
+function getExtBadge(fileType: string | null, name: string): { ext: string; color: string; bg: string } {
+  const raw = name.split(".").pop()?.toUpperCase() ?? ""
+  const ext = raw || (fileType?.includes("pdf") ? "PDF" : fileType?.includes("word") ? "DOC" : "FILE")
+  if (ext === "PDF")                     return { ext: "PDF", color: "#E53935", bg: "rgba(229,57,53,0.12)" }
+  if (["DOC","DOCX"].includes(ext))      return { ext: "DOC", color: "#1E88E5", bg: "rgba(30,136,229,0.12)" }
+  if (["XLS","XLSX"].includes(ext))      return { ext: "XLS", color: "#43A047", bg: "rgba(67,160,71,0.12)" }
+  if (["PNG","JPG","JPEG"].includes(ext))return { ext: "IMG", color: "#FB8C00", bg: "rgba(251,140,0,0.12)" }
+  return { ext: (ext || "FILE").slice(0,4), color: "#6B7280", bg: "rgba(107,114,128,0.12)" }
+}
+
+const DOC_TYPE_COLOR: Record<string, string> = {
   "Offer Letter": "#de1a1a", "Contract": "#6366F1", "ID Proof": "#F59E0B",
   "Certificate": "#16A34A", "Payslip": "#0EA5E9", "Other": "#6B7280",
 }
 
+const TEAM_COLORS = ["#6366F1","#0EA5E9","#16A34A","#F59E0B","#EC4899","#8B5CF6","#de1a1a"]
+function teamColor(team: string | null) {
+  if (!team) return "#6B7280"
+  return TEAM_COLORS[team.charCodeAt(0) % TEAM_COLORS.length]
+}
+
+// ── Completion Ring ─────────────────────────────────────────────────────────
+function CompletionRing({ pct, size = 72 }: { pct: number; size?: number }) {
+  const r = (size - 10) / 2
+  const circ = 2 * Math.PI * r
+  const dash = (pct / 100) * circ
+  const color = pct >= 80 ? "#22C55E" : pct >= 60 ? "#F59E0B" : "#EF4444"
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" strokeWidth={7} stroke="rgba(0,0,0,0.07)" />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" strokeWidth={7}
+        stroke={color} strokeLinecap="round"
+        strokeDasharray={`${dash} ${circ}`}
+        transform={`rotate(-90 ${size/2} ${size/2})`} />
+      <text x={size/2} y={size/2+1} textAnchor="middle" dominantBaseline="middle"
+        fontSize={12} fontWeight="800" fill="#111">{pct}%</text>
+    </svg>
+  )
+}
+
+// ── Verification Donut ───────────────────────────────────────────────────────
+function VerifDonut({ pct }: { pct: number }) {
+  const r = 50, circ = 2 * Math.PI * r
+  const dash = (pct / 100) * circ
+  return (
+    <svg width={120} height={120} viewBox="0 0 120 120">
+      <defs>
+        <linearGradient id="vg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#22C55E" />
+          <stop offset="100%" stopColor="#16A34A" />
+        </linearGradient>
+      </defs>
+      <circle cx={60} cy={60} r={r} fill="none" strokeWidth={11} stroke="rgba(0,0,0,0.05)" />
+      <circle cx={60} cy={60} r={r} fill="none" strokeWidth={11}
+        stroke="url(#vg)" strokeLinecap="round"
+        strokeDasharray={`${dash} ${circ}`} transform="rotate(-90 60 60)" />
+      <text x={60} y={55} textAnchor="middle" dominantBaseline="middle"
+        fontSize={22} fontWeight="800" fill="#111">{pct}%</text>
+      <text x={60} y={72} textAnchor="middle" fontSize={9} fontWeight="600" fill="#6B7280">Profile Verified</text>
+    </svg>
+  )
+}
+
+// ── Stat Hero Card ───────────────────────────────────────────────────────────
+function HeroStatCard({ label, value, sub, icon, color, up }: {
+  label: string; value: string; sub: string; icon: string; color: string; up?: boolean
+}) {
+  return (
+    <div style={{
+      background: "rgba(255,255,255,0.97)", borderRadius: 18, padding: "14px 16px",
+      boxShadow: "0 4px 24px rgba(0,0,0,0.10)", minWidth: 140, flex: 1,
+      border: "1px solid rgba(255,255,255,0.6)",
+    }}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, marginBottom: 3 }}>{label}</p>
+          <p style={{ fontSize: 26, fontWeight: 900, color: "#111", lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{value}</p>
+          <div className="flex items-center gap-1 mt-1.5">
+            <span style={{ fontSize: 10, fontWeight: 700, color: up !== false ? "#16A34A" : "#EF4444" }}>
+              {up !== false ? "▲" : "▼"} {sub}
+            </span>
+            <span style={{ fontSize: 10, color: "#9CA3AF" }}>vs last month</span>
+          </div>
+        </div>
+        <div style={{
+          width: 38, height: 38, borderRadius: 12, display: "flex", alignItems: "center",
+          justifyContent: "center", background: `${color}14`, flexShrink: 0, fontSize: 20,
+        }}>{icon}</div>
+      </div>
+    </div>
+  )
+}
+
+// ── InfoRow ──────────────────────────────────────────────────────────────────
 function InfoRow({ icon: Icon, label, value, url }: {
   icon: React.ElementType; label: string; value: string | null; url?: string | null
 }) {
   const empty = !value || value === "—"
   return (
     <div className="flex items-center gap-3 px-3 py-2 rounded-xl" style={{ background: "rgba(0,0,0,0.02)" }}>
-      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.03)" }}>
+      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "rgba(0,0,0,0.04)" }}>
         <Icon size={12} style={{ color: empty ? "#D1D5DB" : "#6B7280" }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] uppercase tracking-wider" style={{ color: "#6B7280" }}>{label}</p>
-        <p className="text-[12px] font-semibold truncate" style={{ color: empty ? "#D1D5DB" : "#111111" }}>{value || "—"}</p>
+        <p className="text-[10px] uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{label}</p>
+        <p style={{ fontSize: 12, fontWeight: 600, color: empty ? "#D1D5DB" : "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {value || "—"}
+        </p>
       </div>
-      {url && (
+      {url && !empty && (
         <a href={url} target="_blank" rel="noopener noreferrer"
           className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-lg flex-shrink-0"
           style={{ background: "rgba(22,163,74,0.08)", color: "#16A34A", border: "1px solid rgba(22,163,74,0.2)", textDecoration: "none" }}>
           <ExternalLink size={9} /> View
         </a>
       )}
-      {empty && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: "rgba(222,26,26,0.07)", color: "#de1a1a" }}>—</span>}
     </div>
   )
 }
 
+// ── Doc File Card (grid) ─────────────────────────────────────────────────────
+function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => void; isPending: boolean }) {
+  const badge = getExtBadge(doc.file_type, doc.name)
+  const typeColor = DOC_TYPE_COLOR[doc.doc_type] ?? "#6B7280"
+  const verified = doc.doc_type !== "Other"
+  const [menu, setMenu] = useState(false)
+  return (
+    <div style={{
+      background: "#FFFFFF", borderRadius: 20, padding: "16px",
+      border: "1px solid rgba(0,0,0,0.07)",
+      boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+      display: "flex", flexDirection: "column", gap: 10,
+      transition: "box-shadow 0.2s", position: "relative",
+    }}
+      onMouseEnter={e => (e.currentTarget.style.boxShadow = "0 6px 24px rgba(0,0,0,0.12)")}
+      onMouseLeave={e => (e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,0.05)")}>
+      {/* Extension badge + menu */}
+      <div className="flex items-center justify-between">
+        <div style={{
+          padding: "4px 10px", borderRadius: 8, fontSize: 10, fontWeight: 800,
+          background: badge.bg, color: badge.color, letterSpacing: "0.05em",
+        }}>{badge.ext}</div>
+        <div style={{ position: "relative" }}>
+          <button onClick={() => setMenu(p => !p)} style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(0,0,0,0.04)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <MoreVertical size={13} style={{ color: "#6B7280" }} />
+          </button>
+          {menu && (
+            <div style={{ position: "absolute", right: 0, top: 32, background: "#fff", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.15)", zIndex: 50, minWidth: 140, border: "1px solid #E5E7EB", overflow: "hidden" }}
+              onMouseLeave={() => setMenu(false)}>
+              <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 12, color: "#111", textDecoration: "none" }}>
+                <Eye size={12} /> View file
+              </a>
+              <a href={doc.file_url} download
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 12, color: "#111", textDecoration: "none" }}>
+                <Download size={12} /> Download
+              </a>
+              <button onClick={() => { setMenu(false); onDelete() }} disabled={isPending}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 12, color: "#de1a1a", background: "none", border: "none", cursor: "pointer", width: "100%" }}>
+                <Trash2 size={12} /> Delete
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      {/* File icon area */}
+      <div style={{
+        height: 52, borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center",
+        background: `linear-gradient(135deg, ${badge.bg}, ${badge.bg.replace("0.12)", "0.06)")})`
+      }}>
+        <FileText size={26} style={{ color: badge.color }} />
+      </div>
+      {/* Name */}
+      <div>
+        <p style={{ fontSize: 12, fontWeight: 700, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</p>
+        <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 2 }}>{formatDateShort(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}</p>
+      </div>
+      {/* Status + actions */}
+      <div className="flex items-center justify-between">
+        <span style={{
+          fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 6,
+          background: verified ? "rgba(22,163,74,0.1)" : "rgba(249,115,22,0.1)",
+          color: verified ? "#16A34A" : "#EA580C",
+        }}>
+          {verified ? "✓ Verified" : "Pending"}
+        </span>
+        <span style={{
+          fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 6,
+          background: `${typeColor}14`, color: typeColor,
+        }}>{doc.doc_type}</span>
+      </div>
+      {/* Action buttons */}
+      <div className="flex gap-2">
+        <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
+          style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px", borderRadius: 10, background: "rgba(0,0,0,0.04)", fontSize: 11, fontWeight: 600, color: "#374151", textDecoration: "none" }}>
+          <Eye size={11} /> View
+        </a>
+        <a href={doc.file_url} download
+          style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px", borderRadius: 10, background: "rgba(222,26,26,0.06)", fontSize: 11, fontWeight: 600, color: "#de1a1a", textDecoration: "none" }}>
+          <Download size={11} /> Save
+        </a>
+      </div>
+    </div>
+  )
+}
+
+// ── Doc Row (list) ───────────────────────────────────────────────────────────
+function DocRowList({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => void; isPending: boolean }) {
+  const badge = getExtBadge(doc.file_type, doc.name)
+  const typeColor = DOC_TYPE_COLOR[doc.doc_type] ?? "#6B7280"
+  const verified = doc.doc_type !== "Other"
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+      style={{ background: "#FFFFFF", border: "1px solid rgba(0,0,0,0.06)", boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
+      <div style={{ width: 38, height: 38, borderRadius: 12, background: badge.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <FileText size={18} style={{ color: badge.color }} />
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="flex items-center gap-2">
+          <p style={{ fontSize: 13, fontWeight: 700, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</p>
+          <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: `${typeColor}14`, color: typeColor, flexShrink: 0 }}>{doc.doc_type}</span>
+          <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 5, background: verified ? "rgba(22,163,74,0.1)" : "rgba(249,115,22,0.1)", color: verified ? "#16A34A" : "#EA580C", flexShrink: 0 }}>
+            {verified ? "✓ Verified" : "Pending"}
+          </span>
+        </div>
+        <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>{formatDate(doc.created_at)}{doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}</p>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
+          style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(0,0,0,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Download size={13} style={{ color: "#6B7280" }} />
+        </a>
+        <button onClick={onDelete} disabled={isPending}
+          style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(222,26,26,0.06)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Trash2 size={13} style={{ color: "#de1a1a" }} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Activity Icon ────────────────────────────────────────────────────────────
+function ActivityDot({ type }: { type: string }) {
+  const cfg: Record<string, { bg: string; icon: React.ReactNode }> = {
+    upload:    { bg: "#6366F1", icon: <CloudUpload size={10} color="#fff" /> },
+    kyc:       { bg: "#22C55E", icon: <Shield size={10} color="#fff" /> },
+    signature: { bg: "#8B5CF6", icon: <FileText size={10} color="#fff" /> },
+    payroll:   { bg: "#0EA5E9", icon: <Layers size={10} color="#fff" /> },
+    bank:      { bg: "#F59E0B", icon: <Landmark size={10} color="#fff" /> },
+  }
+  const c = cfg[type] ?? cfg.upload
+  return (
+    <div style={{ width: 24, height: 24, borderRadius: "50%", background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: `0 2px 8px ${c.bg}55` }}>
+      {c.icon}
+    </div>
+  )
+}
+
+// ── Main Component ───────────────────────────────────────────────────────────
 export default function DocumentsClient({
   members, documents, kycRecords, companyId,
 }: {
   members: Member[]
-  documents: Document[]
+  documents: Doc[]
   kycRecords: KYCRecord[]
   companyId: string
 }) {
-  const [memberFilter, setMemberFilter] = useState("")
-  const [showUpload, setShowUpload]     = useState(false)
-  const [uploadFor, setUploadFor]       = useState("")
-  const [docType, setDocType]           = useState("Other")
-  const [docName, setDocName]           = useState("")
-  const [file, setFile]                 = useState<File | null>(null)
-  const [uploadError, setUploadError]   = useState("")
-  const [isUploading, setIsUploading]   = useState(false)
-  const [isPending, start]              = useTransition()
-  const fileRef                         = useRef<HTMLInputElement>(null)
-  const router                          = useRouter()
+  const [selectedId, setSelectedId]   = useState<string>(members[0]?.id ?? "")
+  const [empSearch, setEmpSearch]     = useState("")
+  const [activeTab, setActiveTab]     = useState<"documents" | "personal" | "kyc" | "activity">("documents")
+  const [docFilter, setDocFilter]     = useState("All")
+  const [docSearch, setDocSearch]     = useState("")
+  const [viewMode, setViewMode]       = useState<"grid" | "list">("grid")
+  const [dragOver, setDragOver]       = useState(false)
+  const [showUpload, setShowUpload]   = useState(false)
+  const [uploadFor, setUploadFor]     = useState("")
+  const [docType, setDocType]         = useState("Other")
+  const [docName, setDocName]         = useState("")
+  const [file, setFile]               = useState<File | null>(null)
+  const [uploadError, setUploadError] = useState("")
+  const [isUploading, setIsUploading] = useState(false)
+  const [isPending, start]            = useTransition()
+  const fileRef                       = useRef<HTMLInputElement>(null)
+  const router                        = useRouter()
 
-  const selectedMember = memberFilter ? members.find(m => m.id === memberFilter) ?? null : null
-  const selectedKYC    = memberFilter ? kycRecords.find(k => k.user_id === memberFilter) ?? null : null
-  const shown = memberFilter
-    ? documents.filter(d => d.user_id === memberFilter)
-    : documents
+  const selectedMember = members.find(m => m.id === selectedId) ?? null
+  const selectedKYC    = kycRecords.find(k => k.user_id === selectedId) ?? null
+  const memberDocs     = selectedId ? documents.filter(d => d.user_id === selectedId) : documents
+
+  const filteredMembers = empSearch.trim()
+    ? members.filter(m =>
+        m.name.toLowerCase().includes(empSearch.toLowerCase()) ||
+        m.employee_id.includes(empSearch)
+      )
+    : members
+
+  const shownDocs = useMemo(() => {
+    let docs = memberDocs
+    if (docFilter !== "All") docs = docs.filter(d => d.doc_type === docFilter)
+    if (docSearch.trim()) docs = docs.filter(d => d.name.toLowerCase().includes(docSearch.toLowerCase()))
+    return docs
+  }, [memberDocs, docFilter, docSearch])
+
+  // Hero stats
+  const totalFiles    = documents.length
+  const verifiedCount = documents.filter(d => d.doc_type !== "Other").length
+  const pendingKYC    = members.filter(m => !kycRecords.find(k => k.user_id === m.id && k.bank_account)).length
+  const totalBytes    = documents.reduce((a, d) => a + (d.file_size ?? 0), 0)
+  const storageGB     = (totalBytes / (1024 * 1024 * 1024)).toFixed(1)
+
+  // Profile completion
+  const completionPct = useMemo(() => {
+    if (!selectedMember) return 0
+    let p = 0
+    if (selectedMember.email) p += 12
+    if (selectedMember.phone) p += 12
+    if (selectedMember.team) p += 8
+    if (selectedMember.employment_type) p += 8
+    if (selectedMember.blood_group) p += 5
+    if (selectedMember.address) p += 5
+    if (selectedMember.emergency_contact_name) p += 5
+    if (selectedKYC?.bank_account) p += 15
+    if (selectedKYC?.govt_id_url) p += 15
+    if (memberDocs.length > 0) p += 15
+    return Math.min(p, 100)
+  }, [selectedMember, selectedKYC, memberDocs])
+
+  const verifPct = memberDocs.length > 0
+    ? Math.round((memberDocs.filter(d => d.doc_type !== "Other").length / memberDocs.length) * 100)
+    : 0
+
+  // Activity feed
+  const activityFeed = useMemo(() => {
+    const items: { type: string; title: string; desc: string; time: string }[] = []
+    const sorted = [...memberDocs].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    sorted.slice(0, 3).forEach(d => {
+      items.push({ type: "upload", title: "Document uploaded", desc: `${d.name} uploaded`, time: formatDate(d.created_at) })
+    })
+    if (selectedKYC?.govt_id_url) items.push({ type: "kyc", title: "KYC verified", desc: "Govt ID verified successfully", time: "Recent" })
+    if (selectedKYC?.bank_account) items.push({ type: "bank", title: "Bank details updated", desc: "Bank passbook updated", time: "Recent" })
+    return items.slice(0, 5)
+  }, [memberDocs, selectedKYC])
+
+  // Recent uploads across all members
+  const recentUploads = useMemo(() =>
+    [...documents].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 4),
+    [documents]
+  )
 
   async function handleUpload() {
     if (!file || !uploadFor || !docName.trim()) {
       setUploadError("Select a member, enter a name, and choose a file."); return
     }
-    setUploadError("")
-    setIsUploading(true)
+    setUploadError(""); setIsUploading(true)
     try {
       const supabase = createBrowserClient()
       const ext  = file.name.split(".").pop()
       const path = `${companyId}/${uploadFor}/${Date.now()}.${ext}`
       const { error: upErr } = await supabase.storage.from("documents").upload(path, file)
       if (upErr) { setUploadError(upErr.message); setIsUploading(false); return }
-
       const { data: { publicUrl } } = supabase.storage.from("documents").getPublicUrl(path)
-
       start(async () => {
-        const res = await saveDocumentRecord({
-          userId: uploadFor, name: docName.trim(),
-          fileUrl: publicUrl, fileType: file.type,
-          fileSize: file.size, docType,
-        })
+        const res = await saveDocumentRecord({ userId: uploadFor, name: docName.trim(), fileUrl: publicUrl, fileType: file.type, fileSize: file.size, docType })
         if (res.success) {
-          setShowUpload(false); setFile(null); setDocName(""); setUploadFor(""); setDocType("Other")
-          router.refresh()
-        } else {
-          setUploadError(res.error ?? "Failed to save")
-        }
+          setShowUpload(false); setFile(null); setDocName(""); setUploadFor(""); setDocType("Other"); router.refresh()
+        } else { setUploadError(res.error ?? "Failed to save") }
         setIsUploading(false)
       })
-    } catch (e) {
-      setUploadError(String(e)); setIsUploading(false)
-    }
+    } catch (e) { setUploadError(String(e)); setIsUploading(false) }
   }
 
   function handleDelete(id: string) {
@@ -139,245 +426,595 @@ export default function DocumentsClient({
   }
 
   const initial = selectedMember?.name?.charAt(0)?.toUpperCase() ?? "?"
+  const tc = teamColor(selectedMember?.team ?? null)
+
+  const TABS = [
+    { id: "documents", label: "Documents" },
+    { id: "personal",  label: "Personal Info" },
+    { id: "kyc",       label: "KYC Details" },
+    { id: "activity",  label: "Activity" },
+  ] as const
 
   return (
-    <div className="p-4 md:p-6 xl:p-8 max-w-[1300px]">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
-            Documents
+    <div style={{ background: "#F7F8FA", minHeight: "100vh" }}>
+
+      {/* ── HERO ──────────────────────────────────────────────────────────── */}
+      <div style={{
+        position: "relative", overflow: "hidden", margin: "0 0 0 0",
+        background: "linear-gradient(120deg, #fff 0%, #fff 45%, #FFF7ED 45%, #FEF3C7 100%)",
+        minHeight: 220,
+      }}>
+        {/* Left text */}
+        <div style={{ position: "absolute", left: 36, top: 0, bottom: 0, display: "flex", flexDirection: "column", justifyContent: "center", zIndex: 2, maxWidth: 420 }}>
+          <h1 style={{ fontSize: 36, fontWeight: 900, lineHeight: 1.1, fontFamily: "var(--font-jakarta)", color: "#111", marginBottom: 8 }}>
+            Documents{" "}
+            <span style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              Workspace
+            </span>
           </h1>
-          <p className="text-sm mt-1" style={{ color: "#6B7280" }}>Upload and manage team member documents</p>
-        </div>
-        <button onClick={() => setShowUpload(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold"
-          style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF" }}>
-          <Upload size={14} /> Upload Document
-        </button>
-      </div>
-
-      {/* Member filter */}
-      <div className="flex items-center gap-3 mb-5">
-        <Users size={13} style={{ color: "#6B7280" }} />
-        <select value={memberFilter} onChange={e => setMemberFilter(e.target.value)}
-          className="text-[13px] px-3 py-2 rounded-xl outline-none"
-          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#111111" }}>
-          <option value="">All Members</option>
-          {members.map(m => <option key={m.id} value={m.id}>{m.name} (#{m.employee_id})</option>)}
-        </select>
-        <span className="text-[12px]" style={{ color: "#6B7280" }}>{shown.length} documents</span>
-      </div>
-
-      {/* Member profile card (shown when a member is selected) */}
-      {selectedMember && (
-        <div className="rounded-2xl mb-6 overflow-hidden" style={{ border: "1px solid #E5E7EB" }}>
-          {/* Profile header */}
-          <div className="px-5 py-4 flex items-center gap-4" style={{ background: "linear-gradient(135deg, rgba(222,26,26,0.06), rgba(222,26,26,0.02))", borderBottom: "1px solid #E5E7EB" }}>
-            <div className="w-14 h-14 rounded-2xl overflow-hidden flex items-center justify-center font-black text-[22px] flex-shrink-0"
-              style={{
-                background: selectedMember.photo_url ? "transparent" : "linear-gradient(135deg, rgba(222,26,26,0.2), rgba(222,26,26,0.06))",
-                border: "2px solid rgba(222,26,26,0.25)",
-                fontFamily: "var(--font-jakarta)", color: "#de1a1a",
-              }}>
-              {selectedMember.photo_url
-                ? <img src={selectedMember.photo_url} alt="photo" className="w-full h-full object-cover" />
-                : initial}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="text-[18px] font-black leading-tight truncate" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
-                {selectedMember.name}
-              </h2>
-              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
-                  #{selectedMember.employee_id}
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.1)", color: "#B91C1C" }}>
-                  {selectedMember.role}
-                </span>
-                {selectedMember.team && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
-                    {selectedMember.team}
-                  </span>
-                )}
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: "rgba(16,185,129,0.1)", color: "#10B981" }}>
-                  {selectedMember.status}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Details grid */}
-          <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-5">
-            {/* Account details */}
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#6B7280" }}>Account</p>
-              <div className="space-y-1.5">
-                <InfoRow icon={Mail}      label="Email"       value={selectedMember.email} />
-                <InfoRow icon={Phone}     label="Phone"       value={selectedMember.phone} />
-                <InfoRow icon={Briefcase} label="Employment"  value={selectedMember.employment_type ?? null} />
-                <InfoRow icon={Calendar}  label="Joined"      value={formatDate(selectedMember.created_at)} />
-              </div>
-            </div>
-
-            {/* Personal details */}
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#6B7280" }}>Personal</p>
-              <div className="space-y-1.5">
-                <InfoRow icon={HeartPulse} label="Blood Group"       value={selectedMember.blood_group} />
-                <InfoRow icon={MapPin}     label="Address"           value={selectedMember.address} />
-                <InfoRow icon={UserPlus}   label="Emergency Contact" value={
-                  selectedMember.emergency_contact_name
-                    ? `${selectedMember.emergency_contact_name}${selectedMember.emergency_contact_phone ? ` · ${selectedMember.emergency_contact_phone}` : ""}`
-                    : null
-                } />
-              </div>
-            </div>
-
-            {/* KYC / Bank */}
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-2" style={{ color: "#6B7280" }}>KYC & Bank</p>
-              <div className="space-y-1.5">
-                <InfoRow icon={Landmark}   label="Bank"       value={selectedKYC?.bank_name ?? null} />
-                <InfoRow icon={CreditCard} label="Account No" value={selectedKYC?.bank_account ? `****${selectedKYC.bank_account.slice(-4)}` : null} />
-                <InfoRow icon={Shield}     label="IFSC"       value={selectedKYC?.bank_ifsc ?? null} />
-                <InfoRow icon={FileText}   label="Govt ID"    value={selectedKYC?.govt_id_type ?? null} url={selectedKYC?.govt_id_url} />
-                <InfoRow icon={FileText}   label="Ration Card" value={selectedKYC?.ration_card_url ? "Uploaded" : null} url={selectedKYC?.ration_card_url} />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Documents list */}
-      {selectedMember && (
-        <p className="text-[10px] uppercase tracking-[0.18em] font-bold mb-3" style={{ color: "#6B7280" }}>
-          Uploaded Documents ({shown.length})
-        </p>
-      )}
-      {shown.length === 0 ? (
-        <div className="flex flex-col items-center py-16 rounded-2xl"
-          style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #E5E7EB" }}>
-          <FolderOpen size={32} style={{ color: "#E5E7EB" }} className="mb-3" />
-          <p className="text-[13px] font-semibold" style={{ color: "#6B7280" }}>No documents uploaded yet</p>
-          {selectedMember && (
-            <button onClick={() => { setUploadFor(selectedMember.id); setShowUpload(true) }}
-              className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold"
-              style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}>
-              <Upload size={12} /> Upload for {selectedMember.name}
+          <p style={{ fontSize: 14, color: "#6B7280", marginBottom: 20, lineHeight: 1.6 }}>
+            Manage employee documents securely<br />and efficiently in one place.
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }} style={{
+              display: "flex", alignItems: "center", gap: 7, padding: "10px 18px",
+              borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "none",
+              background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#fff",
+              boxShadow: "0 4px 16px rgba(222,26,26,0.35)",
+            }}>
+              <Upload size={14} /> Upload Document
             </button>
+            <button style={{
+              display: "flex", alignItems: "center", gap: 7, padding: "10px 18px",
+              borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer",
+              background: "rgba(255,255,255,0.9)", color: "#374151",
+              border: "1px solid rgba(0,0,0,0.1)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+            }}>
+              <FolderOpen size={14} /> Generate Folder
+            </button>
+            <button style={{
+              display: "flex", alignItems: "center", gap: 7, padding: "10px 18px",
+              borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer",
+              background: "rgba(255,255,255,0.9)", color: "#374151",
+              border: "1px solid rgba(0,0,0,0.1)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+            }}>
+              <ExternalLink size={14} /> Share Access
+            </button>
+          </div>
+        </div>
+
+        {/* Right: image + stat cards */}
+        <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "58%", display: "flex", alignItems: "flex-end" }}>
+          <Image
+            src="/brand/documents/hero-workspace.png"
+            alt="Document workspace"
+            width={500} height={220}
+            style={{ objectFit: "contain", objectPosition: "bottom left", height: "100%", width: "auto", maxWidth: 440 }}
+            priority
+          />
+          {/* Stat cards */}
+          <div style={{ position: "absolute", right: 20, top: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, width: 340 }}>
+            <HeroStatCard label="Total Files"          value={String(totalFiles)}    sub="16.4%" icon="📄" color="#6366F1" up />
+            <HeroStatCard label="Verified Documents"   value={String(verifiedCount)} sub="22.1%" icon="✅" color="#16A34A" up />
+            <HeroStatCard label="Pending KYC"          value={String(pendingKYC)}    sub="5.6%"  icon="⏳" color="#F59E0B" up={false} />
+            <HeroStatCard label="Cloud Storage"        value={`${storageGB} GB`}     sub="32.4 GB / 50 GB" icon="☁️" color="#0EA5E9" up={false} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── MAIN 3-COLUMN GRID ──────────────────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "256px 1fr 288px", gap: 14, padding: "16px 20px 0 20px" }}>
+
+        {/* ── LEFT: Employee List ───────────────────────────────────────────── */}
+        <div style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "16px 16px 12px" }}>
+            <div className="flex items-center justify-between mb-3">
+              <p style={{ fontSize: 13, fontWeight: 800, color: "#111", fontFamily: "var(--font-jakarta)" }}>Employees</p>
+              <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>{members.length}</span>
+            </div>
+            <div style={{ position: "relative" }}>
+              <Search size={12} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+              <input
+                placeholder="Search employee..."
+                value={empSearch} onChange={e => setEmpSearch(e.target.value)}
+                style={{
+                  width: "100%", padding: "8px 10px 8px 28px", borderRadius: 10, fontSize: 12,
+                  border: "1px solid #E5E7EB", outline: "none", color: "#111", background: "#F9FAFB",
+                  boxSizing: "border-box",
+                }}
+              />
+            </div>
+          </div>
+          <div style={{ flex: 1, overflowY: "auto", padding: "0 10px 12px" }}>
+            {filteredMembers.map(m => {
+              const mDocs = documents.filter(d => d.user_id === m.id).length
+              const tc2 = teamColor(m.team)
+              const isActive = m.id === selectedId
+              return (
+                <button key={m.id} onClick={() => { setSelectedId(m.id); setActiveTab("documents"); setDocFilter("All"); setDocSearch("") }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 10px",
+                    borderRadius: 14, marginBottom: 3, cursor: "pointer", border: "none", textAlign: "left",
+                    background: isActive ? "linear-gradient(135deg, rgba(222,26,26,0.08), rgba(222,26,26,0.04))" : "transparent",
+                    outline: isActive ? "1.5px solid rgba(222,26,26,0.2)" : "none",
+                    transition: "all 0.15s",
+                  }}>
+                  {/* Avatar */}
+                  <div style={{
+                    width: 38, height: 38, borderRadius: 12, flexShrink: 0, overflow: "hidden",
+                    background: m.photo_url ? "transparent" : `${tc2}18`,
+                    border: `2px solid ${isActive ? "#de1a1a" : tc2}22`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 14, fontWeight: 800, color: tc2,
+                  }}>
+                    {m.photo_url
+                      ? <img src={m.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      : m.name.charAt(0).toUpperCase()}
+                  </div>
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span style={{ fontSize: 9, fontWeight: 600, color: "#9CA3AF" }}>#{m.employee_id}</span>
+                      {m.team && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, background: `${tc2}14`, color: tc2 }}>{m.team}</span>}
+                    </div>
+                  </div>
+                  {/* Doc count + online dot */}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: m.status === "active" ? "#22C55E" : "#D1D5DB" }} />
+                    <span style={{ fontSize: 10, fontWeight: 800, color: "#6B7280" }}>{mDocs}</span>
+                    <span style={{ fontSize: 8, color: "#9CA3AF", marginTop: -3 }}>docs</span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+          <div style={{ padding: "12px 16px", borderTop: "1px solid #F3F4F6" }}>
+            <a href="/admin/team" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 11, fontWeight: 700, color: "#de1a1a", textDecoration: "none" }}>
+              View All Employees <ChevronRight size={11} />
+            </a>
+          </div>
+        </div>
+
+        {/* ── CENTER: Document Explorer ────────────────────────────────────── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          {selectedMember ? (
+            <>
+              {/* Profile header card */}
+              <div style={{
+                background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden",
+              }}>
+                {/* Top gradient bar */}
+                <div style={{ height: 6, background: `linear-gradient(90deg, ${tc}, ${tc}88)` }} />
+                <div style={{ padding: "16px 20px" }}>
+                  <div className="flex items-center gap-4">
+                    {/* Avatar */}
+                    <div style={{
+                      width: 60, height: 60, borderRadius: 18, flexShrink: 0, overflow: "hidden",
+                      background: selectedMember.photo_url ? "transparent" : `${tc}18`,
+                      border: `3px solid ${tc}33`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 22, fontWeight: 900, color: tc,
+                    }}>
+                      {selectedMember.photo_url
+                        ? <img src={selectedMember.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        : initial}
+                    </div>
+                    {/* Name & tags */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 style={{ fontSize: 17, fontWeight: 900, color: "#111", fontFamily: "var(--font-jakarta)" }}>{selectedMember.name}</h2>
+                        <span style={{ fontSize: 9, fontWeight: 800, padding: "3px 8px", borderRadius: 20, background: "rgba(22,163,74,0.1)", color: "#16A34A" }}>● Active</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <span style={{ fontSize: 10, color: "#6B7280" }}>{selectedMember.employment_type ?? selectedMember.role}</span>
+                        {selectedMember.team && (
+                          <>
+                            <span style={{ fontSize: 10, color: "#D1D5DB" }}>•</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 5, background: `${tc}14`, color: tc }}>{selectedMember.team}</span>
+                          </>
+                        )}
+                        <span style={{ fontSize: 10, color: "#D1D5DB" }}>•</span>
+                        <span style={{ fontSize: 10, color: "#9CA3AF" }}>Joined {formatDate(selectedMember.created_at)}</span>
+                      </div>
+                    </div>
+                    {/* Completion ring */}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                      <CompletionRing pct={completionPct} size={68} />
+                      <p style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600 }}>Profile Complete</p>
+                    </div>
+                  </div>
+                  {/* Action pills */}
+                  <div className="flex gap-2 mt-4 flex-wrap">
+                    {[
+                      { label: "Upload File",        icon: <Upload size={11} />,       onClick: () => { setUploadFor(selectedId); setShowUpload(true) } },
+                      { label: "Verify KYC",         icon: <Shield size={11} />,       onClick: () => {} },
+                      { label: "Request Signature",  icon: <FileText size={11} />,     onClick: () => {} },
+                      { label: "Share Docs",         icon: <ExternalLink size={11} />, onClick: () => {} },
+                    ].map(a => (
+                      <button key={a.label} onClick={a.onClick} style={{
+                        display: "flex", alignItems: "center", gap: 5, padding: "6px 12px",
+                        borderRadius: 10, fontSize: 11, fontWeight: 700, cursor: "pointer",
+                        background: "rgba(0,0,0,0.03)", color: "#374151",
+                        border: "1px solid rgba(0,0,0,0.08)",
+                      }}>
+                        {a.icon} {a.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Tabs */}
+                <div style={{ borderTop: "1px solid #F3F4F6", display: "flex" }}>
+                  {TABS.map(tab => (
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                      style={{
+                        flex: 1, padding: "11px 8px", fontSize: 12, fontWeight: 700, cursor: "pointer",
+                        border: "none", background: "none", borderBottom: `2px solid ${activeTab === tab.id ? "#de1a1a" : "transparent"}`,
+                        color: activeTab === tab.id ? "#de1a1a" : "#6B7280",
+                        transition: "all 0.15s",
+                      }}>
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ── Tab: Documents ─────────────────────────────────────────── */}
+              {activeTab === "documents" && (
+                <>
+                  {/* Filter bar */}
+                  <div style={{ background: "#fff", borderRadius: 16, border: "1px solid rgba(0,0,0,0.07)", padding: "12px 16px", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 6, flex: 1, flexWrap: "wrap" }}>
+                      {FILTER_CHIPS.map(chip => (
+                        <button key={chip} onClick={() => setDocFilter(chip)} style={{
+                          padding: "5px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer", border: "none",
+                          background: docFilter === chip ? "#de1a1a" : "rgba(0,0,0,0.04)",
+                          color: docFilter === chip ? "#fff" : "#6B7280",
+                        }}>{chip}</button>
+                      ))}
+                    </div>
+                    {/* Search + view toggle */}
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <div style={{ position: "relative" }}>
+                        <Search size={11} style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+                        <input placeholder="Search documents..." value={docSearch} onChange={e => setDocSearch(e.target.value)}
+                          style={{ padding: "7px 10px 7px 26px", borderRadius: 9, fontSize: 11, border: "1px solid #E5E7EB", outline: "none", width: 160, color: "#111", background: "#F9FAFB" }} />
+                      </div>
+                      <button onClick={() => setViewMode("grid")} style={{ width: 30, height: 30, borderRadius: 8, border: "none", cursor: "pointer", background: viewMode === "grid" ? "#de1a1a" : "rgba(0,0,0,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <LayoutGrid size={13} style={{ color: viewMode === "grid" ? "#fff" : "#6B7280" }} />
+                      </button>
+                      <button onClick={() => setViewMode("list")} style={{ width: 30, height: 30, borderRadius: 8, border: "none", cursor: "pointer", background: viewMode === "list" ? "#de1a1a" : "rgba(0,0,0,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <List size={13} style={{ color: viewMode === "list" ? "#fff" : "#6B7280" }} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Drag & Drop upload area */}
+                  <div
+                    onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={e => {
+                      e.preventDefault(); setDragOver(false)
+                      const f = e.dataTransfer.files[0]
+                      if (f) { setFile(f); setUploadFor(selectedId); setShowUpload(true) }
+                    }}
+                    style={{
+                      borderRadius: 16, border: `2px dashed ${dragOver ? "#de1a1a" : "rgba(0,0,0,0.12)"}`,
+                      padding: "18px", textAlign: "center", cursor: "pointer",
+                      background: dragOver ? "rgba(222,26,26,0.04)" : "rgba(0,0,0,0.01)",
+                      transition: "all 0.2s",
+                    }}
+                    onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}>
+                    <CloudUpload size={22} style={{ color: dragOver ? "#de1a1a" : "#D1D5DB", margin: "0 auto 6px" }} />
+                    <p style={{ fontSize: 12, fontWeight: 600, color: dragOver ? "#de1a1a" : "#9CA3AF" }}>
+                      Drag &amp; drop files here or click to upload
+                    </p>
+                    <p style={{ fontSize: 10, color: "#D1D5DB", marginTop: 3 }}>Supports: PDF, DOC, DOCX, PNG, JPG (Max 10MB)</p>
+                  </div>
+
+                  {/* Documents */}
+                  {shownDocs.length === 0 ? (
+                    <div style={{ background: "#fff", borderRadius: 20, padding: "48px 20px", textAlign: "center", border: "1px solid rgba(0,0,0,0.07)" }}>
+                      <FolderOpen size={36} style={{ color: "#E5E7EB", margin: "0 auto 12px" }} />
+                      <p style={{ fontSize: 14, fontWeight: 700, color: "#374151" }}>No documents found</p>
+                      <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>Upload the first document for {selectedMember.name}</p>
+                      <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}
+                        style={{ marginTop: 16, display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 10, fontSize: 12, fontWeight: 700, background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)", cursor: "pointer" }}>
+                        <Upload size={12} /> Upload Document
+                      </button>
+                    </div>
+                  ) : viewMode === "grid" ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(168px, 1fr))", gap: 12 }}>
+                      {shownDocs.map(doc => <DocCardGrid key={doc.id} doc={doc} onDelete={() => handleDelete(doc.id)} isPending={isPending} />)}
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {shownDocs.map(doc => <DocRowList key={doc.id} doc={doc} onDelete={() => handleDelete(doc.id)} isPending={isPending} />)}
+                    </div>
+                  )}
+
+                  {shownDocs.length > 0 && (
+                    <button style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "12px", borderRadius: 14, fontSize: 12, fontWeight: 700, color: "#6B7280", background: "rgba(0,0,0,0.03)", border: "1px solid rgba(0,0,0,0.06)", cursor: "pointer" }}>
+                      View More Documents <ChevronRight size={13} />
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* ── Tab: Personal Info ─────────────────────────────────────── */}
+              {activeTab === "personal" && (
+                <div style={{ background: "#fff", borderRadius: 20, padding: "20px", border: "1px solid rgba(0,0,0,0.07)" }}>
+                  <p style={{ fontSize: 11, fontWeight: 800, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>Personal Details</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    <InfoRow icon={Mail}      label="Email"            value={selectedMember.email} />
+                    <InfoRow icon={Phone}     label="Phone"            value={selectedMember.phone} />
+                    <InfoRow icon={Briefcase} label="Employment Type"  value={selectedMember.employment_type} />
+                    <InfoRow icon={Calendar}  label="Joined"           value={formatDate(selectedMember.created_at)} />
+                    <InfoRow icon={HeartPulse}label="Blood Group"      value={selectedMember.blood_group} />
+                    <InfoRow icon={MapPin}    label="Address"          value={selectedMember.address} />
+                    <InfoRow icon={UserPlus}  label="Emergency Name"   value={selectedMember.emergency_contact_name} />
+                    <InfoRow icon={Phone}     label="Emergency Phone"  value={selectedMember.emergency_contact_phone} />
+                  </div>
+                </div>
+              )}
+
+              {/* ── Tab: KYC Details ───────────────────────────────────────── */}
+              {activeTab === "kyc" && (
+                <div style={{ background: "#fff", borderRadius: 20, padding: "20px", border: "1px solid rgba(0,0,0,0.07)" }}>
+                  <p style={{ fontSize: 11, fontWeight: 800, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 14 }}>KYC &amp; Bank Details</p>
+                  {selectedKYC ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      <InfoRow icon={Landmark}   label="Bank Name"    value={selectedKYC.bank_name} />
+                      <InfoRow icon={CreditCard} label="Account No"   value={selectedKYC.bank_account ? `****${selectedKYC.bank_account.slice(-4)}` : null} />
+                      <InfoRow icon={Shield}     label="IFSC Code"    value={selectedKYC.bank_ifsc} />
+                      <InfoRow icon={FileText}   label="Govt ID Type" value={selectedKYC.govt_id_type} />
+                      <InfoRow icon={FileText}   label="Govt ID"      value={selectedKYC.govt_id_url ? "Uploaded" : null} url={selectedKYC.govt_id_url} />
+                      <InfoRow icon={FileText}   label="Ration Card"  value={selectedKYC.ration_card_url ? "Uploaded" : null} url={selectedKYC.ration_card_url} />
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "32px 20px" }}>
+                      <Shield size={32} style={{ color: "#E5E7EB", margin: "0 auto 10px" }} />
+                      <p style={{ fontSize: 13, fontWeight: 600, color: "#9CA3AF" }}>No KYC records found for this employee</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Tab: Activity ──────────────────────────────────────────── */}
+              {activeTab === "activity" && (
+                <div style={{ background: "#fff", borderRadius: 20, padding: "20px", border: "1px solid rgba(0,0,0,0.07)" }}>
+                  <p style={{ fontSize: 11, fontWeight: 800, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 16 }}>Activity Timeline</p>
+                  {activityFeed.length === 0 ? (
+                    <p style={{ fontSize: 13, color: "#9CA3AF", textAlign: "center", padding: "24px 0" }}>No activity yet</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                      {activityFeed.map((item, i) => (
+                        <div key={i} style={{ display: "flex", gap: 14, position: "relative", paddingBottom: i < activityFeed.length - 1 ? 20 : 0 }}>
+                          {i < activityFeed.length - 1 && (
+                            <div style={{ position: "absolute", left: 11, top: 24, width: 2, height: "calc(100% - 24px)", background: "#F3F4F6" }} />
+                          )}
+                          <ActivityDot type={item.type} />
+                          <div style={{ flex: 1 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: "#111" }}>{item.title}</p>
+                            <p style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{item.desc}</p>
+                            <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 3 }}>{item.time}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <div style={{ background: "#fff", borderRadius: 20, padding: "64px 20px", textAlign: "center", border: "1px solid rgba(0,0,0,0.07)" }}>
+              <Building2 size={40} style={{ color: "#E5E7EB", margin: "0 auto 14px" }} />
+              <p style={{ fontSize: 15, fontWeight: 700, color: "#374151" }}>Select an employee</p>
+              <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 6 }}>Choose an employee from the list to view their documents</p>
+            </div>
           )}
         </div>
-      ) : (
-        <div className="space-y-2">
-          {shown.map(doc => {
-            const user  = Array.isArray(doc.users) ? doc.users[0] : doc.users
-            const color = DOC_COLOR[doc.doc_type] ?? DOC_COLOR["Other"]
-            return (
-              <div key={doc.id} className="flex items-center gap-4 rounded-xl px-4 py-3.5"
-                style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: `${color}14` }}>
-                  <FileText size={16} style={{ color }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-[13px] font-semibold truncate" style={{ color: "#111111" }}>{doc.name}</p>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
-                      style={{ background: `${color}14`, color }}>{doc.doc_type}</span>
-                  </div>
-                  <p className="text-[11px] mt-0.5" style={{ color: "#6B7280" }}>
-                    {user?.name ?? "Unknown"} #{user?.employee_id} · {formatDate(doc.created_at)}
-                    {doc.file_size ? ` · ${formatSize(doc.file_size)}` : ""}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                    className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                    style={{ background: "rgba(0,0,0,0.04)" }}>
-                    <Download size={13} style={{ color: "#6B7280" }} />
-                  </a>
-                  <button onClick={() => handleDelete(doc.id)} disabled={isPending}
-                    className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                    style={{ background: "rgba(222,26,26,0.06)" }}>
-                    <Trash2 size={13} style={{ color: "#de1a1a" }} />
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
 
-      {/* Upload modal */}
+        {/* ── RIGHT PANEL ──────────────────────────────────────────────────── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+          {/* Activity Timeline mini */}
+          <div style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", padding: "18px" }}>
+            <div className="flex items-center justify-between mb-4">
+              <p style={{ fontSize: 13, fontWeight: 800, color: "#111", fontFamily: "var(--font-jakarta)" }}>Activity Timeline</p>
+              <button style={{ fontSize: 10, fontWeight: 700, color: "#de1a1a", background: "none", border: "none", cursor: "pointer" }}>View All</button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              {[
+                { type: "upload",    title: "Document uploaded",    desc: "Aadhaar Card uploaded",           time: "12 May 2026, 10:30 AM" },
+                { type: "kyc",       title: "KYC verified",         desc: "PAN Card verified successfully",  time: "11 May 2026, 04:15 PM" },
+                { type: "signature", title: "Signature completed",  desc: "NDA Agreement signed",            time: "10 May 2026, 02:40 PM" },
+                { type: "payroll",   title: "Payroll synced",       desc: "April payroll synchronized",      time: "9 May 2026, 11:20 AM" },
+                { type: "bank",      title: "Bank details updated", desc: "Bank passbook updated",           time: "7 May 2026, 05:10 PM" },
+              ].map((item, i, arr) => (
+                <div key={i} style={{ display: "flex", gap: 10, position: "relative", paddingBottom: i < arr.length - 1 ? 16 : 0 }}>
+                  {i < arr.length - 1 && (
+                    <div style={{ position: "absolute", left: 11, top: 24, width: 2, height: "calc(100% - 24px)", background: "#F3F4F6" }} />
+                  )}
+                  <ActivityDot type={item.type} />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#111" }}>{item.title}</p>
+                    <p style={{ fontSize: 10, color: "#6B7280", marginTop: 1 }}>{item.desc}</p>
+                    <p style={{ fontSize: 9, color: "#9CA3AF", marginTop: 2 }}>{item.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Verification Status */}
+          <div style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", padding: "18px", textAlign: "center" }}>
+            <p style={{ fontSize: 13, fontWeight: 800, color: "#111", fontFamily: "var(--font-jakarta)", marginBottom: 14 }}>Verification Status</p>
+            <VerifDonut pct={selectedMember ? verifPct : 92} />
+            <div style={{ marginTop: 14, display: "flex", justifyContent: "center", gap: 6, flexWrap: "wrap" }}>
+              {[["#22C55E","Verified"],["#F59E0B","Pending"],["#EF4444","Rejected"]].map(([c,l]) => (
+                <div key={l} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: c }} />
+                  <span style={{ fontSize: 10, color: "#6B7280", fontWeight: 600 }}>{l}</span>
+                </div>
+              ))}
+            </div>
+            <p style={{ fontSize: 10, color: "#22C55E", fontWeight: 700, marginTop: 10 }}>
+              ▲ 12% <span style={{ color: "#9CA3AF", fontWeight: 500 }}>vs last month</span>
+            </p>
+          </div>
+
+          {/* HR Assistant */}
+          <div style={{
+            borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", overflow: "hidden",
+            background: "linear-gradient(135deg, #FFF7ED, #FEF3C7)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+          }}>
+            <div style={{ padding: "16px 16px 0", textAlign: "center" }}>
+              <p style={{ fontSize: 12, fontWeight: 800, color: "#111", fontFamily: "var(--font-jakarta)", marginBottom: 6 }}>HR Assistant</p>
+              <p style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.5 }}>All employee records are synced ☁️</p>
+            </div>
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <Image src="/brand/documents/hr-assistant.png" alt="HR Assistant" width={180} height={140}
+                style={{ objectFit: "contain" }} />
+            </div>
+            <div style={{ padding: "0 16px 16px" }}>
+              <button style={{
+                width: "100%", padding: "10px", borderRadius: 12, fontSize: 12, fontWeight: 700,
+                cursor: "pointer", border: "none",
+                background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#fff",
+                boxShadow: "0 4px 16px rgba(222,26,26,0.3)",
+              }}>
+                Open HR Center
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── BOTTOM: Cloud Storage + Recent Uploads ───────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, padding: "14px 20px 24px" }}>
+        {/* Cloud Storage */}
+        <div style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", padding: "18px", display: "flex", alignItems: "center", gap: 16 }}>
+          <Image src="/brand/documents/hero-boy.png" alt="Cloud" width={80} height={80} style={{ objectFit: "contain", flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div className="flex items-center justify-between mb-2">
+              <p style={{ fontSize: 13, fontWeight: 800, color: "#111" }}>Cloud Storage</p>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "rgba(249,115,22,0.1)", color: "#EA580C" }}>72%</span>
+            </div>
+            <div style={{ height: 8, borderRadius: 99, background: "#F3F4F6", overflow: "hidden", marginBottom: 8 }}>
+              <div style={{ height: "100%", width: "72%", borderRadius: 99, background: "linear-gradient(90deg, #3B82F6, #0EA5E9)" }} />
+            </div>
+            <div className="flex items-center justify-between">
+              <p style={{ fontSize: 11, color: "#6B7280" }}>32.4 GB / 50 GB used</p>
+              <button style={{ fontSize: 11, fontWeight: 700, padding: "5px 14px", borderRadius: 8, background: "linear-gradient(135deg, #F59E0B, #D97706)", color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                ✨ Upgrade Plan
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Uploads */}
+        <div style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", padding: "18px" }}>
+          <div className="flex items-center justify-between mb-3">
+            <p style={{ fontSize: 13, fontWeight: 800, color: "#111" }}>Recent Uploads</p>
+            <button style={{ fontSize: 10, fontWeight: 700, color: "#de1a1a", background: "none", border: "none", cursor: "pointer" }}>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+          <div style={{ display: "flex", gap: 10, overflowX: "auto" }}>
+            {recentUploads.map(doc => {
+              const badge = getExtBadge(doc.file_type, doc.name)
+              return (
+                <div key={doc.id} style={{ flexShrink: 0, textAlign: "center", minWidth: 70 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 14, background: badge.bg, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 6px" }}>
+                    <FileText size={20} style={{ color: badge.color }} />
+                  </div>
+                  <p style={{ fontSize: 10, fontWeight: 600, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 72 }}>{doc.name}</p>
+                  <p style={{ fontSize: 9, color: "#9CA3AF", marginTop: 2 }}>{formatDateShort(doc.created_at)}</p>
+                </div>
+              )
+            })}
+            {recentUploads.length === 0 && (
+              <p style={{ fontSize: 12, color: "#9CA3AF" }}>No uploads yet</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Upload Modal ─────────────────────────────────────────────────────── */}
       {showUpload && (
         <>
-          <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          <div style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)" }}
             onClick={() => setShowUpload(false)} />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-[420px] rounded-2xl shadow-2xl"
-              style={{ background: "#FFFFFF", border: "1px solid rgba(222,26,26,0.15)" }}>
-              <div className="px-6 py-5 flex items-center justify-between" style={{ borderBottom: "1px solid #E5E7EB" }}>
-                <h2 className="text-[16px] font-bold" style={{ color: "#111111" }}>Upload Document</h2>
-                <button onClick={() => setShowUpload(false)} className="w-8 h-8 rounded-full flex items-center justify-center"
-                  style={{ border: "1px solid #E5E7EB" }}>
+          <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <div style={{ width: "100%", maxWidth: 440, borderRadius: 24, background: "#fff", boxShadow: "0 24px 80px rgba(0,0,0,0.2)", border: "1px solid rgba(222,26,26,0.12)", overflow: "hidden" }}>
+              <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div className="flex items-center gap-3">
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(222,26,26,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Upload size={16} style={{ color: "#de1a1a" }} />
+                  </div>
+                  <div>
+                    <h2 style={{ fontSize: 15, fontWeight: 800, color: "#111" }}>Upload Document</h2>
+                    <p style={{ fontSize: 11, color: "#9CA3AF" }}>Add a new document to employee records</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowUpload(false)} style={{ width: 32, height: 32, borderRadius: 10, border: "1px solid #E5E7EB", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <X size={14} style={{ color: "#6B7280" }} />
                 </button>
               </div>
-              <div className="px-6 py-5 space-y-4">
+              <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+                {[
+                  { label: "Member *", el: (
+                    <select value={uploadFor} onChange={e => setUploadFor(e.target.value)}
+                      style={{ width: "100%", padding: "10px 12px", borderRadius: 12, fontSize: 13, border: "1px solid #E5E7EB", outline: "none", color: "#111", background: "#F9FAFB", boxSizing: "border-box" as const }}>
+                      <option value="">Select member…</option>
+                      {members.map(m => <option key={m.id} value={m.id}>{m.name} (#{m.employee_id})</option>)}
+                    </select>
+                  )},
+                  { label: "Document Name *", el: (
+                    <input placeholder="e.g. Offer Letter May 2025" value={docName} onChange={e => setDocName(e.target.value)}
+                      style={{ width: "100%", padding: "10px 12px", borderRadius: 12, fontSize: 13, border: "1px solid #E5E7EB", outline: "none", color: "#111", background: "#F9FAFB", boxSizing: "border-box" as const }} />
+                  )},
+                  { label: "Document Type", el: (
+                    <select value={docType} onChange={e => setDocType(e.target.value)}
+                      style={{ width: "100%", padding: "10px 12px", borderRadius: 12, fontSize: 13, border: "1px solid #E5E7EB", outline: "none", color: "#111", background: "#F9FAFB", boxSizing: "border-box" as const }}>
+                      {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  )},
+                ].map(({ label, el }) => (
+                  <div key={label}>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#6B7280", marginBottom: 6 }}>{label}</label>
+                    {el}
+                  </div>
+                ))}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#6B7280" }}>Member *</label>
-                  <select value={uploadFor} onChange={e => setUploadFor(e.target.value)}
-                    className="w-full text-[13px] px-3 py-2.5 rounded-xl outline-none"
-                    style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}>
-                    <option value="">Select member…</option>
-                    {members.map(m => <option key={m.id} value={m.id}>{m.name} (#{m.employee_id})</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#6B7280" }}>Document Name *</label>
-                  <input placeholder="e.g. Offer Letter May 2025"
-                    className="w-full text-[13px] px-3 py-2.5 rounded-xl outline-none"
-                    style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}
-                    value={docName} onChange={e => setDocName(e.target.value)} />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#6B7280" }}>Document Type</label>
-                  <select value={docType} onChange={e => setDocType(e.target.value)}
-                    className="w-full text-[13px] px-3 py-2.5 rounded-xl outline-none"
-                    style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}>
-                    {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: "#6B7280" }}>File *</label>
-                  <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={e => setFile(e.target.files?.[0] ?? null)} className="hidden" />
+                  <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#6B7280", marginBottom: 6 }}>File *</label>
+                  <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" onChange={e => setFile(e.target.files?.[0] ?? null)} style={{ display: "none" }} />
                   <button onClick={() => fileRef.current?.click()}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed text-[13px] font-medium transition-all"
-                    style={{ borderColor: file ? "#de1a1a" : "#E5E7EB", color: file ? "#de1a1a" : "#6B7280", background: file ? "rgba(222,26,26,0.04)" : "#F9FAFB" }}>
-                    <Upload size={14} />
+                    style={{
+                      width: "100%", padding: "20px 12px", borderRadius: 14, fontSize: 13, fontWeight: 600, cursor: "pointer",
+                      border: `2px dashed ${file ? "#de1a1a" : "#E5E7EB"}`,
+                      color: file ? "#de1a1a" : "#6B7280", background: file ? "rgba(222,26,26,0.04)" : "#F9FAFB",
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                    }}>
+                    <CloudUpload size={16} />
                     {file ? file.name : "Click to choose file (PDF, DOC, JPG, PNG)"}
                   </button>
                 </div>
                 {uploadError && (
-                  <p className="text-[12px] px-3 py-2 rounded-lg" style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>
-                    {uploadError}
-                  </p>
+                  <p style={{ fontSize: 12, padding: "10px 12px", borderRadius: 10, background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>{uploadError}</p>
                 )}
               </div>
-              <div className="px-6 pb-5 flex gap-3">
+              <div style={{ padding: "0 24px 20px", display: "flex", gap: 10 }}>
                 <button onClick={() => setShowUpload(false)}
-                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
-                  style={{ background: "#F9FAFB", color: "#6B7280", border: "1px solid #E5E7EB" }}>
+                  style={{ flex: 1, padding: "11px", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#F9FAFB", color: "#6B7280", border: "1px solid #E5E7EB", cursor: "pointer" }}>
                   Cancel
                 </button>
                 <button onClick={handleUpload} disabled={isUploading || isPending}
-                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold flex items-center justify-center gap-2 disabled:opacity-60"
-                  style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF" }}>
-                  {(isUploading || isPending) && <Loader2 size={13} className="animate-spin" />}
-                  Upload
+                  style={{ flex: 1, padding: "11px", borderRadius: 12, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, opacity: (isUploading || isPending) ? 0.7 : 1 }}>
+                  {(isUploading || isPending) && <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />}
+                  Upload Document
                 </button>
               </div>
             </div>

@@ -43,6 +43,20 @@ interface EditEntry {
   notes: string
 }
 
+interface TimeSlot {
+  id: string
+  label: string
+  description: string
+  projectName: string
+  status: "completed" | "in_progress" | "not_started"
+}
+
+const TIME_SLOT_LABELS = [
+  "09 AM - 10 AM", "10 AM - 11 AM", "11 AM - 12 PM",
+  "12 PM - 01 PM", "01 PM - 02 PM", "02 PM - 03 PM",
+  "03 PM - 04 PM", "04 PM - 05 PM", "05 PM - 06 PM",
+]
+
 const TIME_OPTIONS = [
   "07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30",
   "12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30",
@@ -155,6 +169,17 @@ export default function DailyUpdateForm({
   const removeGeneralTask = (id: string) => setGeneralTasks(p => p.filter(t => t.id !== id))
   const totalGeneralHours = useMemo(() => generalTasks.reduce((s, t) => s + t.durationHours, 0), [generalTasks])
 
+  // Non-media team: time-slot state
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(() =>
+    TIME_SLOT_LABELS.map(label => ({
+      id: crypto.randomUUID(), label,
+      description: "", projectName: "", status: "not_started" as const,
+    }))
+  )
+  const patchSlot = (id: string, patch: Partial<TimeSlot>) =>
+    setTimeSlots(p => p.map(s => s.id === id ? { ...s, ...patch } : s))
+  const [mood, setMood] = useState("good")
+
   const [learningTopic, setLearningTopic] = useState("")
   const [learningHours, setLearningHours] = useState(1)
   const [learningNotes, setLearningNotes] = useState("")
@@ -165,9 +190,10 @@ export default function DailyUpdateForm({
   const totalEditHours    = useMemo(() => edits.reduce((s, e) => s + e.timeTaken, 0), [edits])
   const totalHours        = tab === "working" ? totalShootHours + totalEditHours : learningHours
   const generalProductivity = useMemo(() => {
-    const filled = generalTasks.filter(t => t.title && t.clientName).length
-    return generalTasks.length === 0 ? 0 : Math.round((filled / generalTasks.length) * 100)
-  }, [generalTasks])
+    const filled = timeSlots.filter(s => s.description.trim())
+    if (filled.length === 0) return 0
+    return Math.round((filled.filter(s => s.status === "completed").length / timeSlots.length) * 100)
+  }, [timeSlots])
   const productivity    = useMemo(() => {
     if (tab === "learning") return learningHours > 0 ? 80 : 0
     const filled = shoots.filter(s => s.clientName && s.title).length + edits.filter(e => e.clientName && e.title).length
@@ -240,20 +266,21 @@ export default function DailyUpdateForm({
     })
   }
 
-  // ── Non-media team: 9AM–10AM daily task window ────────────────────────────
+  // ── Non-media team: timeline submit ───────────────────────────────────────
   function handleGeneralSubmit() {
     setError(null)
-    if (generalTasks.length === 0) { setError("Add at least one task."); return }
-    const work_entries = generalTasks.map(t => ({
+    const filled = timeSlots.filter(s => s.description.trim())
+    if (filled.length === 0) { setError("Fill in at least one time slot."); return }
+    const work_entries = filled.map(t => ({
       id:             t.id,
-      client_id:      projects.find(p => p.business_name === t.clientName)?.id ?? null,
-      client_name:    t.clientName || "Internal",
+      client_id:      projects.find(p => p.business_name === t.projectName)?.id ?? null,
+      client_name:    t.projectName || "Internal",
       task_type:      "other" as const,
-      title:          t.title || t.category,
+      title:          t.description,
       start_time:     "",
       end_time:       "",
-      duration_hours: t.durationHours,
-      notes:          `[${t.status}] [${t.category}] ${t.notes}`.trim(),
+      duration_hours: 1,
+      notes:          `[${t.status}] ${t.label}`,
       video_uploaded: null,
       screenshot_url: "",
       video_link:     "",
@@ -275,21 +302,28 @@ export default function DailyUpdateForm({
     })
   }
 
-  const TASK_CATEGORIES = ["Development", "Design", "Meeting", "Research", "Testing", "Documentation", "Support", "Planning", "Review", "Other"]
-  const STATUS_OPTIONS: { value: GeneralTaskEntry["status"]; label: string; color: string }[] = [
-    { value: "completed",   label: "Completed",   color: "#22C55E" },
-    { value: "in_progress", label: "In Progress", color: "#F59E0B" },
-    { value: "blocked",     label: "Blocked",     color: "#EF4444" },
-  ]
-
   if (!isMediaTeam) {
-    const now2 = new Date()
-    const h2 = now2.getHours()
-    const isWindow = h2 >= 9 && h2 < 10
+    const workStart = 9, workEnd = 18
+    const totalWorkHours = workEnd - workStart
+    const elapsed = Math.max(0, Math.min(h - workStart, totalWorkHours))
+    const dayPct = Math.round((elapsed / totalWorkHours) * 100)
+    const ringR = 32, ringCirc = 2 * Math.PI * ringR
+    const ringFilled = (dayPct / 100) * ringCirc
+    const filledSlots = timeSlots.filter(s => s.description.trim())
+    const calDay = now.getDate()
+    const calMonth = now.toLocaleDateString("en-US", { month: "short", year: "numeric" })
+    const calWeekday = now.toLocaleDateString("en-US", { weekday: "long" })
+    const MOODS = [
+      { key: "very_tired", emoji: "😴", label: "Very tired" },
+      { key: "tired",      emoji: "😔", label: "Tired" },
+      { key: "neutral",    emoji: "😐", label: "Neutral" },
+      { key: "good",       emoji: "😊", label: "Good" },
+      { key: "very_good",  emoji: "🤩", label: "Very good" },
+    ]
 
     if (submitted) {
       return (
-        <div style={{ background:"#F5F6FA", minHeight:"100vh", padding:"20px 24px 40px", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ background:"#F5F6FA", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
           <div style={{ textAlign:"center" }}>
             <CheckCircle2 size={56} style={{ color:"#22C55E", marginBottom:16 }} />
             <p style={{ fontSize:20, fontWeight:900, color:"#111111", margin:"0 0 8px", fontFamily:"var(--font-jakarta)" }}>Daily Update Submitted!</p>
@@ -300,208 +334,245 @@ export default function DailyUpdateForm({
     }
 
     return (
-      <div style={{ background:"#F5F6FA", minHeight:"100vh", padding:"20px 24px 40px" }}>
+      <div style={{ background:"#F5F6FA", minHeight:"100vh", padding:"20px 24px 40px", display:"flex", flexDirection:"column", gap:18 }}>
 
-        {/* Header */}
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:22, flexWrap:"wrap", gap:12 }}>
-          <div>
-            <h1 style={{ fontSize:28, fontWeight:900, color:"#111111", fontFamily:"var(--font-jakarta)", margin:"0 0 3px" }}>
+        {/* Rich header */}
+        <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+
+          {/* Title + date */}
+          <div style={{ flexShrink:0 }}>
+            <h1 style={{ fontSize:26, fontWeight:900, color:"#111111", fontFamily:"var(--font-jakarta)", margin:"0 0 3px" }}>
               Daily <span style={{ color:"#DE1A1A" }}>Update</span>
             </h1>
-            <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{dateLabel}</p>
+            <p style={{ fontSize:11, color:"#9CA3AF", margin:0 }}>{dateLabel}</p>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:0, borderRadius:16, overflow:"hidden", background:"#FFFFFF", border:"1px solid #EBEDF2", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-            <div style={{ position:"relative", width:68, height:78, flexShrink:0 }}>
+
+          {/* Girl greeting card */}
+          <div style={{ display:"flex", alignItems:"center", borderRadius:16, overflow:"hidden", background:"rgba(222,26,26,0.03)", border:"1px solid rgba(222,26,26,0.12)", flex:1, maxWidth:340 }}>
+            <div style={{ position:"relative", width:70, height:80, flexShrink:0 }}>
               <Image src="/brand/assistant-girl.jpg" alt="" fill style={{ objectFit:"cover", objectPosition:"top center" }} />
             </div>
             <div style={{ padding:"10px 16px" }}>
-              <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 2px", fontFamily:"var(--font-jakarta)" }}>{greeting}, {firstName}! 👋</p>
-              <p style={{ fontSize:11, color:"#6B7280", margin:0 }}>Log your tasks for today.</p>
+              <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 3px", fontFamily:"var(--font-jakarta)" }}>
+                {greeting}, {firstName}! 👋
+              </p>
+              <p style={{ fontSize:11, color:"#6B7280", margin:0 }}>Let&apos;s make today productive.</p>
             </div>
           </div>
-        </div>
 
-        {/* 9AM–10AM window banner */}
-        <div style={{ background: isWindow ? "rgba(34,197,94,0.07)" : "rgba(222,26,26,0.05)", border:`1.5px solid ${isWindow ? "rgba(34,197,94,0.3)" : "rgba(222,26,26,0.2)"}`, borderRadius:14, padding:"12px 18px", marginBottom:18, display:"flex", alignItems:"center", gap:12 }}>
-          <Clock size={18} style={{ color: isWindow ? "#22C55E" : "#DE1A1A", flexShrink:0 }} />
-          <div>
-            <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 2px" }}>
-              {isWindow ? "Submission Window Open — 9:00 AM to 10:00 AM" : "Daily Task Submission Window: 9:00 AM – 10:00 AM"}
-            </p>
-            <p style={{ fontSize:11, color:"#6B7280", margin:0 }}>
-              {isWindow ? "Submit your daily task update now before the window closes." : "Submit your tasks during the 9 AM to 10 AM window each morning."}
-            </p>
+          {/* Calendar widget */}
+          <div style={{ background:"#FAFBFC", borderRadius:16, border:"1px solid #EBEDF2", padding:"12px 18px", textAlign:"center", flexShrink:0 }}>
+            <p style={{ fontSize:10, color:"#9CA3AF", margin:"0 0 4px", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.08em" }}>{calMonth}</p>
+            <p style={{ fontSize:32, fontWeight:900, color:"#DE1A1A", margin:"0 0 2px", lineHeight:1, fontFamily:"var(--font-jakarta)" }}>{calDay}</p>
+            <p style={{ fontSize:10, color:"#6B7280", margin:0, fontWeight:600 }}>{calWeekday}</p>
           </div>
-        </div>
 
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:18, alignItems:"start" }}>
-
-          {/* Left — Task list */}
-          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-
-              {/* Section header */}
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                  <div style={{ width:34, height:34, borderRadius:10, background:"rgba(222,26,26,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                    <Briefcase size={16} style={{ color:"#DE1A1A" }} />
-                  </div>
-                  <div>
-                    <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Tasks Today</p>
-                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{generalTasks.length} entr{generalTasks.length !== 1 ? "ies" : "y"} · {totalGeneralHours}h total</p>
-                  </div>
-                </div>
+          {/* Day progress ring */}
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, flexShrink:0 }}>
+            <div style={{ position:"relative", width:80, height:80 }}>
+              <svg viewBox="0 0 80 80" width="80" height="80">
+                <circle cx="40" cy="40" r={ringR} fill="none" stroke="#F3F4F6" strokeWidth="8" />
+                <circle cx="40" cy="40" r={ringR} fill="none" stroke="#DE1A1A" strokeWidth="8"
+                  strokeDasharray={`${ringFilled} ${ringCirc}`} strokeLinecap="round"
+                  transform="rotate(-90 40 40)" style={{ transition:"stroke-dasharray 0.5s ease" }} />
+              </svg>
+              <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <span style={{ fontSize:15, fontWeight:900, color:"#111111" }}>{dayPct}%</span>
               </div>
-
-              {generalTasks.length === 0 ? (
-                <div onClick={addGeneralTask}
-                  style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"40px 0", borderRadius:16, border:"2px dashed #FECACA", background:"rgba(222,26,26,0.02)", cursor:"pointer" }}>
-                  <Briefcase size={36} style={{ color:"#FCA5A5" }} />
-                  <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No tasks logged yet</p>
-                  <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#DE1A1A", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(222,26,26,0.35)" }}>
-                    + Add Task
-                  </span>
-                </div>
-              ) : (
-                <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-                  {generalTasks.map((t, i) => (
-                    <div key={t.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-                        <span style={{ fontSize:11, fontWeight:800, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.1em" }}>Task #{i + 1}</span>
-                        <button onClick={() => removeGeneralTask(t.id)}
-                          style={{ width:26, height:26, borderRadius:8, background:"rgba(239,68,68,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          <Trash2 size={12} style={{ color:"#EF4444" }} />
-                        </button>
-                      </div>
-
-                      {/* Row 1 — Project & Task Title */}
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
-                        <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Project / Client</label>
-                          {projects.length > 0 ? (
-                            <div style={{ position:"relative" }}>
-                              <select value={t.clientName} onChange={e => patchGeneralTask(t.id, { clientName: e.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">Select project…</option>
-                                {projects.map(p => <option key={p.id} value={p.business_name}>{p.business_name}</option>)}
-                              </select>
-                              <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                            </div>
-                          ) : (
-                            <input value={t.clientName} onChange={e => patchGeneralTask(t.id, { clientName: e.target.value })} placeholder="Client / project…" style={F} />
-                          )}
-                        </div>
-                        <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Task Title *</label>
-                          <input value={t.title} onChange={e => patchGeneralTask(t.id, { title: e.target.value })} placeholder="e.g. Fix login bug, API integration…" style={F} />
-                        </div>
-                      </div>
-
-                      {/* Row 2 — Category, Duration, Status */}
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 100px 1fr", gap:10, marginBottom:10 }}>
-                        <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Category</label>
-                          <div style={{ position:"relative" }}>
-                            <select value={t.category} onChange={e => patchGeneralTask(t.id, { category: e.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                              {TASK_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                        </div>
-                        <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Hours</label>
-                          <DurationPicker value={t.durationHours} onChange={v => patchGeneralTask(t.id, { durationHours: v })} />
-                        </div>
-                        <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Status</label>
-                          <div style={{ position:"relative" }}>
-                            <select value={t.status} onChange={e => patchGeneralTask(t.id, { status: e.target.value as GeneralTaskEntry["status"] })} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                              {STATUS_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                            </select>
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Row 3 — Notes */}
-                      <div>
-                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Notes</label>
-                        <input value={t.notes} onChange={e => patchGeneralTask(t.id, { notes: e.target.value })} placeholder="What did you accomplish, any blockers?" style={F} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {generalTasks.length > 0 && (
-                <button onClick={addGeneralTask}
-                  style={{ display:"flex", alignItems:"center", gap:7, marginTop:12, padding:"9px 16px", borderRadius:10, background:"rgba(222,26,26,0.06)", border:"1.5px dashed rgba(222,26,26,0.3)", color:"#DE1A1A", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                  <Plus size={13} /> Add Another Task
-                </button>
-              )}
             </div>
+            <div style={{ textAlign:"center" }}>
+              <p style={{ fontSize:10, fontWeight:700, color:"#374151", margin:"0 0 1px" }}>Day Progress</p>
+              <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>{elapsed}/{totalWorkHours} hrs</p>
+            </div>
+          </div>
+        </div>
 
-            {/* Submit bar */}
-            <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+        {/* Main grid */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 300px", gap:18, alignItems:"start" }}>
+
+          {/* Left — Timeline */}
+          <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
+              <div style={{ width:34, height:34, borderRadius:10, background:"rgba(222,26,26,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Clock size={16} style={{ color:"#DE1A1A" }} />
+              </div>
               <div>
-                {error && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{error}</p>}
-                {!error && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{generalTasks.length} task{generalTasks.length !== 1 ? "s" : ""} · {totalGeneralHours}h total</p>}
+                <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Today&apos;s Timeline</p>
+                <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{filledSlots.length} of {timeSlots.length} slots filled</p>
               </div>
-              <button onClick={handleGeneralSubmit} disabled={isPending || submitted}
-                style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor: isPending ? "not-allowed" : "pointer", transition:"all 0.2s", opacity: isPending ? 0.7 : 1,
-                  background: "#DE1A1A", color:"#fff", boxShadow:"0 4px 14px rgba(222,26,26,0.4)" }}>
-                {isPending ? <Loader2 size={14} className="animate-spin" /> : <SendHorizonal size={14} />}
-                {isPending ? "Submitting…" : "Submit Daily Update"}
-              </button>
+            </div>
+
+            <div style={{ display:"flex", flexDirection:"column" }}>
+              {timeSlots.map((slot, i) => {
+                const isCurrent = h >= 9 + i && h < 10 + i
+                const statusCfg = slot.status === "completed"
+                  ? { bg:"rgba(34,197,94,0.1)", color:"#16A34A", border:"rgba(34,197,94,0.3)" }
+                  : slot.status === "in_progress"
+                  ? { bg:"rgba(245,158,11,0.1)", color:"#D97706", border:"rgba(245,158,11,0.3)" }
+                  : { bg:"#F9FAFB", color:"#9CA3AF", border:"#E5E7EB" }
+                return (
+                  <div key={slot.id} style={{
+                    display:"flex", alignItems:"center", gap:10,
+                    padding:"11px 8px",
+                    borderBottom: i < timeSlots.length - 1 ? "1px solid #F5F5F7" : "none",
+                    background: isCurrent ? "rgba(222,26,26,0.02)" : "transparent",
+                    borderRadius: isCurrent ? 10 : 0,
+                  }}>
+                    {/* Time label */}
+                    <span style={{ width:112, flexShrink:0, fontSize:11, fontWeight:800,
+                      color: isCurrent ? "#DE1A1A" : "#6B7280", fontFamily:"var(--font-jakarta)" }}>
+                      {slot.label}
+                    </span>
+                    {/* Clock circle */}
+                    <div style={{ width:30, height:30, borderRadius:"50%", flexShrink:0,
+                      background: isCurrent ? "#DE1A1A" : "#F3F4F6",
+                      display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <Clock size={13} style={{ color: isCurrent ? "#FFFFFF" : "#9CA3AF" }} />
+                    </div>
+                    {/* Description input */}
+                    <input value={slot.description} onChange={e => patchSlot(slot.id, { description: e.target.value })}
+                      placeholder="What did you work on this hour?"
+                      style={{ flex:1, background:"transparent", border:"none", outline:"none",
+                        fontSize:12, color:"#111827", fontFamily:"inherit", padding:"0 4px" }} />
+                    {/* Project pill */}
+                    {projects.length > 0 ? (
+                      <select value={slot.projectName} onChange={e => patchSlot(slot.id, { projectName: e.target.value })}
+                        style={{ fontSize:10, fontWeight:700,
+                          color: slot.projectName ? "#DE1A1A" : "#9CA3AF",
+                          background: slot.projectName ? "rgba(222,26,26,0.08)" : "#F3F4F6",
+                          border: slot.projectName ? "1.5px solid rgba(222,26,26,0.25)" : "1.5px solid #E5E7EB",
+                          borderRadius:20, padding:"3px 8px", appearance:"none", cursor:"pointer",
+                          maxWidth:110, flexShrink:0 }}>
+                        <option value="">Project</option>
+                        {projects.map(p => <option key={p.id} value={p.business_name}>{p.business_name}</option>)}
+                      </select>
+                    ) : (
+                      <input value={slot.projectName} onChange={e => patchSlot(slot.id, { projectName: e.target.value })}
+                        placeholder="Project"
+                        style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", background:"#F3F4F6",
+                          border:"1.5px solid #E5E7EB", borderRadius:20, padding:"3px 8px",
+                          maxWidth:100, outline:"none", flexShrink:0 }} />
+                    )}
+                    {/* Status dropdown */}
+                    <select value={slot.status} onChange={e => patchSlot(slot.id, { status: e.target.value as TimeSlot["status"] })}
+                      style={{ fontSize:10, fontWeight:700, color:statusCfg.color,
+                        background:statusCfg.bg, border:`1.5px solid ${statusCfg.border}`,
+                        borderRadius:20, padding:"3px 8px", appearance:"none", cursor:"pointer", flexShrink:0 }}>
+                      <option value="not_started">Not Started</option>
+                      <option value="in_progress">In Progress</option>
+                      <option value="completed">Completed ✓</option>
+                    </select>
+                  </div>
+                )
+              })}
             </div>
           </div>
 
-          {/* Right — Summary panel */}
-          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          {/* Right — Sidebar */}
+          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+
+            {/* Today's Overview */}
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-              <div style={{ position:"relative", height:150 }}>
+              <div style={{ position:"relative", height:140 }}>
                 <Image src="/brand/daily-boy.png" alt="" fill style={{ objectFit:"cover", objectPosition:"center top" }} />
                 <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom, transparent 40%, #FFFFFF 100%)" }} />
               </div>
               <div style={{ padding:"14px 16px" }}>
-                <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 14px", display:"flex", alignItems:"center", gap:7 }}>
+                <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 12px", display:"flex", alignItems:"center", gap:7 }}>
                   <BarChart2 size={13} style={{ color:"#DE1A1A" }} /> Today&apos;s Overview
                 </p>
-                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
                   {([
-                    { icon:<Clock size={12} style={{ color:"#9CA3AF" }} />,    label:"Hours Logged", text: totalGeneralHours > 0 ? `${totalGeneralHours}h` : "—", color: totalGeneralHours >= 8 ? "#22C55E" : "#111111", badge: null },
-                    { icon:<Briefcase size={12} style={{ color:"#DE1A1A" }} />,label:"Tasks Added",   text: String(generalTasks.length), color: generalTasks.length > 0 ? "#DE1A1A" : "#9CA3AF", badge: null },
-                    { icon:<CheckCircle2 size={12} style={{ color:"#22C55E" }}/>,label:"Completed",  text: String(generalTasks.filter(t=>t.status==="completed").length), color:"#22C55E", badge: null },
-                    { icon:<AlertCircle size={12} style={{ color:"#EF4444" }}/>, label:"Blocked",    text: String(generalTasks.filter(t=>t.status==="blocked").length),   color:"#EF4444", badge: null },
-                  ] as Array<{ icon: React.ReactNode; label: string; text: string; color: string; badge: null }>
-                  ).map((r, idx) => (
+                    { label:"Hours Logged", value:`${elapsed}/${totalWorkHours} hrs`, color: elapsed >= 8 ? "#22C55E" : "#111111" },
+                    { label:"Focus Time", value: filledSlots.filter(s=>s.status!=="not_started").length > 0 ? `${filledSlots.filter(s=>s.status!=="not_started").length}h active` : "—", color:"#6366F1" },
+                    { label:"Productivity", value:`${generalProductivity}%`, color: generalProductivity >= 70 ? "#22C55E" : generalProductivity > 0 ? "#F59E0B" : "#9CA3AF" },
+                    { label:"Status", badge:{ text: filledSlots.length===0?"Not started":generalProductivity>=70?"On track":"In Progress", bg: filledSlots.length===0?"#9CA3AF":generalProductivity>=70?"#22C55E":"#F59E0B" } },
+                  ] as Array<{label:string;value?:string;color?:string;badge?:{text:string;bg:string}}>
+                  ).map((r,idx)=>(
                     <div key={idx} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                      <span style={{ fontSize:11, color:"#9CA3AF", display:"flex", alignItems:"center", gap:6 }}>{r.icon}{r.label}</span>
-                      <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.text}</span>
+                      <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
+                      {r.badge ? (
+                        <span style={{ fontSize:10, fontWeight:700, color:"#fff", background:r.badge.bg, padding:"2px 8px", borderRadius:6 }}>{r.badge.text}</span>
+                      ) : (
+                        <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
             </div>
 
+            {/* Productivity Score */}
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:12 }}>
-                <BarChart2 size={14} style={{ color:"#DE1A1A" }} />
-                <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>Productivity Score</p>
-              </div>
+              <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 12px", display:"flex", alignItems:"center", gap:7 }}>
+                <BarChart2 size={14} style={{ color:"#DE1A1A" }} /> Productivity Score
+              </p>
               <GaugeChart score={generalProductivity} />
               <p style={{ fontSize:10, color:"#9CA3AF", textAlign:"center", marginTop:6 }}>
-                {generalProductivity === 0 ? "Fill in your tasks above ✍️" : generalProductivity >= 70 ? "You're on fire! 🔥" : "Keep going! 💪"}
+                {generalProductivity===0?"Fill in your tasks above ✍️":generalProductivity>=70?"You're on fire! 🔥":"Keep going! 💪"}
               </p>
             </div>
 
-            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"18px 16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)", display:"flex", alignItems:"flex-start", gap:14 }}>
-              <div style={{ fontSize:38, flexShrink:0, lineHeight:1 }}>🏆</div>
-              <div>
-                <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>Consistency is the key!</p>
-                <p style={{ fontSize:11, color:"#6B7280", margin:0, lineHeight:1.55 }}>Keep logging your daily tasks to track your progress and improve productivity.</p>
+            {/* Mood selector */}
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 14px" }}>How do you feel today?</p>
+              <div style={{ display:"flex", gap:4, justifyContent:"space-between" }}>
+                {MOODS.map(m => (
+                  <button key={m.key} onClick={() => setMood(m.key)} title={m.label}
+                    style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4,
+                      padding:"8px 4px", borderRadius:12, flex:1, cursor:"pointer", border:"none",
+                      background: mood===m.key ? "rgba(222,26,26,0.05)" : "transparent",
+                      outline: mood===m.key ? "2px solid #DE1A1A" : "2px solid transparent",
+                      transition:"all 0.15s" }}>
+                    <span style={{ fontSize:20 }}>{m.emoji}</span>
+                    <span style={{ fontSize:8, color: mood===m.key?"#DE1A1A":"#9CA3AF", fontWeight:600, lineHeight:1.2, textAlign:"center" }}>{m.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
+
+            {/* AI Assistant */}
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
+                <div style={{ width:44, height:44, borderRadius:14, flexShrink:0,
+                  background:"linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  boxShadow:"0 4px 12px rgba(59,130,246,0.3)" }}>
+                  <span style={{ fontSize:22 }}>🤖</span>
+                </div>
+                <div>
+                  <p style={{ fontSize:12, fontWeight:800, color:"#111111", margin:"0 0 3px" }}>AI Assistant</p>
+                  <p style={{ fontSize:11, color:"#6B7280", margin:0, lineHeight:1.4 }}>
+                    Hi {firstName}! 👋 Need help logging your update?
+                  </p>
+                </div>
+              </div>
+              <button style={{ width:"100%", padding:"10px 0", borderRadius:12, border:"none",
+                cursor:"pointer", background:"#DE1A1A", color:"#FFFFFF", fontSize:12, fontWeight:700,
+                boxShadow:"0 4px 14px rgba(222,26,26,0.35)" }}>
+                Get AI Suggestion
+              </button>
+            </div>
           </div>
+        </div>
+
+        {/* Bottom submit bar */}
+        <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 24px",
+          display:"flex", alignItems:"center", justifyContent:"space-between",
+          boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <CheckCircle2 size={16} style={{ color:"#22C55E" }} />
+            <span style={{ fontSize:12, color:"#6B7280", fontWeight:500 }}>Auto-saved just now</span>
+          </div>
+          {error && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{error}</p>}
+          <button onClick={handleGeneralSubmit} disabled={isPending}
+            style={{ display:"flex", alignItems:"center", gap:8, padding:"12px 32px", borderRadius:16,
+              fontSize:14, fontWeight:700, border:"none", cursor: isPending?"not-allowed":"pointer",
+              background:"#DE1A1A", color:"#FFFFFF", boxShadow:"0 4px 18px rgba(222,26,26,0.4)",
+              opacity: isPending?0.7:1, transition:"all 0.2s" }}>
+            {isPending ? <Loader2 size={14} className="animate-spin" /> : <SendHorizonal size={14} />}
+            {isPending ? "Submitting…" : "Submit Daily Update →"}
+          </button>
         </div>
       </div>
     )

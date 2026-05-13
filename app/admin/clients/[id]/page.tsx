@@ -57,7 +57,7 @@ export default async function ProjectDetailPage({
   const { data: activities } = taskIds.length > 0
     ? await admin
         .from("daily_updates")
-        .select("id, user_id, date, working_hours, shoot_count, task_id, notes, attendance_status, users(id, name, employee_id)")
+        .select("id, user_id, date, working_hours, shoot_count, learning_hours, work_type, task_id, notes, attendance_status, users(id, name, employee_id)")
         .in("task_id", taskIds)
         .order("date", { ascending: false })
     : { data: [] as any[] }

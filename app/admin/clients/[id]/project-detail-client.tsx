@@ -5,7 +5,7 @@ import Link from "next/link"
 import {
   ArrowLeft, MapPin, CalendarDays, Clock, Camera, Target,
   AlertTriangle, CheckCircle2, PauseCircle, Circle, Activity,
-  TrendingUp, Users, Zap, User, BarChart3, UserX, Timer,
+  TrendingUp, Zap, User, BarChart3, UserX, Timer, Layers,
 } from "lucide-react"
 
 interface Project {
@@ -36,6 +36,8 @@ interface DailyUpdate {
   date: string
   working_hours: number | null
   shoot_count: number
+  learning_hours: number | null
+  work_type: string | null
   task_id: string | null
   notes: string | null
   attendance_status: string
@@ -68,6 +70,21 @@ function resolveUser(u: DailyUpdate["users"]) {
 function resolveTaskUser(u: Task["users"]) {
   if (!u) return null
   return Array.isArray(u) ? u[0] ?? null : u
+}
+
+function getWorkTypeCfg(wt: string): { label: string; color: string; bg: string; emoji: string } {
+  const t = wt.toLowerCase()
+  if (t.includes("video"))  return { label: "Videos",       color: "#E53935", bg: "rgba(229,57,53,0.12)",   emoji: "🎬" }
+  if (t.includes("audio"))  return { label: "Audio",         color: "#8B5CF6", bg: "rgba(139,92,246,0.12)",  emoji: "🎵" }
+  if (t.includes("script")) return { label: "Scripts",       color: "#16A34A", bg: "rgba(22,163,74,0.12)",   emoji: "📝" }
+  if (t.includes("design")) return { label: "Design",        color: "#3B82F6", bg: "rgba(59,130,246,0.12)",  emoji: "🎨" }
+  if (t.includes("social")) return { label: "Social Media",  color: "#0EA5E9", bg: "rgba(14,165,233,0.12)",  emoji: "📱" }
+  if (t.includes("photo"))  return { label: "Photography",   color: "#F97316", bg: "rgba(249,115,22,0.12)",  emoji: "📸" }
+  if (t.includes("ad") || t.includes("campaign")) return { label: "Ads / Campaign", color: "#F59E0B", bg: "rgba(245,158,11,0.12)", emoji: "📊" }
+  if (t.includes("edit"))   return { label: "Editing",       color: "#A855F7", bg: "rgba(168,85,247,0.12)",  emoji: "✂️" }
+  if (t.includes("content"))return { label: "Content",       color: "#10B981", bg: "rgba(16,185,129,0.12)",  emoji: "📄" }
+  const label = wt.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  return { label, color: "#6B7280", bg: "rgba(107,114,128,0.12)", emoji: "💼" }
 }
 
 function getInitials(name: string) {
@@ -183,11 +200,19 @@ export default function ProjectDetailClient({
       return avgH < 5 && e.days.size > 0
     })
 
+    // Work type breakdown
+    const workTypeBreakdown: Record<string, number> = {}
+    for (const a of activities) {
+      const wt = (a.work_type ?? "").toLowerCase().trim()
+      if (wt) workTypeBreakdown[wt] = (workTypeBreakdown[wt] ?? 0) + 1
+    }
+
     return {
       totalTasks, completed, totalHours, totalShoots,
       activeDates, avgHoursPerDay, shootsPerHour,
       employees, tasksWithActivity,
       noActivityTasks, overdueTasks, stuckTasks, lowHourEmployees,
+      workTypeBreakdown,
     }
   }, [tasks, activities])
 
@@ -250,12 +275,89 @@ export default function ProjectDetailClient({
       </div>
 
       {/* ── Stats Row ──────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         <StatChip label="Total Tasks"  value={stats.totalTasks}  />
         <StatChip label="Completed"    value={stats.completed}   color="#DC2626" bg="rgba(220,38,38,0.05)" border="rgba(220,38,38,0.15)" />
         <StatChip label="Hours Logged" value={`${stats.totalHours.toFixed(1)}h`} color="#F59E0B" bg="rgba(245,158,11,0.05)" border="rgba(245,158,11,0.15)" />
         <StatChip label="Shoots"       value={stats.totalShoots} color="rgba(255,255,255,0.7)" />
       </div>
+
+      {/* ── Work Done Breakdown ────────────────────────────────────────────── */}
+      {(Object.keys(stats.workTypeBreakdown).length > 0 || stats.totalShoots > 0) && (
+        <div className="rounded-xl overflow-hidden mb-6" style={{ background: "#1A1A1A", border: "1px solid #2A2A2A" }}>
+          <div className="flex items-center gap-2.5 px-5 py-3.5" style={{ borderBottom: "1px solid #222" }}>
+            <Layers size={14} style={{ color: "#DC2626" }} />
+            <h2 className="text-[13px] font-black uppercase tracking-wider" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
+              Work Done for This Client
+            </h2>
+            <span className="ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}>
+              {Object.values(stats.workTypeBreakdown).reduce((a, b) => a + b, 0) + (stats.totalShoots > 0 ? 1 : 0)} types
+            </span>
+          </div>
+          <div className="p-5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              {/* Shoots card — always first if present */}
+              {stats.totalShoots > 0 && (
+                <div className="rounded-xl p-4 flex flex-col items-center text-center"
+                  style={{ background: "rgba(249,115,22,0.06)", border: "1px solid rgba(249,115,22,0.18)" }}>
+                  <span className="text-2xl mb-2">📸</span>
+                  <span className="text-[26px] font-black leading-none mb-1"
+                    style={{ fontFamily: "var(--font-jakarta)", color: "#F97316" }}>
+                    {stats.totalShoots}
+                  </span>
+                  <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>Shoots</span>
+                </div>
+              )}
+              {/* Dynamic work type cards */}
+              {Object.entries(stats.workTypeBreakdown)
+                .sort((a, b) => b[1] - a[1])
+                .map(([type, count]) => {
+                  const cfg = getWorkTypeCfg(type)
+                  return (
+                    <div key={type} className="rounded-xl p-4 flex flex-col items-center text-center"
+                      style={{ background: cfg.bg, border: `1px solid ${cfg.color}30` }}>
+                      <span className="text-2xl mb-2">{cfg.emoji}</span>
+                      <span className="text-[26px] font-black leading-none mb-1"
+                        style={{ fontFamily: "var(--font-jakarta)", color: cfg.color }}>
+                        {count}
+                      </span>
+                      <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                  )
+                })}
+              {/* Hours summary card */}
+              <div className="rounded-xl p-4 flex flex-col items-center text-center"
+                style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.18)" }}>
+                <span className="text-2xl mb-2">⏱️</span>
+                <span className="text-[26px] font-black leading-none mb-1"
+                  style={{ fontFamily: "var(--font-jakarta)", color: "#F59E0B" }}>
+                  {stats.totalHours.toFixed(0)}h
+                </span>
+                <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>Total Hours</span>
+              </div>
+              {/* Active days card */}
+              <div className="rounded-xl p-4 flex flex-col items-center text-center"
+                style={{ background: "rgba(220,38,38,0.06)", border: "1px solid rgba(220,38,38,0.18)" }}>
+                <span className="text-2xl mb-2">📅</span>
+                <span className="text-[26px] font-black leading-none mb-1"
+                  style={{ fontFamily: "var(--font-jakarta)", color: "#DC2626" }}>
+                  {stats.activeDates}
+                </span>
+                <span className="text-[11px] font-medium" style={{ color: "rgba(255,255,255,0.4)" }}>Active Days</span>
+              </div>
+            </div>
+
+            {/* No work_type data fallback message */}
+            {Object.keys(stats.workTypeBreakdown).length === 0 && (
+              <p className="text-center text-[12px] mt-3" style={{ color: "rgba(255,255,255,0.25)" }}>
+                Work types not logged yet. Members can set work type when submitting daily updates.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-6">
 

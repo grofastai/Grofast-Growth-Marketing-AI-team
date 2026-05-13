@@ -7,6 +7,22 @@ import {
   ChevronDown, Sparkles, Bell, SlidersHorizontal,
 } from "lucide-react"
 import type { SheetClient } from "@/lib/google/sheets"
+import type { WorkSummary } from "./page"
+
+function getWorkTypeCfg(wt: string): { label: string; color: string; bg: string; emoji: string } {
+  const t = wt.toLowerCase()
+  if (t.includes("video"))   return { label: "Videos",      color: "#E53935", bg: "rgba(229,57,53,0.08)",   emoji: "🎬" }
+  if (t.includes("audio"))   return { label: "Audio",        color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🎵" }
+  if (t.includes("script"))  return { label: "Scripts",      color: "#16A34A", bg: "rgba(22,163,74,0.08)",   emoji: "📝" }
+  if (t.includes("design"))  return { label: "Design",       color: "#3B82F6", bg: "rgba(59,130,246,0.08)",  emoji: "🎨" }
+  if (t.includes("social"))  return { label: "Social Media", color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",  emoji: "📱" }
+  if (t.includes("photo"))   return { label: "Photography",  color: "#F97316", bg: "rgba(249,115,22,0.08)",  emoji: "📸" }
+  if (t.includes("ad") || t.includes("campaign")) return { label: "Ads", color: "#F59E0B", bg: "rgba(245,158,11,0.08)", emoji: "📊" }
+  if (t.includes("edit"))    return { label: "Editing",      color: "#A855F7", bg: "rgba(168,85,247,0.08)",  emoji: "✂️" }
+  if (t.includes("content")) return { label: "Content",      color: "#10B981", bg: "rgba(16,185,129,0.08)",  emoji: "📄" }
+  const label = wt.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  return { label, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "💼" }
+}
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const IND_PAL: Record<string, { bg: string; text: string; border: string; dot: string; spark: string }> = {
@@ -204,7 +220,7 @@ function buildActs(c: SheetClient): Act[] {
 }
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
-function OverviewTab({ c }: { c: SheetClient }) {
+function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSummary }) {
   const received = parseAmt(c.received) || 180000
   const pending  = parseAmt(c.pending)
   const total    = received + pending
@@ -362,7 +378,66 @@ function OverviewTab({ c }: { c: SheetClient }) {
         </div>
       </div>
 
-      {/* Row 3: All Campaigns table */}
+      {/* Row 3: Work Done (real data from Supabase) */}
+      {workSummary && (Object.keys(workSummary.workTypes).length > 0 || workSummary.shoots > 0 || workSummary.hours > 0) && (
+        <div style={card}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>
+                Work Done for This Client
+              </p>
+              <span style={{ fontSize: 10, fontWeight: 700, background: "rgba(22,163,74,0.09)", color: "#16A34A", padding: "2px 8px", borderRadius: 6 }}>
+                Live Data
+              </span>
+            </div>
+            <span style={{ fontSize: 10, color: "#9CA3AF" }}>
+              {workSummary.days} active days · {workSummary.hours.toFixed(0)}h total
+            </span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))", gap: 10 }}>
+            {/* Shoots */}
+            {workSummary.shoots > 0 && (
+              <div style={{ borderRadius: 14, padding: "14px 12px", textAlign: "center", background: "rgba(249,115,22,0.07)", border: "1px solid rgba(249,115,22,0.18)" }}>
+                <div style={{ fontSize: 22, marginBottom: 4 }}>📸</div>
+                <div style={{ fontSize: 28, fontWeight: 900, color: "#F97316", lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{workSummary.shoots}</div>
+                <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 4, fontWeight: 500 }}>Shoots</div>
+              </div>
+            )}
+            {/* Work types */}
+            {Object.entries(workSummary.workTypes)
+              .sort((a, b) => b[1] - a[1])
+              .map(([type, count]) => {
+                const cfg = getWorkTypeCfg(type)
+                return (
+                  <div key={type} style={{ borderRadius: 14, padding: "14px 12px", textAlign: "center", background: cfg.bg, border: `1px solid ${cfg.color}30` }}>
+                    <div style={{ fontSize: 22, marginBottom: 4 }}>{cfg.emoji}</div>
+                    <div style={{ fontSize: 28, fontWeight: 900, color: cfg.color, lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{count}</div>
+                    <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 4, fontWeight: 500 }}>{cfg.label}</div>
+                  </div>
+                )
+              })}
+            {/* Total hours */}
+            <div style={{ borderRadius: 14, padding: "14px 12px", textAlign: "center", background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.18)" }}>
+              <div style={{ fontSize: 22, marginBottom: 4 }}>⏱️</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: "#F59E0B", lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{workSummary.hours.toFixed(0)}h</div>
+              <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 4, fontWeight: 500 }}>Hours Logged</div>
+            </div>
+            {/* Active days */}
+            <div style={{ borderRadius: 14, padding: "14px 12px", textAlign: "center", background: "rgba(59,130,246,0.07)", border: "1px solid rgba(59,130,246,0.18)" }}>
+              <div style={{ fontSize: 22, marginBottom: 4 }}>📅</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: "#3B82F6", lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{workSummary.days}</div>
+              <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 4, fontWeight: 500 }}>Active Days</div>
+            </div>
+          </div>
+          {Object.keys(workSummary.workTypes).length === 0 && (
+            <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 8 }}>
+              Work types not yet logged. Members set work type in their daily update.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Row 4: All Campaigns table */}
       <div style={card}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -436,8 +511,8 @@ function OverviewTab({ c }: { c: SheetClient }) {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function ClientsSheetView({
-  activeClients, pastClients,
-}: { activeClients: SheetClient[]; pastClients: SheetClient[] }) {
+  activeClients, pastClients, clientWorkMap = {},
+}: { activeClients: SheetClient[]; pastClients: SheetClient[]; clientWorkMap?: Record<string, WorkSummary> }) {
   const [listTab, setListTab]     = useState<"active" | "past">("active")
   const [selected, setSelected]   = useState<SheetClient | null>(activeClients[0] ?? pastClients[0] ?? null)
   const [search, setSearch]       = useState("")
@@ -723,7 +798,16 @@ export default function ClientsSheetView({
             </div>
 
             {/* Content */}
-            {contentTab === "overview" && <OverviewTab c={sel} />}
+            {contentTab === "overview" && (
+              <OverviewTab
+                c={sel}
+                workSummary={
+                  clientWorkMap[(sel.company_name || sel.customer_name).toLowerCase()] ??
+                  clientWorkMap[sel.customer_name?.toLowerCase() ?? ""] ??
+                  clientWorkMap[sel.company_name?.toLowerCase() ?? ""]
+                }
+              />
+            )}
             {contentTab !== "overview" && (
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 24px" }}>
                 <div style={{ textAlign: "center" }}>

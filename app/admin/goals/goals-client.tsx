@@ -218,22 +218,22 @@ export default function GoalsClient({
   const STAT_CARDS = [
     {
       label: "To Do", count: totalByStatus.todo,
-      img: "/brand/task-assign/8c60ba7f-9bf2-4050-b633-4016457dd4d5.png",
+      img: "/brand/task-assign/todo.png",
       numColor: "#111827", bg: "#FFFFFF",
     },
     {
       label: "In Progress", count: totalByStatus.in_progress,
-      img: "/brand/task-assign/997e4695-b557-4b2e-b056-488d15e04059.png",
+      img: "/brand/task-assign/inprogress.png",
       numColor: "#F59E0B", bg: "#FFFFFF",
     },
     {
       label: "Completed", count: totalByStatus.completed,
-      img: "/brand/task-assign/b142a2e3-2d19-48c0-8636-5d3e2f2810ce.png",
+      img: "/brand/task-assign/complete.png",
       numColor: "#16A34A", bg: "#FFFFFF",
     },
     {
       label: "Total", count: tasks.length,
-      img: "/brand/task-assign/b69f32ac-2f75-47fc-b056-3775c7a6e09f.png",
+      img: "/brand/task-assign/total.png",
       numColor: "#de1a1a", bg: "#FFFFFF",
     },
   ]
@@ -244,18 +244,23 @@ export default function GoalsClient({
       {/* ── HEADER ──────────────────────────────────────────────────────────── */}
       <div style={{
         background: "#FFFFFF", borderRadius: 20, border: "1px solid #EBEDF2",
-        padding: "20px 28px", marginBottom: 20,
+        padding: "16px 28px", marginBottom: 20,
         boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
       }}>
-        {/* Left: title */}
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, color: "#de1a1a", fontFamily: "var(--font-jakarta)", margin: 0, lineHeight: 1.1 }}>
-            Task Board
-          </h1>
-          <p style={{ fontSize: 13, color: "#9CA3AF", margin: "4px 0 0", fontWeight: 500 }}>
-            Assign and track team tasks — {tasks.length} total
-          </p>
+        {/* Left: character + title */}
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <div style={{ position: "relative", width: 90, height: 90, flexShrink: 0 }}>
+            <Image src="/brand/task-assign/boy1.png" alt="" fill style={{ objectFit: "contain" }} />
+          </div>
+          <div>
+            <h1 style={{ fontSize: 28, fontWeight: 900, color: "#de1a1a", fontFamily: "var(--font-jakarta)", margin: 0, lineHeight: 1.1 }}>
+              Task Board
+            </h1>
+            <p style={{ fontSize: 13, color: "#9CA3AF", margin: "4px 0 0", fontWeight: 500 }}>
+              Assign and track team tasks — {tasks.length} total
+            </p>
+          </div>
         </div>
 
         {/* Right: view toggle + create */}
@@ -447,19 +452,14 @@ export default function GoalsClient({
         marginTop: 24, borderRadius: 20, background: "#FFFFFF",
         border: "1px solid #EBEDF2", boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 32px 0 0", overflow: "hidden", minHeight: 180,
+        padding: "0 24px 0 0", overflow: "hidden", minHeight: 180,
       }}>
-        {/* Left characters */}
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 0, flexShrink: 0 }}>
-          {[
-            "/brand/task-assign/2893a780-1211-44ec-92ce-1ebfc1910eb3.png",
-            "/brand/task-assign/3a32530b-be9e-4ddd-9e33-47b947bc5b43.png",
-            "/brand/task-assign/2680ef12-265d-46d1-9eb7-beef6574d23b.png",
-          ].map((src, i) => (
-            <div key={i} style={{ position: "relative", width: 150, height: 175, flexShrink: 0, marginRight: i < 2 ? -20 : 0 }}>
-              <Image src={src} alt="" fill style={{ objectFit: "contain", objectPosition: "bottom" }} />
-            </div>
-          ))}
+        {/* Left — team group image */}
+        <div style={{ position: "relative", width: 320, height: 180, flexShrink: 0 }}>
+          <Image
+            src="/brand/task-assign/team for down .png"
+            alt="" fill style={{ objectFit: "cover", objectPosition: "center" }}
+          />
         </div>
 
         {/* Text */}
@@ -472,11 +472,11 @@ export default function GoalsClient({
           </p>
         </div>
 
-        {/* Right illustration */}
-        <div style={{ position: "relative", width: 160, height: 175, flexShrink: 0 }}>
+        {/* Right — study/lamp illustration */}
+        <div style={{ position: "relative", width: 160, height: 160, flexShrink: 0 }}>
           <Image
-            src="/brand/task-assign/8e422454-bc36-4a8b-95e0-6ce396fac88d.png"
-            alt="" fill style={{ objectFit: "contain", objectPosition: "right bottom" }}
+            src="/brand/task-assign/study for down title .png"
+            alt="" fill style={{ objectFit: "contain", objectPosition: "right center" }}
           />
         </div>
       </div>

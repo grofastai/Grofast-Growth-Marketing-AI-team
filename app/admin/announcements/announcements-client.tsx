@@ -193,27 +193,39 @@ export default function AnnouncementsClient({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 20 }}>
         {/* ─────────── LEFT: Main Content ─────────── */}
         <div>
-          {/* Hero Banner */}
-          <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", height: 200, background: "linear-gradient(135deg, #FFF5F5 0%, #FFF0F0 40%, #FFE8E8 100%)", marginBottom: 20, display: "flex", alignItems: "center" }}>
-            <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "55%", zIndex: 1 }}>
+          {/* Hero Banner — split card: left image | right CTA */}
+          <div style={{ display: "flex", borderRadius: 20, overflow: "hidden", border: "1.5px solid #E5E7EB", background: "#fff", marginBottom: 20, minHeight: 220 }}>
+            {/* Left: team illustration */}
+            <div style={{ position: "relative", flex: "0 0 62%", background: "linear-gradient(135deg, #FFF8F0 0%, #FFF3E8 50%, #FDEBD0 100%)" }}>
               <Image
                 src="/brand/announcement/hero-team.png"
-                alt="Team"
+                alt="Team announcements"
                 fill
-                style={{ objectFit: "contain", objectPosition: "right center" }}
+                style={{ objectFit: "cover", objectPosition: "center" }}
               />
             </div>
-            <div style={{ position: "relative", zIndex: 2, padding: "0 32px", maxWidth: "50%" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(229,57,53,0.1)", borderRadius: 20, padding: "4px 12px", marginBottom: 10 }}>
-                <Megaphone size={12} style={{ color: "#E53935" }} />
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#E53935" }}>Communication Hub</span>
+            {/* Right: content panel */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "28px 24px", textAlign: "center", gap: 12 }}>
+              {/* Megaphone icon in pink circle */}
+              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#FFF0F0", display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid #FFD6D6" }}>
+                <Megaphone size={24} style={{ color: "#E53935" }} />
               </div>
-              <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111", margin: "0 0 6px", fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>
-                Keep Your Team<br />Aligned & Informed
-              </h2>
-              <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}>
-                {announcements.length} announcement{announcements.length !== 1 ? "s" : ""} · {pinnedCount} pinned
-              </p>
+              <div>
+                <h2 style={{ fontSize: 20, fontWeight: 800, color: "#111", margin: "0 0 6px", fontFamily: "var(--font-jakarta)", lineHeight: 1.25 }}>
+                  {announcements.length === 0 ? "No announcements yet" : `${announcements.length} Announcement${announcements.length !== 1 ? "s" : ""}`}
+                </h2>
+                <p style={{ fontSize: 13, color: "#6B7280", margin: 0, lineHeight: 1.5 }}>
+                  {announcements.length === 0
+                    ? "Post your first announcement\nto notify the team."
+                    : `${pinnedCount} pinned · Keep your team informed`}
+                </p>
+              </div>
+              <button
+                onClick={() => setShowForm(true)}
+                style={{ marginTop: 4, padding: "11px 28px", borderRadius: 10, fontSize: 14, fontWeight: 700, background: "linear-gradient(135deg, #E53935, #B71C1C)", color: "#fff", border: "none", cursor: "pointer", width: "100%", maxWidth: 200, boxShadow: "0 4px 14px rgba(229,57,53,0.3)" }}
+              >
+                Create Announcement
+              </button>
             </div>
           </div>
 

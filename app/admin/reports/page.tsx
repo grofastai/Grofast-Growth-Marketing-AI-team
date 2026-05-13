@@ -88,7 +88,6 @@ export default async function ReportsPage({
   const absentUpdates  = updates.filter((u: any) => u.attendance_status === "absent")
 
   const totalHours    = updates.reduce((s: number, u: any) => s + (u.working_hours  ?? 0), 0)
-  const totalShoots   = updates.reduce((s: number, u: any) => s + (u.shoot_count    ?? 0), 0)
   const totalLearning = updates.reduce((s: number, u: any) => s + (u.learning_hours ?? 0), 0)
 
   // ── Not updated members ──────────────────────────────────────────────────────
@@ -133,7 +132,6 @@ export default async function ReportsPage({
       date={dateFilter}
       today={today}
       totalHours={totalHours}
-      totalShoots={totalShoots}
       totalLearning={totalLearning}
       presentCount={presentUpdates.length}
       absentCount={absentUpdates.length}

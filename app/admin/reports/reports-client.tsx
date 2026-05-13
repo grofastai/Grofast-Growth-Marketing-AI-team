@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import {
-  ChevronLeft, ChevronRight, Clock, Camera, BookOpen,
+  ChevronLeft, ChevronRight, Clock, BookOpen,
   TrendingUp, AlertTriangle, CheckCircle2, Users,
   UserX, CalendarDays, Target, FolderOpen, Zap,
 } from "lucide-react"
@@ -19,7 +19,7 @@ interface ReportsClientProps {
   date: string
   today: string
   totalHours: number
-  totalShoots: number
+
   totalLearning: number
   presentCount: number
   absentCount: number
@@ -110,7 +110,7 @@ function AlertBlock({
 
 export default function ReportsClient({
   date, today,
-  totalHours, totalShoots, totalLearning,
+  totalHours, totalLearning,
   presentCount, absentCount, notUpdatedMembers,
   topPerformers, lowHoursMembers,
   totalActiveTasks, overdueTasks, tasksNoActivity,
@@ -181,10 +181,9 @@ export default function ReportsClient({
       </div>
 
       {/* ── Summary Row ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
         {[
           { label: "Hours Worked",  value: `${totalHours.toFixed(1)}h`,    color: "#F59E0B", bg: "rgba(245,158,11,0.05)",  border: "rgba(245,158,11,0.15)",  icon: Clock },
-          { label: "Shoots",        value: totalShoots,                     color: "#111111",  bg: "#FFFFFF",               border: "#E5E7EB",                 icon: Camera },
           { label: "Learning Hrs",  value: `${totalLearning.toFixed(1)}h`, color: "#6B7280", bg: "#FFFFFF", border: "#E5E7EB",                 icon: BookOpen },
           { label: "Present",       value: presentCount,                    color: "#de1a1a",  bg: "rgba(222,26,26,0.05)", border: "rgba(222,26,26,0.15)",  icon: Users },
           { label: "Absent",        value: absentCount,                     color: absentCount > 0 ? "#FF6B57" : "#6B7280", bg: absentCount > 0 ? "rgba(255,107,87,0.05)" : "#FFFFFF", border: absentCount > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB", icon: UserX },

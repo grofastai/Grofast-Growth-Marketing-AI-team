@@ -284,18 +284,18 @@ export default function GoalsClient({
         {STAT_CARDS.map(card => (
           <div key={card.label} style={{
             background: card.bg, borderRadius: 18, border: "1px solid #EBEDF2",
-            padding: "22px 20px 14px 24px",
+            padding: "18px 20px",
             boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
+            display: "flex", alignItems: "center", gap: 16,
           }}>
+            <div style={{ position: "relative", width: 80, height: 80, flexShrink: 0 }}>
+              <Image src={card.img} alt={card.label} fill style={{ objectFit: "contain" }} />
+            </div>
             <div>
-              <p style={{ fontSize: 13, color: "#9CA3AF", fontWeight: 600, margin: "0 0 8px" }}>{card.label}</p>
+              <p style={{ fontSize: 13, color: "#9CA3AF", fontWeight: 600, margin: "0 0 6px" }}>{card.label}</p>
               <p style={{ fontSize: 48, fontWeight: 900, color: card.numColor, margin: 0, lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>
                 {card.count}
               </p>
-            </div>
-            <div style={{ position: "relative", width: 80, height: 80, flexShrink: 0 }}>
-              <Image src={card.img} alt={card.label} fill style={{ objectFit: "contain" }} />
             </div>
           </div>
         ))}

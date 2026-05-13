@@ -327,13 +327,13 @@ export default function GoalsClient({
       {/* ── BY MEMBER VIEW ──────────────────────────────────────────────────── */}
       {viewMode === "member" && (
         <div style={{ overflowX: "auto", paddingBottom: 8 }}>
-          <div style={{ display: "flex", gap: 16, minWidth: `${memberColumns.length * 300}px` }}>
+          <div style={{ display: "flex", gap: 16, minWidth: `${memberColumns.length * 340}px` }}>
             {memberColumns.map((col, colIdx) => {
               const isUnassigned = col.id === "unassigned"
               const memberCol = col as typeof col & { illustration?: string; gender?: string | null }
               return (
                 <div key={col.id} style={{
-                  width: 280, flexShrink: 0, borderRadius: 20,
+                  width: 320, flexShrink: 0, borderRadius: 20,
                   background: "#FFFFFF", border: "1px solid #EBEDF2",
                   boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
                   display: "flex", flexDirection: "column", minHeight: 500,
@@ -366,7 +366,7 @@ export default function GoalsClient({
                     {col.tasks.length === 0 ? (
                       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "24px 16px" }}>
                         {/* Character illustration */}
-                        <div style={{ position: "relative", width: 230, height: 210 }}>
+                        <div style={{ position: "relative", width: 300, height: 270 }}>
                           <Image
                             src={isUnassigned
                               ? "/brand/task-assign/4ed6bcdd-a758-45ae-aac4-e112cd84ae67.png"

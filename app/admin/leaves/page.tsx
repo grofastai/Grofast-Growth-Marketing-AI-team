@@ -1,7 +1,17 @@
-export const revalidate = 30
+export const dynamic = "force-dynamic"
 
 import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@supabase/supabase-js"
+import { redirect } from "next/navigation"
 import LeavesClient from "./leaves-client"
+
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export default async function LeavesPage({
   searchParams,
@@ -10,16 +20,33 @@ export default async function LeavesPage({
 }) {
   const params = await searchParams
   const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
+
   const statusFilter = params.status ?? "pending"
   const today = new Date().toISOString().split("T")[0]
 
-  let query = supabase
+  const admin = adminClient()
+
+  const { data: profile } = await admin
+    .from("users")
+    .select("company_id, role")
+    .eq("id", user.id)
+    .single()
+
+  if (!profile) redirect("/login")
+  if (profile.role !== "ADMIN") redirect("/member/dashboard")
+
+  const cid = profile.company_id
+
+  let leavesQuery = admin
     .from("leaves")
     .select("*, users(id, name, employee_id, phone, gender)")
+    .eq("company_id", cid)
     .order("created_at", { ascending: false })
 
   if (statusFilter !== "all") {
-    query = query.eq("status", statusFilter as "pending" | "approved" | "rejected")
+    leavesQuery = leavesQuery.eq("status", statusFilter)
   }
 
   const [
@@ -28,21 +55,24 @@ export default async function LeavesPage({
     { count: memberCount },
     { count: onLeaveCount },
   ] = await Promise.all([
-    query,
-    supabase
+    leavesQuery,
+    admin
       .from("leaves")
       .select("*, users(id, name, employee_id, gender)")
+      .eq("company_id", cid)
       .in("status", ["pending", "approved"])
       .gte("from_date", today)
       .order("from_date")
       .limit(4),
-    supabase
+    admin
       .from("users")
       .select("*", { count: "exact", head: true })
+      .eq("company_id", cid)
       .eq("role", "MEMBER"),
-    supabase
+    admin
       .from("leaves")
       .select("*", { count: "exact", head: true })
+      .eq("company_id", cid)
       .eq("status", "approved")
       .lte("from_date", today)
       .gte("to_date", today),

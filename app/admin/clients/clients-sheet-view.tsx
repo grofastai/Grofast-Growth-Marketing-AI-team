@@ -537,9 +537,11 @@ export default function ClientsSheetView({
               style={{ objectFit: "cover", objectPosition: "center top" }} />
             {/* Gradient overlays */}
             <div style={{ position: "absolute", inset: 0,
-              background: "linear-gradient(to right, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.1) 55%, transparent 100%)" }} />
+              background: "linear-gradient(to right, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.2) 55%, transparent 100%)" }} />
             <div style={{ position: "absolute", inset: 0,
-              background: "linear-gradient(to bottom, transparent 30%, rgba(248,249,251,1) 100%)" }} />
+              background: "linear-gradient(to bottom, transparent 55%, rgba(248,249,251,1) 100%)" }} />
+            <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "55%",
+              background: "linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 100%)" }} />
 
             {/* Client identity */}
             <div style={{ position: "absolute", bottom: 20, left: 24 }}>
@@ -560,7 +562,7 @@ export default function ClientsSheetView({
                       color: "#FFF", padding: "3px 9px", borderRadius: 6, backdropFilter: "blur(8px)" }}>
                       {sel.client_status || "Active"}
                     </span>
-                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.75)" }}>{sel.industry}</span>
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.95)" }}>{sel.industry}</span>
                   </div>
                 </div>
               </div>
@@ -570,8 +572,9 @@ export default function ClientsSheetView({
                   { icon: "📅", text: `Joined ${sel.onboarded_month || "Jan 2025"}` },
                   { icon: "⏱", text: `Client Since ${sel.period || "10 Months"}` },
                 ].map((item, i) => (
-                  <span key={i} style={{ fontSize: 11, color: "rgba(255,255,255,0.85)",
-                    display: "flex", alignItems: "center", gap: 4 }}>
+                  <span key={i} style={{ fontSize: 11, color: "#FFFFFF",
+                    display: "flex", alignItems: "center", gap: 4,
+                    textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}>
                     {item.icon} {item.text}
                   </span>
                 ))}

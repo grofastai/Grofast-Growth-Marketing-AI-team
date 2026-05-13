@@ -365,7 +365,7 @@ export default function GoalsClient({
                           <Image
                             src={isUnassigned
                               ? "/brand/task-assign/4ed6bcdd-a758-45ae-aac4-e112cd84ae67.png"
-                              : (memberCol.illustration ?? MEMBER_ILLUSTRATIONS[colIdx % MEMBER_ILLUSTRATIONS.length])
+                              : (memberCol.illustration ?? BOY_ILLUSTRATIONS[colIdx % BOY_ILLUSTRATIONS.length])
                             }
                             alt=""
                             fill

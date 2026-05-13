@@ -362,13 +362,45 @@ export default function AnnouncementsClient({
           )}
 
           {/* Bottom Banner */}
-          <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", height: 160, marginTop: 24 }}>
+          <div style={{ position: "relative", borderRadius: 20, overflow: "hidden", marginTop: 24 }}>
             <Image
               src="/brand/announcement/bottom-banner.png"
               alt="Better communication builds better teams"
-              fill
-              style={{ objectFit: "cover", objectPosition: "center" }}
+              width={1400}
+              height={420}
+              style={{ width: "100%", height: "auto", display: "block" }}
             />
+            {/* Real interactive button overlaid on the image's button area */}
+            <div style={{
+              position: "absolute",
+              right: "8%",
+              top: "62%",
+              transform: "translateY(-50%)",
+            }}>
+              <a
+                href="/admin/activities"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "12px 26px",
+                  borderRadius: 12,
+                  fontSize: 14,
+                  fontWeight: 700,
+                  background: "linear-gradient(135deg, #E53935, #B71C1C)",
+                  color: "#fff",
+                  textDecoration: "none",
+                  boxShadow: "0 4px 20px rgba(229,57,53,0.4)",
+                  whiteSpace: "nowrap",
+                  transition: "opacity 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.88")}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
+              >
+                Explore Team Activity
+                <span style={{ fontSize: 16 }}>→</span>
+              </a>
+            </div>
           </div>
         </div>
 

@@ -25,7 +25,6 @@ interface ReportsClientProps {
   date: string
   today: string
   totalHours: number
-  totalShoots: number
   totalLearning: number
   presentCount: number
   absentCount: number
@@ -111,7 +110,7 @@ const SPARK_PATHS = [
 
 export default function ReportsClient({
   date, today,
-  totalHours, totalShoots, totalLearning,
+  totalHours, totalLearning,
   presentCount, absentCount, notUpdatedMembers,
   topPerformers, lowHoursMembers,
   totalActiveTasks, overdueTasks, tasksNoActivity,
@@ -182,15 +181,6 @@ export default function ReportsClient({
           valueColor="#F59E0B"
           bg="#FFFDF0"
           border="#FEF3C7"
-        />
-        {/* Shoots */}
-        <StatCard
-          value={String(totalShoots)}
-          label="Shoots"
-          cameraIcon
-          valueColor="#3B82F6"
-          bg="#EFF6FF"
-          border="#DBEAFE"
         />
         {/* Learning Hrs */}
         <StatCard

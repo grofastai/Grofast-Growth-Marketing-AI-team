@@ -83,7 +83,6 @@ export default async function ReportsPage({
   const projects  = projectsRaw  ?? []
   const taskActivitySet = new Set((taskActivityRaw ?? []).map((r: any) => r.task_id))
 
-  const totalShoots = updates.reduce((s: number, u: any) => s + (u.shoot_count ?? 0), 0)
 
   // ── Summary numbers ─────────────────────────────────────────────────────────
   const presentUpdates = updates.filter((u: any) => u.attendance_status === "present")
@@ -144,7 +143,6 @@ export default async function ReportsPage({
       date={dateFilter}
       today={today}
       totalHours={totalHours}
-      totalShoots={totalShoots}
       totalLearning={totalLearning}
       presentCount={presentUpdates.length}
       absentCount={absentUpdates.length}

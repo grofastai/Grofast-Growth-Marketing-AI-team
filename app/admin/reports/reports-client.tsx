@@ -579,11 +579,11 @@ function StatCard({
       </p>
       <p style={{ fontSize: 11, color: "#6B7280", margin: 0, fontWeight: 500 }}>{label}</p>
       {/* Icon */}
-      <div style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 56, height: 56 }}>
+      <div style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 80, height: 80 }}>
         {img ? (
-          <Image src={img} alt={label} width={56} height={56} style={{ objectFit: "contain" }} />
+          <Image src={img} alt={label} width={80} height={80} style={{ objectFit: "contain" }} />
         ) : cameraIcon ? (
-          <div style={{ width: 56, height: 56, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ width: 80, height: 80, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none">
               <rect x="1" y="6" width="22" height="15" rx="3" fill="#3B82F6" opacity="0.2"/>
               <rect x="1" y="6" width="22" height="15" rx="3" stroke="#3B82F6" strokeWidth="1.5"/>

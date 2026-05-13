@@ -62,7 +62,7 @@ export default async function ReportsPage({
       .order("name"),
     admin
       .from("tasks")
-      .select("id, title, status, due_date")
+      .select("id, title, status, due_date, priority, assigned_to, users(id, name, employee_id)")
       .eq("company_id", cid)
       .neq("status", "completed"),
     admin
@@ -82,6 +82,8 @@ export default async function ReportsPage({
   const tasks     = tasksRaw     ?? []
   const projects  = projectsRaw  ?? []
   const taskActivitySet = new Set((taskActivityRaw ?? []).map((r: any) => r.task_id))
+
+  const totalShoots = updates.reduce((s: number, u: any) => s + (u.shoot_count ?? 0), 0)
 
   // ── Summary numbers ─────────────────────────────────────────────────────────
   const presentUpdates = updates.filter((u: any) => u.attendance_status === "present")
@@ -115,7 +117,17 @@ export default async function ReportsPage({
   // ── Task problems ────────────────────────────────────────────────────────────
   const overdueTasks = tasks
     .filter((t: any) => t.due_date && t.due_date < today)
-    .map((t: any) => ({ id: t.id, title: t.title, due_date: t.due_date as string }))
+    .map((t: any) => {
+      const usr = resolveUser(t.users)
+      return {
+        id: t.id,
+        title: t.title,
+        due_date: t.due_date as string,
+        priority: (t.priority ?? "medium") as string,
+        assigned_name: usr?.name ?? null,
+        assigned_employee_id: usr?.employee_id ?? null,
+      }
+    })
 
   const tasksNoActivity = tasks
     .filter((t: any) => !taskActivitySet.has(t.id))
@@ -132,6 +144,7 @@ export default async function ReportsPage({
       date={dateFilter}
       today={today}
       totalHours={totalHours}
+      totalShoots={totalShoots}
       totalLearning={totalLearning}
       presentCount={presentUpdates.length}
       absentCount={absentUpdates.length}

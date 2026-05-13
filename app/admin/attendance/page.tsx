@@ -165,10 +165,10 @@ export default async function AttendancePage({
       {/* ── Page Header ─────────────────────────────────── */}
       <div style={{ ...CARD, padding: "16px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 900, color: "#111827", margin: 0 }}>
-            {greeting}, <span style={{ color: "#DE1A1A" }}>{firstName}!</span> 👋
+          <h1 style={{ fontSize: 24, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>
+            Attendance
           </h1>
-          <p style={{ fontSize: 12, color: "#6B7280", margin: "3px 0 0" }}>Here&apos;s what&apos;s happening with your team today.</p>
+          <p style={{ fontSize: 12, color: "#6B7280", margin: "3px 0 0" }}>{displayDate}</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <AttendanceDateNav selectedDate={selectedDate} today={today} />

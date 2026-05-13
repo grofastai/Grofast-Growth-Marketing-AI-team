@@ -42,6 +42,14 @@ function getInitials(name: string) {
   return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
 }
 
+function computeNextEmployeeId(members: Member[]): string {
+  const nums = members
+    .map(m => { const match = m.employee_id.match(/^GF(\d+)$/i); return match ? parseInt(match[1]) : 0 })
+    .filter(n => n > 0)
+  const max = nums.length > 0 ? Math.max(...nums) : 0
+  return `GF${String(max + 1).padStart(3, "0")}`
+}
+
 function formatDate(s: string) {
   return new Date(s).toLocaleDateString("en-US", { day: "numeric", month: "short", year: "numeric" })
 }
@@ -87,13 +95,14 @@ interface SheetProps {
   open: boolean
   onClose: () => void
   member?: Member | null
+  nextId?: string
 }
 
-function MemberSheet({ open, onClose, member }: SheetProps) {
+function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
   const isEdit = !!member
   const [form, setForm] = useState({
     name: member?.name ?? "",
-    employee_id: member?.employee_id ?? "",
+    employee_id: member?.employee_id ?? nextId ?? "",
     email: member?.email ?? "",
     phone: member?.phone ?? "",
     role: (member?.role ?? "MEMBER") as "ADMIN" | "MEMBER",
@@ -176,9 +185,11 @@ function MemberSheet({ open, onClose, member }: SheetProps) {
 
           {!isEdit && (
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Employee ID *</label>
-              <input className="sheet-input" value={form.employee_id} onChange={set("employee_id")} placeholder="e.g. GF002" style={FIELD} />
-              <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Unique ID — cannot be changed later.</p>
+              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
+                Employee ID * <span style={{ color: "#22C55E", fontWeight: 700, textTransform: "none", letterSpacing: 0 }}>· Auto-generated</span>
+              </label>
+              <input className="sheet-input" value={form.employee_id} onChange={set("employee_id")} placeholder="e.g. GF001" style={{ ...FIELD, fontFamily: "monospace", fontWeight: 700 }} />
+              <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Auto-filled — you can change it. Cannot be edited after creation.</p>
             </div>
           )}
 
@@ -456,6 +467,7 @@ function AssignTaskModal({ member, onClose }: AssignTaskModalProps) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TeamClient({ members, pastMembers }: { members: Member[]; pastMembers: Member[] }) {
+  const nextId = useMemo(() => computeNextEmployeeId(members), [members])
   const [search, setSearch] = useState("")
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -1066,7 +1078,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
 
       {assignTarget && <AssignTaskModal member={assignTarget} onClose={() => setAssignTarget(null)} />}
 
-      <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} />
+      <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} nextId={nextId} />
     </div>
   )
 }

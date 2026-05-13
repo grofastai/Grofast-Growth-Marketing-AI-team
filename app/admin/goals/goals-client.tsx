@@ -311,7 +311,7 @@ export default function GoalsClient({
             boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
             display: "flex", alignItems: "center", gap: 16,
           }}>
-            <div style={{ position: "relative", width: 110, height: 110, flexShrink: 0 }}>
+            <div style={{ position: "relative", width: 64, height: 64, flexShrink: 0 }}>
               <Image src={card.img} alt={card.label} fill style={{ objectFit: "contain" }} />
             </div>
             <div>
@@ -457,7 +457,7 @@ export default function GoalsClient({
         {/* Left — team group image */}
         <div style={{ position: "relative", width: 320, height: 180, flexShrink: 0 }}>
           <Image
-            src="/brand/task-assign/team for down .png"
+            src="/brand/task-assign/teamfordown.png"
             alt="" fill style={{ objectFit: "cover", objectPosition: "center" }}
           />
         </div>
@@ -475,7 +475,7 @@ export default function GoalsClient({
         {/* Right — study/lamp illustration */}
         <div style={{ position: "relative", width: 160, height: 160, flexShrink: 0 }}>
           <Image
-            src="/brand/task-assign/study for down title .png"
+            src="/brand/task-assign/studyfortitle.png"
             alt="" fill style={{ objectFit: "contain", objectPosition: "right center" }}
           />
         </div>

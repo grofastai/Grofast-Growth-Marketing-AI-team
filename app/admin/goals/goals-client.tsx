@@ -248,19 +248,14 @@ export default function GoalsClient({
         boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
       }}>
-        {/* Left: character + title */}
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ position: "relative", width: 90, height: 90, flexShrink: 0 }}>
-            <Image src="/brand/task-assign/boy1.png" alt="" fill style={{ objectFit: "contain" }} />
-          </div>
-          <div>
-            <h1 style={{ fontSize: 28, fontWeight: 900, color: "#de1a1a", fontFamily: "var(--font-jakarta)", margin: 0, lineHeight: 1.1 }}>
-              Task Board
-            </h1>
-            <p style={{ fontSize: 13, color: "#9CA3AF", margin: "4px 0 0", fontWeight: 500 }}>
-              Assign and track team tasks — {tasks.length} total
-            </p>
-          </div>
+        {/* Left: title */}
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 900, color: "#de1a1a", fontFamily: "var(--font-jakarta)", margin: 0, lineHeight: 1.1 }}>
+            Task Board
+          </h1>
+          <p style={{ fontSize: 13, color: "#9CA3AF", margin: "4px 0 0", fontWeight: 500 }}>
+            Assign and track team tasks — {tasks.length} total
+          </p>
         </div>
 
         {/* Right: view toggle + create */}

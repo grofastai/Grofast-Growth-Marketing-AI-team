@@ -288,7 +288,7 @@ export default function GoalsClient({
             boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
             display: "flex", alignItems: "center", gap: 16,
           }}>
-            <div style={{ position: "relative", width: 80, height: 80, flexShrink: 0 }}>
+            <div style={{ position: "relative", width: 110, height: 110, flexShrink: 0 }}>
               <Image src={card.img} alt={card.label} fill style={{ objectFit: "contain" }} />
             </div>
             <div>
@@ -343,7 +343,7 @@ export default function GoalsClient({
                     {col.tasks.length === 0 ? (
                       <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "24px 16px" }}>
                         {/* Character illustration */}
-                        <div style={{ position: "relative", width: 180, height: 160 }}>
+                        <div style={{ position: "relative", width: 230, height: 210 }}>
                           <Image
                             src={isUnassigned
                               ? "/brand/task-assign/4ed6bcdd-a758-45ae-aac4-e112cd84ae67.png"
@@ -429,7 +429,7 @@ export default function GoalsClient({
         marginTop: 24, borderRadius: 20, background: "#FFFFFF",
         border: "1px solid #EBEDF2", boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 32px 0 0", overflow: "hidden", minHeight: 140,
+        padding: "0 32px 0 0", overflow: "hidden", minHeight: 180,
       }}>
         {/* Left characters */}
         <div style={{ display: "flex", alignItems: "flex-end", gap: 0, flexShrink: 0 }}>
@@ -438,7 +438,7 @@ export default function GoalsClient({
             "/brand/task-assign/3a32530b-be9e-4ddd-9e33-47b947bc5b43.png",
             "/brand/task-assign/2680ef12-265d-46d1-9eb7-beef6574d23b.png",
           ].map((src, i) => (
-            <div key={i} style={{ position: "relative", width: 110, height: 130, flexShrink: 0, marginRight: i < 2 ? -16 : 0 }}>
+            <div key={i} style={{ position: "relative", width: 150, height: 175, flexShrink: 0, marginRight: i < 2 ? -20 : 0 }}>
               <Image src={src} alt="" fill style={{ objectFit: "contain", objectPosition: "bottom" }} />
             </div>
           ))}
@@ -455,7 +455,7 @@ export default function GoalsClient({
         </div>
 
         {/* Right illustration */}
-        <div style={{ position: "relative", width: 120, height: 130, flexShrink: 0 }}>
+        <div style={{ position: "relative", width: 160, height: 175, flexShrink: 0 }}>
           <Image
             src="/brand/task-assign/8e422454-bc36-4a8b-95e0-6ce396fac88d.png"
             alt="" fill style={{ objectFit: "contain", objectPosition: "right bottom" }}

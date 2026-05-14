@@ -369,9 +369,9 @@ export default function ProjectDetailClient({
               <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.25)" }}>No tasks yet</p>
             </div>
           ) : (
-            <div>
+            <div className="overflow-x-auto">
               {/* Table header */}
-              <div className="grid gap-4 px-5 py-2.5" style={{ gridTemplateColumns: "1fr 140px 110px 60px 100px", borderBottom: "1px solid #1A1A1A" }}>
+              <div className="grid gap-4 px-5 py-2.5" style={{ minWidth: 560, gridTemplateColumns: "1fr 140px 110px 60px 100px", borderBottom: "1px solid #1A1A1A" }}>
                 {["Task", "Assigned To", "Status", "Priority", "Due Date"].map((h) => (
                   <span key={h} className="text-[10px] font-bold uppercase tracking-wider"
                     style={{ color: "rgba(255,255,255,0.25)" }}>{h}</span>
@@ -386,6 +386,7 @@ export default function ProjectDetailClient({
                   <div key={task.id}
                     className="grid gap-4 px-5 py-3.5 items-center transition-colors"
                     style={{
+                      minWidth: 560,
                       gridTemplateColumns: "1fr 140px 110px 60px 100px",
                       borderBottom: i < tasks.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
                       background: overdue ? "rgba(255,107,87,0.025)" : "transparent",
@@ -446,9 +447,9 @@ export default function ProjectDetailClient({
               <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.25)" }}>No activity logged yet</p>
             </div>
           ) : (
-            <div>
+            <div className="overflow-x-auto">
               {/* Table header */}
-              <div className="grid gap-4 px-5 py-2.5" style={{ gridTemplateColumns: "160px 110px 1fr 70px 60px", borderBottom: "1px solid #1A1A1A" }}>
+              <div className="grid gap-4 px-5 py-2.5" style={{ minWidth: 520, gridTemplateColumns: "160px 110px 1fr 70px 60px", borderBottom: "1px solid #1A1A1A" }}>
                 {["Employee", "Date", "Task", "Hours", "Shoots"].map((h) => (
                   <span key={h} className="text-[10px] font-bold uppercase tracking-wider"
                     style={{ color: "rgba(255,255,255,0.25)" }}>{h}</span>
@@ -462,6 +463,7 @@ export default function ProjectDetailClient({
                   <div key={a.id}
                     className="grid gap-4 px-5 py-3.5 items-center"
                     style={{
+                      minWidth: 520,
                       gridTemplateColumns: "160px 110px 1fr 70px 60px",
                       borderBottom: i < activities.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
                     }}>

@@ -252,7 +252,7 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
     <div style={{ padding: "18px 22px 40px", display: "flex", flexDirection: "column", gap: 16 }}>
 
       {/* Row 1: Revenue | Progress | Pipeline */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.15fr 1fr 1fr", gap: 14 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px]">
 
         {/* Revenue */}
         <div style={card}>
@@ -325,7 +325,7 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
       </div>
 
       {/* Row 2: Timeline | Deliverables */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px]">
 
         {/* Meeting Timeline */}
         <div style={card}>
@@ -468,14 +468,15 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
             </button>
           </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 1fr 1fr 1fr 1fr 1fr", gap: 6,
+        <div style={{ overflowX: "auto" }}>
+        <div style={{ minWidth: 640, display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 1fr 1fr 1fr 1fr 1fr", gap: 6,
           padding: "7px 10px", background: "#F9FAFB", borderRadius: 10, marginBottom: 6 }}>
           {["Campaign Name", "Type", "Status", "Progress", "Budget", "Start Date", "Due Date", "Manager"].map(h => (
             <span key={h} style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</span>
           ))}
         </div>
         {campaigns.map((row, i) => (
-          <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 1fr 1fr 1fr 1fr 1fr", gap: 6,
+          <div key={i} style={{ minWidth: 640, display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 1fr 1fr 1fr 1fr 1fr", gap: 6,
             padding: "10px 10px", borderRadius: 10, alignItems: "center", transition: "background 0.15s" }}
             onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
@@ -504,6 +505,7 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
             </div>
           </div>
         ))}
+        </div>{/* /overflow-x-auto */}
       </div>
     </div>
   )
@@ -543,7 +545,7 @@ export default function ClientsSheetView({
 
       {/* ══ PAGE HEADER ══════════════════════════════════════════════════════ */}
       <div style={{ background: "#FFFFFF", borderBottom: "1px solid #EEEEF2", flexShrink: 0,
-        padding: "0 24px", height: 68, display: "flex", alignItems: "center", gap: 20,
+        padding: "0 16px", minHeight: 68, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
         boxShadow: "0 1px 6px rgba(0,0,0,0.05)" }}>
 
         {/* Left: Title */}
@@ -561,8 +563,8 @@ export default function ClientsSheetView({
         </div>
 
         {/* Center: AI search */}
-        <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-          <div style={{ position: "relative", width: 380 }}>
+        <div style={{ flex: 1, minWidth: 0, display: "flex", justifyContent: "center" }}>
+          <div style={{ position: "relative", width: "100%", maxWidth: 380 }}>
             <Sparkles size={13} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#DE1A1A" }} />
             <input placeholder="Search or ask anything..."
               style={{ width: "100%", boxSizing: "border-box", paddingLeft: 34, paddingRight: 56, paddingTop: 10, paddingBottom: 10,
@@ -575,7 +577,7 @@ export default function ClientsSheetView({
         </div>
 
         {/* Right: Buttons + icons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, flexWrap: "wrap" }}>
           <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 10,
             background: "#F0FDF4", border: "1px solid #BBF7D0", color: "#16A34A",
             fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
@@ -604,12 +606,12 @@ export default function ClientsSheetView({
       </div>
 
       {/* ══ MAIN 3-PANEL ═════════════════════════════════════════════════════ */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div className="flex flex-col lg:flex-row" style={{ flex: 1, overflow: "hidden" }}>
 
         {/* ── LEFT PANEL ─────────────────────────────────────────────────── */}
-        <div style={{ width: 280, flexShrink: 0, background: "#FFFFFF",
-          borderRight: "1px solid #EEEEF2", display: "flex", flexDirection: "column",
-          overflow: "hidden", boxShadow: "2px 0 10px rgba(0,0,0,0.04)" }}>
+        <div className="w-full lg:w-[280px] lg:flex-shrink-0 flex flex-col overflow-hidden lg:max-h-none max-h-[40vh]"
+          style={{ background: "#FFFFFF", borderRight: "1px solid #EEEEF2",
+          boxShadow: "2px 0 10px rgba(0,0,0,0.04)" }}>
 
           {/* Search + filter */}
           <div style={{ padding: "14px 14px 10px", borderBottom: "1px solid #F0F1F5" }}>
@@ -754,7 +756,7 @@ export default function ClientsSheetView({
             </div>
 
             {/* Info cards row */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, padding: "14px 22px 0" }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 px-4 md:px-[22px] pt-[14px]">
               {[
                 { label: "Monthly Package",  value: sel.current_month || "₹15,000", sub: sel.package_name || "Standard",      emoji: "💜", bg: "rgba(139,92,246,0.07)", border: "rgba(139,92,246,0.2)" },
                 { label: "Assigned Manager", value: "Sanjay K",                      sub: "Project Manager",                   emoji: "👤", bg: "rgba(59,130,246,0.07)",  border: "rgba(59,130,246,0.2)" },
@@ -822,9 +824,8 @@ export default function ClientsSheetView({
         </div>
 
         {/* ── RIGHT PANEL ────────────────────────────────────────────────── */}
-        <div style={{ width: 258, flexShrink: 0, background: "#FFFFFF",
-          borderLeft: "1px solid #EEEEF2", overflowY: "auto",
-          display: "flex", flexDirection: "column",
+        <div className="hidden lg:flex flex-col lg:w-[258px] lg:flex-shrink-0 overflow-y-auto"
+          style={{ background: "#FFFFFF", borderLeft: "1px solid #EEEEF2",
           boxShadow: "-2px 0 10px rgba(0,0,0,0.04)" }}>
 
           <div style={{ padding: "18px 16px 12px", borderBottom: "1px solid #F0F1F5",

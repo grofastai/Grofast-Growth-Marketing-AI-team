@@ -7,7 +7,6 @@ import {
   Camera, Film, Plus, Trash2, CheckCircle2,
   Loader2, SendHorizonal, Clock, BookOpen,
   ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal,
-  Briefcase, AlertCircle,
 } from "lucide-react"
 import { submitDailyUpdate } from "@/lib/actions/daily-updates"
 
@@ -53,11 +52,19 @@ interface TimeBlock {
   status: "completed" | "in_progress" | "not_started"
 }
 
-// 15-min intervals 06:00 – 22:00
-const TIME_OPTIONS_15 = Array.from({ length: 65 }, (_, i) => {
-  const mins = 6 * 60 + i * 15
-  return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`
-})
+// 15-min intervals: 6:00–7:00, then 9:00–22:00 (skips 7:15–8:45)
+const TIME_OPTIONS_15 = [
+  // 6:00 AM – 7:00 AM (5 slots: 6:00, 6:15, 6:30, 6:45, 7:00)
+  ...Array.from({ length: 5 }, (_, i) => {
+    const mins = 6 * 60 + i * 15
+    return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`
+  }),
+  // 9:00 AM – 10:00 PM (53 slots)
+  ...Array.from({ length: 53 }, (_, i) => {
+    const mins = 9 * 60 + i * 15
+    return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`
+  }),
+]
 
 const TIME_OPTIONS = [
   "07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30",
@@ -101,39 +108,12 @@ function DurationPicker({ value, onChange }: { value: number; onChange: (v: numb
   )
 }
 
-// ── Gauge chart ───────────────────────────────────────────────────────────────
-function GaugeChart({ score }: { score: number }) {
-  const r = 50, cx = 70, cy = 65, circ = Math.PI * r
-  const filled = Math.min(score / 100, 1) * circ
-  const arc = `M ${cx - r},${cy} A ${r},${r} 0 0,1 ${cx + r},${cy}`
-  const c = score >= 70 ? "#22C55E" : score >= 40 ? "#F59E0B" : "#DE1A1A"
-  const lbl = score >= 70 ? "Great" : score >= 40 ? "Good" : "Low"
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center" }}>
-      <svg viewBox="0 0 140 78" style={{ width:"100%", maxWidth:180 }}>
-        <defs>
-          <linearGradient id="gg" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#FCA5A5"/>
-            <stop offset="100%" stopColor={c}/>
-          </linearGradient>
-        </defs>
-        <path d={arc} fill="none" stroke="#F3F4F6" strokeWidth="12" strokeLinecap="round"/>
-        <path d={arc} fill="none" stroke="url(#gg)" strokeWidth="12" strokeLinecap="round"
-          strokeDasharray={`${filled} ${circ}`} style={{ transition:"stroke-dasharray 0.5s ease" }}/>
-        <text x={cx} y={cy - 8} textAnchor="middle" fontSize="24" fontWeight="900" fill="#111111">{score}</text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fontSize="11" fill={c} fontWeight="700">{lbl}</text>
-        <text x={cx - r + 4} y={cy + 20} textAnchor="middle" fontSize="9" fill="#9CA3AF">0</text>
-        <text x={cx + r - 4} y={cy + 20} textAnchor="middle" fontSize="9" fill="#9CA3AF">100</text>
-      </svg>
-    </div>
-  )
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function DailyUpdateForm({
-  projects, userName, team,
+  projects, userName, team, existingUpdate,
 }: {
-  projects: Project[]; team: string | null; userName: string
+  projects: Project[]; team: string | null; userName: string; existingUpdate?: Record<string, unknown> | null
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -192,6 +172,7 @@ export default function DailyUpdateForm({
   const [learningNotes, setLearningNotes] = useState("")
   const [error,     setError]     = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [editMode,  setEditMode]  = useState(false)
 
   const totalShootHours   = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
   const totalEditHours    = useMemo(() => edits.reduce((s, e) => s + e.timeTaken, 0), [edits])
@@ -201,14 +182,6 @@ export default function DailyUpdateForm({
     if (filled.length === 0) return 0
     return Math.round((filled.filter(b => b.status === "completed").length / filled.length) * 100)
   }, [timeBlocks])
-  const productivity    = useMemo(() => {
-    if (tab === "learning") return learningHours > 0 ? 80 : 0
-    const filled = shoots.filter(s => s.clientName && s.title).length + edits.filter(e => e.clientName && e.title).length
-    const total  = shoots.length + edits.length
-    if (total === 0) return 0
-    return Math.round((filled / total) * 100)
-  }, [tab, shoots, edits, learningHours])
-
   function handleSubmit() {
     setError(null)
     if (tab === "working" && shoots.length === 0 && edits.length === 0) {
@@ -322,13 +295,18 @@ export default function DailyUpdateForm({
     const calMonth = now.toLocaleDateString("en-US", { month: "short", year: "numeric" })
     const calWeekday = now.toLocaleDateString("en-US", { weekday: "long" })
 
-    if (submitted) {
+    if ((submitted || existingUpdate) && !editMode) {
       return (
         <div style={{ background:"#F5F6FA", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
           <div style={{ textAlign:"center" }}>
             <CheckCircle2 size={56} style={{ color:"#22C55E", marginBottom:16 }} />
             <p style={{ fontSize:20, fontWeight:900, color:"#111111", margin:"0 0 8px", fontFamily:"var(--font-jakarta)" }}>Daily Update Submitted!</p>
-            <p style={{ fontSize:13, color:"#6B7280", margin:0 }}>Great work, {firstName}. See you tomorrow!</p>
+            <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 20px" }}>Great work, {firstName}. See you tomorrow!</p>
+            <button
+              onClick={() => setEditMode(true)}
+              style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 24px", borderRadius:12, border:"1.5px solid #DE1A1A", background:"#FFFFFF", color:"#DE1A1A", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+              Edit Today&apos;s Update
+            </button>
           </div>
         </div>
       )
@@ -520,16 +498,6 @@ export default function DailyUpdateForm({
               </div>
             </div>
 
-            {/* Productivity Score */}
-            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-              <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 12px", display:"flex", alignItems:"center", gap:7 }}>
-                <BarChart2 size={14} style={{ color:"#DE1A1A" }} /> Productivity Score
-              </p>
-              <GaugeChart score={generalProductivity} />
-              <p style={{ fontSize:10, color:"#9CA3AF", textAlign:"center", marginTop:6 }}>
-                {generalProductivity===0?"Add time blocks above ✍️":generalProductivity>=70?"You&apos;re on fire! 🔥":"Keep going! 💪"}
-              </p>
-            </div>
           </div>
         </div>
 
@@ -571,6 +539,24 @@ export default function DailyUpdateForm({
         <button style={{ background:"none", border:"none", cursor:"pointer", color:"#9CA3AF", padding:4, borderRadius:6, display:"flex", alignItems:"center" }}>
           <MoreHorizontal size={16} />
         </button>
+      </div>
+    )
+  }
+
+  // ── Already submitted screen (media team) ────────────────────────────────
+  if ((submitted || existingUpdate) && !editMode) {
+    return (
+      <div style={{ background:"#F5F6FA", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ textAlign:"center" }}>
+          <CheckCircle2 size={56} style={{ color:"#22C55E", marginBottom:16 }} />
+          <p style={{ fontSize:20, fontWeight:900, color:"#111111", margin:"0 0 8px", fontFamily:"var(--font-jakarta)" }}>Daily Update Submitted!</p>
+          <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 20px" }}>Great work, {firstName}. See you tomorrow!</p>
+          <button
+            onClick={() => setEditMode(true)}
+            style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 24px", borderRadius:12, border:"1.5px solid #DE1A1A", background:"#FFFFFF", color:"#DE1A1A", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+            Edit Today&apos;s Update
+          </button>
+        </div>
       </div>
     )
   }
@@ -949,27 +935,6 @@ export default function DailyUpdateForm({
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-
-          {/* Productivity Score */}
-          <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:12 }}>
-              <BarChart2 size={14} style={{ color:"#DE1A1A" }} />
-              <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>Productivity Score</p>
-            </div>
-            <GaugeChart score={productivity} />
-            <p style={{ fontSize:10, color:"#9CA3AF", textAlign:"center", marginTop:6 }}>
-              {productivity === 0 ? "Fill in your entries above ✍️" : productivity >= 70 ? "You're on fire! 🔥" : "Keep going! 💪"}
-            </p>
-          </div>
-
-          {/* Consistency card */}
-          <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"18px 16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)", display:"flex", alignItems:"flex-start", gap:14 }}>
-            <div style={{ fontSize:38, flexShrink:0, lineHeight:1 }}>🏆</div>
-            <div>
-              <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>Consistency is the key!</p>
-              <p style={{ fontSize:11, color:"#6B7280", margin:0, lineHeight:1.55 }}>Keep logging your shoots and edits to improve your productivity.</p>
             </div>
           </div>
 

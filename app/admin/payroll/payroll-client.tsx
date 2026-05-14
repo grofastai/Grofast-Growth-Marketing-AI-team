@@ -438,9 +438,8 @@ export default function PayrollClient({
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
 
           {/* Hero Banner */}
-          <div style={{
+          <div className="grid grid-cols-1 md:grid-cols-[55%_45%]" style={{
             borderRadius: 22, overflow: "hidden",
-            display: "grid", gridTemplateColumns: "55% 45%",
             background: "linear-gradient(135deg, #FFF8F5, #FFF3EE)",
             border: "1.5px solid #FFE0D0", minHeight: 210,
           }}>
@@ -452,7 +451,7 @@ export default function PayrollClient({
                 style={{ objectFit: "cover", objectPosition: "center top" }}
               />
             </div>
-            <div style={{ padding: "18px 20px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignContent: "start" }}>
+            <div className="grid grid-cols-2" style={{ padding: "18px 20px", gap: 12, alignContent: "start" }}>
               {[
                 { label: "Salary Processed", value: `${processedPct}%`,    sub: fmt(totalBase > 0 ? totalNet : 0), icon: "💰", color: "#16A34A" },
                 { label: "Pending Salaries", value: `${pendingCount}`,      sub: "Not configured",                  icon: "⏳", color: "#F97316" },

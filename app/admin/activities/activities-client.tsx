@@ -172,9 +172,9 @@ export default function ActivitiesClient({
             const task = Array.isArray(u.tasks) ? u.tasks[0] : u.tasks
 
             return (
-              <div key={u.id} className="rounded-xl p-5"
+              <div key={u.id} className="rounded-xl p-4 md:p-5"
                 style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
-                <div className="flex items-start gap-4">
+                <div className="flex items-start gap-3 md:gap-4">
                   {/* Avatar */}
                   <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                     style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)" }}>
@@ -188,7 +188,7 @@ export default function ActivitiesClient({
                     <div className="flex items-center flex-wrap gap-2 mb-2">
                       <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{user?.name ?? "Unknown"}</p>
                       <span className="text-[11px]" style={{ color: "#6B7280" }}>#{user?.employee_id}</span>
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full ml-auto"
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
                         style={{ background: sc.bg, color: sc.color }}>
                         {sc.label}
                       </span>

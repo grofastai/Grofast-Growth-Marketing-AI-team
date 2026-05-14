@@ -134,10 +134,10 @@ export default function ReportsClient({
   const moodLabel = moodScore >= 4.5 ? "Very Happy" : moodScore >= 4.0 ? "Happy" : moodScore >= 3.5 ? "Neutral" : "Tired"
 
   return (
-    <div style={{ padding: "28px 28px 40px", background: "#F8F9FB", minHeight: "100vh" }}>
+    <div style={{ padding: "20px 16px 40px", background: "#F8F9FB", minHeight: "100vh" }} className="sm:px-7">
 
       {/* ── Page Header ──────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 24 }}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between" style={{ marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "#111827", fontFamily: "var(--font-jakarta)", lineHeight: 1.2, margin: 0 }}>
             Daily Intelligence
@@ -172,7 +172,7 @@ export default function ReportsClient({
       </div>
 
       {/* ── Stat Cards ───────────────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 14, marginBottom: 24 }}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" style={{ gap: 14, marginBottom: 24 }}>
         {/* Hours Worked */}
         <StatCard
           value={`${totalHours.toFixed(1)}h`}
@@ -221,20 +221,25 @@ export default function ReportsClient({
       </div>
 
       {/* ── Body: Main + Sidebar ──────────────────────────────────────────────── */}
-      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+      <div className="flex flex-col lg:flex-row" style={{ gap: 20, alignItems: "flex-start" }}>
 
         {/* ── Main column ─────────────────────────────────────────────────────── */}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 20 }}>
 
           {/* Hero card: illustration + empty state or stats */}
           <div style={{ background: "#FFF", borderRadius: 16, border: "1px solid #F3F4F6", overflow: "hidden" }}>
-            <div style={{ display: "flex", alignItems: "center", minHeight: 260 }}>
+            <div className="flex flex-col sm:flex-row sm:items-center" style={{ minHeight: 260 }}>
               {/* Illustration */}
-              <div style={{ width: 340, flexShrink: 0, position: "relative", height: 260 }}>
-                <Image src="/brand/report/team.png" alt="Team" fill style={{ objectFit: "cover", objectPosition: "center" }} />
+              <div className="relative w-full sm:w-auto sm:flex-shrink-0" style={{ height: 200, maxWidth: "100%" }}>
+                <div className="hidden sm:block" style={{ width: 340, height: 260, position: "relative" }}>
+                  <Image src="/brand/report/team.png" alt="Team" fill style={{ objectFit: "cover", objectPosition: "center" }} />
+                </div>
+                <div className="block sm:hidden" style={{ position: "relative", width: "100%", height: 200 }}>
+                  <Image src="/brand/report/team.png" alt="Team" fill style={{ objectFit: "cover", objectPosition: "center" }} />
+                </div>
               </div>
               {/* Content */}
-              <div style={{ flex: 1, padding: "32px 40px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16 }}>
+              <div style={{ flex: 1, padding: "24px 24px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16 }} className="sm:px-10 sm:py-8">
                 {!hasData ? (
                   <>
                     <div style={{ width: 48, height: 48, background: "#FFF5F5", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -302,7 +307,7 @@ export default function ReportsClient({
 
               {/* Table */}
               <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
                   <thead>
                     <tr style={{ background: "#F9FAFB" }}>
                       {["Issue","Status","Due Date","Priority","Assigned To","Progress","Action"].map((col) => (
@@ -472,7 +477,10 @@ export default function ReportsClient({
         </div>
 
         {/* ── Right Sidebar ──────────────────────────────────────────────────── */}
-        <div style={{ width: 274, flexShrink: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="w-full lg:w-[274px] lg:flex-shrink-0" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Team Productivity + Mood: side-by-side on sm/md, stacked on lg (sidebar) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1" style={{ gap: 16 }}>
 
           {/* Team Productivity */}
           <div style={{ background: "#FFF", borderRadius: 16, border: "1px solid #F3F4F6", padding: "20px" }}>
@@ -524,6 +532,8 @@ export default function ReportsClient({
               </div>
             </div>
           </div>
+
+          </div>{/* end sm 2-col grid */}
 
           {/* Quick Insights */}
           <div style={{ background: "#FFF", borderRadius: 16, border: "1px solid #F3F4F6", padding: "20px" }}>

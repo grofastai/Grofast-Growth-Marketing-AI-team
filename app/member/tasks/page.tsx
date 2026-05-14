@@ -29,7 +29,7 @@ export default async function MemberTasksPage() {
     // Use admin client to bypass RLS; created_by + assigner join only when column exists
     admin
       .from("tasks")
-      .select("id, title, description, status, priority, due_date, projects(id, business_name)")
+      .select("id, title, description, status, priority, due_date, projects(id, business_name), assignedBy:users!tasks_created_by_fkey(id, name)")
       .eq("assigned_to", user.id)
       .order("due_date", { ascending: true, nullsFirst: false }),
     supabase

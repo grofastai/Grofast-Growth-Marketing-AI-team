@@ -21,6 +21,8 @@ interface Task {
   priority: "low" | "medium" | "high"
   due_date: string | null
   projects: { id: string; business_name: string } | null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  assignedBy: { id: string; name: string } | null | any
 }
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -224,9 +226,25 @@ function TaskCardInner({
             <GripVertical size={13} style={{ color: "#6B7280" }} />
           </button>
         )}
-        <p className="text-[12px] font-semibold leading-snug flex-1 line-clamp-2" style={{ color: "#111111" }}>
-          {task.title}
-        </p>
+        <div className="flex-1 min-w-0">
+          <p className="text-[12px] font-semibold leading-snug line-clamp-2" style={{ color: "#111111" }}>
+            {task.title}
+          </p>
+          {task.assignedBy && (
+            <div className="flex items-center gap-1.5 mt-1">
+              <div
+                className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black flex-shrink-0"
+                style={{ background: "#de1a1a", color: "#FFFFFF" }}
+                title={`Assigned by ${task.assignedBy.name}`}
+              >
+                {task.assignedBy.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+              </div>
+              <span className="text-[10px]" style={{ color: "#9CA3AF" }}>
+                by {task.assignedBy.name}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Badges */}

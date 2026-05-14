@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -7,6 +8,7 @@ import {
   LayoutDashboard, Users, Clock, Target,
   CalendarOff, Megaphone, Briefcase, LogOut, BarChart2,
   Receipt, IndianRupee, FolderOpen, LifeBuoy,
+  MoreHorizontal, X,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
@@ -33,6 +35,16 @@ const bottomNavItems = [
   { label: "Reports", href: "/admin/reports",   icon: BarChart2 },
 ]
 
+const moreNavItems = [
+  { label: "Attendance",    href: "/admin/attendance",    icon: Clock },
+  { label: "Clients",       href: "/admin/clients",       icon: Briefcase },
+  { label: "Announcements", href: "/admin/announcements", icon: Megaphone },
+  { label: "Expenses",      href: "/admin/expenses",      icon: Receipt },
+  { label: "Payroll",       href: "/admin/payroll",       icon: IndianRupee },
+  { label: "Documents",     href: "/admin/documents",     icon: FolderOpen },
+  { label: "Support",       href: "/admin/support",       icon: LifeBuoy },
+]
+
 const SIDEBAR_BG = "linear-gradient(160deg, #0a100d 0%, #520000 55%, #de1a1a 100%)"
 const MOBILE_BG  = "linear-gradient(90deg, #0a100d 0%, #de1a1a 100%)"
 const ACTIVE_BG  = "rgba(255,255,255,0.14)"
@@ -41,10 +53,13 @@ const DIVIDER    = "rgba(255,255,255,0.1)"
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const [showMore, setShowMore] = useState(false)
 
   function isActive(href: string) {
     return pathname === href || (href !== "/admin/dashboard" && pathname.startsWith(href))
   }
+
+  const isMoreActive = moreNavItems.some(item => isActive(item.href))
 
   return (
     <>
@@ -181,7 +196,7 @@ export default function Sidebar() {
         </div>
       </header>
 
-      {/* ── Mobile Bottom Nav (< md: 768px) ──────────────────── */}
+      {/* ── Mobile Bottom Nav ─────────────────────────────────────── */}
       <nav
         className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2"
         style={{
@@ -204,7 +219,63 @@ export default function Sidebar() {
             </Link>
           )
         })}
+        {/* More button */}
+        <button
+          onClick={() => setShowMore(true)}
+          className="flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl transition-all"
+          style={{ color: isMoreActive ? "#FFFFFF" : "rgba(255,255,255,0.5)", background: isMoreActive ? "rgba(255,255,255,0.12)" : "none", border: "none", cursor: "pointer" }}
+        >
+          <MoreHorizontal size={20} strokeWidth={isMoreActive ? 2.5 : 1.8} />
+          <span className="text-[10px] font-semibold leading-none">More</span>
+        </button>
       </nav>
+
+      {/* ── More Sheet ─────────────────────────────────────────────── */}
+      {showMore && (
+        <div className="md:hidden fixed inset-0 z-[60]" onClick={() => setShowMore(false)}>
+          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+          <div
+            className="absolute bottom-0 left-0 right-0 rounded-t-3xl"
+            style={{ background: "#0f0f0f", border: "1px solid rgba(255,255,255,0.08)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${DIVIDER}` }}>
+              <span className="text-[13px] font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>More Pages</span>
+              <button onClick={() => setShowMore(false)}
+                style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                <X size={15} style={{ color: "rgba(255,255,255,0.7)" }} />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2 p-4 pb-8">
+              {moreNavItems.map(({ label, href, icon: Icon }) => {
+                const active = isActive(href)
+                return (
+                  <Link
+                    key={href} href={href}
+                    onClick={() => setShowMore(false)}
+                    className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl transition-all"
+                    style={active
+                      ? { background: "rgba(255,255,255,0.18)", color: "#FFFFFF" }
+                      : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)" }
+                    }
+                  >
+                    <Icon size={22} strokeWidth={active ? 2.2 : 1.7} />
+                    <span className="text-[11px] font-semibold text-center leading-tight">{label}</span>
+                  </Link>
+                )
+              })}
+              <form action={logoutAction}>
+                <button type="submit"
+                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl w-full transition-all"
+                  style={{ background: "rgba(222,26,26,0.08)", color: "rgba(239,68,68,0.8)", border: "none", cursor: "pointer" }}>
+                  <LogOut size={22} strokeWidth={1.7} />
+                  <span className="text-[11px] font-semibold">Sign Out</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

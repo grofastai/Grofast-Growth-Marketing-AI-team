@@ -155,6 +155,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
   const [tasks, setTasks] = useState(initialTasks)
   const [showForm, setShowForm] = useState(false)
   const [viewMode, setViewMode] = useState<"member" | "status">("member")
+  const [mobileCol, setMobileCol] = useState<"todo" | "in_progress" | "completed">("todo")
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
   const [isPending, startTransition] = useTransition()
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -236,7 +237,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
         <div style={{ position: "absolute", bottom: -30, right: 120, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", top: 10, right: 280, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
 
-        <div style={{ padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, position: "relative", zIndex: 1 }}>
+        <div style={{ padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, position: "relative", zIndex: 1, flexWrap: "wrap" }}>
           {/* Left */}
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -267,7 +268,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
           </div>
 
           {/* Right: controls */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
             <div style={{ display: "flex", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: 4, gap: 3 }}>
               {([["member", <Users size={13} key="u" />, "By Member"], ["status", <Columns size={13} key="c" />, "By Status"]] as const).map(([mode, icon, label]) => (
                 <button key={mode} onClick={() => setViewMode(mode as "member" | "status")}
@@ -417,44 +418,82 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
 
       {/* ── BY STATUS VIEW ──────────────────────────────────────────────────── */}
       {viewMode === "status" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18 }}>
-          {statusColumns.map(col => (
-            <div key={col.key} style={{
-              borderRadius: 22, background: "#FFFFFF", border: "1px solid #EBEDF2",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.06)", minHeight: 480,
-              display: "flex", flexDirection: "column", overflow: "hidden",
-            }}>
-              <div style={{ height: 4, background: col.dot }} />
-              <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid #F5F5F5", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: col.bg }}>
-                    <span style={{ width: 10, height: 10, borderRadius: "50%", background: col.dot, display: "inline-block" }} />
-                  </div>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{col.label}</span>
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 800, padding: "4px 12px", borderRadius: 20, background: col.bg, color: col.color }}>{col.tasks.length} tasks</span>
-              </div>
-              {col.tasks.length === 0 ? (
-                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 16, background: col.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ width: 16, height: 16, borderRadius: "50%", background: col.dot, display: "inline-block", opacity: 0.4 }} />
-                  </div>
-                  <p style={{ fontSize: 12, color: "#D1D5DB", fontWeight: 600 }}>No tasks here</p>
+        <>
+          {/* Mobile tab view — shown only on small screens */}
+          <div className="md:hidden">
+            {/* Tab buttons */}
+            <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+              {(["todo", "in_progress", "completed"] as const).map(col => (
+                <button
+                  key={col}
+                  onClick={() => setMobileCol(col)}
+                  className="flex-shrink-0 px-4 py-2 rounded-xl text-[13px] font-bold transition-all"
+                  style={mobileCol === col
+                    ? { background: "#DE1A1A", color: "#fff", border: "none" }
+                    : { background: "#F3F4F6", color: "#6B7280", border: "none" }}
+                >
+                  {col === "todo" ? `To Do (${tasks.filter(t => t.status === "todo").length})` : col === "in_progress" ? `In Progress (${tasks.filter(t => t.status === "in_progress").length})` : `Completed (${tasks.filter(t => t.status === "completed").length})`}
+                </button>
+              ))}
+            </div>
+            {/* Single-column task list */}
+            <div className="flex flex-col gap-3">
+              {tasks.filter(t => t.status === mobileCol).length === 0 ? (
+                <div style={{ textAlign: "center", padding: "40px 0", color: "#D1D5DB", fontSize: 13, fontWeight: 600 }}>
+                  No tasks here
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px 14px" }}>
-                  {col.tasks.map(task => (
-                    <TaskCard key={task.id} task={task}
-                      onMove={moveTask} onDelete={removeTask}
-                      isMoving={movingId === task.id && isPending}
-                      isDeleting={deletingId === task.id && isPending}
-                    />
-                  ))}
-                </div>
+                tasks.filter(t => t.status === mobileCol).map(task => (
+                  <TaskCard key={task.id} task={task}
+                    onMove={moveTask} onDelete={removeTask}
+                    isMoving={movingId === task.id && isPending}
+                    isDeleting={deletingId === task.id && isPending}
+                  />
+                ))
               )}
             </div>
-          ))}
-        </div>
+          </div>
+
+          {/* Desktop 3-column grid — hidden on mobile */}
+          <div className="hidden md:grid md:grid-cols-3 gap-[18px]">
+            {statusColumns.map(col => (
+              <div key={col.key} style={{
+                borderRadius: 22, background: "#FFFFFF", border: "1px solid #EBEDF2",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.06)", minHeight: 480,
+                display: "flex", flexDirection: "column", overflow: "hidden",
+              }}>
+                <div style={{ height: 4, background: col.dot }} />
+                <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid #F5F5F5", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", background: col.bg }}>
+                      <span style={{ width: 10, height: 10, borderRadius: "50%", background: col.dot, display: "inline-block" }} />
+                    </div>
+                    <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{col.label}</span>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 800, padding: "4px 12px", borderRadius: 20, background: col.bg, color: col.color }}>{col.tasks.length} tasks</span>
+                </div>
+                {col.tasks.length === 0 ? (
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
+                    <div style={{ width: 48, height: 48, borderRadius: 16, background: col.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ width: 16, height: 16, borderRadius: "50%", background: col.dot, display: "inline-block", opacity: 0.4 }} />
+                    </div>
+                    <p style={{ fontSize: 12, color: "#D1D5DB", fontWeight: 600 }}>No tasks here</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px 14px" }}>
+                    {col.tasks.map(task => (
+                      <TaskCard key={task.id} task={task}
+                        onMove={moveTask} onDelete={removeTask}
+                        isMoving={movingId === task.id && isPending}
+                        isDeleting={deletingId === task.id && isPending}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* ── BOTTOM BANNER ───────────────────────────────────────────────────── */}

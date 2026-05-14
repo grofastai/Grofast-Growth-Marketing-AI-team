@@ -33,6 +33,8 @@ export default async function AdminExpensesPage() {
     { data: updatesRaw },
     { data: usersRaw },
     { data: expensesRaw },
+    { data: pricingRaw },
+    { data: overridesRaw },
   ] = await Promise.all([
     admin
       .from("daily_updates")
@@ -41,13 +43,22 @@ export default async function AdminExpensesPage() {
       .order("date", { ascending: false }),
     admin
       .from("users")
-      .select("id, name, employee_id")
+      .select("id, name, employee_id, hourly_rate")
       .eq("company_id", cid),
     admin
       .from("expense_claims")
       .select("*, users(name, employee_id)")
       .eq("company_id", cid)
       .order("created_at", { ascending: false }),
+    admin
+      .from("pricing_rates")
+      .select("video_type, rate_per_video")
+      .eq("company_id", cid)
+      .order("video_type"),
+    admin
+      .from("video_cost_overrides")
+      .select("video_uid, manual_cost")
+      .eq("company_id", cid),
   ])
 
   return (
@@ -55,6 +66,8 @@ export default async function AdminExpensesPage() {
       updates={updatesRaw ?? []}
       users={usersRaw ?? []}
       expenses={expensesRaw ?? []}
+      pricingRates={pricingRaw ?? []}
+      costOverrides={overridesRaw ?? []}
     />
   )
 }

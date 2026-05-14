@@ -145,7 +145,7 @@ export default async function AttendancePage({
   ]
 
   return (
-    <div style={{ background: "linear-gradient(160deg,#F8F9FF 0%,#F5F6FA 100%)", minHeight: "100vh", padding: "24px 28px 56px" }}>
+    <div style={{ background: "linear-gradient(160deg,#F8F9FF 0%,#F5F6FA 100%)", minHeight: "100vh" }} className="px-4 py-6 md:px-7 pb-14">
 
       {/* ── HERO HEADER ─────────────────────────────────────────────────────── */}
       <div style={{
@@ -200,7 +200,7 @@ export default async function AttendancePage({
       </div>
 
       {/* ── STAT CARDS ──────────────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 22 }}>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5" style={{ marginBottom: 22 }}>
         {statCards.map(s => (
           <div key={s.label} style={{
             background: "#FFFFFF", borderRadius: 20,
@@ -234,7 +234,7 @@ export default async function AttendancePage({
       </div>
 
       {/* ── MAIN 2-COL LAYOUT ───────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 18, marginBottom: 20 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 mb-5" style={{ marginBottom: 20 }}>
 
         {/* ── LEFT: Attendance Table ───────────────────────────────────────── */}
         <div style={{ background: "#FFFFFF", borderRadius: 22, border: "1px solid #EBEDF2", boxShadow: "0 4px 20px rgba(0,0,0,0.06)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
@@ -256,69 +256,74 @@ export default async function AttendancePage({
             </div>
           </div>
 
-          {/* Column headers */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px", padding: "10px 22px", borderBottom: "1px solid #F5F5F5", background: "#FAFAFA" }}>
-            {["EMPLOYEE", "CLOCK IN", "CLOCK OUT", "DURATION", "STATUS"].map(h => (
-              <span key={h} style={{ fontSize: 10, fontWeight: 800, color: "#9CA3AF", letterSpacing: "0.1em" }}>{h}</span>
-            ))}
-          </div>
-
-          {/* Rows */}
-          <div style={{ flex: 1 }}>
-            {!members || members.length === 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "56px 0", gap: 10 }}>
-                <div style={{ width: 56, height: 56, borderRadius: 18, background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Users size={24} style={{ color: "#D1D5DB" }} />
-                </div>
-                <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0, fontWeight: 600 }}>No team members found</p>
+          {/* Scrollable table wrapper */}
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: 640 }}>
+              {/* Column headers */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px", padding: "10px 22px", borderBottom: "1px solid #F5F5F5", background: "#FAFAFA" }}>
+                {["EMPLOYEE", "CLOCK IN", "CLOCK OUT", "DURATION", "STATUS"].map(h => (
+                  <span key={h} style={{ fontSize: 10, fontWeight: 800, color: "#9CA3AF", letterSpacing: "0.1em" }}>{h}</span>
+                ))}
               </div>
-            ) : (
-              (members ?? []).map((m, i) => {
-                const log       = logMap.get(m.id)
-                const isAbsent  = log?.status === "absent" && !log?.clock_in
-                const isWorking = !!(log?.clock_in && !log?.clock_out)
-                const isDone    = !!(log?.clock_in && log?.clock_out)
-                const dur       = calcDuration(log?.clock_in ?? null, log?.clock_out ?? null)
 
-                let statusLabel = "Not Logged"; let statusColor = "#9CA3AF"; let statusBg = "#F3F4F6"; let statusDot = "#D1D5DB"
-                if (isAbsent)  { statusLabel = "Absent";  statusColor = "#DE1A1A"; statusBg = "rgba(222,26,26,0.08)"; statusDot = "#DE1A1A" }
-                if (isWorking) { statusLabel = "Working"; statusColor = "#10B981"; statusBg = "rgba(16,185,129,0.09)"; statusDot = "#10B981" }
-                if (isDone)    { statusLabel = "Done";    statusColor = "#6366F1"; statusBg = "rgba(99,102,241,0.09)"; statusDot = "#6366F1" }
-
-                const initials = m.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
-                const avatarColors = ["#de1a1a","#6366F1","#10B981","#F59E0B","#8B5CF6","#06B6D4"]
-                const avatarColor = avatarColors[i % avatarColors.length]
-
-                return (
-                  <div key={m.id} style={{
-                    display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px",
-                    padding: "13px 22px", borderBottom: "1px solid #F9FAFB", alignItems: "center",
-                    background: i % 2 === 0 ? "#FFFFFF" : "#FDFCFC",
-                    transition: "background 0.15s",
-                  }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 12, background: `${avatarColor}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: `1.5px solid ${avatarColor}30` }}>
-                        <span style={{ fontSize: 13, fontWeight: 900, color: avatarColor }}>{initials}</span>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0 }}>{m.name}</p>
-                        <p style={{ fontSize: 10, color: "#C4C4C4", margin: 0, fontWeight: 600 }}>#{m.employee_id}</p>
-                      </div>
+              {/* Rows */}
+              <div style={{ flex: 1 }}>
+                {!members || members.length === 0 ? (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "56px 0", gap: 10 }}>
+                    <div style={{ width: 56, height: 56, borderRadius: 18, background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Users size={24} style={{ color: "#D1D5DB" }} />
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                      {log?.clock_in && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10B981", flexShrink: 0 }} />}
-                      <span style={{ fontSize: 12, fontWeight: 600, color: log?.clock_in ? "#111827" : "#D1D5DB" }}>{fmtTime(log?.clock_in ?? null)}</span>
-                    </div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: log?.clock_out ? "#111827" : "#D1D5DB" }}>{fmtTime(log?.clock_out ?? null)}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: dur ? "#374151" : "#D1D5DB" }}>{dur ?? "—"}</span>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 10, background: statusBg, color: statusColor }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusDot, flexShrink: 0 }} />
-                      {statusLabel}
-                    </span>
+                    <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0, fontWeight: 600 }}>No team members found</p>
                   </div>
-                )
-              })
-            )}
+                ) : (
+                  (members ?? []).map((m, i) => {
+                    const log       = logMap.get(m.id)
+                    const isAbsent  = log?.status === "absent" && !log?.clock_in
+                    const isWorking = !!(log?.clock_in && !log?.clock_out)
+                    const isDone    = !!(log?.clock_in && log?.clock_out)
+                    const dur       = calcDuration(log?.clock_in ?? null, log?.clock_out ?? null)
+
+                    let statusLabel = "Not Logged"; let statusColor = "#9CA3AF"; let statusBg = "#F3F4F6"; let statusDot = "#D1D5DB"
+                    if (isAbsent)  { statusLabel = "Absent";  statusColor = "#DE1A1A"; statusBg = "rgba(222,26,26,0.08)"; statusDot = "#DE1A1A" }
+                    if (isWorking) { statusLabel = "Working"; statusColor = "#10B981"; statusBg = "rgba(16,185,129,0.09)"; statusDot = "#10B981" }
+                    if (isDone)    { statusLabel = "Done";    statusColor = "#6366F1"; statusBg = "rgba(99,102,241,0.09)"; statusDot = "#6366F1" }
+
+                    const initials = m.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
+                    const avatarColors = ["#de1a1a","#6366F1","#10B981","#F59E0B","#8B5CF6","#06B6D4"]
+                    const avatarColor = avatarColors[i % avatarColors.length]
+
+                    return (
+                      <div key={m.id} style={{
+                        display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px",
+                        padding: "13px 22px", borderBottom: "1px solid #F9FAFB", alignItems: "center",
+                        background: i % 2 === 0 ? "#FFFFFF" : "#FDFCFC",
+                        transition: "background 0.15s",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div style={{ width: 36, height: 36, borderRadius: 12, background: `${avatarColor}18`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: `1.5px solid ${avatarColor}30` }}>
+                            <span style={{ fontSize: 13, fontWeight: 900, color: avatarColor }}>{initials}</span>
+                          </div>
+                          <div>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0 }}>{m.name}</p>
+                            <p style={{ fontSize: 10, color: "#C4C4C4", margin: 0, fontWeight: 600 }}>#{m.employee_id}</p>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                          {log?.clock_in && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10B981", flexShrink: 0 }} />}
+                          <span style={{ fontSize: 12, fontWeight: 600, color: log?.clock_in ? "#111827" : "#D1D5DB" }}>{fmtTime(log?.clock_in ?? null)}</span>
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: log?.clock_out ? "#111827" : "#D1D5DB" }}>{fmtTime(log?.clock_out ?? null)}</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: dur ? "#374151" : "#D1D5DB" }}>{dur ?? "—"}</span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 800, padding: "5px 12px", borderRadius: 10, background: statusBg, color: statusColor }}>
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusDot, flexShrink: 0 }} />
+                          {statusLabel}
+                        </span>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Footer */}

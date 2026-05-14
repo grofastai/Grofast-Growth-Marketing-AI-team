@@ -18,7 +18,7 @@ export function AttendanceDonut({ present, notLogged, absent, total }: DonutProp
   const display = data.length === 0 ? [{ name: "No Data", value: 1, color: "#E5E7EB" }] : data
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+    <div className="flex flex-wrap items-center gap-5">
       <div style={{ position: "relative", width: 130, height: 130, flexShrink: 0 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -35,7 +35,7 @@ export function AttendanceDonut({ present, notLogged, absent, total }: DonutProp
         </div>
       </div>
 
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="flex-1 min-w-0" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {slices.map(s => (
           <div key={s.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -57,7 +57,7 @@ type TrendPoint = { day: string; count: number }
 
 export function WeeklyTrendChart({ data }: { data: TrendPoint[] }) {
   return (
-    <div style={{ height: 130 }}>
+    <div className="w-full" style={{ height: 130 }}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
           <defs>

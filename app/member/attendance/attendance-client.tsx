@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useTransition, useCallback } from "react"
 import Image from "next/image"
-import { LogOut, Loader2, Home, Building2, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn } from "lucide-react"
-import { clockIn, clockOut, markAbsent } from "@/lib/actions/attendance"
+import { LogOut, Loader2, Home, Building2, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch } from "lucide-react"
+import { clockIn, clockOut, markAbsent, getAttendanceByDate } from "@/lib/actions/attendance"
 import { useRouter } from "next/navigation"
 
 const OFFICE_LAT     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LAT ?? "")
@@ -78,6 +78,10 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [confirmAbsent, setConfirmAbsent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [geoLoading, setGeoLoading] = useState(false)
+  const [historyDate, setHistoryDate] = useState("")
+  const [historyLog, setHistoryLog] = useState<{
+    clock_in: string | null; clock_out: string | null; work_type: string | null; status: string
+  } | null | "loading" | "empty">(null)
 
   const handleLogIn = useCallback(() => {
     setError(null)
@@ -102,6 +106,15 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   function handle(fn: () => Promise<{ success: boolean; error?: string }>) {
     setError(null)
     startTransition(async () => { const res = await fn(); if (!res.success) setError(res.error ?? "Error"); else router.refresh() })
+  }
+
+  async function handleHistoryDate(date: string) {
+    setHistoryDate(date)
+    if (!date) { setHistoryLog(null); return }
+    setHistoryLog("loading")
+    const res = await getAttendanceByDate(date)
+    if (!res.success || !res.log) setHistoryLog("empty")
+    else setHistoryLog(res.log)
   }
 
   const isAbsent  = todayLog?.status === "absent"
@@ -455,6 +468,50 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ── View Past Attendance ─────────────────────────────────────── */}
+      <div className="rounded-3xl p-5 mt-5" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
+            <CalendarSearch size={16} style={{ color: "#6366F1" }} />
+          </div>
+          <div>
+            <h3 className="text-[15px] font-bold" style={{ color: "#111111" }}>View Past Attendance</h3>
+            <p className="text-[11px]" style={{ color: "#9CA3AF" }}>Select a date to see your log</p>
+          </div>
+        </div>
+
+        <input
+          type="date"
+          max={today}
+          value={historyDate}
+          onChange={e => handleHistoryDate(e.target.value)}
+          className="rounded-xl px-3 py-2 text-[13px] font-semibold mb-4 block"
+          style={{ border: "1.5px solid #EBEDF2", outline: "none", color: "#111111", background: "#F9FAFB" }}
+        />
+
+        {historyLog === "loading" && (
+          <p className="text-[13px]" style={{ color: "#9CA3AF" }}>Loading…</p>
+        )}
+        {historyLog === "empty" && (
+          <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No attendance record found for this date.</p>
+        )}
+        {historyLog && historyLog !== "loading" && historyLog !== "empty" && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              { label: "Status",    value: historyLog.status === "present" ? "Present" : "Absent", color: historyLog.status === "present" ? "#22C55E" : "#EF4444" },
+              { label: "Work Mode", value: historyLog.work_type === "wfh" ? "WFH" : historyLog.work_type === "office" ? "Office" : "—", color: "#111111" },
+              { label: "Log In",    value: fmtTime(historyLog.clock_in), color: "#111111" },
+              { label: "Log Out",   value: fmtTime(historyLog.clock_out), color: "#111111" },
+            ].map(r => (
+              <div key={r.label} className="rounded-2xl p-3" style={{ background: "#F9FAFB", border: "1px solid #EBEDF2" }}>
+                <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#9CA3AF" }}>{r.label}</p>
+                <p className="text-[14px] font-bold" style={{ color: r.color }}>{r.value}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
     </div>

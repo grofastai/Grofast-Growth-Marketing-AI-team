@@ -162,3 +162,25 @@ export async function clockOut(): Promise<{ success: boolean; error?: string }> 
   revalidatePath('/admin/attendance')
   return { success: true }
 }
+
+export async function getAttendanceByDate(date: string): Promise<{
+  success: boolean
+  log: { clock_in: string | null; clock_out: string | null; work_type: string | null; status: string } | null
+  error?: string
+}> {
+  const ctxResult = await getUserContext()
+  if ('error' in ctxResult) return { success: false, log: null, error: ctxResult.error }
+  const ctx = ctxResult
+
+  const admin = adminSupabase()
+  const { data, error } = await admin
+    .from('attendance_logs')
+    .select('clock_in, clock_out, work_type, status')
+    .eq('company_id', ctx.companyId)
+    .eq('user_id', ctx.userId)
+    .eq('date', date)
+    .maybeSingle()
+
+  if (error) return { success: false, log: null, error: error.message }
+  return { success: true, log: data }
+}

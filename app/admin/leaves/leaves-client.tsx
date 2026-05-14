@@ -260,13 +260,13 @@ export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, ava
   const vacationItems = upcomingLeaves.length > 0 ? upcomingLeaves : leaves.slice(0, 4)
 
   return (
-    <div style={{ display: "flex", gap: 20, padding: "28px 24px 40px", background: "#F9FAFB", minHeight: "100vh" }}>
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_272px] gap-5" style={{ padding: "28px 24px 40px", background: "#F9FAFB", minHeight: "100vh" }}>
 
       {/* ── Main Column ──────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 18 }}>
+      <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 18 }}>
 
         {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div>
             <h1 style={{ fontSize: 28, fontWeight: 800, color: "#111827", fontFamily: "var(--font-jakarta)", margin: 0 }}>Leave Requests</h1>
             <p style={{ fontSize: 13, color: "#6B7280", margin: "4px 0 0" }}>Review and manage team leave requests.</p>
@@ -282,7 +282,8 @@ export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, ava
         </div>
 
         {/* Tabs */}
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="overflow-x-auto pb-1">
+        <div style={{ display: "flex", gap: 8, minWidth: "max-content" }}>
           {STATUS_TABS.map((tab) => {
             const active = statusFilter === tab.key
             return (
@@ -298,6 +299,7 @@ export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, ava
               </button>
             )
           })}
+        </div>
         </div>
 
         {/* Hero Banner */}
@@ -352,7 +354,7 @@ export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, ava
 
         {/* Leave Cards Grid */}
         {leaves.length > 0 && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
             {leaves.map((leave, i) => (
               <LeaveCard
                 key={leave.id} leave={leave} idx={i}
@@ -397,7 +399,7 @@ export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, ava
       </div>
 
       {/* ── Right Sidebar ─────────────────────────────────────────────────────── */}
-      <div style={{ width: 272, flexShrink: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
         {/* Leave Overview */}
         <div style={{ background: "#FFF", borderRadius: 18, border: "1px solid #F3F4F6", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>

@@ -102,6 +102,36 @@ export async function submitLeaveRequest(
   return { success: true }
 }
 
+export async function deleteLeaveRequest(
+  leaveId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  // Only allow deleting own pending leaves
+  const { data: leave } = await supabase
+    .from('leaves')
+    .select('user_id, status')
+    .eq('id', leaveId)
+    .single()
+
+  if (!leave) return { success: false, error: 'Leave not found' }
+  if (leave.user_id !== user.id) return { success: false, error: 'Not authorized' }
+  if (leave.status !== 'pending') return { success: false, error: 'Can only delete pending requests' }
+
+  const { error } = await supabase
+    .from('leaves')
+    .delete()
+    .eq('id', leaveId)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/member/leaves')
+  revalidatePath('/admin/leaves')
+  return { success: true }
+}
+
 export async function updateLeaveStatus(
   leaveId: string,
   status: 'approved' | 'rejected'

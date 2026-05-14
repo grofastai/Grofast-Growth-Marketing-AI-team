@@ -370,7 +370,15 @@ export default function MemberTasksClient({
   const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 }
   function colTasks(key: "todo" | "in_progress" | "completed") {
     let list = tasks.filter(t => t.status === key)
-    if (search.trim()) list = list.filter(t => t.title.toLowerCase().includes(search.toLowerCase()))
+    if (search.trim()) {
+      const q = search.toLowerCase()
+      const project = (t: Task) => (Array.isArray(t.projects) ? t.projects[0] : t.projects)?.business_name ?? ""
+      list = list.filter(t =>
+        t.title.toLowerCase().includes(q) ||
+        (t.description ?? "").toLowerCase().includes(q) ||
+        project(t).toLowerCase().includes(q)
+      )
+    }
     if (sortBy === "priority") list = [...list].sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
     if (sortBy === "due_date") list = [...list].sort((a, b) => (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999"))
     return list
@@ -430,7 +438,7 @@ export default function MemberTasksClient({
             style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
             <Search size={13} style={{ color: "#9CA3AF" }} />
             <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search tasks..."
+              placeholder="Search by title, description, project..."
               className="bg-transparent outline-none text-[12px] flex-1 sm:w-[180px]"
               style={{ color: "#111111" }} />
           </div>

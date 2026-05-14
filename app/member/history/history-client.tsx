@@ -5,8 +5,8 @@ import Image from "next/image"
 import {
   Camera, Film, Clock, CalendarDays, MoreVertical,
   ChevronDown, TrendingUp, Zap, BookOpen, Users,
-  CheckCircle2, ChevronRight, Search, Bell,
-  ArrowRight, Flame, Star,
+  CheckCircle2, Search, Bell,
+  ArrowRight, Flame, Star, X,
 } from "lucide-react"
 
 interface WorkEntry {
@@ -147,20 +147,53 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
   const [selectedMonth, setSelectedMonth] = useState(months[0] ?? "")
   const [monthOpen, setMonthOpen]         = useState(false)
   const [viewFull, setViewFull]           = useState(false)
+  const [search, setSearch]               = useState("")
+  const [selectedDate, setSelectedDate]   = useState("")
 
-  const filtered = useMemo(() =>
+  // All updates in selected month
+  const monthFiltered = useMemo(() =>
     updates.filter(u => monthLabel(u.date) === selectedMonth), [updates, selectedMonth]
   )
 
-  // Latest day for hero
-  const latest = filtered[0] ?? null
+  // Collect all work entries across the month for search
+  const allEntries = useMemo(() => {
+    const entries: Array<{ updateId: string; date: string; entry: WorkEntry }> = []
+    for (const u of monthFiltered) {
+      for (const e of (Array.isArray(u.work_entries) ? u.work_entries : [])) {
+        entries.push({ updateId: u.id, date: u.date, entry: e })
+      }
+    }
+    return entries
+  }, [monthFiltered])
 
-  // Stats for selected month
+  const searchActive = search.trim().length > 0
+  const dateActive   = selectedDate.length > 0
+
+  // Filtered updates (by date if active, by search if active)
+  const filtered = useMemo(() => {
+    let base = monthFiltered
+    if (dateActive) base = base.filter(u => u.date === selectedDate)
+    if (!searchActive) return base
+    const q = search.toLowerCase()
+    return base.filter(u => {
+      const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+      return entries.some(e =>
+        (e.title ?? "").toLowerCase().includes(q) ||
+        (e.client_name ?? "").toLowerCase().includes(q) ||
+        (e.notes ?? "").toLowerCase().includes(q)
+      )
+    })
+  }, [monthFiltered, search, searchActive, selectedDate, dateActive])
+
+  // Latest day for hero (always from month, not search-filtered)
+  const latest = monthFiltered[0] ?? null
+
+  // Stats always use the full month (not search-filtered)
   const stats = useMemo(() => {
     let totalHours = 0, totalOT = 0, totalTasks = 0, presentDays = 0
     let shootH = 0, editH = 0, otherH = 0
     const hoursPerDay: number[] = []
-    for (const u of filtered) {
+    for (const u of monthFiltered) {
       const h = u.working_hours ?? 0
       totalHours += h; if (h > 9) totalOT += Math.round((h - 9) * 10) / 10
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
@@ -247,7 +280,12 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
         {/* Search */}
         <div style={{ flex:1, maxWidth:340, position:"relative" }}>
           <Search size={14} style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF" }}/>
-          <input placeholder="Search anything…" style={{ width:"100%", background:"#F5F6FA", border:"1px solid #EBEDF2", borderRadius:12, padding:"9px 12px 9px 34px", fontSize:13, color:"#374151", outline:"none" }}/>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search by task, client, notes…"
+            style={{ width:"100%", background:"#F5F6FA", border:"1px solid #EBEDF2", borderRadius:12, padding:"9px 12px 9px 34px", fontSize:13, color:"#374151", outline:"none" }}
+          />
         </div>
 
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
@@ -257,6 +295,23 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
               <Bell size={16} style={{ color:"#374151" }}/>
             </div>
             <span style={{ position:"absolute", top:-4, right:-4, width:16, height:16, background:"#DE1A1A", borderRadius:"50%", fontSize:8, fontWeight:900, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", border:"2px solid #fff" }}>3</span>
+          </div>
+
+          {/* Date picker */}
+          <div style={{ position:"relative", display:"flex", alignItems:"center", gap:6, padding:"8px 12px", borderRadius:12, background:"#fff", border: dateActive ? "1.5px solid #DE1A1A" : "1px solid #EBEDF2" }}>
+            <CalendarDays size={14} style={{ color: dateActive ? "#DE1A1A" : "#9CA3AF", flexShrink:0 }}/>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={e => { setSelectedDate(e.target.value); if (e.target.value) { const m = monthLabel(e.target.value); if (months.includes(m)) setSelectedMonth(m) } }}
+              style={{ border:"none", outline:"none", fontSize:12, fontWeight:600, color: dateActive ? "#DE1A1A" : "#374151", background:"transparent", cursor:"pointer" }}
+            />
+            {dateActive && (
+              <button onClick={() => setSelectedDate("")}
+                style={{ background:"none", border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center" }}>
+                <X size={12} style={{ color:"#9CA3AF" }}/>
+              </button>
+            )}
           </div>
 
           {/* Month picker */}
@@ -270,7 +325,7 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
             {monthOpen && (
               <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, background:"#fff", border:"1px solid #E5E7EB", borderRadius:12, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", zIndex:40, minWidth:180, overflow:"hidden" }}>
                 {months.map(m => (
-                  <button key={m} onClick={() => { setSelectedMonth(m); setMonthOpen(false) }}
+                  <button key={m} onClick={() => { setSelectedMonth(m); setMonthOpen(false); setSelectedDate("") }}
                     style={{ display:"block", width:"100%", textAlign:"left", padding:"10px 14px", fontSize:13, fontWeight: m === selectedMonth ? 700:500, color: m === selectedMonth ? "#DE1A1A":"#374151", background: m === selectedMonth ? "rgba(222,26,26,0.05)":"none", border:"none", cursor:"pointer" }}>
                     {m}
                   </button>
@@ -369,95 +424,138 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
             </div>
 
             {/* ── ENTRIES SECTION ─────────────────────────────────────────── */}
-            {filtered.length === 0 ? (
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 0", background:"#fff", borderRadius:20, border:"2px dashed #E5E7EB" }}>
-                <span style={{ fontSize:40, marginBottom:12 }}>📋</span>
-                <p style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No updates for {selectedMonth}</p>
-                <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Submit your daily updates to see them here.</p>
-              </div>
-            ) : (
-              <div style={{ background:"#fff", borderRadius:22, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-                {/* Entries header */}
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 22px", borderBottom:"1px solid #F5F6FA" }}>
-                  <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:0 }}>
-                    Today • {latestDateLabel}
-                  </p>
-                  <div style={{ display:"flex", alignItems:"center", gap:4, background:"#F5F6FA", borderRadius:10, padding:3 }}>
-                    {["Timeline View","List View"].map((v, i) => (
-                      <button key={v} style={{ padding:"5px 12px", borderRadius:8, fontSize:11, fontWeight:700, border:"none", cursor:"pointer",
-                        background: i === 0 ? "#fff" : "transparent",
-                        color:      i === 0 ? "#DE1A1A" : "#9CA3AF",
-                        boxShadow:  i === 0 ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
-                        {v}
-                      </button>
-                    ))}
+            {(() => {
+              // Collect entries to display
+              let displayEntries: Array<{ date: string; entry: WorkEntry; updateOT: number }> = []
+              if (searchActive || dateActive) {
+                // Show all matching entries across all filtered days
+                for (const u of filtered) {
+                  const uOT = (u.working_hours ?? 0) > 9 ? Math.round(((u.working_hours ?? 0) - 9) * 10) / 10 : 0
+                  const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+                  const q = search.toLowerCase()
+                  for (const e of entries) {
+                    if (!searchActive || (e.title ?? "").toLowerCase().includes(q) || (e.client_name ?? "").toLowerCase().includes(q) || (e.notes ?? "").toLowerCase().includes(q)) {
+                      displayEntries.push({ date: u.date, entry: e, updateOT: uOT })
+                    }
+                  }
+                }
+              } else {
+                // Default: show latest day
+                const src = viewFull ? latestEntries : latestEntries.slice(0, 4)
+                displayEntries = src.map(e => ({ date: latest?.date ?? "", entry: e, updateOT: latestOT }))
+              }
+
+              if (displayEntries.length === 0 && !searchActive && !dateActive && monthFiltered.length === 0) {
+                return (
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 0", background:"#fff", borderRadius:20, border:"2px dashed #E5E7EB" }}>
+                    <span style={{ fontSize:40, marginBottom:12 }}>📋</span>
+                    <p style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No updates for {selectedMonth}</p>
+                    <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Submit your daily updates to see them here.</p>
                   </div>
+                )
+              }
+
+              if (displayEntries.length === 0) {
+                return (
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 0", background:"#fff", borderRadius:20, border:"2px dashed #E5E7EB" }}>
+                    <span style={{ fontSize:36, marginBottom:12 }}>🔍</span>
+                    <p style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No results found</p>
+                    <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Try different keywords or clear the search.</p>
+                  </div>
+                )
+              }
+
+              return (
+                <div style={{ background:"#fff", borderRadius:22, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
+                  {/* Entries header */}
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"16px 22px", borderBottom:"1px solid #F5F6FA" }}>
+                    <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:0 }}>
+                      {searchActive || dateActive
+                        ? `${displayEntries.length} result${displayEntries.length !== 1 ? "s" : ""} found`
+                        : `Today • ${latestDateLabel}`
+                      }
+                    </p>
+                    {searchActive && (
+                      <button onClick={() => setSearch("")}
+                        style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, fontWeight:600, color:"#DE1A1A", background:"rgba(222,26,26,0.06)", border:"none", borderRadius:8, padding:"4px 10px", cursor:"pointer" }}>
+                        <X size={11}/> Clear search
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Timeline entries */}
+                  <div style={{ position:"relative", padding:"0 22px" }}>
+                    <div style={{ position:"absolute", left:30, top:0, bottom:0, width:2, background:"linear-gradient(to bottom,#E5E7EB,transparent)" }}/>
+
+                    {displayEntries.map(({ date, entry, updateOT }, ei) => {
+                      const cfg     = TASK_CFG[entry.task_type] ?? TASK_CFG.other
+                      const dot     = DOT_COLORS[ei % DOT_COLORS.length]
+                      const hasTime = entry.start_time && entry.end_time
+                      const isOT    = updateOT > 0 && ei === displayEntries.length - 1
+                      const dateLabel2 = (searchActive || dateActive)
+                        ? new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday:"short", day:"numeric", month:"short" })
+                        : null
+                      return (
+                        <div key={ei} style={{ display:"flex", alignItems:"center", gap:14, padding:"15px 0", borderBottom: ei < displayEntries.length - 1 ? "1px solid #F8F9FA":"none", position:"relative" }}>
+                          {/* Dot */}
+                          <div style={{ position:"absolute", left:0, width:16, height:16, borderRadius:"50%", background:dot, border:"3px solid #fff", boxShadow:`0 0 0 2px ${dot}30`, flexShrink:0 }}/>
+
+                          {/* Time + badge */}
+                          <div style={{ width:140, flexShrink:0, paddingLeft:24 }}>
+                            {dateLabel2 && (
+                              <p style={{ fontSize:9, fontWeight:700, color:"#DE1A1A", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.06em" }}>{dateLabel2}</p>
+                            )}
+                            <p style={{ fontSize:11, fontWeight:600, color:"#374151", margin:"0 0 5px", whiteSpace:"nowrap" }}>
+                              {hasTime ? `${fmt12(entry.start_time!)} - ${fmt12(entry.end_time!)}` : "—"}
+                            </p>
+                            {isOT ? (
+                              <span style={{ fontSize:9, fontWeight:800, padding:"2px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>+{fmtH(updateOT)} OT</span>
+                            ) : (
+                              <span style={{ fontSize:9, fontWeight:800, padding:"2px 8px", borderRadius:99, background:"rgba(22,163,74,0.1)", color:"#16A34A" }}>Completed</span>
+                            )}
+                          </div>
+
+                          {/* Icon */}
+                          <div style={{ width:50, height:44, borderRadius:13, background:cfg.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <cfg.Icon size={18} style={{ color:cfg.color }}/>
+                          </div>
+
+                          {/* Title */}
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:"0 0 3px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textTransform:"uppercase", letterSpacing:"0.02em" }}>
+                              {entry.client_name || entry.title || "—"}
+                            </p>
+                            <p style={{ fontSize:11, color:"#6B7280", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                              {entry.client_name ? entry.title : entry.notes || cfg.label}
+                            </p>
+                          </div>
+
+                          {/* Hours badge */}
+                          <div style={{ padding:"6px 14px", borderRadius:99, background: isOT ? "rgba(245,158,11,0.1)" : "rgba(22,163,74,0.08)", border: `1.5px solid ${isOT ? "rgba(245,158,11,0.2)" : "rgba(22,163,74,0.2)"}`, flexShrink:0 }}>
+                            <span style={{ fontSize:12, fontWeight:800, color: isOT ? "#D97706" : "#16A34A" }}>{entry.duration_hours}h</span>
+                          </div>
+
+                          <button style={{ background:"none", border:"none", cursor:"pointer", padding:4 }}>
+                            <MoreVertical size={14} style={{ color:"#D1D5DB" }}/>
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* View Full Day Logs (only when not searching) */}
+                  {!searchActive && !dateActive && (
+                    <div style={{ padding:"12px 22px", borderTop:"1px solid #F5F6FA" }}>
+                      <button onClick={() => setViewFull(v => !v)}
+                        style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:700, color:"#374151", padding:0 }}>
+                        {viewFull ? "View Less" : "View Full Day Logs"}
+                        <ArrowRight size={14} style={{ transform: viewFull ? "rotate(90deg)":"none", transition:"0.2s" }}/>
+                      </button>
+                    </div>
+                  )}
                 </div>
-
-                {/* Timeline entries */}
-                <div style={{ position:"relative", padding:"0 22px" }}>
-                  <div style={{ position:"absolute", left:30, top:0, bottom:0, width:2, background:"linear-gradient(to bottom,#E5E7EB,transparent)" }}/>
-
-                  {shownEntries.map((entry, ei) => {
-                    const cfg     = TASK_CFG[entry.task_type] ?? TASK_CFG.other
-                    const dot     = DOT_COLORS[ei % DOT_COLORS.length]
-                    const hasTime = entry.start_time && entry.end_time
-                    const isOT    = latestOT > 0 && ei === latestEntries.length - 1
-                    return (
-                      <div key={ei} style={{ display:"flex", alignItems:"center", gap:14, padding:"15px 0", borderBottom: ei < shownEntries.length - 1 ? "1px solid #F8F9FA":"none", position:"relative" }}>
-                        {/* Dot */}
-                        <div style={{ position:"absolute", left:0, width:16, height:16, borderRadius:"50%", background:dot, border:"3px solid #fff", boxShadow:`0 0 0 2px ${dot}30`, flexShrink:0 }}/>
-
-                        {/* Time + badge */}
-                        <div style={{ width:140, flexShrink:0, paddingLeft:24 }}>
-                          <p style={{ fontSize:11, fontWeight:600, color:"#374151", margin:"0 0 5px", whiteSpace:"nowrap" }}>
-                            {hasTime ? `${fmt12(entry.start_time!)} - ${fmt12(entry.end_time!)}` : "—"}
-                          </p>
-                          {isOT ? (
-                            <span style={{ fontSize:9, fontWeight:800, padding:"2px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>+{fmtH(latestOT)} OT</span>
-                          ) : (
-                            <span style={{ fontSize:9, fontWeight:800, padding:"2px 8px", borderRadius:99, background:"rgba(22,163,74,0.1)", color:"#16A34A" }}>Completed</span>
-                          )}
-                        </div>
-
-                        {/* Icon */}
-                        <div style={{ width:50, height:44, borderRadius:13, background:cfg.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                          <cfg.Icon size={18} style={{ color:cfg.color }}/>
-                        </div>
-
-                        {/* Title */}
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:"0 0 3px", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", textTransform:"uppercase", letterSpacing:"0.02em" }}>
-                            {entry.client_name || entry.title || "—"}
-                          </p>
-                          <p style={{ fontSize:11, color:"#6B7280", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                            {entry.client_name ? entry.title : entry.notes || cfg.label}
-                          </p>
-                        </div>
-
-                        {/* Hours badge */}
-                        <div style={{ padding:"6px 14px", borderRadius:99, background: isOT ? "rgba(245,158,11,0.1)" : "rgba(22,163,74,0.08)", border: `1.5px solid ${isOT ? "rgba(245,158,11,0.2)" : "rgba(22,163,74,0.2)"}`, flexShrink:0 }}>
-                          <span style={{ fontSize:12, fontWeight:800, color: isOT ? "#D97706" : "#16A34A" }}>{entry.duration_hours}h</span>
-                        </div>
-
-                        <button style={{ background:"none", border:"none", cursor:"pointer", padding:4 }}>
-                          <MoreVertical size={14} style={{ color:"#D1D5DB" }}/>
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-
-                {/* View Full Day Logs */}
-                <div style={{ padding:"12px 22px", borderTop:"1px solid #F5F6FA" }}>
-                  <button onClick={() => setViewFull(v => !v)}
-                    style={{ display:"flex", alignItems:"center", gap:6, background:"none", border:"none", cursor:"pointer", fontSize:13, fontWeight:700, color:"#374151", padding:0 }}>
-                    {viewFull ? "View Less" : "View Full Day Logs"}
-                    <ArrowRight size={14} style={{ transform: viewFull ? "rotate(90deg)":"none", transition:"0.2s" }}/>
-                  </button>
-                </div>
-              </div>
-            )}
+              )
+            })()}
           </div>
 
           {/* RIGHT ── Stats panel ─────────────────────────────────────────── */}

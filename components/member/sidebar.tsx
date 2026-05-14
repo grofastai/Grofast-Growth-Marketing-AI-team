@@ -1,11 +1,13 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, ClipboardList, Target, CalendarOff,
   Megaphone, User, LogOut, Clock, History, LifeBuoy, ChevronRight,
+  MoreHorizontal, X,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 import PushSubscribeButton from "@/components/PushSubscribeButton"
@@ -22,12 +24,19 @@ const navItems = [
   { label: "Support",       href: "/member/support",       icon: LifeBuoy },
 ]
 
-const bottomNavItems = [
-  { label: "Home",       href: "/member/dashboard",     icon: LayoutDashboard },
-  { label: "Attendance", href: "/member/attendance",    icon: Clock },
-  { label: "Update",     href: "/member/update",        icon: ClipboardList },
-  { label: "Tasks",      href: "/member/tasks",         icon: Target },
-  { label: "Profile",    href: "/member/profile",       icon: User },
+const mainBottomNav = [
+  { label: "Home",       href: "/member/dashboard",  icon: LayoutDashboard },
+  { label: "Attendance", href: "/member/attendance", icon: Clock },
+  { label: "Update",     href: "/member/update",     icon: ClipboardList },
+  { label: "Tasks",      href: "/member/tasks",      icon: Target },
+]
+
+const moreNavItems = [
+  { label: "Leaves",        href: "/member/leaves",        icon: CalendarOff },
+  { label: "History",       href: "/member/history",       icon: History },
+  { label: "Announcements", href: "/member/announcements", icon: Megaphone },
+  { label: "Support",       href: "/member/support",       icon: LifeBuoy },
+  { label: "Profile",       href: "/member/profile",       icon: User },
 ]
 
 const DIVIDER = "rgba(255,255,255,0.08)"
@@ -36,10 +45,13 @@ const MOBILE_BG = "linear-gradient(90deg, #0a0a0a 0%, #1a0000 60%, #de1a1a 100%)
 export default function MemberSidebar({ name, employeeId }: { name: string; employeeId: string }) {
   const pathname = usePathname()
   const initials = name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
+  const [showMore, setShowMore] = useState(false)
 
   function isActive(href: string) {
     return pathname === href || (href !== "/member/dashboard" && pathname.startsWith(href))
   }
+
+  const isMoreActive = moreNavItems.some(item => isActive(item.href))
 
   return (
     <>
@@ -248,7 +260,7 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
           paddingBottom: "env(safe-area-inset-bottom)",
         }}
       >
-        {bottomNavItems.map(({ label, href, icon: Icon }) => {
+        {mainBottomNav.map(({ label, href, icon: Icon }) => {
           const active = isActive(href)
           return (
             <Link
@@ -264,7 +276,71 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
             </Link>
           )
         })}
+        {/* More button */}
+        <button
+          onClick={() => setShowMore(true)}
+          className="flex flex-col items-center justify-center gap-1 flex-1 py-2 rounded-xl transition-all"
+          style={{ color: isMoreActive ? "#FFFFFF" : "rgba(255,255,255,0.4)", background: "none", border: "none", cursor: "pointer" }}
+        >
+          {isMoreActive && (
+            <div className="absolute bottom-[52px] w-6 h-0.5 rounded-full" style={{ background: "#de1a1a" }} />
+          )}
+          <MoreHorizontal size={20} strokeWidth={isMoreActive ? 2.5 : 1.8} />
+          <span className="text-[10px] font-semibold leading-none" style={{ color: isMoreActive ? "#de1a1a" : "rgba(255,255,255,0.4)" }}>More</span>
+        </button>
       </nav>
+
+      {/* ── More Sheet (mobile) ───────────────────────────── */}
+      {showMore && (
+        <div className="md:hidden fixed inset-0 z-[60]" onClick={() => setShowMore(false)}>
+          {/* Backdrop */}
+          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }} />
+          {/* Sheet */}
+          <div
+            className="absolute bottom-0 left-0 right-0 rounded-t-3xl"
+            style={{ background: "#0f0f0f", border: "1px solid rgba(255,255,255,0.08)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Handle */}
+            <div className="flex items-center justify-between px-5 pt-4 pb-3" style={{ borderBottom: `1px solid ${DIVIDER}` }}>
+              <span className="text-[13px] font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>More Pages</span>
+              <button onClick={() => setShowMore(false)} style={{ background: "rgba(255,255,255,0.08)", border: "none", borderRadius: "50%", width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
+                <X size={15} style={{ color: "rgba(255,255,255,0.7)" }} />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2 p-4 pb-8">
+              {moreNavItems.map(({ label, href, icon: Icon }) => {
+                const active = isActive(href)
+                return (
+                  <Link
+                    key={href} href={href}
+                    onClick={() => setShowMore(false)}
+                    className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl transition-all"
+                    style={active
+                      ? { background: "#de1a1a", color: "#FFFFFF" }
+                      : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)" }
+                    }
+                  >
+                    <Icon size={22} strokeWidth={active ? 2.2 : 1.7} />
+                    <span className="text-[11px] font-semibold text-center leading-tight">{label}</span>
+                  </Link>
+                )
+              })}
+              {/* Sign Out in the sheet */}
+              <form action={logoutAction}>
+                <button
+                  type="submit"
+                  className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl w-full transition-all"
+                  style={{ background: "rgba(222,26,26,0.08)", color: "rgba(239,68,68,0.8)", border: "none", cursor: "pointer" }}
+                >
+                  <LogOut size={22} strokeWidth={1.7} />
+                  <span className="text-[11px] font-semibold">Sign Out</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

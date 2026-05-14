@@ -43,19 +43,21 @@ interface EditEntry {
   notes: string
 }
 
-interface TimeSlot {
+interface TimeBlock {
   id: string
-  label: string
+  startTime: string
+  endTime: string
+  durationHours: number
   description: string
   projectName: string
   status: "completed" | "in_progress" | "not_started"
 }
 
-const TIME_SLOT_LABELS = [
-  "09 AM - 10 AM", "10 AM - 11 AM", "11 AM - 12 PM",
-  "12 PM - 01 PM", "01 PM - 02 PM", "02 PM - 03 PM",
-  "03 PM - 04 PM", "04 PM - 05 PM", "05 PM - 06 PM",
-]
+// 15-min intervals 06:00 – 22:00
+const TIME_OPTIONS_15 = Array.from({ length: 65 }, (_, i) => {
+  const mins = 6 * 60 + i * 15
+  return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`
+})
 
 const TIME_OPTIONS = [
   "07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30",
@@ -169,16 +171,21 @@ export default function DailyUpdateForm({
   const removeGeneralTask = (id: string) => setGeneralTasks(p => p.filter(t => t.id !== id))
   const totalGeneralHours = useMemo(() => generalTasks.reduce((s, t) => s + t.durationHours, 0), [generalTasks])
 
-  // Non-media team: time-slot state
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(() =>
-    TIME_SLOT_LABELS.map(label => ({
-      id: crypto.randomUUID(), label,
-      description: "", projectName: "", status: "not_started" as const,
+  // Non-media team: flexible time block state
+  const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([])
+  const addTimeBlock = () => setTimeBlocks(p => [...p, {
+    id: crypto.randomUUID(), startTime: "09:00", endTime: "10:00",
+    durationHours: 1, description: "", projectName: "", status: "not_started" as const,
+  }])
+  const patchBlock = (id: string, patch: Partial<TimeBlock>) =>
+    setTimeBlocks(p => p.map(b => {
+      const updated = { ...b, ...patch }
+      if (patch.startTime || patch.endTime) {
+        updated.durationHours = calcDuration(updated.startTime, updated.endTime)
+      }
+      return b.id === id ? updated : b
     }))
-  )
-  const patchSlot = (id: string, patch: Partial<TimeSlot>) =>
-    setTimeSlots(p => p.map(s => s.id === id ? { ...s, ...patch } : s))
-  const [mood, setMood] = useState("good")
+  const removeBlock = (id: string) => setTimeBlocks(p => p.filter(b => b.id !== id))
 
   const [learningTopic, setLearningTopic] = useState("")
   const [learningHours, setLearningHours] = useState(1)
@@ -190,10 +197,10 @@ export default function DailyUpdateForm({
   const totalEditHours    = useMemo(() => edits.reduce((s, e) => s + e.timeTaken, 0), [edits])
   const totalHours        = tab === "working" ? totalShootHours + totalEditHours : learningHours
   const generalProductivity = useMemo(() => {
-    const filled = timeSlots.filter(s => s.description.trim())
+    const filled = timeBlocks.filter(b => b.description.trim())
     if (filled.length === 0) return 0
-    return Math.round((filled.filter(s => s.status === "completed").length / timeSlots.length) * 100)
-  }, [timeSlots])
+    return Math.round((filled.filter(b => b.status === "completed").length / filled.length) * 100)
+  }, [timeBlocks])
   const productivity    = useMemo(() => {
     if (tab === "learning") return learningHours > 0 ? 80 : 0
     const filled = shoots.filter(s => s.clientName && s.title).length + edits.filter(e => e.clientName && e.title).length
@@ -269,18 +276,18 @@ export default function DailyUpdateForm({
   // ── Non-media team: timeline submit ───────────────────────────────────────
   function handleGeneralSubmit() {
     setError(null)
-    const filled = timeSlots.filter(s => s.description.trim())
-    if (filled.length === 0) { setError("Fill in at least one time slot."); return }
+    const filled = timeBlocks.filter(b => b.description.trim())
+    if (filled.length === 0) { setError("Add at least one time block with a description."); return }
     const work_entries = filled.map(t => ({
       id:             t.id,
       client_id:      projects.find(p => p.business_name === t.projectName)?.id ?? null,
       client_name:    t.projectName || "Internal",
       task_type:      "other" as const,
       title:          t.description,
-      start_time:     "",
-      end_time:       "",
-      duration_hours: 1,
-      notes:          `[${t.status}] ${t.label}`,
+      start_time:     t.startTime,
+      end_time:       t.endTime,
+      duration_hours: t.durationHours,
+      notes:          `[${t.status}]`,
       video_uploaded: null,
       screenshot_url: "",
       video_link:     "",
@@ -303,23 +310,17 @@ export default function DailyUpdateForm({
   }
 
   if (!isMediaTeam) {
-    const workStart = 9, workEnd = 18
+    const workStart = 9, workEnd = 22
     const totalWorkHours = workEnd - workStart
     const elapsed = Math.max(0, Math.min(h - workStart, totalWorkHours))
     const dayPct = Math.round((elapsed / totalWorkHours) * 100)
     const ringR = 32, ringCirc = 2 * Math.PI * ringR
     const ringFilled = (dayPct / 100) * ringCirc
-    const filledSlots = timeSlots.filter(s => s.description.trim())
+    const filledBlocks = timeBlocks.filter(b => b.description.trim())
+    const totalLoggedHours = timeBlocks.reduce((s, b) => s + b.durationHours, 0)
     const calDay = now.getDate()
     const calMonth = now.toLocaleDateString("en-US", { month: "short", year: "numeric" })
     const calWeekday = now.toLocaleDateString("en-US", { weekday: "long" })
-    const MOODS = [
-      { key: "very_tired", emoji: "😴", label: "Very tired" },
-      { key: "tired",      emoji: "😔", label: "Tired" },
-      { key: "neutral",    emoji: "😐", label: "Neutral" },
-      { key: "good",       emoji: "😊", label: "Good" },
-      { key: "very_good",  emoji: "🤩", label: "Very good" },
-    ]
 
     if (submitted) {
       return (
@@ -390,82 +391,99 @@ export default function DailyUpdateForm({
         {/* Main grid */}
         <div style={{ display:"grid", gridTemplateColumns:"1fr 300px", gap:18, alignItems:"start" }}>
 
-          {/* Left — Timeline */}
+          {/* Left — Flexible Time Blocks */}
           <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20 }}>
-              <div style={{ width:34, height:34, borderRadius:10, background:"rgba(222,26,26,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <Clock size={16} style={{ color:"#DE1A1A" }} />
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:34, height:34, borderRadius:10, background:"rgba(222,26,26,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <Clock size={16} style={{ color:"#DE1A1A" }} />
+                </div>
+                <div>
+                  <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Today&apos;s Time Log</p>
+                  <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
+                    {filledBlocks.length} {filledBlocks.length === 1 ? "block" : "blocks"} · {totalLoggedHours.toFixed(1)}h logged
+                  </p>
+                </div>
               </div>
-              <div>
-                <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Today&apos;s Timeline</p>
-                <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{filledSlots.length} of {timeSlots.length} slots filled</p>
-              </div>
+              <button onClick={addTimeBlock}
+                style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 16px", borderRadius:10, border:"none",
+                  background:"#DE1A1A", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                <Plus size={13} /> Add Time Block
+              </button>
             </div>
 
-            <div style={{ display:"flex", flexDirection:"column" }}>
-              {timeSlots.map((slot, i) => {
-                const isCurrent = h >= 9 + i && h < 10 + i
-                const statusCfg = slot.status === "completed"
-                  ? { bg:"rgba(34,197,94,0.1)", color:"#16A34A", border:"rgba(34,197,94,0.3)" }
-                  : slot.status === "in_progress"
-                  ? { bg:"rgba(245,158,11,0.1)", color:"#D97706", border:"rgba(245,158,11,0.3)" }
-                  : { bg:"#F9FAFB", color:"#9CA3AF", border:"#E5E7EB" }
-                return (
-                  <div key={slot.id} style={{
-                    display:"flex", alignItems:"center", gap:10,
-                    padding:"11px 8px",
-                    borderBottom: i < timeSlots.length - 1 ? "1px solid #F5F5F7" : "none",
-                    background: isCurrent ? "rgba(222,26,26,0.02)" : "transparent",
-                    borderRadius: isCurrent ? 10 : 0,
-                  }}>
-                    {/* Time label */}
-                    <span style={{ width:112, flexShrink:0, fontSize:11, fontWeight:800,
-                      color: isCurrent ? "#DE1A1A" : "#6B7280", fontFamily:"var(--font-jakarta)" }}>
-                      {slot.label}
-                    </span>
-                    {/* Clock circle */}
-                    <div style={{ width:30, height:30, borderRadius:"50%", flexShrink:0,
-                      background: isCurrent ? "#DE1A1A" : "#F3F4F6",
-                      display:"flex", alignItems:"center", justifyContent:"center" }}>
-                      <Clock size={13} style={{ color: isCurrent ? "#FFFFFF" : "#9CA3AF" }} />
+            {timeBlocks.length === 0 ? (
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 24px", border:"2px dashed #E5E7EB", borderRadius:16, background:"#FAFBFC" }}>
+                <span style={{ fontSize:36, marginBottom:12 }}>⏰</span>
+                <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No time blocks yet</p>
+                <p style={{ fontSize:12, color:"#9CA3AF", margin:"0 0 16px", textAlign:"center" }}>
+                  Click &quot;Add Time Block&quot; to log your work.<br/>You can add custom time ranges like 9:45 – 10:30.
+                </p>
+                <button onClick={addTimeBlock}
+                  style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 22px", borderRadius:12, border:"none",
+                    background:"#DE1A1A", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  <Plus size={13} /> Add First Block
+                </button>
+              </div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                {timeBlocks.map((block) => {
+                  const statusCfg = block.status === "completed"
+                    ? { bg:"rgba(34,197,94,0.08)", color:"#16A34A", border:"rgba(34,197,94,0.25)" }
+                    : block.status === "in_progress"
+                    ? { bg:"rgba(245,158,11,0.08)", color:"#D97706", border:"rgba(245,158,11,0.25)" }
+                    : { bg:"#F9FAFB", color:"#9CA3AF", border:"#E5E7EB" }
+                  return (
+                    <div key={block.id} style={{ background:"#F9FAFB", borderRadius:14, border:"1px solid #EBEDF2", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
+                      {/* Row 1: times + duration + delete */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                        <Clock size={13} style={{ color:"#DE1A1A", flexShrink:0 }} />
+                        <select value={block.startTime} onChange={e => patchBlock(block.id, { startTime: e.target.value })}
+                          style={{ fontSize:12, fontWeight:700, color:"#111827", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }}>
+                          {TIME_OPTIONS_15.map(t => <option key={t} value={t}>{fmt12(t)}</option>)}
+                        </select>
+                        <span style={{ fontSize:11, color:"#9CA3AF" }}>to</span>
+                        <select value={block.endTime} onChange={e => patchBlock(block.id, { endTime: e.target.value })}
+                          style={{ fontSize:12, fontWeight:700, color:"#111827", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }}>
+                          {TIME_OPTIONS_15.map(t => <option key={t} value={t}>{fmt12(t)}</option>)}
+                        </select>
+                        {block.durationHours > 0 && (
+                          <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>
+                            {block.durationHours}h
+                          </span>
+                        )}
+                        <button onClick={() => removeBlock(block.id)}
+                          style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", alignItems:"center" }}>
+                          <Trash2 size={13} style={{ color:"#EF4444" }} />
+                        </button>
+                      </div>
+                      {/* Row 2: description + project + status */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                        <input value={block.description} onChange={e => patchBlock(block.id, { description: e.target.value })}
+                          placeholder="What did you work on?"
+                          style={{ flex:1, minWidth:140, background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", fontSize:12, color:"#111827", outline:"none" }} />
+                        {projects.length > 0 ? (
+                          <select value={block.projectName} onChange={e => patchBlock(block.id, { projectName: e.target.value })}
+                            style={{ fontSize:11, fontWeight:700, color: block.projectName ? "#DE1A1A" : "#9CA3AF",
+                              background: block.projectName ? "rgba(222,26,26,0.06)" : "#FFFFFF",
+                              border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", cursor:"pointer", outline:"none" }}>
+                            <option value="">Project</option>
+                            {projects.map(p => <option key={p.id} value={p.business_name}>{p.business_name}</option>)}
+                          </select>
+                        ) : null}
+                        <select value={block.status} onChange={e => patchBlock(block.id, { status: e.target.value as TimeBlock["status"] })}
+                          style={{ fontSize:11, fontWeight:700, color:statusCfg.color, background:statusCfg.bg,
+                            border:`1.5px solid ${statusCfg.border}`, borderRadius:8, padding:"7px 10px", cursor:"pointer", outline:"none" }}>
+                          <option value="not_started">Not Started</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="completed">Completed ✓</option>
+                        </select>
+                      </div>
                     </div>
-                    {/* Description input */}
-                    <input value={slot.description} onChange={e => patchSlot(slot.id, { description: e.target.value })}
-                      placeholder="What did you work on this hour?"
-                      style={{ flex:1, background:"transparent", border:"none", outline:"none",
-                        fontSize:12, color:"#111827", fontFamily:"inherit", padding:"0 4px" }} />
-                    {/* Project pill */}
-                    {projects.length > 0 ? (
-                      <select value={slot.projectName} onChange={e => patchSlot(slot.id, { projectName: e.target.value })}
-                        style={{ fontSize:10, fontWeight:700,
-                          color: slot.projectName ? "#DE1A1A" : "#9CA3AF",
-                          background: slot.projectName ? "rgba(222,26,26,0.08)" : "#F3F4F6",
-                          border: slot.projectName ? "1.5px solid rgba(222,26,26,0.25)" : "1.5px solid #E5E7EB",
-                          borderRadius:20, padding:"3px 8px", appearance:"none", cursor:"pointer",
-                          maxWidth:110, flexShrink:0 }}>
-                        <option value="">Project</option>
-                        {projects.map(p => <option key={p.id} value={p.business_name}>{p.business_name}</option>)}
-                      </select>
-                    ) : (
-                      <input value={slot.projectName} onChange={e => patchSlot(slot.id, { projectName: e.target.value })}
-                        placeholder="Project"
-                        style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", background:"#F3F4F6",
-                          border:"1.5px solid #E5E7EB", borderRadius:20, padding:"3px 8px",
-                          maxWidth:100, outline:"none", flexShrink:0 }} />
-                    )}
-                    {/* Status dropdown */}
-                    <select value={slot.status} onChange={e => patchSlot(slot.id, { status: e.target.value as TimeSlot["status"] })}
-                      style={{ fontSize:10, fontWeight:700, color:statusCfg.color,
-                        background:statusCfg.bg, border:`1.5px solid ${statusCfg.border}`,
-                        borderRadius:20, padding:"3px 8px", appearance:"none", cursor:"pointer", flexShrink:0 }}>
-                      <option value="not_started">Not Started</option>
-                      <option value="in_progress">In Progress</option>
-                      <option value="completed">Completed ✓</option>
-                    </select>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Right — Sidebar */}
@@ -483,10 +501,10 @@ export default function DailyUpdateForm({
                 </p>
                 <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
                   {([
-                    { label:"Hours Logged", value:`${elapsed}/${totalWorkHours} hrs`, color: elapsed >= 8 ? "#22C55E" : "#111111" },
-                    { label:"Focus Time", value: filledSlots.filter(s=>s.status!=="not_started").length > 0 ? `${filledSlots.filter(s=>s.status!=="not_started").length}h active` : "—", color:"#6366F1" },
-                    { label:"Productivity", value:`${generalProductivity}%`, color: generalProductivity >= 70 ? "#22C55E" : generalProductivity > 0 ? "#F59E0B" : "#9CA3AF" },
-                    { label:"Status", badge:{ text: filledSlots.length===0?"Not started":generalProductivity>=70?"On track":"In Progress", bg: filledSlots.length===0?"#9CA3AF":generalProductivity>=70?"#22C55E":"#F59E0B" } },
+                    { label:"Hours Logged",  value:`${totalLoggedHours.toFixed(1)}h`,    color: totalLoggedHours >= 8 ? "#22C55E" : "#111111" },
+                    { label:"Blocks Filled", value:`${filledBlocks.length}`,              color:"#6366F1" },
+                    { label:"Productivity",  value:`${generalProductivity}%`,             color: generalProductivity >= 70 ? "#22C55E" : generalProductivity > 0 ? "#F59E0B" : "#9CA3AF" },
+                    { label:"Status", badge:{ text: filledBlocks.length===0?"Not started":generalProductivity>=70?"On track":"In Progress", bg: filledBlocks.length===0?"#9CA3AF":generalProductivity>=70?"#22C55E":"#F59E0B" } },
                   ] as Array<{label:string;value?:string;color?:string;badge?:{text:string;bg:string}}>
                   ).map((r,idx)=>(
                     <div key={idx} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
@@ -509,49 +527,8 @@ export default function DailyUpdateForm({
               </p>
               <GaugeChart score={generalProductivity} />
               <p style={{ fontSize:10, color:"#9CA3AF", textAlign:"center", marginTop:6 }}>
-                {generalProductivity===0?"Fill in your tasks above ✍️":generalProductivity>=70?"You're on fire! 🔥":"Keep going! 💪"}
+                {generalProductivity===0?"Add time blocks above ✍️":generalProductivity>=70?"You&apos;re on fire! 🔥":"Keep going! 💪"}
               </p>
-            </div>
-
-            {/* Mood selector */}
-            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-              <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 14px" }}>How do you feel today?</p>
-              <div style={{ display:"flex", gap:4, justifyContent:"space-between" }}>
-                {MOODS.map(m => (
-                  <button key={m.key} onClick={() => setMood(m.key)} title={m.label}
-                    style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4,
-                      padding:"8px 4px", borderRadius:12, flex:1, cursor:"pointer", border:"none",
-                      background: mood===m.key ? "rgba(222,26,26,0.05)" : "transparent",
-                      outline: mood===m.key ? "2px solid #DE1A1A" : "2px solid transparent",
-                      transition:"all 0.15s" }}>
-                    <span style={{ fontSize:20 }}>{m.emoji}</span>
-                    <span style={{ fontSize:8, color: mood===m.key?"#DE1A1A":"#9CA3AF", fontWeight:600, lineHeight:1.2, textAlign:"center" }}>{m.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* AI Assistant */}
-            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:12 }}>
-                <div style={{ width:44, height:44, borderRadius:14, flexShrink:0,
-                  background:"linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  boxShadow:"0 4px 12px rgba(59,130,246,0.3)" }}>
-                  <span style={{ fontSize:22 }}>🤖</span>
-                </div>
-                <div>
-                  <p style={{ fontSize:12, fontWeight:800, color:"#111111", margin:"0 0 3px" }}>AI Assistant</p>
-                  <p style={{ fontSize:11, color:"#6B7280", margin:0, lineHeight:1.4 }}>
-                    Hi {firstName}! 👋 Need help logging your update?
-                  </p>
-                </div>
-              </div>
-              <button style={{ width:"100%", padding:"10px 0", borderRadius:12, border:"none",
-                cursor:"pointer", background:"#DE1A1A", color:"#FFFFFF", fontSize:12, fontWeight:700,
-                boxShadow:"0 4px 14px rgba(222,26,26,0.35)" }}>
-                Get AI Suggestion
-              </button>
             </div>
           </div>
         </div>

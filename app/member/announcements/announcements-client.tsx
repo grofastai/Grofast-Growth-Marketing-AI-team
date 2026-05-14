@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import Image from "next/image"
-import { Bell, Search, ChevronDown, Pin, Plus, Settings } from "lucide-react"
+import { Bell, Search, ChevronDown, Pin, Settings } from "lucide-react"
 
 type AnnouncementRow = {
   id: string
@@ -97,10 +97,6 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
             )}
           </div>
 
-          {/* New Announcement */}
-          <button style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", borderRadius: 12, background: "#DE1A1A", border: "none", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer", whiteSpace: "nowrap" }}>
-            <Plus size={15} /> New Announcement
-          </button>
         </div>
       </div>
 

@@ -1,13 +1,13 @@
 "use client"
 
-import { useActionState, useState, useEffect } from "react"
+import { useActionState, useState, useEffect, useTransition, useRef } from "react"
 import Image from "next/image"
 import {
   Plus, X, Loader2, Calendar, CheckCircle2, XCircle,
-  ChevronDown, MoreVertical, Palmtree, Sparkles, CalendarDays,
-  Bell, ArrowUpRight, Clock, SlidersHorizontal,
+  ChevronDown, MoreVertical, Palmtree, CalendarDays,
+  Bell, Clock, SlidersHorizontal, Trash2, Pencil, AlertTriangle,
 } from "lucide-react"
-import { submitLeaveRequest } from "@/lib/actions/leaves"
+import { submitLeaveRequest, deleteLeaveRequest } from "@/lib/actions/leaves"
 
 interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
@@ -133,26 +133,52 @@ function BalanceRing({ pct }: { pct: number }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function MemberLeavesClient({ leaves, userName }: { leaves: Leave[]; userName: string }) {
+export default function MemberLeavesClient({ leaves: initialLeaves, userName }: { leaves: Leave[]; userName: string }) {
+  const [leaves, setLeaves]         = useState(initialLeaves)
   const [showForm, setShowForm]     = useState(false)
   const [leaveType, setLeaveType]   = useState<LeaveType>("full_day")
   const [halfPeriod, setHalfPeriod] = useState<"morning" | "afternoon">("morning")
   const [filterStatus, setFilter]   = useState("all")
   const [filterOpen, setFilterOpen] = useState(false)
   const [showMore, setShowMore]     = useState(false)
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
+  const [deleteId, setDeleteId]     = useState<string | null>(null)
+  const [deleting, startDelete]     = useTransition()
   const [state, action, pending]    = useActionState(submitLeaveRequest, null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpenId(null)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [])
 
   if (state && "success" in state && state.success && showForm) setShowForm(false)
 
+  const today = new Date().toISOString().split("T")[0]
+
   const approved = leaves.filter(l => l.status === "approved")
-  const pendingL = leaves.filter(l => l.status === "pending")
+  // Only show pending leaves where the start date is today or in the future
+  const pendingL = leaves.filter(l => l.status === "pending" && l.from_date >= today)
   const rejected = leaves.filter(l => l.status === "rejected")
   const usedDays = approved.filter(l => (l.leave_type ?? "full_day") === "full_day").reduce((s, l) => s + daysBetween(l.from_date, l.to_date), 0)
   const balance    = Math.max(0, 24 - usedDays)
   const balancePct = Math.round((balance / 24) * 100)
-  const today       = new Date().toISOString().split("T")[0]
   const nextHoliday = HOLIDAYS.find(h => h.date >= today)
   const wlbScore    = Math.min(100, Math.max(30, Math.round(72 - pendingL.length * 3 + approved.length * 2)))
+
+  function handleDelete(id: string) {
+    startDelete(async () => {
+      const res = await deleteLeaveRequest(id)
+      if (res.success) {
+        setLeaves(prev => prev.filter(l => l.id !== id))
+        setDeleteId(null)
+      }
+    })
+  }
 
   const filteredLeaves = leaves.filter(l => filterStatus === "all" || l.status === filterStatus)
   const visibleLeaves  = showMore ? filteredLeaves : filteredLeaves.slice(0, 5)
@@ -383,9 +409,32 @@ export default function MemberLeavesClient({ leaves, userName }: { leaves: Leave
                             {leave.status === "approved" && (
                               <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0 }}>Requested on {fmtShort(leave.created_at)}</p>
                             )}
-                            <button style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}>
-                              <MoreVertical size={14} style={{ color: "#9CA3AF" }} />
-                            </button>
+                            {/* 3-dot menu — only for pending leaves */}
+                            {leave.status === "pending" ? (
+                              <div style={{ position: "relative" }} ref={menuOpenId === leave.id ? menuRef : undefined}>
+                                <button
+                                  onClick={() => setMenuOpenId(menuOpenId === leave.id ? null : leave.id)}
+                                  style={{ background: "none", border: "none", cursor: "pointer", padding: 4, borderRadius: 6 }}>
+                                  <MoreVertical size={14} style={{ color: "#9CA3AF" }} />
+                                </button>
+                                {menuOpenId === leave.id && (
+                                  <div style={{ position: "absolute", right: 0, top: "100%", background: "#fff", borderRadius: 12, border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.14)", zIndex: 30, minWidth: 150, overflow: "hidden" }}>
+                                    <button
+                                      onClick={() => { setShowForm(true); setMenuOpenId(null) }}
+                                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: "none", background: "none", fontSize: 12, fontWeight: 600, color: "#374151", cursor: "pointer", textAlign: "left" }}>
+                                      <Pencil size={13} style={{ color: "#6366F1" }} /> Edit Request
+                                    </button>
+                                    <button
+                                      onClick={() => { setDeleteId(leave.id); setMenuOpenId(null) }}
+                                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: "none", background: "none", fontSize: 12, fontWeight: 600, color: "#EF4444", cursor: "pointer", textAlign: "left" }}>
+                                      <Trash2 size={13} /> Delete Request
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div style={{ width: 22 }} />
+                            )}
                           </div>
                         </div>
                       </div>
@@ -471,6 +520,27 @@ export default function MemberLeavesClient({ leaves, userName }: { leaves: Leave
           </div>
         </div>
       </div>
+
+      {/* ── Delete Confirm Modal ─────────────────────────────────────────────── */}
+      {deleteId && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(10,10,11,0.65)", backdropFilter: "blur(8px)" }}>
+          <div style={{ width: "100%", maxWidth: 380, background: "#fff", borderRadius: 22, padding: 28, boxShadow: "0 24px 80px rgba(0,0,0,0.25)" }}>
+            <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
+              <AlertTriangle size={24} style={{ color: "#EF4444" }} />
+            </div>
+            <p style={{ fontSize: 16, fontWeight: 900, color: "#0A0A0B", margin: "0 0 8px" }}>Delete Leave Request?</p>
+            <p style={{ fontSize: 13, color: "#6B7280", margin: "0 0 24px", lineHeight: 1.6 }}>This will permanently remove your pending leave request. This action cannot be undone.</p>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
+              <button onClick={() => handleDelete(deleteId)} disabled={deleting}
+                style={{ flex: 1, padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 700, background: "#EF4444", color: "#fff", border: "none", cursor: "pointer", opacity: deleting ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal ────────────────────────────────────────────────────────────── */}
       {showForm && (

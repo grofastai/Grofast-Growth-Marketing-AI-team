@@ -176,7 +176,7 @@ export default async function DashboardPage() {
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", margin: "4px 0 0", fontWeight: 500 }}>{dateStr}</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "7px 12px", backdropFilter: "blur(8px)" }}>
+          <div className="hidden sm:flex" style={{ alignItems: "center", gap: 8, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "7px 12px", backdropFilter: "blur(8px)" }}>
             <Search size={13} style={{ color: "rgba(255,255,255,0.6)", flexShrink: 0 }} />
             <input placeholder="Search..." readOnly style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "#FFFFFF", width: 80, minWidth: 60 }} />
           </div>
@@ -356,7 +356,7 @@ export default async function DashboardPage() {
             </div>
             <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Quick Actions</h3>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <div className="grid grid-cols-2 gap-2">
             {quickActions.map(a => {
               const Icon = a.icon
               return (

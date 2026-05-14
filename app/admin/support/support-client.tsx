@@ -336,7 +336,7 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
       </div>
 
       {/* ── MAIN 3-COLUMN ────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 18, padding: '22px 28px', alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', gap: 18, padding: '22px 16px', alignItems: 'flex-start' }} className="md:!px-7">
 
         {/* LEFT: Categories */}
         <div className="hidden xl:block" style={{ width: 268, flexShrink: 0 }}>
@@ -708,7 +708,7 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
             View All Articles <ArrowRight size={12} />
           </button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 12 }}>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {KNOWLEDGE_BASE.map((card, i) => (
             <div key={i}
               style={{ background: '#FFFFFF', borderRadius: 20, padding: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'all 0.15s' }}
@@ -729,7 +729,7 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
       {tickets.length > 0 && (
         <div style={{ padding: '0 28px 40px' }}>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: '#111111', margin: '0 0 14px' }}>Recent Ticket Activity</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {tickets.slice(0, 4).map((t, i) => {
               const sc = STATUS_CONFIG[t.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.closed
               return (

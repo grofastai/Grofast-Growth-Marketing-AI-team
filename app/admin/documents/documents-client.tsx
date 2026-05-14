@@ -439,13 +439,12 @@ export default function DocumentsClient({
     <div style={{ background: "#F7F8FA", minHeight: "100vh" }}>
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <div style={{
+      <div className="min-h-[160px] md:min-h-[220px]" style={{
         position: "relative", overflow: "hidden", margin: "0 0 0 0",
         background: "linear-gradient(120deg, #fff 0%, #fff 45%, #FFF7ED 45%, #FEF3C7 100%)",
-        minHeight: 220,
       }}>
         {/* Left text */}
-        <div style={{ position: "absolute", left: 36, top: 0, bottom: 0, display: "flex", flexDirection: "column", justifyContent: "center", zIndex: 2, maxWidth: 420 }}>
+        <div style={{ position: "absolute", left: 20, right: 20, top: 0, bottom: 0, display: "flex", flexDirection: "column", justifyContent: "center", zIndex: 2, maxWidth: 420 }} className="md:!left-9 md:!right-auto">
           <h1 style={{ fontSize: 36, fontWeight: 900, lineHeight: 1.1, fontFamily: "var(--font-jakarta)", color: "#111", marginBottom: 8 }}>
             Documents{" "}
             <span style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
@@ -484,7 +483,7 @@ export default function DocumentsClient({
         </div>
 
         {/* Right: image + stat cards */}
-        <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "58%", display: "flex", alignItems: "flex-end" }}>
+        <div className="hidden md:flex" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "58%", alignItems: "flex-end" }}>
           <Image
             src="/brand/documents/hero-workspace.png"
             alt="Document workspace"
@@ -503,10 +502,10 @@ export default function DocumentsClient({
       </div>
 
       {/* ── MAIN 3-COLUMN GRID ──────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "256px 1fr 288px", gap: 14, padding: "16px 20px 0 20px" }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[256px_1fr_288px] gap-3.5 px-4 md:px-5 pt-4">
 
         {/* ── LEFT: Employee List ───────────────────────────────────────────── */}
-        <div style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <div className="hidden lg:flex flex-col" style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
           <div style={{ padding: "16px 16px 12px" }}>
             <div className="flex items-center justify-between mb-3">
               <p style={{ fontSize: 13, fontWeight: 800, color: "#111", fontFamily: "var(--font-jakarta)" }}>Employees</p>
@@ -725,7 +724,7 @@ export default function DocumentsClient({
                       </button>
                     </div>
                   ) : viewMode === "grid" ? (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(168px, 1fr))", gap: 12 }}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {shownDocs.map(doc => <DocCardGrid key={doc.id} doc={doc} onDelete={() => handleDelete(doc.id)} isPending={isPending} />)}
                     </div>
                   ) : (
@@ -817,7 +816,7 @@ export default function DocumentsClient({
         </div>
 
         {/* ── RIGHT PANEL ──────────────────────────────────────────────────── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div className="hidden lg:flex flex-col gap-3">
 
           {/* Activity Timeline mini */}
           <div style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", padding: "18px" }}>
@@ -893,7 +892,7 @@ export default function DocumentsClient({
       </div>
 
       {/* ── BOTTOM: Cloud Storage + Recent Uploads ───────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, padding: "14px 20px 24px" }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 px-4 md:px-5 pb-6 pt-3.5">
         {/* Cloud Storage */}
         <div style={{ background: "#fff", borderRadius: 20, border: "1px solid rgba(0,0,0,0.07)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", padding: "18px", display: "flex", alignItems: "center", gap: 16 }}>
           <Image src="/brand/documents/hero-boy.png" alt="Cloud" width={80} height={80} style={{ objectFit: "contain", flexShrink: 0 }} />

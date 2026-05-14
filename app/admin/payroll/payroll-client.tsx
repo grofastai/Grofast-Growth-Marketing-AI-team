@@ -205,7 +205,7 @@ function EmployeeCard({
       transition: "all 0.2s ease",
     }}>
       {/* ── Card header row ── */}
-      <div style={{ padding: "16px 22px", display: "flex", alignItems: "center", gap: 18 }}>
+      <div style={{ padding: "16px 22px", display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
 
         {/* Avatar */}
         <div style={{
@@ -291,7 +291,7 @@ function EmployeeCard({
 
       {/* ── Expanded panel ── */}
       {isExpanded && (
-        <div style={{ borderTop: "1.5px solid #F5F5F5", display: "grid", gridTemplateColumns: "1fr 1fr 1fr" }}>
+        <div className="grid grid-cols-1 md:grid-cols-3" style={{ borderTop: "1.5px solid #F5F5F5" }}>
 
           {/* LEFT: Payroll Breakdown bars */}
           <div style={{ padding: "22px 24px", borderRight: "1px solid #F5F5F5" }}>
@@ -406,7 +406,7 @@ export default function PayrollClient({
     <div style={{ padding: "20px 24px", maxWidth: 1400, margin: "0 auto" }}>
 
       {/* ── Page header ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>Payroll</h1>
           <p style={{ fontSize: 13, color: "#9CA3AF", margin: "4px 0 0" }}>Monthly salary breakdown for your team</p>
@@ -432,7 +432,7 @@ export default function PayrollClient({
       </div>
 
       {/* ── 2-col layout ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 284px", gap: 20 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_284px] gap-5">
 
         {/* ════ LEFT: Main content ════ */}
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
@@ -477,7 +477,7 @@ export default function PayrollClient({
           </div>
 
           {/* 4 Summary Cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
             {SUMMARY.map((card) => (
               <div key={card.label} style={{
                 borderRadius: 18, background: card.bg,
@@ -535,7 +535,7 @@ export default function PayrollClient({
             <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111", margin: "0 0 20px", fontFamily: "var(--font-jakarta)" }}>
               Payroll Activity Timeline
             </h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 0 }}>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
               {TIMELINE.map((item, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "flex-start" }}>
                   <div style={{ flex: 1, paddingRight: 12 }}>

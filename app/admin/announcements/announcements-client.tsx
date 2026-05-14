@@ -164,7 +164,7 @@ export default function AnnouncementsClient({
   return (
     <div style={{ padding: "24px 28px", maxWidth: 1400, margin: "0 auto" }}>
       {/* ── Header ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>
             Announcements
@@ -173,7 +173,7 @@ export default function AnnouncementsClient({
             Manage and send team communications
           </p>
         </div>
-        <div style={{ display: "flex", gap: 10 }}>
+        <div className="flex flex-wrap gap-3 items-center">
           <button
             onClick={() => setShowPush(true)}
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#fff", border: "1.5px solid #E5E7EB", color: "#374151", cursor: "pointer" }}
@@ -190,7 +190,7 @@ export default function AnnouncementsClient({
       </div>
 
       {/* ── Main 2-col grid ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 20 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
         {/* ─────────── LEFT: Main Content ─────────── */}
         <div>
           {/* Hero Banner — split card: left image | right CTA */}
@@ -279,11 +279,11 @@ export default function AnnouncementsClient({
                 return (
                   <div
                     key={ann.id}
+                    className="p-4 md:p-5"
                     style={{
                       background: "#fff",
                       borderRadius: 16,
                       border: ann.pinned ? "1.5px solid rgba(229,57,53,0.25)" : "1.5px solid #E5E7EB",
-                      padding: "14px 16px",
                       display: "flex",
                       alignItems: "flex-start",
                       gap: 14,

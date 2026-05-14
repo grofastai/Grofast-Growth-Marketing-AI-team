@@ -157,7 +157,7 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
   return (
     <>
       <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }} onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-[420px] z-50 shadow-2xl flex flex-col"
+      <div className="fixed right-0 top-0 h-full w-full sm:w-[420px] z-50 shadow-2xl flex flex-col"
         style={{ background: "#FFFFFF", borderLeft: "1px solid rgba(222,26,26,0.15)" }}>
 
         <div className="px-6 py-5 flex items-center justify-between flex-shrink-0"
@@ -279,7 +279,7 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
           </div>
 
           {form.employment_type === "regular" ? (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Monthly Salary (₹)</label>
                 <input type="number" min="0" step="500" className="sheet-input" style={FIELD}
@@ -302,7 +302,7 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Date of Birth</label>
               <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }}
@@ -575,7 +575,7 @@ export default function TeamClient({ members, pastMembers }: { members: Member[]
           </div>
 
           {/* Search */}
-          <div className="relative flex-1 min-w-[220px] max-w-[380px] mx-auto">
+          <div className="relative flex-1 min-w-[160px] sm:min-w-[220px] max-w-[380px] mx-auto">
             <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "rgba(255,255,255,0.45)" }} />
             <input
               value={search} onChange={(e) => setSearch(e.target.value)}

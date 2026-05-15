@@ -145,15 +145,16 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
     return result
   }, [updates])
 
-  const [selectedMonth, setSelectedMonth] = useState(months[0] ?? "")
+  const [selectedMonth, setSelectedMonth] = useState("")
   const [monthOpen, setMonthOpen]         = useState(false)
   const [viewFull, setViewFull]           = useState(false)
   const [search, setSearch]               = useState("")
   const [selectedDate, setSelectedDate]   = useState("")
 
-  // All updates in selected month
+  // All updates in selected month (empty string = all months)
   const monthFiltered = useMemo(() =>
-    updates.filter(u => monthLabel(u.date) === selectedMonth), [updates, selectedMonth]
+    selectedMonth === "" ? updates : updates.filter(u => monthLabel(u.date) === selectedMonth),
+    [updates, selectedMonth]
   )
 
   // Collect all work entries across the month for search
@@ -306,7 +307,7 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
             <input
               type="date"
               value={selectedDate}
-              onChange={e => { setSelectedDate(e.target.value); if (e.target.value) { const m = monthLabel(e.target.value); if (months.includes(m)) setSelectedMonth(m) } }}
+              onChange={e => { setSelectedDate(e.target.value) }}
               style={{ border:"none", outline:"none", fontSize:12, fontWeight:600, color: dateActive ? "#DE1A1A" : "#374151", background:"transparent", cursor:"pointer" }}
             />
             {dateActive && (
@@ -318,15 +319,26 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
           </div>
 
           {/* Month picker */}
-          <div style={{ position:"relative" }}>
+          <div style={{ position:"relative", display:"flex", alignItems:"center", gap:6 }}>
             <button onClick={() => setMonthOpen(o => !o)}
-              style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 14px", borderRadius:12, background:"#fff", border:"1px solid #EBEDF2", fontSize:13, fontWeight:600, color:"#374151", cursor:"pointer" }}>
+              style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 14px", borderRadius:12, background:"#fff", border: selectedMonth ? "1.5px solid #DE1A1A" : "1px solid #EBEDF2", fontSize:13, fontWeight:600, color: selectedMonth ? "#DE1A1A" : "#374151", cursor:"pointer" }}>
               <CalendarDays size={14} style={{ color:"#DE1A1A" }}/>
-              {selectedMonth || "Select Month"}
+              {selectedMonth || "All months"}
               <ChevronDown size={12} style={{ transform:monthOpen?"rotate(180deg)":"none", transition:"0.2s" }}/>
             </button>
+            {selectedMonth && (
+              <button onClick={() => setSelectedMonth("")}
+                style={{ display:"flex", alignItems:"center", justifyContent:"center", width:28, height:28, borderRadius:8, background:"rgba(222,26,26,0.08)", border:"1px solid rgba(222,26,26,0.2)", cursor:"pointer", padding:0 }}
+                title="Clear month filter">
+                <X size={12} style={{ color:"#DE1A1A" }}/>
+              </button>
+            )}
             {monthOpen && (
               <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, background:"#fff", border:"1px solid #E5E7EB", borderRadius:12, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", zIndex:40, minWidth:180, overflow:"hidden" }}>
+                <button key="all" onClick={() => { setSelectedMonth(""); setMonthOpen(false); setSelectedDate("") }}
+                  style={{ display:"block", width:"100%", textAlign:"left", padding:"10px 14px", fontSize:13, fontWeight: selectedMonth === "" ? 700:500, color: selectedMonth === "" ? "#DE1A1A":"#374151", background: selectedMonth === "" ? "rgba(222,26,26,0.05)":"none", border:"none", borderBottom:"1px solid #F5F6FA", cursor:"pointer" }}>
+                  All months
+                </button>
                 {months.map(m => (
                   <button key={m} onClick={() => { setSelectedMonth(m); setMonthOpen(false); setSelectedDate("") }}
                     style={{ display:"block", width:"100%", textAlign:"left", padding:"10px 14px", fontSize:13, fontWeight: m === selectedMonth ? 700:500, color: m === selectedMonth ? "#DE1A1A":"#374151", background: m === selectedMonth ? "rgba(222,26,26,0.05)":"none", border:"none", cursor:"pointer" }}>
@@ -452,7 +464,7 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                 return (
                   <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"60px 0", background:"#fff", borderRadius:20, border:"2px dashed #E5E7EB" }}>
                     <span style={{ fontSize:40, marginBottom:12 }}>📋</span>
-                    <p style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No updates for {selectedMonth}</p>
+                    <p style={{ fontSize:14, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No updates for {selectedMonth || "any month"}</p>
                     <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Submit your daily updates to see them here.</p>
                   </div>
                 )

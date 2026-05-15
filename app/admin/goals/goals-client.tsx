@@ -388,8 +388,8 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
                   {/* Body */}
                   <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
                     {col.tasks.length === 0 ? (
-                      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, padding: "20px 16px 8px" }}>
-                        <div style={{ position: "relative", width: 300, height: 270 }}>
+                      <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "24px 16px" }}>
+                        <div style={{ position: "relative", width: 120, height: 110 }}>
                           <Image src={col.illustration} alt="" fill style={{ objectFit: "contain" }} />
                         </div>
                         <p style={{ fontSize: 12, color: "#D1D5DB", fontWeight: 600, margin: 0 }}>No tasks assigned yet</p>

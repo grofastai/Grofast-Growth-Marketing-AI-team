@@ -49,11 +49,11 @@ export default async function ReportsPage({
     { data: projectsRaw },
     { data: taskActivityRaw },
   ] = await Promise.all([
-    admin
+    // Use user client (RLS handles company isolation) — same as activities page
+    supabase
       .from("daily_updates")
-      .select("id, user_id, working_hours, shoot_count, learning_hours, attendance_status, work_type, task_id, users(id, name, employee_id)")
-      .eq("date", dateFilter)
-      .eq("company_id", cid),
+      .select("id, user_id, working_hours, shoot_count, learning_hours, attendance_status, work_type, task_id, users!daily_updates_user_id_fkey(id, name, employee_id)")
+      .eq("date", dateFilter),
     admin
       .from("users")
       .select("id, name, employee_id")
@@ -62,7 +62,7 @@ export default async function ReportsPage({
       .order("name"),
     admin
       .from("tasks")
-      .select("id, title, status, due_date, priority, assigned_to, users(id, name, employee_id)")
+      .select("id, title, status, due_date, priority, assigned_to, users!tasks_assigned_to_fkey(id, name, employee_id)")
       .eq("company_id", cid)
       .neq("status", "completed"),
     admin
@@ -70,10 +70,9 @@ export default async function ReportsPage({
       .select("id, business_name, status, deadline")
       .eq("company_id", cid)
       .eq("status", "active"),
-    admin
+    supabase
       .from("daily_updates")
       .select("task_id")
-      .eq("company_id", cid)
       .not("task_id", "is", null),
   ])
 

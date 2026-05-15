@@ -144,7 +144,10 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const absentCount     = weekLogs.filter(l => l.status === "absent").length
   const wfhCount        = weekLogs.filter(l => l.work_type === "wfh" && l.status === "present").length
   const officeCount     = weekLogs.filter(l => l.work_type === "office" && l.status === "present").length
-  const totalWeekHours  = weekLogs.filter(l => l.clock_in && l.status === "present").reduce((sum, l) => sum + calcHours(l.clock_in!, l.clock_out), 0)
+  const totalWeekHours  = weekLogs.filter(l => l.clock_in && l.status === "present").reduce((sum, l) => {
+    if (!l.clock_out) return l.date === today ? sum + calcHours(l.clock_in!, null) : sum
+    return sum + calcHours(l.clock_in!, l.clock_out)
+  }, 0)
 
   return (
     <div className="p-5 md:p-6 xl:p-8 max-w-[1400px]" style={{ background: "#F1F2F6", minHeight: "100vh" }}>

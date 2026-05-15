@@ -351,12 +351,15 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 const isToday    = date === today
                 const present    = log?.status === "present"
                 const absent     = log?.status === "absent"
-                const h = log?.clock_in ? calcHours(log.clock_in, log.clock_out) : 0
+                // Only count hours up to clock_out; for past days with no clock_out use 0
+                const h = log?.clock_in
+                  ? (log.clock_out ? calcHours(log.clock_in, log.clock_out) : (isToday ? calcHours(log.clock_in, null) : 0))
+                  : 0
 
                 let dot = "#D1D5DB"; let label = "No record"; let color = "#9CA3AF"
                 if (isFuture)    { dot = "#E5E7EB"; label = "—"; color = "rgba(0,0,0,0.1)" }
                 else if (absent) { dot = "#EF4444"; label = "Absent"; color = "#EF4444" }
-                else if (present){ dot = isToday ? "#de1a1a" : "#22C55E"; label = `Present · ${fmtHoursShort(h)}`; color = isToday ? "#de1a1a" : "#16A34A" }
+                else if (present){ dot = isToday ? "#de1a1a" : "#22C55E"; label = h > 0 ? `Present · ${fmtHoursShort(h)}` : "Present"; color = isToday ? "#de1a1a" : "#16A34A" }
 
                 return (
                   <div key={date} className="flex items-center gap-3 px-3 py-2 rounded-xl transition-all"

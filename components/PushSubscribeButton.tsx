@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Bell, BellOff, Loader2 } from "lucide-react"
 
-const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
+const VAPID_PUBLIC = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4)
@@ -24,13 +24,19 @@ export default function PushSubscribeButton() {
       reg.pushManager.getSubscription().then(sub => {
         setState(sub ? "subscribed" : "unsubscribed")
       })
-    )
+    ).catch(() => setState("unsupported"))
   }, [])
 
   async function toggle() {
+    if (!VAPID_PUBLIC) {
+      alert("Notifications are not configured yet. Please contact your admin.")
+      return
+    }
+
     setBusy(true)
     try {
       const reg = await navigator.serviceWorker.ready
+
       if (state === "subscribed") {
         const sub = await reg.pushManager.getSubscription()
         if (sub) {
@@ -39,19 +45,35 @@ export default function PushSubscribeButton() {
         }
         setState("unsubscribed")
       } else {
+        // Check if already denied
+        const permission = await Notification.requestPermission()
+        if (permission === "denied") {
+          alert("Notifications are blocked. To enable:\n\n1. Click the lock icon (🔒) in your browser's address bar\n2. Set Notifications → Allow\n3. Refresh the page and try again")
+          setBusy(false)
+          return
+        }
+        if (permission !== "granted") {
+          setBusy(false)
+          return
+        }
+
         const sub = await reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC),
         })
-        await fetch("/api/push", {
+        const res = await fetch("/api/push", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(sub.toJSON()),
         })
+        if (!res.ok) {
+          throw new Error(`Server error: ${res.status}`)
+        }
         setState("subscribed")
       }
-    } catch {
-      // permission denied or other error — silently fail
+    } catch (err) {
+      console.error("Push notification error:", err)
+      alert("Could not enable notifications. Please try again or contact support.")
     } finally {
       setBusy(false)
     }

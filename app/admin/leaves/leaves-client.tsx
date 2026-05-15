@@ -21,6 +21,7 @@ interface LeavesClientProps {
   statusFilter: string
   upcomingLeaves: Leave[]
   availabilityPct: number
+  onLeaveToday: { name: string }[]
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -240,7 +241,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 
 // ── Main ───────────────────────────────────────────────────────────────────────
 
-export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, availabilityPct }: LeavesClientProps) {
+export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, availabilityPct, onLeaveToday }: LeavesClientProps) {
   const router   = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
@@ -258,6 +259,18 @@ export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, ava
 
   // Sidebar upcoming: prefer upcoming leaves, fall back to current list
   const vacationItems = upcomingLeaves.length > 0 ? upcomingLeaves : leaves.slice(0, 4)
+
+  // Wellness computed from real availability
+  const wellnessScore = availabilityPct >= 90 ? 5.0
+    : availabilityPct >= 75 ? 4.5
+    : availabilityPct >= 60 ? 4.0
+    : availabilityPct >= 45 ? 3.5
+    : 3.0
+  const wellnessLabel = wellnessScore >= 4.5 ? "Great Balance"
+    : wellnessScore >= 4.0 ? "Good Balance"
+    : wellnessScore >= 3.5 ? "Moderate"
+    : "High Absence"
+  const wellnessColor = wellnessScore >= 4.5 ? "#10B981" : wellnessScore >= 4.0 ? "#F59E0B" : "#EF4444"
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_272px] gap-5" style={{ padding: "28px 24px 40px", background: "#F9FAFB", minHeight: "100vh" }}>
@@ -301,6 +314,31 @@ export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, ava
           })}
         </div>
         </div>
+
+        {/* Who's On Leave Today */}
+        {onLeaveToday.length > 0 && (
+          <div style={{ background: "#FFF", borderRadius: 16, border: "1px solid #F3F4F6", padding: "14px 20px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, whiteSpace: "nowrap" }}>
+              On Leave Today
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {onLeaveToday.map((m, i) => {
+                const ini2 = m.name.split(" ").map((n: string) => n[0] ?? "").join("").slice(0, 2).toUpperCase()
+                const colors = ["#DE1A1A","#F59E0B","#10B981","#3B82F6","#8B5CF6","#EC4899"]
+                const bg = colors[i % colors.length]
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "#F9FAFB", borderRadius: 24, padding: "5px 12px 5px 5px", border: "1px solid #F0F1F5" }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: "#FFF" }}>{ini2}</span>
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{m.name.split(" ")[0]}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <span style={{ fontSize: 12, color: "#9CA3AF", marginLeft: "auto" }}>{availabilityPct}% available</span>
+          </div>
+        )}
 
         {/* Hero Banner */}
         <div style={{ borderRadius: 20, overflow: "hidden", position: "relative", height: 320, background: "#FFF8F0", boxShadow: "0 4px 24px rgba(0,0,0,0.06)", border: "1px solid #FEE8D0" }}>
@@ -465,14 +503,11 @@ export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, ava
               <Image src="/brand/leave/wellness-boy.png" alt="Wellness" fill style={{ objectFit: "cover" }} />
             </div>
             <div>
-              <p style={{ fontSize: 30, fontWeight: 800, color: "#10B981", margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>
-                4.6<span style={{ fontSize: 14, color: "#9CA3AF", fontWeight: 500 }}>/5</span>
+              <p style={{ fontSize: 30, fontWeight: 800, color: wellnessColor, margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>
+                {wellnessScore.toFixed(1)}<span style={{ fontSize: 14, color: "#9CA3AF", fontWeight: 500 }}>/5</span>
               </p>
-              <p style={{ fontSize: 12, color: "#374151", margin: "4px 0 0", fontWeight: 600 }}>Great Balance</p>
-              <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 5, background: "#F0FDF4", borderRadius: 20, padding: "3px 10px" }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round"><polyline points="18 15 12 9 6 15"/></svg>
-                <span style={{ fontSize: 11, color: "#10B981", fontWeight: 600 }}>6% vs last month</span>
-              </div>
+              <p style={{ fontSize: 12, color: "#374151", margin: "4px 0 0", fontWeight: 600 }}>{wellnessLabel}</p>
+              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "4px 0 0" }}>{availabilityPct}% team available</p>
             </div>
           </div>
           {/* Mood slider */}
@@ -480,11 +515,11 @@ export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, ava
             <span style={{ fontSize: 20 }}>😟</span>
             <div style={{ flex: 1, height: 8, borderRadius: 8, position: "relative", background: "linear-gradient(to right, #FEE2E2, #FEF3C7 40%, #D1FAE5)" }}>
               <div style={{
-                position: "absolute", top: "50%", left: "88%",
+                position: "absolute", top: "50%", left: `${Math.min(95, availabilityPct)}%`,
                 transform: "translate(-50%, -50%)",
                 width: 18, height: 18, borderRadius: "50%",
-                background: "#10B981", border: "3px solid #FFF",
-                boxShadow: "0 0 0 2px #10B981, 0 2px 8px rgba(16,185,129,0.4)",
+                background: wellnessColor, border: "3px solid #FFF",
+                boxShadow: `0 0 0 2px ${wellnessColor}, 0 2px 8px rgba(16,185,129,0.4)`,
               }} />
             </div>
             <span style={{ fontSize: 20 }}>😊</span>

@@ -125,8 +125,6 @@ export default async function MemberDashboardPage() {
       productivitySignal = { icon: "zap",  text: "You're on track today", color: "#de1a1a" }
     else
       productivitySignal = { icon: "warn", text: "You are below expected hours", color: "#F59E0B" }
-  } else {
-    productivitySignal = { icon: "warn", text: "You are below expected hours", color: "#F59E0B" }
   }
 
   const PRIORITY_STYLE: Record<string, { color: string; bg: string }> = {
@@ -389,7 +387,7 @@ export default async function MemberDashboardPage() {
                 {[
                   { label: "Hours",  value: todayHours > 0 ? `${todayHours}h` : "—" },
                   { label: "Done",   value: completedTasks },
-                  { label: "Shoots", value: shootCount },
+                  { label: "Active", value: activeTasks },
                 ].map((item) => (
                   <div key={item.label} className="rounded-xl p-3 text-center"
                     style={{ background: "rgba(255,255,255,0.07)", backdropFilter: "blur(4px)" }}>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useMemo } from "react"
+import { useState, useTransition, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
@@ -109,6 +109,8 @@ function DurationPicker({ value, onChange }: { value: number; onChange: (v: numb
 }
 
 
+const DRAFT_KEY = "gf_daily_update_draft"
+
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function DailyUpdateForm({
   projects, userName, team, existingUpdate,
@@ -152,7 +154,18 @@ export default function DailyUpdateForm({
   const totalGeneralHours = useMemo(() => generalTasks.reduce((s, t) => s + t.durationHours, 0), [generalTasks])
 
   // Non-media team: flexible time block state
-  const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>([])
+  const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>(() => {
+    if (existingUpdate) return []
+    try {
+      const saved = typeof window !== "undefined" ? localStorage.getItem(DRAFT_KEY) : null
+      if (saved) {
+        const parsed = JSON.parse(saved) as TimeBlock[]
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed
+      }
+    } catch { /* ignore corrupted data */ }
+    return []
+  })
+
   const addTimeBlock = () => setTimeBlocks(p => [...p, {
     id: crypto.randomUUID(), startTime: "09:00", endTime: "10:00",
     durationHours: 1, description: "", projectName: "", status: "not_started" as const,
@@ -173,6 +186,12 @@ export default function DailyUpdateForm({
   const [error,     setError]     = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [editMode,  setEditMode]  = useState(false)
+
+  // Autosave timeBlocks to localStorage (general/non-media team only)
+  useEffect(() => {
+    if (submitted || existingUpdate) return
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(timeBlocks)) } catch { /* ignore quota errors */ }
+  }, [timeBlocks, submitted, existingUpdate])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalShootHours   = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
   const totalEditHours    = useMemo(() => edits.reduce((s, e) => s + e.timeTaken, 0), [edits])
@@ -278,7 +297,11 @@ export default function DailyUpdateForm({
         learning_hours:     0,
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
-      else { setSubmitted(true); router.refresh() }
+      else {
+        try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
+        setSubmitted(true)
+        router.refresh()
+      }
     })
   }
 
@@ -440,15 +463,14 @@ export default function DailyUpdateForm({
                         <input value={block.description} onChange={e => patchBlock(block.id, { description: e.target.value })}
                           placeholder="What did you work on?"
                           style={{ flex:1, minWidth:140, background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", fontSize:12, color:"#111827", outline:"none" }} />
-                        {projects.length > 0 ? (
-                          <select value={block.projectName} onChange={e => patchBlock(block.id, { projectName: e.target.value })}
-                            style={{ fontSize:11, fontWeight:700, color: block.projectName ? "#DE1A1A" : "#9CA3AF",
-                              background: block.projectName ? "rgba(222,26,26,0.06)" : "#FFFFFF",
-                              border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", cursor:"pointer", outline:"none" }}>
-                            <option value="">Project</option>
-                            {projects.map(p => <option key={p.id} value={p.business_name}>{p.business_name}</option>)}
-                          </select>
-                        ) : null}
+                        <select value={block.projectName} onChange={e => patchBlock(block.id, { projectName: e.target.value })}
+                          style={{ fontSize:11, fontWeight:700, color: block.projectName ? "#DE1A1A" : "#9CA3AF",
+                            background: block.projectName ? "rgba(222,26,26,0.06)" : "#FFFFFF",
+                            border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", cursor:"pointer", outline:"none" }}>
+                          <option value="">Project</option>
+                          <option value="GroFast (Internal)">GroFast (Internal)</option>
+                          {projects.map(p => <option key={p.id} value={p.business_name}>{p.business_name}</option>)}
+                        </select>
                         <select value={block.status} onChange={e => patchBlock(block.id, { status: e.target.value as TimeBlock["status"] })}
                           style={{ fontSize:11, fontWeight:700, color:statusCfg.color, background:statusCfg.bg,
                             border:`1.5px solid ${statusCfg.border}`, borderRadius:8, padding:"7px 10px", cursor:"pointer", outline:"none" }}>

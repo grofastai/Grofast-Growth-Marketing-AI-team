@@ -54,6 +54,7 @@ export default async function LeavesPage({
     { data: upcoming },
     { count: memberCount },
     { count: onLeaveCount },
+    { data: onLeaveTodayRaw },
   ] = await Promise.all([
     leavesQuery,
     admin
@@ -76,11 +77,23 @@ export default async function LeavesPage({
       .eq("status", "approved")
       .lte("from_date", today)
       .gte("to_date", today),
+    admin
+      .from("leaves")
+      .select("from_date, to_date, users(id, name)")
+      .eq("company_id", cid)
+      .eq("status", "approved")
+      .lte("from_date", today)
+      .gte("to_date", today),
   ])
 
   const total = Math.max(1, memberCount ?? 0)
   const onLeave = onLeaveCount ?? 0
   const availabilityPct = Math.min(100, Math.max(0, Math.round(((total - onLeave) / total) * 100)))
+
+  const onLeaveToday = (onLeaveTodayRaw ?? []).map((l: any) => {
+    const u = Array.isArray(l.users) ? l.users[0] : l.users
+    return { name: (u?.name ?? "?") as string }
+  })
 
   return (
     <LeavesClient
@@ -88,6 +101,7 @@ export default async function LeavesPage({
       statusFilter={statusFilter}
       upcomingLeaves={upcoming ?? []}
       availabilityPct={availabilityPct}
+      onLeaveToday={onLeaveToday}
     />
   )
 }

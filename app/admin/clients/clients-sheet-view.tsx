@@ -231,23 +231,12 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
     padding: "18px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
   }
 
-  const timeline = [
-    { date: "19 May, 2026", label: "Strategy Call",   detail: "Discussed Q2 campaign strategy", color: "#3B82F6" },
-    { date: "02 May, 2026", label: "Content Review",  detail: "Reviewed content drafts",         color: "#8B5CF6" },
-    { date: c.onboarded_month || "15 Apr, 2026", label: "Onboarding Call", detail: "Initial discovery & requirements", color: "#F97316" },
-  ]
   const deliverables = [
     { name: "Brand Strategy Document",    done: true,  pct: 100, color: "#22C55E" },
     { name: "Social Media Creatives (10)",done: false, pct: 80,  color: "#3B82F6" },
     { name: "Promo Video (30 sec)",       done: false, pct: 60,  color: "#F59E0B" },
     { name: "Menu Design",                done: false, pct: 40,  color: "#A855F7" },
   ]
-  const campaigns = [
-    { name: "Summer Offer Campaign", type: "Social Media",   status: "In Progress", sc: "#F59E0B", sb: "rgba(245,158,11,0.1)",  pct: 75,  budget: "₹25,000", start: "10 May 2026", due: "10 Jun 2026", mgr: "Sanjay K" },
-    { name: "New Menu Launch",       type: "Video Campaign", status: "Review",      sc: "#8B5CF6", sb: "rgba(139,92,246,0.1)",  pct: 60,  budget: "₹18,000", start: "12 May 2026", due: "25 May 2026", mgr: "Manju M"  },
-    { name: "Brand Awareness Ads",   type: "Paid Ads",       status: "Completed",   sc: "#22C55E", sb: "rgba(34,197,94,0.1)",   pct: 100, budget: "₹20,000", start: "01 Apr 2026", due: "30 Apr 2026", mgr: "Vignesh R" },
-  ]
-
   return (
     <div style={{ padding: "18px 22px 40px", display: "flex", flexDirection: "column", gap: 16 }}>
 
@@ -324,57 +313,30 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
         </div>
       </div>
 
-      {/* Row 2: Timeline | Deliverables */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px]">
-
-        {/* Meeting Timeline */}
-        <div style={card}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", margin: 0, textTransform: "uppercase", letterSpacing: "0.1em" }}>Meeting Timeline</p>
-            <MoreHorizontal size={14} style={{ color: "#D1D5DB" }} />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {timeline.map((item, i) => (
-              <div key={i} style={{ display: "flex", gap: 12, paddingBottom: i < timeline.length - 1 ? 16 : 0 }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <div style={{ width: 10, height: 10, borderRadius: "50%", background: item.color, flexShrink: 0, marginTop: 3 }} />
-                  {i < timeline.length - 1 && <div style={{ width: 2, flex: 1, background: "#F0F1F5", marginTop: 4 }} />}
-                </div>
-                <div>
-                  <p style={{ fontSize: 10, color: "#9CA3AF", margin: "0 0 2px" }}>{item.date}</p>
-                  <p style={{ fontSize: 12, fontWeight: 700, color: "#111827", margin: "0 0 2px" }}>{item.label}</p>
-                  <p style={{ fontSize: 10, color: "#6B7280", margin: 0 }}>{item.detail}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Deliverables Tracker */}
+      <div style={card}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", margin: 0, textTransform: "uppercase", letterSpacing: "0.1em" }}>Deliverables Tracker</p>
+          <MoreHorizontal size={14} style={{ color: "#D1D5DB" }} />
         </div>
-
-        {/* Deliverables Tracker */}
-        <div style={card}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", margin: 0, textTransform: "uppercase", letterSpacing: "0.1em" }}>Deliverables Tracker</p>
-            <MoreHorizontal size={14} style={{ color: "#D1D5DB" }} />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
-            {deliverables.map((d, i) => (
-              <div key={i}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <CheckCircle2 size={12} style={{ color: d.done ? "#22C55E" : "#E5E7EB", flexShrink: 0 }} />
-                    <span style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>{d.name}</span>
-                  </div>
-                  {d.done
-                    ? <span style={{ fontSize: 9, fontWeight: 700, color: "#22C55E", background: "rgba(34,197,94,0.1)", padding: "2px 7px", borderRadius: 5 }}>Completed</span>
-                    : <span style={{ fontSize: 10, fontWeight: 600, color: "#6B7280" }}>{d.pct}%</span>
-                  }
+        <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+          {deliverables.map((d, i) => (
+            <div key={i}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <CheckCircle2 size={12} style={{ color: d.done ? "#22C55E" : "#E5E7EB", flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>{d.name}</span>
                 </div>
-                <div style={{ height: 4, borderRadius: 2, background: "#F3F4F6", overflow: "hidden" }}>
-                  <div style={{ height: "100%", borderRadius: 2, width: `${d.pct}%`, background: d.color, transition: "width 0.5s ease" }} />
-                </div>
+                {d.done
+                  ? <span style={{ fontSize: 9, fontWeight: 700, color: "#22C55E", background: "rgba(34,197,94,0.1)", padding: "2px 7px", borderRadius: 5 }}>Completed</span>
+                  : <span style={{ fontSize: 10, fontWeight: 600, color: "#6B7280" }}>{d.pct}%</span>
+                }
               </div>
-            ))}
-          </div>
+              <div style={{ height: 4, borderRadius: 2, background: "#F3F4F6", overflow: "hidden" }}>
+                <div style={{ height: "100%", borderRadius: 2, width: `${d.pct}%`, background: d.color, transition: "width 0.5s ease" }} />
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -437,76 +399,6 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
         </div>
       )}
 
-      {/* Row 4: All Campaigns table */}
-      <div style={card}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>All Campaigns</p>
-            <span style={{ fontSize: 10, fontWeight: 700, background: "rgba(222,26,26,0.09)", color: "#DE1A1A", padding: "2px 8px", borderRadius: 6 }}>12</span>
-            <ChevronDown size={12} style={{ color: "#9CA3AF" }} />
-          </div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <div style={{ position: "relative" }}>
-              <Search size={11} style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
-              <input placeholder="Search campaigns…" style={{
-                paddingLeft: 24, paddingRight: 10, paddingTop: 5, paddingBottom: 5,
-                fontSize: 10, borderRadius: 8, border: "1px solid #F0F1F5",
-                background: "#F9FAFB", color: "#374151", outline: "none" }} />
-            </div>
-            {["All Status", "All Types", "Sort: Newest"].map(f => (
-              <div key={f} style={{ position: "relative" }}>
-                <select style={{ fontSize: 10, background: "#F9FAFB", border: "1px solid #F0F1F5", borderRadius: 8, padding: "5px 20px 5px 8px", color: "#6B7280", appearance: "none", cursor: "pointer" }}>
-                  <option>{f}</option>
-                </select>
-                <ChevronDown size={9} style={{ position: "absolute", right: 5, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
-              </div>
-            ))}
-            <button style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, width: 16, height: 16 }}>
-                {[0,1,2,3].map(i => <div key={i} style={{ background: "#9CA3AF", borderRadius: 2 }} />)}
-              </div>
-            </button>
-          </div>
-        </div>
-        <div style={{ overflowX: "auto" }}>
-        <div style={{ minWidth: 640, display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 1fr 1fr 1fr 1fr 1fr", gap: 6,
-          padding: "7px 10px", background: "#F9FAFB", borderRadius: 10, marginBottom: 6 }}>
-          {["Campaign Name", "Type", "Status", "Progress", "Budget", "Start Date", "Due Date", "Manager"].map(h => (
-            <span key={h} style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</span>
-          ))}
-        </div>
-        {campaigns.map((row, i) => (
-          <div key={i} style={{ minWidth: 640, display: "grid", gridTemplateColumns: "2fr 1.2fr 1fr 1fr 1fr 1fr 1fr 1fr", gap: 6,
-            padding: "10px 10px", borderRadius: 10, alignItems: "center", transition: "background 0.15s" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
-            onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: row.sc, flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>{row.name}</span>
-            </div>
-            <span style={{ fontSize: 11, color: "#6B7280" }}>{row.type}</span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: row.sc, background: row.sb, padding: "3px 8px", borderRadius: 6, width: "fit-content" }}>{row.status}</span>
-            <div>
-              <div style={{ height: 4, borderRadius: 2, background: "#F3F4F6", overflow: "hidden", marginBottom: 2 }}>
-                <div style={{ height: "100%", borderRadius: 2, width: `${row.pct}%`, background: row.sc }} />
-              </div>
-              <span style={{ fontSize: 9, color: "#9CA3AF" }}>{row.pct}%</span>
-            </div>
-            <span style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>{row.budget}</span>
-            <span style={{ fontSize: 11, color: "#6B7280" }}>{row.start}</span>
-            <span style={{ fontSize: 11, color: "#6B7280" }}>{row.due}</span>
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <div style={{ width: 20, height: 20, borderRadius: 6, background: "#FEE2E2",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 7, fontWeight: 900, color: "#DE1A1A" }}>
-                {ini(row.mgr)}
-              </div>
-              <span style={{ fontSize: 11, color: "#374151", fontWeight: 600 }}>{row.mgr}</span>
-            </div>
-          </div>
-        ))}
-        </div>{/* /overflow-x-auto */}
-      </div>
     </div>
   )
 }

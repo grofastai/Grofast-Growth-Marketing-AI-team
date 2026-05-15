@@ -486,9 +486,9 @@ function AssignTaskModal({ member, onClose }: AssignTaskModalProps) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function TeamClient({ members, pastMembers }: { members: Member[]; pastMembers: Member[] }) {
+export default function TeamClient({ members, pastMembers, initialSearch = "" }: { members: Member[]; pastMembers: Member[]; initialSearch?: string }) {
   const nextId = useMemo(() => computeNextEmployeeId(members), [members])
-  const [search, setSearch] = useState("")
+  const [search, setSearch] = useState(initialSearch)
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)

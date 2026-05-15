@@ -85,10 +85,13 @@ export default async function ReportsPage({
 
 
   // ── Summary numbers ─────────────────────────────────────────────────────────
-  const presentUpdates = updates.filter((u: any) => u.attendance_status === "present")
+  const presentUpdates = updates.filter((u: any) =>
+    u.attendance_status === "present" ||
+    (u.attendance_status == null && (u.working_hours ?? 0) > 0)
+  )
   const absentUpdates  = updates.filter((u: any) => u.attendance_status === "absent")
 
-  const totalHours    = updates.reduce((s: number, u: any) => s + (u.working_hours  ?? 0), 0)
+  const totalHours    = presentUpdates.reduce((s: number, u: any) => s + (u.working_hours  ?? 0), 0)
   const totalLearning = updates.reduce((s: number, u: any) => s + (u.learning_hours ?? 0), 0)
 
   // ── Not updated members ──────────────────────────────────────────────────────

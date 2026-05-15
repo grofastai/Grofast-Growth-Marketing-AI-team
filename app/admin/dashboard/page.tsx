@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import type { CSSProperties } from "react"
 import {
   Users, FolderOpen, Target, CalendarOff, Clock, CheckCircle2,
-  Plus, Megaphone, Bell, Search, UserX,
+  Plus, Megaphone, Bell, UserX,
   ArrowRight, ListTodo, CalendarDays, BarChart3,
 } from "lucide-react"
 import Link from "next/link"
@@ -12,6 +12,7 @@ import { getAlerts } from "@/lib/alerts"
 import PendingApprovalsCard from "./pending-approvals"
 import TaskSummaryChart from "./task-summary-chart"
 import MiniCalendar from "./mini-calendar"
+import DashboardSearch from "@/components/admin/DashboardSearch"
 
 function adminSupabase() {
   return createClient(
@@ -177,8 +178,7 @@ export default async function DashboardPage() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, position: "relative" }}>
           <div className="hidden sm:flex" style={{ alignItems: "center", gap: 8, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "7px 12px", backdropFilter: "blur(8px)" }}>
-            <Search size={13} style={{ color: "rgba(255,255,255,0.6)", flexShrink: 0 }} />
-            <input placeholder="Search..." readOnly style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "#FFFFFF", width: 80, minWidth: 60 }} />
+            <DashboardSearch />
           </div>
           <div style={{ position: "relative", width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Bell size={15} style={{ color: "#FFFFFF" }} />

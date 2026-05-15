@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Bell, X } from "lucide-react"
+import { Search, Bell, X, CalendarOff, ChevronRight } from "lucide-react"
 import Link from "next/link"
 
 const QUICK_LINKS = [
@@ -24,6 +24,7 @@ export default function DashboardHeaderControls({
   const router = useRouter()
   const [query, setQuery] = useState("")
   const [open, setOpen] = useState(false)
+  const [bellOpen, setBellOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const filtered = query.trim().length > 0
@@ -65,7 +66,7 @@ export default function DashboardHeaderControls({
           )}
         </form>
 
-        {/* Dropdown */}
+        {/* Search Dropdown */}
         {open && (
           <div className="absolute top-full mt-1.5 left-0 right-0 rounded-xl overflow-hidden z-50"
             style={{ background: "#FFFFFF", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", border: "1px solid #E5E7EB", minWidth: 200 }}>
@@ -86,17 +87,58 @@ export default function DashboardHeaderControls({
       </div>
 
       {/* ── Bell ── */}
-      <Link href="/member/leaves"
-        className="relative w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors hover:bg-gray-50"
-        style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-        <Bell size={16} style={{ color: "#374151" }} />
-        {pendingLeaves > 0 && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center"
-            style={{ background: "#de1a1a", color: "#FFFFFF" }}>
-            {pendingLeaves}
-          </span>
+      <div className="relative">
+        <button
+          onClick={() => setBellOpen(v => !v)}
+          onBlur={() => setTimeout(() => setBellOpen(false), 150)}
+          className="relative w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors hover:bg-gray-50"
+          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+          <Bell size={16} style={{ color: "#374151" }} />
+          {pendingLeaves > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center"
+              style={{ background: "#de1a1a", color: "#FFFFFF" }}>
+              {pendingLeaves}
+            </span>
+          )}
+        </button>
+
+        {/* Bell Dropdown */}
+        {bellOpen && (
+          <div className="absolute top-full right-0 mt-1.5 z-50 rounded-2xl overflow-hidden"
+            style={{ background: "#FFFFFF", boxShadow: "0 8px 24px rgba(0,0,0,0.14)", border: "1px solid #E5E7EB", minWidth: 260 }}>
+            <div className="px-4 py-3" style={{ borderBottom: "1px solid #F3F4F6" }}>
+              <p className="text-[12px] font-bold uppercase tracking-widest" style={{ color: "#9CA3AF" }}>Notifications</p>
+            </div>
+            {pendingLeaves > 0 ? (
+              <div className="px-4 py-3">
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ background: "rgba(222,26,26,0.08)" }}>
+                    <CalendarOff size={14} style={{ color: "#de1a1a" }} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[13px] font-bold" style={{ color: "#111111" }}>
+                      {pendingLeaves} Leave Request{pendingLeaves !== 1 ? "s" : ""} Pending
+                    </p>
+                    <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
+                      Waiting for admin approval
+                    </p>
+                  </div>
+                </div>
+                <Link href="/member/leaves" onClick={() => setBellOpen(false)}
+                  className="flex items-center justify-center gap-1 w-full mt-2 py-2 rounded-xl text-[12px] font-bold transition-colors"
+                  style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>
+                  View Leaves <ChevronRight size={12} />
+                </Link>
+              </div>
+            ) : (
+              <div className="px-4 py-5 text-center">
+                <p className="text-[13px] font-medium" style={{ color: "#9CA3AF" }}>No pending notifications</p>
+              </div>
+            )}
+          </div>
         )}
-      </Link>
+      </div>
 
       {/* ── Employee ID (hidden on very small screens) ── */}
       <div className="text-right hidden xs:block">

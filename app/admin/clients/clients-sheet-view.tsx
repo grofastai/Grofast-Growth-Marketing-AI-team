@@ -211,19 +211,38 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
         {/* Package + Payment Status */}
         <div style={card}>
           <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", margin: "0 0 14px", textTransform: "uppercase", letterSpacing: "0.1em" }}>Package Details</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+
+          {/* Key rows */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: c.service ? 16 : 0 }}>
             {[
               { label: "Package",        value: c.package_name || "—" },
               { label: "Monthly Value",  value: c.current_month ? `₹${c.current_month}` : "—" },
               { label: "Payment Status", value: c.payment_status || "—" },
-              { label: "Service",        value: c.service || "—" },
             ].map(row => (
-              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 11, color: "#9CA3AF" }}>{row.label}</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#111827" }}>{row.value}</span>
+              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 11, color: "#9CA3AF", flexShrink: 0 }}>{row.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>{row.value}</span>
               </div>
             ))}
           </div>
+
+          {/* Services as chips */}
+          {c.service && (
+            <>
+              <p style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.08em" }}>Services</p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {c.service.split(",").map(s => s.trim()).filter(Boolean).map((svc, i) => (
+                  <span key={i} style={{
+                    fontSize: 10, fontWeight: 600, padding: "4px 10px", borderRadius: 7,
+                    background: "rgba(222,26,26,0.06)", color: "#DE1A1A",
+                    border: "1px solid rgba(222,26,26,0.15)",
+                  }}>
+                    {svc}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 

@@ -130,8 +130,7 @@ export default function ReportsClient({
   const avgHours = hasData && topPerformers.length > 0
     ? topPerformers.reduce((s, p) => s + p.hours, 0) / topPerformers.length
     : 0
-  const moodScore = avgHours > 7 ? 4.8 : avgHours > 5 ? 4.2 : avgHours > 3 ? 3.5 : 3.0
-  const moodLabel = moodScore >= 4.5 ? "Very Happy" : moodScore >= 4.0 ? "Happy" : moodScore >= 3.5 ? "Neutral" : "Tired"
+
 
   return (
     <div style={{ padding: "20px 16px 40px", background: "#F8F9FB", minHeight: "100vh" }} className="sm:px-7">
@@ -503,35 +502,6 @@ export default function ReportsClient({
             </div>
           </div>
 
-          {/* Team Mood */}
-          <div style={{ background: "#FFF", borderRadius: 16, border: "1px solid #F3F4F6", padding: "20px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>Team Mood</span>
-              <MoreHorizontal size={16} style={{ color: "#9CA3AF", cursor: "pointer" }} />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 80, height: 80, borderRadius: 12, overflow: "hidden", flexShrink: 0, position: "relative" }}>
-                <Image src="/brand/report/mood-boy.png" alt="Mood" fill style={{ objectFit: "cover" }} />
-              </div>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#F0FDF4", border: "2px solid #D1FAE5", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <span style={{ fontSize: 18 }}>😊</span>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: 20, fontWeight: 800, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>{moodScore.toFixed(1)}</p>
-                    <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>{moodLabel}</p>
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 8 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="18 15 12 9 6 15"/>
-                  </svg>
-                  <span style={{ fontSize: 11, color: "#10B981", fontWeight: 600 }}>8% vs yesterday</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
           </div>{/* end sm 2-col grid */}
 

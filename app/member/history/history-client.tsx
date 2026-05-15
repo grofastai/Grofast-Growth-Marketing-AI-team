@@ -14,6 +14,7 @@ interface WorkEntry {
   title: string; client_name: string; duration_hours: number
   notes: string; start_time?: string | null; end_time?: string | null
   screenshot_url?: string | null
+  description?: string | null; project_name?: string | null
 }
 interface UpdateRow {
   id: string; date: string; attendance_status: string
@@ -180,7 +181,9 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
       return entries.some(e =>
         (e.title ?? "").toLowerCase().includes(q) ||
         (e.client_name ?? "").toLowerCase().includes(q) ||
-        (e.notes ?? "").toLowerCase().includes(q)
+        (e.notes ?? "").toLowerCase().includes(q) ||
+        (e.description ?? "").toLowerCase().includes(q) ||
+        (e.project_name ?? "").toLowerCase().includes(q)
       )
     })
   }, [monthFiltered, search, searchActive, selectedDate, dateActive])
@@ -434,7 +437,7 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                   const entries = Array.isArray(u.work_entries) ? u.work_entries : []
                   const q = search.toLowerCase()
                   for (const e of entries) {
-                    if (!searchActive || (e.title ?? "").toLowerCase().includes(q) || (e.client_name ?? "").toLowerCase().includes(q) || (e.notes ?? "").toLowerCase().includes(q)) {
+                    if (!searchActive || (e.title ?? "").toLowerCase().includes(q) || (e.client_name ?? "").toLowerCase().includes(q) || (e.notes ?? "").toLowerCase().includes(q) || (e.description ?? "").toLowerCase().includes(q) || (e.project_name ?? "").toLowerCase().includes(q)) {
                       displayEntries.push({ date: u.date, entry: e, updateOT: uOT })
                     }
                   }

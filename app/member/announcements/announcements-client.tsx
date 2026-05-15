@@ -57,7 +57,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
     <div style={{ background: "#F8F9FC", minHeight: "100vh" }}>
 
       {/* ── TOPBAR ─────────────────────────────────────────────────────────── */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #EBEDF2", padding: "16px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+      <div className="p-4 md:p-[16px_28px]" style={{ background: "#fff", borderBottom: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 900, color: "#DE1A1A", fontFamily: "var(--font-jakarta)", margin: 0 }}>
             Announcements
@@ -73,7 +73,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search announcements..."
-              style={{ width: 230, background: "#F5F6FA", border: "1px solid #EBEDF2", borderRadius: 12, padding: "9px 12px 9px 34px", fontSize: 13, color: "#374151", outline: "none" }}
+              style={{ width: "min(230px, 100%)", background: "#F5F6FA", border: "1px solid #EBEDF2", borderRadius: 12, padding: "9px 12px 9px 34px", fontSize: 13, color: "#374151", outline: "none" }}
             />
           </div>
 
@@ -100,10 +100,10 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
         </div>
       </div>
 
-      <div style={{ padding: "20px 28px 40px" }}>
+      <div className="p-4 md:p-[20px_28px_40px]">
 
         {/* ── STATS ROW ──────────────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 14, marginBottom: 20 }}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-[14px] mb-5">
           {STAT_CARDS.map((s, i) => (
             <div key={i} style={{ background: "#fff", borderRadius: 18, padding: "18px 20px", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
               <div style={{ width: 54, height: 54, borderRadius: 16, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>

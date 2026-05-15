@@ -313,10 +313,10 @@ export default function DailyUpdateForm({
     }
 
     return (
-      <div style={{ background:"#F5F6FA", minHeight:"100vh", padding:"20px 24px 40px", display:"flex", flexDirection:"column", gap:18 }}>
+      <div className="p-4 md:p-6 flex flex-col gap-[18px]" style={{ background:"#F5F6FA", minHeight:"100vh" }}>
 
         {/* Rich header */}
-        <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+        <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", flexWrap:"wrap" }}>
 
           {/* Title + date */}
           <div style={{ flexShrink:0 }}>
@@ -367,7 +367,7 @@ export default function DailyUpdateForm({
         </div>
 
         {/* Main grid */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 300px", gap:18, alignItems:"start" }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-[18px] items-start">
 
           {/* Left — Flexible Time Blocks */}
           <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
@@ -563,7 +563,7 @@ export default function DailyUpdateForm({
 
   // ── Main render ────────────────────────────────────────────────────────────
   return (
-    <div style={{ background:"#F5F6FA", minHeight:"100vh", padding:"20px 24px 40px" }}>
+    <div className="p-4 md:p-6" style={{ background:"#F5F6FA", minHeight:"100vh" }}>
 
       {/* ── PAGE HEADER ─────────────────────────────────────────────────────── */}
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:22, flexWrap:"wrap", gap:12 }}>
@@ -587,7 +587,7 @@ export default function DailyUpdateForm({
       </div>
 
       {/* ── MAIN LAYOUT ─────────────────────────────────────────────────────── */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:18, alignItems:"start" }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-[18px] items-start">
 
         {/* ── LEFT ─ Form ──────────────────────────────────────────────────── */}
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>

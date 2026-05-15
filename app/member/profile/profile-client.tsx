@@ -219,11 +219,11 @@ export default function ProfileClient({
   const arc  = (score / 100) * circ
 
   return (
-    <div style={{ background: "#F8F9FC", minHeight: "100vh", padding: "24px 28px 48px" }}>
+    <div style={{ background: "#F8F9FC", minHeight: "100vh", padding: "16px 16px 48px" }} className="md:!p-[24px_28px_48px]">
       <style>{`.pf-in::placeholder{color:rgba(0,0,0,0.25);}.pf-in:focus{border-color:rgba(222,26,26,0.5)!important;box-shadow:0 0 0 3px rgba(222,26,26,0.08)!important;}`}</style>
 
       {/* ── TOPBAR ─────────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 4px", fontFamily: "var(--font-jakarta)" }}>
             <span style={{ color: "#111111" }}>My </span>
@@ -247,7 +247,7 @@ export default function ProfileClient({
       </div>
 
       {/* ── MAIN GRID ─────────────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 18, alignItems: "start" }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-[18px] items-start">
 
         {/* ── LEFT COLUMN ──────────────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -380,7 +380,7 @@ export default function ProfileClient({
             </div>
 
             {/* Stat tiles */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 20px", borderRadius: 14, border: "1px solid #EBEDF2" }}>
                 <div style={{ width: 44, height: 44, borderRadius: 13, background: "rgba(222,26,26,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <Zap size={20} style={{ color: "#DE1A1A" }}/>
@@ -405,7 +405,7 @@ export default function ProfileClient({
           </div>
 
           {/* PERSONAL DETAILS + KYC — side by side */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px]">
 
             {/* Personal Details */}
             <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
@@ -589,7 +589,7 @@ export default function ProfileClient({
               <span style={{ fontSize: 14, fontWeight: 800, color: "#111111" }}>Account Actions</span>
             </div>
             <p style={{ fontSize: 12, color: "#9CA3AF", margin: "0 0 16px" }}>Manage your account security and preferences</p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {[
                 { Icon: Lock,   title: "Change Password",       desc: "Update your password",    action: () => router.push("/change-password") },
                 { Icon: Bell,   title: "Notification Settings", desc: "Manage alerts & updates",  action: () => {} },

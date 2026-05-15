@@ -17,18 +17,21 @@ export default async function MemberLayout({ children }: { children: React.React
   if (!user) redirect("/login")
 
   const admin = adminSupabase()
-  const { data: profile } = await admin
-    .from("users")
-    .select("name, employee_id, role, must_change_password")
-    .eq("id", user.id)
-    .single()
+  const [{ data: profile }, { count: pendingLeaves }] = await Promise.all([
+    admin.from("users").select("name, employee_id, role, must_change_password").eq("id", user.id).single(),
+    admin.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "pending"),
+  ])
 
   if (profile?.role === "ADMIN") redirect("/admin/dashboard")
   if (profile?.must_change_password) redirect("/change-password")
 
   return (
     <div className="flex min-h-screen" style={{ background: "#EDEEF2" }}>
-      <MemberSidebar name={profile?.name ?? "Member"} employeeId={profile?.employee_id ?? ""} />
+      <MemberSidebar
+        name={profile?.name ?? "Member"}
+        employeeId={profile?.employee_id ?? ""}
+        pendingLeaves={pendingLeaves ?? 0}
+      />
       <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0">
         {children}
       </main>

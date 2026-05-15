@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, ClipboardList, Target, CalendarOff,
   Megaphone, User, LogOut, Clock, History, LifeBuoy, ChevronRight,
-  MoreHorizontal, X,
+  MoreHorizontal, X, Bell,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 import PushSubscribeButton from "@/components/PushSubscribeButton"
@@ -42,10 +42,11 @@ const moreNavItems = [
 const DIVIDER = "rgba(255,255,255,0.08)"
 const MOBILE_BG = "linear-gradient(90deg, #0a0a0a 0%, #1a0000 60%, #de1a1a 100%)"
 
-export default function MemberSidebar({ name, employeeId }: { name: string; employeeId: string }) {
+export default function MemberSidebar({ name, employeeId, pendingLeaves = 0 }: { name: string; employeeId: string; pendingLeaves?: number }) {
   const pathname = usePathname()
   const initials = name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
   const [showMore, setShowMore] = useState(false)
+  const [bellOpen, setBellOpen] = useState(false)
 
   function isActive(href: string) {
     return pathname === href || (href !== "/member/dashboard" && pathname.startsWith(href))
@@ -160,6 +161,55 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
                 <span className="text-[10px] font-medium" style={{ color: "rgba(255,255,255,0.5)" }}>Online</span>
               </div>
             </div>
+            {/* Bell notification */}
+            <div className="relative">
+              <button
+                onClick={() => setBellOpen(v => !v)}
+                onBlur={() => setTimeout(() => setBellOpen(false), 150)}
+                className="relative w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(255,255,255,0.1)", border: "1.5px solid rgba(255,255,255,0.2)" }}>
+                <Bell size={13} style={{ color: "#FFFFFF" }} />
+                {pendingLeaves > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
+                    style={{ background: "#de1a1a", color: "#FFFFFF", border: "1.5px solid #080808" }}>
+                    {pendingLeaves}
+                  </span>
+                )}
+              </button>
+              {bellOpen && (
+                <div className="absolute bottom-full right-0 mb-2 z-50 rounded-2xl overflow-hidden"
+                  style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", minWidth: 240 }}>
+                  <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>Notifications</p>
+                  </div>
+                  {pendingLeaves > 0 ? (
+                    <div className="px-4 py-3">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ background: "rgba(222,26,26,0.2)" }}>
+                          <CalendarOff size={13} style={{ color: "#de1a1a" }} />
+                        </div>
+                        <div>
+                          <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>
+                            {pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending
+                          </p>
+                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Waiting for approval</p>
+                        </div>
+                      </div>
+                      <Link href="/member/leaves" onClick={() => setBellOpen(false)}
+                        className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-[11px] font-bold"
+                        style={{ background: "rgba(222,26,26,0.15)", color: "#ff6b6b" }}>
+                        View Leaves <ChevronRight size={11} />
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="px-4 py-4 text-center">
+                      <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No pending notifications</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             <PushSubscribeButton />
           </div>
 
@@ -212,6 +262,53 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
         </nav>
 
         <div className="relative z-10 flex flex-col items-center pb-4 pt-3 gap-2" style={{ borderTop: `1px solid ${DIVIDER}` }}>
+          {/* Bell */}
+          <div className="relative">
+            <button
+              onClick={() => setBellOpen(v => !v)}
+              onBlur={() => setTimeout(() => setBellOpen(false), 150)}
+              title="Notifications"
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ color: "rgba(255,255,255,0.55)", background: "transparent" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#FFFFFF" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)" }}
+            >
+              <Bell size={16} />
+              {pendingLeaves > 0 && (
+                <span className="absolute top-0 right-0 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
+                  style={{ background: "#de1a1a", color: "#FFFFFF" }}>
+                  {pendingLeaves}
+                </span>
+              )}
+            </button>
+            {bellOpen && (
+              <div className="absolute bottom-full left-full ml-2 z-50 rounded-2xl overflow-hidden"
+                style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", minWidth: 220 }}>
+                <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>Notifications</p>
+                </div>
+                {pendingLeaves > 0 ? (
+                  <div className="px-4 py-3">
+                    <div className="flex items-center gap-3 mb-2">
+                      <CalendarOff size={13} style={{ color: "#de1a1a" }} />
+                      <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>
+                        {pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending
+                      </p>
+                    </div>
+                    <Link href="/member/leaves" onClick={() => setBellOpen(false)}
+                      className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-[11px] font-bold"
+                      style={{ background: "rgba(222,26,26,0.15)", color: "#ff6b6b" }}>
+                      View Leaves <ChevronRight size={11} />
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="px-4 py-4 text-center">
+                    <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No pending notifications</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <div className="w-9 h-9 rounded-full flex items-center justify-center"
             title={`${name} #${employeeId}`}
             style={{ background: "#de1a1a", border: "1.5px solid rgba(255,255,255,0.2)" }}>
@@ -243,6 +340,55 @@ export default function MemberSidebar({ name, employeeId }: { name: string; empl
         </div>
         <div className="flex items-center gap-2">
           <PushSubscribeButton />
+          {/* Mobile bell */}
+          <div className="relative">
+            <button
+              onClick={() => setBellOpen(v => !v)}
+              onBlur={() => setTimeout(() => setBellOpen(false), 150)}
+              className="relative w-8 h-8 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.2)" }}>
+              <Bell size={13} style={{ color: "#FFFFFF" }} />
+              {pendingLeaves > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
+                  style={{ background: "#ff3b3b", color: "#FFFFFF", border: "1.5px solid #1a0000" }}>
+                  {pendingLeaves}
+                </span>
+              )}
+            </button>
+            {bellOpen && (
+              <div className="absolute top-full right-0 mt-2 z-50 rounded-2xl overflow-hidden"
+                style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", minWidth: 240 }}>
+                <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>Notifications</p>
+                </div>
+                {pendingLeaves > 0 ? (
+                  <div className="px-4 py-3">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: "rgba(222,26,26,0.2)" }}>
+                        <CalendarOff size={13} style={{ color: "#de1a1a" }} />
+                      </div>
+                      <div>
+                        <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>
+                          {pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending
+                        </p>
+                        <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Waiting for approval</p>
+                      </div>
+                    </div>
+                    <Link href="/member/leaves" onClick={() => setBellOpen(false)}
+                      className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-[11px] font-bold"
+                      style={{ background: "rgba(222,26,26,0.15)", color: "#ff6b6b" }}>
+                      View Leaves <ChevronRight size={11} />
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="px-4 py-4 text-center">
+                    <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No pending notifications</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black"
             style={{ background: "#de1a1a", border: "1.5px solid rgba(255,255,255,0.2)", color: "#FFFFFF" }}>
             {initials}

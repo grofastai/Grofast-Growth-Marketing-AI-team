@@ -3,9 +3,9 @@
 import { useState, useMemo } from "react"
 import Image from "next/image"
 import {
-  Camera, Film, Clock, CalendarDays, MoreVertical,
+  Camera, Film, Clock, CalendarDays,
   ChevronDown, TrendingUp, Zap, BookOpen, Users,
-  CheckCircle2, Search, Bell,
+  CheckCircle2, Search,
   ArrowRight, Flame, Star, X,
 } from "lucide-react"
 
@@ -147,7 +147,6 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
 
   const [selectedMonth, setSelectedMonth] = useState("")
   const [monthOpen, setMonthOpen]         = useState(false)
-  const [viewFull, setViewFull]           = useState(false)
   const [search, setSearch]               = useState("")
   const [selectedDate, setSelectedDate]   = useState("")
 
@@ -157,16 +156,6 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
     [updates, selectedMonth]
   )
 
-  // Collect all work entries across the month for search
-  const allEntries = useMemo(() => {
-    const entries: Array<{ updateId: string; date: string; entry: WorkEntry }> = []
-    for (const u of monthFiltered) {
-      for (const e of (Array.isArray(u.work_entries) ? u.work_entries : [])) {
-        entries.push({ updateId: u.id, date: u.date, entry: e })
-      }
-    }
-    return entries
-  }, [monthFiltered])
 
   const searchActive = search.trim().length > 0
   const dateActive   = selectedDate.length > 0
@@ -260,14 +249,6 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
   const latestTasks = latest ? (Array.isArray(latest.work_entries) ? latest.work_entries : []).length : 0
   const latestSt = latest ? (STATUS_STYLE[latest.attendance_status] ?? STATUS_STYLE.present) : STATUS_STYLE.present
 
-  // Latest day entries
-  const latestEntries = latest ? (Array.isArray(latest.work_entries) ? latest.work_entries : []) : []
-  const shownEntries  = viewFull ? latestEntries : latestEntries.slice(0, 4)
-
-  // Latest day date label
-  const latestDateLabel = latest
-    ? new Date(latest.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
-    : ""
 
   return (
     <div style={{ background:"#F8F9FC", minHeight:"100vh", padding:"0" }}>
@@ -293,14 +274,6 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Bell */}
-          <div style={{ position:"relative" }}>
-            <div style={{ width:38, height:38, borderRadius:12, background:"#F5F6FA", border:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <Bell size={16} style={{ color:"#374151" }}/>
-            </div>
-            <span style={{ position:"absolute", top:-4, right:-4, width:16, height:16, background:"#DE1A1A", borderRadius:"50%", fontSize:8, fontWeight:900, color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", border:"2px solid #fff" }}>3</span>
-          </div>
-
           {/* Date picker */}
           <div style={{ position:"relative", display:"flex", alignItems:"center", gap:6, padding:"8px 12px", borderRadius:12, background:"#fff", border: dateActive ? "1.5px solid #DE1A1A" : "1px solid #EBEDF2" }}>
             <CalendarDays size={14} style={{ color: dateActive ? "#DE1A1A" : "#9CA3AF", flexShrink:0 }}/>
@@ -437,6 +410,93 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                 </div>
               )}
             </div>
+
+            {/* ── ENTRIES LIST ────────────────────────────────────────────── */}
+            {filtered.length === 0 ? (
+              <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"48px 24px", textAlign:"center", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                <p style={{ fontSize:36, margin:"0 0 12px" }}>📋</p>
+                <p style={{ fontSize:16, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>No entries found</p>
+                <p style={{ fontSize:13, color:"#9CA3AF", margin:0 }}>
+                  {searchActive || dateActive || selectedMonth ? "Try clearing your filters" : "No daily updates submitted yet"}
+                </p>
+              </div>
+            ) : filtered.map(u => {
+              const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+              const st = STATUS_STYLE[u.attendance_status] ?? STATUS_STYLE.present
+              const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
+              return (
+                <div key={u.id} style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                  {/* Day header */}
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid #F5F6FA", flexWrap:"wrap", gap:8 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <div style={{ width:38, height:38, borderRadius:10, background:"rgba(222,26,26,0.08)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <span style={{ fontSize:14, fontWeight:900, color:"#DE1A1A", lineHeight:1 }}>
+                          {new Date(u.date + "T12:00:00").getDate()}
+                        </span>
+                        <span style={{ fontSize:8, fontWeight:700, color:"#DE1A1A", textTransform:"uppercase" }}>
+                          {new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { month:"short" })}
+                        </span>
+                      </div>
+                      <div>
+                        <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{dateLabel}</p>
+                        <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{entries.length} work {entries.length === 1 ? "entry" : "entries"}</p>
+                      </div>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      {(u.working_hours ?? 0) > 0 && (
+                        <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
+                          <Clock size={11} style={{ color:"#9CA3AF" }}/> {fmtH(u.working_hours ?? 0)}
+                        </span>
+                      )}
+                      <span style={{ fontSize:11, fontWeight:700, color:st.color, background:st.bg, padding:"3px 10px", borderRadius:99 }}>
+                        {st.label}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Work entries */}
+                  {entries.length === 0 ? (
+                    <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>No work entries logged</p>
+                  ) : (
+                    <div>
+                      {entries.map((e, ei) => {
+                        const cfg = TASK_CFG[e.task_type] ?? TASK_CFG.other
+                        const { Icon } = cfg
+                        return (
+                          <div key={ei} style={{ display:"flex", gap:14, padding:"14px 18px", borderBottom: ei < entries.length - 1 ? "1px solid #F5F6FA" : "none", alignItems:"flex-start" }}>
+                            <div style={{ width:34, height:34, borderRadius:10, background:cfg.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                              <Icon size={15} style={{ color:cfg.color }}/>
+                            </div>
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
+                                <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{e.title || cfg.label}</span>
+                                <span style={{ fontSize:10, fontWeight:700, color:cfg.color, background:cfg.bg, padding:"2px 8px", borderRadius:99 }}>{cfg.label}</span>
+                              </div>
+                              {e.client_name && (
+                                <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{e.client_name}</p>
+                              )}
+                              {(e.notes || e.description) && (
+                                <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{e.notes || e.description}</p>
+                              )}
+                              <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:4 }}>
+                                {(e.duration_hours ?? 0) > 0 && (
+                                  <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:3 }}>
+                                    <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(e.duration_hours)}
+                                  </span>
+                                )}
+                                {e.start_time && e.end_time && (
+                                  <span style={{ fontSize:10, color:"#9CA3AF" }}>{fmt12(e.start_time)} – {fmt12(e.end_time)}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
 
           </div>
 

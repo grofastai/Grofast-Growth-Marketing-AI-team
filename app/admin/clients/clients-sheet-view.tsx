@@ -593,7 +593,7 @@ export default function ClientsSheetView({
                   {[
                     { icon: "📍", text: sel.place || "Tamil Nadu" },
                     { icon: "📅", text: `Joined ${sel.onboarded_month || "Jan 2025"}` },
-                    { icon: "⏱", text: `Client Since ${sel.period || "10 Months"}` },
+                    ...(sel.period ? [{ icon: "⏱", text: `Since ${sel.period}` }] : []),
                   ].map((item, i) => (
                     <span key={i} style={{ fontSize: 11, color: "#FFFFFF", fontWeight: 600,
                       display: "flex", alignItems: "center", gap: 4,
@@ -629,31 +629,34 @@ export default function ClientsSheetView({
             </div>
 
             {/* Info cards row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 px-4 md:px-[22px] pt-[14px]">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 md:px-[22px] pt-[14px]">
               {[
-                { label: "Monthly Package",  value: sel.current_month || sel.package_name || "—", sub: sel.package_name || "",         emoji: "💜", bg: "rgba(139,92,246,0.07)", border: "rgba(139,92,246,0.2)" },
-                { label: "Payment Status",   value: sel.payment_status || "—",                    sub: sel.received ? `Received: ₹${sel.received}` : "", emoji: "💳", bg: "rgba(22,163,74,0.07)", border: "rgba(22,163,74,0.2)" },
-                { label: "Industry",         value: sel.industry || "—",                           sub: sel.service || "",              emoji: "🏢", bg: selPal.bg,               border: selPal.border },
-                { label: "Client Since",     value: sel.onboarded_month || "—",                    sub: sel.period ? `${sel.period} months` : "", emoji: "📅", bg: "rgba(59,130,246,0.07)", border: "rgba(59,130,246,0.2)" },
+                { label: "Monthly Package",  value: sel.current_month ? `₹${sel.current_month}` : sel.package_name || "—", sub: sel.package_name || "",  emoji: "💜", bg: "rgba(139,92,246,0.07)", border: "rgba(139,92,246,0.2)" },
+                { label: "Payment Status",   value: sel.payment_status || "—",                    sub: sel.received ? `Received: ₹${sel.received}` : "No payment yet", emoji: "💳", bg: "rgba(22,163,74,0.07)", border: "rgba(22,163,74,0.2)" },
+                { label: "Industry",         value: sel.industry || "—",                           sub: "",                 emoji: "🏢", bg: selPal.bg, border: selPal.border },
+                { label: "Client Since",     value: sel.onboarded_month || "—",                    sub: sel.period || "",   emoji: "📅", bg: "rgba(59,130,246,0.07)", border: "rgba(59,130,246,0.2)" },
               ].map((card, i) => (
                 <div key={i} style={{ background: "#FFFFFF", borderRadius: 14, border: "1px solid #F0F1F5",
-                  padding: "12px 14px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-                  display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 11, background: card.bg,
+                  padding: "14px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                  display: "flex", alignItems: "flex-start", gap: 12 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: 11, background: card.bg,
                     border: `1.5px solid ${card.border}`, display: "flex", alignItems: "center",
-                    justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
+                    justifyContent: "center", fontSize: 18, flexShrink: 0, marginTop: 2 }}>
                     {card.emoji}
                   </div>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <p style={{ fontSize: 8, fontWeight: 700, color: "#9CA3AF", margin: "0 0 2px",
-                      textTransform: "uppercase", letterSpacing: "0.1em" }}>{card.label}</p>
-                    <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 1px",
+                    <p style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", margin: "0 0 4px",
+                      textTransform: "uppercase", letterSpacing: "0.08em" }}>{card.label}</p>
+                    <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: "0 0 3px",
                       fontFamily: "var(--font-jakarta)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {card.value}
                     </p>
-                    <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{card.sub}</p>
+                    {card.sub && (
+                      <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {card.sub}
+                      </p>
+                    )}
                   </div>
-                  <MoreHorizontal size={13} style={{ color: "#E5E7EB", flexShrink: 0 }} />
                 </div>
               ))}
             </div>

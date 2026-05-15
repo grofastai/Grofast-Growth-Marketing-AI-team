@@ -251,10 +251,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
           </div>
         </div>
 
-        <div style={{ padding: "24px 32px 32px" }}>
+        <div className="px-4 md:px-8 py-6">
 
           {/* ── Stats Cards ──────────────────────────────────────────────── */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(6,1fr)", gap: 14, marginBottom: 24 }}>
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
             {[
               { label: "Total Leaves\nThis Year",       val: leaves.length,   color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: "up"   as const, sub: "↑ 10% from last year",   subColor: "#10B981" },
               { label: "Pending\nRequests",             val: pendingL.length, color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "⏳", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
@@ -478,10 +478,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
           </div>
 
           {/* ── Bottom Banner — redesigned ───────────────────────────────── */}
-          <div style={{ position: "relative", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg,#FFF8EE 0%,#FFEFD0 55%,#FFF4E0 100%)", border: "1px solid #F0E4C8", minHeight: 300, display: "flex" }}>
+          <div style={{ position: "relative", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg,#FFF8EE 0%,#FFEFD0 55%,#FFF4E0 100%)", border: "1px solid #F0E4C8", minHeight: 300 }} className="flex flex-col md:flex-row">
 
             {/* Left content */}
-            <div style={{ position: "relative", zIndex: 2, padding: "32px 40px 28px", flex: "0 0 56%", display: "flex", flexDirection: "column" }}>
+            <div style={{ position: "relative", zIndex: 2 }} className="flex flex-col p-6 md:p-8 flex-1">
 
               {/* Badge */}
               <div style={{ marginBottom: 16 }}>
@@ -534,7 +534,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
             </div>
 
             {/* Right: vacation image — full height, edge to edge */}
-            <div style={{ flex: "0 0 44%", position: "relative", minHeight: 300 }}>
+            <div style={{ position: "relative", minHeight: 220 }} className="flex-1 md:flex-none md:w-[44%]">
               <div style={{ position: "absolute", inset: 0, backgroundImage: "url('/brand/vacation-boy.png')", backgroundRepeat: "no-repeat", backgroundPosition: "center center", backgroundSize: "cover" }} />
               {/* Blend left edge into cream background */}
               <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, #FFEFD0 0%, rgba(255,239,208,0.6) 18%, transparent 42%)", zIndex: 1, pointerEvents: "none" }} />

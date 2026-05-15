@@ -273,7 +273,7 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
     <div style={{ background:"#F8F9FC", minHeight:"100vh", padding:"0" }}>
 
       {/* ── TOPBAR ────────────────────────────────────────────────────────── */}
-      <div style={{ background:"#fff", borderBottom:"1px solid #EBEDF2", padding:"14px 28px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+      <div style={{ background:"#fff", borderBottom:"1px solid #EBEDF2" }} className="px-4 md:px-7 py-3 flex flex-wrap items-center gap-3">
         <div>
           <h1 style={{ fontSize:26, fontWeight:900, color:"#111111", fontFamily:"var(--font-jakarta)", margin:0 }}>
             Update <span style={{ color:"#DE1A1A" }}>History</span>
@@ -282,7 +282,7 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
         </div>
 
         {/* Search */}
-        <div style={{ flex:1, maxWidth:340, position:"relative" }}>
+        <div style={{ flex:"1 1 200px", maxWidth:340, position:"relative" }}>
           <Search size={14} style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF" }}/>
           <input
             value={search}
@@ -292,7 +292,7 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
           />
         </div>
 
-        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+        <div className="flex flex-wrap items-center gap-3">
           {/* Bell */}
           <div style={{ position:"relative" }}>
             <div style={{ width:38, height:38, borderRadius:12, background:"#F5F6FA", border:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -351,9 +351,9 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
         </div>
       </div>
 
-      <div style={{ padding:"20px 28px 40px" }}>
+      <div className="px-4 md:px-7 pb-10 pt-5">
         {/* ── MAIN 2-COL GRID ─────────────────────────────────────────────── */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 300px", gap:20, alignItems:"start" }}>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
 
           {/* LEFT ── Hero + Entries ──────────────────────────────────────── */}
           <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
@@ -629,7 +629,7 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
         </div>
 
         {/* ── BOTTOM STATS ROW ─────────────────────────────────────────────── */}
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginTop:20 }}>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
 
           {/* Work Streak */}
           <div style={{ background:"#fff", borderRadius:18, padding:"18px 18px 14px", border:"1px solid #EBEDF2", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>

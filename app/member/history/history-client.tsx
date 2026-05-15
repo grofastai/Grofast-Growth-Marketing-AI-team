@@ -6,7 +6,7 @@ import { deleteDailyUpdate } from "@/lib/actions/daily-updates"
 import Image from "next/image"
 import {
   Camera, Film, Clock, CalendarDays,
-  ChevronDown, TrendingUp, Zap, BookOpen, Users,
+  TrendingUp, Zap, BookOpen, Users,
   CheckCircle2, Search, Trash2,
   ArrowRight, Flame, Star, X,
 } from "lucide-react"
@@ -151,7 +151,6 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const [selectedMonth, setSelectedMonth] = useState("")
-  const [monthOpen, setMonthOpen]         = useState(false)
   const [search, setSearch]               = useState("")
   const [selectedDate, setSelectedDate]   = useState("")
 
@@ -292,53 +291,57 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
 
         <div className="flex flex-wrap items-center gap-3">
           {/* Date picker */}
-          <div style={{ position:"relative", display:"flex", alignItems:"center", gap:6, padding:"8px 12px", borderRadius:12, background:"#fff", border: dateActive ? "1.5px solid #DE1A1A" : "1px solid #EBEDF2" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 12px", borderRadius:12, background:"#fff", border: dateActive ? "1.5px solid #DE1A1A" : "1px solid #EBEDF2" }}>
             <CalendarDays size={14} style={{ color: dateActive ? "#DE1A1A" : "#9CA3AF", flexShrink:0 }}/>
             <input
               type="date"
               value={selectedDate}
-              onChange={e => { setSelectedDate(e.target.value) }}
+              onChange={e => setSelectedDate(e.target.value)}
               style={{ border:"none", outline:"none", fontSize:12, fontWeight:600, color: dateActive ? "#DE1A1A" : "#374151", background:"transparent", cursor:"pointer" }}
             />
             {dateActive && (
-              <button onClick={() => setSelectedDate("")}
-                style={{ background:"none", border:"none", cursor:"pointer", padding:0, display:"flex", alignItems:"center" }}>
+              <button onClick={() => setSelectedDate("")} style={{ background:"none", border:"none", cursor:"pointer", padding:0, display:"flex" }}>
                 <X size={12} style={{ color:"#9CA3AF" }}/>
               </button>
             )}
           </div>
-
-          {/* Month picker */}
-          <div style={{ position:"relative", display:"flex", alignItems:"center", gap:6 }}>
-            <button onClick={() => setMonthOpen(o => !o)}
-              style={{ display:"flex", alignItems:"center", gap:7, padding:"8px 14px", borderRadius:12, background:"#fff", border: selectedMonth ? "1.5px solid #DE1A1A" : "1px solid #EBEDF2", fontSize:13, fontWeight:600, color: selectedMonth ? "#DE1A1A" : "#374151", cursor:"pointer" }}>
-              <CalendarDays size={14} style={{ color:"#DE1A1A" }}/>
-              {selectedMonth || "All months"}
-              <ChevronDown size={12} style={{ transform:monthOpen?"rotate(180deg)":"none", transition:"0.2s" }}/>
-            </button>
-            {selectedMonth && (
-              <button onClick={() => setSelectedMonth("")}
-                style={{ display:"flex", alignItems:"center", justifyContent:"center", width:28, height:28, borderRadius:8, background:"rgba(222,26,26,0.08)", border:"1px solid rgba(222,26,26,0.2)", cursor:"pointer", padding:0 }}
-                title="Clear month filter">
-                <X size={12} style={{ color:"#DE1A1A" }}/>
-              </button>
-            )}
-            {monthOpen && (
-              <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, background:"#fff", border:"1px solid #E5E7EB", borderRadius:12, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", zIndex:40, minWidth:180, overflow:"hidden" }}>
-                <button key="all" onClick={() => { setSelectedMonth(""); setMonthOpen(false); setSelectedDate("") }}
-                  style={{ display:"block", width:"100%", textAlign:"left", padding:"10px 14px", fontSize:13, fontWeight: selectedMonth === "" ? 700:500, color: selectedMonth === "" ? "#DE1A1A":"#374151", background: selectedMonth === "" ? "rgba(222,26,26,0.05)":"none", border:"none", borderBottom:"1px solid #F5F6FA", cursor:"pointer" }}>
-                  All months
-                </button>
-                {months.map(m => (
-                  <button key={m} onClick={() => { setSelectedMonth(m); setMonthOpen(false); setSelectedDate("") }}
-                    style={{ display:"block", width:"100%", textAlign:"left", padding:"10px 14px", fontSize:13, fontWeight: m === selectedMonth ? 700:500, color: m === selectedMonth ? "#DE1A1A":"#374151", background: m === selectedMonth ? "rgba(222,26,26,0.05)":"none", border:"none", cursor:"pointer" }}>
-                    {m}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
+      </div>
+
+      {/* ── MONTH PILLS ───────────────────────────────────────────────────── */}
+      <div style={{ background:"#fff", borderBottom:"1px solid #EBEDF2" }} className="px-4 md:px-7 py-2.5">
+        <div style={{ display:"flex", alignItems:"center", gap:8, overflowX:"auto", paddingBottom:2 }}>
+          {/* "All" pill */}
+          <button
+            onClick={() => { setSelectedMonth(""); setSelectedDate("") }}
+            style={{
+              padding:"6px 16px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
+              background: selectedMonth === "" ? "#DE1A1A" : "#F5F6FA",
+              color:      selectedMonth === "" ? "#FFFFFF"  : "#6B7280",
+              border:     selectedMonth === "" ? "1.5px solid #DE1A1A" : "1.5px solid transparent",
+            }}>
+            All
+          </button>
+          {months.map(m => {
+            const active = selectedMonth === m
+            const shortLabel = new Date(m + " 1").toLocaleDateString("en-US", { month:"short", year:"2-digit" })
+            return (
+              <button
+                key={m}
+                onClick={() => { setSelectedMonth(active ? "" : m); setSelectedDate("") }}
+                style={{
+                  padding:"6px 16px", borderRadius:99, fontSize:12, fontWeight:700, cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
+                  background: active ? "#DE1A1A" : "#F5F6FA",
+                  color:      active ? "#FFFFFF"  : "#6B7280",
+                  border:     active ? "1.5px solid #DE1A1A" : "1.5px solid transparent",
+                }}>
+                {shortLabel}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       </div>
 
       <div className="px-4 md:px-7 pb-10 pt-5">

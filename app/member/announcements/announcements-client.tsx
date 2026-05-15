@@ -175,21 +175,6 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
               </div>
             </div>
 
-            {/* Stay in the loop banner */}
-            <div style={{ background: "#fff", borderRadius: 18, border: "1px solid #EBEDF2", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                <div style={{ width: 50, height: 50, borderRadius: 14, background: "rgba(239,68,68,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
-                  ✉️
-                </div>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 800, color: "#111111", margin: "0 0 3px" }}>Stay in the loop</p>
-                  <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}>Enable notifications to never miss important updates and announcements.</p>
-                </div>
-              </div>
-              <button style={{ display: "flex", alignItems: "center", gap: 8, padding: "11px 22px", borderRadius: 12, background: "#DE1A1A", border: "none", fontSize: 13, fontWeight: 700, color: "#fff", cursor: "pointer", flexShrink: 0 }}>
-                <Settings size={15} /> Manage Notifications
-              </button>
-            </div>
           </>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

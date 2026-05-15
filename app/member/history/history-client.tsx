@@ -342,8 +342,6 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
         </div>
       </div>
 
-      </div>
-
       <div className="px-4 md:px-7 pb-10 pt-5">
         {/* ── MAIN 2-COL GRID ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">

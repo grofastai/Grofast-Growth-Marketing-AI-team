@@ -17,18 +17,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!user) redirect("/login")
 
   const admin = adminSupabase()
-  const { data: profile } = await admin
-    .from("users")
-    .select("role, must_change_password")
-    .eq("id", user.id)
-    .single()
+  const [{ data: profile }, { count: pendingLeaves }] = await Promise.all([
+    admin.from("users").select("role, must_change_password, company_id").eq("id", user.id).single(),
+    admin.from("leaves").select("*", { count: "exact", head: true }).eq("status", "pending"),
+  ])
 
   if (profile?.role !== "ADMIN") redirect("/member/dashboard")
   if (profile?.must_change_password) redirect("/change-password")
 
   return (
     <div className="flex min-h-screen" style={{ background: "#EDEEF2" }}>
-      <Sidebar />
+      <Sidebar pendingLeaves={pendingLeaves ?? 0} />
       <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0">
         {children}
       </main>

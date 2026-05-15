@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, Clock, Target,
   CalendarOff, Megaphone, Briefcase, LogOut, BarChart2,
   Receipt, IndianRupee, FolderOpen, LifeBuoy,
-  MoreHorizontal, X,
+  MoreHorizontal, X, Bell,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
@@ -51,9 +51,10 @@ const ACTIVE_BG  = "rgba(255,255,255,0.14)"
 const HOVER_BG   = "rgba(255,255,255,0.07)"
 const DIVIDER    = "rgba(255,255,255,0.1)"
 
-export default function Sidebar() {
+export default function Sidebar({ pendingLeaves = 0 }: { pendingLeaves?: number }) {
   const pathname = usePathname()
   const [showMore, setShowMore] = useState(false)
+  const [bellOpen, setBellOpen] = useState(false)
 
   function isActive(href: string) {
     return pathname === href || (href !== "/admin/dashboard" && pathname.startsWith(href))
@@ -112,6 +113,55 @@ export default function Sidebar() {
               <p className="text-[13px] font-bold leading-none" style={{ color: "#FFFFFF" }}>Admin</p>
               <p className="text-[10px] mt-0.5 font-medium" style={{ color: "rgba(255,255,255,0.45)" }}>Administrator</p>
             </div>
+            {/* Bell */}
+            <div className="relative">
+              <button
+                onClick={() => setBellOpen(v => !v)}
+                onBlur={() => setTimeout(() => setBellOpen(false), 150)}
+                className="relative w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.2)" }}>
+                <Bell size={13} style={{ color: "#FFFFFF" }} />
+                {pendingLeaves > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
+                    style={{ background: "#de1a1a", color: "#FFFFFF", border: "1.5px solid #0a100d" }}>
+                    {pendingLeaves}
+                  </span>
+                )}
+              </button>
+              {bellOpen && (
+                <div className="absolute bottom-full right-0 mb-2 z-50 rounded-2xl overflow-hidden"
+                  style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", minWidth: 240 }}>
+                  <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>Notifications</p>
+                  </div>
+                  {pendingLeaves > 0 ? (
+                    <div className="px-4 py-3">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{ background: "rgba(222,26,26,0.2)" }}>
+                          <CalendarOff size={13} style={{ color: "#de1a1a" }} />
+                        </div>
+                        <div>
+                          <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>
+                            {pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending
+                          </p>
+                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Needs your approval</p>
+                        </div>
+                      </div>
+                      <Link href="/admin/leaves" onClick={() => setBellOpen(false)}
+                        className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-[11px] font-bold"
+                        style={{ background: "rgba(222,26,26,0.15)", color: "#ff6b6b" }}>
+                        Review Leaves <CalendarOff size={11} />
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="px-4 py-4 text-center">
+                      <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No pending notifications</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
           <form action={logoutAction}>
             <button type="submit"
@@ -157,6 +207,53 @@ export default function Sidebar() {
         </nav>
 
         <div className="flex flex-col items-center pb-4 pt-3 gap-2" style={{ borderTop: `1px solid ${DIVIDER}` }}>
+          {/* Bell */}
+          <div className="relative">
+            <button
+              onClick={() => setBellOpen(v => !v)}
+              onBlur={() => setTimeout(() => setBellOpen(false), 150)}
+              title="Notifications"
+              className="w-9 h-9 rounded-lg flex items-center justify-center transition-all"
+              style={{ color: "rgba(255,255,255,0.55)" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#FFFFFF" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)" }}
+            >
+              <Bell size={16} />
+              {pendingLeaves > 0 && (
+                <span className="absolute top-0 right-0 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
+                  style={{ background: "#de1a1a", color: "#FFFFFF" }}>
+                  {pendingLeaves}
+                </span>
+              )}
+            </button>
+            {bellOpen && (
+              <div className="absolute bottom-full left-full ml-2 z-50 rounded-2xl overflow-hidden"
+                style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", minWidth: 220 }}>
+                <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>Notifications</p>
+                </div>
+                {pendingLeaves > 0 ? (
+                  <div className="px-4 py-3">
+                    <div className="flex items-center gap-3 mb-2">
+                      <CalendarOff size={13} style={{ color: "#de1a1a" }} />
+                      <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>
+                        {pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending
+                      </p>
+                    </div>
+                    <Link href="/admin/leaves" onClick={() => setBellOpen(false)}
+                      className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-[11px] font-bold"
+                      style={{ background: "rgba(222,26,26,0.15)", color: "#ff6b6b" }}>
+                      Review Leaves
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="px-4 py-4 text-center">
+                    <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No pending notifications</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
           <div
             className="w-9 h-9 rounded-full flex items-center justify-center"
             title="Admin"
@@ -188,11 +285,62 @@ export default function Sidebar() {
           </div>
           <span style={{ color: "#FFFFFF", fontFamily: "var(--font-bebas), sans-serif", fontSize: 18, letterSpacing: "0.14em" }}>GROFAST</span>
         </div>
-        <div
-          className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold"
-          style={{ background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,255,255,0.3)", color: "#FFFFFF" }}
-        >
-          AD
+        <div className="flex items-center gap-2">
+          {/* Bell */}
+          <div className="relative">
+            <button
+              onClick={() => setBellOpen(v => !v)}
+              onBlur={() => setTimeout(() => setBellOpen(false), 150)}
+              className="relative w-8 h-8 rounded-full flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.2)" }}>
+              <Bell size={13} style={{ color: "#FFFFFF" }} />
+              {pendingLeaves > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
+                  style={{ background: "#ff3b3b", color: "#FFFFFF", border: "1.5px solid #0a100d" }}>
+                  {pendingLeaves}
+                </span>
+              )}
+            </button>
+            {bellOpen && (
+              <div className="absolute top-full right-0 mt-2 z-50 rounded-2xl overflow-hidden"
+                style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", minWidth: 240 }}>
+                <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>Notifications</p>
+                </div>
+                {pendingLeaves > 0 ? (
+                  <div className="px-4 py-3">
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
+                        style={{ background: "rgba(222,26,26,0.2)" }}>
+                        <CalendarOff size={13} style={{ color: "#de1a1a" }} />
+                      </div>
+                      <div>
+                        <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>
+                          {pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending
+                        </p>
+                        <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Needs your approval</p>
+                      </div>
+                    </div>
+                    <Link href="/admin/leaves" onClick={() => setBellOpen(false)}
+                      className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-[11px] font-bold"
+                      style={{ background: "rgba(222,26,26,0.15)", color: "#ff6b6b" }}>
+                      Review Leaves
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="px-4 py-4 text-center">
+                    <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No pending notifications</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold"
+            style={{ background: "rgba(255,255,255,0.2)", border: "1.5px solid rgba(255,255,255,0.3)", color: "#FFFFFF" }}
+          >
+            AD
+          </div>
         </div>
       </header>
 

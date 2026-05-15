@@ -114,7 +114,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
 
   // ── Compose view ──────────────────────────────────────────
   return (
-    <div className="p-4 md:p-6 xl:p-8 max-w-[800px]">
+    <div className="p-4 md:p-6 xl:p-8 max-w-[1100px]">
       {/* Header */}
       <div className="mb-7">
         <h1 className="gradient-heading text-[30px] font-black leading-tight"
@@ -126,28 +126,51 @@ export default function BlastClient({ members }: { members: Member[] }) {
         </p>
       </div>
 
-      <div className="space-y-5">
-        {/* Message composer */}
-        <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-          <div className="flex items-center gap-2 mb-3">
-            <MessageSquare size={13} style={{ color: "#25D366" }} />
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#6B7280" }}>Message</p>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">
+        {/* Left column — message + send */}
+        <div className="space-y-5">
+          {/* Message composer */}
+          <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquare size={13} style={{ color: "#25D366" }} />
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ color: "#6B7280" }}>Message</p>
+            </div>
+            <textarea
+              value={message}
+              onChange={e => setMessage(e.target.value)}
+              placeholder="Type your team message here…"
+              maxLength={1000}
+              rows={5}
+              className="w-full resize-none rounded-lg px-3 py-2.5 text-[13px] outline-none leading-relaxed"
+              style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}
+            />
+            <p className="text-[11px] mt-1.5 text-right tabular-nums" style={{ color: "#D1D5DB" }}>
+              {message.length} / 1000
+            </p>
           </div>
-          <textarea
-            value={message}
-            onChange={e => setMessage(e.target.value)}
-            placeholder="Type your team message here…"
-            maxLength={1000}
-            rows={5}
-            className="w-full resize-none rounded-lg px-3 py-2.5 text-[13px] outline-none leading-relaxed"
-            style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }}
-          />
-          <p className="text-[11px] mt-1.5 text-right tabular-nums" style={{ color: "#D1D5DB" }}>
-            {message.length} / 1000
-          </p>
+
+          {error && (
+            <div className="px-4 py-3 rounded-xl text-[13px] font-medium"
+              style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.15)", color: "#de1a1a" }}>
+              {error}
+            </div>
+          )}
+
+          <button onClick={send} disabled={!canSend}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl text-[14px] font-bold transition-all"
+            style={{
+              background: canSend ? "#25D366" : "#E5E7EB",
+              color:      canSend ? "#FFFFFF" : "#6B7280",
+              cursor:     canSend ? "pointer" : "not-allowed",
+            }}>
+            <Send size={14} />
+            {isPending
+              ? "Sending…"
+              : `Send to ${recipientCount} member${recipientCount !== 1 ? "s" : ""}`}
+          </button>
         </div>
 
-        {/* Recipients */}
+        {/* Right column — recipients */}
         <div className="rounded-xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -169,7 +192,7 @@ export default function BlastClient({ members }: { members: Member[] }) {
             </label>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div className="space-y-2">
             {members.map(m => {
               const isSelected = selectAll || selectedIds.has(m.id)
               return (
@@ -193,26 +216,6 @@ export default function BlastClient({ members }: { members: Member[] }) {
             })}
           </div>
         </div>
-
-        {error && (
-          <div className="px-4 py-3 rounded-xl text-[13px] font-medium"
-            style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.15)", color: "#de1a1a" }}>
-            {error}
-          </div>
-        )}
-
-        <button onClick={send} disabled={!canSend}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl text-[14px] font-bold transition-all"
-          style={{
-            background: canSend ? "#25D366" : "#E5E7EB",
-            color:      canSend ? "#FFFFFF" : "#6B7280",
-            cursor:     canSend ? "pointer" : "not-allowed",
-          }}>
-          <Send size={14} />
-          {isPending
-            ? "Sending…"
-            : `Send to ${recipientCount} member${recipientCount !== 1 ? "s" : ""}`}
-        </button>
       </div>
     </div>
   )

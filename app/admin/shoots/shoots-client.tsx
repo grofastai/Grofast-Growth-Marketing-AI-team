@@ -111,7 +111,7 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
   return (
     <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
       {/* Header */}
-      <div className="flex items-start justify-between mb-7">
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-7">
         <div>
           <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: 'var(--font-jakarta)' }}>
             Shoots

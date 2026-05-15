@@ -570,15 +570,12 @@ export default function ClientsSheetView({
             <div style={{ position: "relative", height: 240, flexShrink: 0, overflow: "hidden" }}>
               <Image src="/brand/client-hero.png" alt="" fill
                 style={{ objectFit: "cover", objectPosition: "center top" }} />
-              {/* Dark left overlay */}
+              {/* Light left overlay for text readability */}
               <div style={{ position: "absolute", inset: 0,
-                background: "linear-gradient(to right, rgba(0,0,0,0.68) 0%, rgba(0,0,0,0.25) 50%, transparent 100%)" }} />
-              {/* Dark bottom scrim for text */}
-              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "60%",
-                background: "linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 100%)" }} />
-              {/* White fade at very bottom */}
+                background: "linear-gradient(to right, rgba(0,0,0,0.38) 0%, rgba(0,0,0,0.1) 40%, transparent 70%)" }} />
+              {/* Soft bottom fade into page background */}
               <div style={{ position: "absolute", inset: 0,
-                background: "linear-gradient(to bottom, transparent 58%, rgba(248,249,251,1) 100%)" }} />
+                background: "linear-gradient(to bottom, transparent 55%, rgba(248,249,251,0.95) 100%)" }} />
 
               {/* Client identity */}
               <div style={{ position: "absolute", bottom: 20, left: 22 }}>

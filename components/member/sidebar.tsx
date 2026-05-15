@@ -339,7 +339,6 @@ export default function MemberSidebar({ name, employeeId, pendingLeaves = 0 }: {
           <span style={{ color: "#FFFFFF", fontFamily: "var(--font-bebas), sans-serif", fontSize: 18, letterSpacing: "0.16em" }}>GROFAST</span>
         </div>
         <div className="flex items-center gap-2">
-          <PushSubscribeButton />
           {/* Mobile bell */}
           <div className="relative">
             <button

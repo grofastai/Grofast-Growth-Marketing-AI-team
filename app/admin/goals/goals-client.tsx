@@ -160,12 +160,21 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
   const [isPending, startTransition] = useTransition()
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [movingId, setMovingId] = useState<string | null>(null)
+
+  function openForm(preselect?: string) {
+    setSelectedMembers(preselect ? [preselect] : [])
+    setShowForm(true)
+  }
   type TaskActionState = { error: string } | { success: true } | null
   const [state, action, formPending] = useActionState<TaskActionState, FormData>(createTask, null)
 
   useEffect(() => { setTasks(initialTasks) }, [initialTasks])
   useEffect(() => {
-    if (state && "success" in state) { router.refresh(); setShowForm(false); setSelectedMembers([]) }
+    if (state && "success" in state) {
+      setShowForm(false)
+      setSelectedMembers([])
+      startTransition(() => { router.refresh() })
+    }
   }, [state]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleMember(id: string) {
@@ -284,7 +293,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
                 </button>
               ))}
             </div>
-            <button onClick={() => setShowForm(true)} style={{
+            <button onClick={() => openForm()} style={{
               display: "flex", alignItems: "center", gap: 8,
               padding: "11px 22px", borderRadius: 14, fontSize: 13, fontWeight: 800,
               border: "none", cursor: "pointer",
@@ -400,7 +409,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
 
                   {/* Footer add button */}
                   <div style={{ padding: "10px 14px 14px", display: "flex", justifyContent: "flex-end", borderTop: "1px solid #F9FAFB" }}>
-                    <button onClick={() => setShowForm(true)} style={{
+                    <button onClick={() => openForm(isUnassigned ? undefined : col.id)} style={{
                       display: "flex", alignItems: "center", gap: 6,
                       padding: "7px 14px", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700,
                       background: isUnassigned ? "#F3F4F6" : `${tc.from}12`,
@@ -547,7 +556,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
                   <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Assign work to your team</p>
                 </div>
               </div>
-              <button onClick={() => { setShowForm(false); setSelectedMembers([]) }}
+              <button onClick={() => { setShowForm(false); setSelectedMembers([]); }}
                 style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <X size={15} style={{ color: "#6B7280" }} />
               </button>
@@ -621,7 +630,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
               )}
 
               <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
-                <button type="button" onClick={() => { setShowForm(false); setSelectedMembers([]) }}
+                <button type="button" onClick={() => { setShowForm(false); setSelectedMembers([]); }}
                   style={{ flex: 1, padding: "12px 0", borderRadius: 12, fontSize: 13, fontWeight: 600, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: "pointer" }}>
                   Cancel
                 </button>

@@ -42,7 +42,7 @@ const moreNavItems = [
 const DIVIDER = "rgba(255,255,255,0.08)"
 const MOBILE_BG = "linear-gradient(90deg, #0a0a0a 0%, #1a0000 60%, #de1a1a 100%)"
 
-export default function MemberSidebar({ name, employeeId, pendingLeaves = 0 }: { name: string; employeeId: string; pendingLeaves?: number }) {
+export default function MemberSidebar({ name, employeeId, pendingLeaves = 0, photoUrl = null }: { name: string; employeeId: string; pendingLeaves?: number; photoUrl?: string | null }) {
   const pathname = usePathname()
   const initials = name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
   const [showMore, setShowMore] = useState(false)
@@ -149,9 +149,12 @@ export default function MemberSidebar({ name, employeeId, pendingLeaves = 0 }: {
           {/* User card */}
           <div className="flex items-center gap-3 px-3 py-3 rounded-xl mb-1"
             style={{ background: "rgba(255,255,255,0.06)" }}>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "#de1a1a", border: "2px solid rgba(255,255,255,0.2)" }}>
-              <span className="text-[12px] font-black" style={{ color: "#FFFFFF" }}>{initials}</span>
+            <div className="w-10 h-10 rounded-full flex-shrink-0 overflow-hidden"
+              style={{ border: "2px solid rgba(255,255,255,0.2)" }}>
+              {photoUrl
+                ? <Image src={photoUrl} alt={name} width={40} height={40} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                : <div className="w-full h-full flex items-center justify-center text-[12px] font-black" style={{ background:"#de1a1a", color:"#FFFFFF" }}>{initials}</div>
+              }
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-bold leading-none truncate" style={{ color: "#FFFFFF" }}>{name}</p>
@@ -309,10 +312,13 @@ export default function MemberSidebar({ name, employeeId, pendingLeaves = 0 }: {
               </div>
             )}
           </div>
-          <div className="w-9 h-9 rounded-full flex items-center justify-center"
+          <div className="w-9 h-9 rounded-full overflow-hidden flex-shrink-0"
             title={`${name} #${employeeId}`}
-            style={{ background: "#de1a1a", border: "1.5px solid rgba(255,255,255,0.2)" }}>
-            <span className="text-[10px] font-black" style={{ color: "#FFFFFF" }}>{initials}</span>
+            style={{ border: "1.5px solid rgba(255,255,255,0.2)" }}>
+            {photoUrl
+              ? <Image src={photoUrl} alt={name} width={36} height={36} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+              : <div className="w-full h-full flex items-center justify-center text-[10px] font-black" style={{ background:"#de1a1a", color:"#FFFFFF" }}>{initials}</div>
+            }
           </div>
           <form action={logoutAction}>
             <button type="submit" title="Sign Out"
@@ -388,9 +394,12 @@ export default function MemberSidebar({ name, employeeId, pendingLeaves = 0 }: {
               </div>
             )}
           </div>
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black"
-            style={{ background: "#de1a1a", border: "1.5px solid rgba(255,255,255,0.2)", color: "#FFFFFF" }}>
-            {initials}
+          <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
+            style={{ border: "1.5px solid rgba(255,255,255,0.2)" }}>
+            {photoUrl
+              ? <Image src={photoUrl} alt={name} width={32} height={32} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+              : <div className="w-full h-full flex items-center justify-center text-[11px] font-black" style={{ background:"#de1a1a", color:"#FFFFFF" }}>{initials}</div>
+            }
           </div>
         </div>
       </header>

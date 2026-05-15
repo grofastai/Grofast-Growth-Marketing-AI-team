@@ -18,7 +18,7 @@ export default async function MemberLayout({ children }: { children: React.React
 
   const admin = adminSupabase()
   const [{ data: profile }, { count: pendingLeaves }] = await Promise.all([
-    admin.from("users").select("name, employee_id, role, must_change_password").eq("id", user.id).single(),
+    admin.from("users").select("name, employee_id, role, must_change_password, photo_url").eq("id", user.id).single(),
     admin.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "pending"),
   ])
 
@@ -31,6 +31,7 @@ export default async function MemberLayout({ children }: { children: React.React
         name={profile?.name ?? "Member"}
         employeeId={profile?.employee_id ?? ""}
         pendingLeaves={pendingLeaves ?? 0}
+        photoUrl={profile?.photo_url ?? null}
       />
       <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0">
         {children}

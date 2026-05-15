@@ -3,8 +3,8 @@
 import { useState, useMemo, useRef, useEffect } from "react"
 import Image from "next/image"
 import {
-  Search, Plus, MoreHorizontal, CheckCircle2, TrendingUp,
-  ChevronDown, Sparkles, Bell, SlidersHorizontal, X,
+  Search, Plus, MoreHorizontal,
+  ChevronDown, Sparkles, X,
 } from "lucide-react"
 import type { SheetClient } from "@/lib/google/sheets"
 import type { WorkSummary } from "./page"
@@ -63,54 +63,6 @@ function healthCfg(score: number) {
 }
 const isActive = (c: SheetClient) => c.client_status.toLowerCase().includes("active") || c.client_status.toLowerCase().includes("current")
 
-// ── Sparkline paths (150×30 viewbox) ─────────────────────────────────────────
-const SPARKS = [
-  "M0,24 C25,20 40,10 60,13 S90,6 110,9 S135,4 150,6",
-  "M0,20 C20,22 40,14 58,17 S88,12 112,14 S138,10 150,11",
-  "M0,18 C22,22 38,16 56,20 S82,18 106,20 S132,18 150,19",
-  "M0,22 C18,20 36,24 54,22 S82,24 106,22 S130,24 150,22",
-  "M0,20 C24,22 38,18 58,20 S88,22 110,20 S136,22 150,20",
-  "M0,18 C22,20 40,14 56,16 S86,10 110,12 S136,8 150,10",
-  "M0,22 C20,18 38,22 56,18 S84,14 108,16 S132,12 150,14",
-  "M0,20 C18,16 36,20 54,16 S80,12 104,14 S130,10 150,12",
-]
-
-// ── Mini SVG Charts ───────────────────────────────────────────────────────────
-function ClientSparkline({ color, idx }: { color: string; idx: number }) {
-  const d = SPARKS[idx % SPARKS.length]
-  return (
-    <svg viewBox="0 0 150 30" width="100%" height="30" style={{ display: "block" }}>
-      <defs>
-        <linearGradient id={`sg${idx}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.2" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={`${d} L150,30 L0,30 Z`} fill={`url(#sg${idx})`} />
-      <path d={d} fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  )
-}
-
-function RevSparkline({ color }: { color: string }) {
-  return (
-    <svg viewBox="0 0 200 50" width="100%" height="50" style={{ display: "block" }}>
-      <defs>
-        <linearGradient id="rsg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points="0,45 0,35 30,28 55,32 80,20 110,24 140,12 170,16 200,5 200,45"
-        fill="url(#rsg)" />
-      <polyline points="0,35 30,28 55,32 80,20 110,24 140,12 170,16 200,5"
-        fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <text x="2"  y="48" fontSize="8" fill="#9CA3AF">May 1</text>
-      <text x="84" y="48" fontSize="8" fill="#9CA3AF" textAnchor="middle">May 15</text>
-      <text x="198" y="48" fontSize="8" fill="#9CA3AF" textAnchor="end">May 31</text>
-    </svg>
-  )
-}
 
 function DonutChart({ pct, color, size = 112 }: { pct: number; color: string; size?: number }) {
   const r = size * 0.39, cx = size / 2, cy = size / 2
@@ -196,151 +148,86 @@ function ClientCard({ c, isSelected, onClick, idx }: {
           </p>
         </div>
       </div>
-      {/* Sparkline */}
-      <div style={{ paddingBottom: 4, opacity: 0.85 }}>
-        <ClientSparkline color={isSelected ? "#DE1A1A" : p.spark} idx={idx} />
-      </div>
     </button>
   )
 }
 
-// ── Activity data ─────────────────────────────────────────────────────────────
-interface Act { av: string; avBg: string; avCol: string; title: string; detail: string; time: string; dot: string; icon?: string }
-function buildActs(c: SheetClient): Act[] {
-  return [
-    { av: "SK", avBg: "#FEE2E2", avCol: "#DE1A1A", title: "Sanjay K updated campaign",  detail: "Summer Offer Campaign",           time: "2m ago",          dot: "#22C55E" },
-    { av: "₹",  avBg: "#F0FDF4", avCol: "#16A34A", title: "New payment received",        detail: `${c.received || "₹15,000"} from ${c.company_name || "client"}`, time: "30m ago", dot: "#22C55E" },
-    { av: "MM", avBg: "#EDE9FE", avCol: "#7C3AED", title: "Manju M uploaded a file",     detail: "Menu Design Final.pdf",           time: "1h ago",          dot: "#7C3AED" },
-    { av: "✓",  avBg: "#F0FDF4", avCol: "#16A34A", title: "Campaign approved",           detail: "New Menu Launch",                 time: "2h ago",          dot: "#22C55E" },
-    { av: "📅", avBg: "#EFF6FF", avCol: "#1D4ED8", title: "Meeting scheduled",           detail: `Strategy Call with ${c.customer_name || "client"}`, time: "Tomorrow, 11:00 AM", dot: "#3B82F6" },
-    { av: "VR", avBg: "#FFF3E0", avCol: "#F97316", title: "Vignesh R commented",         detail: "on Promo Video",                  time: "3h ago",          dot: "#F97316" },
-    { av: "🧾", avBg: "#FFFBEB", avCol: "#B45309", title: "Invoice sent",                detail: `#INV-2026-${c.sno || "0456"}`,   time: "5h ago",          dot: "#F59E0B" },
-    { av: "MM", avBg: "#EDE9FE", avCol: "#7C3AED", title: "Manju M uploaded a file",     detail: "Banner Design V2.png",            time: "1d ago",          dot: "#9CA3AF" },
-  ]
-}
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSummary }) {
-  const received = parseAmt(c.received) || 180000
+  const received = parseAmt(c.received)
   const pending  = parseAmt(c.pending)
   const total    = received + pending
-  const pct      = total > 0 ? Math.round((received / total) * 100) : 68
+  const pct      = total > 0 ? Math.round((received / total) * 100) : 0
 
   const card: React.CSSProperties = {
     background: "#FFFFFF", borderRadius: 20, border: "1px solid #F0F1F5",
     padding: "18px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
   }
 
-  const deliverables = [
-    { name: "Brand Strategy Document",    done: true,  pct: 100, color: "#22C55E" },
-    { name: "Social Media Creatives (10)",done: false, pct: 80,  color: "#3B82F6" },
-    { name: "Promo Video (30 sec)",       done: false, pct: 60,  color: "#F59E0B" },
-    { name: "Menu Design",                done: false, pct: 40,  color: "#A855F7" },
-  ]
   return (
     <div style={{ padding: "18px 22px 40px", display: "flex", flexDirection: "column", gap: 16 }}>
 
-      {/* Row 1: Revenue | Progress | Pipeline */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-[14px]">
+      {/* Revenue + Payment Status */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px]">
 
         {/* Revenue */}
         <div style={card}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", margin: 0, textTransform: "uppercase", letterSpacing: "0.1em" }}>Total Revenue</p>
-            <MoreHorizontal size={14} style={{ color: "#D1D5DB" }} />
-          </div>
-          <p style={{ fontSize: 28, fontWeight: 900, color: "#111827", margin: "0 0 3px", fontFamily: "var(--font-jakarta)" }}>
-            ₹{received.toLocaleString("en-IN")}
-          </p>
-          <p style={{ fontSize: 11, color: "#22C55E", margin: "0 0 10px", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-            <TrendingUp size={11} /> +24.5% vs last 30 days
-          </p>
-          <RevSparkline color="#22C55E" />
-        </div>
-
-        {/* Campaign Progress */}
-        <div style={card}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", margin: 0, textTransform: "uppercase", letterSpacing: "0.1em" }}>Campaign Progress</p>
-            <MoreHorizontal size={14} style={{ color: "#D1D5DB" }} />
-          </div>
-          <div style={{ display: "flex", justifyContent: "center", margin: "2px 0 8px" }}>
-            <DonutChart pct={pct} color="#DE1A1A" />
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            {[{ l: "Completed", n: 12, c: "#22C55E" }, { l: "In Progress", n: 5, c: "#F59E0B" }, { l: "Pending", n: 3, c: "#9CA3AF" }].map(r => (
-              <div key={r.l} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10, color: "#6B7280" }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: r.c, display: "inline-block" }} />{r.l}
-                </span>
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#374151" }}>{r.n}</span>
+          <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "0.1em" }}>Revenue</p>
+          <div className="flex items-end gap-6 flex-wrap">
+            {received > 0 && (
+              <div>
+                <p style={{ fontSize: 10, color: "#9CA3AF", margin: "0 0 2px" }}>Received</p>
+                <p style={{ fontSize: 26, fontWeight: 900, color: "#16A34A", margin: 0, fontFamily: "var(--font-jakarta)" }}>
+                  ₹{received.toLocaleString("en-IN")}
+                </p>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Content Pipeline */}
-        <div style={card}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", margin: 0, textTransform: "uppercase", letterSpacing: "0.1em" }}>Content Pipeline</p>
-            <MoreHorizontal size={14} style={{ color: "#D1D5DB" }} />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-            {[
-              { label: "Ideas",       count: 3, color: "#3B82F6", items: ["Summer Offer", "New Menu Launch"] },
-              { label: "In Progress", count: 5, color: "#F59E0B", items: ["Promo Video", "Social Media Ads"] },
-              { label: "Review",      count: 2, color: "#A855F7", items: ["Poster Design", "Menu Brochure"] },
-            ].map(col => (
-              <div key={col.label}>
-                <div style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 7 }}>
-                  <span style={{ width: 7, height: 7, borderRadius: 2, background: col.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 8, fontWeight: 700, color: col.color, textTransform: "uppercase", letterSpacing: "0.04em" }}>{col.label}</span>
-                  <span style={{ fontSize: 8, color: "#9CA3AF", marginLeft: "auto" }}>{col.count}</span>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {col.items.map(item => (
-                    <div key={item} style={{ background: "#F9FAFB", borderRadius: 6, padding: "4px 6px",
-                      fontSize: 9, color: "#374151", fontWeight: 600, border: "1px solid #F3F4F6",
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {item}
-                    </div>
-                  ))}
-                  <span style={{ fontSize: 9, color: "#9CA3AF" }}>+ {col.count - col.items.length} more</span>
-                </div>
+            )}
+            {pending > 0 && (
+              <div>
+                <p style={{ fontSize: 10, color: "#9CA3AF", margin: "0 0 2px" }}>Pending</p>
+                <p style={{ fontSize: 26, fontWeight: 900, color: "#DC2626", margin: 0, fontFamily: "var(--font-jakarta)" }}>
+                  ₹{pending.toLocaleString("en-IN")}
+                </p>
               </div>
-            ))}
+            )}
+            {received === 0 && pending === 0 && (
+              <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0 }}>No payment data</p>
+            )}
           </div>
-        </div>
-      </div>
-
-      {/* Deliverables Tracker */}
-      <div style={card}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", margin: 0, textTransform: "uppercase", letterSpacing: "0.1em" }}>Deliverables Tracker</p>
-          <MoreHorizontal size={14} style={{ color: "#D1D5DB" }} />
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
-          {deliverables.map((d, i) => (
-            <div key={i}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <CheckCircle2 size={12} style={{ color: d.done ? "#22C55E" : "#E5E7EB", flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>{d.name}</span>
-                </div>
-                {d.done
-                  ? <span style={{ fontSize: 9, fontWeight: 700, color: "#22C55E", background: "rgba(34,197,94,0.1)", padding: "2px 7px", borderRadius: 5 }}>Completed</span>
-                  : <span style={{ fontSize: 10, fontWeight: 600, color: "#6B7280" }}>{d.pct}%</span>
-                }
+          {total > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
+                <span style={{ fontSize: 10, color: "#9CA3AF" }}>Collection rate</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#16A34A" }}>{pct}%</span>
               </div>
-              <div style={{ height: 4, borderRadius: 2, background: "#F3F4F6", overflow: "hidden" }}>
-                <div style={{ height: "100%", borderRadius: 2, width: `${d.pct}%`, background: d.color, transition: "width 0.5s ease" }} />
+              <div style={{ height: 5, borderRadius: 3, background: "#F3F4F6", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#16A34A,#22C55E)", borderRadius: 3 }} />
               </div>
             </div>
-          ))}
+          )}
+        </div>
+
+        {/* Package + Payment Status */}
+        <div style={card}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", margin: "0 0 14px", textTransform: "uppercase", letterSpacing: "0.1em" }}>Package Details</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {[
+              { label: "Package",        value: c.package_name || "—" },
+              { label: "Monthly Value",  value: c.current_month ? `₹${c.current_month}` : "—" },
+              { label: "Payment Status", value: c.payment_status || "—" },
+              { label: "Service",        value: c.service || "—" },
+            ].map(row => (
+              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 11, color: "#9CA3AF" }}>{row.label}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#111827" }}>{row.value}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Row 3: Work Done (real data from Supabase) */}
+      {/* Work Done (real data from Supabase) */}
       {workSummary && (Object.keys(workSummary.workTypes).length > 0 || workSummary.shoots > 0 || workSummary.hours > 0) && (
         <div style={card}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -444,7 +331,6 @@ export default function ClientsSheetView({
   const selPal = sel ? getPal(sel.industry) : DEF_PAL
   const selHp  = sel ? healthScore(sel) : 75
   const selHl  = healthCfg(selHp)
-  const acts   = sel ? buildActs(sel) : []
 
   function pickClient(c: SheetClient) {
     setSelected(c)
@@ -489,13 +375,8 @@ export default function ClientsSheetView({
           </div>
         </div>
 
-        {/* Right: Buttons + icons */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, flexWrap: "wrap" }}>
-          <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 10,
-            background: "#F0FDF4", border: "1px solid #BBF7D0", color: "#16A34A",
-            fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-            <span style={{ fontSize: 14 }}>📊</span> Import Sheets
-          </button>
+        {/* Right: Buttons */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
           <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10,
             background: "#DE1A1A", border: "none", color: "#FFFFFF",
             fontSize: 12, fontWeight: 700, cursor: "pointer",
@@ -750,10 +631,10 @@ export default function ClientsSheetView({
             {/* Info cards row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 px-4 md:px-[22px] pt-[14px]">
               {[
-                { label: "Monthly Package",  value: sel.current_month || "₹15,000", sub: sel.package_name || "Standard",      emoji: "💜", bg: "rgba(139,92,246,0.07)", border: "rgba(139,92,246,0.2)" },
-                { label: "Assigned Manager", value: "Sanjay K",                      sub: "Project Manager",                   emoji: "👤", bg: "rgba(59,130,246,0.07)",  border: "rgba(59,130,246,0.2)" },
-                { label: "Industry",         value: sel.industry || "—",             sub: sel.service || "Digital Marketing",  emoji: "🏢", bg: selPal.bg,                border: selPal.border },
-                { label: "Campaign Health",  value: selHl.label,                     sub: sel.payment_status || "On Track",    emoji: "⚡", bg: selHl.bg,                border: "transparent" },
+                { label: "Monthly Package",  value: sel.current_month || sel.package_name || "—", sub: sel.package_name || "",         emoji: "💜", bg: "rgba(139,92,246,0.07)", border: "rgba(139,92,246,0.2)" },
+                { label: "Payment Status",   value: sel.payment_status || "—",                    sub: sel.received ? `Received: ₹${sel.received}` : "", emoji: "💳", bg: "rgba(22,163,74,0.07)", border: "rgba(22,163,74,0.2)" },
+                { label: "Industry",         value: sel.industry || "—",                           sub: sel.service || "",              emoji: "🏢", bg: selPal.bg,               border: selPal.border },
+                { label: "Client Since",     value: sel.onboarded_month || "—",                    sub: sel.period ? `${sel.period} months` : "", emoji: "📅", bg: "rgba(59,130,246,0.07)", border: "rgba(59,130,246,0.2)" },
               ].map((card, i) => (
                 <div key={i} style={{ background: "#FFFFFF", borderRadius: 14, border: "1px solid #F0F1F5",
                   padding: "12px 14px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
@@ -815,55 +696,6 @@ export default function ClientsSheetView({
           </>)}
         </div>
 
-        {/* ── RIGHT PANEL ────────────────────────────────────────────────── */}
-        <div className="hidden lg:flex flex-col lg:w-[258px] lg:flex-shrink-0 overflow-y-auto"
-          style={{ background: "#FFFFFF", borderLeft: "1px solid #EEEEF2",
-          boxShadow: "-2px 0 10px rgba(0,0,0,0.04)" }}>
-
-          <div style={{ padding: "18px 16px 12px", borderBottom: "1px solid #F0F1F5",
-            display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-              Activity Feed
-            </p>
-            <button style={{ fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>
-              View all
-            </button>
-          </div>
-
-          <div style={{ flex: 1, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
-            {acts.map((item, i) => (
-              <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                <div style={{ width: 30, height: 30, borderRadius: 10, background: item.avBg, flexShrink: 0,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 9, fontWeight: 900, color: item.avCol }}>
-                  {item.av}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 1 }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: "#111827", margin: 0,
-                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                      {item.title}
-                    </p>
-                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: item.dot, flexShrink: 0 }} />
-                  </div>
-                  <p style={{ fontSize: 10, color: "#6B7280", margin: "0 0 2px",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {item.detail}
-                  </p>
-                  <p style={{ fontSize: 9, color: "#D1D5DB", margin: 0 }}>{item.time}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div style={{ padding: "12px 16px", borderTop: "1px solid #F0F1F5" }}>
-            <button style={{ width: "100%", padding: "10px 0", borderRadius: 12,
-              border: "1.5px solid rgba(222,26,26,0.25)", background: "rgba(222,26,26,0.04)",
-              cursor: "pointer", fontSize: 11, fontWeight: 700, color: "#DE1A1A" }}>
-              View All Activity
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   )

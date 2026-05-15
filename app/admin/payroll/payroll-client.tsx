@@ -389,17 +389,10 @@ export default function PayrollClient({
   }
 
   const SUMMARY = [
-    { label: "Total Payroll",    value: fmtK(totalNet),  sub: "↑ 14.5% vs last month", color: "#E53935", bg: "#FFF5F5", idx: 0 },
-    { label: "Total OT Pay",     value: fmtK(totalOT),   sub: "↑ 8.2% vs last month",  color: "#F97316", bg: "#FFF7ED", idx: 1 },
-    { label: "Total Deductions", value: fmtK(totalDed),  sub: "↓ 3.6% vs last month",  color: "#8B5CF6", bg: "#FAF5FF", idx: 2 },
-    { label: "Team Members",     value: `${rows.length}`, sub: `↑ ${Math.max(1, Math.floor(rows.length * 0.04))} this month`, color: "#3B82F6", bg: "#EFF6FF", idx: 3 },
-  ]
-
-  const TIMELINE = [
-    { emoji: "💰", title: "Salary Generated",  date: `02 ${monthShort}, 10:00 AM`, color: "#16A34A", bg: "#F0FDF4" },
-    { emoji: "📄", title: "Payslip Sent",      date: `05 ${monthShort}, 04:30 PM`, color: "#3B82F6", bg: "#EFF6FF" },
-    { emoji: "🎁", title: "Bonus Added",        date: `08 ${monthShort}, 11:20 AM`, color: "#8B5CF6", bg: "#FAF5FF" },
-    { emoji: "📊", title: "Deduction Updated",  date: `10 ${monthShort}, 03:15 PM`, color: "#F97316", bg: "#FFF7ED" },
+    { label: "Total Payroll",    value: fmtK(totalNet),   sub: `${rows.filter(r => r.net > 0).length} paid`,   color: "#E53935", bg: "#FFF5F5", idx: 0 },
+    { label: "Total OT Pay",     value: fmtK(totalOT),    sub: `${rows.filter(r => r.ot > 0).length} with OT`, color: "#F97316", bg: "#FFF7ED", idx: 1 },
+    { label: "Total Deductions", value: fmtK(totalDed),   sub: `${rows.filter(r => r.deductions > 0).length} deducted`, color: "#8B5CF6", bg: "#FAF5FF", idx: 2 },
+    { label: "Team Members",     value: `${rows.length}`, sub: `${monthName}`,                                  color: "#3B82F6", bg: "#EFF6FF", idx: 3 },
   ]
 
   return (
@@ -529,31 +522,6 @@ export default function PayrollClient({
             )}
           </div>
 
-          {/* Activity Timeline */}
-          <div style={{ borderRadius: 20, background: "#fff", border: "1.5px solid #EBEBEB", padding: "20px 24px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111", margin: "0 0 20px", fontFamily: "var(--font-jakarta)" }}>
-              Payroll Activity Timeline
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
-              {TIMELINE.map((item, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "flex-start" }}>
-                  <div style={{ flex: 1, paddingRight: 12 }}>
-                    <div style={{ width: 42, height: 42, borderRadius: 13, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, marginBottom: 10, border: `1px solid ${item.color}20` }}>
-                      {item.emoji}
-                    </div>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#111", marginBottom: 3 }}>{item.title}</div>
-                    <div style={{ fontSize: 10, color: "#9CA3AF" }}>{item.date}</div>
-                  </div>
-                  {i < 3 && (
-                    <div style={{ display: "flex", alignItems: "center", paddingTop: 20, flexShrink: 0 }}>
-                      <div style={{ width: 28, height: 2, background: "#E5E7EB", borderRadius: 1 }} />
-                      <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#D1D5DB" }} />
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* ════ RIGHT: Sidebar ════ */}

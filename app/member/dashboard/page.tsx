@@ -6,34 +6,6 @@ import Link from "next/link"
 import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
 
-/* ── Mini Sparkline (same style as Tasks page) ───────────────────── */
-function MiniSparkline({ data, color, id }: { data: number[]; color: string; id: string }) {
-  const w = 80, h = 28, px = 1, py = 3
-  const min = Math.min(...data), max = Math.max(...data), range = max - min || 1
-  const xs = data.map((_, i) => px + (i / (data.length - 1)) * (w - px * 2))
-  const ys = data.map(v => h - py - ((v - min) / range) * (h - py * 2))
-  const gid = `sg${id}`
-
-  let d = `M${xs[0].toFixed(1)},${ys[0].toFixed(1)}`
-  for (let i = 0; i < xs.length - 1; i++) {
-    const cpx = (xs[i] + xs[i + 1]) / 2
-    d += ` C${cpx.toFixed(1)},${ys[i].toFixed(1)} ${cpx.toFixed(1)},${ys[i + 1].toFixed(1)} ${xs[i + 1].toFixed(1)},${ys[i + 1].toFixed(1)}`
-  }
-  const area = `${d} L${xs[xs.length - 1].toFixed(1)},${h} L${xs[0].toFixed(1)},${h} Z`
-
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: 80, height: 28, flexShrink: 0 }}>
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill={`url(#${gid})`} />
-      <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  )
-}
 
 export default async function MemberDashboardPage() {
   const supabase = await createServerClient()
@@ -133,12 +105,6 @@ export default async function MemberDashboardPage() {
     high:   { color: "#FF6464", bg: "rgba(255,100,100,0.08)" },
   }
 
-  // Sparklines (visual seeds)
-  const sparkPresent = [3, 4, 3, 5, 4, workingDays || 1]
-  const sparkHours   = [6, 8, 7, 9, 8, totalMonthHrs > 0 ? Math.min(totalMonthHrs, 12) : 1]
-  const sparkLeaves  = [0, 1, 0, 1, 1, pendingLeaves]
-  const sparkTasks   = [3, 2, 4, 3, 2, activeTasks]
-
   // Monthly stats grid config
   const avgColor = avgHoursPerDay >= 9 ? "#16A34A" : avgHoursPerDay >= 7 ? "#D97706" : avgHoursPerDay > 0 ? "#de1a1a" : "#D1D5DB"
   const monthlyStats = [
@@ -171,10 +137,10 @@ export default async function MemberDashboardPage() {
       {/* ── 4 Stat Cards ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         {([
-          { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: workingDays || 1,   label: "Present Days",  sparkColor: "#de1a1a", spark: sparkPresent, trend: "+10% from last week", up: true  },
-          { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : `${todayHours > 0 ? todayHours : 10}h`, label: "Total Hours", sparkColor: "#6366F1", spark: sparkHours, trend: "+8% from last week", up: true },
-          { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: pendingLeaves,      label: "Pending Leave", sparkColor: "#F59E0B", spark: sparkLeaves,  trend: "No change",          up: null  },
-          { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks",  sparkColor: "#16A34A", spark: sparkTasks,   trend: activeTasks === 0 ? "All done 🎉" : "+5% from last week", up: activeTasks > 0 },
+          { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: workingDays || 0,   label: "Present Days"  },
+          { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : `${todayHours > 0 ? `${todayHours}h` : "—"}`, label: "Total Hours"  },
+          { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: pendingLeaves,      label: "Pending Leave" },
+          { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks"  },
         ] as const).map((s) => {
           const Icon = s.icon
           return (
@@ -191,18 +157,10 @@ export default async function MemberDashboardPage() {
               </div>
 
               {/* Big value */}
-              <p className="text-[30px] font-black leading-none mb-3"
+              <p className="text-[30px] font-black leading-none"
                 style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
                 {s.value}
               </p>
-
-              {/* Bottom: trend text + mini sparkline */}
-              <div className="flex items-end justify-between mt-auto">
-                <p className="text-[11px] font-semibold" style={{ color: s.up === true ? s.sparkColor : "#9CA3AF" }}>
-                  {s.up === true && "↑ "}{s.trend}
-                </p>
-                <MiniSparkline data={[...s.spark]} color={s.sparkColor} id={s.label.replace(/\s/g, "")} />
-              </div>
             </div>
           )
         })}

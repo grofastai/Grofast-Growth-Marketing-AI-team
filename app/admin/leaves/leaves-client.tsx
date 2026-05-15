@@ -335,14 +335,17 @@ export default function LeavesClient({
 
           {/* Leave Cards */}
           {leaves.length === 0 ? (
-            <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F1F5", padding: "60px 24px", textAlign: "center" }}>
+            <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F1F5", padding: "60px 24px", textAlign: "center", position: "relative" }}>
+              <div style={{ position: "absolute", top: 16, right: 16, width: 44, height: 44, borderRadius: 12, background: "rgba(222,26,26,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <CalendarDays size={20} style={{ color: "#DE1A1A" }} />
+              </div>
               <div style={{ position: "relative", width: 200, height: 160, margin: "0 auto 20px" }}>
                 <Image src="/brand/leave/vacation-hero.png" alt="" fill style={{ objectFit: "contain" }} />
               </div>
               <p style={{ fontSize: 16, fontWeight: 700, color: "#111827", margin: "0 0 6px", fontFamily: "var(--font-jakarta)" }}>
                 No {statusFilter === "all" ? "" : statusFilter} leave requests
               </p>
-              <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0 }}>Your team is fully available.</p>
+              <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0 }}>Your team is fully available today.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">

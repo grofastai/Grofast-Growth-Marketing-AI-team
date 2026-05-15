@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useTransition } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { deleteDailyUpdate } from "@/lib/actions/daily-updates"
 import Image from "next/image"
@@ -148,7 +148,6 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
   }, [updates])
 
   const router = useRouter()
-  const [isPendingDelete, startDelete] = useTransition()
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const [selectedMonth, setSelectedMonth] = useState("")
@@ -156,14 +155,16 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
   const [search, setSearch]               = useState("")
   const [selectedDate, setSelectedDate]   = useState("")
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     if (!confirm("Delete this day's submission? This cannot be undone.")) return
     setDeletingId(id)
-    startDelete(async () => {
-      await deleteDailyUpdate(id)
-      setDeletingId(null)
+    const result = await deleteDailyUpdate(id)
+    if (result.success) {
       router.refresh()
-    })
+    } else {
+      alert("Failed to delete: " + result.error)
+    }
+    setDeletingId(null)
   }
 
   // All updates in selected month (empty string = all months)
@@ -469,9 +470,9 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                       </span>
                       <button
                         onClick={() => handleDelete(u.id)}
-                        disabled={isPendingDelete && deletingId === u.id}
+                        disabled={deletingId === u.id}
                         title="Delete this submission"
-                        style={{ width:28, height:28, borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, opacity: isPendingDelete && deletingId === u.id ? 0.5 : 1 }}>
+                        style={{ width:28, height:28, borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0, opacity: deletingId === u.id ? 0.4 : 1 }}>
                         <Trash2 size={12} style={{ color:"#EF4444" }}/>
                       </button>
                     </div>

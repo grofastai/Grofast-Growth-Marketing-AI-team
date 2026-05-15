@@ -259,18 +259,13 @@ export default function ProfileClient({
           </h1>
           <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>Manage your identity, documents and account settings.</p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ position: "relative" }}>
-            <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#fff", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-              <Bell size={16} style={{ color: "#374151" }}/>
-            </div>
-            <span style={{ position: "absolute", top: -3, right: -3, width: 17, height: 17, borderRadius: "50%", background: "#DE1A1A", fontSize: 8, fontWeight: 900, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #F8F9FC" }}>3</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px 6px 6px", borderRadius: 99, background: "#fff", border: "1px solid #EBEDF2" }}>
+          <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#DE1A1A", overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: "#fff" }}>
+            {profile?.photo_url
+              ? <img src={profile.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              : initials}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", borderRadius: 99, background: "#fff", border: "1px solid #EBEDF2", cursor: "pointer" }}>
-            <div style={{ width: 26, height: 26, borderRadius: "50%", background: "#DE1A1A", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: "#fff" }}>{initials}</div>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>{initials}</span>
-            <ChevronDown size={12} style={{ color: "#9CA3AF" }}/>
-          </div>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>{displayName.split(" ")[0]}</span>
         </div>
       </div>
 

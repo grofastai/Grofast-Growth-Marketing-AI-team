@@ -56,7 +56,7 @@ export default async function DashboardPage() {
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from("users")
-    .select("company_id, name")
+    .select("company_id, name, photo_url")
     .eq("id", user!.id)
     .single()
   const cid = profile?.company_id as string
@@ -186,8 +186,11 @@ export default async function DashboardPage() {
               <div style={{ position: "absolute", top: 7, right: 7, width: 7, height: 7, borderRadius: "50%", background: "#FCA5A5", border: "1.5px solid #9B1C1C" }} />
             )}
           </div>
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <span style={{ fontSize: 14, fontWeight: 800, color: "#FFFFFF" }}>{(adminName[0] ?? "A").toUpperCase()}</span>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.2)", border: "1px solid rgba(255,255,255,0.3)", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {profile?.photo_url
+              ? <Image src={profile.photo_url} alt={adminName} width={36} height={36} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+              : <span style={{ fontSize: 14, fontWeight: 800, color: "#FFFFFF" }}>{adminName.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}</span>
+            }
           </div>
         </div>
       </div>

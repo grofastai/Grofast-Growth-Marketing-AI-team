@@ -10,7 +10,6 @@ import {
   MoreHorizontal, X, Bell,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
-import PushSubscribeButton from "@/components/PushSubscribeButton"
 
 const navItems = [
   { label: "Dashboard",     href: "/member/dashboard",     icon: LayoutDashboard },
@@ -213,7 +212,6 @@ export default function MemberSidebar({ name, employeeId, pendingLeaves = 0, pho
                 </div>
               )}
             </div>
-            <PushSubscribeButton />
           </div>
 
           {/* Sign Out */}

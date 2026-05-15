@@ -18,7 +18,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   const admin = adminSupabase()
   const [{ data: profile }, { count: pendingLeaves }] = await Promise.all([
-    admin.from("users").select("role, must_change_password, company_id").eq("id", user.id).single(),
+    admin.from("users").select("role, must_change_password, company_id, name, photo_url").eq("id", user.id).single(),
     admin.from("leaves").select("*", { count: "exact", head: true }).eq("status", "pending"),
   ])
 
@@ -27,7 +27,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen" style={{ background: "#EDEEF2" }}>
-      <Sidebar pendingLeaves={pendingLeaves ?? 0} />
+      <Sidebar
+        pendingLeaves={pendingLeaves ?? 0}
+        adminName={profile?.name ?? "Admin"}
+        photoUrl={profile?.photo_url ?? null}
+      />
       <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0">
         {children}
       </main>

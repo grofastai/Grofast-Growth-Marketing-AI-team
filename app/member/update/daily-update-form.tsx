@@ -725,6 +725,14 @@ export default function DailyUpdateForm({
                           </button>
                         </div>
                       </div>
+                      {/* Per-shoot submit button */}
+                      <div style={{ borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4, display:"flex", justifyContent:"flex-end" }}>
+                        <button onClick={handleSubmit} disabled={isPending}
+                          style={{ display:"flex", alignItems:"center", gap:7, padding:"9px 20px", borderRadius:10, background:"#DE1A1A", border:"none", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor: isPending?"not-allowed":"pointer", opacity: isPending?0.7:1, boxShadow:"0 4px 12px rgba(222,26,26,0.3)" }}>
+                          {isPending ? <Loader2 size={12} className="animate-spin" /> : <SendHorizonal size={12} />}
+                          {isPending ? "Submitting…" : "Submit Update"}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -859,7 +867,14 @@ export default function DailyUpdateForm({
                           <input value={e.videoLink} onChange={ev => patchEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
                         </div>
                       </div>
-
+                      {/* Per-edit submit button */}
+                      <div style={{ borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4, display:"flex", justifyContent:"flex-end" }}>
+                        <button onClick={handleSubmit} disabled={isPending}
+                          style={{ display:"flex", alignItems:"center", gap:7, padding:"9px 20px", borderRadius:10, background:"#6366F1", border:"none", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor: isPending?"not-allowed":"pointer", opacity: isPending?0.7:1, boxShadow:"0 4px 12px rgba(99,102,241,0.3)" }}>
+                          {isPending ? <Loader2 size={12} className="animate-spin" /> : <SendHorizonal size={12} />}
+                          {isPending ? "Submitting…" : "Submit Update"}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

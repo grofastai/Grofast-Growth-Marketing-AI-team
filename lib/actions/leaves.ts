@@ -132,6 +132,58 @@ export async function deleteLeaveRequest(
   return { success: true }
 }
 
+export async function updateLeaveRequest(
+  leaveId: string,
+  formData: FormData
+): Promise<{ error: string } | { success: true }> {
+  const leaveType = (formData.get('leave_type') as string) || 'full_day'
+
+  const raw = {
+    leave_type:       leaveType,
+    from_date:        formData.get('from_date') as string,
+    to_date:          leaveType === 'full_day' ? (formData.get('to_date') as string) : (formData.get('from_date') as string),
+    half_day_period:  formData.get('half_day_period') || undefined,
+    permission_hours: formData.get('permission_hours') ? Number(formData.get('permission_hours')) : undefined,
+    reason:           formData.get('reason') as string,
+  }
+
+  const parsed = leaveSchema.safeParse(raw)
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // Verify ownership and pending status
+  const { data: existing } = await supabase
+    .from('leaves')
+    .select('user_id, status')
+    .eq('id', leaveId)
+    .single()
+
+  if (!existing) return { error: 'Leave request not found' }
+  if (existing.user_id !== user.id) return { error: 'Not authorized' }
+  if (existing.status !== 'pending') return { error: 'Can only edit pending requests' }
+
+  const { error } = await supabase
+    .from('leaves')
+    .update({
+      from_date:        parsed.data.from_date,
+      to_date:          parsed.data.to_date,
+      reason:           parsed.data.reason,
+      leave_type:       parsed.data.leave_type,
+      permission_hours: parsed.data.permission_hours ?? null,
+      half_day_period:  (parsed.data.half_day_period ?? null) as 'morning' | 'afternoon' | null,
+    })
+    .eq('id', leaveId)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/member/leaves')
+  revalidatePath('/admin/leaves')
+  return { success: true }
+}
+
 export async function updateLeaveStatus(
   leaveId: string,
   status: 'approved' | 'rejected'

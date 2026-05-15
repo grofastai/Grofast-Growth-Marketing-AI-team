@@ -7,7 +7,7 @@ import {
   ChevronDown, MoreVertical, Palmtree, CalendarDays,
   Bell, Clock, SlidersHorizontal, Trash2, Pencil, AlertTriangle,
 } from "lucide-react"
-import { submitLeaveRequest, deleteLeaveRequest } from "@/lib/actions/leaves"
+import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest } from "@/lib/actions/leaves"
 
 interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
@@ -143,7 +143,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
   const [showMore, setShowMore]     = useState(false)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [deleteId, setDeleteId]     = useState<string | null>(null)
+  const [editingLeave, setEditingLeave] = useState<Leave | null>(null)
   const [deleting, startDelete]     = useTransition()
+  const [editing, startEdit]        = useTransition()
+  const [editError, setEditError]   = useState<string | null>(null)
   const [state, action, pending]    = useActionState(submitLeaveRequest, null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -156,9 +159,22 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
     return () => document.removeEventListener("mousedown", handler)
   }, [])
 
-  if (state && "success" in state && state.success && showForm) setShowForm(false)
+  // Sync form fields when editing an existing leave
+  useEffect(() => {
+    if (editingLeave) {
+      setLeaveType((editingLeave.leave_type ?? "full_day") as LeaveType)
+      if (editingLeave.half_day_period === "afternoon") setHalfPeriod("afternoon")
+      else setHalfPeriod("morning")
+    }
+  }, [editingLeave])
+
+  if (state && "success" in state && state.success && showForm) { setShowForm(false); setEditingLeave(null) }
 
   const today = new Date().toISOString().split("T")[0]
+
+  function isExpired(leave: Leave) {
+    return leave.status === "pending" && leave.to_date < today
+  }
 
   const approved = leaves.filter(l => l.status === "approved")
   // Only show pending leaves where the start date is today or in the future
@@ -393,9 +409,15 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
 
                           {/* Status + menu */}
                           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
-                            <span style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 20, background: sc.bg, color: sc.color, fontSize: 11, fontWeight: 700 }}>
-                              <StatusIcon size={11} /> {sc.label}
-                            </span>
+                            {isExpired(leave) ? (
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "6px 12px", borderRadius: 20, background: "rgba(107,114,128,0.1)", fontSize: 11, fontWeight: 700, color: "#6B7280" }}>
+                                Expired
+                              </span>
+                            ) : (
+                              <span style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 20, background: sc.bg, color: sc.color, fontSize: 11, fontWeight: 700 }}>
+                                <StatusIcon size={11} /> {sc.label}
+                              </span>
+                            )}
                             {leave.status === "approved" && (
                               <div style={{ display: "flex" }}>
                                 {["#6366F1", "#10B981", "#F59E0B"].map((c, i) => (
@@ -409,8 +431,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
                             {leave.status === "approved" && (
                               <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0 }}>Requested on {fmtShort(leave.created_at)}</p>
                             )}
-                            {/* 3-dot menu — only for pending leaves */}
-                            {leave.status === "pending" ? (
+                            {/* 3-dot menu — only for pending, non-expired leaves */}
+                            {leave.status === "pending" && !isExpired(leave) ? (
                               <div style={{ position: "relative" }} ref={menuOpenId === leave.id ? menuRef : undefined}>
                                 <button
                                   onClick={() => setMenuOpenId(menuOpenId === leave.id ? null : leave.id)}
@@ -420,7 +442,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
                                 {menuOpenId === leave.id && (
                                   <div style={{ position: "absolute", right: 0, top: "100%", background: "#fff", borderRadius: 12, border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.14)", zIndex: 30, minWidth: 150, overflow: "hidden" }}>
                                     <button
-                                      onClick={() => { setShowForm(true); setMenuOpenId(null) }}
+                                      onClick={() => { setEditingLeave(leave); setShowForm(true); setMenuOpenId(null) }}
                                       style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: "none", background: "none", fontSize: 12, fontWeight: 600, color: "#374151", cursor: "pointer", textAlign: "left" }}>
                                       <Pencil size={13} style={{ color: "#6366F1" }} /> Edit Request
                                     </button>
@@ -549,17 +571,42 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
             {/* Header */}
             <div style={{ padding: "20px 24px", background: "linear-gradient(135deg,#DE1A1A,#991B1B)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: "0 0 2px" }}>Apply for Leave</p>
+                <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: "0 0 2px" }}>{editingLeave ? "Edit Leave Request" : "Apply for Leave"}</p>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Fill in the details below</p>
               </div>
-              <button onClick={() => { setShowForm(false); setLeaveType("full_day"); setHalfPeriod("morning") }}
+              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setEditError(null) }}
                 style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <X size={16} color="#fff" />
               </button>
             </div>
 
             <div style={{ padding: 24 }}>
-              <form action={action} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <form
+                action={editingLeave ? undefined : action}
+                onSubmit={editingLeave ? (e) => {
+                  e.preventDefault()
+                  const fd = new FormData(e.currentTarget)
+                  const id = editingLeave.id
+                  setEditError(null)
+                  startEdit(async () => {
+                    const res = await updateLeaveRequest(id, fd)
+                    if ("error" in res) { setEditError(res.error); return }
+                    setLeaves(prev => prev.map(l => l.id === id ? {
+                      ...l,
+                      leave_type: (fd.get("leave_type") as string) || l.leave_type,
+                      from_date: (fd.get("from_date") as string) || l.from_date,
+                      to_date: (fd.get("to_date") as string) || (fd.get("from_date") as string) || l.to_date,
+                      reason: (fd.get("reason") as string) || l.reason,
+                      half_day_period: fd.get("half_day_period") as string | null ?? l.half_day_period,
+                      permission_hours: fd.get("permission_hours") ? Number(fd.get("permission_hours")) : l.permission_hours,
+                    } : l))
+                    setShowForm(false)
+                    setEditingLeave(null)
+                    setLeaveType("full_day")
+                    setHalfPeriod("morning")
+                  })
+                } : undefined}
+                style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <input type="hidden" name="leave_type" value={leaveType} />
                 {leaveType === "half_day" && <input type="hidden" name="half_day_period" value={halfPeriod} />}
 
@@ -581,13 +628,13 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
 
                 {leaveType === "full_day" && (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>From *</label><input name="from_date" type="date" required style={FIELD} /></div>
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>To *</label><input name="to_date" type="date" required style={FIELD} /></div>
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>From *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} /></div>
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>To *</label><input name="to_date" type="date" required style={FIELD} defaultValue={editingLeave?.to_date ?? ""} /></div>
                   </div>
                 )}
                 {leaveType === "half_day" && (
                   <>
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} /></div>
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} /></div>
                     <div>
                       <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Which Half? *</label>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -601,26 +648,29 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
                 )}
                 {leaveType === "permission" && (
                   <>
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} /></div>
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Hours *</label><input name="permission_hours" type="number" min="0.5" max="8" step="0.5" required placeholder="e.g. 2" style={FIELD} /></div>
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} /></div>
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Hours *</label><input name="permission_hours" type="number" min="0.5" max="8" step="0.5" required placeholder="e.g. 2" style={FIELD} defaultValue={editingLeave?.permission_hours ?? ""} /></div>
                   </>
                 )}
 
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Reason *</label>
-                  <textarea name="reason" required rows={3} placeholder="Explain the reason…" className="resize-none" style={FIELD} />
+                  <textarea name="reason" required rows={3} placeholder="Explain the reason…" className="resize-none" style={FIELD} defaultValue={editingLeave?.reason ?? ""} />
                 </div>
 
-                {state && "error" in state && state.error && (
+                {(state && "error" in state && state.error) && (
                   <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>{state.error}</p>
+                )}
+                {editError && (
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>{editError}</p>
                 )}
 
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button type="button" onClick={() => { setShowForm(false); setLeaveType("full_day"); setHalfPeriod("morning") }}
+                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setEditError(null) }}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
-                  <button type="submit" disabled={pending}
-                    style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: pending ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>
-                    {pending && <Loader2 size={13} className="animate-spin" />} Submit Request
+                  <button type="submit" disabled={pending || editing}
+                    style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: (pending || editing) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>
+                    {(pending || editing) && <Loader2 size={13} className="animate-spin" />} {editingLeave ? "Update Request" : "Submit Request"}
                   </button>
                 </div>
               </form>

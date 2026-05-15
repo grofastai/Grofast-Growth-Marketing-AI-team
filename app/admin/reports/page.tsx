@@ -52,7 +52,7 @@ export default async function ReportsPage({
     // Use user client (RLS handles company isolation) — same as activities page
     supabase
       .from("daily_updates")
-      .select("id, user_id, working_hours, shoot_count, learning_hours, attendance_status, work_type, task_id, users!daily_updates_user_id_fkey(id, name, employee_id)")
+      .select("id, user_id, working_hours, shoot_count, learning_hours, attendance_status, work_type, task_id, users(id, name, employee_id)")
       .eq("date", dateFilter),
     admin
       .from("users")
@@ -70,9 +70,10 @@ export default async function ReportsPage({
       .select("id, business_name, status, deadline")
       .eq("company_id", cid)
       .eq("status", "active"),
-    supabase
+    admin
       .from("daily_updates")
       .select("task_id")
+      .eq("company_id", cid)
       .not("task_id", "is", null),
   ])
 

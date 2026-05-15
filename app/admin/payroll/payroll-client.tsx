@@ -389,9 +389,9 @@ export default function PayrollClient({
   }
 
   const SUMMARY = [
-    { label: "Total Payroll",    value: fmtK(totalNet),   sub: `${rows.filter(r => r.net > 0).length} paid`,   color: "#E53935", bg: "#FFF5F5", idx: 0 },
-    { label: "Total OT Pay",     value: fmtK(totalOT),    sub: `${rows.filter(r => r.ot > 0).length} with OT`, color: "#F97316", bg: "#FFF7ED", idx: 1 },
-    { label: "Total Deductions", value: fmtK(totalDed),   sub: `${rows.filter(r => r.deductions > 0).length} deducted`, color: "#8B5CF6", bg: "#FAF5FF", idx: 2 },
+    { label: "Total Payroll",    value: fmtK(totalNet),   sub: `${rows.filter(r => r.netPay > 0).length} paid`,      color: "#E53935", bg: "#FFF5F5", idx: 0 },
+    { label: "Total OT Pay",     value: fmtK(totalOT),    sub: `${rows.filter(r => r.otPay > 0).length} with OT`,   color: "#F97316", bg: "#FFF7ED", idx: 1 },
+    { label: "Total Deductions", value: fmtK(totalDed),   sub: `${rows.filter(r => r.deduction > 0).length} deducted`, color: "#8B5CF6", bg: "#FAF5FF", idx: 2 },
     { label: "Team Members",     value: `${rows.length}`, sub: `${monthName}`,                                  color: "#3B82F6", bg: "#EFF6FF", idx: 3 },
   ]
 

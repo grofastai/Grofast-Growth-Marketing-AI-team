@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import Image from "next/image"
 import {
   Search, Plus, MoreHorizontal, CheckCircle2, TrendingUp,
-  ChevronDown, Sparkles, Bell, SlidersHorizontal,
+  ChevronDown, Sparkles, Bell, SlidersHorizontal, X,
 } from "lucide-react"
 import type { SheetClient } from "@/lib/google/sheets"
 import type { WorkSummary } from "./page"
@@ -407,10 +407,24 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
 export default function ClientsSheetView({
   activeClients, pastClients, clientWorkMap = {},
 }: { activeClients: SheetClient[]; pastClients: SheetClient[]; clientWorkMap?: Record<string, WorkSummary> }) {
-  const [listTab, setListTab]     = useState<"active" | "past">("active")
-  const [selected, setSelected]   = useState<SheetClient | null>(activeClients[0] ?? pastClients[0] ?? null)
-  const [search, setSearch]       = useState("")
+  const [listTab, setListTab]       = useState<"active" | "past">("active")
+  const [selected, setSelected]     = useState<SheetClient | null>(activeClients[0] ?? pastClients[0] ?? null)
+  const [search, setSearch]         = useState("")
+  const [dropOpen, setDropOpen]     = useState(false)
   const [contentTab, setContentTab] = useState("overview")
+  const dropRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (dropRef.current && !dropRef.current.contains(e.target as Node)) {
+        setDropOpen(false)
+        setSearch("")
+      }
+    }
+    if (dropOpen) document.addEventListener("mousedown", handle)
+    return () => document.removeEventListener("mousedown", handle)
+  }, [dropOpen])
 
   const allClients = listTab === "active" ? activeClients : pastClients
   const filtered = useMemo(() => {
@@ -431,6 +445,13 @@ export default function ClientsSheetView({
   const selHp  = sel ? healthScore(sel) : 75
   const selHl  = healthCfg(selHp)
   const acts   = sel ? buildActs(sel) : []
+
+  function pickClient(c: SheetClient) {
+    setSelected(c)
+    setContentTab("overview")
+    setDropOpen(false)
+    setSearch("")
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "#F8F9FB" }}>
@@ -481,88 +502,167 @@ export default function ClientsSheetView({
             boxShadow: "0 4px 14px rgba(222,26,26,0.35)" }}>
             <Plus size={14} /> Add Client
           </button>
-          <div style={{ position: "relative", cursor: "pointer" }}>
-            <Bell size={20} style={{ color: "#374151" }} />
-            <span style={{ position: "absolute", top: -6, right: -6, width: 16, height: 16,
-              background: "#DE1A1A", borderRadius: "50%", fontSize: 8, fontWeight: 900,
-              color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center",
-              border: "2px solid #FFF" }}>8</span>
-          </div>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg,#FEE2E2,#FCA5A5)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 11, fontWeight: 900, color: "#DE1A1A", border: "2px solid #FFF",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)", cursor: "pointer" }}>
-            SK
-          </div>
         </div>
       </div>
 
-      {/* ══ MAIN 3-PANEL ═════════════════════════════════════════════════════ */}
-      <div className="flex flex-col lg:flex-row" style={{ flex: 1, overflow: "hidden" }}>
+      {/* ══ CLIENT SELECTOR DROPDOWN BAR ═════════════════════════════════════ */}
+      <div style={{ background: "#FFFFFF", borderBottom: "1px solid #EEEEF2", padding: "12px 20px",
+        display: "flex", alignItems: "center", gap: 12, flexShrink: 0, flexWrap: "wrap",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
 
-        {/* ── LEFT PANEL ─────────────────────────────────────────────────── */}
-        <div className="w-full lg:w-[280px] lg:flex-shrink-0 flex flex-col overflow-hidden lg:max-h-none max-h-[40vh]"
-          style={{ background: "#FFFFFF", borderRight: "1px solid #EEEEF2",
-          boxShadow: "2px 0 10px rgba(0,0,0,0.04)" }}>
-
-          {/* Search + filter */}
-          <div style={{ padding: "14px 14px 10px", borderBottom: "1px solid #F0F1F5" }}>
-            <div style={{ position: "relative" }}>
-              <Search size={12} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
-              <input value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search clients…"
-                style={{ width: "100%", boxSizing: "border-box", paddingLeft: 30, paddingRight: 36, paddingTop: 8, paddingBottom: 8,
-                  borderRadius: 10, border: "1.5px solid #F0F1F5", fontSize: 11, color: "#111827",
-                  background: "#F9FAFB", outline: "none" }} />
-              <button style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
-                background: "none", border: "none", cursor: "pointer", padding: 2 }}>
-                <SlidersHorizontal size={13} style={{ color: "#9CA3AF" }} />
-              </button>
-            </div>
-          </div>
-
-          {/* Active / Past tabs */}
-          <div style={{ display: "flex", padding: "8px 12px 6px", gap: 4, borderBottom: "1px solid #F0F1F5" }}>
-            {(["active", "past"] as const).map(t => (
-              <button key={t} onClick={() => { setListTab(t); setSearch("") }}
-                style={{ flex: 1, padding: "6px 0", borderRadius: 8, fontSize: 11, fontWeight: 700,
-                  border: "none", cursor: "pointer", transition: "all 0.15s",
-                  background: listTab === t ? "#DE1A1A" : "#F3F4F6",
-                  color: listTab === t ? "#FFFFFF" : "#6B7280",
-                  boxShadow: listTab === t ? "0 2px 8px rgba(222,26,26,0.3)" : "none" }}>
-                {t === "active" ? `Active · ${activeClients.length}` : `Past · ${pastClients.length}`}
-              </button>
-            ))}
-          </div>
-
-          {/* Client list */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-            {filtered.length === 0
-              ? <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", paddingTop: 40 }}>No clients found</p>
-              : filtered.map((c, i) => (
-                <ClientCard key={i} c={c} idx={i}
-                  isSelected={!!sel && sel.company_name === c.company_name && sel.customer_name === c.customer_name}
-                  onClick={() => { setSelected(c); setContentTab("overview") }} />
-              ))
-            }
-          </div>
-
-          {/* Add client footer */}
-          <div style={{ padding: "10px 14px", borderTop: "1px solid #F0F1F5" }}>
-            <button style={{ width: "100%", padding: "10px 0", borderRadius: 12,
-              border: "1.5px dashed #E5E7EB", background: "transparent", cursor: "pointer",
-              fontSize: 11, fontWeight: 700, color: "#9CA3AF",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-              <Plus size={12} /> Add New Client
+        {/* Active / Past pills */}
+        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+          {(["active", "past"] as const).map(t => (
+            <button key={t} onClick={() => { setListTab(t); setSelected(t === "active" ? activeClients[0] ?? null : pastClients[0] ?? null); setDropOpen(false) }}
+              style={{ padding: "6px 14px", borderRadius: 8, fontSize: 11, fontWeight: 700,
+                border: "none", cursor: "pointer", transition: "all 0.15s",
+                background: listTab === t ? "#DE1A1A" : "#F3F4F6",
+                color: listTab === t ? "#FFFFFF" : "#6B7280",
+                boxShadow: listTab === t ? "0 2px 8px rgba(222,26,26,0.3)" : "none" }}>
+              {t === "active" ? `Active · ${activeClients.length}` : `Past · ${pastClients.length}`}
             </button>
-          </div>
+          ))}
         </div>
+
+        {/* Dropdown trigger */}
+        <div ref={dropRef} style={{ position: "relative", flex: 1, maxWidth: 420 }}>
+          <button onClick={() => setDropOpen(!dropOpen)} style={{
+            width: "100%", display: "flex", alignItems: "center", gap: 10,
+            padding: "10px 14px", borderRadius: 12,
+            background: dropOpen ? "#FFF5F5" : "#F9FAFB",
+            border: `1.5px solid ${dropOpen ? "#DE1A1A" : "#E5E7EB"}`,
+            cursor: "pointer", transition: "all 0.15s",
+            boxShadow: dropOpen ? "0 0 0 3px rgba(222,26,26,0.08)" : "none",
+          }}>
+            {sel ? (
+              <>
+                <div style={{ width: 30, height: 30, borderRadius: 9, background: "#DE1A1A", flexShrink: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 11, fontWeight: 900, color: "#FFF" }}>
+                  {ini(sel.company_name || sel.customer_name)}
+                </div>
+                <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                  <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: 0,
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    fontFamily: "var(--font-jakarta)" }}>
+                    {sel.company_name || sel.customer_name}
+                  </p>
+                  <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>{sel.industry || "General"} · {sel.place || "—"}</p>
+                </div>
+                <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 8px", borderRadius: 5, flexShrink: 0,
+                  background: isActive(sel) ? "rgba(22,163,74,0.1)" : "rgba(107,114,128,0.1)",
+                  color: isActive(sel) ? "#16A34A" : "#6B7280" }}>
+                  {isActive(sel) ? "Active" : "Inactive"}
+                </span>
+              </>
+            ) : (
+              <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0, flex: 1, textAlign: "left" }}>Select a client…</p>
+            )}
+            <ChevronDown size={15} style={{ color: "#9CA3AF", flexShrink: 0,
+              transform: dropOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+          </button>
+
+          {/* Dropdown panel */}
+          {dropOpen && (
+            <div style={{
+              position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 999,
+              background: "#FFFFFF", borderRadius: 16, border: "1px solid #E5E7EB",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)",
+              overflow: "hidden",
+            }}>
+              {/* Search inside dropdown */}
+              <div style={{ padding: "10px 12px", borderBottom: "1px solid #F0F1F5" }}>
+                <div style={{ position: "relative" }}>
+                  <Search size={12} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+                  <input
+                    autoFocus
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search clients…"
+                    style={{ width: "100%", boxSizing: "border-box", paddingLeft: 30, paddingRight: search ? 30 : 10,
+                      paddingTop: 8, paddingBottom: 8, borderRadius: 10,
+                      border: "1.5px solid #E5E7EB", fontSize: 12, color: "#111827",
+                      background: "#F9FAFB", outline: "none" }}
+                  />
+                  {search && (
+                    <button onClick={() => setSearch("")} style={{ position: "absolute", right: 8, top: "50%",
+                      transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", padding: 2 }}>
+                      <X size={12} style={{ color: "#9CA3AF" }} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Client options list */}
+              <div style={{ maxHeight: 280, overflowY: "auto" }}>
+                {filtered.length === 0 ? (
+                  <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "24px 16px" }}>No clients found</p>
+                ) : filtered.map((c, i) => {
+                  const p = getPal(c.industry)
+                  const live = isActive(c)
+                  const isSel = !!sel && sel.company_name === c.company_name && sel.customer_name === c.customer_name
+                  return (
+                    <button key={i} onClick={() => pickClient(c)} style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 10,
+                      padding: "10px 14px", background: isSel ? "rgba(222,26,26,0.04)" : "transparent",
+                      border: "none", borderLeft: isSel ? "3px solid #DE1A1A" : "3px solid transparent",
+                      cursor: "pointer", textAlign: "left", transition: "background 0.12s",
+                    }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                        background: isSel ? "#DE1A1A" : p.dot + "22",
+                        color: isSel ? "#FFF" : p.dot,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 11, fontWeight: 900, fontFamily: "var(--font-jakarta)" }}>
+                        {ini(c.company_name || c.customer_name)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: isSel ? "#DE1A1A" : "#111827",
+                          margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          fontFamily: "var(--font-jakarta)" }}>
+                          {c.company_name || c.customer_name}
+                        </p>
+                        <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>{c.industry || "General"} · {c.place || "—"}</p>
+                      </div>
+                      <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 5, flexShrink: 0,
+                        background: live ? "rgba(22,163,74,0.1)" : "rgba(107,114,128,0.1)",
+                        color: live ? "#16A34A" : "#6B7280" }}>
+                        {live ? "Active" : "Inactive"}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Add new client footer */}
+              <div style={{ padding: "8px 12px", borderTop: "1px solid #F0F1F5" }}>
+                <button style={{ width: "100%", padding: "8px 0", borderRadius: 10,
+                  border: "1.5px dashed #E5E7EB", background: "transparent", cursor: "pointer",
+                  fontSize: 11, fontWeight: 700, color: "#9CA3AF",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Plus size={12} /> Add New Client
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Count badge */}
+        {sel && (
+          <span style={{ fontSize: 11, color: "#9CA3AF", flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
+            {filtered.length} of {allClients.length} shown
+          </span>
+        )}
+      </div>
+
+      {/* ══ MAIN CONTENT ═════════════════════════════════════════════════════ */}
+      <div className="flex flex-col lg:flex-row" style={{ flex: 1, overflow: "hidden" }}>
 
         {/* ── CENTER PANEL ───────────────────────────────────────────────── */}
         <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", minWidth: 0 }}>
           {!sel ? (
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <p style={{ fontSize: 14, color: "#9CA3AF" }}>Select a client to view details</p>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 10 }}>
+              <div style={{ fontSize: 36 }}>👥</div>
+              <p style={{ fontSize: 14, color: "#9CA3AF", margin: 0 }}>Select a client from the dropdown above</p>
             </div>
           ) : (<>
 

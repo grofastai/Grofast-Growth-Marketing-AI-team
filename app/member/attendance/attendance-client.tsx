@@ -91,12 +91,18 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           setGeoLoading(false)
+          // If GPS accuracy is worse than the allowed radius, skip the distance check
+          // (browser is using IP/WiFi fallback which can be tens of km off)
+          if (pos.coords.accuracy > OFFICE_RADIUS) {
+            startTransition(async () => { const res = await clockIn(selectedMode); if (!res.success) setError(res.error ?? "Error"); else router.refresh() })
+            return
+          }
           const dist = haversineMeters(pos.coords.latitude, pos.coords.longitude, OFFICE_LAT, OFFICE_LNG)
           if (dist > OFFICE_RADIUS) { setError(`You are ${Math.round(dist)}m from the office (allowed: ${OFFICE_RADIUS}m).`); return }
           startTransition(async () => { const res = await clockIn(selectedMode); if (!res.success) setError(res.error ?? "Error"); else router.refresh() })
         },
         () => { setGeoLoading(false); setError("Location access denied.") },
-        { timeout: 12000, maximumAge: 60000 }
+        { timeout: 15000, maximumAge: 0, enableHighAccuracy: true }
       )
     } else {
       startTransition(async () => { const res = await clockIn(selectedMode); if (!res.success) setError(res.error ?? "Error"); else router.refresh() })

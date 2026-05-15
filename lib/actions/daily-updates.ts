@@ -151,6 +151,27 @@ export async function submitDailyUpdate(
   return { success: true }
 }
 
+export async function deleteDailyUpdate(id: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  // Only allow deleting own records
+  const { error } = await admin
+    .from('daily_updates')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/member/history')
+  revalidatePath('/member/dashboard')
+  revalidatePath('/admin/activities')
+  return { success: true }
+}
+
 export async function getTodayUpdate() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -342,17 +342,17 @@ export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, ava
 
         {/* Hero Banner */}
         <div style={{ borderRadius: 20, overflow: "hidden", position: "relative", height: 320, background: "#FFF8F0", boxShadow: "0 4px 24px rgba(0,0,0,0.06)", border: "1px solid #FEE8D0" }}>
-          {/* Full illustration */}
-          <div style={{ position: "absolute", left: 0, top: 0, width: "65%", height: "100%" }}>
+          {/* Full illustration — wider so right character shows */}
+          <div style={{ position: "absolute", left: 0, top: 0, width: "78%", height: "100%" }}>
             <Image src="/brand/leave/vacation-hero.png" alt="Vacation" fill style={{ objectFit: "cover", objectPosition: "left center" }} />
           </div>
-          {/* Gradient */}
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, transparent 38%, rgba(255,248,240,0.88) 56%, #FFF8F0 70%)" }} />
-          {/* Content */}
+          {/* Lighter gradient — starts later, less opaque */}
+          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, transparent 52%, rgba(255,248,240,0.75) 65%, #FFF8F0 78%)" }} />
+          {/* Content — shifted right */}
           <div style={{
-            position: "absolute", right: 0, top: 0, width: "40%", height: "100%",
+            position: "absolute", right: 0, top: 0, width: "34%", height: "100%",
             display: "flex", flexDirection: "column", alignItems: "flex-start", justifyContent: "center",
-            padding: "36px 36px 36px 12px",
+            padding: "36px 32px 36px 8px",
           }}>
             {leaves.length === 0 ? (
               <>

@@ -55,6 +55,9 @@ export default async function LeavesPage({
     { count: memberCount },
     { count: onLeaveCount },
     { data: onLeaveTodayRaw },
+    { count: pendingCount },
+    { count: approvedCount },
+    { count: rejectedCount },
   ] = await Promise.all([
     leavesQuery,
     admin
@@ -84,6 +87,9 @@ export default async function LeavesPage({
       .eq("status", "approved")
       .lte("from_date", today)
       .gte("to_date", today),
+    admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "pending"),
+    admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "approved"),
+    admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "rejected"),
   ])
 
   const total = Math.max(1, memberCount ?? 0)
@@ -102,6 +108,9 @@ export default async function LeavesPage({
       upcomingLeaves={upcoming ?? []}
       availabilityPct={availabilityPct}
       onLeaveToday={onLeaveToday}
+      pendingCount={pendingCount ?? 0}
+      approvedCount={approvedCount ?? 0}
+      rejectedCount={rejectedCount ?? 0}
     />
   )
 }

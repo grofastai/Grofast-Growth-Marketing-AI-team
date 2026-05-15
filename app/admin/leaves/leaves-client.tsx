@@ -3,7 +3,7 @@
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { useState, useTransition } from "react"
-import { CheckCircle2, XCircle, Loader2, CalendarDays, MoreHorizontal, Plus, Shield, Eye, Paperclip } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, XOctagon, Paperclip } from "lucide-react"
 import { updateLeaveStatus } from "@/lib/actions/leaves"
 
 interface Leave {
@@ -22,15 +22,18 @@ interface LeavesClientProps {
   upcomingLeaves: Leave[]
   availabilityPct: number
   onLeaveToday: { name: string }[]
+  pendingCount: number
+  approvedCount: number
+  rejectedCount: number
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 const STATUS_TABS = [
-  { key: "pending",  label: "Pending" },
-  { key: "approved", label: "Approved" },
-  { key: "rejected", label: "Rejected" },
-  { key: "all",      label: "All" },
+  { key: "pending",  label: "Pending",  color: "#F59E0B" },
+  { key: "approved", label: "Approved", color: "#10B981" },
+  { key: "rejected", label: "Rejected", color: "#EF4444" },
+  { key: "all",      label: "All",      color: "#6B7280" },
 ]
 
 function daysBetween(from: string, to: string) {
@@ -73,7 +76,7 @@ const LEAVE_STYLES: Record<string, { bg: string; color: string; border: string }
 
 const LEAVE_EMOJIS: Record<string, string> = {
   "Vacation Leave": "🏖️",
-  "Sick Leave":     "❤️",
+  "Sick Leave":     "🏥",
   "Casual Leave":   "💼",
   "Work From Home": "🏠",
 }
@@ -97,35 +100,35 @@ function getAvatar(name: string, gender: string | undefined, idx: number) {
   return idx % 2 === 0 ? BOY_IMGS[idx % BOY_IMGS.length] : GIRL_IMGS[idx % GIRL_IMGS.length]
 }
 
-// ── Donut Chart ────────────────────────────────────────────────────────────────
-
-function AvailabilityDonut({ pct, size = 140 }: { pct: number; size?: number }) {
+// ── Donut Chart (text inside SVG for perfect centering) ────────────────────────
+function AvailabilityDonut({ pct, size = 160 }: { pct: number; size?: number }) {
+  const cx = size / 2, cy = size / 2
   const r = size * 0.34
   const circ = 2 * Math.PI * r
-  const rem = 100 - pct
-  const gLen = (pct / 100) * circ
-  const yLen = (rem * 0.6 / 100) * circ
-  const rLen = (rem * 0.4 / 100) * circ
   const sw = size * 0.1
+  const onTrack = (pct / 100) * circ
+  const offTrack = circ - onTrack
+  const color = pct >= 80 ? "#10B981" : pct >= 60 ? "#F59E0B" : "#EF4444"
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ filter: "drop-shadow(0 4px 12px rgba(16,185,129,0.15))" }}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#F0FDF4" strokeWidth={sw} />
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#FCA5A5" strokeWidth={sw}
-        strokeDasharray={`${rLen} ${circ}`} strokeDashoffset={-(gLen + yLen)}
-        transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#FCD34D" strokeWidth={sw}
-        strokeDasharray={`${yLen} ${circ}`} strokeDashoffset={-gLen}
-        transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#10B981" strokeWidth={sw}
-        strokeDasharray={`${gLen} ${circ}`}
-        transform={`rotate(-90 ${size/2} ${size/2})`} strokeLinecap="round" />
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {/* Track */}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F3F4F6" strokeWidth={sw} />
+      {/* Fill */}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={sw}
+        strokeDasharray={`${onTrack} ${offTrack}`} strokeLinecap="round"
+        transform={`rotate(-90 ${cx} ${cy})`} style={{ transition: "stroke-dasharray 0.6s" }} />
+      {/* Percentage */}
+      <text x={cx} y={cy - size * 0.04} textAnchor="middle" dominantBaseline="middle"
+        fontSize={size * 0.2} fontWeight="900" fill="#111827">{pct}%</text>
+      {/* Label */}
+      <text x={cx} y={cy + size * 0.15} textAnchor="middle" dominantBaseline="middle"
+        fontSize={size * 0.09} fill="#9CA3AF">Team Available</text>
     </svg>
   )
 }
 
 // ── Leave Card ─────────────────────────────────────────────────────────────────
-
 function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
   leave: Leave; idx: number
   isPending: boolean; actionId: string | null
@@ -136,112 +139,106 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
   const leaveType = getLeaveType(leave.reason)
   const typeStyle = LEAVE_STYLES[leaveType]
   const isLoading = actionId?.startsWith(leave.id)
+  const days = daysBetween(leave.from_date, leave.to_date)
 
   const statusStyle = {
-    pending:  { bg: "#FFFBEB", color: "#D97706", border: "#FDE68A" },
-    approved: { bg: "#F0FDF4", color: "#059669", border: "#A7F3D0" },
-    rejected: { bg: "#FFF5F5", color: "#EF4444", border: "#FECACA" },
-  }[leave.status] ?? { bg: "#FFFBEB", color: "#D97706", border: "#FDE68A" }
+    pending:  { bg: "#FFFBEB", color: "#D97706", border: "#FDE68A", label: "Pending" },
+    approved: { bg: "#F0FDF4", color: "#059669", border: "#A7F3D0", label: "Approved" },
+    rejected: { bg: "#FFF5F5", color: "#EF4444", border: "#FECACA", label: "Rejected" },
+  }[leave.status] ?? { bg: "#FFFBEB", color: "#D97706", border: "#FDE68A", label: "Pending" }
 
   return (
     <div style={{
-      background: "#FFFFFF", borderRadius: 18, border: "1px solid #F3F4F6",
-      padding: "18px 16px 16px", display: "flex", flexDirection: "column", gap: 10,
-      boxShadow: "0 2px 12px rgba(0,0,0,0.04)", transition: "box-shadow 0.2s",
+      background: "#FFFFFF", borderRadius: 16, border: "1px solid #F0F1F5",
+      padding: "16px", display: "flex", flexDirection: "column", gap: 12,
+      boxShadow: "0 1px 8px rgba(0,0,0,0.04)",
     }}>
-      {/* Avatar + Name + Menu */}
+      {/* Top: avatar + name + status badge */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <div style={{ width: 46, height: 46, borderRadius: "50%", overflow: "hidden", flexShrink: 0, position: "relative", border: "2.5px solid #F3F4F6", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
+        <div style={{ width: 42, height: 42, borderRadius: "50%", overflow: "hidden", flexShrink: 0, position: "relative", border: "2px solid #F3F4F6" }}>
           <Image src={getAvatar(name, user?.gender, idx)} alt={name} fill style={{ objectFit: "cover" }} />
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
-          <p style={{ fontSize: 11, color: "#9CA3AF", margin: "1px 0 0", fontWeight: 400 }}>Team Member</p>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
+          <p style={{ fontSize: 11, color: "#9CA3AF", margin: "1px 0 0" }}>{user?.employee_id ?? "—"}</p>
         </div>
-        <button style={{ padding: 4, background: "none", border: "none", cursor: "pointer", color: "#D1D5DB", borderRadius: 6 }}>
-          <MoreHorizontal size={15} />
-        </button>
+        <span style={{
+          fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 20, flexShrink: 0,
+          background: statusStyle.bg, color: statusStyle.color, border: `1px solid ${statusStyle.border}`,
+        }}>{statusStyle.label}</span>
       </div>
 
-      {/* Leave Type Badge */}
-      <span style={{
-        alignSelf: "flex-start", fontSize: 11, fontWeight: 600, borderRadius: 20,
-        padding: "3px 11px", border: `1px solid ${typeStyle.border}`,
-        background: typeStyle.bg, color: typeStyle.color,
-      }}>
-        {leaveType}
-      </span>
+      {/* Divider */}
+      <div style={{ height: 1, background: "#F3F4F6" }} />
 
-      {/* Date */}
-      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-        <CalendarDays size={12} style={{ color: "#9CA3AF", flexShrink: 0 }} />
-        <p style={{ fontSize: 12, color: "#374151", margin: 0, fontWeight: 500 }}>{fmtRange(leave.from_date, leave.to_date)}</p>
+      {/* Leave type + days */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{
+          fontSize: 11, fontWeight: 600, borderRadius: 8, padding: "3px 10px",
+          background: typeStyle.bg, color: typeStyle.color, border: `1px solid ${typeStyle.border}`,
+        }}>
+          {LEAVE_EMOJIS[leaveType]} {leaveType}
+        </span>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#374151", background: "#F9FAFB", padding: "3px 10px", borderRadius: 8 }}>
+          {days} day{days !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* Date range */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <CalendarDays size={13} style={{ color: "#9CA3AF", flexShrink: 0 }} />
+        <span style={{ fontSize: 12, color: "#374151", fontWeight: 500 }}>{fmtRange(leave.from_date, leave.to_date)}</span>
       </div>
 
       {/* Reason */}
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
-        <Paperclip size={12} style={{ color: "#9CA3AF", flexShrink: 0, marginTop: 1 }} />
-        <p style={{ fontSize: 12, color: "#6B7280", margin: 0, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" } as React.CSSProperties}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+        <Paperclip size={12} style={{ color: "#9CA3AF", flexShrink: 0, marginTop: 2 }} />
+        <p style={{
+          fontSize: 12, color: "#6B7280", margin: 0, lineHeight: 1.45,
+          display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+        } as React.CSSProperties}>
           {leave.reason}
         </p>
       </div>
 
-      {/* Status Badge */}
-      <span style={{
-        alignSelf: "flex-start", fontSize: 11, fontWeight: 600, borderRadius: 20,
-        padding: "3px 11px", border: `1px solid ${statusStyle.border}`,
-        background: statusStyle.bg, color: statusStyle.color,
-      }}>
-        {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
-      </span>
-
       {/* Actions */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 4, borderTop: "1px solid #F9FAFB" }}>
-        {leave.status === "pending" ? (
-          <>
-            <button onClick={() => onApprove(leave.id)} disabled={isPending} style={{
-              flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
-              fontSize: 11, fontWeight: 600, color: "#10B981",
-              background: "none", border: "none", padding: "5px 0", cursor: "pointer",
-            }}>
-              {isLoading && actionId === leave.id + "approved" ? <Loader2 size={10} style={{ animation: "spin 1s linear infinite" }} /> : <CheckCircle2 size={11} />}
-              Approve
-            </button>
-            <div style={{ width: 1, height: 14, background: "#F3F4F6" }} />
-            <button onClick={() => onReject(leave.id)} disabled={isPending} style={{
-              flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
-              fontSize: 11, fontWeight: 600, color: "#EF4444",
-              background: "none", border: "none", padding: "5px 0", cursor: "pointer",
-            }}>
-              {isLoading && actionId === leave.id + "rejected" ? <Loader2 size={10} style={{ animation: "spin 1s linear infinite" }} /> : <XCircle size={11} />}
-              Reject
-            </button>
-            <div style={{ width: 1, height: 14, background: "#F3F4F6" }} />
-            <button style={{
-              flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 3,
-              fontSize: 11, fontWeight: 600, color: "#6B7280",
-              background: "none", border: "none", padding: "5px 0", cursor: "pointer",
-            }}>
-              <Eye size={11} /> View Details
-            </button>
-          </>
-        ) : (
-          <button style={{
-            flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
-            fontSize: 11, fontWeight: 600, color: "#6B7280",
-            background: "none", border: "none", padding: "5px 0", cursor: "pointer",
+      {leave.status === "pending" && (
+        <div style={{ display: "flex", gap: 6, paddingTop: 4, borderTop: "1px solid #F9FAFB" }}>
+          <button onClick={() => onApprove(leave.id)} disabled={isPending} style={{
+            flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+            fontSize: 12, fontWeight: 700, color: "#FFFFFF",
+            background: "#10B981", border: "none", borderRadius: 10,
+            padding: "8px 0", cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(16,185,129,0.25)",
           }}>
-            <Eye size={11} /> View Details
+            {isLoading && actionId === leave.id + "approved"
+              ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+              : <CheckCircle2 size={13} />}
+            Approve
           </button>
-        )}
-      </div>
+          <button onClick={() => onReject(leave.id)} disabled={isPending} style={{
+            flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+            fontSize: 12, fontWeight: 700, color: "#FFFFFF",
+            background: "#EF4444", border: "none", borderRadius: 10,
+            padding: "8px 0", cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(239,68,68,0.25)",
+          }}>
+            {isLoading && actionId === leave.id + "rejected"
+              ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+              : <XCircle size={13} />}
+            Reject
+          </button>
+        </div>
+      )}
     </div>
   )
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────────
-
-export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, availabilityPct, onLeaveToday }: LeavesClientProps) {
+export default function LeavesClient({
+  leaves, statusFilter, upcomingLeaves, availabilityPct, onLeaveToday,
+  pendingCount, approvedCount, rejectedCount,
+}: LeavesClientProps) {
   const router   = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
@@ -257,275 +254,160 @@ export default function LeavesClient({ leaves, statusFilter, upcomingLeaves, ava
     startTransition(async () => { await updateLeaveStatus(id, "rejected"); setActionId(null) })
   }
 
-  // Sidebar upcoming: prefer upcoming leaves, fall back to current list
-  const vacationItems = upcomingLeaves.length > 0 ? upcomingLeaves : leaves.slice(0, 4)
-
-  // Wellness computed from real availability
-  const wellnessScore = availabilityPct >= 90 ? 5.0
-    : availabilityPct >= 75 ? 4.5
-    : availabilityPct >= 60 ? 4.0
-    : availabilityPct >= 45 ? 3.5
-    : 3.0
-  const wellnessLabel = wellnessScore >= 4.5 ? "Great Balance"
-    : wellnessScore >= 4.0 ? "Good Balance"
-    : wellnessScore >= 3.5 ? "Moderate"
-    : "High Absence"
-  const wellnessColor = wellnessScore >= 4.5 ? "#10B981" : wellnessScore >= 4.0 ? "#F59E0B" : "#EF4444"
+  const vacationItems = upcomingLeaves.length > 0 ? upcomingLeaves : []
+  const donutColor = availabilityPct >= 80 ? "#10B981" : availabilityPct >= 60 ? "#F59E0B" : "#EF4444"
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_272px] gap-5" style={{ padding: "28px 24px 40px", background: "#F9FAFB", minHeight: "100vh" }}>
+    <div style={{ padding: "24px 24px 40px", background: "#F8F9FB", minHeight: "100vh" }}>
 
-      {/* ── Main Column ──────────────────────────────────────────────────────── */}
-      <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 18 }}>
-
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div>
-            <h1 style={{ fontSize: 28, fontWeight: 800, color: "#111827", fontFamily: "var(--font-jakarta)", margin: 0 }}>Leave Requests</h1>
-            <p style={{ fontSize: 13, color: "#6B7280", margin: "4px 0 0" }}>Review and manage team leave requests.</p>
-          </div>
-          <button style={{
-            display: "flex", alignItems: "center", gap: 7,
-            background: "#DE1A1A", color: "#FFF", border: "none", borderRadius: 12,
-            padding: "11px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer",
-            boxShadow: "0 4px 16px rgba(222,26,26,0.25)", fontFamily: "var(--font-jakarta)",
-          }}>
-            <Plus size={15} /> New Leave Policy
-          </button>
+      {/* ── Header ────────────────────────────────────────────────────────── */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 22 }}>
+        <div>
+          <h1 style={{ fontSize: 26, fontWeight: 900, color: "#111827", fontFamily: "var(--font-jakarta)", margin: 0 }}>Leave Requests</h1>
+          <p style={{ fontSize: 13, color: "#9CA3AF", margin: "3px 0 0" }}>Review and manage team leave applications</p>
         </div>
-
-        {/* Tabs */}
-        <div className="overflow-x-auto pb-1">
-        <div style={{ display: "flex", gap: 8, minWidth: "max-content" }}>
-          {STATUS_TABS.map((tab) => {
-            const active = statusFilter === tab.key
-            return (
-              <button key={tab.key} onClick={() => navigate(tab.key)} style={{
-                padding: "8px 22px", borderRadius: 24, fontSize: 13, fontWeight: 600, cursor: "pointer",
-                background: active ? "#F97316" : "#FFFFFF",
-                color: active ? "#FFF" : "#6B7280",
-                border: active ? "2px solid #F97316" : "1.5px solid #E5E7EB",
-                boxShadow: active ? "0 4px 12px rgba(249,115,22,0.25)" : "none",
-                transition: "all 0.15s", fontFamily: "var(--font-jakarta)",
-              }}>
-                {tab.label}
-              </button>
-            )
-          })}
-        </div>
-        </div>
-
-        {/* Who's On Leave Today */}
-        {onLeaveToday.length > 0 && (
-          <div style={{ background: "#FFF", borderRadius: 16, border: "1px solid #F3F4F6", padding: "14px 20px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, whiteSpace: "nowrap" }}>
-              On Leave Today
-            </p>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {onLeaveToday.map((m, i) => {
-                const ini2 = m.name.split(" ").map((n: string) => n[0] ?? "").join("").slice(0, 2).toUpperCase()
-                const colors = ["#DE1A1A","#F59E0B","#10B981","#3B82F6","#8B5CF6","#EC4899"]
-                const bg = colors[i % colors.length]
-                return (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, background: "#F9FAFB", borderRadius: 24, padding: "5px 12px 5px 5px", border: "1px solid #F0F1F5" }}>
-                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <span style={{ fontSize: 10, fontWeight: 800, color: "#FFF" }}>{ini2}</span>
-                    </div>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{m.name.split(" ")[0]}</span>
-                  </div>
-                )
-              })}
-            </div>
-            <span style={{ fontSize: 12, color: "#9CA3AF", marginLeft: "auto" }}>{availabilityPct}% available</span>
-          </div>
-        )}
-
-        {/* Hero Banner */}
-        <div style={{ borderRadius: 20, overflow: "hidden", position: "relative", height: 320, background: "#FFF8F0", boxShadow: "0 4px 24px rgba(0,0,0,0.06)", border: "1px solid #FEE8D0" }}>
-          {/* Full illustration — wider so right character shows */}
-          <div style={{ position: "absolute", left: 0, top: 0, width: "78%", height: "100%" }}>
-            <Image src="/brand/leave/vacation-hero.png" alt="Vacation" fill style={{ objectFit: "cover", objectPosition: "left center" }} />
-          </div>
-          {/* Lighter gradient — starts later, less opaque */}
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, transparent 52%, rgba(255,248,240,0.75) 65%, #FFF8F0 78%)" }} />
-          {/* Content — shifted right */}
-          <div style={{
-            position: "absolute", right: 0, top: 0, width: "34%", height: "100%",
-            display: "flex", flexDirection: "column", alignItems: "flex-start", justifyContent: "center",
-            padding: "36px 32px 36px 8px",
-          }}>
-            {leaves.length === 0 ? (
-              <>
-                <div style={{ width: 52, height: 52, background: "rgba(222,26,26,0.08)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16, border: "1px solid rgba(222,26,26,0.12)" }}>
-                  <CalendarDays size={24} style={{ color: "#DE1A1A" }} />
-                </div>
-                <p style={{ fontSize: 24, fontWeight: 800, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.25 }}>
-                  No {statusFilter === "all" ? "" : statusFilter} leave<br />requests
-                </p>
-                <p style={{ fontSize: 13, color: "#6B7280", margin: "10px 0 24px", lineHeight: 1.5 }}>
-                  Your team is fully available today.
-                </p>
-                <button style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  background: "#DE1A1A", color: "#FFF", border: "none", borderRadius: 12,
-                  padding: "12px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-                  boxShadow: "0 4px 16px rgba(222,26,26,0.28)",
-                }}>
-                  <Shield size={14} /> Manage Leave Policies
-                </button>
-              </>
-            ) : (
-              <>
-                <div style={{ width: 52, height: 52, background: "#FEF3C7", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
-                  <CalendarDays size={24} style={{ color: "#D97706" }} />
-                </div>
-                <p style={{ fontSize: 22, fontWeight: 800, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.25 }}>
-                  {leaves.length} leave {leaves.length === 1 ? "request" : "requests"} to review
-                </p>
-                <p style={{ fontSize: 13, color: "#6B7280", margin: "8px 0 0" }}>
-                  Take action on pending requests below.
-                </p>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Leave Cards Grid */}
-        {leaves.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3.5">
-            {leaves.map((leave, i) => (
-              <LeaveCard
-                key={leave.id} leave={leave} idx={i}
-                isPending={isPending} actionId={actionId}
-                onApprove={handleApprove} onReject={handleReject}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Bottom Wellness Banner */}
-        <div style={{ borderRadius: 20, overflow: "hidden", position: "relative", minHeight: 180, background: "linear-gradient(135deg, #FFF5E0 0%, #FDEBD0 40%, #FAD8A0 100%)", border: "1px solid #FDE8C0", boxShadow: "0 4px 24px rgba(0,0,0,0.05)" }}>
-          {/* Boy image left */}
-          <div style={{ position: "absolute", left: 0, top: 0, width: "38%", height: "100%" }}>
-            <Image src="/brand/leave/relaxed-boy.png" alt="Wellness" fill style={{ objectFit: "cover", objectPosition: "center top" }} />
-          </div>
-          {/* Gradient blend */}
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, transparent 28%, rgba(253,235,208,0.8) 50%, #FDEBD0 65%)" }} />
-          {/* Content */}
-          <div style={{
-            position: "absolute", right: 0, top: 0, width: "64%", height: "100%",
-            display: "flex", flexDirection: "column", justifyContent: "center",
-            padding: "28px 40px",
-          }}>
-            <p style={{ fontSize: 22, fontWeight: 800, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-              Happy teams work better 🌴
-            </p>
-            <p style={{ fontSize: 13, color: "#6B7280", margin: "6px 0 20px", lineHeight: 1.5 }}>
-              Encourage healthy work-life balance for better productivity.
-            </p>
-            <button style={{
-              display: "inline-flex", alignItems: "center", gap: 8, alignSelf: "flex-start",
-              background: "#DE1A1A", color: "#FFF", border: "none", borderRadius: 12,
-              padding: "11px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer",
-              boxShadow: "0 4px 14px rgba(222,26,26,0.28)",
-            }}>
-              View Team Wellness →
-            </button>
-          </div>
-        </div>
-
       </div>
 
-      {/* ── Right Sidebar ─────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-        {/* Leave Overview */}
-        <div style={{ background: "#FFF", borderRadius: 18, border: "1px solid #F3F4F6", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#111827", fontFamily: "var(--font-jakarta)" }}>Leave Overview</span>
-            <MoreHorizontal size={16} style={{ color: "#D1D5DB", cursor: "pointer" }} />
-          </div>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative", marginBottom: 14 }}>
-            <AvailabilityDonut pct={availabilityPct} size={140} />
-            <div style={{ position: "absolute", textAlign: "center", lineHeight: 1.2 }}>
-              <p style={{ fontSize: 28, fontWeight: 800, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>{availabilityPct}%</p>
-              <p style={{ fontSize: 10, color: "#6B7280", margin: "3px 0 0" }}>Team<br />Availability</p>
+      {/* ── 4 Stat Cards ──────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+        {[
+          { label: "Pending",       value: pendingCount,   icon: Clock,         iconBg: "rgba(245,158,11,0.12)",  iconColor: "#F59E0B", valueColor: "#F59E0B" },
+          { label: "Approved",      value: approvedCount,  icon: CheckCircle2,  iconBg: "rgba(16,185,129,0.12)",  iconColor: "#10B981", valueColor: "#10B981" },
+          { label: "Rejected",      value: rejectedCount,  icon: XOctagon,      iconBg: "rgba(239,68,68,0.1)",    iconColor: "#EF4444", valueColor: "#EF4444" },
+          { label: "On Leave Today",value: onLeaveToday.length, icon: Users,    iconBg: "rgba(99,102,241,0.1)",   iconColor: "#6366F1", valueColor: "#6366F1" },
+        ].map((s) => {
+          const Icon = s.icon
+          return (
+            <div key={s.label} style={{ background: "#FFFFFF", borderRadius: 16, padding: "16px 18px", border: "1px solid #F0F1F5", boxShadow: "0 2px 10px rgba(0,0,0,0.04)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: s.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <Icon size={16} style={{ color: s.iconColor }} />
+                </div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</p>
+              </div>
+              <p style={{ fontSize: 32, fontWeight: 900, color: s.valueColor, margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>{s.value}</p>
             </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, justifyContent: "center", background: "#F0FDF4", borderRadius: 20, padding: "5px 14px" }}>
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round"><polyline points="18 15 12 9 6 15"/></svg>
-            <span style={{ fontSize: 11, color: "#10B981", fontWeight: 600 }}>8% vs last month</span>
-          </div>
-        </div>
+          )
+        })}
+      </div>
 
-        {/* Upcoming Vacations */}
-        <div style={{ background: "#FFF", borderRadius: 18, border: "1px solid #F3F4F6", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#111827", fontFamily: "var(--font-jakarta)" }}>Upcoming Vacations</span>
-            <MoreHorizontal size={16} style={{ color: "#D1D5DB", cursor: "pointer" }} />
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-5">
+
+        {/* ── Main Column ─────────────────────────────────────────────────── */}
+        <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
+
+          {/* Status tabs */}
+          <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 2 }}>
+            {STATUS_TABS.map((tab) => {
+              const active = statusFilter === tab.key
+              return (
+                <button key={tab.key} onClick={() => navigate(tab.key)} style={{
+                  padding: "8px 20px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  whiteSpace: "nowrap", transition: "all 0.15s", border: "none",
+                  background: active ? tab.color : "#FFFFFF",
+                  color: active ? "#FFFFFF" : "#6B7280",
+                  boxShadow: active ? `0 4px 12px ${tab.color}40` : "0 1px 4px rgba(0,0,0,0.06)",
+                }}>
+                  {tab.label}
+                </button>
+              )
+            })}
           </div>
-          {vacationItems.length === 0 ? (
-            <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "10px 0" }}>No upcoming vacations</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {vacationItems.map((leave, i) => {
-                const u = Array.isArray(leave.users) ? leave.users[0] : leave.users
-                const name = u?.name ?? "Unknown"
-                const type = getLeaveType(leave.reason)
-                const title = getVacationTitle(leave.reason, type)
-                const emoji = LEAVE_EMOJIS[type]
-                return (
-                  <div key={leave.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: "50%", overflow: "hidden", flexShrink: 0, position: "relative", border: "2px solid #F3F4F6" }}>
-                      <Image src={getAvatar(name, u?.gender, i)} alt={name} fill style={{ objectFit: "cover" }} />
+
+          {/* On Leave Today strip */}
+          {onLeaveToday.length > 0 && (
+            <div style={{ background: "#FFFFFF", borderRadius: 14, border: "1px solid #F0F1F5", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <CalendarDays size={14} style={{ color: "#EF4444", flexShrink: 0 }} />
+              <p style={{ fontSize: 12, fontWeight: 700, color: "#111827", margin: 0, whiteSpace: "nowrap" }}>On Leave Today:</p>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {onLeaveToday.map((m, i) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F9FAFB", borderRadius: 20, padding: "4px 10px 4px 4px", border: "1px solid #F0F1F5" }}>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", background: AVATAR_COLORS[i % AVATAR_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: "#FFF" }}>{initials(m.name)}</span>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 13, fontWeight: 600, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{title}</p>
-                      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{fmtShort(leave.from_date)} – {fmtShort(leave.to_date)}</p>
-                    </div>
-                    <span style={{ fontSize: 20, flexShrink: 0 }}>{emoji}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>{m.name.split(" ")[0]}</span>
                   </div>
-                )
-              })}
+                ))}
+              </div>
+              <span style={{ fontSize: 11, color: "#9CA3AF", marginLeft: "auto" }}>{availabilityPct}% available</span>
+            </div>
+          )}
+
+          {/* Leave Cards */}
+          {leaves.length === 0 ? (
+            <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F1F5", padding: "60px 24px", textAlign: "center" }}>
+              <div style={{ position: "relative", width: 200, height: 160, margin: "0 auto 20px" }}>
+                <Image src="/brand/leave/vacation-hero.png" alt="" fill style={{ objectFit: "contain" }} />
+              </div>
+              <p style={{ fontSize: 16, fontWeight: 700, color: "#111827", margin: "0 0 6px", fontFamily: "var(--font-jakarta)" }}>
+                No {statusFilter === "all" ? "" : statusFilter} leave requests
+              </p>
+              <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0 }}>Your team is fully available.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
+              {leaves.map((leave, i) => (
+                <LeaveCard
+                  key={leave.id} leave={leave} idx={i}
+                  isPending={isPending} actionId={actionId}
+                  onApprove={handleApprove} onReject={handleReject}
+                />
+              ))}
             </div>
           )}
         </div>
 
-        {/* Team Wellness */}
-        <div style={{ background: "#FFF", borderRadius: 18, border: "1px solid #F3F4F6", padding: "20px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#111827", fontFamily: "var(--font-jakarta)" }}>Team Wellness</span>
-            <MoreHorizontal size={16} style={{ color: "#D1D5DB", cursor: "pointer" }} />
-          </div>
-          {/* Wellness boy + score */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-            <div style={{ width: 88, height: 88, borderRadius: 14, overflow: "hidden", flexShrink: 0, position: "relative", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
-              <Image src="/brand/leave/wellness-boy.png" alt="Wellness" fill style={{ objectFit: "cover" }} />
-            </div>
-            <div>
-              <p style={{ fontSize: 30, fontWeight: 800, color: wellnessColor, margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>
-                {wellnessScore.toFixed(1)}<span style={{ fontSize: 14, color: "#9CA3AF", fontWeight: 500 }}>/5</span>
-              </p>
-              <p style={{ fontSize: 12, color: "#374151", margin: "4px 0 0", fontWeight: 600 }}>{wellnessLabel}</p>
-              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "4px 0 0" }}>{availabilityPct}% team available</p>
-            </div>
-          </div>
-          {/* Mood slider */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 20 }}>😟</span>
-            <div style={{ flex: 1, height: 8, borderRadius: 8, position: "relative", background: "linear-gradient(to right, #FEE2E2, #FEF3C7 40%, #D1FAE5)" }}>
-              <div style={{
-                position: "absolute", top: "50%", left: `${Math.min(95, availabilityPct)}%`,
-                transform: "translate(-50%, -50%)",
-                width: 18, height: 18, borderRadius: "50%",
-                background: wellnessColor, border: "3px solid #FFF",
-                boxShadow: `0 0 0 2px ${wellnessColor}, 0 2px 8px rgba(16,185,129,0.4)`,
-              }} />
-            </div>
-            <span style={{ fontSize: 20 }}>😊</span>
-          </div>
-        </div>
+        {/* ── Right Sidebar ─────────────────────────────────────────────────── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
+          {/* Availability */}
+          <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F1F5", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.04)" }}>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: "0 0 16px", fontFamily: "var(--font-jakarta)" }}>Team Availability</p>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+              <AvailabilityDonut pct={availabilityPct} size={160} />
+            </div>
+            {onLeaveToday.length > 0 && (
+              <div style={{ background: "rgba(239,68,68,0.05)", borderRadius: 10, padding: "10px 12px", border: "1px solid rgba(239,68,68,0.1)" }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: "#EF4444", margin: "0 0 6px" }}>{onLeaveToday.length} on leave today</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {onLeaveToday.map((m, i) => (
+                    <span key={i} style={{ fontSize: 10, color: "#6B7280", background: "#F9FAFB", padding: "2px 8px", borderRadius: 20, border: "1px solid #F0F1F5" }}>
+                      {m.name.split(" ")[0]}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Upcoming Leaves */}
+          {vacationItems.length > 0 && (
+            <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F1F5", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.04)" }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: "0 0 14px", fontFamily: "var(--font-jakarta)" }}>Upcoming Leaves</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {vacationItems.map((leave, i) => {
+                  const u = Array.isArray(leave.users) ? leave.users[0] : leave.users
+                  const name = u?.name ?? "Unknown"
+                  const type = getLeaveType(leave.reason)
+                  const emoji = LEAVE_EMOJIS[type]
+                  return (
+                    <div key={leave.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 34, height: 34, borderRadius: "50%", overflow: "hidden", flexShrink: 0, position: "relative", border: "2px solid #F3F4F6" }}>
+                        <Image src={getAvatar(name, u?.gender, i)} alt={name} fill style={{ objectFit: "cover" }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
+                        <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{fmtShort(leave.from_date)} – {fmtShort(leave.to_date)}</p>
+                      </div>
+                      <span style={{ fontSize: 18, flexShrink: 0 }}>{emoji}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   )

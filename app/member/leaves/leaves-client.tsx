@@ -180,9 +180,19 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
   // Only show pending leaves where the start date is today or in the future
   const pendingL = leaves.filter(l => l.status === "pending" && l.from_date >= today)
   const rejected = leaves.filter(l => l.status === "rejected")
-  const usedDays = approved.filter(l => (l.leave_type ?? "full_day") === "full_day").reduce((s, l) => s + daysBetween(l.from_date, l.to_date), 0)
-  const balance    = Math.max(0, 24 - usedDays)
-  const balancePct = Math.round((balance / 24) * 100)
+
+  const MONTHLY_LIMIT = 5
+  const currentMonth  = today.slice(0, 7) // "YYYY-MM"
+  const monthlyUsed   = approved
+    .filter(l => l.from_date.startsWith(currentMonth))
+    .reduce((s, l) => {
+      const type = l.leave_type ?? "full_day"
+      if (type === "full_day") return s + daysBetween(l.from_date, l.to_date)
+      if (type === "half_day") return s + 0.5
+      return s
+    }, 0)
+  const monthlyBalance  = Math.max(0, MONTHLY_LIMIT - monthlyUsed)
+  const balancePct      = Math.round((monthlyBalance / MONTHLY_LIMIT) * 100)
   const nextHoliday = HOLIDAYS.find(h => h.date >= today)
   const wlbScore    = Math.min(100, Math.max(30, Math.round(72 - pendingL.length * 3 + approved.length * 2)))
 
@@ -260,7 +270,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
               { label: "Pending\nRequests",             val: pendingL.length, color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "⏳", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
               { label: "Approved\nLeaves",              val: approved.length, color: "#10B981", bg: "rgba(16,185,129,0.1)",  icon: "✅", trend: "up"   as const, sub: "↑ 22% from last week",   subColor: "#10B981" },
               { label: "Rejected\nRequests",            val: rejected.length, color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "❌", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
-              { label: "Days Left\nVacation Balance",   val: balance,         color: "#0EA5E9", bg: "rgba(14,165,233,0.1)",  icon: "🏖️", trend: null,            sub: null,                        subColor: "" },
+              { label: "Paid Leave\nLeft This Month",     val: monthlyBalance,  color: "#0EA5E9", bg: "rgba(14,165,233,0.1)",  icon: "🏖️", trend: null,            sub: null,                        subColor: "" },
               { label: "Upcoming\nHolidays",            val: HOLIDAYS.filter(h => h.date >= today).length, color: "#EC4899", bg: "rgba(236,72,153,0.1)", icon: "🎁", trend: null, sub: null, subColor: "" },
             ].map((s, i) => (
               <div key={i} style={{ background: "#fff", borderRadius: 18, padding: "18px 16px 14px", border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", gap: 0, position: "relative", overflow: "hidden" }}>
@@ -279,12 +289,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
                     <p style={{ fontSize: 9, color: s.subColor, fontWeight: 600 }}>{s.sub}</p>
                     <Sparkline color={s.color} trend={s.trend} />
                   </div>
-                ) : s.label.includes("Days Left") ? (
+                ) : s.label.includes("Paid Leave") ? (
                   <div>
                     <div style={{ height: 4, borderRadius: 99, background: "#EEF0F5", marginBottom: 8, overflow: "hidden" }}>
                       <div style={{ height: "100%", width: `${balancePct}%`, background: "#0EA5E9", borderRadius: 99 }} />
                     </div>
-                    <p style={{ fontSize: 10, color: "#0EA5E9", fontWeight: 700, cursor: "pointer" }}>View Calendar →</p>
+                    <p style={{ fontSize: 10, color: "#0EA5E9", fontWeight: 700 }}>{monthlyUsed} of {MONTHLY_LIMIT} used</p>
                   </div>
                 ) : null}
               </div>

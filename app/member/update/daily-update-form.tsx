@@ -186,6 +186,7 @@ export default function DailyUpdateForm({
   const [error,     setError]     = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [editMode,  setEditMode]  = useState(false)
+  const [savedIds,  setSavedIds]  = useState<Set<string>>(new Set())
 
   // Autosave timeBlocks to localStorage (general/non-media team only)
   useEffect(() => {
@@ -262,6 +263,40 @@ export default function DailyUpdateForm({
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
       else { setSubmitted(true); router.refresh() }
+    })
+  }
+
+  // ── Per-entry save (no success screen) ───────────────────────────────────
+  function handleSaveEntry(entryId: string) {
+    setError(null)
+    const work_entries = [
+      ...shoots.map(s => ({
+        id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
+        client_name: s.clientName || "Internal", task_type: "shoot" as const,
+        title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
+        duration_hours: s.durationHours, notes: s.notes, video_uploaded: s.videoUploaded,
+        screenshot_url: "", video_link: "", editing_videos: [],
+      })),
+      ...edits.map(e => ({
+        id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+        client_name: e.clientName || "Internal", task_type: "edit" as const,
+        title: e.title || "Editing", start_time: "", end_time: "",
+        duration_hours: e.timeTaken, notes: e.notes, video_uploaded: null,
+        screenshot_url: "", video_link: e.videoLink, editing_videos: [],
+        video_type: e.videoType, video_duration: e.videoDuration,
+        date_given: e.dateGiven, date_finished: e.dateFinished,
+        drive_updated: e.driveUpdated, revisions: e.revisions,
+      })),
+    ]
+    startTransition(async () => {
+      const res = await submitDailyUpdate({
+        active_tab: tab, work_entries, links: [],
+        shoot_count: shoots.length, editing_count: edits.length,
+        shoot_time_hours: totalShootHours, editing_time_hours: totalEditHours,
+        learning_hours: 0,
+      })
+      if (!res.success) setError(res.error ?? "Save failed.")
+      else setSavedIds(prev => new Set([...prev, entryId]))
     })
   }
 
@@ -726,11 +761,16 @@ export default function DailyUpdateForm({
                         </div>
                       </div>
                       {/* Per-shoot submit button */}
-                      <div style={{ borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4, display:"flex", justifyContent:"flex-end" }}>
-                        <button onClick={handleSubmit} disabled={isPending}
+                      <div style={{ borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4, display:"flex", justifyContent:"flex-end", alignItems:"center", gap:10 }}>
+                        {savedIds.has(s.id) && (
+                          <span style={{ fontSize:11, fontWeight:700, color:"#16A34A", display:"flex", alignItems:"center", gap:4 }}>
+                            <CheckCircle2 size={12} /> Saved ✓
+                          </span>
+                        )}
+                        <button onClick={() => handleSaveEntry(s.id)} disabled={isPending}
                           style={{ display:"flex", alignItems:"center", gap:7, padding:"9px 20px", borderRadius:10, background:"#DE1A1A", border:"none", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor: isPending?"not-allowed":"pointer", opacity: isPending?0.7:1, boxShadow:"0 4px 12px rgba(222,26,26,0.3)" }}>
                           {isPending ? <Loader2 size={12} className="animate-spin" /> : <SendHorizonal size={12} />}
-                          {isPending ? "Submitting…" : "Submit Update"}
+                          {isPending ? "Saving…" : "Save Shoot"}
                         </button>
                       </div>
                     </div>
@@ -868,11 +908,16 @@ export default function DailyUpdateForm({
                         </div>
                       </div>
                       {/* Per-edit submit button */}
-                      <div style={{ borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4, display:"flex", justifyContent:"flex-end" }}>
-                        <button onClick={handleSubmit} disabled={isPending}
+                      <div style={{ borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4, display:"flex", justifyContent:"flex-end", alignItems:"center", gap:10 }}>
+                        {savedIds.has(e.id) && (
+                          <span style={{ fontSize:11, fontWeight:700, color:"#16A34A", display:"flex", alignItems:"center", gap:4 }}>
+                            <CheckCircle2 size={12} /> Saved ✓
+                          </span>
+                        )}
+                        <button onClick={() => handleSaveEntry(e.id)} disabled={isPending}
                           style={{ display:"flex", alignItems:"center", gap:7, padding:"9px 20px", borderRadius:10, background:"#6366F1", border:"none", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor: isPending?"not-allowed":"pointer", opacity: isPending?0.7:1, boxShadow:"0 4px 12px rgba(99,102,241,0.3)" }}>
                           {isPending ? <Loader2 size={12} className="animate-spin" /> : <SendHorizonal size={12} />}
-                          {isPending ? "Submitting…" : "Submit Update"}
+                          {isPending ? "Saving…" : "Save Edit"}
                         </button>
                       </div>
                     </div>

@@ -441,44 +441,57 @@ export default function MemberTasksClient({
       {/* ═══ MAIN ════════════════════════════════════════════════════════════ */}
       <div className="flex-1 min-w-0 overflow-auto p-4 md:p-5 xl:p-6">
 
-        {/* ── Header ── */}
-        <div className="flex flex-wrap items-start gap-3 mb-6">
-          <div className="flex-1 min-w-[160px]">
-            <h1 className="text-[28px] md:text-[32px] font-black leading-tight"
-              style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>My Tasks</h1>
-            <p className="text-[13px] mt-0.5" style={{ color: "#6B7280" }}>
-              {activeCount > 0 ? `${activeCount} active · drag cards to move between columns` : "You're all caught up 🎉"}
-            </p>
-          </div>
+        {/* ── Hero Banner ── */}
+        <div style={{ background: "#FFFFFF", borderRadius: 20, marginBottom: 24, position: "relative", overflow: "hidden", padding: "22px 24px", boxShadow: "0 4px 24px rgba(0,0,0,0.07)", border: "1px solid #EBEDF2" }}>
+          {/* Red radial glow — left */}
+          <div style={{ position: "absolute", top: -60, left: -60, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(222,26,26,0.1) 0%, transparent 70%)", pointerEvents: "none" }} />
+          {/* Blue radial glow — right */}
+          <div style={{ position: "absolute", top: -50, right: -50, width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%)", pointerEvents: "none" }} />
 
-          {/* Search only */}
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl w-full sm:w-auto"
-            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-            <Search size={13} style={{ color: "#9CA3AF" }} />
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search by title, description, project..."
-              className="bg-transparent outline-none text-[12px] flex-1 sm:w-[180px]"
-              style={{ color: "#111111" }} />
-          </div>
-
-          {/* Mini stat pills — desktop only */}
-          <div className="hidden lg:flex items-center rounded-2xl overflow-hidden"
-            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 2px 10px rgba(0,0,0,0.05)" }}>
-            {[
-              { icon: Clock,        color: "#de1a1a", val: todayHours > 0 ? `${todayHours}h` : "—", lbl: "Worked"      },
-              { icon: Zap,          color: "#22C55E", val: String(activeCount),                       lbl: "Active"      },
-              { icon: CheckCircle2, color: "#6366F1", val: String(doneTasks.length),                  lbl: "Completed"   },
-              { icon: TrendingUp,   color: "#F59E0B", val: `${productivity}%`,                        lbl: "Productivity"},
-            ].map((s, i, arr) => (
-              <div key={s.lbl} className="flex items-center gap-2 px-4 py-2.5"
-                style={{ borderRight: i < arr.length - 1 ? "1px solid #F3F4F6" : "none" }}>
-                <s.icon size={13} style={{ color: s.color }} />
-                <div>
-                  <p className="text-[14px] font-black leading-none" style={{ color: s.color }}>{s.val}</p>
-                  <p className="text-[9px] mt-0.5" style={{ color: "#9CA3AF" }}>{s.lbl}</p>
-                </div>
+          <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+            <div>
+              {/* Badge — red gradient */}
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)", borderRadius: 20, padding: "5px 14px", marginBottom: 12, boxShadow: "0 4px 14px rgba(222,26,26,0.3)" }}>
+                <span style={{ fontSize: 13 }}>⭐</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#FFFFFF" }}>My Tasks</span>
               </div>
-            ))}
+              <h1 style={{ fontSize: 30, fontWeight: 900, margin: "0 0 6px", fontFamily: "var(--font-jakarta)", color: "#111111", lineHeight: 1.1 }}>
+                Task{" "}
+                <span style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #6366F1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                  Board
+                </span>
+              </h1>
+              <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>
+                {activeCount > 0 ? `${activeCount} active · drag cards to move between columns` : "You're all caught up 🎉"}
+              </p>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
+              {/* Search */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", borderRadius: 12, background: "#F5F6FA", border: "1px solid #EBEDF2" }}>
+                <Search size={13} style={{ color: "#9CA3AF" }} />
+                <input value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder="Search tasks..."
+                  style={{ background: "transparent", outline: "none", fontSize: 12, color: "#111111", width: 180, border: "none" }} />
+              </div>
+              {/* Mini stat pills */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                {[
+                  { icon: Clock,        color: "#DE1A1A", bg: "rgba(222,26,26,0.08)",  val: todayHours > 0 ? `${todayHours}h` : "—", lbl: "Worked"     },
+                  { icon: Zap,          color: "#22C55E", bg: "rgba(34,197,94,0.08)",  val: String(activeCount),                       lbl: "Active"     },
+                  { icon: CheckCircle2, color: "#6366F1", bg: "rgba(99,102,241,0.08)", val: String(doneTasks.length),                  lbl: "Done"       },
+                  { icon: TrendingUp,   color: "#F59E0B", bg: "rgba(245,158,11,0.08)", val: `${productivity}%`,                        lbl: "Rate"       },
+                ].map(s => (
+                  <div key={s.lbl} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 12, background: s.bg }}>
+                    <s.icon size={12} style={{ color: s.color }} />
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 900, color: s.color, margin: 0, lineHeight: 1 }}>{s.val}</p>
+                      <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0 }}>{s.lbl}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 

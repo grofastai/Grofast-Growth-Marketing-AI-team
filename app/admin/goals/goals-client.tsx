@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   Plus, X, Trash2, Loader2, Calendar, Users, Columns, Target,
-  TrendingUp, CheckSquare, Clock, BarChart3, Sparkles,
+  TrendingUp, CheckSquare, Clock, BarChart3, Sparkles, Archive, ChevronDown, ChevronUp,
 } from "lucide-react"
 import { createTask, updateTaskStatus, deleteTask } from "@/lib/actions/tasks"
 
@@ -155,11 +155,12 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
   const [tasks, setTasks] = useState(initialTasks)
   const [showForm, setShowForm] = useState(false)
   const [viewMode, setViewMode] = useState<"member" | "status">("member")
-  const [mobileCol, setMobileCol] = useState<"todo" | "in_progress" | "completed">("todo")
+  const [mobileCol, setMobileCol] = useState<"todo" | "in_progress">("todo")
   const [selectedMembers, setSelectedMembers] = useState<string[]>([])
   const [isPending, startTransition] = useTransition()
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [movingId, setMovingId] = useState<string | null>(null)
+  const [archiveOpen, setArchiveOpen] = useState(false)
 
   function openForm(preselect?: string) {
     setSelectedMembers(preselect ? [preselect] : [])
@@ -194,20 +195,21 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
     {
       id: "unassigned", label: "Unassigned", initials: "?", team: null as string | null,
       gender: null as string | null, illustration: "/brand/task-assign/4ed6bcdd-a758-45ae-aac4-e112cd84ae67.png",
-      tasks: tasks.filter(t => !(Array.isArray(t.users) ? t.users[0] : t.users)),
+      tasks: tasks.filter(t => t.status !== "completed" && !(Array.isArray(t.users) ? t.users[0] : t.users)),
     },
     ...members.map((m, idx) => ({
       id: m.id, label: m.name,
       initials: m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase(),
       team: m.team ?? null, gender: m.gender ?? null,
-      tasks: tasks.filter(t => { const u = Array.isArray(t.users) ? t.users[0] : t.users; return u?.id === m.id }),
+      tasks: tasks.filter(t => { const u = Array.isArray(t.users) ? t.users[0] : t.users; return t.status !== "completed" && u?.id === m.id }),
       illustration: getMemberIllustration(m.gender, idx),
     })),
   ]
 
-  const statusColumns = (["todo", "in_progress", "completed"] as const).map(s => ({
+  const statusColumns = (["todo", "in_progress"] as const).map(s => ({
     key: s, ...STATUS_CONFIG[s], tasks: tasks.filter(t => t.status === s),
   }))
+  const archivedTasks = tasks.filter(t => t.status === "completed")
 
   const todo = tasks.filter(t => t.status === "todo").length
   const inprog = tasks.filter(t => t.status === "in_progress").length
@@ -432,7 +434,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
           <div className="md:hidden">
             {/* Tab buttons */}
             <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-              {(["todo", "in_progress", "completed"] as const).map(col => (
+              {(["todo", "in_progress"] as const).map(col => (
                 <button
                   key={col}
                   onClick={() => setMobileCol(col)}
@@ -441,7 +443,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
                     ? { background: "#DE1A1A", color: "#fff", border: "none" }
                     : { background: "#F3F4F6", color: "#6B7280", border: "none" }}
                 >
-                  {col === "todo" ? `To Do (${tasks.filter(t => t.status === "todo").length})` : col === "in_progress" ? `In Progress (${tasks.filter(t => t.status === "in_progress").length})` : `Completed (${tasks.filter(t => t.status === "completed").length})`}
+                  {col === "todo" ? `To Do (${tasks.filter(t => t.status === "todo").length})` : `In Progress (${tasks.filter(t => t.status === "in_progress").length})`}
                 </button>
               ))}
             </div>
@@ -464,7 +466,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
           </div>
 
           {/* Desktop 3-column grid — hidden on mobile */}
-          <div className="hidden md:grid md:grid-cols-3 gap-[18px]">
+          <div className="hidden md:grid md:grid-cols-2 gap-[18px]">
             {statusColumns.map(col => (
               <div key={col.key} style={{
                 borderRadius: 22, background: "#FFFFFF", border: "1px solid #EBEDF2",
@@ -504,6 +506,53 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
           </div>
         </>
       )}
+
+      {/* ── ARCHIVE SECTION ─────────────────────────────────────────────────── */}
+      <div style={{ marginTop: 24 }}>
+        <button
+          onClick={() => setArchiveOpen(o => !o)}
+          style={{
+            width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "16px 22px", borderRadius: archiveOpen ? "20px 20px 0 0" : 20,
+            background: "#FFFFFF", border: "1px solid #EBEDF2",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.05)", cursor: "pointer",
+            borderBottom: archiveOpen ? "1px solid #F0F0F0" : undefined,
+          }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(16,185,129,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Archive size={16} style={{ color: "#10B981" }} />
+            </div>
+            <div style={{ textAlign: "left" }}>
+              <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Archive</p>
+              <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>{archivedTasks.length} completed task{archivedTasks.length !== 1 ? "s" : ""}</p>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 20, background: "rgba(16,185,129,0.1)", color: "#10B981" }}>{archivedTasks.length}</span>
+            {archiveOpen ? <ChevronUp size={16} style={{ color: "#9CA3AF" }} /> : <ChevronDown size={16} style={{ color: "#9CA3AF" }} />}
+          </div>
+        </button>
+
+        {archiveOpen && (
+          <div style={{ background: "#FAFBFC", border: "1px solid #EBEDF2", borderTop: "none", borderRadius: "0 0 20px 20px", padding: "16px 18px" }}>
+            {archivedTasks.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "32px 0", color: "#D1D5DB", fontSize: 13, fontWeight: 600 }}>
+                No archived tasks yet
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+                {archivedTasks.map(task => (
+                  <TaskCard key={task.id} task={task}
+                    onMove={moveTask} onDelete={removeTask}
+                    isMoving={movingId === task.id && isPending}
+                    isDeleting={deletingId === task.id && isPending}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* ── BOTTOM BANNER ───────────────────────────────────────────────────── */}
       <div style={{

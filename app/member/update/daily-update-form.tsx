@@ -111,6 +111,25 @@ function DurationPicker({ value, onChange }: { value: number; onChange: (v: numb
 
 const DRAFT_KEY = "gf_daily_update_draft"
 
+function getTodayStr() {
+  return new Date().toLocaleDateString("en-CA") // YYYY-MM-DD in local time
+}
+
+function loadDraft(): TimeBlock[] {
+  try {
+    const raw = typeof window !== "undefined" ? localStorage.getItem(DRAFT_KEY) : null
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as { date?: string; blocks?: TimeBlock[] }
+    if (parsed.date !== getTodayStr()) {
+      localStorage.removeItem(DRAFT_KEY)
+      return []
+    }
+    return Array.isArray(parsed.blocks) ? parsed.blocks : []
+  } catch {
+    return []
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function DailyUpdateForm({
   projects, userName, team, existingUpdate,
@@ -156,14 +175,7 @@ export default function DailyUpdateForm({
   // Non-media team: flexible time block state
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>(() => {
     if (existingUpdate) return []
-    try {
-      const saved = typeof window !== "undefined" ? localStorage.getItem(DRAFT_KEY) : null
-      if (saved) {
-        const parsed = JSON.parse(saved) as TimeBlock[]
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed
-      }
-    } catch { /* ignore corrupted data */ }
-    return []
+    return loadDraft()
   })
 
   const addTimeBlock = () => setTimeBlocks(p => [...p, {
@@ -191,7 +203,7 @@ export default function DailyUpdateForm({
   // Autosave timeBlocks to localStorage (general/non-media team only)
   useEffect(() => {
     if (submitted || existingUpdate) return
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(timeBlocks)) } catch { /* ignore quota errors */ }
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ date: getTodayStr(), blocks: timeBlocks })) } catch { /* ignore quota errors */ }
   }, [timeBlocks, submitted, existingUpdate])  // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalShootHours   = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])

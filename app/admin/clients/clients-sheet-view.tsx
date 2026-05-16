@@ -175,84 +175,82 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
 
         {/* Revenue */}
         <div style={purpleCard}>
-          {/* Decorative circle */}
-          <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", bottom: -20, left: 40, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
 
-          <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.65)", margin: "0 0 14px", textTransform: "uppercase", letterSpacing: "0.12em", position: "relative" }}>Revenue</p>
-          <div className="flex items-end gap-6 flex-wrap" style={{ position: "relative" }}>
-            {received > 0 && (
-              <div>
-                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", margin: "0 0 2px" }}>Received</p>
-                <p style={{ fontSize: 28, fontWeight: 900, color: "#6EE7B7", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-                  ₹{received.toLocaleString("en-IN")}
-                </p>
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#FFFFFF", margin: "0 0 16px", textTransform: "uppercase", letterSpacing: "0.14em" }}>Revenue</p>
+            <div className="flex items-end gap-8 flex-wrap">
+              {received > 0 && (
+                <div>
+                  <p style={{ fontSize: 12, color: "#A5F3C8", fontWeight: 600, margin: "0 0 4px" }}>Received</p>
+                  <p style={{ fontSize: 30, fontWeight: 900, color: "#6EE7B7", margin: 0, fontFamily: "var(--font-jakarta)" }}>
+                    ₹{received.toLocaleString("en-IN")}
+                  </p>
+                </div>
+              )}
+              {pending > 0 && (
+                <div>
+                  <p style={{ fontSize: 12, color: "#FCD5D5", fontWeight: 600, margin: "0 0 4px" }}>Pending</p>
+                  <p style={{ fontSize: 30, fontWeight: 900, color: "#FCA5A5", margin: 0, fontFamily: "var(--font-jakarta)" }}>
+                    ₹{pending.toLocaleString("en-IN")}
+                  </p>
+                </div>
+              )}
+              {received === 0 && pending === 0 && (
+                <p style={{ fontSize: 13, color: "#FFFFFF", margin: 0 }}>No payment data</p>
+              )}
+            </div>
+            {total > 0 && (
+              <div style={{ marginTop: 18 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#FFFFFF" }}>Collection rate</span>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "#6EE7B7" }}>{pct}%</span>
+                </div>
+                <div style={{ height: 6, borderRadius: 4, background: "rgba(255,255,255,0.2)", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#6EE7B7,#34D399)", borderRadius: 4 }} />
+                </div>
               </div>
-            )}
-            {pending > 0 && (
-              <div>
-                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", margin: "0 0 2px" }}>Pending</p>
-                <p style={{ fontSize: 28, fontWeight: 900, color: "#FCA5A5", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-                  ₹{pending.toLocaleString("en-IN")}
-                </p>
-              </div>
-            )}
-            {received === 0 && pending === 0 && (
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: 0 }}>No payment data</p>
             )}
           </div>
-          {total > 0 && (
-            <div style={{ marginTop: 16, position: "relative" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.75)" }}>Collection rate</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#6EE7B7" }}>{pct}%</span>
-              </div>
-              <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,0.18)", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#6EE7B7,#34D399)", borderRadius: 3 }} />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Package + Payment Status */}
         <div style={purpleCard}>
-          {/* Decorative circle */}
           <div style={{ position: "absolute", top: -20, right: 60, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", bottom: -30, right: -20, width: 130, height: 130, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
-          <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.65)", margin: "0 0 16px", textTransform: "uppercase", letterSpacing: "0.12em", position: "relative" }}>Package Details</p>
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#FFFFFF", margin: "0 0 16px", textTransform: "uppercase", letterSpacing: "0.14em" }}>Package Details</p>
 
-          {/* Key rows */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 11, marginBottom: c.service ? 18 : 0, position: "relative" }}>
-            {[
-              { label: "Package",        value: c.package_name || "—" },
-              { label: "Monthly Value",  value: c.current_month ? `₹${c.current_month}` : "—" },
-              { label: "Payment Status", value: c.payment_status || "—" },
-            ].map(row => (
-              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", flexShrink: 0 }}>{row.label}</span>
-                <span style={{ fontSize: 12, fontWeight: 800, color: "#FFFFFF" }}>{row.value}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Services as chips */}
-          {c.service && (
-            <div style={{ position: "relative" }}>
-              <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.65)", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.1em" }}>Services</p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {c.service.split(",").map(s => s.trim()).filter(Boolean).map((svc, i) => (
-                  <span key={i} style={{
-                    fontSize: 10, fontWeight: 700, padding: "5px 11px", borderRadius: 7,
-                    background: "rgba(255,255,255,0.15)", color: "#E0E7FF",
-                    border: "1px solid rgba(255,255,255,0.25)",
-                  }}>
-                    {svc}
-                  </span>
-                ))}
-              </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 13, marginBottom: c.service ? 20 : 0 }}>
+              {[
+                { label: "Package",        value: c.package_name || "—" },
+                { label: "Monthly Value",  value: c.current_month ? `₹${c.current_month}` : "—" },
+                { label: "Payment Status", value: c.payment_status || "—" },
+              ].map(row => (
+                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 13, color: "#C4C9FF", fontWeight: 500, flexShrink: 0 }}>{row.label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: "#FFFFFF" }}>{row.value}</span>
+                </div>
+              ))}
             </div>
-          )}
+
+            {c.service && (
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 800, color: "#FFFFFF", margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "0.1em" }}>Services</p>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                  {c.service.split(",").map(s => s.trim()).filter(Boolean).map((svc, i) => (
+                    <span key={i} style={{
+                      fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 8,
+                      background: "rgba(255,255,255,0.18)", color: "#FFFFFF",
+                      border: "1px solid rgba(255,255,255,0.35)",
+                    }}>
+                      {svc}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

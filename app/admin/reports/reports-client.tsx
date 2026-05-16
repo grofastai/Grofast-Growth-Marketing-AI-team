@@ -191,7 +191,7 @@ export default function ReportsClient({
         </div>
 
         {/* Right: illustration */}
-        <div className="hidden sm:block" style={{ position: "relative", width: 190, height: 190, flexShrink: 0, zIndex: 1 }}>
+        <div className="hidden sm:block" style={{ position: "relative", width: 300, height: 220, flexShrink: 0, zIndex: 1, marginBottom: -8 }}>
           <Image src="/brand/report/team.png" alt="Team" fill style={{ objectFit: "contain", objectPosition: "center bottom" }} />
         </div>
       </div>

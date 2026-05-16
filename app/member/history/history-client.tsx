@@ -593,21 +593,21 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
 
           {/* Work Streak */}
-          <div style={{ background:"#fff", borderRadius:18, padding:"18px 18px 14px", border:"1px solid #EBEDF2", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-              <Flame size={16} style={{ color:"#EF4444" }}/>
-              <span style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.08em" }}>Work Streak</span>
+          <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 14px", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", position:"relative", overflow:"hidden" }}>
+            <div style={{ position:"absolute", top:-20, right:-20, width:100, height:100, borderRadius:"50%", background:"rgba(255,255,255,0.07)", pointerEvents:"none" }}/>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
+              <Flame size={16} style={{ color:"#FCA5A5" }}/>
+              <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Work Streak</span>
             </div>
-            <p style={{ fontSize:24, fontWeight:900, color:"#111111", margin:"0 0 2px", fontFamily:"var(--font-jakarta)" }}>{streak} Days</p>
-            <p style={{ fontSize:10, color:"#22C55E", fontWeight:600, margin:"0 0 12px" }}>Keep it up!</p>
-            {/* Weekly dots */}
-            <div style={{ display:"flex", justifyContent:"space-between" }}>
+            <p style={{ fontSize:24, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", position:"relative", zIndex:1 }}>{streak} Days</p>
+            <p style={{ fontSize:10, color:"#6EE7B7", fontWeight:600, margin:"0 0 12px", position:"relative", zIndex:1 }}>Keep it up!</p>
+            <div style={{ display:"flex", justifyContent:"space-between", position:"relative", zIndex:1 }}>
               {last7.map((d, i) => (
                 <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-                  <span style={{ fontSize:9, color:"#9CA3AF", fontWeight:600 }}>{d.lbl}</span>
+                  <span style={{ fontSize:9, color:"rgba(255,255,255,0.55)", fontWeight:600 }}>{d.lbl}</span>
                   <div style={{ width:22, height:22, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10,
-                    background: d.done ? "rgba(22,163,74,0.12)" : "#F5F6FA",
-                    color:      d.done ? "#16A34A" : "#D1D5DB",
+                    background: d.done ? "rgba(110,231,183,0.25)" : "rgba(255,255,255,0.1)",
+                    color:      d.done ? "#6EE7B7" : "rgba(255,255,255,0.35)",
                   }}>
                     {d.done ? "✓" : "×"}
                   </div>
@@ -617,32 +617,36 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
           </div>
 
           {/* Top Activity */}
-          <div style={{ background:"#fff", borderRadius:18, padding:"18px 18px 0", border:"1px solid #EBEDF2", boxShadow:"0 2px 8px rgba(0,0,0,0.04)", overflow:"hidden" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-              <Star size={15} style={{ color:"#F59E0B" }}/>
-              <span style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.08em" }}>Top Activity</span>
+          <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 0", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", overflow:"hidden", position:"relative" }}>
+            <div style={{ position:"absolute", bottom:-20, left:-20, width:90, height:90, borderRadius:"50%", background:"rgba(255,255,255,0.06)", pointerEvents:"none" }}/>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
+              <Star size={15} style={{ color:"#FACC15" }}/>
+              <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Top Activity</span>
             </div>
-            <p style={{ fontSize:16, fontWeight:900, color:"#111111", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            <p style={{ fontSize:16, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", position:"relative", zIndex:1 }}>
               {topActivity?.name || "—"}
             </p>
-            <p style={{ fontSize:10, color:"#9CA3AF", fontWeight:600, margin:"0 0 8px" }}>{fmtH(topActivity?.hours ?? 0)}</p>
-            <Sparkline data={stats.hoursPerDay} color="#6366F1"/>
+            <p style={{ fontSize:10, color:"rgba(255,255,255,0.6)", fontWeight:600, margin:"0 0 8px", position:"relative", zIndex:1 }}>{fmtH(topActivity?.hours ?? 0)}</p>
+            <div style={{ position:"relative", zIndex:1 }}>
+              <Sparkline data={stats.hoursPerDay} color="#FACC15"/>
+            </div>
           </div>
 
           {/* Meetings */}
-          <div style={{ background:"#fff", borderRadius:18, padding:"18px 18px 14px", border:"1px solid #EBEDF2", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-              <Users size={15} style={{ color:"#0EA5E9" }}/>
-              <span style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.08em" }}>Meetings</span>
+          <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 14px", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", position:"relative", overflow:"hidden" }}>
+            <div style={{ position:"absolute", top:-20, right:-20, width:100, height:100, borderRadius:"50%", background:"rgba(255,255,255,0.07)", pointerEvents:"none" }}/>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
+              <Users size={15} style={{ color:"#BAE6FD" }}/>
+              <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Meetings</span>
             </div>
-            <p style={{ fontSize:24, fontWeight:900, color:"#111111", margin:"0 0 2px", fontFamily:"var(--font-jakarta)" }}>{fmtH(meetingH)}</p>
-            <p style={{ fontSize:10, color:"#9CA3AF", fontWeight:600, margin:"0 0 14px" }}>Total this month</p>
-            {/* Mini bar chart */}
-            <div style={{ display:"flex", alignItems:"flex-end", gap:4, height:36 }}>
+            <p style={{ fontSize:24, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", position:"relative", zIndex:1 }}>{fmtH(meetingH)}</p>
+            <p style={{ fontSize:10, color:"rgba(255,255,255,0.6)", fontWeight:600, margin:"0 0 14px", position:"relative", zIndex:1 }}>Total this month</p>
+            <div style={{ display:"flex", alignItems:"flex-end", gap:4, height:36, position:"relative", zIndex:1 }}>
               {stats.hoursPerDay.slice(-7).map((h, i) => {
                 const max = Math.max(...stats.hoursPerDay, 1)
                 return (
-                  <div key={i} style={{ flex:1, borderRadius:3, background: i === stats.hoursPerDay.slice(-7).length - 1 ? "#0EA5E9" : "#E0F2FE",
+                  <div key={i} style={{ flex:1, borderRadius:3,
+                    background: i === stats.hoursPerDay.slice(-7).length - 1 ? "#FACC15" : "rgba(255,255,255,0.25)",
                     height:`${Math.max(8, (h / max) * 36)}px` }}/>
                 )
               })}
@@ -650,19 +654,20 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
           </div>
 
           {/* Tasks Completion */}
-          <div style={{ background:"#fff", borderRadius:18, padding:"18px 18px 14px", border:"1px solid #EBEDF2", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
-              <CheckCircle2 size={15} style={{ color:"#22C55E" }}/>
-              <span style={{ fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.08em" }}>Tasks Completion</span>
+          <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 14px", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", position:"relative", overflow:"hidden" }}>
+            <div style={{ position:"absolute", bottom:-20, right:-20, width:90, height:90, borderRadius:"50%", background:"rgba(255,255,255,0.06)", pointerEvents:"none" }}/>
+            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
+              <CheckCircle2 size={15} style={{ color:"#6EE7B7" }}/>
+              <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Tasks Completion</span>
             </div>
-            <p style={{ fontSize:24, fontWeight:900, color:"#111111", margin:"0 0 2px", fontFamily:"var(--font-jakarta)" }}>
+            <p style={{ fontSize:24, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", position:"relative", zIndex:1 }}>
               {stats.totalTasks} / {Math.max(stats.totalTasks + 10, 20)}
             </p>
-            <p style={{ fontSize:10, color:"#22C55E", fontWeight:600, margin:"0 0 12px" }}>
+            <p style={{ fontSize:10, color:"#6EE7B7", fontWeight:600, margin:"0 0 12px", position:"relative", zIndex:1 }}>
               {stats.totalTasks > 0 ? Math.round((stats.totalTasks / Math.max(stats.totalTasks + 10, 20)) * 100) : 0}% Completed
             </p>
-            <div style={{ height:8, borderRadius:99, background:"#F3F4F6", overflow:"hidden" }}>
-              <div style={{ height:"100%", borderRadius:99, background:"linear-gradient(90deg,#22C55E,#16A34A)",
+            <div style={{ height:8, borderRadius:99, background:"rgba(255,255,255,0.2)", overflow:"hidden", position:"relative", zIndex:1 }}>
+              <div style={{ height:"100%", borderRadius:99, background:"linear-gradient(90deg,#6EE7B7,#FACC15)",
                 width:`${stats.totalTasks > 0 ? Math.round((stats.totalTasks / Math.max(stats.totalTasks + 10, 20)) * 100) : 0}%`,
                 transition:"width 0.6s ease" }}/>
             </div>

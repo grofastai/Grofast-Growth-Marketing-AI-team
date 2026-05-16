@@ -258,7 +258,7 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
 
       {/* Work Done (real data from Supabase) */}
       {workSummary && (Object.keys(workSummary.workTypes).length > 0 || workSummary.shoots > 0 || workSummary.hours > 0) && (
-        <div style={card}>
+        <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #EBEDF2", padding: "20px 22px", boxShadow: "0 4px 20px rgba(0,0,0,0.06)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>

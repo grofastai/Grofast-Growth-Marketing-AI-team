@@ -190,8 +190,8 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
               )}
               {pending > 0 && (
                 <div>
-                  <p style={{ fontSize: 12, color: "#FCD5D5", fontWeight: 600, margin: "0 0 4px" }}>Pending</p>
-                  <p style={{ fontSize: 30, fontWeight: 900, color: "#FCA5A5", margin: 0, fontFamily: "var(--font-jakarta)" }}>
+                  <p style={{ fontSize: 12, color: "#FEF08A", fontWeight: 600, margin: "0 0 4px" }}>Pending</p>
+                  <p style={{ fontSize: 30, fontWeight: 900, color: "#FACC15", margin: 0, fontFamily: "var(--font-jakarta)" }}>
                     ₹{pending.toLocaleString("en-IN")}
                   </p>
                 </div>

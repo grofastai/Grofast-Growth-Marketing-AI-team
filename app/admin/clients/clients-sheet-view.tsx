@@ -161,9 +161,9 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
   const pct      = total > 0 ? Math.round((received / total) * 100) : 0
 
   const purpleCard: React.CSSProperties = {
-    background: "linear-gradient(135deg, #4C3CE8 0%, #3B2FCC 50%, #2D1FA3 100%)",
-    borderRadius: 20, border: "1px solid rgba(255,255,255,0.12)",
-    padding: "20px 22px", boxShadow: "0 8px 32px rgba(76,60,232,0.35)",
+    background: "linear-gradient(135deg, #1A1560 0%, #130F52 55%, #0D0A3E 100%)",
+    borderRadius: 20, border: "1px solid rgba(255,255,255,0.1)",
+    padding: "20px 22px", boxShadow: "0 8px 40px rgba(10,8,60,0.6)",
     position: "relative", overflow: "hidden",
   }
 
@@ -179,11 +179,11 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
           <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
           <div style={{ position: "absolute", bottom: -20, left: 40, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
-          <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", margin: "0 0 14px", textTransform: "uppercase", letterSpacing: "0.12em", position: "relative" }}>Revenue</p>
+          <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.65)", margin: "0 0 14px", textTransform: "uppercase", letterSpacing: "0.12em", position: "relative" }}>Revenue</p>
           <div className="flex items-end gap-6 flex-wrap" style={{ position: "relative" }}>
             {received > 0 && (
               <div>
-                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", margin: "0 0 2px" }}>Received</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", margin: "0 0 2px" }}>Received</p>
                 <p style={{ fontSize: 28, fontWeight: 900, color: "#6EE7B7", margin: 0, fontFamily: "var(--font-jakarta)" }}>
                   ₹{received.toLocaleString("en-IN")}
                 </p>
@@ -191,23 +191,23 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
             )}
             {pending > 0 && (
               <div>
-                <p style={{ fontSize: 10, color: "rgba(255,255,255,0.5)", margin: "0 0 2px" }}>Pending</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", margin: "0 0 2px" }}>Pending</p>
                 <p style={{ fontSize: 28, fontWeight: 900, color: "#FCA5A5", margin: 0, fontFamily: "var(--font-jakarta)" }}>
                   ₹{pending.toLocaleString("en-IN")}
                 </p>
               </div>
             )}
             {received === 0 && pending === 0 && (
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", margin: 0 }}>No payment data</p>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: 0 }}>No payment data</p>
             )}
           </div>
           {total > 0 && (
             <div style={{ marginTop: 16, position: "relative" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <span style={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }}>Collection rate</span>
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#6EE7B7" }}>{pct}%</span>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.75)" }}>Collection rate</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#6EE7B7" }}>{pct}%</span>
               </div>
-              <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,0.12)", overflow: "hidden" }}>
+              <div style={{ height: 5, borderRadius: 3, background: "rgba(255,255,255,0.18)", overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#6EE7B7,#34D399)", borderRadius: 3 }} />
               </div>
             </div>
@@ -220,7 +220,7 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
           <div style={{ position: "absolute", top: -20, right: 60, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
           <div style={{ position: "absolute", bottom: -30, right: -20, width: 130, height: 130, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
 
-          <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.5)", margin: "0 0 16px", textTransform: "uppercase", letterSpacing: "0.12em", position: "relative" }}>Package Details</p>
+          <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.65)", margin: "0 0 16px", textTransform: "uppercase", letterSpacing: "0.12em", position: "relative" }}>Package Details</p>
 
           {/* Key rows */}
           <div style={{ display: "flex", flexDirection: "column", gap: 11, marginBottom: c.service ? 18 : 0, position: "relative" }}>
@@ -230,8 +230,8 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
               { label: "Payment Status", value: c.payment_status || "—" },
             ].map(row => (
               <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", flexShrink: 0 }}>{row.label}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#FFFFFF" }}>{row.value}</span>
+                <span style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", flexShrink: 0 }}>{row.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: "#FFFFFF" }}>{row.value}</span>
               </div>
             ))}
           </div>
@@ -239,13 +239,13 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
           {/* Services as chips */}
           {c.service && (
             <div style={{ position: "relative" }}>
-              <p style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.4)", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.1em" }}>Services</p>
+              <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.65)", margin: "0 0 8px", textTransform: "uppercase", letterSpacing: "0.1em" }}>Services</p>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {c.service.split(",").map(s => s.trim()).filter(Boolean).map((svc, i) => (
                   <span key={i} style={{
-                    fontSize: 10, fontWeight: 600, padding: "4px 10px", borderRadius: 7,
-                    background: "rgba(255,255,255,0.12)", color: "#FFFFFF",
-                    border: "1px solid rgba(255,255,255,0.18)",
+                    fontSize: 10, fontWeight: 700, padding: "5px 11px", borderRadius: 7,
+                    background: "rgba(255,255,255,0.15)", color: "#E0E7FF",
+                    border: "1px solid rgba(255,255,255,0.25)",
                   }}>
                     {svc}
                   </span>

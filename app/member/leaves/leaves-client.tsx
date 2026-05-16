@@ -219,27 +219,33 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
 
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
         <div style={{
-          background: "linear-gradient(135deg, #1A1560 0%, #130F52 55%, #0D0A3E 100%)",
+          background: "#FFFFFF",
           position: "relative", overflow: "hidden", height: 260,
-          boxShadow: "0 8px 40px rgba(10,8,60,0.5)",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+          borderBottom: "1px solid #EBEDF2",
         }}>
-          {/* Decorative circles */}
-          <div style={{ position: "absolute", top: -60, left: -40, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", bottom: -50, right: 220, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
-          <div style={{ position: "absolute", top: -20, right: -20, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.03)", pointerEvents: "none" }} />
+          {/* Red radial glow — top left */}
+          <div style={{ position: "absolute", top: -70, left: -70, width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(222,26,26,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
+          {/* Blue radial glow — top right */}
+          <div style={{ position: "absolute", top: -60, right: -60, width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
+          {/* Subtle bottom fade */}
+          <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 70, background: "linear-gradient(to top, rgba(248,249,252,0.7), transparent)", pointerEvents: "none" }} />
 
           {/* Left: text */}
           <div style={{ position: "absolute", left: 32, top: 26, zIndex: 2 }}>
-            {/* Badge */}
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 20, padding: "5px 14px", marginBottom: 14 }}>
+            {/* Badge — red gradient */}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)", borderRadius: 20, padding: "5px 14px", marginBottom: 14, boxShadow: "0 4px 14px rgba(222,26,26,0.3)" }}>
               <span style={{ fontSize: 13 }}>⭐</span>
               <span style={{ fontSize: 12, fontWeight: 700, color: "#FFFFFF" }}>Leave Management</span>
             </div>
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", fontWeight: 600, margin: "0 0 6px" }}>Hello, {userName}! 👋</p>
-            <h1 style={{ fontSize: "clamp(26px,3vw,40px)", fontWeight: 900, letterSpacing: "-0.025em", lineHeight: 1.05, fontFamily: "var(--font-jakarta)", margin: "0 0 10px", color: "#FFFFFF" }}>
-              Leave Requests
+            <p style={{ fontSize: 12, color: "#6B7280", fontWeight: 600, margin: "0 0 6px" }}>Hello, {userName}! 👋</p>
+            <h1 style={{ fontSize: "clamp(26px,3vw,40px)", fontWeight: 900, letterSpacing: "-0.025em", lineHeight: 1.05, fontFamily: "var(--font-jakarta)", margin: "0 0 10px", color: "#111111" }}>
+              Leave{" "}
+              <span style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #6366F1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                Requests
+              </span>
             </h1>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: 0, lineHeight: 1.65, maxWidth: 260 }}>
+            <p style={{ fontSize: 13, color: "#6B7280", margin: 0, lineHeight: 1.65, maxWidth: 260 }}>
               Apply for leave and track your requests<br />in one beautiful place.
             </p>
           </div>
@@ -254,17 +260,19 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
           <div style={{ position: "absolute", right: 28, top: 20, zIndex: 3, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ position: "relative" }}>
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Bell size={18} style={{ color: "#FFFFFF" }} />
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: "#F5F6FA", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Bell size={18} style={{ color: "#374151" }} />
                 </div>
-                <span style={{ position: "absolute", top: -5, right: -5, width: 18, height: 18, background: "#FACC15", borderRadius: "50%", fontSize: 9, fontWeight: 800, color: "#0D0A3E", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #0D0A3E" }}>3</span>
+                <span style={{ position: "absolute", top: -5, right: -5, width: 18, height: 18, background: "#DE1A1A", borderRadius: "50%", fontSize: 9, fontWeight: 800, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>3</span>
               </div>
-              <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg,#6366F1,#8B5CF6)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, border: "2.5px solid #6EE7B7" }}>
+              {/* Avatar — blue gradient */}
+              <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, border: "2.5px solid #A5B4FC", boxShadow: "0 4px 14px rgba(99,102,241,0.4)" }}>
                 {userName.slice(0, 2).toUpperCase()}
               </div>
             </div>
+            {/* Apply Leave — red gradient */}
             <button onClick={() => setShowForm(true)}
-              style={{ display: "flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 14, background: "#FFFFFF", color: "#130F52", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 6px 24px rgba(0,0,0,0.3)", whiteSpace: "nowrap" }}>
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 14, background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)", color: "#FFFFFF", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 6px 24px rgba(222,26,26,0.35)", whiteSpace: "nowrap" }}>
               <Plus size={16} strokeWidth={2.5} /> Apply Leave
             </button>
           </div>

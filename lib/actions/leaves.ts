@@ -196,7 +196,8 @@ export async function updateLeaveStatus(
   const claims = session?.access_token
     ? (() => { try { return JSON.parse(atob(session.access_token.split('.')[1])) } catch { return null } })()
     : null
-  if (claims?.role !== 'ADMIN') return { success: false, error: 'Admin only' }
+  const role = claims?.role ?? claims?.user_metadata?.role ?? claims?.app_metadata?.role
+  if (role !== 'ADMIN') return { success: false, error: 'Admin only' }
 
   type LeaveWithUser = {
     from_date: string

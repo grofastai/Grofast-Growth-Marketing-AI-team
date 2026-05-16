@@ -249,11 +249,19 @@ export default function LeavesClient({
   function navigate(s: string) { router.push(`${pathname}?status=${s}`) }
   function handleApprove(id: string) {
     setActionId(id + "approved")
-    startTransition(async () => { await updateLeaveStatus(id, "approved"); setActionId(null) })
+    startTransition(async () => {
+      const result = await updateLeaveStatus(id, "approved")
+      setActionId(null)
+      if (result.success) router.refresh()
+    })
   }
   function handleReject(id: string) {
     setActionId(id + "rejected")
-    startTransition(async () => { await updateLeaveStatus(id, "rejected"); setActionId(null) })
+    startTransition(async () => {
+      const result = await updateLeaveStatus(id, "rejected")
+      setActionId(null)
+      if (result.success) router.refresh()
+    })
   }
 
   const vacationItems = upcomingLeaves.length > 0 ? upcomingLeaves : []

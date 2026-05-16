@@ -386,52 +386,57 @@ export default function DailyUpdateForm({
       <div className="p-4 md:p-6 flex flex-col gap-[18px]" style={{ background:"#F5F6FA", minHeight:"100vh" }}>
 
         {/* Rich header */}
-        <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", flexWrap:"wrap" }}>
+        <div style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:20, padding:"18px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, boxShadow:"0 8px 32px rgba(180,0,0,0.35)", flexWrap:"wrap", position:"relative", overflow:"hidden" }}>
+          <div style={{ position:"absolute", top:-50, right:-30, width:200, height:200, borderRadius:"50%", background:"rgba(255,255,255,0.05)", pointerEvents:"none" }} />
+          <div style={{ position:"absolute", bottom:-40, left:60, width:150, height:150, borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }} />
 
-          {/* Title + date */}
-          <div style={{ flexShrink:0 }}>
-            <h1 style={{ fontSize:26, fontWeight:900, color:"#111111", fontFamily:"var(--font-jakarta)", margin:"0 0 3px" }}>
-              Daily <span style={{ color:"#DE1A1A" }}>Update</span>
+          {/* Badge + Title + date */}
+          <div style={{ flexShrink:0, position:"relative", zIndex:1 }}>
+            <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(255,255,255,0.15)", color:"#fff", marginBottom:10, border:"1px solid rgba(255,255,255,0.2)", letterSpacing:"0.04em" }}>
+              ⭐ Daily Update
+            </span>
+            <h1 style={{ fontSize:26, fontWeight:900, color:"#fff", fontFamily:"var(--font-jakarta)", margin:"0 0 3px" }}>
+              Daily Update
             </h1>
-            <p style={{ fontSize:11, color:"#9CA3AF", margin:0 }}>{dateLabel}</p>
+            <p style={{ fontSize:11, color:"rgba(255,255,255,0.65)", margin:0 }}>{dateLabel}</p>
           </div>
 
           {/* Girl greeting card */}
-          <div style={{ display:"flex", alignItems:"center", borderRadius:16, overflow:"hidden", background:"rgba(222,26,26,0.03)", border:"1px solid rgba(222,26,26,0.12)", flex:1, maxWidth:340 }}>
+          <div style={{ display:"flex", alignItems:"center", borderRadius:16, overflow:"hidden", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", flex:1, maxWidth:340, position:"relative", zIndex:1 }}>
             <div style={{ position:"relative", width:70, height:80, flexShrink:0 }}>
               <Image src="/brand/assistant-girl.jpg" alt="" fill style={{ objectFit:"cover", objectPosition:"top center" }} />
             </div>
             <div style={{ padding:"10px 16px" }}>
-              <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:"0 0 3px", fontFamily:"var(--font-jakarta)" }}>
+              <p style={{ fontSize:13, fontWeight:800, color:"#fff", margin:"0 0 3px", fontFamily:"var(--font-jakarta)" }}>
                 {greeting}, {firstName}! 👋
               </p>
-              <p style={{ fontSize:11, color:"#6B7280", margin:0 }}>Let&apos;s make today productive.</p>
+              <p style={{ fontSize:11, color:"rgba(255,255,255,0.7)", margin:0 }}>Let&apos;s make today productive.</p>
             </div>
           </div>
 
           {/* Calendar widget */}
-          <div style={{ background:"#FAFBFC", borderRadius:16, border:"1px solid #EBEDF2", padding:"12px 18px", textAlign:"center", flexShrink:0 }}>
-            <p style={{ fontSize:10, color:"#9CA3AF", margin:"0 0 4px", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.08em" }}>{calMonth}</p>
-            <p style={{ fontSize:32, fontWeight:900, color:"#DE1A1A", margin:"0 0 2px", lineHeight:1, fontFamily:"var(--font-jakarta)" }}>{calDay}</p>
-            <p style={{ fontSize:10, color:"#6B7280", margin:0, fontWeight:600 }}>{calWeekday}</p>
+          <div style={{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", borderRadius:16, padding:"12px 18px", textAlign:"center", flexShrink:0, position:"relative", zIndex:1 }}>
+            <p style={{ fontSize:10, color:"rgba(255,255,255,0.6)", margin:"0 0 4px", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.08em" }}>{calMonth}</p>
+            <p style={{ fontSize:32, fontWeight:900, color:"#fff", margin:"0 0 2px", lineHeight:1, fontFamily:"var(--font-jakarta)" }}>{calDay}</p>
+            <p style={{ fontSize:10, color:"rgba(255,255,255,0.7)", margin:0, fontWeight:600 }}>{calWeekday}</p>
           </div>
 
           {/* Day progress ring */}
-          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, flexShrink:0 }}>
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6, flexShrink:0, position:"relative", zIndex:1 }}>
             <div style={{ position:"relative", width:80, height:80 }}>
               <svg viewBox="0 0 80 80" width="80" height="80">
-                <circle cx="40" cy="40" r={ringR} fill="none" stroke="#F3F4F6" strokeWidth="8" />
-                <circle cx="40" cy="40" r={ringR} fill="none" stroke="#DE1A1A" strokeWidth="8"
+                <circle cx="40" cy="40" r={ringR} fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
+                <circle cx="40" cy="40" r={ringR} fill="none" stroke="#FACC15" strokeWidth="8"
                   strokeDasharray={`${ringFilled} ${ringCirc}`} strokeLinecap="round"
                   transform="rotate(-90 40 40)" style={{ transition:"stroke-dasharray 0.5s ease" }} />
               </svg>
               <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <span style={{ fontSize:15, fontWeight:900, color:"#111111" }}>{dayPct}%</span>
+                <span style={{ fontSize:15, fontWeight:900, color:"#fff" }}>{dayPct}%</span>
               </div>
             </div>
             <div style={{ textAlign:"center" }}>
-              <p style={{ fontSize:10, fontWeight:700, color:"#374151", margin:"0 0 1px" }}>Day Progress</p>
-              <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>{elapsed}/{totalWorkHours} hrs</p>
+              <p style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.85)", margin:"0 0 1px" }}>Day Progress</p>
+              <p style={{ fontSize:9, color:"rgba(255,255,255,0.55)", margin:0 }}>{elapsed}/{totalWorkHours} hrs</p>
             </div>
           </div>
         </div>

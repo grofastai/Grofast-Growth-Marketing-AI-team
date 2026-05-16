@@ -250,22 +250,28 @@ export default function ProfileClient({
     <div style={{ background: "#F8F9FC", minHeight: "100vh", padding: "16px 16px 48px" }} className="md:!p-[24px_28px_48px]">
       <style>{`.pf-in::placeholder{color:rgba(0,0,0,0.25);}.pf-in:focus{border-color:rgba(222,26,26,0.5)!important;box-shadow:0 0 0 3px rgba(222,26,26,0.08)!important;}`}</style>
 
-      {/* ── TOPBAR ─────────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, margin: "0 0 4px", fontFamily: "var(--font-jakarta)" }}>
-            <span style={{ color: "#111111" }}>My </span>
-            <span style={{ color: "#DE1A1A" }}>Profile</span>
-          </h1>
-          <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>Manage your identity, documents and account settings.</p>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px 6px 6px", borderRadius: 99, background: "#fff", border: "1px solid #EBEDF2" }}>
-          <div style={{ width: 30, height: 30, borderRadius: "50%", background: "#DE1A1A", overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: "#fff" }}>
-            {profile?.photo_url
-              ? <img src={profile.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              : initials}
+      {/* ── HERO BANNER ─────────────────────────────────────────────────────── */}
+      <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius: 20, marginBottom: 20, position: "relative", overflow: "hidden", padding: "22px 24px", boxShadow: "0 8px 32px rgba(180,0,0,0.4)" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }}/>
+        <div style={{ position: "absolute", bottom: -30, left: 60, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }}/>
+        <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          <div>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", marginBottom: 10, border: "1px solid rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
+              ⭐ My Profile
+            </span>
+            <h1 style={{ fontSize: 26, fontWeight: 900, margin: "0 0 4px", fontFamily: "var(--font-jakarta)", color: "#fff" }}>
+              Manage Your Identity
+            </h1>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: 0 }}>Documents, account settings, and personal details.</p>
           </div>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>{displayName.split(" ")[0]}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px 6px 6px", borderRadius: 99, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}>
+            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#fff", overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: "#DE1A1A" }}>
+              {profile?.photo_url
+                ? <img src={profile.photo_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                : initials}
+            </div>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{displayName.split(" ")[0]}</span>
+          </div>
         </div>
       </div>
 
@@ -276,7 +282,7 @@ export default function ProfileClient({
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
           {/* DARK COMPLETION BANNER */}
-          <div style={{ background: "#111111", borderRadius: 20, overflow: "hidden", position: "relative", padding: "28px 32px", minHeight: 160 }}>
+          <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius: 20, overflow: "hidden", position: "relative", padding: "28px 32px", minHeight: 160, boxShadow: "0 8px 32px rgba(180,0,0,0.35)" }}>
             {/* Subtle dot pattern */}
             <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)", backgroundSize: "20px 20px", pointerEvents: "none" }}/>
 
@@ -292,8 +298,8 @@ export default function ProfileClient({
               <Image src="/brand/profile-boy.png" fill
                 style={{ objectFit: "contain", objectPosition: "right bottom" }} alt="" priority/>
               {/* Vignette to blend edges */}
-              <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 60% 50%, transparent 45%, #111111 80%)", pointerEvents: "none" }}/>
-              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "30%", background: "linear-gradient(to right, #111111, transparent)", pointerEvents: "none" }}/>
+              <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 60% 50%, transparent 45%, #1A0808 80%)", pointerEvents: "none" }}/>
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "30%", background: "linear-gradient(to right, #1A0808, transparent)", pointerEvents: "none" }}/>
             </div>
 
             {/* Completion content */}
@@ -302,17 +308,17 @@ export default function ProfileClient({
               <div style={{ position: "relative", width: 100, height: 100, flexShrink: 0 }}>
                 <svg width={100} height={100} viewBox="0 0 100 100" style={{ transform: "rotate(-90deg)" }}>
                   <circle cx={50} cy={50} r={42} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={9}/>
-                  <circle cx={50} cy={50} r={42} fill="none" stroke="#DE1A1A" strokeWidth={9}
+                  <circle cx={50} cy={50} r={42} fill="none" stroke="#FACC15" strokeWidth={9}
                     strokeLinecap="round" strokeDasharray={`${arc} ${circ - arc}`}/>
                 </svg>
                 <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <span style={{ fontSize: 21, fontWeight: 900, color: "#DE1A1A", fontFamily: "var(--font-jakarta)" }}>{score}%</span>
+                  <span style={{ fontSize: 21, fontWeight: 900, color: "#FACC15", fontFamily: "var(--font-jakarta)" }}>{score}%</span>
                 </div>
               </div>
               {/* Text */}
               <div>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: "#fff", margin: "0 0 6px" }}>
-                  Profile <span style={{ color: "#DE1A1A" }}>{score}%</span> complete
+                  Profile <span style={{ color: "#FACC15" }}>{score}%</span> complete
                 </h2>
                 <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", margin: "0 0 14px" }}>
                   Fill in your details to unlock full access

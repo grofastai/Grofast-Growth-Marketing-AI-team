@@ -350,10 +350,20 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
           <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
 
             {/* ── HERO BANNER ─────────────────────────────────────────────── */}
-            <div style={{ background:"#fff", borderRadius:22, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 4px 20px rgba(0,0,0,0.07)", position:"relative", minHeight:240 }}>
+            <div style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:22, overflow:"hidden", boxShadow:"0 8px 32px rgba(180,0,0,0.4)", position:"relative", minHeight:240 }}>
+              {/* Decorative circles */}
+              <div style={{ position:"absolute", top:-50, left:-50, width:220, height:220, borderRadius:"50%", background:"rgba(255,255,255,0.05)", pointerEvents:"none" }}/>
+              <div style={{ position:"absolute", bottom:-30, right:200, width:150, height:150, borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }}/>
 
-              {/* Background illustration — right 56%, stays behind left content */}
-              <div style={{ position:"absolute", right:0, top:0, bottom:0, width:"56%", zIndex:1 }}>
+              {/* Star badge */}
+              <div style={{ position:"absolute", left:28, top:22, zIndex:6 }}>
+                <span style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(255,255,255,0.15)", color:"#fff", border:"1px solid rgba(255,255,255,0.2)", letterSpacing:"0.04em" }}>
+                  ⭐ Update History
+                </span>
+              </div>
+
+              {/* Background illustration — right 56% */}
+              <div style={{ position:"absolute", right:0, top:0, bottom:0, width:"56%", zIndex:1, opacity:0.85 }}>
                 <Image
                   src="/brand/history-girl.png"
                   alt=""
@@ -361,69 +371,68 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                   style={{ objectFit:"cover", objectPosition:"center center" }}
                   priority
                 />
-                {/* Strong left fade so text is never overlapped */}
-                <div style={{ position:"absolute", left:0, top:0, bottom:0, width:"50%", background:"linear-gradient(to right,#ffffff 0%,rgba(255,255,255,0.85) 40%,transparent 100%)", zIndex:2, pointerEvents:"none" }}/>
+                {/* Fade left edge to blend with gradient */}
+                <div style={{ position:"absolute", left:0, top:0, bottom:0, width:"60%", background:"linear-gradient(to right,#8B1212 0%,rgba(139,18,18,0.5) 50%,transparent 100%)", zIndex:2, pointerEvents:"none" }}/>
               </div>
 
               {/* Heart icon top-right */}
-              <div style={{ position:"absolute", right:20, top:20, zIndex:5, width:36, height:36, borderRadius:"50%", background:"#DE1A1A", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 14px rgba(222,26,26,0.4)" }}>
+              <div style={{ position:"absolute", right:20, top:20, zIndex:5, width:36, height:36, borderRadius:"50%", background:"rgba(255,255,255,0.2)", display:"flex", alignItems:"center", justifyContent:"center" }}>
                 <span style={{ fontSize:18 }}>❤️</span>
               </div>
 
-              {/* Quote bubble — top right, above illustration */}
-              <div style={{ position:"absolute", right:64, top:22, zIndex:6, background:"#fff", borderRadius:16, padding:"10px 14px 10px 16px", boxShadow:"0 6px 24px rgba(0,0,0,0.12)", maxWidth:180, border:"1px solid #EBEDF2" }}>
+              {/* Quote bubble */}
+              <div style={{ position:"absolute", right:64, top:22, zIndex:6, background:"#fff", borderRadius:16, padding:"10px 14px 10px 16px", boxShadow:"0 6px 24px rgba(0,0,0,0.3)", maxWidth:180 }}>
                 <span style={{ fontSize:16, color:"#6B7280", lineHeight:1, display:"block", marginBottom:2 }}>"</span>
                 <p style={{ fontSize:12, fontWeight:600, color:"#374151", margin:"0 0 3px", lineHeight:1.5 }}>Discipline today</p>
                 <p style={{ fontSize:12, fontWeight:800, color:"#DE1A1A", margin:"0 0 4px" }}>Success tomorrow.</p>
                 <p style={{ fontSize:10, color:"#9CA3AF", margin:0, fontWeight:500 }}>Keep going!</p>
               </div>
 
-              {/* Left content — explicit z-index above image */}
-              <div style={{ position:"relative", zIndex:3, padding:"28px 28px 0 28px", maxWidth:"44%" }}>
-                <p style={{ fontSize:13, fontWeight:600, color:"#6B7280", margin:"0 0 10px" }}>{greeting}, {fn}! 👋</p>
-                <h2 style={{ fontSize:27, fontWeight:900, color:"#111111", margin:"0 0 4px", fontFamily:"var(--font-jakarta)", lineHeight:1.25 }}>
+              {/* Left content */}
+              <div style={{ position:"relative", zIndex:3, padding:"52px 28px 0 28px", maxWidth:"44%" }}>
+                <p style={{ fontSize:13, fontWeight:600, color:"rgba(255,255,255,0.7)", margin:"0 0 10px" }}>{greeting}, {fn}! 👋</p>
+                <h2 style={{ fontSize:27, fontWeight:900, color:"#fff", margin:"0 0 4px", fontFamily:"var(--font-jakarta)", lineHeight:1.25 }}>
                   Let&apos;s make today
                 </h2>
-                <h2 style={{ fontSize:27, fontWeight:900, color:"#DE1A1A", margin:"0 0 18px", fontFamily:"var(--font-jakarta)", lineHeight:1.25 }}>
+                <h2 style={{ fontSize:27, fontWeight:900, color:"#FACC15", margin:"0 0 18px", fontFamily:"var(--font-jakarta)", lineHeight:1.25 }}>
                   productive &amp; impactful.
                 </h2>
-                {/* Red accent bar */}
-                <div style={{ width:48, height:4, background:"linear-gradient(90deg,#DE1A1A,#F59E0B)", borderRadius:99 }}/>
+                <div style={{ width:48, height:4, background:"linear-gradient(90deg,#FACC15,#fff)", borderRadius:99 }}/>
               </div>
 
               {/* Stats strip */}
               {latest && (
                 <div style={{ position:"relative", zIndex:3, display:"flex", alignItems:"center", gap:10, padding:"20px 28px 24px", flexWrap:"wrap" }}>
                   {latestH > 0 && (
-                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:14, background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.15)" }}>
-                      <Clock size={14} style={{ color:"#EF4444" }}/>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:14, background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)" }}>
+                      <Clock size={14} style={{ color:"#FACC15" }}/>
                       <div>
-                        <p style={{ fontSize:14, fontWeight:900, color:"#111111", margin:0, lineHeight:1 }}>{fmtH(latestH)}</p>
-                        <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>Worked</p>
+                        <p style={{ fontSize:14, fontWeight:900, color:"#fff", margin:0, lineHeight:1 }}>{fmtH(latestH)}</p>
+                        <p style={{ fontSize:9, color:"rgba(255,255,255,0.6)", margin:0 }}>Worked</p>
                       </div>
                     </div>
                   )}
                   {latestOT > 0 && (
-                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:14, background:"rgba(245,158,11,0.06)", border:"1px solid rgba(245,158,11,0.18)" }}>
-                      <Zap size={14} style={{ color:"#F59E0B" }}/>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:14, background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)" }}>
+                      <Zap size={14} style={{ color:"#FACC15" }}/>
                       <div>
-                        <p style={{ fontSize:14, fontWeight:900, color:"#F59E0B", margin:0, lineHeight:1 }}>+{fmtH(latestOT)}</p>
-                        <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>Overtime</p>
+                        <p style={{ fontSize:14, fontWeight:900, color:"#FACC15", margin:0, lineHeight:1 }}>+{fmtH(latestOT)}</p>
+                        <p style={{ fontSize:9, color:"rgba(255,255,255,0.6)", margin:0 }}>Overtime</p>
                       </div>
                     </div>
                   )}
                   {latestTasks > 0 && (
-                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:14, background:"rgba(99,102,241,0.06)", border:"1px solid rgba(99,102,241,0.15)" }}>
-                      <CheckCircle2 size={14} style={{ color:"#6366F1" }}/>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 16px", borderRadius:14, background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)" }}>
+                      <CheckCircle2 size={14} style={{ color:"#6EE7B7" }}/>
                       <div>
-                        <p style={{ fontSize:14, fontWeight:900, color:"#111111", margin:0, lineHeight:1 }}>{latestTasks}</p>
-                        <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>Tasks Done</p>
+                        <p style={{ fontSize:14, fontWeight:900, color:"#fff", margin:0, lineHeight:1 }}>{latestTasks}</p>
+                        <p style={{ fontSize:9, color:"rgba(255,255,255,0.6)", margin:0 }}>Tasks Done</p>
                       </div>
                     </div>
                   )}
-                  <div style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 16px", borderRadius:14, background:latestSt.bg, border:`1px solid ${latestSt.dot}30` }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 16px", borderRadius:14, background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)" }}>
                     <div style={{ width:8, height:8, borderRadius:"50%", background:latestSt.dot }}/>
-                    <span style={{ fontSize:12, fontWeight:700, color:latestSt.color }}>{latestSt.label}</span>
+                    <span style={{ fontSize:12, fontWeight:700, color:"#fff" }}>{latestSt.label}</span>
                   </div>
                 </div>
               )}

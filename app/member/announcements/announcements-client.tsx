@@ -56,47 +56,53 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
   return (
     <div style={{ background: "#F8F9FC", minHeight: "100vh" }}>
 
-      {/* ── TOPBAR ─────────────────────────────────────────────────────────── */}
-      <div className="p-4 md:p-[16px_28px]" style={{ background: "#fff", borderBottom: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 900, color: "#DE1A1A", fontFamily: "var(--font-jakarta)", margin: 0 }}>
-            Announcements
-          </h1>
-          <p style={{ fontSize: 12, color: "#9CA3AF", margin: "3px 0 0" }}>Updates and notices from your team</p>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          {/* Search */}
-          <div style={{ position: "relative" }}>
-            <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search announcements..."
-              style={{ width: "min(230px, 100%)", background: "#F5F6FA", border: "1px solid #EBEDF2", borderRadius: 12, padding: "9px 12px 9px 34px", fontSize: 13, color: "#374151", outline: "none" }}
-            />
+      {/* ── HERO BANNER ─────────────────────────────────────────────────────── */}
+      <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", position: "relative", overflow: "hidden", boxShadow: "0 8px 32px rgba(180,0,0,0.35)" }}>
+        <div style={{ position: "absolute", top: -50, right: -50, width: 240, height: 240, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }}/>
+        <div style={{ position: "absolute", bottom: -40, left: 80, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }}/>
+        <div className="p-4 md:p-[20px_28px]" style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", marginBottom: 10, border: "1px solid rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
+              ⭐ Announcements
+            </span>
+            <h1 style={{ fontSize: 28, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)", margin: 0 }}>
+              Announcements
+            </h1>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", margin: "3px 0 0" }}>Updates and notices from your team</p>
           </div>
 
-          {/* Category dropdown */}
-          <div style={{ position: "relative" }}>
-            <button onClick={() => setCatOpen(o => !o)}
-              style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 12, background: "#fff", border: "1px solid #EBEDF2", fontSize: 13, fontWeight: 600, color: "#374151", cursor: "pointer", whiteSpace: "nowrap" }}>
-              <span style={{ fontSize: 15 }}>⊟</span>
-              {category}
-              <ChevronDown size={12} style={{ transform: catOpen ? "rotate(180deg)" : "none", transition: "0.2s" }} />
-            </button>
-            {catOpen && (
-              <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 170, overflow: "hidden" }}>
-                {CATEGORIES.map(c => (
-                  <button key={c} onClick={() => { setCategory(c); setCatOpen(false) }}
-                    style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 16px", fontSize: 13, fontWeight: c === category ? 700 : 500, color: c === category ? "#DE1A1A" : "#374151", background: c === category ? "rgba(222,26,26,0.05)" : "transparent", border: "none", cursor: "pointer" }}>
-                    {c}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {/* Search */}
+            <div style={{ position: "relative" }}>
+              <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.6)" }} />
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search announcements..."
+                style={{ width: "min(230px, 100%)", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, padding: "9px 12px 9px 34px", fontSize: 13, color: "#fff", outline: "none" }}
+              />
+            </div>
 
+            {/* Category dropdown */}
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setCatOpen(o => !o)}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 12, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer", whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: 15 }}>⊟</span>
+                {category}
+                <ChevronDown size={12} style={{ transform: catOpen ? "rotate(180deg)" : "none", transition: "0.2s" }} />
+              </button>
+              {catOpen && (
+                <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", zIndex: 50, minWidth: 170, overflow: "hidden" }}>
+                  {CATEGORIES.map(c => (
+                    <button key={c} onClick={() => { setCategory(c); setCatOpen(false) }}
+                      style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 16px", fontSize: 13, fontWeight: c === category ? 700 : 500, color: c === category ? "#DE1A1A" : "#374151", background: c === category ? "rgba(222,26,26,0.05)" : "transparent", border: "none", cursor: "pointer" }}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

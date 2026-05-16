@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { ChevronLeft, ChevronRight, CalendarDays, Send, MoreHorizontal, Eye } from "lucide-react"
+import { ChevronLeft, ChevronRight, CalendarDays, MoreHorizontal, Eye } from "lucide-react"
 
 interface Performer {
   name: string
@@ -135,38 +135,64 @@ export default function ReportsClient({
   return (
     <div style={{ padding: "20px 16px 40px", background: "#F8F9FB", minHeight: "100vh" }} className="sm:px-7">
 
-      {/* ── Page Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between" style={{ marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 28, fontWeight: 800, color: "#111827", fontFamily: "var(--font-jakarta)", lineHeight: 1.2, margin: 0 }}>
-            Daily Intelligence
+      {/* ── Purple Hero Banner ───────────────────────────────────────────────── */}
+      <div style={{
+        background: "linear-gradient(135deg, #4C3CE8 0%, #3B2FCC 50%, #2D1FA3 100%)",
+        borderRadius: 24, marginBottom: 24,
+        position: "relative", overflow: "hidden",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        minHeight: 200, padding: "28px 28px 28px 32px",
+        boxShadow: "0 12px 40px rgba(76,60,232,0.35)",
+      }}>
+        {/* Decorative circles */}
+        <div style={{ position: "absolute", top: -50, right: 220, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.07)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -70, right: 60, width: 280, height: 280, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: -30, left: -30, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+
+        {/* Left content */}
+        <div style={{ position: "relative", zIndex: 1, flex: 1, minWidth: 0 }}>
+          {/* Badge */}
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "5px 14px", marginBottom: 14, border: "1px solid rgba(255,255,255,0.2)" }}>
+            <span style={{ fontSize: 13 }}>⭐</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#FFF" }}>Daily Intelligence</span>
+          </div>
+
+          <h1 style={{ fontSize: 26, fontWeight: 900, color: "#FFF", margin: "0 0 6px", fontFamily: "var(--font-jakarta)", lineHeight: 1.25 }}>
+            {getLongDate(date)}
           </h1>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-            <span style={{ fontSize: 13, color: "#6B7280" }}>{getLongDate(date)}</span>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", margin: "0 0 22px" }}>
+            {hasData
+              ? `${presentCount} members reported · ${totalHours.toFixed(1)}h total · ${totalLearning.toFixed(1)}h learning`
+              : "No daily updates submitted yet — check back soon."}
+          </p>
+
+          {/* Date nav */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <button onClick={() => router.push(`/admin/reports?date=${prevDay}`)}
+              style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#FFF" }}>
+              <ChevronLeft size={16} />
+            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 14px" }}>
+              <CalendarDays size={14} style={{ color: "rgba(255,255,255,0.8)" }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#FFF" }}>
+                {date.split("-").reverse().join("-")}
+              </span>
+            </div>
+            <button onClick={() => !isToday && router.push(`/admin/reports?date=${nextDay}`)}
+              style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", cursor: isToday ? "not-allowed" : "pointer", color: "#FFF", opacity: isToday ? 0.35 : 1 }}>
+              <ChevronRight size={16} />
+            </button>
             {isToday && (
-              <span style={{ fontSize: 11, fontWeight: 700, background: "rgba(249,115,22,0.12)", color: "#F97316", borderRadius: 20, padding: "2px 10px" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, background: "rgba(253,186,116,0.2)", color: "#FDBA74", borderRadius: 20, padding: "4px 12px", border: "1px solid rgba(253,186,116,0.3)" }}>
                 Today
               </span>
             )}
           </div>
         </div>
 
-        {/* Date nav */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <button onClick={() => router.push(`/admin/reports?date=${prevDay}`)}
-            style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#6B7280" }}>
-            <ChevronLeft size={16} />
-          </button>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 10, padding: "6px 14px" }}>
-            <CalendarDays size={15} style={{ color: "#DE1A1A" }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
-              {date.split("-").reverse().join("-")}
-            </span>
-          </div>
-          <button onClick={() => !isToday && router.push(`/admin/reports?date=${nextDay}`)}
-            style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", cursor: isToday ? "not-allowed" : "pointer", color: isToday ? "#D1D5DB" : "#6B7280", opacity: isToday ? 0.4 : 1 }}>
-            <ChevronRight size={16} />
-          </button>
+        {/* Right: illustration */}
+        <div className="hidden sm:block" style={{ position: "relative", width: 190, height: 190, flexShrink: 0, zIndex: 1 }}>
+          <Image src="/brand/report/team.png" alt="Team" fill style={{ objectFit: "contain", objectPosition: "center bottom" }} />
         </div>
       </div>
 
@@ -225,69 +251,23 @@ export default function ReportsClient({
         {/* ── Main column ─────────────────────────────────────────────────────── */}
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 20 }}>
 
-          {/* Hero card: illustration + empty state or stats */}
-          <div style={{ background: "#FFF", borderRadius: 16, border: "1px solid #F3F4F6", overflow: "hidden" }}>
-            <div className="flex flex-col sm:flex-row sm:items-center" style={{ minHeight: 260 }}>
-              {/* Illustration */}
-              <div className="relative w-full sm:w-auto sm:flex-shrink-0" style={{ height: 200, maxWidth: "100%" }}>
-                <div className="hidden sm:block" style={{ width: 340, height: 260, position: "relative" }}>
-                  <Image src="/brand/report/team.png" alt="Team" fill style={{ objectFit: "cover", objectPosition: "center" }} />
-                </div>
-                <div className="block sm:hidden" style={{ position: "relative", width: "100%", height: 200 }}>
-                  <Image src="/brand/report/team.png" alt="Team" fill style={{ objectFit: "cover", objectPosition: "center" }} />
-                </div>
-              </div>
-              {/* Content */}
-              <div style={{ flex: 1, padding: "24px 24px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 16 }} className="sm:px-10 sm:py-8">
-                {!hasData ? (
-                  <>
-                    <div style={{ width: 48, height: 48, background: "#FFF5F5", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#DE1A1A" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-                      </svg>
+          {/* Top Performers strip (only when data exists) */}
+          {hasData && topPerformers.length > 0 && (
+            <div style={{ background: "#FFF", borderRadius: 16, border: "1px solid #F3F4F6", padding: "16px 20px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#6B7280", flexShrink: 0 }}>Top Performers</span>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {topPerformers.slice(0, 5).map((p) => (
+                  <div key={p.employee_id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F9FAFB", borderRadius: 20, padding: "4px 12px 4px 4px", border: "1px solid #F3F4F6" }}>
+                    <div style={{ width: 26, height: 26, borderRadius: "50%", background: avatarColor(p.name), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: "#FFF" }}>{getInitials(p.name)}</span>
                     </div>
-                    <div>
-                      <p style={{ fontSize: 20, fontWeight: 700, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-                        No updates submitted today
-                      </p>
-                      <p style={{ fontSize: 13, color: "#6B7280", margin: "6px 0 0" }}>
-                        Team members haven't submitted their daily reports yet.
-                      </p>
-                    </div>
-                    <button style={{
-                      display: "flex", alignItems: "center", gap: 8,
-                      background: "#DE1A1A", color: "#FFF", border: "none", borderRadius: 10,
-                      padding: "11px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer"
-                    }}>
-                      Request Updates <Send size={14} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <p style={{ fontSize: 20, fontWeight: 700, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-                      {presentCount} members reported today
-                    </p>
-                    <p style={{ fontSize: 13, color: "#6B7280", margin: "6px 0 0" }}>
-                      {totalHours.toFixed(1)}h total · {totalLearning.toFixed(1)}h learning · {absentCount} absent
-                    </p>
-                    {topPerformers.length > 0 && (
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-                        {topPerformers.slice(0, 3).map((p) => (
-                          <div key={p.employee_id} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F9FAFB", borderRadius: 20, padding: "4px 12px 4px 4px", border: "1px solid #F3F4F6" }}>
-                            <div style={{ width: 26, height: 26, borderRadius: "50%", background: avatarColor(p.name), display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <span style={{ fontSize: 9, fontWeight: 700, color: "#FFF" }}>{getInitials(p.name)}</span>
-                            </div>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{p.name.split(" ")[0]}</span>
-                            <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>{p.hours.toFixed(1)}h</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{p.name.split(" ")[0]}</span>
+                    <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>{p.hours.toFixed(1)}h</span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
 
           {/* Standing Issues Table */}
           {(overdueTasks.length > 0 || overdueProjects.length > 0) && (

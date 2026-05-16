@@ -399,10 +399,17 @@ export default function PayrollClient({
     <div style={{ padding: "20px 24px", maxWidth: 1400, margin: "0 auto" }}>
 
       {/* ── Page header ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>Payroll</h1>
-          <p style={{ fontSize: 13, color: "#9CA3AF", margin: "4px 0 0" }}>Monthly salary breakdown for your team</p>
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 12,
+        background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
+        borderRadius: 20, padding: "20px 24px",
+        boxShadow: "0 8px 32px rgba(180,0,0,0.35)",
+        position: "relative", overflow: "hidden",
+      }}>
+        <div style={{ position: "absolute", top: -30, right: 120, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <h1 style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", margin: 0, fontFamily: "var(--font-jakarta)" }}>Payroll</h1>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: "4px 0 0" }}>Monthly salary breakdown for your team</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 12, background: "#fff", border: "1.5px solid #E5E7EB" }}>
@@ -433,36 +440,37 @@ export default function PayrollClient({
           {/* Hero Banner */}
           <div className="grid grid-cols-1 md:grid-cols-[55%_45%]" style={{
             borderRadius: 22, overflow: "hidden",
-            background: "linear-gradient(135deg, #FFF8F5, #FFF3EE)",
-            border: "1.5px solid #FFE0D0", minHeight: 210,
+            background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
+            boxShadow: "0 8px 40px rgba(180,0,0,0.4)", minHeight: 210,
+            position: "relative",
           }}>
-            <div style={{ position: "relative", minHeight: 210 }}>
+            <div style={{ position: "absolute", top: -40, left: -30, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+            <div style={{ position: "relative", minHeight: 210, zIndex: 1 }}>
               <Image
                 src="/brand/payroll/hero-finance.png"
                 alt="Payroll Hero"
                 fill
-                style={{ objectFit: "cover", objectPosition: "center top" }}
+                style={{ objectFit: "cover", objectPosition: "center top", opacity: 0.85 }}
               />
             </div>
-            <div className="grid grid-cols-2" style={{ padding: "18px 20px", gap: 12, alignContent: "start" }}>
+            <div className="grid grid-cols-2" style={{ padding: "18px 20px", gap: 12, alignContent: "start", position: "relative", zIndex: 1 }}>
               {[
-                { label: "Salary Processed", value: `${processedPct}%`,    sub: fmt(totalBase > 0 ? totalNet : 0), icon: "💰", color: "#16A34A" },
-                { label: "Pending Salaries", value: `${pendingCount}`,      sub: "Not configured",                  icon: "⏳", color: "#F97316" },
-                { label: "OT & Bonus",       value: fmtK(totalOT),          sub: "+12% this month",                 icon: "🎁", color: "#8B5CF6" },
-                { label: "Employee Count",   value: `${rows.length}`,       sub: "+2 this month",                   icon: "👥", color: "#3B82F6" },
+                { label: "Salary Processed", value: `${processedPct}%`,    sub: fmt(totalBase > 0 ? totalNet : 0), icon: "💰", color: "#6EE7B7" },
+                { label: "Pending Salaries", value: `${pendingCount}`,      sub: "Not configured",                  icon: "⏳", color: "#FACC15" },
+                { label: "OT & Bonus",       value: fmtK(totalOT),          sub: "+12% this month",                 icon: "🎁", color: "#C4B5FD" },
+                { label: "Employee Count",   value: `${rows.length}`,       sub: `${monthName}`,                    icon: "👥", color: "#93C5FD" },
               ].map((s) => (
                 <div key={s.label} style={{
-                  background: "rgba(255,255,255,0.88)", backdropFilter: "blur(12px)",
+                  background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)",
                   borderRadius: 16, padding: "13px 14px",
-                  border: "1px solid rgba(255,255,255,0.8)",
-                  boxShadow: "0 2px 14px rgba(0,0,0,0.05)",
+                  border: "1px solid rgba(255,255,255,0.2)",
                 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
-                    <span style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600 }}>{s.label}</span>
+                    <span style={{ fontSize: 10, color: "rgba(255,255,255,0.75)", fontWeight: 600 }}>{s.label}</span>
                     <span style={{ fontSize: 20 }}>{s.icon}</span>
                   </div>
                   <div style={{ fontSize: 24, fontWeight: 900, color: s.color, fontFamily: "var(--font-jakarta)", lineHeight: 1, marginBottom: 4 }}>{s.value}</div>
-                  <div style={{ fontSize: 10, color: "#9CA3AF" }}>{s.sub}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.6)" }}>{s.sub}</div>
                 </div>
               ))}
             </div>

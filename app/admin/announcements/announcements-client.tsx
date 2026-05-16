@@ -65,13 +65,13 @@ function EngagementDonut({ pct }: { pct: number }) {
           <stop offset="100%" stopColor="#8B5CF6" />
         </linearGradient>
       </defs>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F3F4F6" strokeWidth={13} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth={13} />
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="url(#engGrad)" strokeWidth={13}
         strokeDasharray={`${dash} ${circ - dash}`} strokeLinecap="round"
         transform={`rotate(-90 ${cx} ${cy})`}
-        style={{ filter: "drop-shadow(0 2px 8px rgba(59,130,246,0.35))" }} />
-      <text x={cx} y={cy - 6} textAnchor="middle" fontSize={18} fontWeight={800} fill="#111">{pct}%</text>
-      <text x={cx} y={cy + 10} textAnchor="middle" fontSize={9} fill="#9CA3AF">Engaged</text>
+        style={{ filter: "drop-shadow(0 2px 8px rgba(255,100,100,0.5))" }} />
+      <text x={cx} y={cy - 6} textAnchor="middle" fontSize={18} fontWeight={800} fill="#FFFFFF">{pct}%</text>
+      <text x={cx} y={cy + 10} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.7)">Engaged</text>
     </svg>
   )
 }
@@ -407,26 +407,35 @@ export default function AnnouncementsClient({
         {/* ─────────── RIGHT: Sidebar ─────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {/* Team Engagement */}
-          <div style={{ borderRadius: 20, padding: 20, background: "#fff", border: "1.5px solid #E5E7EB", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#111", margin: "0 0 4px" }}>Team Engagement</h3>
-            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 16px" }}>Communication reach rate</p>
-            <EngagementDonut pct={engPct} />
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 16 }}>
-              <div style={{ textAlign: "center", padding: "10px 8px", borderRadius: 12, background: "#F8FAFF" }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: "#3B82F6" }}>{announcements.length}</div>
-                <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 500 }}>Total Posts</div>
-              </div>
-              <div style={{ textAlign: "center", padding: "10px 8px", borderRadius: 12, background: "#FFF5F5" }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: "#E53935" }}>{pinnedCount}</div>
-                <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 500 }}>Pinned</div>
-              </div>
-              <div style={{ textAlign: "center", padding: "10px 8px", borderRadius: 12, background: "#F0FDF4" }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: "#16A34A" }}>{memberCount}</div>
-                <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 500 }}>Members</div>
-              </div>
-              <div style={{ textAlign: "center", padding: "10px 8px", borderRadius: 12, background: "#FAF5FF" }}>
-                <div style={{ fontSize: 18, fontWeight: 800, color: "#9333EA" }}>{engPct}%</div>
-                <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 500 }}>Read Rate</div>
+          <div style={{
+            borderRadius: 20, padding: 20,
+            background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 50%, #1A0808 100%)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            boxShadow: "0 8px 32px rgba(180,0,0,0.4)",
+            position: "relative", overflow: "hidden",
+          }}>
+            <div style={{ position: "absolute", top: -30, right: -20, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+            <div style={{ position: "relative", zIndex: 1 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: "#FFFFFF", margin: "0 0 4px" }}>Team Engagement</h3>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", margin: "0 0 16px" }}>Communication reach rate</p>
+              <EngagementDonut pct={engPct} />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 16 }}>
+                <div style={{ textAlign: "center", padding: "10px 8px", borderRadius: 12, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)" }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#FFFFFF" }}>{announcements.length}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>Total Posts</div>
+                </div>
+                <div style={{ textAlign: "center", padding: "10px 8px", borderRadius: 12, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)" }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#FACC15" }}>{pinnedCount}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>Pinned</div>
+                </div>
+                <div style={{ textAlign: "center", padding: "10px 8px", borderRadius: 12, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)" }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#6EE7B7" }}>{memberCount}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>Members</div>
+                </div>
+                <div style={{ textAlign: "center", padding: "10px 8px", borderRadius: 12, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)" }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: "#C4B5FD" }}>{engPct}%</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", fontWeight: 500 }}>Read Rate</div>
+                </div>
               </div>
             </div>
           </div>

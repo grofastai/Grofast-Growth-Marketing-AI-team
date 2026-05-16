@@ -545,16 +545,22 @@ export default function ExpensesClient({
   ]
 
   return (
-    <div className="min-h-screen" style={{ background: "linear-gradient(160deg, #FFF8F8 0%, #FFFDF5 60%, #F8F6FF 100%)" }}>
+    <div className="min-h-screen" style={{ background: "#F8F9FB" }}>
       <div className="p-4 md:p-6 xl:p-8 max-w-[1400px] mx-auto space-y-6">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-[32px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+        <div className="flex items-start justify-between gap-4 flex-wrap" style={{
+          background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)",
+          borderRadius: 20, padding: "22px 24px",
+          boxShadow: "0 8px 32px rgba(180,0,0,0.35)",
+          position: "relative", overflow: "hidden",
+        }}>
+          <div style={{ position: "absolute", top: -30, right: 80, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <h1 className="text-[32px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>
               Analytics &amp; Expenses
             </h1>
-            <p className="text-sm mt-1" style={{ color: "#6B7280" }}>
+            <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.72)" }}>
               Per-client cost breakdown, profitability, and expense claim review
             </p>
           </div>
@@ -583,9 +589,9 @@ export default function ExpensesClient({
         <div className="grid grid-cols-1 lg:grid-cols-[45%_1fr] gap-5">
           {/* Pixar illustration */}
           <div className="relative rounded-3xl overflow-hidden flex items-end justify-center"
-            style={{ minHeight: 260, background: "linear-gradient(135deg, #FFF3E0 0%, #FFE8C8 50%, #FFF0D0 100%)", boxShadow: "0 8px 40px rgba(0,0,0,0.08)" }}>
-            <div className="absolute inset-0 opacity-20"
-              style={{ background: "radial-gradient(circle at 70% 30%, #FFB347 0%, transparent 60%)" }} />
+            style={{ minHeight: 260, background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", boxShadow: "0 8px 40px rgba(180,0,0,0.45)" }}>
+            <div style={{ position: "absolute", top: -40, right: -30, width: 180, height: 180, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", bottom: -30, left: 30, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
             <Image
               src="/brand/expenses-hero.png"
               alt="Analytics illustration"

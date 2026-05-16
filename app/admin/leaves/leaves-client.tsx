@@ -245,22 +245,25 @@ export default function LeavesClient({
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
   const [actionId, setActionId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   function navigate(s: string) { router.push(`${pathname}?status=${s}`) }
   function handleApprove(id: string) {
     setActionId(id + "approved")
+    setActionError(null)
     startTransition(async () => {
       const result = await updateLeaveStatus(id, "approved")
       setActionId(null)
-      if (result.success) router.refresh()
+      if (result.success) { router.refresh() } else { setActionError(result.error ?? "Failed to approve") }
     })
   }
   function handleReject(id: string) {
     setActionId(id + "rejected")
+    setActionError(null)
     startTransition(async () => {
       const result = await updateLeaveStatus(id, "rejected")
       setActionId(null)
-      if (result.success) router.refresh()
+      if (result.success) { router.refresh() } else { setActionError(result.error ?? "Failed to reject") }
     })
   }
 
@@ -271,6 +274,13 @@ export default function LeavesClient({
 
   return (
     <div style={{ padding: "24px 24px 40px", background: "#F8F9FB", minHeight: "100vh" }}>
+
+      {/* ── Action error toast ────────────────────────────────────────────── */}
+      {actionError && (
+        <div onClick={() => setActionError(null)} style={{ position: "fixed", top: 20, right: 20, zIndex: 9999, background: "#FEE2E2", border: "1px solid #FECACA", borderRadius: 12, padding: "12px 18px", fontSize: 13, fontWeight: 600, color: "#B91C1C", cursor: "pointer", boxShadow: "0 4px 16px rgba(0,0,0,0.1)" }}>
+          ✕ {actionError}
+        </div>
+      )}
 
       {/* ── Header Banner ─────────────────────────────────────────────────── */}
       <div style={{

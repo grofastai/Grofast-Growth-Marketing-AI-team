@@ -108,22 +108,24 @@ function AvailabilityDonut({ pct, size = 160 }: { pct: number; size?: number }) 
   const sw = size * 0.1
   const onTrack = (pct / 100) * circ
   const offTrack = circ - onTrack
-  const color = pct >= 80 ? "#10B981" : pct >= 60 ? "#F59E0B" : "#EF4444"
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {/* Track */}
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F3F4F6" strokeWidth={sw} />
-      {/* Fill */}
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={sw}
+      <defs>
+        <linearGradient id="availGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#FF6B6B" />
+          <stop offset="100%" stopColor="#FACC15" />
+        </linearGradient>
+      </defs>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth={sw} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="url(#availGrad)" strokeWidth={sw}
         strokeDasharray={`${onTrack} ${offTrack}`} strokeLinecap="round"
-        transform={`rotate(-90 ${cx} ${cy})`} style={{ transition: "stroke-dasharray 0.6s" }} />
-      {/* Percentage */}
+        transform={`rotate(-90 ${cx} ${cy})`}
+        style={{ transition: "stroke-dasharray 0.6s", filter: "drop-shadow(0 2px 8px rgba(255,100,100,0.5))" }} />
       <text x={cx} y={cy - size * 0.04} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.2} fontWeight="900" fill="#111827">{pct}%</text>
-      {/* Label */}
+        fontSize={size * 0.2} fontWeight="900" fill="#FFFFFF">{pct}%</text>
       <text x={cx} y={cy + size * 0.15} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.09} fill="#9CA3AF">Team Available</text>
+        fontSize={size * 0.09} fill="rgba(255,255,255,0.7)">Team Available</text>
     </svg>
   )
 }
@@ -257,41 +259,44 @@ export default function LeavesClient({
   const vacationItems = upcomingLeaves.length > 0 ? upcomingLeaves : []
   const donutColor = availabilityPct >= 80 ? "#10B981" : availabilityPct >= 60 ? "#F59E0B" : "#EF4444"
 
+  const gradBg = "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)"
+
   return (
     <div style={{ padding: "24px 24px 40px", background: "#F8F9FB", minHeight: "100vh" }}>
 
-      {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: 22 }}>
-        <div>
-          <h1 style={{ fontSize: 26, fontWeight: 900, color: "#111827", fontFamily: "var(--font-jakarta)", margin: 0 }}>Leave Requests</h1>
-          <p style={{ fontSize: 13, color: "#9CA3AF", margin: "3px 0 0" }}>Review and manage team leave applications</p>
+      {/* ── Header Banner ─────────────────────────────────────────────────── */}
+      <div style={{
+        background: gradBg, borderRadius: 22, padding: "24px 28px", marginBottom: 22,
+        boxShadow: "0 10px 40px rgba(180,0,0,0.38)", position: "relative", overflow: "hidden",
+        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+      }}>
+        <div style={{ position: "absolute", top: -50, right: 80, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: -40, left: -20, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+        <div style={{ position: "relative", zIndex: 1 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 20, padding: "5px 14px", marginBottom: 12 }}>
+            <span style={{ fontSize: 13 }}>⭐</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#FFF" }}>Leave Management</span>
+          </div>
+          <h1 style={{ fontSize: 26, fontWeight: 900, color: "#FFFFFF", fontFamily: "var(--font-jakarta)", margin: "0 0 4px" }}>Leave Requests</h1>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: 0 }}>Review and manage team leave applications</p>
+        </div>
+        {/* Stat pills in header */}
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", position: "relative", zIndex: 1 }}>
+          {[
+            { label: "Pending",  value: pendingCount,        color: "#FACC15" },
+            { label: "Approved", value: approvedCount,       color: "#6EE7B7" },
+            { label: "Rejected", value: rejectedCount,       color: "#FCA5A5" },
+            { label: "On Leave", value: onLeaveToday.length, color: "#C4B5FD" },
+          ].map(s => (
+            <div key={s.label} style={{ textAlign: "center", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: "10px 18px", minWidth: 72 }}>
+              <div style={{ fontSize: 24, fontWeight: 900, color: s.color, fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.72)", fontWeight: 600, marginTop: 3 }}>{s.label}</div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* ── 4 Stat Cards ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        {[
-          { label: "Pending",       value: pendingCount,   icon: Clock,         iconBg: "rgba(245,158,11,0.12)",  iconColor: "#F59E0B", valueColor: "#F59E0B" },
-          { label: "Approved",      value: approvedCount,  icon: CheckCircle2,  iconBg: "rgba(16,185,129,0.12)",  iconColor: "#10B981", valueColor: "#10B981" },
-          { label: "Rejected",      value: rejectedCount,  icon: XOctagon,      iconBg: "rgba(239,68,68,0.1)",    iconColor: "#EF4444", valueColor: "#EF4444" },
-          { label: "On Leave Today",value: onLeaveToday.length, icon: Users,    iconBg: "rgba(99,102,241,0.1)",   iconColor: "#6366F1", valueColor: "#6366F1" },
-        ].map((s) => {
-          const Icon = s.icon
-          return (
-            <div key={s.label} style={{ background: "#FFFFFF", borderRadius: 16, padding: "16px 18px", border: "1px solid #F0F1F5", boxShadow: "0 2px 10px rgba(0,0,0,0.04)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: s.iconBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <Icon size={16} style={{ color: s.iconColor }} />
-                </div>
-                <p style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</p>
-              </div>
-              <p style={{ fontSize: 32, fontWeight: 900, color: s.valueColor, margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>{s.value}</p>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-5">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_268px] gap-5">
 
         {/* ── Main Column ─────────────────────────────────────────────────── */}
         <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -302,11 +307,11 @@ export default function LeavesClient({
               const active = statusFilter === tab.key
               return (
                 <button key={tab.key} onClick={() => navigate(tab.key)} style={{
-                  padding: "8px 20px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  padding: "8px 22px", borderRadius: 24, fontSize: 12, fontWeight: 700, cursor: "pointer",
                   whiteSpace: "nowrap", transition: "all 0.15s", border: "none",
-                  background: active ? tab.color : "#FFFFFF",
+                  background: active ? gradBg : "#FFFFFF",
                   color: active ? "#FFFFFF" : "#6B7280",
-                  boxShadow: active ? `0 4px 12px ${tab.color}40` : "0 1px 4px rgba(0,0,0,0.06)",
+                  boxShadow: active ? "0 4px 16px rgba(180,0,0,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
                 }}>
                   {tab.label}
                 </button>
@@ -316,36 +321,41 @@ export default function LeavesClient({
 
           {/* On Leave Today strip */}
           {onLeaveToday.length > 0 && (
-            <div style={{ background: "#FFFFFF", borderRadius: 14, border: "1px solid #F0F1F5", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <CalendarDays size={14} style={{ color: "#EF4444", flexShrink: 0 }} />
-              <p style={{ fontSize: 12, fontWeight: 700, color: "#111827", margin: 0, whiteSpace: "nowrap" }}>On Leave Today:</p>
+            <div style={{
+              background: gradBg, borderRadius: 14, padding: "12px 16px",
+              display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
+              boxShadow: "0 4px 16px rgba(180,0,0,0.25)",
+            }}>
+              <CalendarDays size={14} style={{ color: "#FACC15", flexShrink: 0 }} />
+              <p style={{ fontSize: 12, fontWeight: 700, color: "#FFFFFF", margin: 0, whiteSpace: "nowrap" }}>On Leave Today:</p>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {onLeaveToday.map((m, i) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F9FAFB", borderRadius: 20, padding: "4px 10px 4px 4px", border: "1px solid #F0F1F5" }}>
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 10px 4px 4px", border: "1px solid rgba(255,255,255,0.2)" }}>
                     <div style={{ width: 24, height: 24, borderRadius: "50%", background: AVATAR_COLORS[i % AVATAR_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <span style={{ fontSize: 9, fontWeight: 800, color: "#FFF" }}>{initials(m.name)}</span>
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>{m.name.split(" ")[0]}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#FFFFFF" }}>{m.name.split(" ")[0]}</span>
                   </div>
                 ))}
               </div>
-              <span style={{ fontSize: 11, color: "#9CA3AF", marginLeft: "auto" }}>{availabilityPct}% available</span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", marginLeft: "auto" }}>{availabilityPct}% available</span>
             </div>
           )}
 
           {/* Leave Cards */}
           {leaves.length === 0 ? (
-            <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F1F5", padding: "60px 24px", textAlign: "center", position: "relative" }}>
-              <div style={{ position: "absolute", top: 16, right: 16, width: 44, height: 44, borderRadius: 12, background: "rgba(222,26,26,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <CalendarDays size={20} style={{ color: "#DE1A1A" }} />
-              </div>
+            <div style={{
+              background: gradBg, borderRadius: 18, padding: "60px 24px", textAlign: "center",
+              position: "relative", overflow: "hidden", boxShadow: "0 8px 32px rgba(180,0,0,0.3)",
+            }}>
+              <div style={{ position: "absolute", top: -30, right: -20, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
               <div style={{ position: "relative", width: 200, height: 160, margin: "0 auto 20px" }}>
                 <Image src="/brand/leave/vacation-hero.png" alt="" fill style={{ objectFit: "contain" }} />
               </div>
-              <p style={{ fontSize: 16, fontWeight: 700, color: "#111827", margin: "0 0 6px", fontFamily: "var(--font-jakarta)" }}>
+              <p style={{ fontSize: 16, fontWeight: 700, color: "#FFFFFF", margin: "0 0 6px", fontFamily: "var(--font-jakarta)" }}>
                 No {statusFilter === "all" ? "" : statusFilter} leave requests
               </p>
-              <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0 }}>Your team is fully available today.</p>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.7)", margin: 0 }}>Your team is fully available today.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
@@ -364,48 +374,62 @@ export default function LeavesClient({
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
           {/* Availability */}
-          <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F1F5", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.04)" }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: "0 0 16px", fontFamily: "var(--font-jakarta)" }}>Team Availability</p>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
-              <AvailabilityDonut pct={availabilityPct} size={160} />
-            </div>
-            {onLeaveToday.length > 0 && (
-              <div style={{ background: "rgba(239,68,68,0.05)", borderRadius: 10, padding: "10px 12px", border: "1px solid rgba(239,68,68,0.1)" }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: "#EF4444", margin: "0 0 6px" }}>{onLeaveToday.length} on leave today</p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                  {onLeaveToday.map((m, i) => (
-                    <span key={i} style={{ fontSize: 10, color: "#6B7280", background: "#F9FAFB", padding: "2px 8px", borderRadius: 20, border: "1px solid #F0F1F5" }}>
-                      {m.name.split(" ")[0]}
-                    </span>
-                  ))}
-                </div>
+          <div style={{
+            background: gradBg, borderRadius: 18, padding: "20px",
+            boxShadow: "0 8px 28px rgba(180,0,0,0.35)",
+            position: "relative", overflow: "hidden",
+          }}>
+            <div style={{ position: "absolute", top: -30, right: -20, width: 130, height: 130, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
+            <div style={{ position: "relative", zIndex: 1 }}>
+              <p style={{ fontSize: 13, fontWeight: 800, color: "#FFFFFF", margin: "0 0 16px", fontFamily: "var(--font-jakarta)" }}>Team Availability</p>
+              <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}>
+                <AvailabilityDonut pct={availabilityPct} size={160} />
               </div>
-            )}
+              {onLeaveToday.length > 0 && (
+                <div style={{ background: "rgba(255,255,255,0.12)", borderRadius: 10, padding: "10px 12px", border: "1px solid rgba(255,255,255,0.18)" }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#FACC15", margin: "0 0 6px" }}>{onLeaveToday.length} on leave today</p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                    {onLeaveToday.map((m, i) => (
+                      <span key={i} style={{ fontSize: 10, color: "#FFFFFF", background: "rgba(255,255,255,0.15)", padding: "2px 8px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.2)" }}>
+                        {m.name.split(" ")[0]}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Upcoming Leaves */}
           {vacationItems.length > 0 && (
-            <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F1F5", padding: "20px", boxShadow: "0 2px 10px rgba(0,0,0,0.04)" }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: "0 0 14px", fontFamily: "var(--font-jakarta)" }}>Upcoming Leaves</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {vacationItems.map((leave, i) => {
-                  const u = Array.isArray(leave.users) ? leave.users[0] : leave.users
-                  const name = u?.name ?? "Unknown"
-                  const type = getLeaveType(leave.reason)
-                  const emoji = LEAVE_EMOJIS[type]
-                  return (
-                    <div key={leave.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: "50%", overflow: "hidden", flexShrink: 0, position: "relative", border: "2px solid #F3F4F6" }}>
-                        <Image src={getAvatar(name, u?.gender, i)} alt={name} fill style={{ objectFit: "cover" }} />
+            <div style={{
+              background: gradBg, borderRadius: 18, padding: "20px",
+              boxShadow: "0 8px 28px rgba(180,0,0,0.3)",
+              position: "relative", overflow: "hidden",
+            }}>
+              <div style={{ position: "absolute", bottom: -20, left: -10, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+              <div style={{ position: "relative", zIndex: 1 }}>
+                <p style={{ fontSize: 13, fontWeight: 800, color: "#FFFFFF", margin: "0 0 14px", fontFamily: "var(--font-jakarta)" }}>Upcoming Leaves</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {vacationItems.map((leave, i) => {
+                    const u = Array.isArray(leave.users) ? leave.users[0] : leave.users
+                    const name = u?.name ?? "Unknown"
+                    const type = getLeaveType(leave.reason)
+                    const emoji = LEAVE_EMOJIS[type]
+                    return (
+                      <div key={leave.id} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.1)", borderRadius: 12, padding: "8px 10px", border: "1px solid rgba(255,255,255,0.15)" }}>
+                        <div style={{ width: 34, height: 34, borderRadius: "50%", overflow: "hidden", flexShrink: 0, position: "relative", border: "2px solid rgba(255,255,255,0.3)" }}>
+                          <Image src={getAvatar(name, u?.gender, i)} alt={name} fill style={{ objectFit: "cover" }} />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 12, fontWeight: 700, color: "#FFFFFF", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
+                          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", margin: "2px 0 0" }}>{fmtShort(leave.from_date)} – {fmtShort(leave.to_date)}</p>
+                        </div>
+                        <span style={{ fontSize: 20, flexShrink: 0 }}>{emoji}</span>
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 12, fontWeight: 600, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</p>
-                        <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{fmtShort(leave.from_date)} – {fmtShort(leave.to_date)}</p>
-                      </div>
-                      <span style={{ fontSize: 18, flexShrink: 0 }}>{emoji}</span>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </div>
             </div>
           )}

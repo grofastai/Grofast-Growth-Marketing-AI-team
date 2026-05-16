@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 import { CalendarCheck, CheckCircle2, Loader2, Check, X, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { updateLeaveStatus } from "@/lib/actions/leaves"
@@ -13,15 +14,20 @@ type LeaveRow = {
   users: { name: string; employee_id: string } | null
 }
 
-export default function PendingApprovalsCard({ leaves }: { leaves: LeaveRow[] }) {
+export default function PendingApprovalsCard({ leaves: initialLeaves }: { leaves: LeaveRow[] }) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [leaves, setLeaves] = useState(initialLeaves)
 
   function handleAction(leaveId: string, status: "approved" | "rejected") {
     setProcessingId(leaveId)
+    // Optimistically remove from list immediately
+    setLeaves(prev => prev.filter(l => l.id !== leaveId))
     startTransition(async () => {
       await updateLeaveStatus(leaveId, status)
       setProcessingId(null)
+      router.refresh()
     })
   }
 

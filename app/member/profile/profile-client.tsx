@@ -281,25 +281,19 @@ export default function ProfileClient({
         {/* ── LEFT COLUMN ──────────────────────────────────────────────── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
 
-          {/* DARK COMPLETION BANNER */}
-          <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius: 20, overflow: "hidden", position: "relative", padding: "28px 32px", minHeight: 160, boxShadow: "0 8px 32px rgba(180,0,0,0.35)" }}>
-            {/* Subtle dot pattern */}
-            <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)", backgroundSize: "20px 20px", pointerEvents: "none" }}/>
+          {/* COMPLETION BANNER */}
+          <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #C01010 50%, #9B1212 100%)", borderRadius: 20, overflow: "hidden", position: "relative", padding: "28px 32px", minHeight: 160, boxShadow: "0 8px 32px rgba(180,0,0,0.4)" }}>
+            {/* Decorative circles */}
+            <div style={{ position: "absolute", top: -40, right: 100, width: 180, height: 180, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }}/>
+            <div style={{ position: "absolute", bottom: -30, right: -20, width: 140, height: 140, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }}/>
+            <div style={{ position: "absolute", top: -20, left: 200, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }}/>
 
-            {/* Red decorative swirl SVG */}
-            <svg style={{ position: "absolute", right: 0, top: 0, bottom: 0, height: "100%", width: "50%", opacity: 0.55, pointerEvents: "none" }} viewBox="0 0 400 160" preserveAspectRatio="xMaxYMid slice">
-              <path d="M420,0 Q300,80 420,160" stroke="#DE1A1A" strokeWidth="90" fill="none"/>
-              <path d="M380,0 Q260,80 380,160" stroke="#9B1C1C" strokeWidth="50" fill="none" opacity="0.5"/>
-              <path d="M340,-20 Q220,80 340,180" stroke="#7F1D1D" strokeWidth="30" fill="none" opacity="0.3"/>
-            </svg>
-
-            {/* Boy illustration with dark vignette */}
-            <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "54%", zIndex: 2 }}>
+            {/* Boy illustration — blends into red */}
+            <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "50%", zIndex: 2 }}>
               <Image src="/brand/profile-boy.png" fill
                 style={{ objectFit: "contain", objectPosition: "right bottom" }} alt="" priority/>
-              {/* Vignette to blend edges */}
-              <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 60% 50%, transparent 45%, #1A0808 80%)", pointerEvents: "none" }}/>
-              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "30%", background: "linear-gradient(to right, #1A0808, transparent)", pointerEvents: "none" }}/>
+              {/* Red fade on left edge so illustration blends seamlessly */}
+              <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "50%", background: "linear-gradient(to right, #C01010, transparent)", pointerEvents: "none" }}/>
             </div>
 
             {/* Completion content */}

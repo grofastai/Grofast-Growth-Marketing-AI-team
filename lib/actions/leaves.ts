@@ -1,9 +1,18 @@
 'use server'
 
 import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { z } from 'zod'
+
+function createAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 const leaveSchema = z.object({
   leave_type:       z.enum(['full_day', 'half_day', 'permission']).default('full_day'),
@@ -188,6 +197,7 @@ export async function updateLeaveStatus(
   leaveId: string,
   status: 'approved' | 'rejected'
 ): Promise<{ success: boolean; error?: string }> {
+  // Verify caller is authenticated + is ADMIN
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
@@ -199,13 +209,16 @@ export async function updateLeaveStatus(
     .single()
   if (adminUser?.role !== 'ADMIN') return { success: false, error: 'Admin only' }
 
+  // Use service-role client so RLS doesn't block the update
+  const admin = createAdminClient()
+
   type LeaveWithUser = {
     from_date: string
     to_date: string
     users: { name: string; phone: string | null } | null
   }
 
-  const { data: leaveRaw } = await supabase
+  const { data: leaveRaw } = await admin
     .from('leaves')
     .select('from_date, to_date, users(name, phone)')
     .eq('id', leaveId)
@@ -213,7 +226,7 @@ export async function updateLeaveStatus(
 
   const leave = leaveRaw as LeaveWithUser | null
 
-  const { error } = await supabase
+  const { error } = await admin
     .from('leaves')
     .update({ status })
     .eq('id', leaveId)

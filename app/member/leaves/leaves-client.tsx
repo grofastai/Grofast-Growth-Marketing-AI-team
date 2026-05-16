@@ -241,7 +241,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
             <p style={{ fontSize: 12, color: "#6B7280", fontWeight: 600, margin: "0 0 6px" }}>Hello, {userName}! 👋</p>
             <h1 style={{ fontSize: "clamp(26px,3vw,40px)", fontWeight: 900, letterSpacing: "-0.025em", lineHeight: 1.05, fontFamily: "var(--font-jakarta)", margin: "0 0 10px", color: "#111111" }}>
               Leave{" "}
-              <span style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #6366F1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+              <span style={{ color: "#DE1A1A" }}>
                 Requests
               </span>
             </h1>

@@ -111,13 +111,14 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
         {/* ── STATS ROW ──────────────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-[14px] mb-5">
           {STAT_CARDS.map((s, i) => (
-            <div key={i} style={{ background: "#fff", borderRadius: 18, padding: "18px 20px", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-              <div style={{ width: 54, height: 54, borderRadius: 16, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>
+            <div key={i} style={{ background: "linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius: 18, padding: "18px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 6px 24px rgba(29,78,216,0.35)", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: -20, right: -20, width: 90, height: 90, borderRadius: "50%", background: "rgba(255,255,255,0.07)", pointerEvents: "none" }} />
+              <div style={{ width: 54, height: 54, borderRadius: 16, background: "rgba(255,255,255,0.18)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0, position: "relative", zIndex: 1 }}>
                 {s.emoji}
               </div>
-              <div>
-                <p style={{ fontSize: 30, fontWeight: 900, color: "#111111", margin: "0 0 3px", fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>{s.value}</p>
-                <p style={{ fontSize: 11, color: "#6B7280", margin: 0, lineHeight: 1.5 }}>
+              <div style={{ position: "relative", zIndex: 1 }}>
+                <p style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", margin: "0 0 3px", fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>{s.value}</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0, lineHeight: 1.5 }}>
                   {s.label1 && <>{s.label1}<br /></>}{s.label2}
                 </p>
               </div>

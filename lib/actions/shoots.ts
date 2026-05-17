@@ -21,7 +21,7 @@ type ShootInput = {
   team_assigned: string
   equipment_used: string
   travel_expense: number
-  travel_time_hours: number
+  travel_time_hours?: number
 }
 
 async function getCompanyId(userId: string) {

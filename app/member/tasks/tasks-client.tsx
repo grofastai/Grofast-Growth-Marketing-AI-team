@@ -446,6 +446,7 @@ export default function MemberTasksClient({
   ]
 
   return (
+    <>
     <div className="flex" style={{ background: "#F8F9FB", minHeight: "100vh" }}>
 
       {/* ═══ MAIN ════════════════════════════════════════════════════════════ */}
@@ -917,5 +918,6 @@ export default function MemberTasksClient({
         </div>
       </>
     )}
+    </>
   )
 }

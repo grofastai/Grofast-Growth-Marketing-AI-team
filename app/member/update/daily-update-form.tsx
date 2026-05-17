@@ -50,6 +50,8 @@ interface TimeBlock {
   description: string
   projectName: string
   status: "completed" | "in_progress" | "not_started"
+  isMultiClient: boolean
+  clientNames: string[]
 }
 
 // 15-min intervals: 6:00–7:00, then 9:00–22:00 (skips 7:15–8:45)
@@ -181,6 +183,7 @@ export default function DailyUpdateForm({
   const addTimeBlock = () => setTimeBlocks(p => [...p, {
     id: crypto.randomUUID(), startTime: "09:00", endTime: "10:00",
     durationHours: 1, description: "", projectName: "", status: "not_started" as const,
+    isMultiClient: false, clientNames: [],
   }])
   const patchBlock = (id: string, patch: Partial<TimeBlock>) =>
     setTimeBlocks(p => p.map(b => {
@@ -324,17 +327,19 @@ export default function DailyUpdateForm({
     const filled = timeBlocks.filter(b => b.description.trim())
     if (filled.length === 0) { setError("Add at least one time block with a description."); return }
     const work_entries = filled.map(t => ({
-      id:             t.id,
-      client_id:      projects.find(p => p.business_name === t.projectName)?.id ?? null,
-      client_name:    t.projectName || "Internal",
-      task_type:      "other" as const,
-      title:          t.description,
-      start_time:     t.startTime,
-      end_time:       t.endTime,
-      duration_hours: t.durationHours,
-      notes:          `[${t.status}]`,
-      video_uploaded: null,
-      screenshot_url: "",
+      id:              t.id,
+      client_id:       projects.find(p => p.business_name === t.projectName)?.id ?? null,
+      client_name:     t.isMultiClient ? (t.clientNames[0] || "Internal") : (t.projectName || "Internal"),
+      client_names:    t.isMultiClient ? t.clientNames : (t.projectName ? [t.projectName] : []),
+      is_multi_client: t.isMultiClient,
+      task_type:       "other" as const,
+      title:           t.description,
+      start_time:      t.startTime,
+      end_time:        t.endTime,
+      duration_hours:  t.durationHours,
+      notes:           `[${t.status}]`,
+      video_uploaded:  null,
+      screenshot_url:  "",
       video_link:     "",
       editing_videos: [],
     }))
@@ -536,6 +541,47 @@ export default function DailyUpdateForm({
                           <option value="in_progress">In Progress</option>
                           <option value="completed">Completed ✓</option>
                         </select>
+                      </div>
+                      {/* Multi-client split for tech & ops */}
+                      <div style={{ marginTop:6 }}>
+                        <label style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", fontSize:11, fontWeight:600, color:"#374151" }}>
+                          <input type="checkbox" checked={block.isMultiClient}
+                            onChange={e => patchBlock(block.id, { isMultiClient: e.target.checked, clientNames: [] })}
+                            style={{ accentColor:"#de1a1a" }} />
+                          Split cost across multiple clients
+                        </label>
+                        {block.isMultiClient && (
+                          <div style={{ marginTop:8 }}>
+                            <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>
+                              Select clients (cost split equally)
+                            </p>
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                              {projects.map(p => {
+                                const selected = block.clientNames.includes(p.business_name)
+                                return (
+                                  <button key={p.id} type="button"
+                                    onClick={() => {
+                                      const next = selected
+                                        ? block.clientNames.filter(n => n !== p.business_name)
+                                        : [...block.clientNames, p.business_name]
+                                      patchBlock(block.id, { clientNames: next })
+                                    }}
+                                    style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer",
+                                      border:`1.5px solid ${selected ? "#de1a1a" : "#EBEDF2"}`,
+                                      background: selected ? "rgba(222,26,26,0.08)" : "#F9FAFB",
+                                      color: selected ? "#de1a1a" : "#6B7280" }}>
+                                    {p.business_name}
+                                  </button>
+                                )
+                              })}
+                            </div>
+                            {block.clientNames.length > 1 && (
+                              <p style={{ fontSize:10, color:"#9CA3AF", marginTop:5 }}>
+                                {block.durationHours}h ÷ {block.clientNames.length} clients = {(block.durationHours / block.clientNames.length).toFixed(2)}h each
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )

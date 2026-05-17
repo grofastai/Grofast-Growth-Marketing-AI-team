@@ -1,4 +1,4 @@
-﻿import { createServerClient } from '@/lib/supabase/server'
+import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -25,18 +25,15 @@ export async function GET(request: NextRequest) {
   const userId = searchParams.get('userId')
   const month  = searchParams.get('month') // YYYY-MM
 
-  if (!userId || !month) {
-    return new NextResponse('Missing params', { status: 400 })
-  }
+  if (!userId || !month) return new NextResponse('Missing params', { status: 400 })
 
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return new NextResponse('Unauthorized', { status: 401 })
 
   const admin = adminSupabase()
-
-  // Verify requester is admin of the same company
-  const { data: requester } = await admin.from('users').select('company_id, role').eq('id', user.id).single()
+  const { data: requester } = await admin
+    .from('users').select('company_id, role').eq('id', user.id).single()
   if (!requester || requester.role !== 'ADMIN') return new NextResponse('Forbidden', { status: 403 })
 
   const [year, mon] = month.split('-').map(Number)
@@ -44,39 +41,52 @@ export async function GET(request: NextRequest) {
   const monthEnd    = `${month}-${new Date(year, mon, 0).getDate()}`
   const workDays    = workingDaysInMonth(year, mon)
 
-  const [{ data: memberRaw }, { data: updatesRaw }] = await Promise.all([
+  const [{ data: memberRaw }, { data: updatesRaw }, { data: logsRaw }, { data: companyRaw }] = await Promise.all([
     admin.from('users')
-      .select('id, name, employee_id, team, employment_type, monthly_salary, hourly_rate')
+      .select('id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, designation, joining_date, bank_account, phone')
       .eq('id', userId)
       .eq('company_id', requester.company_id)
       .single(),
     admin.from('daily_updates')
-      .select('attendance_status, working_hours')
+      .select('working_hours')
       .eq('user_id', userId)
       .gte('date', monthStart)
       .lte('date', monthEnd),
+    admin.from('attendance_logs')
+      .select('date, clock_in, clock_out')
+      .eq('user_id', userId)
+      .gte('date', monthStart)
+      .lte('date', monthEnd),
+    admin.from('companies')
+      .select('name, slug')
+      .eq('id', requester.company_id)
+      .single(),
   ])
 
   if (!memberRaw) return new NextResponse('Member not found', { status: 404 })
 
-  type UpdateRow = { attendance_status: string; working_hours: number | null }
+  type UpdateRow = { working_hours: number | null }
+  type LogRow    = { date: string; clock_in: string | null; clock_out: string | null }
+
   const updates     = (updatesRaw ?? []) as UpdateRow[]
-  const presentRows = updates.filter(u => u.attendance_status === 'present')
-  const presentDays = presentRows.length
+  const logs        = (logsRaw   ?? []) as LogRow[]
+  const presentDays = logs.filter(l => l.clock_in !== null).length || updates.filter(u => (u.working_hours ?? 0) > 0).length
   const absentDays  = Math.max(workDays - presentDays, 0)
-  const totalHours  = presentRows.reduce((s, u) => s + (u.working_hours ?? 0), 0)
-  const otHours     = Math.round(presentRows.reduce((s, u) => {
+  const totalHours  = Math.round(updates.reduce((s, u) => s + (u.working_hours ?? 0), 0) * 10) / 10
+  const otHours     = Math.round(updates.reduce((s, u) => {
     const h = u.working_hours ?? 0; return h > 9 ? s + (h - 9) : s
   }, 0) * 10) / 10
 
   type MemberRow = {
     id: string; name: string; employee_id: string; team: string | null
     employment_type: string | null; monthly_salary: number | null; hourly_rate: number | null
+    designation: string | null; joining_date: string | null; bank_account: string | null; phone: string | null
   }
-  const member = memberRaw as MemberRow
+  const member  = memberRaw as MemberRow
+  const company = companyRaw as { name: string; slug: string } | null
 
-  let basePay = 0, deduction = 0, otPay = 0, netPay = 0
   const empType = member.employment_type ?? 'regular'
+  let basePay = 0, deduction = 0, otPay = 0, netPay = 0
 
   if (empType === 'regular' && member.monthly_salary) {
     const dailyRate = member.monthly_salary / workDays
@@ -89,277 +99,500 @@ export async function GET(request: NextRequest) {
     netPay  = basePay
   }
 
-  const monthName = new Date(year, mon - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
-  const fmt = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-  const generatedOn = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+  const grossPay    = basePay + otPay
+  const attendPct   = workDays > 0 ? Math.round((presentDays / workDays) * 100) : 0
+  const leaveDays   = absentDays
 
+  // Payment date: 3rd of next month
+  const payDate     = new Date(year, mon, 3)
+  const payDateStr  = payDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+  const monthName   = new Date(year, mon - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
+  const generatedOn = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+  const payslipId   = `PS-${member.employee_id}-${month.replace('-', '')}`
+
+  const fmt    = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`
+  const fmtDec = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
   const initials = member.name.split(' ').map((n: string) => n[0] ?? '').join('').slice(0, 2).toUpperCase()
-  const attendPct = workDays > 0 ? Math.round((presentDays / workDays) * 100) : 0
-  const grossPay  = basePay + otPay
+
+  const companyName = company?.name ?? 'GroFast'
 
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Salary Slip — ${member.name} — ${monthName}</title>
+<title>${payslipId} — ${member.name} — ${monthName}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-  *{margin:0;padding:0;box-sizing:border-box}
-  body{font-family:'Inter',system-ui,sans-serif;background:#0f0f0f;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .topbar{background:#111;color:#fff;padding:12px 24px;font-size:13px;display:flex;align-items:center;gap:12px}
-  .topbar span{color:#9CA3AF;font-size:12px}
-  .print-btn{margin-left:auto;background:linear-gradient(135deg,#DE1A1A,#7F1D1D);color:#fff;border:none;padding:9px 22px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;letter-spacing:0.02em}
-  .wrap{max-width:820px;margin:28px auto;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.5)}
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --red:#DE1A1A;--red-dark:#7F1D1D;--red-bg:#FFF1F2;
+  --green:#16A34A;--green-bg:#F0FDF4;--green-border:#BBF7D0;
+  --blue:#1D4ED8;--blue-bg:#EFF6FF;--blue-border:#BFDBFE;
+  --gray:#6B7280;--gray-light:#F9FAFB;--border:#E5E7EB;
+  --text:#111827;--sub:#6B7280;
+}
+body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:var(--text);-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:13px}
 
-  /* ── HEADER ── */
-  .hdr{background:linear-gradient(135deg,#DE1A1A 0%,#8B1212 55%,#1a0808 100%);padding:32px 36px;position:relative;overflow:hidden}
-  .hdr-glow{position:absolute;top:-60px;right:-40px;width:260px;height:260px;border-radius:50%;background:rgba(255,255,255,0.06);pointer-events:none}
-  .hdr-glow2{position:absolute;bottom:-80px;left:60px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.04);pointer-events:none}
-  .hdr-inner{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
-  .brand{display:flex;flex-direction:column;gap:2px}
-  .brand-name{font-size:26px;font-weight:900;color:#fff;letter-spacing:0.05em}
-  .brand-tag{font-size:9px;letter-spacing:0.3em;text-transform:uppercase;color:rgba(255,255,255,0.55);margin-top:2px}
-  .slip-badge{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:12px 20px;text-align:right;backdrop-filter:blur(8px)}
-  .slip-badge-title{font-size:18px;font-weight:800;color:#fff;letter-spacing:0.02em}
-  .slip-badge-month{font-size:11px;color:rgba(255,255,255,0.65);margin-top:3px;font-weight:500}
+/* ── TOPBAR ── */
+.topbar{background:#111;padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100}
+.topbar-info{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.topbar-dot{width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0}
+.topbar-text{font-size:12px;color:#9CA3AF;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-id{font-size:11px;color:#4B5563;background:#1F2937;padding:3px 10px;border-radius:6px;font-weight:600;flex-shrink:0}
+.print-btn{background:linear-gradient(135deg,var(--red),var(--red-dark));color:#fff;border:none;padding:9px 24px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;letter-spacing:0.01em;box-shadow:0 4px 14px rgba(222,26,26,0.4)}
+.print-btn:hover{opacity:0.9}
 
-  /* ── EMPLOYEE STRIP ── */
-  .emp-strip{background:#fafafa;border-bottom:1px solid #f0f0f0;padding:24px 36px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
-  .avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#DE1A1A,#7F1D1D);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff;flex-shrink:0;box-shadow:0 4px 16px rgba(222,26,26,0.35)}
-  .emp-info{flex:1;min-width:140px}
-  .emp-name{font-size:17px;font-weight:800;color:#111;letter-spacing:-0.01em}
-  .emp-sub{font-size:12px;color:#6B7280;margin-top:3px;font-weight:500}
-  .emp-badges{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
-  .badge{font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:0.03em}
-  .badge-team{background:#FFF1F2;color:#BE123C}
-  .badge-type{background:#EFF6FF;color:#1D4ED8}
-  .meta-chips{display:flex;gap:8px;flex-wrap:wrap;margin-left:auto}
-  .chip{background:#fff;border:1.5px solid #E5E7EB;border-radius:12px;padding:10px 16px;text-align:center;min-width:80px}
-  .chip-val{font-size:16px;font-weight:900;color:#111}
-  .chip-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:#9CA3AF;margin-top:2px}
+/* ── OUTER ── */
+.outer{max-width:860px;margin:24px auto 40px;display:flex;flex-direction:column;gap:0}
 
-  /* ── ATTENDANCE BAR ── */
-  .att-bar-wrap{padding:20px 36px;background:#fff;border-bottom:1px solid #f0f0f0}
-  .att-bar-row{display:flex;align-items:center;gap:12px;margin-bottom:6px}
-  .att-bar-bg{flex:1;height:8px;border-radius:4px;background:#F3F4F6;overflow:hidden}
-  .att-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,#16A34A,#4ADE80)}
-  .att-pct{font-size:13px;font-weight:800;color:#16A34A;min-width:36px;text-align:right}
-  .att-chips{display:flex;gap:8px;flex-wrap:wrap}
-  .att-chip{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#6B7280}
-  .att-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+/* ── HEADER ── */
+.hdr{background:linear-gradient(135deg,#DE1A1A 0%,#8B1212 52%,#1a0808 100%);border-radius:20px 20px 0 0;padding:0;overflow:hidden;position:relative}
+.hdr-circles{position:absolute;inset:0;pointer-events:none}
+.hdr-c1{position:absolute;top:-50px;right:-30px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,0.07)}
+.hdr-c2{position:absolute;bottom:-60px;left:50px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,0.04)}
+.hdr-c3{position:absolute;top:20px;left:200px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.03)}
+.hdr-top{padding:28px 36px 22px;display:flex;align-items:center;justify-content:space-between;gap:20px;position:relative;z-index:1;flex-wrap:wrap}
+.brand-logo{display:flex;align-items:center;gap:14px}
+.brand-icon{width:46px;height:46px;border-radius:12px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff;letter-spacing:-0.05em;backdrop-filter:blur(8px)}
+.brand-text{}
+.brand-name{font-size:22px;font-weight:900;color:#fff;letter-spacing:0.04em;line-height:1}
+.brand-sub{font-size:9px;letter-spacing:0.28em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-top:3px}
+.slip-tag{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.22);border-radius:14px;padding:14px 22px;text-align:right;backdrop-filter:blur(10px)}
+.slip-tag-title{font-size:17px;font-weight:800;color:#fff;letter-spacing:0.01em}
+.slip-tag-month{font-size:11px;color:rgba(255,255,255,0.6);margin-top:3px;font-weight:500}
+.slip-tag-id{font-size:9px;color:rgba(255,255,255,0.4);margin-top:4px;letter-spacing:0.1em;text-transform:uppercase}
 
-  /* ── BODY ── */
-  .body{padding:28px 36px;display:flex;flex-direction:column;gap:24px}
+.hdr-bar{padding:14px 36px;background:rgba(0,0,0,0.2);display:flex;gap:28px;flex-wrap:wrap;position:relative;z-index:1;border-top:1px solid rgba(255,255,255,0.08)}
+.hdr-bar-item{display:flex;align-items:center;gap:6px}
+.hdr-bar-icon{font-size:12px;opacity:0.6}
+.hdr-bar-text{font-size:11px;color:rgba(255,255,255,0.65);font-weight:500}
 
-  /* ── SECTION HEADER ── */
-  .sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-  .sec-pill{width:4px;height:18px;border-radius:2px}
-  .sec-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.18em;color:#6B7280}
+/* ── CARD BASE ── */
+.card{background:#fff;border:1px solid var(--border)}
+.section{background:#fff;padding:24px 32px;border-left:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
+.section:last-child{border-radius:0 0 20px 20px}
 
-  /* ── EARNINGS / DEDUCTIONS TABLE ── */
-  .pay-table{width:100%;border-collapse:collapse}
-  .pay-table tr{border-bottom:1px solid #F5F5F5}
-  .pay-table tr:last-child{border-bottom:none}
-  .pay-table td{padding:10px 14px;font-size:13px;color:#374151}
-  .pay-table td:first-child{color:#111;font-weight:500}
-  .pay-table td:last-child{text-align:right;font-weight:700}
-  .pay-table .sub{background:#FAFAFA;border-radius:8px}
-  .pay-table .sub td{font-size:11px;color:#9CA3AF;font-weight:500;padding:7px 14px}
-  .pay-table .total-row{background:linear-gradient(90deg,#F9FAFB,#F3F4F6)}
-  .pay-table .total-row td{font-size:13px;font-weight:800;color:#111;padding:12px 14px;border-radius:8px}
-  .earn-amt{color:#16A34A}
-  .ded-amt{color:#DE1A1A}
-  .ot-amt{color:#EA580C}
+/* ── EMPLOYEE INFO ── */
+.emp-section{padding:28px 36px;background:#fff;border-left:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap}
+.emp-avatar{width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,var(--red),var(--red-dark));display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:#fff;flex-shrink:0;box-shadow:0 8px 24px rgba(222,26,26,0.3);letter-spacing:-0.02em}
+.emp-main{flex:1;min-width:200px}
+.emp-name{font-size:21px;font-weight:800;color:var(--text);letter-spacing:-0.02em}
+.emp-role{font-size:13px;color:var(--sub);margin-top:4px;font-weight:500}
+.emp-badges{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.badge{font-size:10px;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:0.04em;text-transform:capitalize}
+.badge-dept{background:#FFF1F2;color:#BE123C}
+.badge-type{background:var(--blue-bg);color:var(--blue)}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.emp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-left:auto;min-width:320px}
+.emp-cell{background:var(--gray-light);border-radius:12px;padding:12px 14px;border:1px solid var(--border)}
+.emp-cell-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.14em;color:var(--sub);margin-bottom:5px}
+.emp-cell-val{font-size:13px;font-weight:700;color:var(--text)}
 
-  /* ── NET PAY CARD ── */
-  .net-card{background:linear-gradient(135deg,#DE1A1A 0%,#8B1212 55%,#1a0808 100%);border-radius:16px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden}
-  .net-glow{position:absolute;top:-40px;right:-20px;width:160px;height:160px;border-radius:50%;background:rgba(255,255,255,0.06);pointer-events:none}
-  .net-label-wrap{position:relative;z-index:1}
-  .net-label{font-size:11px;font-weight:700;color:rgba(255,255,255,0.6);text-transform:uppercase;letter-spacing:0.18em;margin-bottom:4px}
-  .net-period{font-size:13px;color:rgba(255,255,255,0.75);font-weight:500}
-  .net-amount{position:relative;z-index:1;font-size:36px;font-weight:900;color:#fff;letter-spacing:-0.03em}
-  .net-pence{font-size:18px;opacity:0.7}
+/* ── SUMMARY CARDS ── */
+.summary-section{padding:0 36px;background:#fff;border-left:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding-bottom:28px}
+.summary-inner{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.sum-card{border-radius:14px;padding:16px 18px;border:1.5px solid;position:relative;overflow:hidden}
+.sum-card-glow{position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;opacity:0.4}
+.sum-gross{background:#F0FDF4;border-color:#BBF7D0}
+.sum-gross .sum-card-glow{background:#4ADE80}
+.sum-deduct{background:#FFF1F2;border-color:#FECDD3}
+.sum-deduct .sum-card-glow{background:#FB7185}
+.sum-net{background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border-color:#BFDBFE}
+.sum-net .sum-card-glow{background:#60A5FA}
+.sum-days{background:var(--gray-light);border-color:var(--border)}
+.sum-days .sum-card-glow{background:#D1D5DB}
+.sum-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:8px;position:relative;z-index:1}
+.sum-lbl-green{color:#15803D}.sum-lbl-red{color:#BE123C}.sum-lbl-blue{color:var(--blue)}.sum-lbl-gray{color:var(--sub)}
+.sum-val{font-size:20px;font-weight:900;letter-spacing:-0.02em;position:relative;z-index:1;line-height:1}
+.sum-val-green{color:var(--green)}.sum-val-red{color:var(--red)}.sum-val-blue{color:var(--blue)}.sum-val-gray{color:var(--text)}
+.sum-sub{font-size:10px;color:var(--sub);margin-top:5px;font-weight:500;position:relative;z-index:1}
 
-  /* ── SUMMARY ROW ── */
-  .summary-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-  .sum-card{border-radius:12px;padding:14px 16px;border:1.5px solid}
-  .sum-earn{background:#F0FDF4;border-color:#BBF7D0}
-  .sum-ded{background:#FFF1F2;border-color:#FECDD3}
-  .sum-net{background:#EFF6FF;border-color:#BFDBFE}
-  .sum-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:6px}
-  .sum-lbl-earn{color:#15803D}
-  .sum-lbl-ded{color:#BE123C}
-  .sum-lbl-net{color:#1D4ED8}
-  .sum-val{font-size:18px;font-weight:900}
-  .sum-val-earn{color:#16A34A}
-  .sum-val-ded{color:#DE1A1A}
-  .sum-val-net{color:#1D4ED8}
+/* ── SEC HEADER ── */
+.sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+.sec-pill{width:4px;height:20px;border-radius:2px;flex-shrink:0}
+.sec-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.18em;color:var(--sub)}
+.sec-count{margin-left:auto;font-size:10px;color:var(--sub);background:var(--gray-light);padding:3px 10px;border-radius:20px;font-weight:600;border:1px solid var(--border)}
 
-  /* ── FOOTER ── */
-  .foot{background:#FAFAFA;border-top:1px solid #F0F0F0;padding:20px 36px;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
-  .foot-note{font-size:10px;color:#9CA3AF;line-height:1.6}
-  .sig-area{text-align:center}
-  .sig-line{width:120px;border-top:1.5px solid #374151;margin:0 auto 6px}
-  .sig-lbl{font-size:10px;font-weight:600;color:#374151}
-  .sig-sub{font-size:9px;color:#9CA3AF;margin-top:1px}
-  .watermark{font-size:9px;color:#D1D5DB;text-align:center;padding:10px 0 16px;letter-spacing:0.12em;text-transform:uppercase}
+/* ── PAY ROWS ── */
+.pay-rows{display:flex;flex-direction:column;gap:2px}
+.pay-row{display:flex;align-items:center;padding:11px 14px;border-radius:10px;transition:background 0.1s}
+.pay-row:hover{background:var(--gray-light)}
+.pay-row-name{flex:1;font-size:13px;color:var(--text);font-weight:500}
+.pay-row-note{font-size:10px;color:var(--sub);margin-top:1px}
+.pay-row-amt{font-size:14px;font-weight:700;min-width:90px;text-align:right}
+.pay-row-amt-green{color:var(--green)}
+.pay-row-amt-red{color:var(--red)}
+.pay-row-amt-orange{color:#EA580C}
+.pay-row-amt-gray{color:#9CA3AF}
+.pay-divider{height:1px;background:var(--border);margin:8px 0}
+.pay-total{display:flex;align-items:center;padding:13px 14px;border-radius:12px;background:var(--gray-light);border:1.5px solid var(--border);margin-top:4px}
+.pay-total-name{flex:1;font-size:13px;font-weight:800;color:var(--text)}
+.pay-total-amt{font-size:16px;font-weight:900}
 
-  @media print{
-    body{background:#fff}
-    .topbar{display:none}
-    .wrap{margin:0;border-radius:0;box-shadow:none;max-width:100%}
-    .hdr,.att-bar-wrap,.net-card{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  }
+/* ── NET PAY CARD ── */
+.net-card{background:linear-gradient(135deg,#DE1A1A 0%,#8B1212 52%,#1a0808 100%);border-radius:18px;padding:28px 32px;display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden;gap:16px}
+.net-card-glow1{position:absolute;top:-50px;right:-30px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.07);pointer-events:none}
+.net-card-glow2{position:absolute;bottom:-60px;left:30px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,0.04);pointer-events:none}
+.net-left{position:relative;z-index:1}
+.net-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.2em;color:rgba(255,255,255,0.55);margin-bottom:4px}
+.net-month{font-size:13px;color:rgba(255,255,255,0.75);font-weight:500;margin-bottom:2px}
+.net-paydate{font-size:11px;color:rgba(255,255,255,0.45);font-weight:400}
+.net-right{position:relative;z-index:1;text-align:right}
+.net-amount{font-size:42px;font-weight:900;color:#fff;letter-spacing:-0.04em;line-height:1}
+.net-amount-sub{font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px;font-weight:500}
+
+/* ── ATTENDANCE ── */
+.att-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
+.att-card{background:var(--gray-light);border:1px solid var(--border);border-radius:12px;padding:13px;text-align:center}
+.att-val{font-size:22px;font-weight:900;color:var(--text);line-height:1;margin-bottom:4px}
+.att-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--sub)}
+.att-bar-wrap{background:var(--gray-light);border-radius:12px;padding:14px 18px;border:1px solid var(--border)}
+.att-bar-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.att-bar-label{font-size:11px;font-weight:700;color:var(--text)}
+.att-bar-pct{font-size:13px;font-weight:900;color:var(--green)}
+.att-bar-bg{height:10px;border-radius:5px;background:#E5E7EB;overflow:hidden}
+.att-bar-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--green),#4ADE80)}
+.att-legend{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap}
+.att-dot{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--sub);font-weight:500}
+.att-dot-circle{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* ── PAYMENT INFO ── */
+.pay-info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.pay-info-card{background:var(--gray-light);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.pay-info-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.14em;color:var(--sub);margin-bottom:6px}
+.pay-info-val{font-size:13px;font-weight:700;color:var(--text)}
+.pay-info-val-green{color:var(--green)}
+
+/* ── FOOTER ── */
+.foot-section{background:var(--gray-light);border-left:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);border-radius:0 0 20px 20px;padding:22px 36px}
+.foot-declaration{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:20px}
+.foot-decl-text{font-size:11px;color:var(--sub);line-height:1.8;font-style:italic}
+.foot-row{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
+.foot-generated{font-size:10px;color:#9CA3AF;line-height:1.7}
+.sig-block{display:flex;gap:40px}
+.sig-item{text-align:center}
+.sig-line{height:1px;background:#374151;width:100px;margin-bottom:7px}
+.sig-lbl{font-size:10px;font-weight:700;color:var(--text)}
+.sig-sub{font-size:9px;color:var(--sub);margin-top:2px}
+.watermark{text-align:center;margin-top:18px;font-size:9px;color:#D1D5DB;letter-spacing:0.18em;text-transform:uppercase}
+
+/* ── SECTION SPACING ── */
+.section-gap{height:1px;background:var(--border);margin:0 36px}
+
+@media print{
+  body{background:#fff}
+  .topbar{display:none}
+  .outer{margin:0;max-width:100%}
+  .hdr{border-radius:0}
+  .foot-section{border-radius:0}
+  .hdr,.net-card,.sum-gross,.sum-deduct,.sum-net{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
 </style>
 </head>
 <body>
+
+<!-- TOPBAR -->
 <div class="topbar no-print">
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-  <span>${member.name} &nbsp;·&nbsp; ${monthName} &nbsp;·&nbsp; #${member.employee_id}</span>
-  <button class="print-btn" onclick="window.print()">⬇&nbsp; Download PDF</button>
+  <div class="topbar-info">
+    <div class="topbar-dot"></div>
+    <span class="topbar-text">${member.name} &nbsp;·&nbsp; ${monthName} &nbsp;·&nbsp; Salary Slip</span>
+    <span class="topbar-id">${payslipId}</span>
+  </div>
+  <button class="print-btn" onclick="window.print()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Download PDF
+  </button>
 </div>
 
-<div class="wrap">
-  <!-- HEADER -->
+<div class="outer">
+
+  <!-- ═══ HEADER ═══ -->
   <div class="hdr">
-    <div class="hdr-glow"></div>
-    <div class="hdr-glow2"></div>
-    <div class="hdr-inner">
-      <div class="brand">
-        <div class="brand-name">GROFAST</div>
-        <div class="brand-tag">Growth Marketing &amp; AI Solutions</div>
+    <div class="hdr-circles">
+      <div class="hdr-c1"></div><div class="hdr-c2"></div><div class="hdr-c3"></div>
+    </div>
+    <div class="hdr-top">
+      <div class="brand-logo">
+        <div class="brand-icon">GF</div>
+        <div class="brand-text">
+          <div class="brand-name">${companyName.toUpperCase()}</div>
+          <div class="brand-sub">Growth Marketing &amp; AI Solutions</div>
+        </div>
       </div>
-      <div class="slip-badge">
-        <div class="slip-badge-title">Salary Slip</div>
-        <div class="slip-badge-month">${monthName}</div>
+      <div class="slip-tag">
+        <div class="slip-tag-title">Salary Slip</div>
+        <div class="slip-tag-month">${monthName}</div>
+        <div class="slip-tag-id">${payslipId}</div>
       </div>
+    </div>
+    <div class="hdr-bar">
+      <div class="hdr-bar-item"><span class="hdr-bar-icon">📧</span><span class="hdr-bar-text">grofastai@gmail.com</span></div>
+      <div class="hdr-bar-item"><span class="hdr-bar-icon">🌐</span><span class="hdr-bar-text">grofastteam.vercel.app</span></div>
+      <div class="hdr-bar-item"><span class="hdr-bar-icon">📅</span><span class="hdr-bar-text">Pay Date: ${payDateStr}</span></div>
+      <div class="hdr-bar-item" style="margin-left:auto"><span class="hdr-bar-text" style="color:rgba(255,255,255,0.4);font-size:10px">Confidential</span></div>
     </div>
   </div>
 
-  <!-- EMPLOYEE STRIP -->
-  <div class="emp-strip">
-    <div class="avatar">${initials}</div>
-    <div class="emp-info">
+  <!-- ═══ EMPLOYEE INFO ═══ -->
+  <div class="emp-section">
+    <div class="emp-avatar">${initials}</div>
+    <div class="emp-main">
       <div class="emp-name">${member.name}</div>
-      <div class="emp-sub">#${member.employee_id} &nbsp;·&nbsp; Pay date: 3rd of next month</div>
+      <div class="emp-role">${member.designation ?? (member.team ? `${member.team} Member` : 'Team Member')}</div>
       <div class="emp-badges">
-        ${member.team ? `<span class="badge badge-team">${member.team}</span>` : ''}
+        ${member.team ? `<span class="badge badge-dept">${member.team}</span>` : ''}
         <span class="badge badge-type">${empType.replace('_', ' ')}</span>
+        <span class="badge badge-green">Active</span>
       </div>
     </div>
-    <div class="meta-chips">
-      <div class="chip">
-        <div class="chip-val">${workDays}</div>
-        <div class="chip-lbl">Work Days</div>
+    <div class="emp-grid">
+      <div class="emp-cell">
+        <div class="emp-cell-lbl">Employee ID</div>
+        <div class="emp-cell-val">#${member.employee_id}</div>
       </div>
-      <div class="chip">
-        <div class="chip-val">${presentDays}</div>
-        <div class="chip-lbl">Present</div>
+      <div class="emp-cell">
+        <div class="emp-cell-lbl">Pay Period</div>
+        <div class="emp-cell-val">${monthName}</div>
       </div>
-      <div class="chip">
-        <div class="chip-val" style="color:${absentDays > 0 ? '#DE1A1A' : '#16A34A'}">${absentDays}</div>
-        <div class="chip-lbl">Absent</div>
+      <div class="emp-cell">
+        <div class="emp-cell-lbl">Joining Date</div>
+        <div class="emp-cell-val">${member.joining_date ? new Date(member.joining_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</div>
       </div>
-      <div class="chip">
-        <div class="chip-val" style="color:#EA580C">${otHours}h</div>
-        <div class="chip-lbl">OT Hours</div>
+      <div class="emp-cell">
+        <div class="emp-cell-lbl">Bank Account</div>
+        <div class="emp-cell-val">${member.bank_account ? `••••${member.bank_account.slice(-4)}` : '—'}</div>
       </div>
-    </div>
-  </div>
-
-  <!-- ATTENDANCE BAR -->
-  <div class="att-bar-wrap">
-    <div class="att-bar-row">
-      <span style="font-size:11px;font-weight:700;color:#6B7280;min-width:80px">Attendance</span>
-      <div class="att-bar-bg"><div class="att-bar-fill" style="width:${attendPct}%"></div></div>
-      <span class="att-pct">${attendPct}%</span>
-    </div>
-    <div class="att-chips">
-      <div class="att-chip"><span class="att-dot" style="background:#16A34A"></span>${presentDays} Present</div>
-      <div class="att-chip"><span class="att-dot" style="background:#DE1A1A"></span>${absentDays} Absent</div>
-      <div class="att-chip"><span class="att-dot" style="background:#6B7280"></span>${totalHours}h Total hours</div>
-      ${otHours > 0 ? `<div class="att-chip"><span class="att-dot" style="background:#EA580C"></span>${otHours}h Overtime</div>` : ''}
+      <div class="emp-cell">
+        <div class="emp-cell-lbl">Payment Mode</div>
+        <div class="emp-cell-val">Bank Transfer</div>
+      </div>
+      <div class="emp-cell">
+        <div class="emp-cell-lbl">Payslip ID</div>
+        <div class="emp-cell-val" style="font-size:11px">${payslipId}</div>
+      </div>
     </div>
   </div>
 
-  <!-- BODY -->
-  <div class="body">
-
-    <!-- SUMMARY ROW -->
-    <div class="summary-row">
-      <div class="sum-card sum-earn">
-        <div class="sum-lbl sum-lbl-earn">Gross Earnings</div>
-        <div class="sum-val sum-val-earn">${fmt(grossPay)}</div>
+  <!-- ═══ SUMMARY CARDS ═══ -->
+  <div class="summary-section" style="padding-top:24px">
+    <div class="summary-inner">
+      <div class="sum-card sum-gross">
+        <div class="sum-card-glow"></div>
+        <div class="sum-lbl sum-lbl-green">Gross Salary</div>
+        <div class="sum-val sum-val-green">${fmt(grossPay)}</div>
+        <div class="sum-sub">Before deductions</div>
       </div>
-      <div class="sum-card sum-ded">
-        <div class="sum-lbl sum-lbl-ded">Total Deductions</div>
-        <div class="sum-val sum-val-ded">${deduction > 0 ? `-${fmt(deduction)}` : '—'}</div>
+      <div class="sum-card sum-deduct">
+        <div class="sum-card-glow"></div>
+        <div class="sum-lbl sum-lbl-red">Leave Deduction</div>
+        <div class="sum-val sum-val-red">${deduction > 0 ? `-${fmt(deduction)}` : '₹0'}</div>
+        <div class="sum-sub">${leaveDays} day${leaveDays !== 1 ? 's' : ''} absent</div>
       </div>
       <div class="sum-card sum-net">
-        <div class="sum-lbl sum-lbl-net">Net Pay</div>
-        <div class="sum-val sum-val-net">${fmt(netPay)}</div>
+        <div class="sum-card-glow"></div>
+        <div class="sum-lbl sum-lbl-blue">Net Salary</div>
+        <div class="sum-val sum-val-blue">${fmt(netPay)}</div>
+        <div class="sum-sub">Take-home pay</div>
+      </div>
+      <div class="sum-card sum-days">
+        <div class="sum-card-glow"></div>
+        <div class="sum-lbl sum-lbl-gray">Paid Days</div>
+        <div class="sum-val sum-val-gray">${presentDays}<span style="font-size:14px;font-weight:600;color:var(--sub)">/${workDays}</span></div>
+        <div class="sum-sub">${attendPct}% attendance</div>
       </div>
     </div>
+  </div>
 
-    <!-- EARNINGS -->
-    <div>
-      <div class="sec-hdr">
-        <div class="sec-pill" style="background:#16A34A"></div>
-        <div class="sec-title">Earnings</div>
-      </div>
-      <table class="pay-table">
-        ${empType === 'regular'
-          ? `<tr><td>Basic / Monthly Salary</td><td class="earn-amt">${fmt(basePay)}</td></tr>
-             ${otPay > 0 ? `<tr><td>Overtime Pay</td><td class="ot-amt">${fmt(otPay)}</td></tr>
-             <tr class="sub"><td colspan="2">${otHours}h @ ₹${Math.round(basePay / workDays / 9)}/hr</td></tr>` : ''}
-             <tr class="total-row"><td>Gross Earnings</td><td class="earn-amt">${fmt(grossPay)}</td></tr>`
-          : `<tr><td>Hours Worked</td><td class="earn-amt">${fmt(basePay)}</td></tr>
-             <tr class="sub"><td colspan="2">${totalHours}h × ₹${member.hourly_rate}/hr</td></tr>
-             <tr class="total-row"><td>Gross Earnings</td><td class="earn-amt">${fmt(basePay)}</td></tr>`
-        }
-      </table>
+  <!-- ═══ EARNINGS ═══ -->
+  <div class="section">
+    <div class="sec-hdr">
+      <div class="sec-pill" style="background:var(--green)"></div>
+      <div class="sec-title">Earnings</div>
+      <div class="sec-count">Gross: ${fmt(grossPay)}</div>
     </div>
-
-    ${deduction > 0 ? `
-    <!-- DEDUCTIONS -->
-    <div>
-      <div class="sec-hdr">
-        <div class="sec-pill" style="background:#DE1A1A"></div>
-        <div class="sec-title">Deductions</div>
+    <div class="pay-rows">
+      ${empType === 'regular' && member.monthly_salary ? `
+      <div class="pay-row">
+        <div><div class="pay-row-name">Basic Salary</div><div class="pay-row-note">Monthly fixed compensation</div></div>
+        <div class="pay-row-amt pay-row-amt-green">${fmt(basePay)}</div>
       </div>
-      <table class="pay-table">
-        <tr><td>Absence Deduction</td><td class="ded-amt">-${fmt(deduction)}</td></tr>
-        <tr class="sub"><td colspan="2">${absentDays} day${absentDays > 1 ? 's' : ''} × ₹${Math.round(basePay / workDays)}/day</td></tr>
-        <tr class="total-row"><td>Total Deductions</td><td class="ded-amt">-${fmt(deduction)}</td></tr>
-      </table>
-    </div>` : ''}
+      <div class="pay-row">
+        <div><div class="pay-row-name">House Rent Allowance (HRA)</div><div class="pay-row-note">Included in basic</div></div>
+        <div class="pay-row-amt pay-row-amt-gray">—</div>
+      </div>
+      <div class="pay-row">
+        <div><div class="pay-row-name">Travel Allowance</div><div class="pay-row-note">Included in basic</div></div>
+        <div class="pay-row-amt pay-row-amt-gray">—</div>
+      </div>
+      <div class="pay-row">
+        <div><div class="pay-row-name">Medical Allowance</div><div class="pay-row-note">Included in basic</div></div>
+        <div class="pay-row-amt pay-row-amt-gray">—</div>
+      </div>
+      ${otPay > 0 ? `
+      <div class="pay-divider"></div>
+      <div class="pay-row">
+        <div><div class="pay-row-name">Overtime Pay</div><div class="pay-row-note">${otHours}h extra × ₹${Math.round(basePay / workDays / 9)}/hr</div></div>
+        <div class="pay-row-amt pay-row-amt-orange">${fmt(otPay)}</div>
+      </div>` : ''}` : `
+      <div class="pay-row">
+        <div><div class="pay-row-name">Hours Worked</div><div class="pay-row-note">${totalHours}h × ₹${member.hourly_rate}/hr</div></div>
+        <div class="pay-row-amt pay-row-amt-green">${fmt(basePay)}</div>
+      </div>`}
+    </div>
+    <div class="pay-total" style="margin-top:12px">
+      <div class="pay-total-name">Gross Earnings</div>
+      <div class="pay-total-amt" style="color:var(--green)">${fmt(grossPay)}</div>
+    </div>
+  </div>
 
-    <!-- NET PAY -->
+  <!-- ═══ DEDUCTIONS ═══ -->
+  <div class="section" style="padding-top:20px">
+    <div class="sec-hdr">
+      <div class="sec-pill" style="background:var(--red)"></div>
+      <div class="sec-title">Deductions</div>
+      <div class="sec-count" style="color:var(--red);border-color:#FECDD3;background:#FFF1F2">Only Leave Deduction</div>
+    </div>
+    <div class="pay-rows">
+      <div class="pay-row">
+        <div>
+          <div class="pay-row-name">Leave Deduction</div>
+          <div class="pay-row-note">${leaveDays > 0 ? `${leaveDays} day${leaveDays !== 1 ? 's' : ''} absent × ₹${Math.round(basePay / workDays)}/day` : 'No absences this month'}</div>
+        </div>
+        <div class="pay-row-amt" style="color:${deduction > 0 ? 'var(--red)' : 'var(--sub)'}">${deduction > 0 ? `-${fmt(deduction)}` : '₹0'}</div>
+      </div>
+    </div>
+    <div class="pay-total" style="margin-top:12px;background:#FFF1F2;border-color:#FECDD3">
+      <div class="pay-total-name">Total Deductions</div>
+      <div class="pay-total-amt" style="color:${deduction > 0 ? 'var(--red)' : 'var(--green)'}">${deduction > 0 ? `-${fmt(deduction)}` : '₹0'}</div>
+    </div>
+  </div>
+
+  <!-- ═══ NET PAY ═══ -->
+  <div class="section" style="padding-top:0;padding-bottom:28px">
     <div class="net-card">
-      <div class="net-glow"></div>
-      <div class="net-label-wrap">
+      <div class="net-card-glow1"></div>
+      <div class="net-card-glow2"></div>
+      <div class="net-left">
         <div class="net-label">Net Pay</div>
-        <div class="net-period">${monthName} &nbsp;·&nbsp; Paid on 3rd</div>
+        <div class="net-month">${monthName}</div>
+        <div class="net-paydate">Payment Date: ${payDateStr}</div>
+        <div style="margin-top:14px;display:flex;gap:16px;flex-wrap:wrap">
+          <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:8px 14px;font-size:11px;color:rgba(255,255,255,0.8);border:1px solid rgba(255,255,255,0.15)">
+            Gross: ${fmt(grossPay)}
+          </div>
+          ${deduction > 0 ? `<div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:8px 14px;font-size:11px;color:rgba(255,255,255,0.8);border:1px solid rgba(255,255,255,0.15)">
+            Deduction: -${fmt(deduction)}
+          </div>` : ''}
+        </div>
       </div>
-      <div class="net-amount">${fmt(netPay)}</div>
-    </div>
-
-  </div>
-
-  <!-- FOOTER -->
-  <div class="foot">
-    <div class="foot-note">
-      Generated on ${generatedOn}<br/>
-      This is a computer-generated salary slip and does not require a physical signature.
-    </div>
-    <div class="sig-area">
-      <div class="sig-line"></div>
-      <div class="sig-lbl">Authorised Signatory</div>
-      <div class="sig-sub">GroFast Growth Marketing &amp; AI Solutions</div>
+      <div class="net-right">
+        <div class="net-amount">${fmt(netPay)}</div>
+        <div class="net-amount-sub">Take-home salary</div>
+      </div>
     </div>
   </div>
-  <div class="watermark">Confidential &nbsp;·&nbsp; GroFast Team Tracking &nbsp;·&nbsp; ${generatedOn}</div>
+
+  <!-- ═══ ATTENDANCE ═══ -->
+  <div class="section" style="padding-top:20px">
+    <div class="sec-hdr">
+      <div class="sec-pill" style="background:#3B82F6"></div>
+      <div class="sec-title">Attendance Summary</div>
+    </div>
+    <div class="att-grid">
+      <div class="att-card">
+        <div class="att-val">${workDays}</div>
+        <div class="att-lbl">Total Days</div>
+      </div>
+      <div class="att-card" style="background:#F0FDF4;border-color:#BBF7D0">
+        <div class="att-val" style="color:var(--green)">${presentDays}</div>
+        <div class="att-lbl" style="color:#15803D">Present</div>
+      </div>
+      <div class="att-card" style="background:#FFF1F2;border-color:#FECDD3">
+        <div class="att-val" style="color:var(--red)">${leaveDays}</div>
+        <div class="att-lbl" style="color:#BE123C">Leave / Absent</div>
+      </div>
+      <div class="att-card" style="background:#FFF7ED;border-color:#FED7AA">
+        <div class="att-val" style="color:#EA580C">${otHours}h</div>
+        <div class="att-lbl" style="color:#C2410C">Overtime</div>
+      </div>
+      <div class="att-card" style="background:var(--blue-bg);border-color:var(--blue-border)">
+        <div class="att-val" style="color:var(--blue)">${totalHours}h</div>
+        <div class="att-lbl" style="color:#1D4ED8">Total Hours</div>
+      </div>
+    </div>
+    <div class="att-bar-wrap">
+      <div class="att-bar-top">
+        <span class="att-bar-label">Monthly Attendance Rate</span>
+        <span class="att-bar-pct">${attendPct}%</span>
+      </div>
+      <div class="att-bar-bg"><div class="att-bar-fill" style="width:${attendPct}%"></div></div>
+      <div class="att-legend">
+        <div class="att-dot"><div class="att-dot-circle" style="background:var(--green)"></div>${presentDays} Days Present</div>
+        <div class="att-dot"><div class="att-dot-circle" style="background:var(--red)"></div>${leaveDays} Days Absent</div>
+        <div class="att-dot"><div class="att-dot-circle" style="background:#EA580C"></div>${otHours}h Overtime</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PAYMENT INFO ═══ -->
+  <div class="section" style="padding-top:20px">
+    <div class="sec-hdr">
+      <div class="sec-pill" style="background:#8B5CF6"></div>
+      <div class="sec-title">Payment Information</div>
+    </div>
+    <div class="pay-info-grid">
+      <div class="pay-info-card">
+        <div class="pay-info-lbl">Payment Date</div>
+        <div class="pay-info-val pay-info-val-green">${payDateStr}</div>
+      </div>
+      <div class="pay-info-card">
+        <div class="pay-info-lbl">Payment Method</div>
+        <div class="pay-info-val">Bank Transfer (NEFT)</div>
+      </div>
+      <div class="pay-info-card">
+        <div class="pay-info-lbl">Bank Account</div>
+        <div class="pay-info-val">${member.bank_account ? `••••••${member.bank_account.slice(-4)}` : 'Not configured'}</div>
+      </div>
+      <div class="pay-info-card">
+        <div class="pay-info-lbl">Transaction / Ref ID</div>
+        <div class="pay-info-val" style="font-size:11px;letter-spacing:0.04em">${payslipId}-TXN</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ FOOTER ═══ -->
+  <div class="foot-section">
+    <div class="foot-declaration">
+      <div class="foot-decl-text">
+        ✦ &nbsp;This is a computer-generated salary slip and does not require a physical signature.<br/>
+        ✦ &nbsp;This document is confidential and intended solely for the named employee.<br/>
+        ✦ &nbsp;For any discrepancies, please contact HR within 7 days of receipt.
+      </div>
+    </div>
+    <div class="foot-row">
+      <div class="foot-generated">
+        Generated on ${generatedOn}<br/>
+        ${companyName} · GroFast Team Tracking<br/>
+        <span style="color:#D1D5DB">${payslipId}</span>
+      </div>
+      <div class="sig-block">
+        <div class="sig-item">
+          <div class="sig-line"></div>
+          <div class="sig-lbl">HR / Authorised Signatory</div>
+          <div class="sig-sub">${companyName}</div>
+        </div>
+        <div class="sig-item">
+          <div class="sig-line"></div>
+          <div class="sig-lbl">Employee Signature</div>
+          <div class="sig-sub">${member.name}</div>
+        </div>
+      </div>
+    </div>
+    <div class="watermark">Confidential &nbsp;·&nbsp; ${companyName} &nbsp;·&nbsp; ${payslipId} &nbsp;·&nbsp; ${generatedOn}</div>
+  </div>
+
 </div>
 
 <script>

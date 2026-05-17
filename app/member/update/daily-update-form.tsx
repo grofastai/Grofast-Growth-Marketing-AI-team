@@ -99,7 +99,7 @@ const F: React.CSSProperties = {
 
 // ── Duration stepper ──────────────────────────────────────────────────────────
 function DurationPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const steps = [0.5,1,1.5,2,2.5,3,3.5,4,4.5,5,5.5,6,6.5,7,7.5,8,9,10,11,12]
+  const steps = [1,1.5,2,2.5,3,3.5,4,4.5,5,6,7,8]
   return (
     <select value={value} onChange={e => onChange(Number(e.target.value))}
       style={{ ...F, width:"auto", minWidth:80 }}>
@@ -281,6 +281,12 @@ export default function DailyUpdateForm({
   // ── Per-entry save (no success screen) ───────────────────────────────────
   function handleSaveEntry(entryId: string) {
     setError(null)
+    // Drive link is mandatory for edit entries
+    const editEntry = edits.find(e => e.id === entryId)
+    if (editEntry && !editEntry.videoLink.trim()) {
+      setError("Drive link is required — paste the Google Drive link before saving.")
+      return
+    }
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
@@ -873,7 +879,7 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             <select value={e.videoType} onChange={ev => patchEdit(e.id, { videoType: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select type…</option>
-                              {["Reel","Short Film","Long Form / YouTube","Teaser","Promotional","Interview","Tutorial","Documentary","Social Media","Other"].map(t => (
+                              {["Instagram Reels","Personal Branding","Ads and Hooks","Long Videos","Cinematic","YouTube Shorts"].map(t => (
                                 <option key={t} value={t}>{t}</option>
                               ))}
                             </select>
@@ -881,8 +887,16 @@ export default function DailyUpdateForm({
                           </div>
                         </div>
                         <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration</label>
-                          <input value={e.videoDuration} onChange={ev => patchEdit(e.id, { videoDuration: ev.target.value })} placeholder="e.g. 30 sec, 2:30 min" style={F} />
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration (mins)</label>
+                          <div style={{ position:"relative" }}>
+                            <select value={e.videoDuration} onChange={ev => patchEdit(e.id, { videoDuration: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                              <option value="">Select…</option>
+                              {[1,1.5,2,2.5,3,3.5,4,4.5,5,6,7,8].map(m => (
+                                <option key={m} value={`${m} min`}>{m} min</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Revisions</label>
@@ -919,9 +933,9 @@ export default function DailyUpdateForm({
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>
-                            <Link2 size={9} style={{ display:"inline", marginRight:4 }} />Drive / Video Link
+                            <Link2 size={9} style={{ display:"inline", marginRight:4 }} />Drive / Video Link <span style={{ color:"#de1a1a" }}>*</span>
                           </label>
-                          <input value={e.videoLink} onChange={ev => patchEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
+                          <input value={e.videoLink} onChange={ev => patchEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/… (required)" style={{ ...F, borderColor: !e.videoLink.trim() ? "rgba(222,26,26,0.4)" : "#EBEDF2" }} />
                         </div>
                       </div>
                       {/* Per-edit submit button */}

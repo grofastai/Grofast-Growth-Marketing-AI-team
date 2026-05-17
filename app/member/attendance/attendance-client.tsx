@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useCallback } from "react"
 import Image from "next/image"
 import { LogOut, Loader2, Home, Building2, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch } from "lucide-react"
-import { clockIn, clockOut, markAbsent, getAttendanceByDate } from "@/lib/actions/attendance"
+import { clockIn, clockOut, markAbsent, breakIn, breakOut, getAttendanceByDate } from "@/lib/actions/attendance"
 import { useRouter } from "next/navigation"
 
 const OFFICE_LAT     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LAT ?? "")
@@ -20,7 +20,7 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-type AttLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; work_type: string | null; status: string }
+type AttLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_in: string | null; break_out: string | null; work_type: string | null; status: string }
 type DailyUpdate = { working_hours: number | null; learning_hours: number | null; shoot_count: number | null }
 
 interface Props {
@@ -36,6 +36,13 @@ function fmtTime(iso: string | null) {
 }
 function calcHours(inIso: string, outIso: string | null): number {
   return ((outIso ? new Date(outIso).getTime() : Date.now()) - new Date(inIso).getTime()) / 3600000
+}
+function calcHoursNet(inIso: string, outIso: string | null, breakInIso: string | null, breakOutIso: string | null): number {
+  const raw = calcHours(inIso, outIso)
+  const breakHrs = (breakInIso && breakOutIso)
+    ? (new Date(breakOutIso).getTime() - new Date(breakInIso).getTime()) / 3600000
+    : 0
+  return Math.max(0, raw - breakHrs)
 }
 function fmtDuration(s: number) {
   return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
@@ -151,7 +158,14 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
   const notLogged = !todayLog
 
-  const hoursWorked    = todayLog?.clock_in ? calcHours(todayLog.clock_in, todayLog.clock_out) : 0
+  const isOnBreak   = !!todayLog?.break_in && !todayLog?.break_out
+  const breakDone   = !!todayLog?.break_in && !!todayLog?.break_out
+  const breakMins   = (todayLog?.break_in && todayLog?.break_out)
+    ? Math.round((new Date(todayLog.break_out).getTime() - new Date(todayLog.break_in).getTime()) / 60000)
+    : 0
+  const hoursWorked    = todayLog?.clock_in
+    ? calcHoursNet(todayLog.clock_in, todayLog.clock_out, todayLog.break_in ?? null, todayLog.break_out ?? null)
+    : 0
   const remainingHours = Math.max(SHIFT_HOURS - hoursWorked, 0)
 
   const dateStr    = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
@@ -268,6 +282,29 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       {isPending ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
                       Log Out
                     </button>
+                    {/* Break buttons */}
+                    <div className="flex gap-2 mt-3">
+                      {!isOnBreak && !breakDone && (
+                        <button onClick={() => handle(breakIn)} disabled={isPending}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold disabled:opacity-50"
+                          style={{ border: "1.5px solid #F59E0B", background: "rgba(245,158,11,0.08)", color: "#D97706" }}>
+                          ☕ Break In
+                        </button>
+                      )}
+                      {isOnBreak && (
+                        <button onClick={() => handle(breakOut)} disabled={isPending}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold disabled:opacity-50"
+                          style={{ border: "1.5px solid #22C55E", background: "rgba(34,197,94,0.08)", color: "#16A34A" }}>
+                          ▶ Break Out
+                        </button>
+                      )}
+                      {breakDone && (
+                        <div className="px-4 py-2 rounded-xl text-[12px] font-semibold"
+                          style={{ border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280" }}>
+                          Break: {breakMins}m taken
+                        </div>
+                      )}
+                    </div>
                     {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
                   </div>
                   {/* Large alarm clock illustration */}

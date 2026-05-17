@@ -81,7 +81,10 @@ export async function updateTaskStatus(
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
-  const { error } = await admin.from('tasks').update({ status }).eq('id', taskId)
+  const updates: Record<string, unknown> = { status }
+  if (status === 'completed') updates.completed_at = new Date().toISOString()
+  if (status !== 'completed') updates.completed_at = null
+  const { error } = await admin.from('tasks').update(updates).eq('id', taskId)
   if (error) return { success: false, error: error.message }
 
   revalidatePath('/admin/goals')

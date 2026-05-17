@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/auto-logout",
       "schedule": "30 16 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-tasks",
+      "schedule": "0 2 * * *"
     }
   ]
 }

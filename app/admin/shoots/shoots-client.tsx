@@ -17,6 +17,7 @@ type Shoot = {
   team_assigned: string | null
   equipment_used: string | null
   travel_expense: number
+  travel_time_hours: number | null
   status: 'scheduled' | 'completed' | 'cancelled'
   created_at: string
   creator: { name: string } | null
@@ -38,14 +39,14 @@ const EMPTY: FormState = {
   title: '', client: '', location: '',
   start_time: '', end_time: '',
   team_assigned: '', equipment_used: '',
-  travel_expense: '',
+  travel_expense: '', travel_time_hours: '0',
 }
 
 type FormState = {
   title: string; client: string; location: string
   start_time: string; end_time: string
   team_assigned: string; equipment_used: string
-  travel_expense: string
+  travel_expense: string; travel_time_hours: string
 }
 
 function fmt(dt: string) {
@@ -70,7 +71,7 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
   const [actionId, setActionId]   = useState<string | null>(null)
 
   const set = (k: keyof FormState) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm(p => ({ ...p, [k]: e.target.value }))
 
   function handleCreate() {
@@ -79,7 +80,8 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
     start(async () => {
       const res = await createShoot({
         ...form,
-        travel_expense: parseFloat(form.travel_expense) || 0,
+        travel_expense:    parseFloat(form.travel_expense) || 0,
+        travel_time_hours: parseFloat(form.travel_time_hours) || 0,
       })
       if (res.success) { setForm(EMPTY); setShowForm(false) }
       else setFormError(res.error ?? 'Failed to create')
@@ -245,7 +247,7 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
                     </div>
 
                     {/* Footer */}
-                    <div className="flex items-center gap-4 mt-3 pt-3"
+                    <div className="flex items-center gap-4 mt-3 pt-3 flex-wrap"
                       style={{ borderTop: '1px solid #F3F4F6' }}>
                       <div className="flex items-center gap-1.5">
                         <IndianRupee size={11} style={{ color: '#9CA3AF' }} />
@@ -253,6 +255,14 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
                           ₹{(shoot.travel_expense ?? 0).toLocaleString('en-IN')} travel
                         </span>
                       </div>
+                      {(shoot.travel_time_hours ?? 0) > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <Clock size={11} style={{ color: '#9CA3AF' }} />
+                          <span className="text-[12px] font-semibold" style={{ color: '#374151' }}>
+                            {shoot.travel_time_hours}h travel time
+                          </span>
+                        </div>
+                      )}
                       {shoot.creator && (
                         <span className="text-[11px]" style={{ color: '#9CA3AF' }}>
                           Logged by {shoot.creator.name}
@@ -330,11 +340,23 @@ export default function AdminShootsClient({ shoots }: { shoots: Shoot[] }) {
                     value={form.equipment_used} onChange={set('equipment_used')} />
                 </div>
 
-                {/* Travel Expense */}
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: '#6B7280' }}>Travel Expense (₹)</label>
-                  <input type="number" min="0" step="1" placeholder="0" style={FIELD}
-                    value={form.travel_expense} onChange={set('travel_expense')} />
+                {/* Travel Expense + Travel Time */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: '#6B7280' }}>Travel Expense (₹)</label>
+                    <input type="number" min="0" step="1" placeholder="0" style={FIELD}
+                      value={form.travel_expense} onChange={set('travel_expense')} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: '#6B7280' }}>Travel Time</label>
+                    <select style={FIELD} value={form.travel_time_hours} onChange={set('travel_time_hours')}>
+                      <option value="0">None</option>
+                      {[0.5,1,1.5,2,2.5,3,3.5,4].map(h => (
+                        <option key={h} value={String(h)}>{h}h</option>
+                      ))}
+                    </select>
+                    <p className="text-[10px] mt-1" style={{ color: '#9CA3AF' }}>Internal only · not billed</p>
+                  </div>
                 </div>
 
                 {formError && (

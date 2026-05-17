@@ -163,6 +163,64 @@ export async function clockOut(): Promise<{ success: boolean; error?: string }> 
   return { success: true }
 }
 
+export async function breakIn(): Promise<{ success: boolean; error?: string }> {
+  const ctxResult = await getUserContext()
+  if ('error' in ctxResult) return { success: false, error: ctxResult.error }
+  const ctx = ctxResult
+
+  const today = new Date().toISOString().split('T')[0]
+  const admin = adminSupabase()
+
+  const { data: log } = await admin
+    .from('attendance_logs')
+    .select('id, clock_in, break_in')
+    .eq('company_id', ctx.companyId)
+    .eq('user_id', ctx.userId)
+    .eq('date', today)
+    .maybeSingle()
+
+  if (!log?.clock_in) return { success: false, error: 'Clock in first before starting a break.' }
+  if (log.break_in)   return { success: false, error: 'Break already started today.' }
+
+  const { error } = await admin
+    .from('attendance_logs')
+    .update({ break_in: new Date().toISOString() })
+    .eq('id', log.id)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/attendance')
+  return { success: true }
+}
+
+export async function breakOut(): Promise<{ success: boolean; error?: string }> {
+  const ctxResult = await getUserContext()
+  if ('error' in ctxResult) return { success: false, error: ctxResult.error }
+  const ctx = ctxResult
+
+  const today = new Date().toISOString().split('T')[0]
+  const admin = adminSupabase()
+
+  const { data: log } = await admin
+    .from('attendance_logs')
+    .select('id, break_in, break_out')
+    .eq('company_id', ctx.companyId)
+    .eq('user_id', ctx.userId)
+    .eq('date', today)
+    .maybeSingle()
+
+  if (!log?.break_in)  return { success: false, error: 'No break started yet.' }
+  if (log.break_out)   return { success: false, error: 'Break already ended today.' }
+
+  const { error } = await admin
+    .from('attendance_logs')
+    .update({ break_out: new Date().toISOString() })
+    .eq('id', log.id)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/attendance')
+  return { success: true }
+}
+
 export async function getAttendanceByDate(date: string): Promise<{
   success: boolean
   log: { clock_in: string | null; clock_out: string | null; work_type: string | null; status: string } | null

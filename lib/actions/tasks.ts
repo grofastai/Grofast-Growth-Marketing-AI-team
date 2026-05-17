@@ -72,6 +72,53 @@ export async function createTask(
   return { success: true }
 }
 
+export async function createMemberTask(
+  _prev: { error: string } | { success: true } | null,
+  formData: FormData
+): Promise<{ error: string } | { success: true }> {
+  const raw = {
+    title:       formData.get('title') as string,
+    description: (formData.get('description') as string) || undefined,
+    priority:    (formData.get('priority') as string) || 'medium',
+    due_date:    (formData.get('due_date') as string) || null,
+    assigned_to: (formData.get('assigned_to') as string) || null,
+  }
+
+  const parsed = z.object({
+    title:       z.string().min(1, 'Title required'),
+    description: z.string().optional(),
+    priority:    z.enum(['low','medium','high']).default('medium'),
+    due_date:    z.string().optional().nullable(),
+    assigned_to: z.string().uuid().optional().nullable(),
+  }).safeParse(raw)
+
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: profile } = await admin.from('users').select('company_id').eq('id', user.id).single()
+  if (!profile?.company_id) return { error: 'Profile not found' }
+
+  const { error } = await admin.from('tasks').insert({
+    company_id:  profile.company_id,
+    title:       parsed.data.title,
+    description: parsed.data.description || null,
+    priority:    parsed.data.priority,
+    due_date:    parsed.data.due_date || null,
+    status:      'todo',
+    created_by:  user.id,
+    assigned_to: parsed.data.assigned_to || user.id,
+  })
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/member/tasks')
+  return { success: true }
+}
+
 export async function updateTaskStatus(
   taskId: string,
   status: 'todo' | 'in_progress' | 'completed'

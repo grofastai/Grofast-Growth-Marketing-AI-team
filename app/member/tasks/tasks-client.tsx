@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect, useActionState } from "react"
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
@@ -9,9 +9,9 @@ import { useDraggable, useDroppable } from "@dnd-kit/core"
 import {
   Search, Calendar, Clock, Sparkles, Target,
   TrendingUp, CheckCircle2, ChevronDown, Zap,
-  Flame, AlertCircle, GripVertical,
+  Flame, AlertCircle, GripVertical, Plus, X, User,
 } from "lucide-react"
-import { updateTaskStatus } from "@/lib/actions/tasks"
+import { updateTaskStatus, createMemberTask } from "@/lib/actions/tasks"
 
 interface Task {
   id: string
@@ -338,14 +338,24 @@ function DroppableColumn({
 export default function MemberTasksClient({
   tasks: initialTasks,
   todayHours,
+  teamMembers = [],
+  currentUserId = "",
 }: {
   tasks: Task[]
   todayHours: number
+  teamMembers?: { id: string; name: string; employee_id: string }[]
+  currentUserId?: string
 }) {
   const [tasks, setTasks]           = useState(initialTasks)
   const [search, setSearch]         = useState("")
   const [filter, setFilter]         = useState("all")
   const [sortBy, setSortBy]         = useState<"priority" | "due_date">("priority")
+  const [showAssign, setShowAssign] = useState(false)
+  const [assignState, assignAction] = useActionState(createMemberTask, null)
+
+  useEffect(() => {
+    if (assignState && 'success' in assignState) setShowAssign(false)
+  }, [assignState])
   const [showSort, setShowSort]     = useState(false)
   const [activeMobileCol, setActiveMobileCol] = useState<"todo" | "in_progress" | "completed">("todo")
   const [dragId, setDragId]         = useState<string | null>(null)
@@ -467,12 +477,18 @@ export default function MemberTasksClient({
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
-              {/* Search */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", borderRadius: 12, background: "#F5F6FA", border: "1px solid #EBEDF2" }}>
-                <Search size={13} style={{ color: "#9CA3AF" }} />
-                <input value={search} onChange={e => setSearch(e.target.value)}
-                  placeholder="Search tasks..."
-                  style={{ background: "transparent", outline: "none", fontSize: 12, color: "#111111", width: 180, border: "none" }} />
+              {/* Search + Assign button */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", borderRadius: 12, background: "#F5F6FA", border: "1px solid #EBEDF2" }}>
+                  <Search size={13} style={{ color: "#9CA3AF" }} />
+                  <input value={search} onChange={e => setSearch(e.target.value)}
+                    placeholder="Search tasks..."
+                    style={{ background: "transparent", outline: "none", fontSize: 12, color: "#111111", width: 180, border: "none" }} />
+                </div>
+                <button onClick={() => setShowAssign(true)}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 12, background: "linear-gradient(135deg, #DE1A1A, #7F1D1D)", border: "none", color: "#FFFFFF", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                  <Plus size={13} /> Assign Task
+                </button>
               </div>
               {/* Mini stat pills */}
               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
@@ -819,5 +835,87 @@ export default function MemberTasksClient({
 
       </div>
     </div>
+
+    {/* ── Assign Task Modal ─────────────────────────────────────────────────── */}
+    {showAssign && (
+      <>
+        <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          onClick={() => setShowAssign(false)} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-[420px] rounded-2xl shadow-2xl overflow-hidden"
+            style={{ background: "#FFFFFF", border: "1px solid rgba(222,26,26,0.15)" }}>
+            <div className="px-6 py-4 flex items-center justify-between"
+              style={{ borderBottom: "1px solid #E5E7EB" }}>
+              <h2 className="text-[16px] font-bold" style={{ color: "#111111" }}>Assign a Task</h2>
+              <button onClick={() => setShowAssign(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ border: "1px solid #E5E7EB" }}>
+                <X size={14} style={{ color: "#6B7280" }} />
+              </button>
+            </div>
+            <form action={assignAction} className="px-6 py-5 space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Title *</label>
+                <input name="title" required placeholder="What needs to be done?"
+                  className="w-full px-3 py-2 rounded-xl text-[13px]"
+                  style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Description</label>
+                <textarea name="description" rows={2} placeholder="Details…"
+                  className="w-full px-3 py-2 rounded-xl text-[13px] resize-none"
+                  style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Priority</label>
+                  <select name="priority" className="w-full px-3 py-2 rounded-xl text-[13px]"
+                    style={{ border: "1.5px solid #EBEDF2", outline: "none" }}>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Due Date</label>
+                  <input type="date" name="due_date" className="w-full px-3 py-2 rounded-xl text-[13px]"
+                    style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>
+                  <User size={9} className="inline mr-1" />Assign To
+                </label>
+                <select name="assigned_to" className="w-full px-3 py-2 rounded-xl text-[13px]"
+                  style={{ border: "1.5px solid #EBEDF2", outline: "none" }}>
+                  <option value={currentUserId}>Myself</option>
+                  {teamMembers.filter(m => m.id !== currentUserId).map(m => (
+                    <option key={m.id} value={m.id}>{m.name} ({m.employee_id})</option>
+                  ))}
+                </select>
+              </div>
+              {assignState && "error" in assignState && (
+                <p className="text-[12px] px-3 py-2 rounded-lg"
+                  style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>
+                  {assignState.error}
+                </p>
+              )}
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setShowAssign(false)}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
+                  style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#6B7280" }}>
+                  Cancel
+                </button>
+                <button type="submit"
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white"
+                  style={{ background: "linear-gradient(135deg, #DE1A1A, #7F1D1D)" }}>
+                  Assign
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </>
+    )}
   )
 }

@@ -25,7 +25,14 @@ export default async function MemberTasksPage() {
 
   const admin = adminSupabase()
 
-  const [tasksResult, clockResult, updateResult] = await Promise.all([
+  const { data: currentUserProfile } = await admin
+    .from('users')
+    .select('company_id')
+    .eq('id', user.id)
+    .single()
+  const companyId = currentUserProfile?.company_id
+
+  const [tasksResult, clockResult, updateResult, teamMembersResult] = await Promise.all([
     // Use admin client to bypass RLS; created_by + assigner join only when column exists
     admin
       .from("tasks")
@@ -44,10 +51,19 @@ export default async function MemberTasksPage() {
       .eq("user_id", user.id)
       .eq("date", today)
       .maybeSingle(),
+    companyId
+      ? admin
+          .from("users")
+          .select("id, name, employee_id")
+          .eq("company_id", companyId)
+          .eq("status", "active")
+          .order("name")
+      : Promise.resolve({ data: [] as { id: string; name: string; employee_id: string }[] }),
   ])
 
-  const clockLog = clockResult.data as unknown as AttLog | null
-  const dayUpd   = updateResult.data as unknown as DayUpd | null
+  const clockLog     = clockResult.data as unknown as AttLog | null
+  const dayUpd       = updateResult.data as unknown as DayUpd | null
+  const teamMembers  = (teamMembersResult.data ?? []) as { id: string; name: string; employee_id: string }[]
 
   // Derive today's worked hours
   let todayHours = 0
@@ -69,6 +85,8 @@ export default async function MemberTasksPage() {
     <MemberTasksClient
       tasks={tasks}
       todayHours={todayHours}
+      teamMembers={teamMembers}
+      currentUserId={user.id}
     />
   )
 }

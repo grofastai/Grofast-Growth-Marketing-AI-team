@@ -57,6 +57,7 @@ type MemberUser = {
   name: string
   employee_id: string
   hourly_rate: number | null
+  monthly_salary: number | null
 }
 
 type PricingRate = {
@@ -97,6 +98,11 @@ function ini(name: string) {
 
 function fmtRupee(n: number) {
   return `₹${Math.round(n).toLocaleString("en-IN")}`
+}
+
+function derivePerHour(u: MemberUser): number {
+  if (u.monthly_salary && u.monthly_salary > 0) return u.monthly_salary / 25 / 9
+  return u.hourly_rate ?? 0
 }
 
 function getVideoTypeColor(type: string) {
@@ -317,7 +323,7 @@ export default function ExpensesClient({
   pricingRates: PricingRate[]
   costOverrides: CostOverride[]
 }) {
-  const [tab, setTab]           = useState<"analytics" | "claims" | "profit" | "team">("analytics")
+  const [tab, setTab]           = useState<"analytics" | "claims" | "profit" | "team" | "per_client">("analytics")
   const [clientName, setClient] = useState("")
   const [dateFrom, setFrom]     = useState("")
   const [dateTo, setTo]         = useState("")
@@ -366,6 +372,45 @@ export default function ExpensesClient({
     }
     return Array.from(names).sort()
   }, [updates])
+
+  // ── Per-client employee cost breakdown (salary-derived) ───────────────────
+  const perClientCosts = useMemo(() => {
+    const userM = new Map(localUsers.map(u => [u.id, u]))
+    const map: Record<string, Record<string, { name: string; hours: number; cost: number }>> = {}
+
+    for (const row of updates) {
+      const user = userM.get(row.user_id)
+      if (!user) continue
+      const perHour = derivePerHour(user)
+
+      for (const entry of (row.work_entries ?? [])) {
+        const addCost = (client: string, hours: number) => {
+          if (!map[client]) map[client] = {}
+          if (!map[client][user.id]) map[client][user.id] = { name: user.name, hours: 0, cost: 0 }
+          map[client][user.id].hours += hours
+          map[client][user.id].cost  += hours * perHour
+        }
+
+        if (entry.task_type === "edit" || entry.task_type === "shoot") {
+          const client = (entry.client_name ?? "").trim() || "Unknown"
+          addCost(client, entry.duration_hours ?? 0)
+        }
+
+        if (entry.task_type === "other") {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const clientNames: string[] = (entry as any).client_names ?? []
+          if (clientNames.length > 0) {
+            const splitHrs = (entry.duration_hours ?? 0) / clientNames.length
+            for (const client of clientNames) addCost(client.trim() || "Unknown", splitHrs)
+          } else {
+            const client = (entry.client_name ?? "").trim() || "Unknown"
+            addCost(client, entry.duration_hours ?? 0)
+          }
+        }
+      }
+    }
+    return map
+  }, [updates, localUsers])
 
   // ── Per-client summary (all clients) ──────────────────────────────────────
   const perClientData = useMemo(() => {
@@ -538,10 +583,11 @@ export default function ExpensesClient({
   ]
 
   const TABS = [
-    { id: "analytics" as const, label: "Client Analytics" },
-    { id: "claims"    as const, label: `Expense Claims${pendingClaims.length > 0 ? ` (${pendingClaims.length})` : ""}` },
-    { id: "profit"    as const, label: "Profitability" },
-    { id: "team"      as const, label: "Team Costing" },
+    { id: "analytics"  as const, label: "Client Analytics" },
+    { id: "claims"     as const, label: `Expense Claims${pendingClaims.length > 0 ? ` (${pendingClaims.length})` : ""}` },
+    { id: "profit"     as const, label: "Profitability" },
+    { id: "team"       as const, label: "Team Costing" },
+    { id: "per_client" as const, label: "Per Client Cost" },
   ]
 
   return (
@@ -1449,6 +1495,65 @@ export default function ExpensesClient({
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ══════════════ PER CLIENT COST TAB ══════════════ */}
+        {tab === "per_client" && (
+          <div className="space-y-4">
+            <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #EBEDF2" }}>
+              <p className="text-[13px] font-semibold mb-1" style={{ color: "#374151" }}>
+                Employee cost per client — derived from <strong>monthly salary ÷ 25 days ÷ 9 hrs</strong>
+              </p>
+              <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
+                Edit entries, shoot hours, and multi-client ops tasks are all included.
+              </p>
+            </div>
+            {Object.entries(perClientCosts)
+              .sort((a, b) => {
+                const ta = Object.values(a[1]).reduce((s, v) => s + v.cost, 0)
+                const tb = Object.values(b[1]).reduce((s, v) => s + v.cost, 0)
+                return tb - ta
+              })
+              .map(([client, employees]) => {
+                const total = Object.values(employees).reduce((s, v) => s + v.cost, 0)
+                return (
+                  <div key={client} className="rounded-2xl p-5"
+                    style={{ background: "#FFFFFF", border: "1px solid #EBEDF2", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="text-[15px] font-bold" style={{ color: "#111111" }}>{client}</p>
+                        <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{Object.keys(employees).length} team member{Object.keys(employees).length !== 1 ? "s" : ""}</p>
+                      </div>
+                      <span className="text-[18px] font-black" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+                        {fmtRupee(total)}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {Object.values(employees)
+                        .sort((a, b) => b.cost - a.cost)
+                        .map(emp => {
+                          const hrRate = emp.hours > 0 ? emp.cost / emp.hours : 0
+                          return (
+                            <div key={emp.name} className="flex items-center justify-between py-2 px-3 rounded-xl"
+                              style={{ background: "#F9FAFB" }}>
+                              <span className="text-[13px] font-semibold" style={{ color: "#374151" }}>{emp.name}</span>
+                              <span className="text-[12px]" style={{ color: "#6B7280" }}>
+                                {emp.hours.toFixed(1)}h × {fmtRupee(hrRate)}/h = <strong style={{ color: "#111111" }}>{fmtRupee(emp.cost)}</strong>
+                              </span>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  </div>
+                )
+              })}
+            {Object.keys(perClientCosts).length === 0 && (
+              <div className="py-20 text-center rounded-2xl" style={{ background: "#FFFFFF", border: "1px solid #EBEDF2" }}>
+                <p className="text-[14px] font-semibold" style={{ color: "#9CA3AF" }}>No client work data yet</p>
+                <p className="text-[12px] mt-1" style={{ color: "#D1D5DB" }}>Work entries will appear here once team members log updates</p>
+              </div>
+            )}
           </div>
         )}
 

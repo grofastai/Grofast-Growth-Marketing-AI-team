@@ -86,23 +86,46 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const handleLogIn = useCallback(() => {
     setError(null)
     if (selectedMode === "office" && OFFICE_CHECK_ENABLED) {
-      if (!navigator.geolocation) { setError("Browser does not support location."); return }
+      if (!navigator.geolocation) { setError("Location not supported by this browser."); return }
       setGeoLoading(true)
+
+      const doClockIn = () =>
+        startTransition(async () => { const res = await clockIn(selectedMode); if (!res.success) setError(res.error ?? "Error"); else router.refresh() })
+
+      const checkPosition = (pos: GeolocationPosition) => {
+        setGeoLoading(false)
+        if (pos.coords.accuracy > OFFICE_RADIUS) { doClockIn(); return }
+        const dist = haversineMeters(pos.coords.latitude, pos.coords.longitude, OFFICE_LAT, OFFICE_LNG)
+        if (dist > OFFICE_RADIUS) { setError(`You are ${Math.round(dist)}m from the office (max ${OFFICE_RADIUS}m).`); return }
+        doClockIn()
+      }
+
+      // Try high-accuracy first; on timeout fall back to network-based location
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setGeoLoading(false)
-          // If GPS accuracy is worse than the allowed radius, skip the distance check
-          // (browser is using IP/WiFi fallback which can be tens of km off)
-          if (pos.coords.accuracy > OFFICE_RADIUS) {
-            startTransition(async () => { const res = await clockIn(selectedMode); if (!res.success) setError(res.error ?? "Error"); else router.refresh() })
-            return
+        checkPosition,
+        (err) => {
+          if (err.code === err.TIMEOUT) {
+            navigator.geolocation.getCurrentPosition(
+              checkPosition,
+              (err2) => {
+                setGeoLoading(false)
+                if (err2.code === err2.PERMISSION_DENIED) {
+                  setError("Location permission denied. Enable it in your browser settings.")
+                } else {
+                  setError("Could not get your location. Try again or switch to WFH mode.")
+                }
+              },
+              { timeout: 10000, maximumAge: 60000, enableHighAccuracy: false }
+            )
+          } else if (err.code === err.PERMISSION_DENIED) {
+            setGeoLoading(false)
+            setError("Location permission denied. Enable it in your browser settings.")
+          } else {
+            setGeoLoading(false)
+            setError("Location unavailable. Check your device GPS and try again.")
           }
-          const dist = haversineMeters(pos.coords.latitude, pos.coords.longitude, OFFICE_LAT, OFFICE_LNG)
-          if (dist > OFFICE_RADIUS) { setError(`You are ${Math.round(dist)}m from the office (allowed: ${OFFICE_RADIUS}m).`); return }
-          startTransition(async () => { const res = await clockIn(selectedMode); if (!res.success) setError(res.error ?? "Error"); else router.refresh() })
         },
-        () => { setGeoLoading(false); setError("Location access denied.") },
-        { timeout: 15000, maximumAge: 0, enableHighAccuracy: true }
+        { timeout: 12000, maximumAge: 30000, enableHighAccuracy: true }
       )
     } else {
       startTransition(async () => { const res = await clockIn(selectedMode); if (!res.success) setError(res.error ?? "Error"); else router.refresh() })

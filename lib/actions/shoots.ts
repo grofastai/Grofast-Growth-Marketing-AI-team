@@ -21,6 +21,7 @@ type ShootInput = {
   team_assigned: string
   equipment_used: string
   travel_expense: number
+  travel_time_hours: number
 }
 
 async function getCompanyId(userId: string) {
@@ -56,8 +57,9 @@ export async function createShoot(
     end_time:       input.end_time,
     team_assigned:  input.team_assigned.trim() || null,
     equipment_used: input.equipment_used.trim() || null,
-    travel_expense: input.travel_expense || 0,
-    created_by:     user.id,
+    travel_expense:     input.travel_expense || 0,
+    travel_time_hours:  input.travel_time_hours || 0,
+    created_by:         user.id,
     status:         'scheduled',
   })
 

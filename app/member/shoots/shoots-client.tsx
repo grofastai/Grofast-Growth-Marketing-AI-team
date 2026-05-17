@@ -38,6 +38,7 @@ const EMPTY = {
   start_time: '', end_time: '',
   team_assigned: '', equipment_used: '',
   travel_expense: '',
+  travel_time_hours: '0',
 }
 
 function fmt(dt: string) {
@@ -69,7 +70,8 @@ export default function MemberShootsClient({ shoots }: { shoots: Shoot[] }) {
     start(async () => {
       const res = await createShoot({
         ...form,
-        travel_expense: parseFloat(form.travel_expense) || 0,
+        travel_expense:     parseFloat(form.travel_expense) || 0,
+        travel_time_hours:  parseFloat(form.travel_time_hours) || 0,
       })
       if (res.success) { setForm(EMPTY); setShowForm(false) }
       else setError(res.error ?? 'Failed to submit')
@@ -236,6 +238,17 @@ export default function MemberShootsClient({ shoots }: { shoots: Shoot[] }) {
                   <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: '#6B7280' }}>Travel Expense (₹)</label>
                   <input type="number" min="0" step="1" placeholder="0" style={FIELD}
                     value={form.travel_expense} onChange={set('travel_expense')} />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.15em] mb-1.5" style={{ color: '#6B7280' }}>Travel Time (hours)</label>
+                  <select style={FIELD} value={form.travel_time_hours}
+                    onChange={e => setForm(p => ({ ...p, travel_time_hours: e.target.value }))}>
+                    <option value="0">None</option>
+                    {[0.5,1,1.5,2,2.5,3,4].map(h => (
+                      <option key={h} value={String(h)}>{h}h</option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] mt-1" style={{ color: '#9CA3AF' }}>Internal only — not billed to client</p>
                 </div>
                 {error && (
                   <p className="text-[12px] px-3 py-2 rounded-lg"

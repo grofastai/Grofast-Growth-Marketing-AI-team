@@ -379,8 +379,10 @@ export default function PayrollClient({
   const pendingCount    = rows.filter((r) => r.basePay === 0).length
 
   const today      = new Date()
-  const monthEnd   = new Date(year, mon, 0)
-  const daysLeft   = Math.max(0, Math.ceil((monthEnd.getTime() - today.getTime()) / 86400000))
+  // Salary is paid on the 3rd of the following month
+  const payDate    = new Date(year, mon, 3)  // 3rd of next month (mon is already +1 since JS months are 0-indexed)
+  const daysLeft   = Math.max(0, Math.ceil((payDate.getTime() - today.getTime()) / 86400000))
+  const payMonthName = payDate.toLocaleString("en-IN", { month: "long", year: "numeric" })
 
   function changeMonth(delta: number) {
     const d = new Date(year, mon - 1 + delta)
@@ -552,11 +554,11 @@ export default function PayrollClient({
               <Image src="/brand/payroll/finance-boy.png" alt="Finance" fill style={{ objectFit: "contain", objectPosition: "center" }} />
             </div>
             <div style={{ textAlign: "center" }}>
-              <p style={{ fontSize: 13, fontWeight: 700, color: "#111", margin: "0 0 2px" }}>Payroll closes in</p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "#111", margin: "0 0 2px" }}>Salary payout in</p>
               <p style={{ fontSize: 26, fontWeight: 900, color: "#E53935", fontFamily: "var(--font-jakarta)", margin: "0 0 4px", lineHeight: 1.1 }}>
                 {daysLeft} days 🚀
               </p>
-              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 14px" }}>Complete the payroll to avoid delays.</p>
+              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 14px" }}>Due 3rd {payMonthName} · Process before then.</p>
               <button style={{
                 width: "100%", padding: "11px", borderRadius: 12,
                 background: "linear-gradient(135deg, #E53935, #B71C1C)",
@@ -572,9 +574,9 @@ export default function PayrollClient({
           <div style={{ borderRadius: 20, background: "#fff", border: "1.5px solid #EBEBEB", padding: "18px 20px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
             <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: "0 0 14px", fontFamily: "var(--font-jakarta)" }}>Upcoming Payouts</h3>
             {[
-              { icon: "📅", label: "Salary Payout",  date: `31 ${monthShort} ${year}`, color: "#3B82F6" },
-              { icon: "🎁", label: "Bonus Payout",    date: `05 June ${year}`,          color: "#8B5CF6" },
-              { icon: "📊", label: "Reimbursement",   date: `07 June ${year}`,          color: "#F97316" },
+              { icon: "📅", label: "Salary Payout",  date: `03 ${payDate.toLocaleString("en-IN", { month: "short", year: "numeric" })}`, color: "#3B82F6" },
+              { icon: "🎁", label: "Bonus Payout",    date: `05 ${payDate.toLocaleString("en-IN", { month: "long", year: "numeric" })}`,  color: "#8B5CF6" },
+              { icon: "📊", label: "Reimbursement",   date: `07 ${payDate.toLocaleString("en-IN", { month: "long", year: "numeric" })}`,  color: "#F97316" },
             ].map((item, i) => (
               <div key={i} style={{
                 display: "flex", alignItems: "center", gap: 12,

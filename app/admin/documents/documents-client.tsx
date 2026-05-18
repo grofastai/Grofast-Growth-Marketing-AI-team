@@ -13,8 +13,8 @@ import {
   Building2, LayoutGrid, ArrowUpRight, Layers, ChevronRight,
 } from "lucide-react"
 
-const DOC_TYPES = ["Offer Letter", "Contract", "ID Proof", "Certificate", "Payslip", "Other"]
-const FILTER_CHIPS = ["All", "Offer Letter", "Contract", "ID Proof", "Certificate", "Payslip", "Other"]
+const DOC_TYPES = ["Contract", "ID Proof", "Certificate", "Payslip", "Other"]
+const FILTER_CHIPS = ["All", "Contract", "ID Proof", "Certificate", "Payslip", "Other"]
 
 type Member = {
   id: string; name: string; employee_id: string; role: string
@@ -60,7 +60,7 @@ function getExtBadge(fileType: string | null, name: string): { ext: string; colo
 }
 
 const DOC_TYPE_COLOR: Record<string, string> = {
-  "Offer Letter": "#de1a1a", "Contract": "#6366F1", "ID Proof": "#F59E0B",
+  "Contract": "#6366F1", "ID Proof": "#F59E0B",
   "Certificate": "#16A34A", "Payslip": "#0EA5E9", "Other": "#6B7280",
 }
 

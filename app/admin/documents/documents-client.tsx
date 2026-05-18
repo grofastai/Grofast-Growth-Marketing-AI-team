@@ -411,10 +411,13 @@ export default function DocumentsClient({
       const { error: upErr } = await supabase.storage.from("documents").upload(path, file)
       if (upErr) { setUploadError(upErr.message); setIsUploading(false); return }
       const { data: { publicUrl } } = supabase.storage.from("documents").getPublicUrl(path)
+      const targetMember = uploadFor
       start(async () => {
-        const res = await saveDocumentRecord({ userId: uploadFor, name: docName.trim(), fileUrl: publicUrl, fileType: file.type, fileSize: file.size, docType })
+        const res = await saveDocumentRecord({ userId: targetMember, name: docName.trim(), fileUrl: publicUrl, fileType: file.type, fileSize: file.size, docType })
         if (res.success) {
           setShowUpload(false); setFile(null); setDocName(""); setUploadFor(""); setDocType("Other")
+          setSelectedId(targetMember)
+          setActiveTab("documents")
           setUploadSuccess(`"${docName.trim()}" uploaded successfully!`)
           setTimeout(() => setUploadSuccess(""), 4000)
           router.refresh()

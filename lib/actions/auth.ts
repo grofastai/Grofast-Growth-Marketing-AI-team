@@ -52,7 +52,11 @@ export async function loginAction(
     redirect('/change-password')
   }
 
-  redirect(profile?.role === 'MEMBER' ? '/member/dashboard' : '/admin/dashboard')
+  redirect(
+    profile?.role === 'ADMIN'          ? '/admin/dashboard' :
+    profile?.role === 'FREELANCER_MGR' ? '/freelancer/dashboard' :
+    '/member/dashboard'
+  )
 }
 
 export async function changePasswordAction(

@@ -22,7 +22,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     admin.from("leaves").select("*", { count: "exact", head: true }).eq("status", "pending"),
   ])
 
-  if (profile?.role !== "ADMIN") redirect("/member/dashboard")
+  if (profile?.role !== "ADMIN") redirect(profile?.role === "FREELANCER_MGR" ? "/freelancer/dashboard" : "/member/dashboard")
   if (profile?.must_change_password) redirect("/change-password")
 
   return (

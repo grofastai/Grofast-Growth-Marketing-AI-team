@@ -22,7 +22,8 @@ export default async function MemberLayout({ children }: { children: React.React
     admin.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "pending"),
   ])
 
-  if (profile?.role === "ADMIN") redirect("/admin/dashboard")
+  if (profile?.role === "ADMIN")          redirect("/admin/dashboard")
+  if (profile?.role === "FREELANCER_MGR") redirect("/freelancer/dashboard")
   if (profile?.must_change_password) redirect("/change-password")
 
   return (

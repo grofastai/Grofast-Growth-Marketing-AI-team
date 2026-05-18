@@ -57,7 +57,7 @@ export default async function PayrollPage({
       .lte("date", monthEnd),
     admin
       .from("payroll_runs")
-      .select("user_id, bonus, advance, is_paid, paid_at")
+      .select("user_id, bonus, advance, incentive, is_paid, paid_at")
       .eq("company_id", profile.company_id)
       .eq("month", month),
   ])
@@ -80,7 +80,7 @@ export default async function PayrollPage({
   type LogRow = { user_id: string; date: string; clock_in: string | null; clock_out: string | null; status: string | null }
   const logs = (logsRaw ?? []) as LogRow[]
 
-  type RunRow = { user_id: string; bonus: number; advance: number; is_paid: boolean; paid_at: string | null }
+  type RunRow = { user_id: string; bonus: number; advance: number; incentive: number; is_paid: boolean; paid_at: string | null }
   const runs = (runsRaw ?? []) as RunRow[]
   const runsMap = new Map(runs.map(r => [r.user_id, r]))
 
@@ -119,9 +119,10 @@ export default async function PayrollPage({
     }
 
     const run = runsMap.get(m.id)
-    const bonus   = run?.bonus   ?? 0
-    const advance = run?.advance ?? 0
-    const finalNetPay = Math.round((netPay + bonus - advance) * 100) / 100
+    const bonus     = run?.bonus     ?? 0
+    const advance   = run?.advance   ?? 0
+    const incentive = run?.incentive ?? 0
+    const finalNetPay = Math.round((netPay + bonus + incentive - advance) * 100) / 100
 
     return {
       id: m.id, name: m.name, employee_id: m.employee_id, team: m.team,
@@ -129,7 +130,7 @@ export default async function PayrollPage({
       presentDays, absentDays: rawAbsent, paidLeaveDays, deductibleAbsent,
       totalHours, otHours,
       basePay, deduction, otPay, netPay,
-      bonus, advance, finalNetPay,
+      bonus, advance, incentive, finalNetPay,
       isPaid: run?.is_paid ?? false,
       paidAt: run?.paid_at ?? null,
       monthly_salary: m.monthly_salary, hourly_rate: m.hourly_rate,

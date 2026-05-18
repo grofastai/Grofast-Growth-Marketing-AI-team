@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     admin.from('attendance_logs').select('date, clock_in, clock_out')
       .eq('user_id', userId).gte('date', monthStart).lte('date', monthEnd),
     admin.from('companies').select('name, slug').eq('id', requester.company_id).single(),
-    admin.from('payroll_runs').select('bonus, advance, is_paid, paid_at')
+    admin.from('payroll_runs').select('bonus, advance, incentive, is_paid, paid_at')
       .eq('user_id', userId).eq('month', month).maybeSingle(),
   ])
 
@@ -93,8 +93,9 @@ export async function GET(request: NextRequest) {
   const member  = memberRaw as MemberRow
   const company = companyRaw as { name: string; slug: string } | null
 
-  const bonus   = (runRaw as any)?.bonus   ?? 0
-  const advance = (runRaw as any)?.advance ?? 0
+  const bonus     = (runRaw as any)?.bonus     ?? 0
+  const advance   = (runRaw as any)?.advance   ?? 0
+  const incentive = (runRaw as any)?.incentive ?? 0
 
   const empType = member.employment_type ?? 'regular'
   let basic = 0, hra = 0, travelAllowance = 0, medicalAllowance = 0, otherAllowance = 0
@@ -114,7 +115,7 @@ export async function GET(request: NextRequest) {
     basic = Math.round(totalHours * member.hourly_rate * 100) / 100
   }
 
-  const totalEarnings   = Math.round((basic + hra + travelAllowance + medicalAllowance + otherAllowance + otPay + bonus) * 100) / 100
+  const totalEarnings   = Math.round((basic + hra + travelAllowance + medicalAllowance + otherAllowance + otPay + bonus + incentive) * 100) / 100
   const totalDeductions = Math.round((deduction + advance) * 100) / 100
   const finalNetPay     = Math.round((totalEarnings - totalDeductions) * 100) / 100
   const attendPct      = workDays > 0 ? Math.round((presentDays / workDays) * 100) : 0
@@ -415,7 +416,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
       <div class="ed-row"><span class="ed-row-name">Medical Allowance</span><span class="ed-row-amt">${Math.round(medicalAllowance).toLocaleString('en-IN')}</span></div>
       ${otherAllowance > 0 ? `<div class="ed-row"><span class="ed-row-name">Other Allowance</span><span class="ed-row-amt">${Math.round(otherAllowance).toLocaleString('en-IN')}</span></div>` : ''}
       ${otPay > 0 ? `<div class="ed-row"><span class="ed-row-name">Overtime Pay (${otHours}h)</span><span class="ed-row-amt">${Math.round(otPay).toLocaleString('en-IN')}</span></div>` : ''}
-      ${bonus > 0  ? `<div class="ed-row"><span class="ed-row-name">Bonus / Incentive</span><span class="ed-row-amt">${Math.round(bonus).toLocaleString('en-IN')}</span></div>` : ''}
+      ${bonus > 0     ? `<div class="ed-row"><span class="ed-row-name">Bonus</span><span class="ed-row-amt">${Math.round(bonus).toLocaleString('en-IN')}</span></div>` : ''}
+      ${incentive > 0 ? `<div class="ed-row"><span class="ed-row-name">Incentive</span><span class="ed-row-amt">${Math.round(incentive).toLocaleString('en-IN')}</span></div>` : ''}
       ` : `
       <div class="ed-row"><span class="ed-row-name">Hours Worked (${totalHours}h)</span><span class="ed-row-amt">${Math.round(basic).toLocaleString('en-IN')}</span></div>
       `}

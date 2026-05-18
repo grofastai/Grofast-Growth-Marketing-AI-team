@@ -17,7 +17,7 @@ type PayrollRow = {
   presentDays: number; absentDays: number; paidLeaveDays: number; deductibleAbsent: number
   totalHours: number; otHours: number
   basePay: number; deduction: number; otPay: number; netPay: number
-  bonus: number; advance: number; finalNetPay: number
+  bonus: number; advance: number; incentive: number; finalNetPay: number
   isPaid: boolean; paidAt: string | null
   monthly_salary: number | null; hourly_rate: number | null
 }
@@ -203,10 +203,11 @@ function EmployeeCard({
 }) {
   const [isPending, startTransition] = useTransition()
   const [savingBonus, setSavingBonus] = useState(false)
-  const [bonus, setBonus]     = useState(r.bonus)
-  const [advance, setAdvance] = useState(r.advance)
+  const [bonus, setBonus]         = useState(r.bonus)
+  const [advance, setAdvance]     = useState(r.advance)
+  const [incentive, setIncentive] = useState(r.incentive)
 
-  const localFinalNetPay = Math.round((r.netPay + bonus - advance) * 100) / 100
+  const localFinalNetPay = Math.round((r.netPay + bonus + incentive - advance) * 100) / 100
   const attendPct = workDays > 0 ? Math.round((r.presentDays / workDays) * 100) : 0
   const tClr = TEAM_CLR[r.team ?? ""] ?? DEF_TEAM
 
@@ -223,7 +224,7 @@ function EmployeeCard({
   async function handleSaveBonus() {
     setSavingBonus(true)
     try {
-      await saveBonusAdvance(r.id, month, bonus, advance)
+      await saveBonusAdvance(r.id, month, bonus, advance, incentive)
     } finally {
       setSavingBonus(false)
     }
@@ -422,6 +423,24 @@ function EmployeeCard({
               />
             </div>
 
+            {/* Incentive input */}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "block", marginBottom: 6 }}>
+                Incentive (₹)
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={incentive}
+                onChange={e => setIncentive(Math.max(0, Number(e.target.value)))}
+                style={{
+                  width: "100%", padding: "9px 12px", borderRadius: 10, border: "1.5px solid #E5E7EB",
+                  fontSize: 14, fontWeight: 700, color: "#16A34A", background: "#fff", outline: "none",
+                }}
+                placeholder="0"
+              />
+            </div>
+
             {/* Advance / Recovery input */}
             <div style={{ marginBottom: 18 }}>
               <label style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "block", marginBottom: 6 }}>
@@ -450,11 +469,12 @@ function EmployeeCard({
               <div style={{ fontSize: 22, fontWeight: 900, color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
                 {fmt(localFinalNetPay)}
               </div>
-              {(bonus > 0 || advance > 0) && (
+              {(bonus > 0 || incentive > 0 || advance > 0) && (
                 <div style={{ fontSize: 10, color: "#6B7280", marginTop: 4 }}>
                   {fmt(r.netPay)}
-                  {bonus > 0 ? ` + ${fmt(bonus)} bonus` : ""}
-                  {advance > 0 ? ` − ${fmt(advance)} advance` : ""}
+                  {bonus > 0     ? ` + ${fmt(bonus)} bonus`     : ""}
+                  {incentive > 0 ? ` + ${fmt(incentive)} incentive` : ""}
+                  {advance > 0   ? ` − ${fmt(advance)} advance`  : ""}
                 </div>
               )}
             </div>

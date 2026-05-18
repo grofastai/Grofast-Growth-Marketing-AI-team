@@ -328,8 +328,9 @@ export default function DocumentsClient({
   const [docType, setDocType]         = useState("Other")
   const [docName, setDocName]         = useState("")
   const [file, setFile]               = useState<File | null>(null)
-  const [uploadError, setUploadError] = useState("")
-  const [isUploading, setIsUploading] = useState(false)
+  const [uploadError, setUploadError]     = useState("")
+  const [uploadSuccess, setUploadSuccess] = useState("")
+  const [isUploading, setIsUploading]     = useState(false)
   const [isPending, start]            = useTransition()
   const fileRef                       = useRef<HTMLInputElement>(null)
   const router                        = useRouter()
@@ -413,7 +414,10 @@ export default function DocumentsClient({
       start(async () => {
         const res = await saveDocumentRecord({ userId: uploadFor, name: docName.trim(), fileUrl: publicUrl, fileType: file.type, fileSize: file.size, docType })
         if (res.success) {
-          setShowUpload(false); setFile(null); setDocName(""); setUploadFor(""); setDocType("Other"); router.refresh()
+          setShowUpload(false); setFile(null); setDocName(""); setUploadFor(""); setDocType("Other")
+          setUploadSuccess(`"${docName.trim()}" uploaded successfully!`)
+          setTimeout(() => setUploadSuccess(""), 4000)
+          router.refresh()
         } else { setUploadError(res.error ?? "Failed to save") }
         setIsUploading(false)
       })
@@ -437,6 +441,24 @@ export default function DocumentsClient({
 
   return (
     <div style={{ background: "#F7F8FA", minHeight: "100vh" }}>
+
+      {/* ── SUCCESS TOAST ─────────────────────────────────────────────────── */}
+      {uploadSuccess && (
+        <div style={{
+          position: "fixed", top: 20, right: 20, zIndex: 9999,
+          background: "#fff", borderRadius: 14, padding: "14px 18px",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.14)", border: "1px solid rgba(22,163,74,0.2)",
+          display: "flex", alignItems: "center", gap: 10, minWidth: 280,
+        }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(22,163,74,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <CheckCircle2 size={16} style={{ color: "#16A34A" }} />
+          </div>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "#111", margin: 0 }}>Upload Successful</p>
+            <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>{uploadSuccess}</p>
+          </div>
+        </div>
+      )}
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <div className="min-h-[160px] md:min-h-[220px]" style={{

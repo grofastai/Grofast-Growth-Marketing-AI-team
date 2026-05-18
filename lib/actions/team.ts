@@ -94,7 +94,7 @@ export async function createMember(input: {
   employee_id: string
   email: string
   phone: string
-  role: 'ADMIN' | 'MEMBER'
+  role: 'ADMIN' | 'MEMBER' | 'FREELANCER_MGR'
   team: string
   position?: string | null
   password: string
@@ -254,7 +254,7 @@ export async function updateMember(input: {
   name: string
   email: string
   phone: string
-  role: 'ADMIN' | 'MEMBER'
+  role: 'ADMIN' | 'MEMBER' | 'FREELANCER_MGR'
   team: string
   position?: string | null
   employment_type?: 'regular' | 'part_time' | 'freelancer'

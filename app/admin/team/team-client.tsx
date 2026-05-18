@@ -22,7 +22,7 @@ interface Member {
   id: string
   name: string
   employee_id: string
-  role: "ADMIN" | "MEMBER"
+  role: "ADMIN" | "MEMBER" | "FREELANCER_MGR"
   email: string | null
   phone: string | null
   status: "active" | "inactive"
@@ -106,7 +106,7 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
     employee_id: member?.employee_id ?? nextId ?? "",
     email: member?.email ?? "",
     phone: member?.phone ?? "",
-    role: (member?.role ?? "MEMBER") as "ADMIN" | "MEMBER",
+    role: (member?.role ?? "MEMBER") as "ADMIN" | "MEMBER" | "FREELANCER_MGR",
     team: member?.team ?? "",
     position: member?.position ?? "",
     password: "",
@@ -243,18 +243,27 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
 
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Role *</label>
-            <div className="flex gap-3">
-              {(["MEMBER", "ADMIN"] as const).map((r) => (
-                <button key={r} type="button" onClick={() => setForm((prev) => ({ ...prev, role: r }))}
-                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
-                  style={form.role === r
-                    ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
+            <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
+              {([
+                { value: "MEMBER",        label: "Member",           color: "#6B7280",  bg: "rgba(0,0,0,0.03)",              border: "#E5E7EB" },
+                { value: "ADMIN",         label: "Admin",            color: "#FFFFFF",  bg: "linear-gradient(135deg,#de1a1a,#7F1D1D)", border: "rgba(222,26,26,0.3)" },
+                { value: "FREELANCER_MGR", label: "Freelancer Mgr", color: "#FFFFFF",  bg: "linear-gradient(135deg,#2D6A4F,#1a3520)", border: "rgba(45,106,79,0.3)" },
+              ] as const).map((r) => (
+                <button key={r.value} type="button" onClick={() => setForm((prev) => ({ ...prev, role: r.value }))}
+                  className="py-2.5 rounded-xl text-[12px] font-semibold transition-all"
+                  style={form.role === r.value
+                    ? { background: r.bg, color: r.color, border: `1px solid ${r.border}` }
                     : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }
                   }>
-                  {r === "ADMIN" ? "Admin" : "Member"}
+                  {r.label}
                 </button>
               ))}
             </div>
+            {form.role === "FREELANCER_MGR" && (
+              <p className="text-[11px] mt-1.5" style={{ color: "#2D6A4F" }}>
+                This account manages freelancers — it will log in to the Freelancer Portal.
+              </p>
+            )}
           </div>
 
           <div>
@@ -515,7 +524,7 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
   const stats = {
     total: members.length,
     active: members.filter((m) => m.status === "active").length,
-    admins: members.filter((m) => m.role === "ADMIN").length,
+    admins: members.filter((m) => m.role === "ADMIN" || m.role === "FREELANCER_MGR").length,
     onLeave: 0,
   }
 
@@ -701,12 +710,15 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
                       {/* Role */}
                       <td className="px-5 py-3.5">
                         <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                          style={member.role === "ADMIN"
-                            ? { background: "rgba(139,92,246,0.1)", color: "#7C3AED", border: "1px solid rgba(139,92,246,0.2)" }
-                            : { background: "rgba(0,0,0,0.04)", color: "#6B7280", border: "1px solid #E5E7EB" }
+                          style={
+                            member.role === "ADMIN"
+                              ? { background: "rgba(139,92,246,0.1)", color: "#7C3AED", border: "1px solid rgba(139,92,246,0.2)" }
+                              : member.role === "FREELANCER_MGR"
+                              ? { background: "rgba(45,106,79,0.1)", color: "#2D6A4F", border: "1px solid rgba(45,106,79,0.2)" }
+                              : { background: "rgba(0,0,0,0.04)", color: "#6B7280", border: "1px solid #E5E7EB" }
                           }>
                           {member.role === "ADMIN" ? <Shield size={9} /> : <User size={9} />}
-                          {member.role === "ADMIN" ? "Admin" : "Member"}
+                          {member.role === "ADMIN" ? "Admin" : member.role === "FREELANCER_MGR" ? "Freelancer Mgr" : "Member"}
                         </span>
                       </td>
 

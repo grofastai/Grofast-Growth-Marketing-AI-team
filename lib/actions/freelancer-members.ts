@@ -14,6 +14,7 @@ interface AddFreelancerInput {
   name: string
   employee_id: string
   phone?: string
+  specialty?: string
   password: string
   company_id: string
 }
@@ -24,6 +25,7 @@ interface FreelancerRow {
   employee_id: string
   email: string | null
   phone: string | null
+  specialty: string | null
   status: string
   created_at: string
 }
@@ -82,10 +84,11 @@ export async function addFreelancer(input: AddFreelancerInput): Promise<{
       name:        input.name,
       email,
       phone:       input.phone?.trim() || null,
+      specialty:   input.specialty?.trim() || null,
       role:        "FREELANCER",
       status:      "active",
     })
-    .select("id, name, employee_id, email, phone, status, created_at")
+    .select("id, name, employee_id, email, phone, specialty, status, created_at")
     .single()
 
   if (dbError) {

@@ -39,10 +39,13 @@ const voiceOverSchema = z.object({
 })
 
 const baseSchema = z.object({
-  freelancer_id: z.string().uuid('Select a freelancer'),
-  client_id: z.string().uuid('Select a client').optional().nullable(),
-  client_name: z.string().min(1, 'Client name required'),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date'),
+  freelancer_id:  z.string().uuid('Select a freelancer'),
+  client_id:      z.string().uuid('Select a client').optional().nullable(),
+  client_name:    z.string().min(1, 'Client name required'),
+  date:           z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date'),
+  cost:           z.number().nonnegative().optional().nullable(),
+  deadline:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+  payment_status: z.enum(['unpaid', 'paid']).default('unpaid'),
 })
 
 export type FreelancerUpdateInput =
@@ -78,9 +81,9 @@ export async function submitFreelancerUpdate(
     const parsed = shootingSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
     typePayload = {
-      shoot_title: parsed.data.shoot_title,
+      shoot_title:    parsed.data.shoot_title,
       shoot_duration: parsed.data.shoot_duration,
-      shoot_notes: parsed.data.shoot_notes ?? null,
+      shoot_notes:    parsed.data.shoot_notes ?? null,
       video_uploaded: parsed.data.video_uploaded,
     }
   } else if (input.work_type === 'editing') {
@@ -91,7 +94,7 @@ export async function submitFreelancerUpdate(
       video_type: parsed.data.video_type,
       time_taken: parsed.data.time_taken,
       drive_link: parsed.data.drive_link || null,
-      revisions: parsed.data.revisions,
+      revisions:  parsed.data.revisions,
       edit_notes: parsed.data.edit_notes ?? null,
     }
   } else if (input.work_type === 'voice_over') {
@@ -100,18 +103,22 @@ export async function submitFreelancerUpdate(
     typePayload = {
       script_name: parsed.data.script_name,
       vo_duration: parsed.data.vo_duration,
-      vo_notes: parsed.data.vo_notes ?? null,
+      vo_notes:    parsed.data.vo_notes ?? null,
     }
   }
 
   const { error } = await admin.from('freelancer_updates').insert({
-    company_id:    profile.company_id,
-    freelancer_id: base.data.freelancer_id,
-    submitted_by:  user.id,
-    client_id:     base.data.client_id ?? null,
-    client_name:   base.data.client_name,
-    date:          base.data.date,
-    work_type:     input.work_type,
+    company_id:     profile.company_id,
+    freelancer_id:  base.data.freelancer_id,
+    submitted_by:   user.id,
+    client_id:      base.data.client_id ?? null,
+    client_name:    base.data.client_name,
+    date:           base.data.date,
+    work_type:      input.work_type,
+    cost:           base.data.cost ?? null,
+    deadline:       base.data.deadline ?? null,
+    payment_status: base.data.payment_status,
+    paid_date:      base.data.payment_status === 'paid' ? base.data.date : null,
     ...typePayload,
   })
 
@@ -119,6 +126,36 @@ export async function submitFreelancerUpdate(
 
   revalidatePath('/freelancer/activities')
   revalidatePath('/freelancer/dashboard')
+  return { success: true }
+}
+
+export async function markAsPaid(updateId: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: profile } = await admin
+    .from('users')
+    .select('company_id, role')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile?.company_id) return { success: false, error: 'Profile not found' }
+  if (profile.role !== 'FREELANCER_MGR' && profile.role !== 'ADMIN') {
+    return { success: false, error: 'Not authorized' }
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+  const { error } = await admin
+    .from('freelancer_updates')
+    .update({ payment_status: 'paid', paid_date: today })
+    .eq('id', updateId)
+    .eq('company_id', profile.company_id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/freelancer/activities')
   return { success: true }
 }
 

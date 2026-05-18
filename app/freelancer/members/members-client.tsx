@@ -10,6 +10,7 @@ interface Freelancer {
   employee_id: string
   email: string | null
   phone: string | null
+  specialty: string | null
   status: string
   created_at: string
 }
@@ -51,10 +52,11 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
   const [name, setName] = useState("")
   const [employeeId, setEmployeeId] = useState("")
   const [phone, setPhone] = useState("")
+  const [specialty, setSpecialty] = useState("")
   const [password, setPassword] = useState("")
 
   function resetForm() {
-    setName(""); setEmployeeId(""); setPhone(""); setPassword("")
+    setName(""); setEmployeeId(""); setPhone(""); setSpecialty(""); setPassword("")
     setStatus("idle"); setErrorMsg("")
   }
 
@@ -62,7 +64,7 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
     e.preventDefault()
     setStatus("loading")
     setErrorMsg("")
-    const result = await addFreelancer({ name, employee_id: employeeId, phone, password, company_id: companyId })
+    const result = await addFreelancer({ name, employee_id: employeeId, phone, specialty, password, company_id: companyId })
     if (result.success && result.freelancer) {
       setFreelancers(prev => [...prev, result.freelancer!])
       setStatus("success")
@@ -95,44 +97,51 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
             <p style={{ fontSize: 13, color: "#A0AEC0", margin: "4px 0 0" }}>Add freelancers to start logging their work</p>
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#F7FAFC" }}>
-                {["Name", "Employee ID", "Phone", "Status", "Joined"].map(h => (
-                  <th key={h} style={{ padding: "12px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#718096", textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: "1px solid #E2E8F0" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {freelancers.map((f, i) => (
-                <tr key={f.id} style={{ borderBottom: i < freelancers.length - 1 ? "1px solid #F7FAFC" : "none" }}>
-                  <td style={{ padding: "14px 18px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(45,106,79,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#2D6A4F" }}>
-                          {f.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
-                        </span>
-                      </div>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: "#2D3748" }}>{f.name}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: "14px 18px", fontSize: 13, color: "#4A5568", fontFamily: "monospace" }}>{f.employee_id}</td>
-                  <td style={{ padding: "14px 18px", fontSize: 13, color: "#718096" }}>{f.phone ?? "—"}</td>
-                  <td style={{ padding: "14px 18px" }}>
-                    <span style={{
-                      fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20,
-                      background: f.status === "active" ? "rgba(45,106,79,0.1)" : "rgba(239,68,68,0.08)",
-                      color: f.status === "active" ? "#2D6A4F" : "#EF4444",
-                      textTransform: "uppercase", letterSpacing: "0.06em",
-                    }}>{f.status}</span>
-                  </td>
-                  <td style={{ padding: "14px 18px", fontSize: 12, color: "#A0AEC0" }}>
-                    {new Date(f.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                  </td>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "#F7FAFC" }}>
+                  {["Name", "What They Do", "Employee ID", "Phone", "Status", "Joined"].map(h => (
+                    <th key={h} style={{ padding: "12px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#718096", textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: "1px solid #E2E8F0", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {freelancers.map((f, i) => (
+                  <tr key={f.id} style={{ borderBottom: i < freelancers.length - 1 ? "1px solid #F7FAFC" : "none" }}>
+                    <td style={{ padding: "14px 18px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(45,106,79,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "#2D6A4F" }}>
+                            {f.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: 14, fontWeight: 600, color: "#2D3748", whiteSpace: "nowrap" }}>{f.name}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: "14px 18px" }}>
+                      {f.specialty
+                        ? <span style={{ fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: "rgba(59,130,246,0.08)", color: "#3B82F6" }}>{f.specialty}</span>
+                        : <span style={{ fontSize: 13, color: "#CBD5E0" }}>—</span>}
+                    </td>
+                    <td style={{ padding: "14px 18px", fontSize: 13, color: "#4A5568", fontFamily: "monospace" }}>{f.employee_id}</td>
+                    <td style={{ padding: "14px 18px", fontSize: 13, color: "#718096", whiteSpace: "nowrap" }}>{f.phone ?? "—"}</td>
+                    <td style={{ padding: "14px 18px" }}>
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20,
+                        background: f.status === "active" ? "rgba(45,106,79,0.1)" : "rgba(239,68,68,0.08)",
+                        color: f.status === "active" ? "#2D6A4F" : "#EF4444",
+                        textTransform: "uppercase", letterSpacing: "0.06em",
+                      }}>{f.status}</span>
+                    </td>
+                    <td style={{ padding: "14px 18px", fontSize: 12, color: "#A0AEC0", whiteSpace: "nowrap" }}>
+                      {new Date(f.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -140,7 +149,7 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
       {showAdd && (
         <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }} onClick={() => { setShowAdd(false); resetForm() }} />
-          <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 20, padding: 28, width: "100%", maxWidth: 440, boxShadow: "0 20px 60px rgba(0,0,0,0.18)" }}>
+          <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 20, padding: 28, width: "100%", maxWidth: 460, boxShadow: "0 20px 60px rgba(0,0,0,0.18)", maxHeight: "90vh", overflowY: "auto" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1A202C", margin: 0 }}>Add Freelancer</h3>
               <button onClick={() => { setShowAdd(false); resetForm() }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
@@ -151,6 +160,10 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
               <div>
                 <label style={LABEL}>Full Name</label>
                 <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Ravi Kumar" required style={INPUT} />
+              </div>
+              <div>
+                <label style={LABEL}>What They Do</label>
+                <input value={specialty} onChange={e => setSpecialty(e.target.value)} placeholder="e.g. Video Editor, Photographer, Voice Artist" style={INPUT} />
               </div>
               <div>
                 <label style={LABEL}>Employee ID</label>

@@ -41,7 +41,7 @@ export const workEntrySchema = z.object({
 // ── Main schema ────────────────────────────────────────────────
 export const dailyUpdateSchema = z
   .object({
-    active_tab:   z.enum(['working', 'learning']),
+    active_tab:   z.enum(['working', 'media', 'learning']),
 
     work_entries:       z.array(workEntrySchema).optional().default([]),
     links:              z.array(z.string()).optional().default([]),
@@ -56,7 +56,7 @@ export const dailyUpdateSchema = z
 
   })
   .superRefine((val, ctx) => {
-    if (val.active_tab === 'working' && val.work_entries.length === 0) {
+    if ((val.active_tab === 'working' || val.active_tab === 'media') && val.work_entries.length === 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Add at least one work entry', path: ['work_entries'] })
     }
     if (val.active_tab === 'learning') {

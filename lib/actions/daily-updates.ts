@@ -58,7 +58,7 @@ export async function submitDailyUpdate(
       ...(Array.isArray(existingRecord.work_entries) ? existingRecord.work_entries : []),
       ...d.work_entries,
     ]
-    const newWorkHours = Math.round(((existingRecord.working_hours || 0) + (d.active_tab === 'working' ? roundedHours : 0)) * 10) / 10
+    const newWorkHours = Math.round(((existingRecord.working_hours || 0) + (d.active_tab !== 'learning' ? roundedHours : 0)) * 10) / 10
 
     const updatePayload: Record<string, unknown> = {
       work_entries:    combinedEntries,
@@ -87,7 +87,7 @@ export async function submitDailyUpdate(
         user_id:             user.id,
         date:                today,
         attendance_status:   'present',
-        working_hours:       d.active_tab === 'working' ? roundedHours : null,
+        working_hours:       d.active_tab !== 'learning' ? roundedHours : null,
         learning_hours:      d.learning_hours,
         shoot_count:         d.shoot_count,
         notes:               null,
@@ -120,7 +120,7 @@ export async function submitDailyUpdate(
       .limit(1)
       .single()
 
-    if (adminPhone?.phone && d.active_tab === 'working') {
+    if (adminPhone?.phone && d.active_tab !== 'learning') {
       const isLowHours = roundedHours < 9
       sendNotification(isLowHours
         ? {

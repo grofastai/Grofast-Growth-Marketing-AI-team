@@ -394,7 +394,7 @@ export default function DailyUpdateForm({
       <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => { setTab(t.id); setError(null) }}
-            style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", padding:"12px 20px", borderRadius:14, border:"none", cursor:"pointer", transition:"all 0.18s", flex:"1 1 120px",
+            style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", padding:"12px 20px", borderRadius:14, cursor:"pointer", transition:"all 0.18s", flex:"1 1 120px",
               background: tab === t.id ? "#DE1A1A" : "#FFFFFF",
               color:      tab === t.id ? "#fff"    : "#6B7280",
               boxShadow:  tab === t.id ? "0 4px 18px rgba(222,26,26,0.4)" : "0 1px 4px rgba(0,0,0,0.06)",

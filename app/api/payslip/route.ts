@@ -47,7 +47,9 @@ export async function GET(request: NextRequest) {
   const admin = adminSupabase()
   const { data: requester } = await admin
     .from('users').select('company_id, role').eq('id', user.id).single()
-  if (!requester || requester.role !== 'ADMIN') return new NextResponse('Forbidden', { status: 403 })
+  if (!requester) return new NextResponse('Forbidden', { status: 403 })
+  // Admin can view any; member can only view their own
+  if (requester.role !== 'ADMIN' && userId !== user.id) return new NextResponse('Forbidden', { status: 403 })
 
   const [year, mon] = month.split('-').map(Number)
   const monthStart  = `${month}-01`

@@ -8,7 +8,7 @@ import {
   Loader2, LogOut, KeyRound, Clock, Target, AlertCircle, TrendingUp,
   Zap, Camera, HeartPulse, MapPin, UserPlus, Landmark, CreditCard,
   FileText, Upload, CheckCircle2, AlertTriangle, ChevronDown,
-  ChevronRight, Bell, Settings, Lock, FolderOpen, User,
+  ChevronRight, Bell, Settings, Lock, FolderOpen, User, Download,
 } from "lucide-react"
 import { updateOwnProfile } from "@/lib/actions/team"
 import { updatePersonalDetails, updateKYC } from "@/lib/actions/profile"
@@ -165,6 +165,9 @@ export default function ProfileClient({
   const [photoError, setPhotoError] = useState<string | null>(null)
   const [showPicker, setShowPicker] = useState(false)
   const [logoutPending, startLogout] = useTransition()
+
+  const currentMonth = new Date().toISOString().slice(0, 7) // "YYYY-MM"
+  const [payslipMonth, setPayslipMonth] = useState(currentMonth)
 
   const displayName = profile?.name ?? authEmail.split("@")[0]
   const initial     = displayName.charAt(0).toUpperCase()
@@ -674,6 +677,44 @@ export default function ProfileClient({
           <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
             <p style={{ fontSize: 14, fontWeight: 800, color: "#111111", margin: "0 0 16px" }}>Last 7 Days</p>
             <WeekChart data={chartData}/>
+          </div>
+
+          {/* My Payslip */}
+          <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(222,26,26,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Download size={15} style={{ color: "#DE1A1A" }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 800, color: "#111111", margin: 0 }}>My Payslip</p>
+                <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Download your salary slip</p>
+              </div>
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#9CA3AF", display: "block", marginBottom: 6 }}>Select Month</label>
+              <input
+                type="month"
+                value={payslipMonth}
+                max={currentMonth}
+                onChange={e => setPayslipMonth(e.target.value)}
+                style={{ width: "100%", padding: "10px 12px", borderRadius: 12, border: "1.5px solid #EBEDF2", fontSize: 13, fontWeight: 600, color: "#111111", background: "#F8F9FC", outline: "none" }}
+              />
+            </div>
+            <a
+              href={profile ? `/api/payslip?userId=${profile.id}&month=${payslipMonth}` : "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                width: "100%", padding: "11px", borderRadius: 12, textDecoration: "none",
+                background: "linear-gradient(135deg, #DE1A1A, #7F1D1D)",
+                fontSize: 13, fontWeight: 700, color: "#fff",
+                boxShadow: "0 4px 14px rgba(222,26,26,0.3)",
+                pointerEvents: profile ? "auto" : "none", opacity: profile ? 1 : 0.5,
+              }}>
+              <Download size={14} />
+              View &amp; Download Payslip
+            </a>
           </div>
 
           {/* Recent Activity */}

@@ -32,14 +32,14 @@ export default async function TeamPage({
   const [{ data: members, error: membersError }, { data: pastMembers }] = await Promise.all([
     admin
       .from('users')
-      .select('id, name, employee_id, role, email, phone, status, team, position, created_at, employment_type, monthly_salary, hourly_rate, paid_leave_days, deleted_at, date_of_birth, joined_at, gender')
+      .select('id, name, employee_id, role, email, phone, status, team, position, created_at, employment_type, monthly_salary, hourly_rate, paid_leave_days, deleted_at, date_of_birth, joined_at, gender, passport_photo_url')
       .eq('company_id', profile.company_id)
       .neq('role', 'FREELANCER')
       .is('deleted_at', null)
       .order('created_at', { ascending: true }),
     admin
       .from('users')
-      .select('id, name, employee_id, role, email, phone, status, team, position, created_at, employment_type, monthly_salary, hourly_rate, paid_leave_days, deleted_at, date_of_birth, joined_at, gender')
+      .select('id, name, employee_id, role, email, phone, status, team, position, created_at, employment_type, monthly_salary, hourly_rate, paid_leave_days, deleted_at, date_of_birth, joined_at, gender, passport_photo_url')
       .eq('company_id', profile.company_id)
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false }),

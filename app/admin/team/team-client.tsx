@@ -7,9 +7,9 @@ import {
   Search, Plus, Shield, UserCheck,
   MoreVertical, Phone, CalendarDays, X, Pencil,
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
-  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock,
+  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera,
 } from "lucide-react"
-import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask } from "@/lib/actions/team"
+import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto } from "@/lib/actions/team"
 
 const TEAMS = [
   "Media & Technology Team",
@@ -37,6 +37,7 @@ interface Member {
   date_of_birth?: string | null
   joined_at?: string | null
   gender?: "male" | "female" | null
+  passport_photo_url?: string | null
 }
 
 function getInitials(name: string) {
@@ -120,6 +121,15 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
   })
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [photoFile, setPhotoFile]       = useState<File | null>(null)
+
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setPhotoFile(file)
+    setPhotoPreview(URL.createObjectURL(file))
+  }
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }))
@@ -139,6 +149,16 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
         date_of_birth: form.date_of_birth || null,
         joined_at: form.joined_at || null,
       }
+      if (photoFile && isEdit && member) {
+        const fd = new FormData()
+        fd.append("file", photoFile)
+        const photoResult = await uploadPassportPhoto(member.id, fd)
+        if (!photoResult.success) {
+          setError(photoResult.error ?? "Photo upload failed")
+          return
+        }
+      }
+
       const result = isEdit
         ? await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, ...salaryFields, ...dateFields })
         : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, ...salaryFields, ...dateFields })
@@ -179,6 +199,42 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
 
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
           <style>{`.sheet-input:focus{border-color:rgba(222,26,26,0.4)!important}`}</style>
+
+          {/* Passport Photo — edit only */}
+          {isEdit && (
+            <div>
+              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Passport Photo</label>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                {/* Preview box — passport ratio 3:4 */}
+                <div style={{
+                  width: 64, height: 80, borderRadius: 10, overflow: "hidden", flexShrink: 0,
+                  border: "2px solid #E5E7EB", background: "#F9FAFB",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  {(photoPreview ?? member?.passport_photo_url) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={photoPreview ?? member?.passport_photo_url ?? ""} alt="Passport" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <User size={22} style={{ color: "#D1D5DB" }} />
+                  )}
+                </div>
+                {/* Upload label */}
+                <label style={{ flex: 1, cursor: "pointer" }}>
+                  <div style={{ padding: "12px", borderRadius: 10, border: "1.5px dashed #E5E7EB", background: "#FAFAFA", textAlign: "center" }}>
+                    <Camera size={16} style={{ color: "#9CA3AF", margin: "0 auto 5px" }} />
+                    <p style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>
+                      {(photoPreview ?? member?.passport_photo_url) ? "Change Photo" : "Upload Photo"}
+                    </p>
+                    <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 2 }}>JPG or PNG · Max 2MB</p>
+                  </div>
+                  <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handlePhotoSelect} />
+                </label>
+              </div>
+              {photoFile && (
+                <p style={{ fontSize: 11, color: "#16A34A", marginTop: 6 }}>✓ New photo selected — will upload on save</p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Full Name *</label>
@@ -681,9 +737,14 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
                       {/* Employee */}
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                            style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)" }}>
-                            <span className="text-[11px] font-bold" style={{ color: "#de1a1a" }}>{getInitials(member.name)}</span>
+                          <div className="w-9 h-9 rounded-full flex-shrink-0 overflow-hidden"
+                            style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            {member.passport_photo_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={member.passport_photo_url} alt={member.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : (
+                              <span className="text-[11px] font-bold" style={{ color: "#de1a1a" }}>{getInitials(member.name)}</span>
+                            )}
                           </div>
                           <div>
                             <p className="text-[13px] font-semibold leading-tight" style={{ color: "#111111" }}>{member.name}</p>

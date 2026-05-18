@@ -295,6 +295,45 @@ export async function updateMember(input: {
   return { success: true }
 }
 
+export async function uploadPassportPhoto(
+  userId: string,
+  formData: FormData,
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: requester } = await admin
+    .from('users').select('company_id, role').eq('id', user.id).single()
+  if (!requester || requester.role !== 'ADMIN') return { success: false, error: 'Forbidden' }
+
+  const file = formData.get('file') as File | null
+  if (!file) return { success: false, error: 'No file provided' }
+  if (file.size > 2 * 1024 * 1024) return { success: false, error: 'File too large (max 2MB)' }
+
+  const ext  = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+  const path = `${requester.company_id}/${userId}.${ext}`
+  const buf  = Buffer.from(await file.arrayBuffer())
+
+  const { error: uploadError } = await admin.storage
+    .from('passport-photos')
+    .upload(path, buf, { contentType: file.type, upsert: true })
+
+  if (uploadError) return { success: false, error: uploadError.message }
+
+  const { data: { publicUrl } } = admin.storage
+    .from('passport-photos')
+    .getPublicUrl(path)
+
+  await admin.from('users')
+    .update({ passport_photo_url: publicUrl })
+    .eq('id', userId)
+
+  revalidatePath('/admin/team')
+  return { success: true, url: publicUrl }
+}
+
 export async function assignTask(input: {
   member_id: string
   member_name: string

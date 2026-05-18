@@ -95,22 +95,26 @@ export async function GET(request: NextRequest) {
   const advance = (runRaw as any)?.advance ?? 0
 
   const empType = member.employment_type ?? 'regular'
-  let basePay = 0, deduction = 0, otPay = 0, netPay = 0
+  let basic = 0, hra = 0, travelAllowance = 0, medicalAllowance = 0, otherAllowance = 0
+  let deduction = 0, otPay = 0
 
   if (empType === 'regular' && member.monthly_salary) {
-    const dailyRate = member.monthly_salary / workDays
-    basePay   = member.monthly_salary
+    const gross     = member.monthly_salary
+    const dailyRate = gross / workDays
+    basic             = Math.round(gross * 0.50)
+    hra               = Math.round(basic * 0.20)
+    travelAllowance   = 2000
+    medicalAllowance  = 1000
+    otherAllowance    = Math.max(0, gross - basic - hra - travelAllowance - medicalAllowance)
     deduction = Math.round(absentDays * dailyRate * 100) / 100
     otPay     = Math.round(otHours * (dailyRate / 9) * 100) / 100
-    netPay    = Math.round((basePay - deduction + otPay) * 100) / 100
   } else if (member.hourly_rate) {
-    basePay = Math.round(totalHours * member.hourly_rate * 100) / 100
-    netPay  = basePay
+    basic = Math.round(totalHours * member.hourly_rate * 100) / 100
   }
 
-  const totalEarnings  = Math.round((basePay + otPay + bonus) * 100) / 100
+  const totalEarnings   = Math.round((basic + hra + travelAllowance + medicalAllowance + otherAllowance + otPay + bonus) * 100) / 100
   const totalDeductions = Math.round((deduction + advance) * 100) / 100
-  const finalNetPay    = Math.round((totalEarnings - totalDeductions) * 100) / 100
+  const finalNetPay     = Math.round((totalEarnings - totalDeductions) * 100) / 100
   const attendPct      = workDays > 0 ? Math.round((presentDays / workDays) * 100) : 0
 
   const payDate     = new Date(year, mon, 3)
@@ -364,7 +368,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
         <div class="sum-icon green-ico">${G.wallet}</div>
         <div class="sum-label">Gross Salary</div>
       </div>
-      <div class="sum-amount green-amt">${fmt(basePay + otPay + bonus)}</div>
+      <div class="sum-amount green-amt">${fmt(totalEarnings)}</div>
       ${spGreen}
     </div>
     <div class="sum-card">
@@ -403,11 +407,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
       </div>
       <div class="ed-col-hdr"><span>Particulars</span><span>Amount (₹)</span></div>
       ${empType === 'regular' && member.monthly_salary ? `
-      <div class="ed-row"><span class="ed-row-name">Basic Salary</span><span class="ed-row-amt">${Math.round(member.monthly_salary).toLocaleString('en-IN')}</span></div>
+      <div class="ed-row"><span class="ed-row-name">Basic Salary</span><span class="ed-row-amt">${Math.round(basic).toLocaleString('en-IN')}</span></div>
+      <div class="ed-row"><span class="ed-row-name">HRA</span><span class="ed-row-amt">${Math.round(hra).toLocaleString('en-IN')}</span></div>
+      <div class="ed-row"><span class="ed-row-name">Travel Allowance</span><span class="ed-row-amt">${Math.round(travelAllowance).toLocaleString('en-IN')}</span></div>
+      <div class="ed-row"><span class="ed-row-name">Medical Allowance</span><span class="ed-row-amt">${Math.round(medicalAllowance).toLocaleString('en-IN')}</span></div>
+      ${otherAllowance > 0 ? `<div class="ed-row"><span class="ed-row-name">Other Allowance</span><span class="ed-row-amt">${Math.round(otherAllowance).toLocaleString('en-IN')}</span></div>` : ''}
       ${otPay > 0 ? `<div class="ed-row"><span class="ed-row-name">Overtime Pay (${otHours}h)</span><span class="ed-row-amt">${Math.round(otPay).toLocaleString('en-IN')}</span></div>` : ''}
-      ${bonus > 0  ? `<div class="ed-row"><span class="ed-row-name">Bonus</span><span class="ed-row-amt">${Math.round(bonus).toLocaleString('en-IN')}</span></div>` : ''}
+      ${bonus > 0  ? `<div class="ed-row"><span class="ed-row-name">Bonus / Incentive</span><span class="ed-row-amt">${Math.round(bonus).toLocaleString('en-IN')}</span></div>` : ''}
       ` : `
-      <div class="ed-row"><span class="ed-row-name">Hours Worked (${totalHours}h)</span><span class="ed-row-amt">${Math.round(basePay).toLocaleString('en-IN')}</span></div>
+      <div class="ed-row"><span class="ed-row-name">Hours Worked (${totalHours}h)</span><span class="ed-row-amt">${Math.round(basic).toLocaleString('en-IN')}</span></div>
       `}
       <div class="ed-total ed-total-green"><span>Total Earnings</span><span>${fmt(totalEarnings)}</span></div>
     </div>

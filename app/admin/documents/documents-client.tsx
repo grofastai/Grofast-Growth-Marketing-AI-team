@@ -501,6 +501,14 @@ export default function DocumentsClient({
         </div>
       </div>
 
+      {/* ── MOBILE STAT CARDS (visible < md, hidden on desktop where hero shows them) ── */}
+      <div className="md:hidden grid grid-cols-2 gap-3 px-4 pt-4">
+        <HeroStatCard label="Total Files"        value={String(totalFiles)}    sub="16.4%" icon="📄" color="#6366F1" up />
+        <HeroStatCard label="Verified Documents" value={String(verifiedCount)} sub="22.1%" icon="✅" color="#16A34A" up />
+        <HeroStatCard label="Pending KYC"        value={String(pendingKYC)}    sub="5.6%"  icon="⏳" color="#F59E0B" up={false} />
+        <HeroStatCard label="Cloud Storage"      value={`${storageGB} GB`}     sub="32.4 GB / 50 GB" icon="☁️" color="#0EA5E9" up={false} />
+      </div>
+
       {/* ── MAIN 3-COLUMN GRID ──────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-[256px_1fr_288px] gap-3.5 px-4 md:px-5 pt-4">
 

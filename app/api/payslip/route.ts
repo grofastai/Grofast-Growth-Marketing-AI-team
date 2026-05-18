@@ -102,10 +102,10 @@ export async function GET(request: NextRequest) {
     const gross     = member.monthly_salary
     const dailyRate = gross / workDays
     basic             = Math.round(gross * 0.50)
-    hra               = Math.round(basic * 0.20)
-    travelAllowance   = 2000
-    medicalAllowance  = 1000
-    otherAllowance    = Math.max(0, gross - basic - hra - travelAllowance - medicalAllowance)
+    hra               = Math.round(basic * 0.20)        // 10% of gross
+    travelAllowance   = Math.round(gross * 0.07)        // 7% of gross
+    medicalAllowance  = Math.round(gross * 0.03)        // 3% of gross
+    otherAllowance    = Math.max(0, gross - basic - hra - travelAllowance - medicalAllowance) // ~30%
     deduction = Math.round(absentDays * dailyRate * 100) / 100
     otPay     = Math.round(otHours * (dailyRate / 9) * 100) / 100
   } else if (member.hourly_rate) {

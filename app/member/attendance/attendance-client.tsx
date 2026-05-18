@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useCallback } from "react"
 import Image from "next/image"
 import { LogOut, Loader2, Home, Building2, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch } from "lucide-react"
-import { clockIn, clockOut, markAbsent, breakIn, breakOut, getAttendanceByDate } from "@/lib/actions/attendance"
+import { clockIn, clockOut, markAbsent, breakIn, breakOut, getAttendanceByDate, manualClockOut } from "@/lib/actions/attendance"
 import { useRouter } from "next/navigation"
 
 const OFFICE_LAT     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LAT ?? "")
@@ -89,6 +89,9 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [historyLog, setHistoryLog] = useState<{
     clock_in: string | null; clock_out: string | null; work_type: string | null; status: string
   } | null | "loading" | "empty">(null)
+  const [manualTime, setManualTime] = useState("")
+  const [manualError, setManualError] = useState<string | null>(null)
+  const [manualSaved, setManualSaved] = useState(false)
 
   const handleLogIn = useCallback(() => {
     setError(null)
@@ -146,11 +149,30 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
   async function handleHistoryDate(date: string) {
     setHistoryDate(date)
+    setManualTime("")
+    setManualError(null)
+    setManualSaved(false)
     if (!date) { setHistoryLog(null); return }
     setHistoryLog("loading")
     const res = await getAttendanceByDate(date)
     if (!res.success || !res.log) setHistoryLog("empty")
     else setHistoryLog(res.log)
+  }
+
+  function handleManualClockOut() {
+    if (!historyDate || !manualTime) return
+    setManualError(null)
+    setManualSaved(false)
+    startTransition(async () => {
+      const res = await manualClockOut(historyDate, manualTime)
+      if (!res.success) {
+        setManualError(res.error ?? "Failed to save logout time.")
+      } else {
+        setManualSaved(true)
+        const updated = await getAttendanceByDate(historyDate)
+        if (updated.success && updated.log) setHistoryLog(updated.log)
+      }
+    })
   }
 
   const isAbsent  = todayLog?.status === "absent"
@@ -570,19 +592,60 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
           <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No attendance record found for this date.</p>
         )}
         {historyLog && historyLog !== "loading" && historyLog !== "empty" && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: "Status",    value: historyLog.status === "present" ? "Present" : "Absent", color: historyLog.status === "present" ? "#22C55E" : "#EF4444" },
-              { label: "Work Mode", value: historyLog.work_type === "wfh" ? "WFH" : historyLog.work_type === "office" ? "Office" : "—", color: "#111111" },
-              { label: "Log In",    value: fmtTime(historyLog.clock_in), color: "#111111" },
-              { label: "Log Out",   value: fmtTime(historyLog.clock_out), color: "#111111" },
-            ].map(r => (
-              <div key={r.label} className="rounded-2xl p-3" style={{ background: "#F9FAFB", border: "1px solid #EBEDF2" }}>
-                <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#9CA3AF" }}>{r.label}</p>
-                <p className="text-[14px] font-bold" style={{ color: r.color }}>{r.value}</p>
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "Status",    value: historyLog.status === "present" ? "Present" : "Absent", color: historyLog.status === "present" ? "#22C55E" : "#EF4444" },
+                { label: "Work Mode", value: historyLog.work_type === "wfh" ? "WFH" : historyLog.work_type === "office" ? "Office" : "—", color: "#111111" },
+                { label: "Log In",    value: fmtTime(historyLog.clock_in), color: "#111111" },
+                { label: "Log Out",   value: historyLog.clock_out ? fmtTime(historyLog.clock_out) : "—", color: historyLog.clock_out ? "#111111" : "#EF4444" },
+              ].map(r => (
+                <div key={r.label} className="rounded-2xl p-3" style={{ background: "#F9FAFB", border: "1px solid #EBEDF2" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#9CA3AF" }}>{r.label}</p>
+                  <p className="text-[14px] font-bold" style={{ color: r.color }}>{r.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Manual clock-out: shown only when logged in but forgot to log out */}
+            {historyLog.status === "present" && historyLog.clock_in && !historyLog.clock_out && !manualSaved && (
+              <div className="mt-4 rounded-2xl p-4" style={{ background: "rgba(245,158,11,0.06)", border: "1.5px solid rgba(245,158,11,0.25)" }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertTriangle size={14} style={{ color: "#D97706" }} />
+                  <p className="text-[13px] font-bold" style={{ color: "#D97706" }}>No logout recorded</p>
+                </div>
+                <p className="text-[12px] mb-3" style={{ color: "#9CA3AF" }}>
+                  You forgot to log out on this day. Enter your actual logout time below.
+                </p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <input
+                    type="time"
+                    value={manualTime}
+                    onChange={e => setManualTime(e.target.value)}
+                    className="rounded-xl px-3 py-2 text-[13px] font-semibold"
+                    style={{ border: "1.5px solid #EBEDF2", outline: "none", color: "#111111", background: "#FFFFFF" }}
+                  />
+                  <button
+                    onClick={handleManualClockOut}
+                    disabled={isPending || !manualTime}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl text-[13px] font-bold disabled:opacity-50 transition-all"
+                    style={{ background: "#D97706", color: "#FFFFFF" }}>
+                    {isPending ? <Loader2 size={13} className="animate-spin" /> : <LogOut size={13} />}
+                    Save Logout Time
+                  </button>
+                </div>
+                {manualError && <p className="text-[12px] mt-2 font-medium" style={{ color: "#EF4444" }}>{manualError}</p>}
               </div>
-            ))}
-          </div>
+            )}
+
+            {manualSaved && (
+              <div className="mt-4 flex items-center gap-2 rounded-2xl px-4 py-3"
+                style={{ background: "rgba(34,197,94,0.08)", border: "1.5px solid rgba(34,197,94,0.2)" }}>
+                <CheckCircle2 size={15} style={{ color: "#22C55E" }} />
+                <p className="text-[13px] font-bold" style={{ color: "#16A34A" }}>Logout time saved successfully.</p>
+              </div>
+            )}
+          </>
         )}
       </div>
 

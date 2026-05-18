@@ -221,6 +221,49 @@ export async function breakOut(): Promise<{ success: boolean; error?: string }> 
   return { success: true }
 }
 
+export async function manualClockOut(date: string, time: string): Promise<{ success: boolean; error?: string }> {
+  const ctxResult = await getUserContext()
+  if ('error' in ctxResult) return { success: false, error: ctxResult.error }
+  const ctx = ctxResult
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, error: 'Invalid date.' }
+  if (!/^\d{2}:\d{2}$/.test(time))        return { success: false, error: 'Invalid time format.' }
+
+  const admin = adminSupabase()
+
+  const { data: log } = await admin
+    .from('attendance_logs')
+    .select('id, clock_in, clock_out')
+    .eq('company_id', ctx.companyId)
+    .eq('user_id', ctx.userId)
+    .eq('date', date)
+    .eq('status', 'present')
+    .maybeSingle()
+
+  if (!log)          return { success: false, error: 'No attendance record found for this date.' }
+  if (!log.clock_in) return { success: false, error: 'No clock-in recorded for this date.' }
+  if (log.clock_out) return { success: false, error: 'Logout time already recorded for this date.' }
+
+  // Convert user-entered IST time to UTC ISO string
+  const [hh, mm] = time.split(':').map(Number)
+  const [yy, mo, dd] = date.split('-').map(Number)
+  const clockOutISO = new Date(Date.UTC(yy, mo - 1, dd, hh, mm) - 5.5 * 60 * 60 * 1000).toISOString()
+
+  if (new Date(clockOutISO) <= new Date(log.clock_in)) {
+    return { success: false, error: 'Logout time must be after your login time.' }
+  }
+
+  const { error } = await admin
+    .from('attendance_logs')
+    .update({ clock_out: clockOutISO })
+    .eq('id', log.id)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/attendance')
+  revalidatePath('/admin/attendance')
+  return { success: true }
+}
+
 export async function getAttendanceByDate(date: string): Promise<{
   success: boolean
   log: { clock_in: string | null; clock_out: string | null; work_type: string | null; status: string } | null

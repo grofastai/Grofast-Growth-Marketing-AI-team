@@ -42,8 +42,8 @@ export async function GET(request: NextRequest) {
 
   if (!birthdayMembers?.length) return NextResponse.json({ sent: 0, message: 'No birthdays today' })
 
-  const waUrl = `https://graph.facebook.com/v18.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`
-  const token = process.env.WHATSAPP_ACCESS_TOKEN
+  const waUrl = `https://graph.facebook.com/v19.0/${process.env.META_PHONE_NUMBER_ID}/messages`
+  const token = process.env.META_WHATSAPP_TOKEN
   const template = process.env.WHATSAPP_BIRTHDAY_TEMPLATE ?? 'grofast_birthday'
 
   let sent = 0

@@ -25,7 +25,7 @@ export default async function ActivitiesPage({
 
   const [{ data: updates }, { data: members }] = await Promise.all([
     query,
-    supabase.from("users").select("id, name, employee_id").eq("role", "MEMBER").order("name"),
+    supabase.from("users").select("id, name, employee_id, role").order("name"),
   ])
 
   return <ActivitiesClient updates={updates ?? []} members={members ?? []} dateFilter={dateFilter} memberFilter={params.member ?? ""} />

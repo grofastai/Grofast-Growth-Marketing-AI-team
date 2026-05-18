@@ -62,7 +62,6 @@ export async function GET(request: NextRequest) {
       .from('users')
       .select('id, name, phone')
       .eq('company_id', companyId)
-      .eq('role', 'MEMBER')
       .eq('status', 'active'),
     admin
       .from('daily_updates')

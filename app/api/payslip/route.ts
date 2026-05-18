@@ -20,10 +20,23 @@ function workingDaysInMonth(year: number, month: number) {
   return count
 }
 
+function inWords(n: number): string {
+  const ones = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine',
+    'Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen']
+  const tens = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety']
+  if (n <= 0) return 'Zero'
+  if (n < 20) return ones[n]
+  if (n < 100) return tens[Math.floor(n/10)] + (n%10 ? ' '+ones[n%10] : '')
+  if (n < 1000) return ones[Math.floor(n/100)]+' Hundred'+(n%100 ? ' '+inWords(n%100) : '')
+  if (n < 100000) return inWords(Math.floor(n/1000))+' Thousand'+(n%1000 ? ' '+inWords(n%1000) : '')
+  if (n < 10000000) return inWords(Math.floor(n/100000))+' Lakh'+(n%100000 ? ' '+inWords(n%100000) : '')
+  return inWords(Math.floor(n/10000000))+' Crore'+(n%10000000 ? ' '+inWords(n%10000000) : '')
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
   const userId = searchParams.get('userId')
-  const month  = searchParams.get('month') // YYYY-MM
+  const month  = searchParams.get('month')
 
   if (!userId || !month) return new NextResponse('Missing params', { status: 400 })
 
@@ -41,26 +54,17 @@ export async function GET(request: NextRequest) {
   const monthEnd    = `${month}-${new Date(year, mon, 0).getDate()}`
   const workDays    = workingDaysInMonth(year, mon)
 
-  const [{ data: memberRaw }, { data: updatesRaw }, { data: logsRaw }, { data: companyRaw }] = await Promise.all([
+  const [{ data: memberRaw }, { data: updatesRaw }, { data: logsRaw }, { data: companyRaw }, { data: runRaw }] = await Promise.all([
     admin.from('users')
       .select('id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, designation, joining_date, bank_account, phone, passport_photo_url')
-      .eq('id', userId)
-      .eq('company_id', requester.company_id)
-      .single(),
-    admin.from('daily_updates')
-      .select('working_hours')
-      .eq('user_id', userId)
-      .gte('date', monthStart)
-      .lte('date', monthEnd),
-    admin.from('attendance_logs')
-      .select('date, clock_in, clock_out')
-      .eq('user_id', userId)
-      .gte('date', monthStart)
-      .lte('date', monthEnd),
-    admin.from('companies')
-      .select('name, slug')
-      .eq('id', requester.company_id)
-      .single(),
+      .eq('id', userId).eq('company_id', requester.company_id).single(),
+    admin.from('daily_updates').select('working_hours')
+      .eq('user_id', userId).gte('date', monthStart).lte('date', monthEnd),
+    admin.from('attendance_logs').select('date, clock_in, clock_out')
+      .eq('user_id', userId).gte('date', monthStart).lte('date', monthEnd),
+    admin.from('companies').select('name, slug').eq('id', requester.company_id).single(),
+    admin.from('payroll_runs').select('bonus, advance, is_paid, paid_at')
+      .eq('user_id', userId).eq('month', month).maybeSingle(),
   ])
 
   if (!memberRaw) return new NextResponse('Member not found', { status: 404 })
@@ -72,6 +76,7 @@ export async function GET(request: NextRequest) {
   const logs        = (logsRaw   ?? []) as LogRow[]
   const presentDays = logs.filter(l => l.clock_in !== null).length || updates.filter(u => (u.working_hours ?? 0) > 0).length
   const absentDays  = Math.max(workDays - presentDays, 0)
+  const leaveDays   = absentDays
   const totalHours  = Math.round(updates.reduce((s, u) => s + (u.working_hours ?? 0), 0) * 10) / 10
   const otHours     = Math.round(updates.reduce((s, u) => {
     const h = u.working_hours ?? 0; return h > 9 ? s + (h - 9) : s
@@ -85,6 +90,9 @@ export async function GET(request: NextRequest) {
   }
   const member  = memberRaw as MemberRow
   const company = companyRaw as { name: string; slug: string } | null
+
+  const bonus   = (runRaw as any)?.bonus   ?? 0
+  const advance = (runRaw as any)?.advance ?? 0
 
   const empType = member.employment_type ?? 'regular'
   let basePay = 0, deduction = 0, otPay = 0, netPay = 0
@@ -100,22 +108,57 @@ export async function GET(request: NextRequest) {
     netPay  = basePay
   }
 
-  const grossPay    = basePay + otPay
-  const attendPct   = workDays > 0 ? Math.round((presentDays / workDays) * 100) : 0
-  const leaveDays   = absentDays
+  const totalEarnings  = Math.round((basePay + otPay + bonus) * 100) / 100
+  const totalDeductions = Math.round((deduction + advance) * 100) / 100
+  const finalNetPay    = Math.round((totalEarnings - totalDeductions) * 100) / 100
+  const attendPct      = workDays > 0 ? Math.round((presentDays / workDays) * 100) : 0
 
-  // Payment date: 3rd of next month
   const payDate     = new Date(year, mon, 3)
   const payDateStr  = payDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
   const monthName   = new Date(year, mon - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
   const generatedOn = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
-  const payslipId   = `PS-${member.employee_id}-${month.replace('-', '')}`
+  const payslipId   = `GSPL/${year}/${String(mon).padStart(2,'0')}/${member.employee_id}`
 
-  const fmt    = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`
-  const fmtDec = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+  const fmt = (n: number) => `₹ ${Math.round(n).toLocaleString('en-IN')}`
   const initials = member.name.split(' ').map((n: string) => n[0] ?? '').join('').slice(0, 2).toUpperCase()
-
   const companyName = company?.name ?? 'GroFast'
+
+  // ── SVG Icons ────────────────────────────────────────────────────────────────
+  const ic = (color: string) => ({
+    person:   `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>`,
+    building: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18M2 22h20M10 6h.01M14 6h.01M10 10h.01M14 10h.01M10 14h.01M14 14h.01"/></svg>`,
+    calendar: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+    card:     `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>`,
+    bank:     `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="22" x2="21" y2="22"/><path d="M12 2L3 8h18L12 2z"/><line x1="5" y1="8" x2="5" y2="22"/><line x1="10" y1="8" x2="10" y2="22"/><line x1="14" y1="8" x2="14" y2="22"/><line x1="19" y1="8" x2="19" y2="22"/></svg>`,
+    hash:     `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>`,
+    wallet:   `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>`,
+    calX:     `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="10" y1="14" x2="14" y2="18"/><line x1="14" y1="14" x2="10" y2="18"/></svg>`,
+    clock:    `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+    check:    `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+    absent:   `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>`,
+    transfer: `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg>`,
+    id:       `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.2" stroke-linecap="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="12" y2="16"/></svg>`,
+    money:    `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M14.5 9.5a2.5 2.5 0 0 0-5 0c0 1.4 1 2.1 2.5 2.5s2.5 1.1 2.5 2.5a2.5 2.5 0 0 1-5 0"/><line x1="12" y1="7" x2="12" y2="17"/></svg>`,
+    phone:    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.9a16 16 0 0 0 6.09 6.09l.91-.91a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg>`,
+    mail:     `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="22,4 12,13 2,4"/></svg>`,
+    globe:    `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+    earn:     `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
+    deduct:   `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+  })
+  const R = ic('#DC2626')
+  const G = ic('#16A34A')
+  const B = ic('#2563EB')
+
+  // Sparkline paths
+  const spGreen  = `<svg viewBox="0 0 80 24" width="80" height="24"><path d="M0,20 C15,17 30,12 45,9 S65,5 80,3" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round"/></svg>`
+  const spRed    = `<svg viewBox="0 0 80 24" width="80" height="24"><path d="M0,4 C15,6 30,11 45,14 S65,19 80,21" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"/></svg>`
+  const spBlue   = `<svg viewBox="0 0 80 24" width="80" height="24"><path d="M0,14 C15,12 30,11 45,10 S65,9 80,8" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round"/></svg>`
+
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(payslipId)}&bgcolor=FFFFFF&color=111827`
+
+  const joiningDateFmt = member.joining_date
+    ? new Date(member.joining_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '—'
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -124,180 +167,114 @@ export async function GET(request: NextRequest) {
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${payslipId} — ${member.name} — ${monthName}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet"/>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --red:#DE1A1A;--red-dark:#7F1D1D;--red-bg:#FFF1F2;
-  --green:#16A34A;--green-bg:#F0FDF4;--green-border:#BBF7D0;
-  --blue:#1D4ED8;--blue-bg:#EFF6FF;--blue-border:#BFDBFE;
-  --gray:#6B7280;--gray-light:#F9FAFB;--border:#E5E7EB;
-  --text:#111827;--sub:#6B7280;
-}
-body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:var(--text);-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:13px}
+body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:13px}
 
-/* ── TOPBAR ── */
-.topbar{background:#111;padding:12px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100}
+.topbar{background:#111;padding:11px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100}
 .topbar-info{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
-.topbar-dot{width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0}
+.topbar-dot{width:8px;height:8px;border-radius:50%;background:#DC2626;flex-shrink:0}
 .topbar-text{font-size:12px;color:#9CA3AF;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .topbar-id{font-size:11px;color:#4B5563;background:#1F2937;padding:3px 10px;border-radius:6px;font-weight:600;flex-shrink:0}
-.print-btn{background:linear-gradient(135deg,var(--red),var(--red-dark));color:#fff;border:none;padding:9px 24px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap;letter-spacing:0.01em;box-shadow:0 4px 14px rgba(222,26,26,0.4)}
-.print-btn:hover{opacity:0.9}
+.print-btn{background:#DC2626;color:#fff;border:none;padding:8px 22px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px;flex-shrink:0;box-shadow:0 4px 12px rgba(220,38,38,0.4)}
 
-/* ── OUTER ── */
-.outer{max-width:860px;margin:24px auto 40px;display:flex;flex-direction:column;gap:0}
+.page{max-width:860px;margin:24px auto 40px;background:#fff;border:1.5px solid #E5E7EB;border-radius:16px;overflow:hidden;box-shadow:0 4px 28px rgba(0,0,0,0.09)}
 
-/* ── HEADER ── */
-.hdr{background:linear-gradient(135deg,#DE1A1A 0%,#8B1212 52%,#1a0808 100%);border-radius:20px 20px 0 0;padding:0;overflow:hidden;position:relative}
-.hdr-circles{position:absolute;inset:0;pointer-events:none}
-.hdr-c1{position:absolute;top:-50px;right:-30px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,0.07)}
-.hdr-c2{position:absolute;bottom:-60px;left:50px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,0.04)}
-.hdr-c3{position:absolute;top:20px;left:200px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.03)}
-.hdr-top{padding:28px 36px 22px;display:flex;align-items:center;justify-content:space-between;gap:20px;position:relative;z-index:1;flex-wrap:wrap}
-.brand-logo{display:flex;align-items:center;gap:14px}
-.brand-icon{width:46px;height:46px;border-radius:12px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;color:#fff;letter-spacing:-0.05em;backdrop-filter:blur(8px)}
-.brand-text{}
-.brand-name{font-size:22px;font-weight:900;color:#fff;letter-spacing:0.04em;line-height:1}
-.brand-sub{font-size:9px;letter-spacing:0.28em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-top:3px}
-.slip-tag{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.22);border-radius:14px;padding:14px 22px;text-align:right;backdrop-filter:blur(10px)}
-.slip-tag-title{font-size:17px;font-weight:800;color:#fff;letter-spacing:0.01em}
-.slip-tag-month{font-size:11px;color:rgba(255,255,255,0.6);margin-top:3px;font-weight:500}
-.slip-tag-id{font-size:9px;color:rgba(255,255,255,0.4);margin-top:4px;letter-spacing:0.1em;text-transform:uppercase}
+/* HEADER */
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding:26px 32px 22px;gap:16px}
+.co-logo-row{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.logo-box{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#DC2626,#7F1D1D);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#fff;flex-shrink:0;letter-spacing:-0.03em;box-shadow:0 4px 14px rgba(220,38,38,0.35)}
+.co-name{font-size:17px;font-weight:900;color:#111;letter-spacing:0.01em}
+.co-addr{font-size:10.5px;color:#9CA3AF;margin-top:3px;line-height:1.6}
+.contact-row{display:flex;gap:20px;flex-wrap:wrap;margin-top:10px}
+.contact-item{display:flex;align-items:center;gap:5px;font-size:11px;color:#374151;font-weight:500}
+.slip-right{text-align:right;flex-shrink:0}
+.slip-heading{font-size:28px;font-weight:900;color:#111;letter-spacing:0.12em}
+.month-badge{display:inline-block;background:#FEE2E2;color:#DC2626;border-radius:20px;padding:5px 18px;font-size:13px;font-weight:700;margin:10px 0 8px}
+.payslip-id-text{font-size:11.5px;color:#6B7280}
+.hdivider{height:1px;background:#E5E7EB;margin:0 32px}
 
-.hdr-bar{padding:14px 36px;background:rgba(0,0,0,0.2);display:flex;gap:28px;flex-wrap:wrap;position:relative;z-index:1;border-top:1px solid rgba(255,255,255,0.08)}
-.hdr-bar-item{display:flex;align-items:center;gap:6px}
-.hdr-bar-icon{font-size:12px;opacity:0.6}
-.hdr-bar-text{font-size:11px;color:rgba(255,255,255,0.65);font-weight:500}
+/* EMPLOYEE CARD */
+.emp-card{margin:20px 32px;background:#F9FAFB;border:1.5px solid #E5E7EB;border-radius:14px;padding:22px;display:flex;gap:24px;align-items:flex-start}
+.emp-photo{width:120px;height:148px;border-radius:12px;overflow:hidden;flex-shrink:0;border:2px solid #E5E7EB;background:#F3F4F6;display:flex;align-items:center;justify-content:center}
+.emp-photo img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+.emp-photo-init{width:100%;height:100%;background:linear-gradient(135deg,#DC2626,#7F1D1D);display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:900;color:#fff;letter-spacing:-0.04em}
+.emp-details{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:18px 36px}
+.emp-lbl{display:flex;align-items:center;gap:5px;font-size:10px;color:#9CA3AF;font-weight:500;margin-bottom:4px}
+.emp-val{font-size:14px;font-weight:700;color:#111}
 
-/* ── CARD BASE ── */
-.card{background:#fff;border:1px solid var(--border)}
-.section{background:#fff;padding:24px 32px;border-left:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border)}
-.section:last-child{border-radius:0 0 20px 20px}
+/* SUMMARY CARDS */
+.summary-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:0 32px 20px}
+.sum-card{border:1.5px solid #E5E7EB;border-radius:12px;padding:14px 16px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.04)}
+.sum-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sum-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sum-label{font-size:10px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.07em;line-height:1.3}
+.sum-amount{font-size:20px;font-weight:900;margin-bottom:6px;letter-spacing:-0.02em}
+.green-amt{color:#16A34A}.red-amt{color:#DC2626}.blue-amt{color:#2563EB}.dark-amt{color:#111}
+.green-ico{background:#F0FDF4}.red-ico{background:#FEF2F2}.blue-ico{background:#EFF6FF}.purple-ico{background:#F5F3FF}
 
-/* ── EMPLOYEE INFO ── */
-.emp-section{padding:28px 36px;background:#fff;border-left:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap}
-.emp-avatar{width:72px;height:90px;border-radius:10px;overflow:hidden;flex-shrink:0;border:2px solid #E5E7EB;box-shadow:0 4px 16px rgba(0,0,0,0.10)}
-.emp-avatar-img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
-.emp-avatar-initials{width:100%;height:100%;background:linear-gradient(135deg,var(--red),var(--red-dark));display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:#fff;letter-spacing:-0.02em}
-.emp-main{flex:1;min-width:200px}
-.emp-name{font-size:21px;font-weight:800;color:var(--text);letter-spacing:-0.02em}
-.emp-role{font-size:13px;color:var(--sub);margin-top:4px;font-weight:500}
-.emp-badges{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
-.badge{font-size:10px;font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:0.04em;text-transform:capitalize}
-.badge-dept{background:#FFF1F2;color:#BE123C}
-.badge-type{background:var(--blue-bg);color:var(--blue)}
-.badge-green{background:var(--green-bg);color:var(--green)}
-.emp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-left:auto;min-width:320px}
-.emp-cell{background:var(--gray-light);border-radius:12px;padding:12px 14px;border:1px solid var(--border)}
-.emp-cell-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.14em;color:var(--sub);margin-bottom:5px}
-.emp-cell-val{font-size:13px;font-weight:700;color:var(--text)}
+/* EARN / DEDUCT */
+.earn-deduct{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 32px 20px}
+.ed-card{border:1.5px solid #E5E7EB;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 2px 6px rgba(0,0,0,0.04)}
+.ed-hdr{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #E5E7EB}
+.ed-hdr-green{background:#F0FDF4}.ed-hdr-red{background:#FEF2F2}
+.ed-ico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.ed-ico-green{background:#DCFCE7}.ed-ico-red{background:#FECDD3}
+.ed-title{font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase}
+.ed-title-green{color:#15803D}.ed-title-red{color:#991B1B}
+.ed-col-hdr{display:flex;justify-content:space-between;padding:8px 16px;font-size:10px;color:#9CA3AF;font-weight:600;letter-spacing:0.07em;border-bottom:1px solid #F3F4F6}
+.ed-row{display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #F9FAFB;font-size:12.5px}
+.ed-row:last-of-type{border-bottom:none}
+.ed-row-name{color:#374151}
+.ed-row-amt{font-weight:600;color:#111}
+.ed-total{display:flex;justify-content:space-between;padding:12px 16px;font-size:12.5px;font-weight:800;margin-top:auto;border-top:2px solid #E5E7EB}
+.ed-total-green{background:#F0FDF4;color:#15803D}.ed-total-red{background:#FEF2F2;color:#991B1B}
 
-/* ── SUMMARY CARDS ── */
-.summary-section{padding:0 36px;background:#fff;border-left:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding-bottom:28px}
-.summary-inner{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.sum-card{border-radius:14px;padding:16px 18px;border:1.5px solid;position:relative;overflow:hidden}
-.sum-card-glow{position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;opacity:0.4}
-.sum-gross{background:#F0FDF4;border-color:#BBF7D0}
-.sum-gross .sum-card-glow{background:#4ADE80}
-.sum-deduct{background:#FFF1F2;border-color:#FECDD3}
-.sum-deduct .sum-card-glow{background:#FB7185}
-.sum-net{background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border-color:#BFDBFE}
-.sum-net .sum-card-glow{background:#60A5FA}
-.sum-days{background:var(--gray-light);border-color:var(--border)}
-.sum-days .sum-card-glow{background:#D1D5DB}
-.sum-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:8px;position:relative;z-index:1}
-.sum-lbl-green{color:#15803D}.sum-lbl-red{color:#BE123C}.sum-lbl-blue{color:var(--blue)}.sum-lbl-gray{color:var(--sub)}
-.sum-val{font-size:20px;font-weight:900;letter-spacing:-0.02em;position:relative;z-index:1;line-height:1}
-.sum-val-green{color:var(--green)}.sum-val-red{color:var(--red)}.sum-val-blue{color:var(--blue)}.sum-val-gray{color:var(--text)}
-.sum-sub{font-size:10px;color:var(--sub);margin-top:5px;font-weight:500;position:relative;z-index:1}
+/* NET PAY */
+.net-banner{margin:0 32px 20px;background:#F9FAFB;border:1.5px solid #E5E7EB;border-radius:14px;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;gap:20px;box-shadow:0 2px 8px rgba(0,0,0,0.04)}
+.net-left{display:flex;align-items:center;gap:16px}
+.net-bag{width:48px;height:48px;border-radius:50%;background:#DC2626;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 14px rgba(220,38,38,0.35)}
+.net-label{font-size:14px;font-weight:800;color:#111}
+.net-inwords{font-size:11px;font-weight:500;color:#6B7280;margin-top:3px}
+.net-amount{font-size:40px;font-weight:900;color:#DC2626;letter-spacing:-0.04em;white-space:nowrap}
 
-/* ── SEC HEADER ── */
-.sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-.sec-pill{width:4px;height:20px;border-radius:2px;flex-shrink:0}
-.sec-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.18em;color:var(--sub)}
-.sec-count{margin-left:auto;font-size:10px;color:var(--sub);background:var(--gray-light);padding:3px 10px;border-radius:20px;font-weight:600;border:1px solid var(--border)}
+/* BOTTOM GRID */
+.bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:0 32px 20px}
+.bot-card{border:1.5px solid #E5E7EB;border-radius:12px;overflow:hidden;box-shadow:0 2px 6px rgba(0,0,0,0.04)}
+.bot-hdr{display:flex;align-items:center;gap:8px;padding:11px 16px;border-bottom:1px solid #E5E7EB;background:#F9FAFB}
+.bot-hdr-ico{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;background:#EFF6FF}
+.bot-hdr-title{font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#1D4ED8}
+.bot-row{display:flex;justify-content:space-between;align-items:center;padding:9px 16px;border-bottom:1px solid #F9FAFB}
+.bot-row:last-child{border-bottom:none}
+.bot-lbl{display:flex;align-items:center;gap:8px;font-size:12px;color:#374151}
+.bot-ico{width:22px;height:22px;border-radius:6px;background:#EFF6FF;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.bot-val{font-size:12px;font-weight:600;color:#111}
 
-/* ── PAY ROWS ── */
-.pay-rows{display:flex;flex-direction:column;gap:2px}
-.pay-row{display:flex;align-items:center;padding:11px 14px;border-radius:10px;transition:background 0.1s}
-.pay-row:hover{background:var(--gray-light)}
-.pay-row-name{flex:1;font-size:13px;color:var(--text);font-weight:500}
-.pay-row-note{font-size:10px;color:var(--sub);margin-top:1px}
-.pay-row-amt{font-size:14px;font-weight:700;min-width:90px;text-align:right}
-.pay-row-amt-green{color:var(--green)}
-.pay-row-amt-red{color:var(--red)}
-.pay-row-amt-orange{color:#EA580C}
-.pay-row-amt-gray{color:#9CA3AF}
-.pay-divider{height:1px;background:var(--border);margin:8px 0}
-.pay-total{display:flex;align-items:center;padding:13px 14px;border-radius:12px;background:var(--gray-light);border:1.5px solid var(--border);margin-top:4px}
-.pay-total-name{flex:1;font-size:13px;font-weight:800;color:var(--text)}
-.pay-total-amt{font-size:16px;font-weight:900}
-
-/* ── NET PAY CARD ── */
-.net-card{background:linear-gradient(135deg,#DE1A1A 0%,#8B1212 52%,#1a0808 100%);border-radius:18px;padding:28px 32px;display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden;gap:16px}
-.net-card-glow1{position:absolute;top:-50px;right:-30px;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.07);pointer-events:none}
-.net-card-glow2{position:absolute;bottom:-60px;left:30px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,0.04);pointer-events:none}
-.net-left{position:relative;z-index:1}
-.net-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.2em;color:rgba(255,255,255,0.55);margin-bottom:4px}
-.net-month{font-size:13px;color:rgba(255,255,255,0.75);font-weight:500;margin-bottom:2px}
-.net-paydate{font-size:11px;color:rgba(255,255,255,0.45);font-weight:400}
-.net-right{position:relative;z-index:1;text-align:right}
-.net-amount{font-size:42px;font-weight:900;color:#fff;letter-spacing:-0.04em;line-height:1}
-.net-amount-sub{font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px;font-weight:500}
-
-/* ── ATTENDANCE ── */
-.att-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:18px}
-.att-card{background:var(--gray-light);border:1px solid var(--border);border-radius:12px;padding:13px;text-align:center}
-.att-val{font-size:22px;font-weight:900;color:var(--text);line-height:1;margin-bottom:4px}
-.att-lbl{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.12em;color:var(--sub)}
-.att-bar-wrap{background:var(--gray-light);border-radius:12px;padding:14px 18px;border:1px solid var(--border)}
-.att-bar-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-.att-bar-label{font-size:11px;font-weight:700;color:var(--text)}
-.att-bar-pct{font-size:13px;font-weight:900;color:var(--green)}
-.att-bar-bg{height:10px;border-radius:5px;background:#E5E7EB;overflow:hidden}
-.att-bar-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--green),#4ADE80)}
-.att-legend{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap}
-.att-dot{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--sub);font-weight:500}
-.att-dot-circle{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-
-/* ── PAYMENT INFO ── */
-.pay-info-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.pay-info-card{background:var(--gray-light);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
-.pay-info-lbl{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.14em;color:var(--sub);margin-bottom:6px}
-.pay-info-val{font-size:13px;font-weight:700;color:var(--text)}
-.pay-info-val-green{color:var(--green)}
-
-/* ── FOOTER ── */
-.foot-section{background:var(--gray-light);border-left:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);border-radius:0 0 20px 20px;padding:22px 36px}
-.foot-declaration{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:20px}
-.foot-decl-text{font-size:11px;color:var(--sub);line-height:1.8;font-style:italic}
-.foot-row{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap}
-.foot-generated{font-size:10px;color:#9CA3AF;line-height:1.7}
-.sig-block{display:flex;gap:40px}
-.sig-item{text-align:center}
-.sig-line{height:1px;background:#374151;width:100px;margin-bottom:7px}
-.sig-lbl{font-size:10px;font-weight:700;color:var(--text)}
-.sig-sub{font-size:9px;color:var(--sub);margin-top:2px}
-.watermark{text-align:center;margin-top:18px;font-size:9px;color:#D1D5DB;letter-spacing:0.18em;text-transform:uppercase}
-
-/* ── SECTION SPACING ── */
-.section-gap{height:1px;background:var(--border);margin:0 36px}
+/* FOOTER */
+.footer{display:flex;align-items:flex-end;justify-content:space-between;padding:20px 32px;border-top:1px solid #E5E7EB;gap:16px}
+.footer-qr{display:flex;gap:12px;align-items:flex-start}
+.footer-disc{font-size:10px;color:#9CA3AF;line-height:1.8;max-width:190px}
+.footer-logo{display:flex;align-items:center;justify-content:center;padding-bottom:4px}
+.footer-logo-box{width:44px;height:44px;border-radius:11px;background:rgba(220,38,38,0.06);border:1.5px solid rgba(220,38,38,0.12);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:rgba(220,38,38,0.2)}
+.sigs{display:flex;gap:36px;align-items:flex-end}
+.sig{text-align:center;min-width:110px}
+.sig-name{font-family:'Dancing Script',cursive;font-size:22px;color:#374151;margin-bottom:6px;line-height:1}
+.sig-line{height:1px;background:#374151;margin-bottom:6px}
+.sig-label{font-size:10.5px;font-weight:700;color:#374151}
+.sig-sub{font-size:9px;color:#9CA3AF;margin-top:2px}
 
 @media print{
   body{background:#fff}
   .topbar{display:none}
-  .outer{margin:0;max-width:100%}
-  .hdr{border-radius:0}
-  .foot-section{border-radius:0}
-  .hdr,.net-card,.sum-gross,.sum-deduct,.sum-net{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .page{margin:0;max-width:100%;box-shadow:none;border-radius:0;border:none}
 }
 </style>
 </head>
 <body>
 
 <!-- TOPBAR -->
-<div class="topbar no-print">
+<div class="topbar">
   <div class="topbar-info">
     <div class="topbar-dot"></div>
     <span class="topbar-text">${member.name} &nbsp;·&nbsp; ${monthName} &nbsp;·&nbsp; Salary Slip</span>
@@ -309,305 +286,248 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:var(--tex
   </button>
 </div>
 
-<div class="outer">
+<div class="page">
 
   <!-- ═══ HEADER ═══ -->
   <div class="hdr">
-    <div class="hdr-circles">
-      <div class="hdr-c1"></div><div class="hdr-c2"></div><div class="hdr-c3"></div>
-    </div>
-    <div class="hdr-top">
-      <div class="brand-logo">
-        <div class="brand-icon">GF</div>
-        <div class="brand-text">
-          <div class="brand-name">${companyName.toUpperCase()}</div>
-          <div class="brand-sub">Growth Marketing &amp; AI Solutions</div>
+    <div>
+      <div class="co-logo-row">
+        <div class="logo-box">GF</div>
+        <div>
+          <div class="co-name">${companyName.toUpperCase()} SOLUTIONS PVT. LTD.</div>
+          <div class="co-addr">123, Tech Park, Whitefield Main Road,<br/>Bengaluru, Karnataka 560066</div>
         </div>
       </div>
-      <div class="slip-tag">
-        <div class="slip-tag-title">Salary Slip</div>
-        <div class="slip-tag-month">${monthName}</div>
-        <div class="slip-tag-id">${payslipId}</div>
+      <div class="contact-row">
+        <span class="contact-item">${R.phone} +91 98765 43210</span>
+        <span class="contact-item">${R.mail} hr@grofast.com</span>
+        <span class="contact-item">${R.globe} www.grofast.com</span>
       </div>
     </div>
-    <div class="hdr-bar">
-      <div class="hdr-bar-item"><span class="hdr-bar-icon">📧</span><span class="hdr-bar-text">grofastai@gmail.com</span></div>
-      <div class="hdr-bar-item"><span class="hdr-bar-icon">🌐</span><span class="hdr-bar-text">grofastteam.vercel.app</span></div>
-      <div class="hdr-bar-item"><span class="hdr-bar-icon">📅</span><span class="hdr-bar-text">Pay Date: ${payDateStr}</span></div>
-      <div class="hdr-bar-item" style="margin-left:auto"><span class="hdr-bar-text" style="color:rgba(255,255,255,0.4);font-size:10px">Confidential</span></div>
+    <div class="slip-right">
+      <div class="slip-heading">SALARY SLIP</div>
+      <div class="month-badge">${monthName}</div>
+      <div class="payslip-id-text">Payslip ID: ${payslipId}</div>
     </div>
   </div>
 
+  <div class="hdivider"></div>
+
   <!-- ═══ EMPLOYEE INFO ═══ -->
-  <div class="emp-section">
-    <div class="emp-avatar">
+  <div class="emp-card">
+    <div class="emp-photo">
       ${member.passport_photo_url
-        ? `<img class="emp-avatar-img" src="${member.passport_photo_url}" alt="${member.name}" />`
-        : `<div class="emp-avatar-initials">${initials}</div>`
+        ? `<img src="${member.passport_photo_url}" alt="${member.name}" />`
+        : `<div class="emp-photo-init">${initials}</div>`
       }
     </div>
-    <div class="emp-main">
-      <div class="emp-name">${member.name}</div>
-      <div class="emp-role">${member.designation ?? (member.team ? `${member.team} Member` : 'Team Member')}</div>
-      <div class="emp-badges">
-        ${member.team ? `<span class="badge badge-dept">${member.team}</span>` : ''}
-        <span class="badge badge-type">${empType.replace('_', ' ')}</span>
-        <span class="badge badge-green">Active</span>
+    <div class="emp-details">
+      <div>
+        <div class="emp-lbl">${R.person} Employee Name</div>
+        <div class="emp-val">${member.name}</div>
       </div>
-    </div>
-    <div class="emp-grid">
-      <div class="emp-cell">
-        <div class="emp-cell-lbl">Employee ID</div>
-        <div class="emp-cell-val">#${member.employee_id}</div>
+      <div>
+        <div class="emp-lbl">${R.calendar} Joining Date</div>
+        <div class="emp-val">${joiningDateFmt}</div>
       </div>
-      <div class="emp-cell">
-        <div class="emp-cell-lbl">Pay Period</div>
-        <div class="emp-cell-val">${monthName}</div>
+      <div>
+        <div class="emp-lbl">${R.person} Employee ID</div>
+        <div class="emp-val">${member.employee_id}</div>
       </div>
-      <div class="emp-cell">
-        <div class="emp-cell-lbl">Joining Date</div>
-        <div class="emp-cell-val">${member.joining_date ? new Date(member.joining_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</div>
+      <div>
+        <div class="emp-lbl">${R.card} Bank Account</div>
+        <div class="emp-val">${member.bank_account ? member.bank_account : '—'}</div>
       </div>
-      <div class="emp-cell">
-        <div class="emp-cell-lbl">Bank Account</div>
-        <div class="emp-cell-val">${member.bank_account ? `••••${member.bank_account.slice(-4)}` : '—'}</div>
+      <div>
+        <div class="emp-lbl">${R.building} Department</div>
+        <div class="emp-val">${member.team ?? '—'}</div>
       </div>
-      <div class="emp-cell">
-        <div class="emp-cell-lbl">Payment Mode</div>
-        <div class="emp-cell-val">Bank Transfer</div>
+      <div>
+        <div class="emp-lbl">${R.bank} Bank Name</div>
+        <div class="emp-val">—</div>
       </div>
-      <div class="emp-cell">
-        <div class="emp-cell-lbl">Payslip ID</div>
-        <div class="emp-cell-val" style="font-size:11px">${payslipId}</div>
+      <div>
+        <div class="emp-lbl">${R.person} Designation</div>
+        <div class="emp-val">${member.designation ?? (member.team ? 'Team Member' : 'Employee')}</div>
+      </div>
+      <div>
+        <div class="emp-lbl">${R.hash} IFSC Code</div>
+        <div class="emp-val">—</div>
       </div>
     </div>
   </div>
 
   <!-- ═══ SUMMARY CARDS ═══ -->
-  <div class="summary-section" style="padding-top:24px">
-    <div class="summary-inner">
-      <div class="sum-card sum-gross">
-        <div class="sum-card-glow"></div>
-        <div class="sum-lbl sum-lbl-green">Gross Salary</div>
-        <div class="sum-val sum-val-green">${fmt(grossPay)}</div>
-        <div class="sum-sub">Before deductions</div>
+  <div class="summary-row">
+    <div class="sum-card">
+      <div class="sum-top">
+        <div class="sum-icon green-ico">${G.wallet}</div>
+        <div class="sum-label">Gross Salary</div>
       </div>
-      <div class="sum-card sum-deduct">
-        <div class="sum-card-glow"></div>
-        <div class="sum-lbl sum-lbl-red">Leave Deduction</div>
-        <div class="sum-val sum-val-red">${deduction > 0 ? `-${fmt(deduction)}` : '₹0'}</div>
-        <div class="sum-sub">${leaveDays} day${leaveDays !== 1 ? 's' : ''} absent</div>
+      <div class="sum-amount green-amt">${fmt(basePay + otPay + bonus)}</div>
+      ${spGreen}
+    </div>
+    <div class="sum-card">
+      <div class="sum-top">
+        <div class="sum-icon red-ico">${R.calX}</div>
+        <div class="sum-label">Leave Deduction</div>
       </div>
-      <div class="sum-card sum-net">
-        <div class="sum-card-glow"></div>
-        <div class="sum-lbl sum-lbl-blue">Net Salary</div>
-        <div class="sum-val sum-val-blue">${fmt(netPay)}</div>
-        <div class="sum-sub">Take-home pay</div>
+      <div class="sum-amount red-amt">${deduction > 0 ? fmt(deduction) : '₹ 0'}</div>
+      ${spRed}
+    </div>
+    <div class="sum-card">
+      <div class="sum-top">
+        <div class="sum-icon green-ico">${G.wallet}</div>
+        <div class="sum-label">Net Salary</div>
       </div>
-      <div class="sum-card sum-days">
-        <div class="sum-card-glow"></div>
-        <div class="sum-lbl sum-lbl-gray">Paid Days</div>
-        <div class="sum-val sum-val-gray">${presentDays}<span style="font-size:14px;font-weight:600;color:var(--sub)">/${workDays}</span></div>
-        <div class="sum-sub">${attendPct}% attendance</div>
+      <div class="sum-amount green-amt">${fmt(finalNetPay)}</div>
+      ${spGreen}
+    </div>
+    <div class="sum-card">
+      <div class="sum-top">
+        <div class="sum-icon blue-ico">${B.calendar}</div>
+        <div class="sum-label">Paid Days</div>
       </div>
+      <div class="sum-amount dark-amt">${presentDays} / ${workDays}</div>
+      ${spBlue}
     </div>
   </div>
 
-  <!-- ═══ EARNINGS ═══ -->
-  <div class="section">
-    <div class="sec-hdr">
-      <div class="sec-pill" style="background:var(--green)"></div>
-      <div class="sec-title">Earnings</div>
-      <div class="sec-count">Gross: ${fmt(grossPay)}</div>
-    </div>
-    <div class="pay-rows">
+  <!-- ═══ EARNINGS + DEDUCTIONS ═══ -->
+  <div class="earn-deduct">
+    <!-- Earnings -->
+    <div class="ed-card">
+      <div class="ed-hdr ed-hdr-green">
+        <div class="ed-ico ed-ico-green">${G.earn}</div>
+        <span class="ed-title ed-title-green">Earnings</span>
+      </div>
+      <div class="ed-col-hdr"><span>Particulars</span><span>Amount (₹)</span></div>
       ${empType === 'regular' && member.monthly_salary ? `
-      <div class="pay-row">
-        <div><div class="pay-row-name">Basic Salary</div><div class="pay-row-note">Monthly fixed compensation</div></div>
-        <div class="pay-row-amt pay-row-amt-green">${fmt(basePay)}</div>
-      </div>
-      <div class="pay-row">
-        <div><div class="pay-row-name">House Rent Allowance (HRA)</div><div class="pay-row-note">Included in basic</div></div>
-        <div class="pay-row-amt pay-row-amt-gray">—</div>
-      </div>
-      <div class="pay-row">
-        <div><div class="pay-row-name">Travel Allowance</div><div class="pay-row-note">Included in basic</div></div>
-        <div class="pay-row-amt pay-row-amt-gray">—</div>
-      </div>
-      <div class="pay-row">
-        <div><div class="pay-row-name">Medical Allowance</div><div class="pay-row-note">Included in basic</div></div>
-        <div class="pay-row-amt pay-row-amt-gray">—</div>
-      </div>
-      ${otPay > 0 ? `
-      <div class="pay-divider"></div>
-      <div class="pay-row">
-        <div><div class="pay-row-name">Overtime Pay</div><div class="pay-row-note">${otHours}h extra × ₹${Math.round(basePay / workDays / 9)}/hr</div></div>
-        <div class="pay-row-amt pay-row-amt-orange">${fmt(otPay)}</div>
-      </div>` : ''}` : `
-      <div class="pay-row">
-        <div><div class="pay-row-name">Hours Worked</div><div class="pay-row-note">${totalHours}h × ₹${member.hourly_rate}/hr</div></div>
-        <div class="pay-row-amt pay-row-amt-green">${fmt(basePay)}</div>
-      </div>`}
+      <div class="ed-row"><span class="ed-row-name">Basic Salary</span><span class="ed-row-amt">${Math.round(member.monthly_salary).toLocaleString('en-IN')}</span></div>
+      ${otPay > 0 ? `<div class="ed-row"><span class="ed-row-name">Overtime Pay (${otHours}h)</span><span class="ed-row-amt">${Math.round(otPay).toLocaleString('en-IN')}</span></div>` : ''}
+      ${bonus > 0  ? `<div class="ed-row"><span class="ed-row-name">Bonus</span><span class="ed-row-amt">${Math.round(bonus).toLocaleString('en-IN')}</span></div>` : ''}
+      ` : `
+      <div class="ed-row"><span class="ed-row-name">Hours Worked (${totalHours}h)</span><span class="ed-row-amt">${Math.round(basePay).toLocaleString('en-IN')}</span></div>
+      `}
+      <div class="ed-total ed-total-green"><span>Total Earnings</span><span>${fmt(totalEarnings)}</span></div>
     </div>
-    <div class="pay-total" style="margin-top:12px">
-      <div class="pay-total-name">Gross Earnings</div>
-      <div class="pay-total-amt" style="color:var(--green)">${fmt(grossPay)}</div>
-    </div>
-  </div>
 
-  <!-- ═══ DEDUCTIONS ═══ -->
-  <div class="section" style="padding-top:20px">
-    <div class="sec-hdr">
-      <div class="sec-pill" style="background:var(--red)"></div>
-      <div class="sec-title">Deductions</div>
-      <div class="sec-count" style="color:var(--red);border-color:#FECDD3;background:#FFF1F2">Only Leave Deduction</div>
-    </div>
-    <div class="pay-rows">
-      <div class="pay-row">
-        <div>
-          <div class="pay-row-name">Leave Deduction</div>
-          <div class="pay-row-note">${leaveDays > 0 ? `${leaveDays} day${leaveDays !== 1 ? 's' : ''} absent × ₹${Math.round(basePay / workDays)}/day` : 'No absences this month'}</div>
-        </div>
-        <div class="pay-row-amt" style="color:${deduction > 0 ? 'var(--red)' : 'var(--sub)'}">${deduction > 0 ? `-${fmt(deduction)}` : '₹0'}</div>
+    <!-- Deductions -->
+    <div class="ed-card">
+      <div class="ed-hdr ed-hdr-red">
+        <div class="ed-ico ed-ico-red">${R.deduct}</div>
+        <span class="ed-title ed-title-red">Deductions</span>
       </div>
-    </div>
-    <div class="pay-total" style="margin-top:12px;background:#FFF1F2;border-color:#FECDD3">
-      <div class="pay-total-name">Total Deductions</div>
-      <div class="pay-total-amt" style="color:${deduction > 0 ? 'var(--red)' : 'var(--green)'}">${deduction > 0 ? `-${fmt(deduction)}` : '₹0'}</div>
+      <div class="ed-col-hdr"><span>Particulars</span><span>Amount (₹)</span></div>
+      ${deduction > 0 ? `<div class="ed-row"><span class="ed-row-name">Leave Deduction (${leaveDays} day${leaveDays !== 1 ? 's' : ''})</span><span class="ed-row-amt">${Math.round(deduction).toLocaleString('en-IN')}</span></div>` : `<div class="ed-row"><span class="ed-row-name" style="color:#9CA3AF">No deductions this month</span><span class="ed-row-amt" style="color:#9CA3AF">—</span></div>`}
+      ${advance > 0 ? `<div class="ed-row"><span class="ed-row-name">Advance Recovery</span><span class="ed-row-amt">${Math.round(advance).toLocaleString('en-IN')}</span></div>` : ''}
+      <div class="ed-total ed-total-red"><span>Total Deductions</span><span>${fmt(totalDeductions)}</span></div>
     </div>
   </div>
 
   <!-- ═══ NET PAY ═══ -->
-  <div class="section" style="padding-top:0;padding-bottom:28px">
-    <div class="net-card">
-      <div class="net-card-glow1"></div>
-      <div class="net-card-glow2"></div>
-      <div class="net-left">
-        <div class="net-label">Net Pay</div>
-        <div class="net-month">${monthName}</div>
-        <div class="net-paydate">Payment Date: ${payDateStr}</div>
-        <div style="margin-top:14px;display:flex;gap:16px;flex-wrap:wrap">
-          <div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:8px 14px;font-size:11px;color:rgba(255,255,255,0.8);border:1px solid rgba(255,255,255,0.15)">
-            Gross: ${fmt(grossPay)}
-          </div>
-          ${deduction > 0 ? `<div style="background:rgba(255,255,255,0.12);border-radius:10px;padding:8px 14px;font-size:11px;color:rgba(255,255,255,0.8);border:1px solid rgba(255,255,255,0.15)">
-            Deduction: -${fmt(deduction)}
-          </div>` : ''}
-        </div>
+  <div class="net-banner">
+    <div class="net-left">
+      <div class="net-bag">
+        ${ic('#fff').money}
       </div>
-      <div class="net-right">
-        <div class="net-amount">${fmt(netPay)}</div>
-        <div class="net-amount-sub">Take-home salary</div>
+      <div>
+        <div class="net-label">NET PAY <span style="font-size:11px;font-weight:500;color:#6B7280">(In Words)</span></div>
+        <div class="net-inwords">Rupees ${inWords(Math.round(finalNetPay))} Only</div>
       </div>
     </div>
+    <div class="net-amount">${fmt(finalNetPay)}</div>
   </div>
 
-  <!-- ═══ ATTENDANCE ═══ -->
-  <div class="section" style="padding-top:20px">
-    <div class="sec-hdr">
-      <div class="sec-pill" style="background:#3B82F6"></div>
-      <div class="sec-title">Attendance Summary</div>
-    </div>
-    <div class="att-grid">
-      <div class="att-card">
-        <div class="att-val">${workDays}</div>
-        <div class="att-lbl">Total Days</div>
+  <!-- ═══ ATTENDANCE + PAYMENT ═══ -->
+  <div class="bottom-grid">
+    <!-- Attendance -->
+    <div class="bot-card">
+      <div class="bot-hdr">
+        <div class="bot-hdr-ico">${B.calendar}</div>
+        <span class="bot-hdr-title">Attendance Summary</span>
       </div>
-      <div class="att-card" style="background:#F0FDF4;border-color:#BBF7D0">
-        <div class="att-val" style="color:var(--green)">${presentDays}</div>
-        <div class="att-lbl" style="color:#15803D">Present</div>
+      <div class="bot-row">
+        <div class="bot-lbl"><div class="bot-ico">${B.calendar}</div>Total Working Days</div>
+        <div class="bot-val">${workDays}</div>
       </div>
-      <div class="att-card" style="background:#FFF1F2;border-color:#FECDD3">
-        <div class="att-val" style="color:var(--red)">${leaveDays}</div>
-        <div class="att-lbl" style="color:#BE123C">Leave / Absent</div>
+      <div class="bot-row">
+        <div class="bot-lbl"><div class="bot-ico">${B.check}</div>Present Days</div>
+        <div class="bot-val">${presentDays}</div>
       </div>
-      <div class="att-card" style="background:#FFF7ED;border-color:#FED7AA">
-        <div class="att-val" style="color:#EA580C">${otHours}h</div>
-        <div class="att-lbl" style="color:#C2410C">Overtime</div>
+      <div class="bot-row">
+        <div class="bot-lbl"><div class="bot-ico">${B.calendar}</div>Leave Days</div>
+        <div class="bot-val">${leaveDays}</div>
       </div>
-      <div class="att-card" style="background:var(--blue-bg);border-color:var(--blue-border)">
-        <div class="att-val" style="color:var(--blue)">${totalHours}h</div>
-        <div class="att-lbl" style="color:#1D4ED8">Total Hours</div>
+      <div class="bot-row">
+        <div class="bot-lbl"><div class="bot-ico">${B.absent}</div>Absent Days</div>
+        <div class="bot-val">${Math.max(0, leaveDays)}</div>
       </div>
-    </div>
-    <div class="att-bar-wrap">
-      <div class="att-bar-top">
-        <span class="att-bar-label">Monthly Attendance Rate</span>
-        <span class="att-bar-pct">${attendPct}%</span>
-      </div>
-      <div class="att-bar-bg"><div class="att-bar-fill" style="width:${attendPct}%"></div></div>
-      <div class="att-legend">
-        <div class="att-dot"><div class="att-dot-circle" style="background:var(--green)"></div>${presentDays} Days Present</div>
-        <div class="att-dot"><div class="att-dot-circle" style="background:var(--red)"></div>${leaveDays} Days Absent</div>
-        <div class="att-dot"><div class="att-dot-circle" style="background:#EA580C"></div>${otHours}h Overtime</div>
+      <div class="bot-row">
+        <div class="bot-lbl"><div class="bot-ico">${B.clock}</div>Overtime Hours</div>
+        <div class="bot-val">${otHours}h</div>
       </div>
     </div>
-  </div>
 
-  <!-- ═══ PAYMENT INFO ═══ -->
-  <div class="section" style="padding-top:20px">
-    <div class="sec-hdr">
-      <div class="sec-pill" style="background:#8B5CF6"></div>
-      <div class="sec-title">Payment Information</div>
-    </div>
-    <div class="pay-info-grid">
-      <div class="pay-info-card">
-        <div class="pay-info-lbl">Payment Date</div>
-        <div class="pay-info-val pay-info-val-green">${payDateStr}</div>
+    <!-- Payment -->
+    <div class="bot-card">
+      <div class="bot-hdr">
+        <div class="bot-hdr-ico">${B.card}</div>
+        <span class="bot-hdr-title">Payment Details</span>
       </div>
-      <div class="pay-info-card">
-        <div class="pay-info-lbl">Payment Method</div>
-        <div class="pay-info-val">Bank Transfer (NEFT)</div>
+      <div class="bot-row">
+        <div class="bot-lbl"><div class="bot-ico">${B.calendar}</div>Payment Date</div>
+        <div class="bot-val">${payDateStr}</div>
       </div>
-      <div class="pay-info-card">
-        <div class="pay-info-lbl">Bank Account</div>
-        <div class="pay-info-val">${member.bank_account ? `••••••${member.bank_account.slice(-4)}` : 'Not configured'}</div>
+      <div class="bot-row">
+        <div class="bot-lbl"><div class="bot-ico">${B.transfer}</div>Payment Method</div>
+        <div class="bot-val">Bank Transfer</div>
       </div>
-      <div class="pay-info-card">
-        <div class="pay-info-lbl">Transaction / Ref ID</div>
-        <div class="pay-info-val" style="font-size:11px;letter-spacing:0.04em">${payslipId}-TXN</div>
+      <div class="bot-row">
+        <div class="bot-lbl"><div class="bot-ico">${B.bank}</div>Bank Name</div>
+        <div class="bot-val">—</div>
+      </div>
+      <div class="bot-row">
+        <div class="bot-lbl"><div class="bot-ico">${B.card}</div>Account Number</div>
+        <div class="bot-val">${member.bank_account ? `••••${member.bank_account.slice(-4)}` : '—'}</div>
+      </div>
+      <div class="bot-row">
+        <div class="bot-lbl"><div class="bot-ico">${B.id}</div>Transaction ID</div>
+        <div class="bot-val" style="font-size:10px;letter-spacing:0.04em">${payslipId.replace(/\//g,'')}TXN</div>
       </div>
     </div>
   </div>
 
   <!-- ═══ FOOTER ═══ -->
-  <div class="foot-section">
-    <div class="foot-declaration">
-      <div class="foot-decl-text">
-        ✦ &nbsp;This is a computer-generated salary slip and does not require a physical signature.<br/>
-        ✦ &nbsp;This document is confidential and intended solely for the named employee.<br/>
-        ✦ &nbsp;For any discrepancies, please contact HR within 7 days of receipt.
+  <div class="footer">
+    <div class="footer-qr">
+      <img src="${qrUrl}" width="80" height="80" style="border-radius:8px;border:1px solid #E5E7EB" alt="QR" />
+      <div class="footer-disc">
+        This is a computer-generated salary slip and does not require any physical signature.<br/>
+        <span style="color:#9CA3AF;font-size:9px">Generated on ${generatedOn} · ${payslipId}</span>
       </div>
     </div>
-    <div class="foot-row">
-      <div class="foot-generated">
-        Generated on ${generatedOn}<br/>
-        ${companyName} · GroFast Team Tracking<br/>
-        <span style="color:#D1D5DB">${payslipId}</span>
+    <div class="footer-logo">
+      <div class="footer-logo-box">GF</div>
+    </div>
+    <div class="sigs">
+      <div class="sig">
+        <div class="sig-name">Anjali Verma</div>
+        <div class="sig-line"></div>
+        <div class="sig-label">HR Manager</div>
+        <div class="sig-sub">${companyName}</div>
       </div>
-      <div class="sig-block">
-        <div class="sig-item">
-          <div class="sig-line"></div>
-          <div class="sig-lbl">HR / Authorised Signatory</div>
-          <div class="sig-sub">${companyName}</div>
-        </div>
-        <div class="sig-item">
-          <div class="sig-line"></div>
-          <div class="sig-lbl">Employee Signature</div>
-          <div class="sig-sub">${member.name}</div>
-        </div>
+      <div class="sig">
+        <div class="sig-name">${member.name.split(' ')[0]}</div>
+        <div class="sig-line"></div>
+        <div class="sig-label">Employee Signature</div>
+        <div class="sig-sub">${member.name}</div>
       </div>
     </div>
-    <div class="watermark">Confidential &nbsp;·&nbsp; ${companyName} &nbsp;·&nbsp; ${payslipId} &nbsp;·&nbsp; ${generatedOn}</div>
   </div>
 
 </div>
-
-<script>
-  if (!window.opener && !document.referrer) {
-    setTimeout(() => window.print(), 800)
-  }
-</script>
+<script>if(!window.opener&&!document.referrer){setTimeout(()=>window.print(),800)}</script>
 </body>
 </html>`
 

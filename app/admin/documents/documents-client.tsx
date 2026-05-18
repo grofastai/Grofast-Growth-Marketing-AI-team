@@ -501,6 +501,26 @@ export default function DocumentsClient({
             }}>
               <ExternalLink size={14} /> Share Access
             </button>
+            <a
+              href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8"
+              target="_blank" rel="noopener noreferrer"
+              style={{
+                display: "flex", alignItems: "center", gap: 7, padding: "10px 18px",
+                borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer",
+                background: "rgba(66,133,244,0.08)", color: "#4285F4",
+                border: "1px solid rgba(66,133,244,0.2)", boxShadow: "0 2px 8px rgba(66,133,244,0.08)",
+                textDecoration: "none",
+              }}>
+              <svg width="14" height="14" viewBox="0 0 87.3 78" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3L28 55H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066DA"/>
+                <path d="M43.65 25L29.35 0c-1.35.8-2.5 1.9-3.3 3.3L1.2 50.5c-.8 1.4-1.2 2.95-1.2 4.5h28z" fill="#00AC47"/>
+                <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.3l5.9 11.5z" fill="#EA4335"/>
+                <path d="M43.65 25L58 0H29.35z" fill="#00832D"/>
+                <path d="M59.3 55H87.3c0-1.55-.4-3.1-1.2-4.5L61.65 8.3c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25z" fill="#2684FC"/>
+                <path d="M43.65 55.25L28 55 13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.4 4.5-1.2z" fill="#FFBA00"/>
+              </svg>
+              View Drive Backup
+            </a>
           </div>
         </div>
 

@@ -29,7 +29,7 @@ export default async function AdminDocumentsPage() {
       .order("name"),
     admin
       .from("documents")
-      .select("id, name, file_url, file_type, file_size, doc_type, created_at, user_id, users(name, employee_id)")
+      .select("id, name, file_url, file_type, file_size, doc_type, created_at, user_id, users!documents_user_id_fkey(name, employee_id)")
       .eq("company_id", profile.company_id)
       .order("created_at", { ascending: false }),
     admin

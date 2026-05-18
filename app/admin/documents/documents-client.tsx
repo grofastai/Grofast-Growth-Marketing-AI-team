@@ -2,8 +2,7 @@
 
 import { useState, useTransition, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { createBrowserClient } from "@/lib/supabase/client"
-import { saveDocumentRecord, deleteDocument } from "@/lib/actions/documents"
+import { deleteDocument } from "@/lib/actions/documents"
 import Image from "next/image"
 import {
   FileText, Upload, Trash2, FolderOpen, Loader2, X, Download,
@@ -405,25 +404,25 @@ export default function DocumentsClient({
     }
     setUploadError(""); setIsUploading(true)
     try {
-      const supabase = createBrowserClient()
-      const ext  = file.name.split(".").pop()
-      const path = `${companyId}/${uploadFor}/${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from("documents").upload(path, file)
-      if (upErr) { setUploadError(upErr.message); setIsUploading(false); return }
-      const { data: { publicUrl } } = supabase.storage.from("documents").getPublicUrl(path)
       const targetMember = uploadFor
-      start(async () => {
-        const res = await saveDocumentRecord({ userId: targetMember, name: docName.trim(), fileUrl: publicUrl, fileType: file.type, fileSize: file.size, docType })
-        if (res.success) {
-          setShowUpload(false); setFile(null); setDocName(""); setUploadFor(""); setDocType("Other")
-          setSelectedId(targetMember)
-          setActiveTab("documents")
-          setUploadSuccess(`"${docName.trim()}" uploaded successfully!`)
-          setTimeout(() => setUploadSuccess(""), 4000)
-          router.refresh()
-        } else { setUploadError(res.error ?? "Failed to save") }
-        setIsUploading(false)
-      })
+      const form = new FormData()
+      form.append("file",    file)
+      form.append("userId",  targetMember)
+      form.append("name",    docName.trim())
+      form.append("docType", docType)
+
+      const res = await fetch("/api/documents/upload", { method: "POST", body: form })
+      const json = await res.json()
+
+      if (!res.ok) { setUploadError(json.error ?? "Upload failed"); setIsUploading(false); return }
+
+      setShowUpload(false); setFile(null); setDocName(""); setUploadFor(""); setDocType("Other")
+      setSelectedId(targetMember)
+      setActiveTab("documents")
+      setUploadSuccess(`"${docName.trim()}" uploaded successfully!`)
+      setTimeout(() => setUploadSuccess(""), 4000)
+      router.refresh()
+      setIsUploading(false)
     } catch (e) { setUploadError(String(e)); setIsUploading(false) }
   }
 

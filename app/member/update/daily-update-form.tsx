@@ -90,7 +90,7 @@ function loadDraft(): TimeBlock[] {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function DailyUpdateForm({
-  projects, userName, existingUpdate,
+  projects, userName, team, existingUpdate,
 }: {
   projects: Project[]; userName: string; team?: string | null; existingUpdate?: Record<string, unknown> | null
 }) {
@@ -103,7 +103,9 @@ export default function DailyUpdateForm({
   const greeting  = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"
   const dateLabel = now.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
 
-  const [tab, setTab] = useState<"working" | "media" | "learning">("working")
+  const isMediaTeam = team === "Media Team" || team === "Media & Technology Team"
+
+  const [tab, setTab] = useState<"working" | "media" | "learning">(isMediaTeam ? "media" : "working")
 
   // ── Shoots (media) ───────────────────────────────────────────────────────
   const [shoots, setShoots] = useState<ShootEntry[]>([])
@@ -333,11 +335,14 @@ export default function DailyUpdateForm({
   const calWeekday = now.toLocaleDateString("en-US", { weekday:"long" })
 
   // ── TAB CONFIG ────────────────────────────────────────────────────────────
-  const TABS = [
+  const ALL_TABS = [
     { id: "working" as const, label: "⏰  Working",  desc: "Log your time blocks" },
     { id: "media"   as const, label: "🎬  Media",    desc: "Shoots & editing" },
     { id: "learning"as const, label: "📚  Learning", desc: "Skills & growth" },
   ]
+  const TABS = isMediaTeam
+    ? ALL_TABS.filter(t => t.id === "media" || t.id === "learning")
+    : ALL_TABS.filter(t => t.id === "working" || t.id === "learning")
 
   return (
     <div className="p-4 md:p-6" style={{ background:"#F5F6FA", minHeight:"100vh" }}>

@@ -103,7 +103,7 @@ export default function DailyUpdateForm({
   const greeting  = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"
   const dateLabel = now.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
 
-  const isMediaTeam = team === "Media Team" || team === "Media & Technology Team"
+  const isMediaTeam = team === "Media Team"
 
   const [tab, setTab] = useState<"working" | "media" | "learning">(isMediaTeam ? "media" : "working")
 

@@ -69,6 +69,11 @@ function Section({ title, items }: { title: string; items: NotificationRow[] }) 
   )
 }
 
+async function markAllReadAction() {
+  'use server'
+  await markAllRead()
+}
+
 export default async function NotificationsPage() {
   const notifications = await getAllNotifications()
   const { today, thisWeek, earlier } = groupNotifications(notifications)
@@ -84,7 +89,7 @@ export default async function NotificationsPage() {
           <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0 }}>Your activity feed</p>
         </div>
         {hasAny && (
-          <form action={markAllRead}>
+          <form action={markAllReadAction}>
             <button type="submit"
               style={{ fontSize: 12, fontWeight: 700, color: '#DE1A1A', background: 'rgba(222,26,26,0.06)', border: '1px solid rgba(222,26,26,0.2)', padding: '8px 16px', borderRadius: 10, cursor: 'pointer' }}>
               Mark all as read

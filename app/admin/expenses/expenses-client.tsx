@@ -360,7 +360,7 @@ export default function ExpensesClient({
 
   const hourlyMap = useMemo(() => {
     const m: Record<string, number> = {}
-    for (const u of localUsers) if (u.hourly_rate) m[u.id] = u.hourly_rate
+    for (const u of localUsers) { const r = derivePerHour(u); if (r > 0) m[u.id] = r }
     return m
   }, [localUsers])
 
@@ -436,6 +436,8 @@ export default function ExpensesClient({
           }
         } else if (entry.task_type === "shoot") {
           d.shootCount++
+          d.workCost += (hourlyMap[u.user_id] ?? 0) * hrs
+        } else if (entry.task_type === "other" || entry.task_type === "upload" || !entry.task_type) {
           d.workCost += (hourlyMap[u.user_id] ?? 0) * hrs
         }
       }
@@ -516,15 +518,16 @@ export default function ExpensesClient({
   // ── Analytics (for profitability tab) ─────────────────────────────────────
   const analytics = useMemo(() => {
     if (!matchedEntries.length) return null
-    type EmpData = { name: string; employeeId: string; userId: string; videoCount: number; shootCount: number; editHours: number; shootHours: number; totalHours: number; dates: Set<string> }
+    type EmpData = { name: string; employeeId: string; userId: string; videoCount: number; shootCount: number; editHours: number; shootHours: number; otherHours: number; totalHours: number; dates: Set<string> }
     const empMap: Record<string, EmpData> = {}
     const shootSessions: { date: string; userId: string; title: string; duration: number; startTime: string; endTime: string }[] = []
     const editedVideos: { date: string; userId: string; video: EditingVideo }[] = []
-    let totalShootHours = 0, totalEditHours = 0, totalVideos = 0, totalShoots = 0
+    const otherEntries: { date: string; userId: string; duration: number; title: string }[] = []
+    let totalShootHours = 0, totalEditHours = 0, totalOtherHours = 0, totalVideos = 0, totalShoots = 0
 
     for (const { date, userId, entry } of matchedEntries) {
       const user = userMap[userId]
-      if (user && !empMap[userId]) empMap[userId] = { name: user.name, employeeId: user.employee_id, userId, videoCount: 0, shootCount: 0, editHours: 0, shootHours: 0, totalHours: 0, dates: new Set() }
+      if (user && !empMap[userId]) empMap[userId] = { name: user.name, employeeId: user.employee_id, userId, videoCount: 0, shootCount: 0, editHours: 0, shootHours: 0, otherHours: 0, totalHours: 0, dates: new Set() }
       const emp = empMap[userId]
       const hrs = entry.duration_hours ?? 0
       if (emp) { emp.totalHours += hrs; emp.dates.add(date) }
@@ -536,13 +539,17 @@ export default function ExpensesClient({
         for (const v of entry.editing_videos ?? []) { editedVideos.push({ date, userId, video: v }); totalVideos++; if (emp) emp.videoCount++ }
         totalEditHours += hrs
         if (emp) emp.editHours += hrs
+      } else if (entry.task_type === "other" || entry.task_type === "upload" || !entry.task_type) {
+        otherEntries.push({ date, userId, duration: hrs, title: entry.title ?? "Work" })
+        totalOtherHours += hrs
+        if (emp) emp.otherHours += hrs
       }
     }
     const employees = Object.values(empMap).sort((a, b) => b.totalHours - a.totalHours)
     const activeDays = new Set(matchedEntries.map(e => e.date)).size
     return {
-      totalVideos, totalShoots, totalShootHours, totalEditHours,
-      totalHours: totalShootHours + totalEditHours, activeDays, employees,
+      totalVideos, totalShoots, totalShootHours, totalEditHours, totalOtherHours,
+      totalHours: totalShootHours + totalEditHours + totalOtherHours, activeDays, employees, otherEntries,
       shootSessions: shootSessions.sort((a, b) => b.date.localeCompare(a.date)),
       editedVideos: editedVideos.sort((a, b) => (b.video.date_finished ?? b.date).localeCompare(a.video.date_finished ?? a.date)),
     }
@@ -553,6 +560,7 @@ export default function ExpensesClient({
     let total = 0
     for (const { userId, video } of analytics.editedVideos) { const { cost } = calcVideoCost(video, userId, rateMap, hourlyMap, localOverrides); total += cost }
     for (const s of analytics.shootSessions) total += (hourlyMap[s.userId] ?? 0) * s.duration
+    for (const o of analytics.otherEntries) total += (hourlyMap[o.userId] ?? 0) * o.duration
     return total
   }, [analytics, rateMap, hourlyMap, localOverrides])
 
@@ -1146,12 +1154,13 @@ export default function ExpensesClient({
             {clientName && analytics && (
               <>
                 {/* Summary cards */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
                   {[
-                    { emoji: "🎬", label: "Videos Edited",  value: analytics.totalVideos,                      color: "#E53935", bg: "rgba(229,57,53,0.07)",   border: "rgba(229,57,53,0.18)"   },
-                    { emoji: "📸", label: "Shoot Sessions", value: analytics.totalShoots,                      color: "#F97316", bg: "rgba(249,115,22,0.07)",  border: "rgba(249,115,22,0.18)"  },
-                    { emoji: "⏱️", label: "Editing Hours",  value: `${analytics.totalEditHours.toFixed(0)}h`,  color: "#8B5CF6", bg: "rgba(139,92,246,0.07)", border: "rgba(139,92,246,0.18)" },
-                    { emoji: "🎥", label: "Shoot Hours",    value: `${analytics.totalShootHours.toFixed(0)}h`, color: "#F59E0B", bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.18)" },
+                    { emoji: "🎬", label: "Videos Edited",  value: analytics.totalVideos,                         color: "#E53935", bg: "rgba(229,57,53,0.07)",   border: "rgba(229,57,53,0.18)"   },
+                    { emoji: "📸", label: "Shoot Sessions", value: analytics.totalShoots,                         color: "#F97316", bg: "rgba(249,115,22,0.07)",  border: "rgba(249,115,22,0.18)"  },
+                    { emoji: "⏱️", label: "Editing Hours",  value: `${analytics.totalEditHours.toFixed(1)}h`,     color: "#8B5CF6", bg: "rgba(139,92,246,0.07)", border: "rgba(139,92,246,0.18)" },
+                    { emoji: "🎥", label: "Shoot Hours",    value: `${analytics.totalShootHours.toFixed(1)}h`,    color: "#F59E0B", bg: "rgba(245,158,11,0.07)", border: "rgba(245,158,11,0.18)" },
+                    { emoji: "🛠️", label: "Work Hours",     value: `${analytics.totalOtherHours.toFixed(1)}h`,    color: "#0EA5E9", bg: "rgba(14,165,233,0.07)", border: "rgba(14,165,233,0.18)" },
                     { emoji: "💰", label: "Work Cost",      value: totalWorkCost > 0 ? fmtRupee(totalWorkCost) : "—", color: "#16A34A", bg: "rgba(22,163,74,0.07)", border: "rgba(22,163,74,0.18)" },
                   ].map(s => (
                     <div key={s.label} className="rounded-xl p-4 text-center" style={{ background: s.bg, border: `1px solid ${s.border}` }}>
@@ -1397,8 +1406,8 @@ export default function ExpensesClient({
                   <div className="overflow-x-auto">
                   <div style={{ minWidth: 560 }}>
                   <div className="hidden md:grid gap-3 px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider"
-                    style={{ gridTemplateColumns: "1fr 60px 70px 70px 80px 90px 90px", color: "#9CA3AF", borderBottom: "1px solid #F3F4F6" }}>
-                    {["Employee", "Days", "Videos", "Shoots", "Edit Hrs", "Shoot Hrs", "Cost"].map(h => (
+                    style={{ gridTemplateColumns: "1fr 60px 60px 60px 70px 70px 70px 90px", color: "#9CA3AF", borderBottom: "1px solid #F3F4F6" }}>
+                    {["Employee", "Days", "Videos", "Shoots", "Edit Hrs", "Shoot Hrs", "Work Hrs", "Cost"].map(h => (
                       <span key={h} className={h !== "Employee" ? "text-center" : ""}>{h}</span>
                     ))}
                   </div>
@@ -1407,7 +1416,7 @@ export default function ExpensesClient({
                       const empCost = (hourlyMap[emp.userId] ?? 0) * emp.totalHours
                       return (
                         <div key={emp.employeeId} className="grid gap-3 px-5 py-3.5 items-center"
-                          style={{ gridTemplateColumns: "1fr 60px 70px 70px 80px 90px 90px", borderBottom: i < analytics.employees.length - 1 ? "1px solid #F9FAFB" : "none" }}>
+                          style={{ gridTemplateColumns: "1fr 60px 60px 60px 70px 70px 70px 90px", borderBottom: i < analytics.employees.length - 1 ? "1px solid #F9FAFB" : "none" }}>
                           <div className="flex items-center gap-3 min-w-0">
                             <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold"
                               style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
@@ -1416,7 +1425,7 @@ export default function ExpensesClient({
                             <div className="min-w-0">
                               <p className="text-[13px] font-semibold truncate" style={{ color: "#111111" }}>{emp.name}</p>
                               <p className="text-[10px]" style={{ color: "#9CA3AF" }}>
-                                #{emp.employeeId}{hourlyMap[emp.userId] ? ` · ₹${hourlyMap[emp.userId]}/hr` : " · no rate set"}
+                                #{emp.employeeId}{hourlyMap[emp.userId] ? ` · ₹${hourlyMap[emp.userId].toFixed(0)}/hr` : " · no rate set"}
                               </p>
                             </div>
                           </div>
@@ -1424,10 +1433,13 @@ export default function ExpensesClient({
                           <span className="text-center text-[13px] font-bold" style={{ color: emp.videoCount > 0 ? "#E53935" : "#D1D5DB" }}>{emp.videoCount || "—"}</span>
                           <span className="text-center text-[13px] font-bold" style={{ color: emp.shootCount > 0 ? "#F97316" : "#D1D5DB" }}>{emp.shootCount || "—"}</span>
                           <span className="text-center text-[13px] font-bold" style={{ color: emp.editHours > 0 ? "#8B5CF6" : "#D1D5DB" }}>
-                            {emp.editHours > 0 ? `${emp.editHours.toFixed(0)}h` : "—"}
+                            {emp.editHours > 0 ? `${emp.editHours.toFixed(1)}h` : "—"}
                           </span>
                           <span className="text-center text-[13px] font-bold" style={{ color: emp.shootHours > 0 ? "#F97316" : "#D1D5DB" }}>
-                            {emp.shootHours > 0 ? `${emp.shootHours.toFixed(0)}h` : "—"}
+                            {emp.shootHours > 0 ? `${emp.shootHours.toFixed(1)}h` : "—"}
+                          </span>
+                          <span className="text-center text-[13px] font-bold" style={{ color: emp.otherHours > 0 ? "#0EA5E9" : "#D1D5DB" }}>
+                            {emp.otherHours > 0 ? `${emp.otherHours.toFixed(1)}h` : "—"}
                           </span>
                           <span className="text-center text-[13px] font-bold" style={{ color: empCost > 0 ? "#16A34A" : "#D1D5DB" }}>
                             {empCost > 0 ? fmtRupee(empCost) : "—"}

@@ -13,6 +13,7 @@ import {
 import { updateOwnProfile } from "@/lib/actions/team"
 import { updatePersonalDetails, updateKYC } from "@/lib/actions/profile"
 import { logoutAction } from "@/lib/actions/auth"
+import { createBrowserClient } from "@/lib/supabase/client"
 
 interface ProfileData {
   id: string; name: string; employee_id: string; role: string
@@ -165,6 +166,14 @@ export default function ProfileClient({
   const [showPicker, setShowPicker] = useState(false)
   const [logoutPending, startLogout] = useTransition()
 
+  const [showPwdModal, setShowPwdModal]   = useState(false)
+  const [pwdNew, setPwdNew]               = useState("")
+  const [pwdConfirm, setPwdConfirm]       = useState("")
+  const [pwdError, setPwdError]           = useState<string | null>(null)
+  const [pwdSuccess, setPwdSuccess]       = useState(false)
+  const [pwdPending, startPwd]            = useTransition()
+  const [showComingSoon, setShowComingSoon] = useState<string | null>(null)
+
   const currentMonth = new Date().toISOString().slice(0, 7) // "YYYY-MM"
   const [payslipMonth, setPayslipMonth] = useState(currentMonth)
 
@@ -230,6 +239,19 @@ export default function ProfileClient({
       await updatePersonalDetails({ photo_url: url }); router.refresh()
     } catch { setPhotoError("Failed to save photo") } finally { setPhotoBusy(false) }
   }
+  function handleChangePassword() {
+    setPwdError(null)
+    if (pwdNew.length < 6) { setPwdError("Password must be at least 6 characters"); return }
+    if (pwdNew !== pwdConfirm) { setPwdError("Passwords do not match"); return }
+    startPwd(async () => {
+      const supabase = createBrowserClient()
+      const { error } = await supabase.auth.updateUser({ password: pwdNew })
+      if (error) { setPwdError(error.message); return }
+      setPwdSuccess(true)
+      setTimeout(() => { setShowPwdModal(false); setPwdNew(""); setPwdConfirm(""); setPwdSuccess(false) }, 1800)
+    })
+  }
+
   async function handleDocUpload(
     field: "govt_id_url"|"aadhaar_back_url"|"pan_front_url"|"pan_back_url"|"ration_card_url"|"ration_card_url2",
     file: File
@@ -614,9 +636,9 @@ export default function ProfileClient({
             <p style={{ fontSize: 12, color: "#9CA3AF", margin: "0 0 16px" }}>Manage your account security and preferences</p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {[
-                { Icon: Lock,   title: "Change Password",       desc: "Update your password",    action: () => router.push("/change-password") },
-                { Icon: Bell,   title: "Notification Settings", desc: "Manage alerts & updates",  action: () => {} },
-                { Icon: Shield, title: "Privacy Settings",      desc: "Control your data",        action: () => {} },
+                { Icon: Lock,   title: "Change Password",       desc: "Update your password",    action: () => { setPwdError(null); setPwdNew(""); setPwdConfirm(""); setPwdSuccess(false); setShowPwdModal(true) } },
+                { Icon: Bell,   title: "Notification Settings", desc: "Manage alerts & updates",  action: () => setShowComingSoon("Notification Settings") },
+                { Icon: Shield, title: "Privacy Settings",      desc: "Control your data",        action: () => setShowComingSoon("Privacy Settings") },
               ].map(({ Icon, title, desc, action }) => (
                 <button key={title} onClick={action}
                   style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", borderRadius: 14, border: "1px solid #EBEDF2", background: "#F8F9FC", cursor: "pointer", textAlign: "left" }}>
@@ -783,6 +805,86 @@ export default function ProfileClient({
             </div>
 
             {photoError && <p style={{ fontSize: 11, color: "#DE1A1A", marginTop: 10, textAlign: "center" }}>{photoError}</p>}
+          </div>
+        </div>
+      )}
+
+      {/* ── Change Password Modal ──────────────────────────────────────────── */}
+      {showPwdModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={() => setShowPwdModal(false)}>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }} />
+          <div style={{ position: "relative", background: "#fff", borderRadius: 24, padding: 28, width: "100%", maxWidth: 400, boxShadow: "0 24px 64px rgba(0,0,0,0.18)" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 11, background: "rgba(222,26,26,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Lock size={17} style={{ color: "#DE1A1A" }} />
+                </div>
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 900, color: "#111", margin: 0 }}>Change Password</p>
+                  <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Set a new password for your account</p>
+                </div>
+              </div>
+              <button onClick={() => setShowPwdModal(false)} style={{ width: 32, height: 32, borderRadius: "50%", background: "#F5F6FA", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <X size={14} style={{ color: "#6B7280" }} />
+              </button>
+            </div>
+
+            {pwdSuccess ? (
+              <div style={{ textAlign: "center", padding: "24px 0" }}>
+                <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(22,163,74,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 14px" }}>
+                  <Check size={26} style={{ color: "#16A34A" }} />
+                </div>
+                <p style={{ fontSize: 15, fontWeight: 800, color: "#111", margin: "0 0 4px" }}>Password Updated!</p>
+                <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>Your password has been changed successfully.</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "block", marginBottom: 6 }}>New Password</label>
+                  <input type="password" value={pwdNew} onChange={e => setPwdNew(e.target.value)}
+                    placeholder="Min. 6 characters"
+                    style={{ ...IS, borderColor: pwdError && pwdNew.length < 6 ? "#DE1A1A" : "#EBEDF2" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "block", marginBottom: 6 }}>Confirm New Password</label>
+                  <input type="password" value={pwdConfirm} onChange={e => setPwdConfirm(e.target.value)}
+                    placeholder="Re-enter new password"
+                    style={{ ...IS, borderColor: pwdError && pwdNew !== pwdConfirm ? "#DE1A1A" : "#EBEDF2" }} />
+                </div>
+                {pwdError && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 10, background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.15)" }}>
+                    <AlertCircle size={13} style={{ color: "#DE1A1A", flexShrink: 0 }} />
+                    <p style={{ fontSize: 12, color: "#DE1A1A", margin: 0 }}>{pwdError}</p>
+                  </div>
+                )}
+                <button onClick={handleChangePassword} disabled={pwdPending}
+                  style={{ width: "100%", padding: "12px", borderRadius: 12, border: "none", cursor: pwdPending ? "not-allowed" : "pointer", background: "linear-gradient(135deg,#DE1A1A,#7F1D1D)", color: "#fff", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, opacity: pwdPending ? 0.7 : 1 }}>
+                  {pwdPending ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Updating…</> : "Update Password"}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Coming Soon Modal ──────────────────────────────────────────────── */}
+      {showComingSoon && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
+          onClick={() => setShowComingSoon(null)}>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }} />
+          <div style={{ position: "relative", background: "#fff", borderRadius: 24, padding: 32, width: "100%", maxWidth: 340, boxShadow: "0 24px 64px rgba(0,0,0,0.18)", textAlign: "center" }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(222,26,26,0.08)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+              {showComingSoon === "Notification Settings" ? <Bell size={24} style={{ color: "#DE1A1A" }} /> : <Shield size={24} style={{ color: "#DE1A1A" }} />}
+            </div>
+            <p style={{ fontSize: 16, fontWeight: 900, color: "#111", margin: "0 0 6px" }}>{showComingSoon}</p>
+            <p style={{ fontSize: 12, color: "#9CA3AF", margin: "0 0 22px", lineHeight: 1.6 }}>This feature is coming soon.<br/>We're working on it!</p>
+            <button onClick={() => setShowComingSoon(null)}
+              style={{ padding: "10px 28px", borderRadius: 12, border: "none", cursor: "pointer", background: "linear-gradient(135deg,#DE1A1A,#7F1D1D)", color: "#fff", fontSize: 13, fontWeight: 700 }}>
+              Got it
+            </button>
           </div>
         </div>
       )}

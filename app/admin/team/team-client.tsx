@@ -300,23 +300,19 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
           <div>
             <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Role *</label>
             <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
-              {([
-                { value: "MEMBER",        label: "Member",           color: "#2563EB",  bg: "rgba(37,99,235,0.08)",          border: "rgba(37,99,235,0.35)" },
-                { value: "ADMIN",         label: "Admin",            color: "#FFFFFF",  bg: "linear-gradient(135deg,#de1a1a,#7F1D1D)", border: "rgba(222,26,26,0.3)" },
-                { value: "FREELANCER_MGR", label: "Freelancer Mgr", color: "#FFFFFF",  bg: "linear-gradient(135deg,#2D6A4F,#1a3520)", border: "rgba(45,106,79,0.3)" },
-              ] as const).map((r) => (
-                <button key={r.value} type="button" onClick={() => setForm((prev) => ({ ...prev, role: r.value }))}
+              {(["MEMBER", "ADMIN", "FREELANCER_MGR"] as const).map((r) => (
+                <button key={r} type="button" onClick={() => setForm((prev) => ({ ...prev, role: r }))}
                   className="py-2.5 rounded-xl text-[12px] font-semibold transition-all"
-                  style={form.role === r.value
-                    ? { background: r.bg, color: r.color, border: `1px solid ${r.border}` }
+                  style={form.role === r
+                    ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
                     : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }
                   }>
-                  {r.label}
+                  {r === "MEMBER" ? "Member" : r === "ADMIN" ? "Admin" : "Freelancer Mgr"}
                 </button>
               ))}
             </div>
             {form.role === "FREELANCER_MGR" && (
-              <p className="text-[11px] mt-1.5" style={{ color: "#2D6A4F" }}>
+              <p className="text-[11px] mt-1.5" style={{ color: "#6B7280" }}>
                 This account manages freelancers — it will log in to the Freelancer Portal.
               </p>
             )}

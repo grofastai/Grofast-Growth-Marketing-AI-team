@@ -104,6 +104,11 @@ export default async function MemberDashboardPage() {
     medium: { color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
     high:   { color: "#FF6464", bg: "rgba(255,100,100,0.08)" },
   }
+  const STATUS_STYLE: Record<string, { color: string; bg: string; label: string }> = {
+    todo:        { color: "#5B21B6", bg: "rgba(91,33,182,0.12)",  label: "TODO"        },
+    in_progress: { color: "#D97706", bg: "rgba(217,119,6,0.13)",  label: "IN PROGRESS" },
+    completed:   { color: "#16A34A", bg: "rgba(22,163,74,0.12)",  label: "DONE"        },
+  }
 
   // Monthly stats grid config
   const avgColor = avgHoursPerDay >= 9 ? "#16A34A" : avgHoursPerDay >= 7 ? "#D97706" : avgHoursPerDay > 0 ? "#de1a1a" : "#D1D5DB"
@@ -236,22 +241,23 @@ export default async function MemberDashboardPage() {
             <div className="space-y-1.5">
               {myTasks.map((task) => {
                 const isOverdue = !!task.due_date && task.due_date < today
-                const pr = isOverdue ? { color: "#FF6464", bg: "rgba(255,100,100,0.06)" } : PRIORITY_STYLE[task.priority] ?? PRIORITY_STYLE.medium
+                const pr  = isOverdue ? { color: "#FF6464" } : PRIORITY_STYLE[task.priority] ?? PRIORITY_STYLE.medium
+                const st  = STATUS_STYLE[task.status] ?? STATUS_STYLE.todo
                 return (
                   <div key={task.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
-                    style={{ background: isOverdue ? "rgba(255,100,100,0.04)" : "#F9FAFB" }}>
-                    <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: pr.color }} />
-                    <p className="flex-1 text-[13px] truncate" style={{ color: "#111111" }}>{task.title}</p>
+                    style={{ background: isOverdue ? "rgba(255,100,100,0.05)" : "#F9FAFB", border: isOverdue ? "1px solid rgba(255,100,100,0.15)" : "1px solid transparent" }}>
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: pr.color }} />
+                    <p className="flex-1 text-[13px] font-semibold truncate" style={{ color: "#111111" }}>{task.title}</p>
                     {isOverdue && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
-                        style={{ background: "rgba(255,100,100,0.12)", color: "#FF6464" }}>OVERDUE</span>
+                      <span className="text-[9px] font-black px-2 py-0.5 rounded-full flex-shrink-0"
+                        style={{ background: "rgba(255,100,100,0.15)", color: "#EF4444", border: "1px solid rgba(255,100,100,0.2)" }}>OVERDUE</span>
                     )}
                     {task.due_date && !isOverdue && (
-                      <span className="text-[11px] flex-shrink-0" style={{ color: "#D1D5DB" }}>{task.due_date}</span>
+                      <span className="text-[11px] flex-shrink-0" style={{ color: "#9CA3AF" }}>{task.due_date}</span>
                     )}
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
-                      style={{ background: pr.bg, color: pr.color }}>
-                      {task.status === "in_progress" ? "IN PROGRESS" : task.status.toUpperCase()}
+                    <span className="text-[9px] font-black px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={{ background: st.bg, color: st.color, border: `1px solid ${st.color}30` }}>
+                      {st.label}
                     </span>
                   </div>
                 )

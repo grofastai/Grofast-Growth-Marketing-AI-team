@@ -175,6 +175,7 @@ export async function GET(request: NextRequest) {
 <title>${payslipId} — ${member.name} — ${monthName}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:13px}
@@ -287,9 +288,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
     <span class="topbar-text">${member.name} &nbsp;·&nbsp; ${monthName} &nbsp;·&nbsp; Salary Slip</span>
     <span class="topbar-id">${payslipId}</span>
   </div>
-  <button class="print-btn" onclick="window.print()">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    Download PDF
+  <button class="print-btn" id="dl-btn" onclick="downloadPDF()">
+    <svg id="dl-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <span id="dl-label">Download PDF</span>
   </button>
 </div>
 
@@ -539,7 +540,30 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
   </div>
 
 </div>
-<script>if(!window.opener&&!document.referrer){setTimeout(()=>window.print(),800)}</script>
+<script>
+function downloadPDF() {
+  const btn = document.getElementById('dl-btn');
+  const label = document.getElementById('dl-label');
+  const icon = document.getElementById('dl-icon');
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+  label.textContent = 'Generating…';
+  icon.innerHTML = '<animateTransform attributeName="transform" attributeType="XML" type="rotate" from="0 7 7" to="360 7 7" dur="0.8s" repeatCount="indefinite"/><circle cx="7" cy="7" r="5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-dasharray="20" stroke-dashoffset="5"/>';
+  const opt = {
+    margin: 0,
+    filename: '${payslipId}.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, allowTaint: false, logging: false, backgroundColor: '#ffffff' },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+  html2pdf().set(opt).from(document.querySelector('.page')).save().then(() => {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    label.textContent = 'Download PDF';
+    icon.innerHTML = '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>';
+  });
+}
+</script>
 </body>
 </html>`
 

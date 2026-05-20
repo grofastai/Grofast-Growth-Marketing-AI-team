@@ -559,6 +559,16 @@ export default function AnnouncementsClient({
                 <textarea name="message" required rows={4} placeholder="Write your announcement..."
                   style={{ width: "100%", padding: "10px 12px", borderRadius: 12, fontSize: 13, border: "1.5px solid #E5E7EB", outline: "none", background: "#F9FAFB", color: "#111", resize: "none", boxSizing: "border-box" }} />
               </div>
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "block", marginBottom: 6 }}>Category</label>
+                <select name="category" defaultValue="General"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px solid #EBEDF2", fontSize: 13, color: "#111827", background: "#F9FAFB", outline: "none" }}>
+                  <option value="General">General</option>
+                  <option value="Policy">Policy</option>
+                  <option value="Events">Events</option>
+                  <option value="Urgent">Urgent</option>
+                </select>
+              </div>
               <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
                 <div style={{ position: "relative", width: 40, height: 22 }}>
                   <input type="checkbox" style={{ position: "absolute", opacity: 0, width: 0, height: 0 }} checked={pinned} onChange={(e) => setPinned(e.target.checked)} />

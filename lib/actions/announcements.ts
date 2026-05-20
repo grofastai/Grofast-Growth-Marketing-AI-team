@@ -8,6 +8,7 @@ const schema = z.object({
   title: z.string().min(1, 'Title required').max(120),
   message: z.string().min(1, 'Message required'),
   pinned: z.boolean().default(false),
+  category: z.enum(['General', 'Policy', 'Events', 'Urgent']).default('General'),
 })
 
 function parseJwt(token: string) {
@@ -22,6 +23,7 @@ export async function createAnnouncement(
     title: formData.get('title') as string,
     message: formData.get('message') as string,
     pinned: formData.get('pinned') === 'true',
+    category: (formData.get('category') as string) || 'General',
   }
 
   const parsed = schema.safeParse(raw)
@@ -34,13 +36,15 @@ export async function createAnnouncement(
   const claims = parseJwt(session.access_token)
   if (!claims?.company_id) return { error: 'Missing company claim — re-login' }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase.from('announcements').insert({
     company_id: claims.company_id,
     title: parsed.data.title,
     message: parsed.data.message,
     pinned: parsed.data.pinned,
+    category: parsed.data.category,
     created_by: session.user.id,
-  })
+  } as any)
 
   if (error) return { error: error.message }
 

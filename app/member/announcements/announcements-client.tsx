@@ -9,6 +9,7 @@ type AnnouncementRow = {
   title: string
   message: string
   pinned: boolean
+  category: string
   created_at: string
   users: { name: string } | null
 }
@@ -42,9 +43,10 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
 
   const filtered = useMemo(() =>
     announcements.filter(a =>
-      a.title.toLowerCase().includes(search.toLowerCase()) ||
-      a.message.toLowerCase().includes(search.toLowerCase())
-    ), [announcements, search])
+      (category === "All Categories" || a.category === category) &&
+      (a.title.toLowerCase().includes(search.toLowerCase()) ||
+       a.message.toLowerCase().includes(search.toLowerCase()))
+    ), [announcements, search, category])
 
   const STAT_CARDS = [
     { emoji: "📢", label1: "New Announcements", label2: "Today",         value: stats.newToday,  bg: "rgba(239,68,68,0.08)"  },

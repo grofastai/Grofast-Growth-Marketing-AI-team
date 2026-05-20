@@ -120,6 +120,7 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
     gender: (member?.gender ?? "male") as "male" | "female",
   })
   const [error, setError] = useState("")
+  const [whatsappWarning, setWhatsappWarning] = useState("")
   const [isPending, startTransition] = useTransition()
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
   const [photoFile, setPhotoFile]       = useState<File | null>(null)
@@ -164,8 +165,13 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
         : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, ...salaryFields, ...dateFields })
 
       if (result.success) {
-        router.refresh()
-        onClose()
+        if (!isEdit && form.phone && result.whatsappSent === false) {
+          setWhatsappWarning("Member created, but WhatsApp notification failed. Check the phone number or Meta template status.")
+          router.refresh()
+        } else {
+          router.refresh()
+          onClose()
+        }
       } else {
         setError(result.error ?? "Something went wrong")
       }
@@ -385,6 +391,12 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
             </div>
           )}
 
+          {whatsappWarning && (
+            <div className="rounded-xl px-4 py-3" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>
+              <p className="text-[12px] font-semibold" style={{ color: "#B45309" }}>WhatsApp not sent</p>
+              <p className="text-[11px] mt-0.5" style={{ color: "#B45309" }}>{whatsappWarning}</p>
+            </div>
+          )}
           {error && (
             <p className="text-[12px] rounded-xl px-4 py-3"
               style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}>{error}</p>
@@ -392,12 +404,12 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
         </div>
 
         <div className="px-6 py-4 flex items-center gap-3 flex-shrink-0" style={{ borderTop: "1px solid #E5E7EB" }}>
-          <button onClick={onClose}
+          <button onClick={whatsappWarning ? onClose : onClose}
             className="flex-1 py-3 rounded-xl text-[13px] font-semibold transition-all"
             style={{ background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }}>
-            Cancel
+            {whatsappWarning ? "Close" : "Cancel"}
           </button>
-          <button onClick={handleSubmit} disabled={isPending}
+          <button onClick={handleSubmit} disabled={isPending || !!whatsappWarning}
             className="flex-1 py-3 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
             style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", boxShadow: "0 4px 16px rgba(222,26,26,0.25)" }}>
             {isPending && <Loader2 size={13} className="animate-spin" />}

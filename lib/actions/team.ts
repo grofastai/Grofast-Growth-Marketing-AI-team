@@ -15,12 +15,12 @@ function adminSupabase() {
 async function notifyWhatsApp(
   payload: { name: string; email: string; employee_id: string; phone: string; loginLink: string; password: string; team: string },
   meta: { companyId: string; userId: string }
-) {
+): Promise<boolean> {
   const metaToken   = process.env.META_WHATSAPP_TOKEN
   const metaPhoneId = process.env.META_PHONE_NUMBER_ID
   if (!metaToken || !metaPhoneId) {
     console.warn('[notifyWhatsApp] META credentials not set — skipping onboarding WhatsApp')
-    return
+    return false
   }
 
   const admin = adminSupabase()
@@ -87,6 +87,7 @@ async function notifyWhatsApp(
       .update({ last_onboarding_notified_at: new Date().toISOString() })
       .eq('id', meta.userId),
   ])
+  return status === 'sent'
 }
 
 export async function createMember(input: {
@@ -105,7 +106,7 @@ export async function createMember(input: {
   date_of_birth?: string | null
   joined_at?: string | null
   gender?: 'male' | 'female'
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; whatsappSent?: boolean }> {
   if (!input.name || !input.employee_id || !input.email || !input.password) {
     return { success: false, error: 'Name, Employee ID, Email and Password are required' }
   }
@@ -224,6 +225,7 @@ export async function createMember(input: {
   // Part-time and freelancer members don't get onboarding WhatsApp notifications
   const skipNotification = input.employment_type === 'part_time' || input.employment_type === 'freelancer'
 
+  let whatsappSent = false
   if (input.phone && !recentlySent && !skipNotification) {
     const loginLink = 'https://grofastteam.vercel.app/'
 
@@ -231,7 +233,7 @@ export async function createMember(input: {
     // Auto-add India country code for 10-digit numbers
     if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone
     else if (cleanPhone.startsWith('0') && cleanPhone.length === 11) cleanPhone = '91' + cleanPhone.slice(1)
-    notifyWhatsApp(
+    whatsappSent = await notifyWhatsApp(
       {
         name: input.name,
         email: input.email,
@@ -242,11 +244,11 @@ export async function createMember(input: {
         team: input.team || '',
       },
       { companyId: company_id, userId: authUserId }
-    ).catch(() => {})
+    ).catch(() => false)
   }
 
   revalidatePath('/admin/team')
-  return { success: true }
+  return { success: true, whatsappSent }
 }
 
 export async function updateMember(input: {

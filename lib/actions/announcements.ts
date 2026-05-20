@@ -3,6 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { insertNotification } from './notifications'
 
 const schema = z.object({
   title: z.string().min(1, 'Title required').max(120),
@@ -47,6 +48,20 @@ export async function createAnnouncement(
   } as any)
 
   if (error) return { error: error.message }
+
+  const { data: companyUsers } = await supabase.from('users').select('id').eq('company_id', claims.company_id)
+  if (companyUsers) {
+    await Promise.all(companyUsers.map(u =>
+      insertNotification({
+        companyId: claims.company_id,
+        userId: u.id,
+        type: 'announcement',
+        title: parsed.data.title,
+        body: parsed.data.message.slice(0, 120),
+        link: '/member/announcements',
+      })
+    ))
+  }
 
   revalidatePath('/admin/announcements')
   revalidatePath('/member/announcements')

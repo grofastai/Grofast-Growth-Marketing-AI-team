@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
+import { insertNotification } from './notifications'
 import { z } from 'zod'
 
 function createAdminClient() {
@@ -224,6 +225,8 @@ export async function updateLeaveStatus(
   const admin = createAdminClient()
 
   type LeaveWithUser = {
+    company_id: string
+    user_id: string
     from_date: string
     to_date: string
     users: { name: string; phone: string | null } | null
@@ -231,7 +234,7 @@ export async function updateLeaveStatus(
 
   const { data: leaveRaw } = await admin
     .from('leaves')
-    .select('from_date, to_date, users(name, phone)')
+    .select('company_id, user_id, from_date, to_date, users(name, phone)')
     .eq('id', leaveId)
     .single()
 
@@ -252,6 +255,17 @@ export async function updateLeaveStatus(
       from_date:      leave.from_date,
       to_date:        leave.to_date,
       status,
+    }).catch(console.error)
+  }
+
+  if (leave) {
+    insertNotification({
+      companyId: leave.company_id,
+      userId: leave.user_id,
+      type: 'leave_status',
+      title: status === 'approved' ? 'Leave Approved' : 'Leave Rejected',
+      body: `Your leave request has been ${status}.`,
+      link: '/member/leaves',
     }).catch(console.error)
   }
 

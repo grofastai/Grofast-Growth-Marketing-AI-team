@@ -37,15 +37,9 @@ export async function createAnnouncement(
   const claims = parseJwt(session.access_token)
   if (!claims?.company_id) return { error: 'Missing company claim — re-login' }
 
+  const row = { company_id: claims.company_id, title: parsed.data.title, message: parsed.data.message, pinned: parsed.data.pinned, category: parsed.data.category, created_by: session.user.id }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await supabase.from('announcements').insert({
-    company_id: claims.company_id,
-    title: parsed.data.title,
-    message: parsed.data.message,
-    pinned: parsed.data.pinned,
-    category: parsed.data.category,
-    created_by: session.user.id,
-  } as any)
+  const { error } = await supabase.from('announcements').insert(row as any)
 
   if (error) return { error: error.message }
 

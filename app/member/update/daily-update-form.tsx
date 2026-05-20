@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useMemo, useEffect } from "react"
+import { useState, useTransition, useMemo, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
@@ -107,7 +107,11 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
       durationHours: e.duration_hours ?? 1,
       description: e.title ?? '',
       projectName: e.is_multi_client ? '' : (e.client_name === 'Internal' ? '' : (e.client_name ?? '')),
-      status: ((e.notes?.replace(/^\[/, '').replace(/\]$/, '') ?? 'not_started') as TimeBlock['status']),
+      status: (() => {
+        const rawStatus = e.notes?.replace(/^\[/, '').replace(/\]$/, '') ?? ''
+        const VALID = ['completed', 'in_progress', 'not_started'] as const
+        return (VALID.includes(rawStatus as TimeBlock['status']) ? rawStatus : 'not_started') as TimeBlock['status']
+      })(),
       isMultiClient: e.is_multi_client ?? false,
       clientNames: e.client_names ?? [],
     }))
@@ -120,6 +124,8 @@ export default function DailyUpdateForm({
   projects: Project[]; userName: string; team?: string | null; existingUpdate?: Record<string, unknown> | null
 }) {
   const router = useRouter()
+  const existingUpdateRef = useRef(existingUpdate)
+  useEffect(() => { existingUpdateRef.current = existingUpdate }, [existingUpdate])
   const [isPending, startTransition] = useTransition()
 
   const firstName = userName.split(" ")[0] || "there"
@@ -354,7 +360,7 @@ export default function DailyUpdateForm({
           <p style={{ fontSize:20, fontWeight:900, color:"#111111", margin:"0 0 8px", fontFamily:"var(--font-jakarta)" }}>Daily Update Submitted!</p>
           <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 20px" }}>Great work, {firstName}. See you tomorrow!</p>
           <button onClick={() => {
-            setTimeBlocks(parseExistingBlocks(existingUpdate ?? {}))
+            setTimeBlocks(parseExistingBlocks(existingUpdateRef.current ?? {}))
             setEditMode(true)
             if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
           }}

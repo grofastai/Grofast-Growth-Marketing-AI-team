@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useRef } from "react"
+import { useState, useTransition, useRef, RefObject } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
@@ -11,7 +11,7 @@ import {
   ChevronRight, Bell, Settings, Lock, FolderOpen, User, Download,
 } from "lucide-react"
 import { updateOwnProfile } from "@/lib/actions/team"
-import { updatePersonalDetails, updateKYC } from "@/lib/actions/profile"
+import { updatePersonalDetails, updateKYC, deleteKYCDocument, type KYCDocField } from "@/lib/actions/profile"
 import { logoutAction } from "@/lib/actions/auth"
 import { createBrowserClient } from "@/lib/supabase/client"
 
@@ -161,6 +161,14 @@ export default function ProfileClient({
   const [uploadingField, setUploadingField] = useState<string | null>(null)
 
   const photoRef = useRef<HTMLInputElement>(null)
+  const docRefs: Record<KYCDocField, RefObject<HTMLInputElement | null>> = {
+    govt_id_url:      useRef<HTMLInputElement>(null),
+    aadhaar_back_url: useRef<HTMLInputElement>(null),
+    pan_front_url:    useRef<HTMLInputElement>(null),
+    pan_back_url:     useRef<HTMLInputElement>(null),
+    ration_card_url:  useRef<HTMLInputElement>(null),
+    ration_card_url2: useRef<HTMLInputElement>(null),
+  }
   const [photoBusy, setPhotoBusy]   = useState(false)
   const [photoError, setPhotoError] = useState<string | null>(null)
   const [showPicker, setShowPicker] = useState(false)
@@ -575,7 +583,7 @@ export default function ProfileClient({
                   {([
                     { title: "Aadhaar Card", fields: [{ f: "govt_id_url" as const, l: "Front" }, { f: "aadhaar_back_url" as const, l: "Back" }] },
                     { title: "PAN Card",     fields: [{ f: "pan_front_url" as const, l: "Front" }, { f: "pan_back_url" as const, l: "Back" }] },
-                    { title: "Ration Card",  fields: [{ f: "ration_card_url" as const, l: "Img 1" }, { f: "ration_card_url2" as const, l: "Img 2" }] },
+                    { title: "Ration Card",  fields: [{ f: "ration_card_url" as const, l: "Front Side" }, { f: "ration_card_url2" as const, l: "Back Side" }] },
                   ]).map((sec, si) => (
                     <div key={sec.title}>
                       <p style={{ fontSize: 11, fontWeight: 700, color: "#374151", margin: "0 0 7px" }}>{sec.title} <span style={{ fontSize: 9, color: si === 2 ? "#6B7280" : "#DE1A1A" }}>{si === 2 ? "(optional)" : "*both required"}</span></p>
@@ -618,10 +626,53 @@ export default function ProfileClient({
                       </div>
                     </div>
                   ))}
-                  <button
-                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px", borderRadius: 12, background: "#F8F9FC", border: "1.5px solid #EBEDF2", fontSize: 12, fontWeight: 700, color: "#374151", cursor: "pointer", marginTop: 4 }}>
-                    <FolderOpen size={14} style={{ color: "#DE1A1A" }}/> View All Documents
-                  </button>
+                  {/* KYC document actions */}
+                  <div style={{ marginTop: 12 }}>
+                    {([
+                      { f: "govt_id_url" as KYCDocField,      l: "Aadhaar Front" },
+                      { f: "aadhaar_back_url" as KYCDocField, l: "Aadhaar Back" },
+                      { f: "pan_front_url" as KYCDocField,    l: "PAN Front" },
+                      { f: "pan_back_url" as KYCDocField,     l: "PAN Back" },
+                      { f: "ration_card_url" as KYCDocField,  l: "Ration Card Front" },
+                      { f: "ration_card_url2" as KYCDocField, l: "Ration Card Back" },
+                    ]).map(({ f, l }) => {
+                      const url = (kyc as unknown as Record<string, unknown>)?.[f] as string | null
+                      return (
+                        <div key={f} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #F3F4F6" }}>
+                          <span style={{ fontSize: 12, color: "#374151", fontWeight: 600 }}>{l}</span>
+                          {url ? (
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <a href={url} target="_blank" rel="noreferrer"
+                                style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", padding: "4px 10px", borderRadius: 8, background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.2)", textDecoration: "none" }}>
+                                View
+                              </a>
+                              <button type="button" onClick={() => docRefs[f].current?.click()}
+                                style={{ fontSize: 11, fontWeight: 700, color: "#F59E0B", padding: "4px 10px", borderRadius: 8, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", cursor: "pointer" }}>
+                                Replace
+                              </button>
+                              <button type="button" onClick={async () => {
+                                if (!confirm(`Delete ${l}?`)) return
+                                const res = await deleteKYCDocument(f)
+                                if (res.success) router.refresh()
+                              }}
+                                style={{ fontSize: 11, fontWeight: 700, color: "#EF4444", padding: "4px 10px", borderRadius: 8, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", cursor: "pointer" }}>
+                                Delete
+                              </button>
+                              <input ref={docRefs[f]} type="file" accept="image/*,application/pdf" style={{ display: "none" }}
+                                onChange={async e => {
+                                  const file = e.target.files?.[0]
+                                  if (!file) return
+                                  await handleDocUpload(f, file)
+                                  router.refresh()
+                                }} />
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 11, color: "#D1D5DB" }}>Not uploaded</span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
             </div>

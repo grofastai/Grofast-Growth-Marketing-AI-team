@@ -70,3 +70,40 @@ export async function updateKYC(data: {
   revalidatePath('/member/dashboard')
   return { success: true }
 }
+
+export type KYCDocField = 'govt_id_url' | 'aadhaar_back_url' | 'pan_front_url' | 'pan_back_url' | 'ration_card_url' | 'ration_card_url2'
+
+export async function deleteKYCDocument(
+  field: KYCDocField
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Unauthorized' }
+
+  const admin = adminSupabase()
+
+  const { data: kyc } = await admin
+    .from('member_kyc')
+    .select(field)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  const url = (kyc?.[field as keyof typeof kyc] as unknown) as string | null
+  if (url) {
+    const marker = '/documents/'
+    const idx = url.indexOf(marker)
+    if (idx !== -1) {
+      const storagePath = url.slice(idx + marker.length)
+      await admin.storage.from('documents').remove([storagePath])
+    }
+  }
+
+  const { error } = await admin
+    .from('member_kyc')
+    .update({ [field]: null })
+    .eq('user_id', user.id)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/profile')
+  return { success: true }
+}

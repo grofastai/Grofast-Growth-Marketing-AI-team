@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useEffect, useActionState, useRef, useMemo } from "react"
+import { useState, useTransition, useEffect, useActionState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
@@ -459,22 +459,8 @@ export default function MemberTasksClient({
   const activeCount = wip.length + todos.length
   const productivity = total > 0 ? Math.round((doneTasks.length / total) * 100) : 0
 
-  const byMeCount = tasks.filter(t => t.created_by === currentUserId).length
-
-  // Build one tab per unique assigner (people who assigned tasks TO me)
-  const assignerTabs = useMemo(() => {
-    const seen = new Set<string>()
-    const result: { id: string; name: string; count: number }[] = []
-    tasks.forEach(t => {
-      if (t.created_by && t.created_by !== currentUserId && !seen.has(t.created_by)) {
-        seen.add(t.created_by)
-        const name = t.assignedBy?.name ?? "Unknown"
-        const count = tasks.filter(x => x.created_by === t.created_by).length
-        result.push({ id: t.created_by, name, count })
-      }
-    })
-    return result
-  }, [tasks, currentUserId])
+  const byMeCount     = tasks.filter(t => t.created_by === currentUserId).length
+  const byOthersCount = tasks.filter(t => t.created_by !== currentUserId).length
 
   // Tasks due within 7 days (not completed)
   const dueSoon = tasks
@@ -508,8 +494,8 @@ export default function MemberTasksClient({
   const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 }
   function colTasks(key: "todo" | "in_progress" | "completed") {
     let list = tasks.filter(t => t.status === key)
-    if (filter === "by_me") list = list.filter(t => t.created_by === currentUserId)
-    else if (filter.startsWith("by_")) { const id = filter.slice(3); list = list.filter(t => t.created_by === id) }
+    if (filter === "by_me")     list = list.filter(t => t.created_by === currentUserId)
+    else if (filter === "by_others") list = list.filter(t => t.created_by !== currentUserId)
     if (search.trim()) {
       const q = search.toLowerCase()
       const project = (t: Task) => (Array.isArray(t.projects) ? t.projects[0] : t.projects)?.business_name ?? ""
@@ -553,7 +539,7 @@ export default function MemberTasksClient({
   const FILTER_TABS = [
     { key: "all",         label: "All",         count: total },
     { key: "by_me",       label: "Myself",      count: byMeCount },
-    ...assignerTabs.map(a => ({ key: `by_${a.id}`, label: a.name, count: a.count })),
+    { key: "by_others",   label: "Others",      count: byOthersCount },
     { key: "todo",        label: "To Do",       count: todos.length },
     { key: "in_progress", label: "In Progress", count: wip.length },
     { key: "completed",   label: "Completed",   count: doneTasks.length },

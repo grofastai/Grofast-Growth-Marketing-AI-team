@@ -1,6 +1,7 @@
 "use client"
 
 import { useActionState, useState, useEffect, useTransition, useRef } from "react"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   Plus, X, Loader2, Calendar, CheckCircle2, XCircle,
@@ -134,6 +135,7 @@ function BalanceRing({ pct }: { pct: number }) {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function MemberLeavesClient({ leaves: initialLeaves, userName }: { leaves: Leave[]; userName: string }) {
+  const router = useRouter()
   const [leaves, setLeaves]         = useState(initialLeaves)
   const [showForm, setShowForm]     = useState(false)
   const [leaveType, setLeaveType]   = useState<LeaveType>("full_day")
@@ -147,6 +149,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
   const [deleting, startDelete]     = useTransition()
   const [editing, startEdit]        = useTransition()
   const [editError, setEditError]   = useState<string | null>(null)
+  const [newFormError, setNewFormError] = useState<string | null>(null)
   const [state, action, pending]    = useActionState(submitLeaveRequest, null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -168,7 +171,22 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
     }
   }, [editingLeave])
 
-  if (state && "success" in state && state.success && showForm) { setShowForm(false); setEditingLeave(null) }
+  if (state && "success" in state && state.success && showForm && !editingLeave) {
+    setShowForm(false); setEditingLeave(null); setNewFormError(null); router.refresh()
+  }
+
+  function checkDuplicateDate(e: React.FormEvent<HTMLFormElement>) {
+    setNewFormError(null)
+    const fd = new FormData(e.currentTarget)
+    const fromDate = fd.get("from_date") as string || ""
+    const toDate   = (fd.get("to_date") as string) || fromDate
+    if (!fromDate) return // let HTML5 required handle it
+    const conflict = leaves.some(l => !(toDate < l.from_date || fromDate > l.to_date))
+    if (conflict) {
+      e.preventDefault()
+      setNewFormError("You already have a leave request on this date. Only one leave per date is allowed.")
+    }
+  }
 
   const today = new Date().toISOString().split("T")[0]
 
@@ -458,7 +476,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
                             {leave.status === "approved" && (
                               <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0 }}>Requested on {fmtShort(leave.created_at)}</p>
                             )}
-                            {/* 3-dot menu — only for pending, non-expired leaves */}
+                            {/* Menu: edit+delete for pending; delete-only for approved/rejected full/half day */}
                             {leave.status === "pending" && !isExpired(leave) ? (
                               <div style={{ position: "relative" }} ref={menuOpenId === leave.id ? menuRef : undefined}>
                                 <button
@@ -481,6 +499,11 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
                                   </div>
                                 )}
                               </div>
+                            ) : (leave.leave_type === "full_day" || leave.leave_type === "half_day" || !leave.leave_type) ? (
+                              <button onClick={() => setDeleteId(leave.id)} title="Delete"
+                                style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.15)", cursor: "pointer", padding: "5px 7px", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <Trash2 size={13} style={{ color: "#EF4444" }} />
+                              </button>
                             ) : (
                               <div style={{ width: 22 }} />
                             )}
@@ -632,7 +655,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
                     setLeaveType("full_day")
                     setHalfPeriod("morning")
                   })
-                } : undefined}
+                } : checkDuplicateDate}
                 style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <input type="hidden" name="leave_type" value={leaveType} />
                 {leaveType === "half_day" && <input type="hidden" name="half_day_period" value={halfPeriod} />}
@@ -687,6 +710,9 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
 
                 {(state && "error" in state && state.error) && (
                   <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>{state.error}</p>
+                )}
+                {newFormError && (
+                  <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>⚠️ {newFormError}</p>
                 )}
                 {editError && (
                   <p style={{ fontSize: 12, fontWeight: 600, color: "#DE1A1A", background: "rgba(222,26,26,0.07)", padding: "8px 12px", borderRadius: 10, margin: 0 }}>{editError}</p>

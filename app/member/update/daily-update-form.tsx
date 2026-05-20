@@ -88,6 +88,31 @@ function loadDraft(): TimeBlock[] {
   } catch { return [] }
 }
 
+type SavedEntry = {
+  id?: string; task_type: string; title: string
+  client_name?: string; is_multi_client?: boolean; client_names?: string[]
+  start_time?: string | null; end_time?: string | null
+  duration_hours?: number; notes?: string | null
+}
+
+function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'other')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      startTime: e.start_time ?? '09:00',
+      endTime: e.end_time ?? '10:00',
+      durationHours: e.duration_hours ?? 1,
+      description: e.title ?? '',
+      projectName: e.is_multi_client ? '' : (e.client_name === 'Internal' ? '' : (e.client_name ?? '')),
+      status: ((e.notes?.replace(/^\[/, '').replace(/\]$/, '') ?? 'not_started') as TimeBlock['status']),
+      isMultiClient: e.is_multi_client ?? false,
+      clientNames: e.client_names ?? [],
+    }))
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function DailyUpdateForm({
   projects, userName, team, existingUpdate,
@@ -126,7 +151,9 @@ export default function DailyUpdateForm({
   const removeEdit = (id: string) => setEdits(p => p.filter(e => e.id !== id))
 
   // ── Time blocks (working) ────────────────────────────────────────────────
-  const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>(() => existingUpdate ? [] : loadDraft())
+  const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>(() =>
+    existingUpdate ? parseExistingBlocks(existingUpdate) : loadDraft()
+  )
   const addTimeBlock = () => setTimeBlocks(p => [...p, {
     id: crypto.randomUUID(), startTime: "09:00", endTime: "10:00",
     durationHours: 1, description: "", projectName: "", status: "not_started" as const,
@@ -141,9 +168,15 @@ export default function DailyUpdateForm({
   const removeBlock = (id: string) => setTimeBlocks(p => p.filter(b => b.id !== id))
 
   // ── Learning ─────────────────────────────────────────────────────────────
-  const [learningTopic, setLearningTopic] = useState("")
-  const [learningHours, setLearningHours] = useState(1)
-  const [learningNotes, setLearningNotes] = useState("")
+  const [learningTopic, setLearningTopic] = useState(
+    (existingUpdate?.learning_topic as string) ?? ""
+  )
+  const [learningHours, setLearningHours] = useState(
+    (existingUpdate?.learning_hours as number) ?? 1
+  )
+  const [learningNotes, setLearningNotes] = useState(
+    (existingUpdate?.learning_notes as string) ?? ""
+  )
 
   const [error,         setError]         = useState<string | null>(null)
   const [workingError,  setWorkingError]  = useState<string | null>(null)
@@ -320,7 +353,11 @@ export default function DailyUpdateForm({
           <CheckCircle2 size={56} style={{ color:"#22C55E", marginBottom:16 }} />
           <p style={{ fontSize:20, fontWeight:900, color:"#111111", margin:"0 0 8px", fontFamily:"var(--font-jakarta)" }}>Daily Update Submitted!</p>
           <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 20px" }}>Great work, {firstName}. See you tomorrow!</p>
-          <button onClick={() => { setEditMode(true); if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) } }}
+          <button onClick={() => {
+            setTimeBlocks(parseExistingBlocks(existingUpdate ?? {}))
+            setEditMode(true)
+            if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
+          }}
             style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 24px", borderRadius:12, border:"1.5px solid #DE1A1A", background:"#FFFFFF", color:"#DE1A1A", fontSize:13, fontWeight:700, cursor:"pointer" }}>
             Edit Today&apos;s Update
           </button>
@@ -423,6 +460,29 @@ export default function DailyUpdateForm({
 
         {/* ── LEFT ─────────────────────────────────────────────────────────── */}
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+
+          {/* Two-step progress indicator (non-media team only) */}
+          {!isMediaTeam && (
+            <div style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", borderRadius:14, background:"#F8F9FC", border:"1px solid #EBEDF2" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <div style={{ width:16, height:16, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", background: workingDone ? "#22C55E" : "#E5E7EB" }}>
+                  {workingDone && <span style={{ fontSize:9, color:"#fff", fontWeight:900 }}>✓</span>}
+                </div>
+                <span style={{ fontSize:11, fontWeight:600, color: workingDone ? "#16A34A" : "#9CA3AF" }}>
+                  {workingDone ? "Work Log submitted" : "Work Log — submit below"}
+                </span>
+              </div>
+              <span style={{ color:"#D1D5DB" }}>·</span>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <div style={{ width:16, height:16, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", background: learningDone ? "#22C55E" : "#E5E7EB" }}>
+                  {learningDone && <span style={{ fontSize:9, color:"#fff", fontWeight:900 }}>✓</span>}
+                </div>
+                <span style={{ fontSize:11, fontWeight:600, color: learningDone ? "#16A34A" : "#9CA3AF" }}>
+                  {learningDone ? "Learning submitted" : "Learning — submit below"}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* ══ WORKING: Time Blocks ══════════════════════════════════════════ */}
           {(!isMediaTeam || tab === "working") && (
@@ -551,6 +611,12 @@ export default function DailyUpdateForm({
                     </button>
                   )}
                 </div>
+              )}
+              {!isMediaTeam && (
+                <p style={{ fontSize:11, marginTop:6, color:"#9CA3AF" }}>
+                  Saved entries appear in your{" "}
+                  <a href="/member/history" style={{ color:"#6366F1", fontWeight:600 }}>History tab ↗</a>
+                </p>
               )}
             </div>
           )}
@@ -813,6 +879,12 @@ export default function DailyUpdateForm({
                     </button>
                   )}
                 </div>
+              )}
+              {!isMediaTeam && (
+                <p style={{ fontSize:11, marginTop:6, color:"#9CA3AF" }}>
+                  Saved entries appear in your{" "}
+                  <a href="/member/history" style={{ color:"#6366F1", fontWeight:600 }}>History tab ↗</a>
+                </p>
               )}
             </div>
           )}

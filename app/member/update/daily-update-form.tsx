@@ -145,16 +145,20 @@ export default function DailyUpdateForm({
   const [learningHours, setLearningHours] = useState(1)
   const [learningNotes, setLearningNotes] = useState("")
 
-  const [error,     setError]     = useState<string | null>(null)
-  const [submitted, setSubmitted] = useState(false)
-  const [editMode,  setEditMode]  = useState(false)
-  const [savedIds,  setSavedIds]  = useState<Set<string>>(new Set())
+  const [error,         setError]         = useState<string | null>(null)
+  const [workingError,  setWorkingError]  = useState<string | null>(null)
+  const [learningError, setLearningError] = useState<string | null>(null)
+  const [submitted,     setSubmitted]     = useState(false)
+  const [workingDone,   setWorkingDone]   = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).working_hours))
+  const [learningDone,  setLearningDone]  = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).learning_hours))
+  const [editMode,      setEditMode]      = useState(false)
+  const [savedIds,      setSavedIds]      = useState<Set<string>>(new Set())
 
   // Autosave time blocks
   useEffect(() => {
-    if (submitted || existingUpdate) return
+    if (workingDone || existingUpdate) return
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ date: getTodayStr(), blocks: timeBlocks })) } catch { /* ignore */ }
-  }, [timeBlocks, submitted, existingUpdate]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [timeBlocks, workingDone, existingUpdate]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalShootHours = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
   const totalEditHours  = useMemo(() => edits.reduce((s, e) => s + e.timeTaken, 0), [edits])
@@ -168,8 +172,8 @@ export default function DailyUpdateForm({
 
   // ── Submit: working (time blocks) ────────────────────────────────────────
   function handleWorkingSubmit() {
-    setError(null)
-    if (filledBlocks.length === 0) { setError("Add at least one time block with a description."); return }
+    setWorkingError(null)
+    if (filledBlocks.length === 0) { setWorkingError("Add at least one time block with a description."); return }
     const work_entries = filledBlocks.map(t => ({
       id: t.id,
       client_id: projects.find(p => p.business_name === t.projectName)?.id ?? null,
@@ -187,8 +191,8 @@ export default function DailyUpdateForm({
         shoot_count: 0, editing_count: 0,
         shoot_time_hours: 0, editing_time_hours: 0, learning_hours: 0,
       })
-      if (!res.success) setError(res.error ?? "Submission failed.")
-      else { try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }; setSubmitted(true); router.refresh() }
+      if (!res.success) setWorkingError(res.error ?? "Submission failed.")
+      else { try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }; setWorkingDone(true); router.refresh() }
     })
   }
 
@@ -265,8 +269,8 @@ export default function DailyUpdateForm({
 
   // ── Submit: learning ─────────────────────────────────────────────────────
   function handleLearningSubmit() {
-    setError(null)
-    if (!learningTopic.trim()) { setError("Enter what you learned today."); return }
+    setLearningError(null)
+    if (!learningTopic.trim()) { setLearningError("Enter what you learned today."); return }
     startTransition(async () => {
       const res = await submitDailyUpdate({
         active_tab: "learning", work_entries: [], links: [],
@@ -276,8 +280,8 @@ export default function DailyUpdateForm({
         learning_topic: learningTopic,
         learning_notes: learningNotes,
       })
-      if (!res.success) setError(res.error ?? "Submission failed.")
-      else { setSubmitted(true); router.refresh() }
+      if (!res.success) setLearningError(res.error ?? "Submission failed.")
+      else { setLearningDone(true); router.refresh() }
     })
   }
 
@@ -308,14 +312,15 @@ export default function DailyUpdateForm({
   }
 
   // ── Already submitted screen ──────────────────────────────────────────────
-  if ((submitted || existingUpdate) && !editMode) {
+  const allDone = isMediaTeam ? (submitted || !!existingUpdate) : (workingDone && learningDone)
+  if (allDone && !editMode) {
     return (
       <div style={{ background:"#F5F6FA", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
         <div style={{ textAlign:"center" }}>
           <CheckCircle2 size={56} style={{ color:"#22C55E", marginBottom:16 }} />
           <p style={{ fontSize:20, fontWeight:900, color:"#111111", margin:"0 0 8px", fontFamily:"var(--font-jakarta)" }}>Daily Update Submitted!</p>
           <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 20px" }}>Great work, {firstName}. See you tomorrow!</p>
-          <button onClick={() => setEditMode(true)}
+          <button onClick={() => { setEditMode(true); if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) } }}
             style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 24px", borderRadius:12, border:"1.5px solid #DE1A1A", background:"#FFFFFF", color:"#DE1A1A", fontSize:13, fontWeight:700, cursor:"pointer" }}>
             Edit Today&apos;s Update
           </button>
@@ -395,21 +400,23 @@ export default function DailyUpdateForm({
         </div>
       </div>
 
-      {/* ── 3 TABS ────────────────────────────────────────────────────────── */}
-      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
-        {TABS.map(t => (
-          <button key={t.id} onClick={() => { setTab(t.id); setError(null) }}
-            style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", padding:"12px 20px", borderRadius:14, cursor:"pointer", transition:"all 0.18s", flex:"1 1 120px",
-              background: tab === t.id ? "#DE1A1A" : "#FFFFFF",
-              color:      tab === t.id ? "#fff"    : "#6B7280",
-              boxShadow:  tab === t.id ? "0 4px 18px rgba(222,26,26,0.4)" : "0 1px 4px rgba(0,0,0,0.06)",
-              border:     tab === t.id ? "none" : "1px solid #EBEDF2",
-            }}>
-            <span style={{ fontSize:14, fontWeight:800 }}>{t.label}</span>
-            <span style={{ fontSize:10, opacity:0.7, marginTop:2 }}>{t.desc}</span>
-          </button>
-        ))}
-      </div>
+      {/* ── TABS (media team only) ────────────────────────────────────────── */}
+      {isMediaTeam && (
+        <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => { setTab(t.id); setError(null) }}
+              style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", padding:"12px 20px", borderRadius:14, cursor:"pointer", transition:"all 0.18s", flex:"1 1 120px",
+                background: tab === t.id ? "#DE1A1A" : "#FFFFFF",
+                color:      tab === t.id ? "#fff"    : "#6B7280",
+                boxShadow:  tab === t.id ? "0 4px 18px rgba(222,26,26,0.4)" : "0 1px 4px rgba(0,0,0,0.06)",
+                border:     tab === t.id ? "none" : "1px solid #EBEDF2",
+              }}>
+              <span style={{ fontSize:14, fontWeight:800 }}>{t.label}</span>
+              <span style={{ fontSize:10, opacity:0.7, marginTop:2 }}>{t.desc}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* ── MAIN GRID ─────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-[18px] items-start">
@@ -417,8 +424,8 @@ export default function DailyUpdateForm({
         {/* ── LEFT ─────────────────────────────────────────────────────────── */}
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
 
-          {/* ══ WORKING TAB: Time Blocks ══════════════════════════════════════ */}
-          {tab === "working" && (
+          {/* ══ WORKING: Time Blocks ══════════════════════════════════════════ */}
+          {(!isMediaTeam || tab === "working") && (
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -522,6 +529,27 @@ export default function DailyUpdateForm({
                       </div>
                     )
                   })}
+                </div>
+              )}
+
+              {/* Submit button for non-media team */}
+              {!isMediaTeam && (
+                <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                  <div>
+                    {workingError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{workingError}</p>}
+                    {!workingError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{filledBlocks.length} block{filledBlocks.length !== 1 ? "s" : ""} · {totalLoggedHours.toFixed(1)}h logged</p>}
+                  </div>
+                  {workingDone ? (
+                    <span style={{ fontSize:12, fontWeight:700, color:"#22C55E", display:"flex", alignItems:"center", gap:6 }}>
+                      <CheckCircle2 size={14} /> Submitted ✓
+                    </span>
+                  ) : (
+                    <button onClick={handleWorkingSubmit} disabled={isPending}
+                      style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor:isPending?"not-allowed":"pointer", opacity:isPending?0.7:1, background:"#DE1A1A", color:"#fff", boxShadow:"0 4px 14px rgba(222,26,26,0.4)" }}>
+                      {isPending ? <Loader2 size={14} className="animate-spin" /> : <SendHorizonal size={14} />}
+                      {isPending ? "Submitting…" : "Submit Work Log"}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -745,8 +773,8 @@ export default function DailyUpdateForm({
             </div>
           </>)}
 
-          {/* ══ LEARNING TAB ══════════════════════════════════════════════════ */}
-          {tab === "learning" && (
+          {/* ══ LEARNING ══════════════════════════════════════════════════════ */}
+          {(!isMediaTeam || tab === "learning") && (
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
               <SectionHead icon={<BookOpen size={16} style={{ color:"#10B981" }} />} label="What did you learn today?" count={0} color="#10B981" />
               <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
@@ -765,25 +793,47 @@ export default function DailyUpdateForm({
                   </div>
                 </div>
               </div>
+
+              {/* Submit button for non-media team */}
+              {!isMediaTeam && (
+                <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                  <div>
+                    {learningError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{learningError}</p>}
+                    {!learningError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningTopic || "not set"} · {learningHours}h</p>}
+                  </div>
+                  {learningDone ? (
+                    <span style={{ fontSize:12, fontWeight:700, color:"#22C55E", display:"flex", alignItems:"center", gap:6 }}>
+                      <CheckCircle2 size={14} /> Submitted ✓
+                    </span>
+                  ) : (
+                    <button onClick={handleLearningSubmit} disabled={isPending}
+                      style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor:isPending?"not-allowed":"pointer", opacity:isPending?0.7:1, background:"#10B981", color:"#fff", boxShadow:"0 4px 14px rgba(16,185,129,0.4)" }}>
+                      {isPending ? <Loader2 size={14} className="animate-spin" /> : <SendHorizonal size={14} />}
+                      {isPending ? "Submitting…" : "Submit Learning"}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
-          {/* ── Submit bar ─────────────────────────────────────────────────── */}
-          <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-            <div>
-              {error && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{error}</p>}
-              {!error && tab === "working" && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{filledBlocks.length} block{filledBlocks.length !== 1 ? "s" : ""} · {totalLoggedHours.toFixed(1)}h logged</p>}
-              {!error && tab === "media"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{shoots.length} shoot{shoots.length !== 1 ? "s" : ""} · {edits.length} edit{edits.length !== 1 ? "s" : ""} · {totalMediaHours}h total</p>}
-              {!error && tab === "learning"&& <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningTopic || "not set"} · {learningHours}h</p>}
+          {/* ── Submit bar (media team only) ───────────────────────────────── */}
+          {isMediaTeam && (
+            <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <div>
+                {error && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{error}</p>}
+                {!error && tab === "media"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{shoots.length} shoot{shoots.length !== 1 ? "s" : ""} · {edits.length} edit{edits.length !== 1 ? "s" : ""} · {totalMediaHours}h total</p>}
+                {!error && tab === "learning"&& <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningTopic || "not set"} · {learningHours}h</p>}
+              </div>
+              <button onClick={handleSubmit} disabled={isPending || submitted}
+                style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor: isPending || submitted ? "not-allowed" : "pointer", transition:"all 0.2s", opacity: isPending ? 0.7 : 1,
+                  background: submitted ? "#22C55E" : "#DE1A1A",
+                  color:"#fff", boxShadow: submitted ? "0 4px 14px rgba(34,197,94,0.4)" : "0 4px 14px rgba(222,26,26,0.4)" }}>
+                {isPending ? <Loader2 size={14} className="animate-spin" /> : submitted ? <CheckCircle2 size={14} /> : <SendHorizonal size={14} />}
+                {isPending ? "Submitting…" : submitted ? "Submitted! ✓" : "Submit Daily Update"}
+              </button>
             </div>
-            <button onClick={handleSubmit} disabled={isPending || submitted}
-              style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor: isPending || submitted ? "not-allowed" : "pointer", transition:"all 0.2s", opacity: isPending ? 0.7 : 1,
-                background: submitted ? "#22C55E" : "#DE1A1A",
-                color:"#fff", boxShadow: submitted ? "0 4px 14px rgba(34,197,94,0.4)" : "0 4px 14px rgba(222,26,26,0.4)" }}>
-              {isPending ? <Loader2 size={14} className="animate-spin" /> : submitted ? <CheckCircle2 size={14} /> : <SendHorizonal size={14} />}
-              {isPending ? "Submitting…" : submitted ? "Submitted! ✓" : "Submit Daily Update"}
-            </button>
-          </div>
+          )}
         </div>
 
         {/* ── RIGHT: summary panel ──────────────────────────────────────────── */}
@@ -798,8 +848,10 @@ export default function DailyUpdateForm({
                 <BarChart2 size={13} style={{ color:"#DE1A1A" }} /> Today&apos;s Overview
               </p>
 
-              {tab === "working" && (
+              {/* Non-media team: show both working + learning stats */}
+              {!isMediaTeam && (
                 <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                  <p style={{ fontSize:10, fontWeight:700, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>⏰ Work Log</p>
                   {([
                     { label:"Hours Logged",  value:`${totalLoggedHours.toFixed(1)}h`, color: totalLoggedHours >= 8 ? "#22C55E" : "#111111" },
                     { label:"Blocks Filled", value:`${filledBlocks.length}`,           color:"#6366F1" },
@@ -810,10 +862,22 @@ export default function DailyUpdateForm({
                       <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
                     </div>
                   ))}
+                  <div style={{ borderTop:"1px solid #F0F1F5", paddingTop:9, marginTop:2 }}>
+                    <p style={{ fontSize:10, fontWeight:700, color:"#10B981", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 6px" }}>📚 Learning</p>
+                    {([
+                      { label:"Topic", value: learningTopic || "Not set", color:"#10B981" },
+                      { label:"Hours", value:`${learningHours}h`,          color:"#6366F1" },
+                    ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
+                      <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+                        <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
+                        <span style={{ fontSize:11, fontWeight:700, color:r.color, maxWidth:130, textOverflow:"ellipsis", overflow:"hidden", whiteSpace:"nowrap" }}>{r.value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 
-              {tab === "media" && (
+              {(isMediaTeam && tab === "media") && (
                 <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
                   {([
                     { label:"Shoots",      value:`${shoots.length}`,         color: shoots.length > 0 ? "#EF4444" : "#9CA3AF" },
@@ -830,7 +894,7 @@ export default function DailyUpdateForm({
                 </div>
               )}
 
-              {tab === "learning" && (
+              {(isMediaTeam && tab === "learning") && (
                 <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
                   {([
                     { label:"Topic",       value: learningTopic || "Not set", color:"#10B981" },

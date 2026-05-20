@@ -223,7 +223,12 @@ export async function breakOut(): Promise<{ success: boolean; error?: string }> 
 
   const sessions = Array.isArray(log.break_sessions) ? [...log.break_sessions] : []
   if (sessions.length > 0) {
-    sessions[sessions.length - 1] = { ...sessions[sessions.length - 1], out: breakOutTime, mins: breakMins }
+    const last = sessions[sessions.length - 1]
+    if (last.out === null) {
+      sessions[sessions.length - 1] = { ...last, out: breakOutTime, mins: breakMins }
+    }
+  } else {
+    sessions.push({ in: log.break_in, out: breakOutTime, mins: breakMins })
   }
 
   const { error } = await admin
@@ -308,15 +313,30 @@ export async function resumeAttendance(date: string): Promise<{ success: boolean
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, error: 'Invalid date.' }
 
+  const today = new Date().toISOString().split('T')[0]
+  if (date !== today) return { success: false, error: 'Can only resume attendance for today.' }
+
   const admin = adminSupabase()
-  const { error } = await admin
+
+  const { data: log } = await admin
     .from('attendance_logs')
-    .update({ clock_out: null })
+    .select('id, clock_out')
     .eq('company_id', ctx.companyId)
     .eq('user_id', ctx.userId)
     .eq('date', date)
+    .eq('status', 'present')
+    .maybeSingle()
+
+  if (!log) return { success: false, error: 'No attendance record found for today.' }
+  if (!log.clock_out) return { success: false, error: 'Already clocked in — not clocked out yet.' }
+
+  const { error } = await admin
+    .from('attendance_logs')
+    .update({ clock_out: null })
+    .eq('id', log.id)
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/member/attendance')
+  revalidatePath('/admin/attendance')
   return { success: true }
 }

@@ -145,8 +145,14 @@ export async function deleteTask(id: string): Promise<{ success: boolean; error?
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
-  const { data: profile } = await admin.from('users').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'ADMIN') return { success: false, error: 'Admin only' }
+  const [{ data: profile }, { data: task }] = await Promise.all([
+    admin.from('users').select('role').eq('id', user.id).single(),
+    admin.from('tasks').select('created_by').eq('id', id).single(),
+  ])
+
+  const isAdmin   = profile?.role === 'ADMIN'
+  const isCreator = task?.created_by === user.id
+  if (!isAdmin && !isCreator) return { success: false, error: 'Only the task creator or an admin can delete this task' }
 
   const { error } = await admin.from('tasks').delete().eq('id', id)
   if (error) return { success: false, error: error.message }

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useTransition, useEffect, useActionState } from "react"
+import { useState, useTransition, useEffect, useActionState, useRef } from "react"
+import { useRouter } from "next/navigation"
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
@@ -10,8 +11,10 @@ import {
   Search, Calendar, Clock, Sparkles, Target,
   TrendingUp, CheckCircle2, ChevronDown, Zap,
   Flame, AlertCircle, GripVertical, Plus, X, User,
+  Trash2, MessageSquare, Send, Loader2,
 } from "lucide-react"
-import { updateTaskStatus, createMemberTask } from "@/lib/actions/tasks"
+import { updateTaskStatus, createMemberTask, deleteTask } from "@/lib/actions/tasks"
+import { getTaskComments, addTaskComment, type TaskComment } from "@/lib/actions/comments"
 
 interface Task {
   id: string
@@ -20,6 +23,7 @@ interface Task {
   status: "todo" | "in_progress" | "completed"
   priority: "low" | "medium" | "high"
   due_date: string | null
+  created_by: string | null
   projects: { id: string; business_name: string } | null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   assignedBy: { id: string; name: string } | null | any
@@ -167,14 +171,28 @@ function WorkflowTimeline({ total, inProgress, completed }: { total: number; inP
   )
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return "Just now"
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
+
 // ── Draggable Task Card ────────────────────────────────────────────────────────
 function DraggableCard({
-  task, today, onMove, isDragging,
+  task, today, onMove, isDragging, currentUserId, onDelete, onComment,
 }: {
   task: Task
   today: string
   onMove: (id: string, status: "todo" | "in_progress" | "completed") => void
   isDragging?: boolean
+  currentUserId?: string
+  onDelete?: (id: string) => void
+  onComment?: (id: string) => void
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task.id, data: { status: task.status } })
   const style = transform
@@ -183,14 +201,15 @@ function DraggableCard({
 
   return (
     <div ref={setNodeRef} style={style}>
-      <TaskCardInner task={task} today={today} onMove={onMove} dragProps={{ attributes, listeners }} isDragging={isDragging} />
+      <TaskCardInner task={task} today={today} onMove={onMove} dragProps={{ attributes, listeners }} isDragging={isDragging}
+        currentUserId={currentUserId} onDelete={onDelete} onComment={onComment} />
     </div>
   )
 }
 
 // ── Task Card Inner ────────────────────────────────────────────────────────────
 function TaskCardInner({
-  task, today, onMove, dragProps, isDragging,
+  task, today, onMove, dragProps, isDragging, currentUserId, onDelete, onComment,
 }: {
   task: Task
   today: string
@@ -198,6 +217,9 @@ function TaskCardInner({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dragProps?: { attributes: any; listeners: any }
   isDragging?: boolean
+  currentUserId?: string
+  onDelete?: (id: string) => void
+  onComment?: (id: string) => void
 }) {
   const pr = PRIORITY_STYLE[task.priority]
   const project = Array.isArray(task.projects) ? task.projects[0] : task.projects
@@ -309,6 +331,26 @@ function TaskCardInner({
           <span className="text-[9px] font-bold" style={{ color: "#22C55E" }}>Completed</span>
         </div>
       )}
+
+      {/* ── Action row: comment + delete ── */}
+      <div style={{ display: "flex", gap: 5, marginTop: 7, paddingTop: 7, borderTop: "1px solid #F3F4F6" }}>
+        <button
+          onClick={e => { e.stopPropagation(); onComment?.(task.id) }}
+          style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "4px 6px", borderRadius: 8, background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.12)", cursor: "pointer" }}
+        >
+          <MessageSquare size={10} style={{ color: "#6366F1" }} />
+          <span style={{ fontSize: 9, color: "#6366F1", fontWeight: 700 }}>Comment</span>
+        </button>
+        {currentUserId && task.created_by === currentUserId && onDelete && (
+          <button
+            onClick={e => { e.stopPropagation(); onDelete(task.id) }}
+            title="Delete task"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "4px 8px", borderRadius: 8, background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)", cursor: "pointer" }}
+          >
+            <Trash2 size={10} style={{ color: "#de1a1a" }} />
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -346,6 +388,8 @@ export default function MemberTasksClient({
   teamMembers?: { id: string; name: string; employee_id: string }[]
   currentUserId?: string
 }) {
+  const router = useRouter()
+
   const [tasks, setTasks]           = useState(initialTasks)
   const [search, setSearch]         = useState("")
   const [filter, setFilter]         = useState("all")
@@ -353,9 +397,44 @@ export default function MemberTasksClient({
   const [showAssign, setShowAssign] = useState(false)
   const [assignState, assignAction] = useActionState(createMemberTask, null)
 
+  // Comment panel
+  const [commentTaskId, setCommentTaskId]   = useState<string | null>(null)
+  const [comments, setComments]             = useState<TaskComment[]>([])
+  const [commentText, setCommentText]       = useState("")
+  const [commentLoading, setCommentLoading] = useState(false)
+  const [commentSending, setCommentSending] = useState(false)
+  const commentEndRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
-    if (assignState && 'success' in assignState) setShowAssign(false)
-  }, [assignState])
+    if (assignState && 'success' in assignState) {
+      setShowAssign(false)
+      router.refresh()
+    }
+  }, [assignState, router])
+
+  // Load comments when panel opens
+  useEffect(() => {
+    if (!commentTaskId) { setComments([]); return }
+    setCommentLoading(true)
+    getTaskComments(commentTaskId).then(data => {
+      setComments(data)
+      setCommentLoading(false)
+      setTimeout(() => commentEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
+    })
+  }, [commentTaskId])
+
+  async function sendComment() {
+    if (!commentText.trim() || !commentTaskId || commentSending) return
+    setCommentSending(true)
+    const res = await addTaskComment(commentTaskId, commentText)
+    if (res.success) {
+      setCommentText("")
+      const updated = await getTaskComments(commentTaskId)
+      setComments(updated)
+      setTimeout(() => commentEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
+    }
+    setCommentSending(false)
+  }
   const [showSort, setShowSort]     = useState(false)
   const [activeMobileCol, setActiveMobileCol] = useState<"todo" | "in_progress" | "completed">("todo")
   const [dragId, setDragId]         = useState<string | null>(null)
@@ -388,6 +467,14 @@ export default function MemberTasksClient({
   function moveTask(id: string, status: "todo" | "in_progress" | "completed") {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t))
     startTransition(async () => { await updateTaskStatus(id, status) })
+  }
+
+  function handleDeleteTask(id: string) {
+    setTasks(prev => prev.filter(t => t.id !== id))
+    startTransition(async () => {
+      const res = await deleteTask(id)
+      if (!res.success) setTasks(initialTasks)
+    })
   }
 
   function handleFilterChange(key: string) {
@@ -620,7 +707,10 @@ export default function MemberTasksClient({
                     </div>
                   ) : (
                     list.map(task => (
-                      <TaskCardInner key={task.id} task={task} today={today} onMove={moveTask} />
+                      <TaskCardInner key={task.id} task={task} today={today} onMove={moveTask}
+                        currentUserId={currentUserId}
+                        onDelete={handleDeleteTask}
+                        onComment={id => setCommentTaskId(id)} />
                     ))
                   )}
                 </div>
@@ -665,7 +755,10 @@ export default function MemberTasksClient({
                       ) : (
                         list.map(task => (
                           <DraggableCard key={task.id} task={task} today={today} onMove={moveTask}
-                            isDragging={dragId === task.id} />
+                            isDragging={dragId === task.id}
+                            currentUserId={currentUserId}
+                            onDelete={handleDeleteTask}
+                            onComment={id => setCommentTaskId(id)} />
                         ))
                       )}
                     </div>
@@ -836,6 +929,90 @@ export default function MemberTasksClient({
 
       </div>
     </div>
+
+    {/* ── Comment Panel ────────────────────────────────────────────────────── */}
+    {commentTaskId && (
+      <>
+        <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+          onClick={() => { setCommentTaskId(null); setCommentText("") }} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div style={{ width: "100%", maxWidth: 480, maxHeight: "82vh", background: "#fff", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.22)", border: "1px solid rgba(222,26,26,0.1)" }}>
+
+            {/* Header */}
+            <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "flex-start", gap: 12 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <MessageSquare size={14} style={{ color: "#6366F1" }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 14, fontWeight: 800, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {tasks.find(t => t.id === commentTaskId)?.title ?? "Task"}
+                </p>
+                <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Comments & Updates</p>
+              </div>
+              <button onClick={() => { setCommentTaskId(null); setCommentText("") }}
+                style={{ width: 28, height: 28, borderRadius: "50%", background: "#F5F6FA", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <X size={12} style={{ color: "#6B7280" }} />
+              </button>
+            </div>
+
+            {/* Comment list */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "14px 20px" }}>
+              {commentLoading ? (
+                <div style={{ display: "flex", justifyContent: "center", padding: 32 }}>
+                  <Loader2 size={20} style={{ color: "#9CA3AF", animation: "spin 1s linear infinite" }} />
+                </div>
+              ) : comments.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "28px 0" }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", margin: "0 0 4px" }}>No comments yet</p>
+                  <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Be the first to add a comment or update!</p>
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {comments.map(c => {
+                    const initials = c.user.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
+                    return (
+                      <div key={c.id} style={{ display: "flex", gap: 10 }}>
+                        <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #DE1A1A, #7F1D1D)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, fontWeight: 900, color: "#fff" }}>
+                          {initials}
+                        </div>
+                        <div style={{ flex: 1, background: "#F9FAFB", borderRadius: 12, padding: "9px 13px" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                            <span style={{ fontSize: 12, fontWeight: 700, color: "#111" }}>{c.user.name}</span>
+                            <span style={{ fontSize: 10, color: "#9CA3AF" }}>{timeAgo(c.created_at)}</span>
+                          </div>
+                          <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.55, margin: 0, wordBreak: "break-word" }}>{c.comment}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div ref={commentEndRef} />
+                </div>
+              )}
+            </div>
+
+            {/* Input */}
+            <div style={{ padding: "12px 20px", borderTop: "1px solid #F3F4F6" }}>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={commentText}
+                  onChange={e => setCommentText(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComment() } }}
+                  placeholder="Write a comment or update..."
+                  style={{ flex: 1, padding: "9px 14px", borderRadius: 12, border: "1.5px solid #EBEDF2", fontSize: 13, outline: "none", color: "#111" }}
+                />
+                <button onClick={sendComment} disabled={commentSending || !commentText.trim()}
+                  style={{ padding: "9px 14px", borderRadius: 12, border: "none", cursor: commentText.trim() ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", background: commentText.trim() ? "linear-gradient(135deg, #DE1A1A, #7F1D1D)" : "#F3F4F6", transition: "background 0.2s" }}>
+                  {commentSending
+                    ? <Loader2 size={15} style={{ color: commentText.trim() ? "#fff" : "#9CA3AF", animation: "spin 1s linear infinite" }} />
+                    : <Send size={15} style={{ color: commentText.trim() ? "#fff" : "#9CA3AF" }} />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    )}
 
     {/* ── Assign Task Modal ─────────────────────────────────────────────────── */}
     {showAssign && (

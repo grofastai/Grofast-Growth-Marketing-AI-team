@@ -252,8 +252,7 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
     return top ? { name: top[0], hours: top[1] } : null
   }, [filtered])
 
-  // Meeting hours (approx from "other" entries)
-  const meetingH = Math.round(stats.otherH * 0.45 * 10) / 10
+  const monthDays = filtered.length
 
   const now = new Date()
   const greeting = now.getHours() < 12 ? "Good Morning" : now.getHours() < 17 ? "Good Afternoon" : "Good Evening"
@@ -632,43 +631,44 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
             </div>
           </div>
 
-          {/* Meetings */}
+          {/* Overtime */}
           <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 14px", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", position:"relative", overflow:"hidden" }}>
             <div style={{ position:"absolute", top:-20, right:-20, width:100, height:100, borderRadius:"50%", background:"rgba(255,255,255,0.07)", pointerEvents:"none" }}/>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
-              <Users size={15} style={{ color:"#BAE6FD" }}/>
-              <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Meetings</span>
+              <Zap size={15} style={{ color:"#FACC15" }}/>
+              <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Overtime</span>
             </div>
-            <p style={{ fontSize:24, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", position:"relative", zIndex:1 }}>{fmtH(meetingH)}</p>
-            <p style={{ fontSize:10, color:"rgba(255,255,255,0.6)", fontWeight:600, margin:"0 0 14px", position:"relative", zIndex:1 }}>Total this month</p>
+            <p style={{ fontSize:24, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", position:"relative", zIndex:1 }}>{fmtH(stats.totalOT)}</p>
+            <p style={{ fontSize:10, color:"rgba(255,255,255,0.6)", fontWeight:600, margin:"0 0 14px", position:"relative", zIndex:1 }}>{stats.totalOT > 0 ? "Extra hours logged" : "No overtime this period"}</p>
             <div style={{ display:"flex", alignItems:"flex-end", gap:4, height:36, position:"relative", zIndex:1 }}>
               {stats.hoursPerDay.slice(-7).map((h, i) => {
-                const max = Math.max(...stats.hoursPerDay, 1)
+                const ot = Math.max(0, h - 9)
+                const max = Math.max(...stats.hoursPerDay.map(x => Math.max(0, x - 9)), 1)
                 return (
                   <div key={i} style={{ flex:1, borderRadius:3,
-                    background: i === stats.hoursPerDay.slice(-7).length - 1 ? "#FACC15" : "rgba(255,255,255,0.25)",
-                    height:`${Math.max(8, (h / max) * 36)}px` }}/>
+                    background: ot > 0 ? "#FACC15" : "rgba(255,255,255,0.15)",
+                    height:`${Math.max(8, (ot / max) * 36)}px` }}/>
                 )
               })}
             </div>
           </div>
 
-          {/* Tasks Completion */}
+          {/* Updates Submitted */}
           <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 14px", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", position:"relative", overflow:"hidden" }}>
             <div style={{ position:"absolute", bottom:-20, right:-20, width:90, height:90, borderRadius:"50%", background:"rgba(255,255,255,0.06)", pointerEvents:"none" }}/>
             <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
               <CheckCircle2 size={15} style={{ color:"#6EE7B7" }}/>
-              <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Tasks Completion</span>
+              <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Updates Submitted</span>
             </div>
             <p style={{ fontSize:24, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", position:"relative", zIndex:1 }}>
-              {stats.totalTasks} / {Math.max(stats.totalTasks + 10, 20)}
+              {stats.presentDays} / {monthDays}
             </p>
             <p style={{ fontSize:10, color:"#6EE7B7", fontWeight:600, margin:"0 0 12px", position:"relative", zIndex:1 }}>
-              {stats.totalTasks > 0 ? Math.round((stats.totalTasks / Math.max(stats.totalTasks + 10, 20)) * 100) : 0}% Completed
+              {monthDays > 0 ? Math.round((stats.presentDays / monthDays) * 100) : 0}% Submitted
             </p>
             <div style={{ height:8, borderRadius:99, background:"rgba(255,255,255,0.2)", overflow:"hidden", position:"relative", zIndex:1 }}>
               <div style={{ height:"100%", borderRadius:99, background:"linear-gradient(90deg,#6EE7B7,#FACC15)",
-                width:`${stats.totalTasks > 0 ? Math.round((stats.totalTasks / Math.max(stats.totalTasks + 10, 20)) * 100) : 0}%`,
+                width:`${monthDays > 0 ? Math.round((stats.presentDays / monthDays) * 100) : 0}%`,
                 transition:"width 0.6s ease" }}/>
             </div>
           </div>

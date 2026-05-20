@@ -403,6 +403,7 @@ export default function MemberTasksClient({
   const [commentText, setCommentText]       = useState("")
   const [commentLoading, setCommentLoading] = useState(false)
   const [commentSending, setCommentSending] = useState(false)
+  const [commentError, setCommentError]     = useState<string | null>(null)
   const commentEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -414,24 +415,28 @@ export default function MemberTasksClient({
 
   // Load comments when panel opens
   useEffect(() => {
-    if (!commentTaskId) { setComments([]); return }
+    if (!commentTaskId) { setComments([]); setCommentError(null); return }
     setCommentLoading(true)
+    setCommentError(null)
     getTaskComments(commentTaskId).then(data => {
       setComments(data)
       setCommentLoading(false)
       setTimeout(() => commentEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
-    })
+    }).catch(() => { setCommentLoading(false); setCommentError("Failed to load comments.") })
   }, [commentTaskId])
 
   async function sendComment() {
     if (!commentText.trim() || !commentTaskId || commentSending) return
     setCommentSending(true)
+    setCommentError(null)
     const res = await addTaskComment(commentTaskId, commentText)
     if (res.success) {
       setCommentText("")
       const updated = await getTaskComments(commentTaskId)
       setComments(updated)
       setTimeout(() => commentEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50)
+    } else {
+      setCommentError(res.error ?? "Failed to send comment. Run migration 039 in Supabase first.")
     }
     setCommentSending(false)
   }
@@ -453,6 +458,9 @@ export default function MemberTasksClient({
   const todos       = tasks.filter(t => t.status === "todo")
   const activeCount = wip.length + todos.length
   const productivity = total > 0 ? Math.round((doneTasks.length / total) * 100) : 0
+
+  const byMeCount     = tasks.filter(t => t.created_by === currentUserId).length
+  const byOthersCount = tasks.filter(t => t.created_by !== currentUserId).length
 
   // Tasks due within 7 days (not completed)
   const dueSoon = tasks
@@ -480,11 +488,14 @@ export default function MemberTasksClient({
   function handleFilterChange(key: string) {
     setFilter(key)
     if (key === "todo" || key === "in_progress" || key === "completed") setActiveMobileCol(key)
+    // for by_me / by_others keep the current mobile column visible
   }
 
   const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 }
   function colTasks(key: "todo" | "in_progress" | "completed") {
     let list = tasks.filter(t => t.status === key)
+    if (filter === "by_me")     list = list.filter(t => t.created_by === currentUserId)
+    else if (filter === "by_others") list = list.filter(t => t.created_by !== currentUserId)
     if (search.trim()) {
       const q = search.toLowerCase()
       const project = (t: Task) => (Array.isArray(t.projects) ? t.projects[0] : t.projects)?.business_name ?? ""
@@ -526,10 +537,12 @@ export default function MemberTasksClient({
   ]
 
   const FILTER_TABS = [
-    { key: "all",         label: "All",        count: total },
-    { key: "todo",        label: "To Do",      count: todos.length },
-    { key: "in_progress", label: "In Progress",count: wip.length },
-    { key: "completed",   label: "Completed",  count: doneTasks.length },
+    { key: "all",         label: "All",         count: total },
+    { key: "by_me",       label: "By Me",        count: byMeCount },
+    { key: "by_others",   label: "By Others",    count: byOthersCount },
+    { key: "todo",        label: "To Do",        count: todos.length },
+    { key: "in_progress", label: "In Progress",  count: wip.length },
+    { key: "completed",   label: "Completed",    count: doneTasks.length },
   ]
 
   return (
@@ -993,10 +1006,15 @@ export default function MemberTasksClient({
 
             {/* Input */}
             <div style={{ padding: "12px 20px", borderTop: "1px solid #F3F4F6" }}>
+              {commentError && (
+                <p style={{ fontSize: 11, fontWeight: 600, color: "#DE1A1A", margin: "0 0 8px", padding: "7px 12px", background: "rgba(222,26,26,0.06)", borderRadius: 8 }}>
+                  {commentError}
+                </p>
+              )}
               <div style={{ display: "flex", gap: 8 }}>
                 <input
                   value={commentText}
-                  onChange={e => setCommentText(e.target.value)}
+                  onChange={e => { setCommentText(e.target.value); setCommentError(null) }}
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComment() } }}
                   placeholder="Write a comment or update..."
                   style={{ flex: 1, padding: "9px 14px", borderRadius: 12, border: "1.5px solid #EBEDF2", fontSize: 13, outline: "none", color: "#111" }}

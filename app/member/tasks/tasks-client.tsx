@@ -556,10 +556,10 @@ export default function MemberTasksClient({
   ]
 
   const FILTER_TABS = [
-    { key: "all",        label: "All",       count: total },
-    { key: "by_other",   label: "By Other",  count: byOtherCount },
-    { key: "to_others",  label: "To Others", count: toOthersCount },
-    { key: "for_me",     label: "For Me",    count: forMeCount },
+    { key: "all",        label: "All Tasks",       count: total },
+    { key: "by_other",   label: "Assigned to Me",  count: byOtherCount },
+    { key: "to_others",  label: "I Assigned",      count: toOthersCount },
+    { key: "for_me",     label: "Self-Assigned",   count: forMeCount },
     { key: "todo",        label: "To Do",       count: todos.length },
     { key: "in_progress", label: "In Progress", count: wip.length },
     { key: "completed",   label: "Completed",   count: doneTasks.length },
@@ -757,9 +757,10 @@ export default function MemberTasksClient({
           <div className="hidden md:grid grid-cols-3 gap-4 mb-6">
             {KANBAN_COLS.map(col => {
               const list   = colTasks(col.key)
-              const dimmed = filter !== "all" && filter !== col.key
+              const hidden = filter !== "all" && filter !== "todo" && filter !== "in_progress" && filter !== "completed" && list.length === 0
+              if (hidden) return null
               return (
-                <div key={col.key} className="transition-all" style={{ opacity: dimmed ? 0.35 : 1 }}>
+                <div key={col.key} className="transition-all">
                   <DroppableColumn col={col} isOver={overCol === col.key}>
                     {/* Column header */}
                     <div className="flex items-center justify-between px-4 py-3 rounded-t-2xl"

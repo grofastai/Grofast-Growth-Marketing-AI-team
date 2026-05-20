@@ -173,18 +173,24 @@ export async function breakIn(): Promise<{ success: boolean; error?: string }> {
 
   const { data: log } = await admin
     .from('attendance_logs')
-    .select('id, clock_in, break_in')
+    .select('id, clock_in, break_in, break_sessions')
     .eq('company_id', ctx.companyId)
     .eq('user_id', ctx.userId)
     .eq('date', today)
     .maybeSingle()
 
   if (!log?.clock_in) return { success: false, error: 'Clock in first before starting a break.' }
-  if (log.break_in)   return { success: false, error: 'Break already started today.' }
+  if (log.break_in)   return { success: false, error: 'Break already in progress.' }
+
+  const breakInTime = new Date().toISOString()
+  const sessions = Array.isArray(log.break_sessions) ? log.break_sessions : []
 
   const { error } = await admin
     .from('attendance_logs')
-    .update({ break_in: new Date().toISOString() })
+    .update({
+      break_in: breakInTime,
+      break_sessions: [...sessions, { in: breakInTime, out: null, mins: null }],
+    })
     .eq('id', log.id)
 
   if (error) return { success: false, error: error.message }
@@ -202,7 +208,7 @@ export async function breakOut(): Promise<{ success: boolean; error?: string }> 
 
   const { data: log } = await admin
     .from('attendance_logs')
-    .select('id, break_in, break_out, break_total_mins')
+    .select('id, break_in, break_out, break_total_mins, break_sessions')
     .eq('company_id', ctx.companyId)
     .eq('user_id', ctx.userId)
     .eq('date', today)
@@ -211,13 +217,18 @@ export async function breakOut(): Promise<{ success: boolean; error?: string }> 
   if (!log?.break_in) return { success: false, error: 'No break started yet.' }
   if (log.break_out)  return { success: false, error: 'Break already ended.' }
 
-  // Accumulate this break's duration and reset break_in/break_out so another break can be taken
-  const breakMins = Math.round((Date.now() - new Date(log.break_in).getTime()) / 60000)
-  const newTotal  = (log.break_total_mins ?? 0) + Math.max(breakMins, 1)
+  const breakOutTime = new Date().toISOString()
+  const breakMins    = Math.max(Math.round((Date.now() - new Date(log.break_in).getTime()) / 60000), 1)
+  const newTotal     = (log.break_total_mins ?? 0) + breakMins
+
+  const sessions = Array.isArray(log.break_sessions) ? [...log.break_sessions] : []
+  if (sessions.length > 0) {
+    sessions[sessions.length - 1] = { ...sessions[sessions.length - 1], out: breakOutTime, mins: breakMins }
+  }
 
   const { error } = await admin
     .from('attendance_logs')
-    .update({ break_in: null, break_out: null, break_total_mins: newTotal })
+    .update({ break_in: null, break_out: null, break_total_mins: newTotal, break_sessions: sessions })
     .eq('id', log.id)
 
   if (error) return { success: false, error: error.message }
@@ -288,4 +299,24 @@ export async function getAttendanceByDate(date: string): Promise<{
 
   if (error) return { success: false, log: null, error: error.message }
   return { success: true, log: data }
+}
+
+export async function resumeAttendance(date: string): Promise<{ success: boolean; error?: string }> {
+  const ctxResult = await getUserContext()
+  if ('error' in ctxResult) return { success: false, error: ctxResult.error }
+  const ctx = ctxResult
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, error: 'Invalid date.' }
+
+  const admin = adminSupabase()
+  const { error } = await admin
+    .from('attendance_logs')
+    .update({ clock_out: null })
+    .eq('company_id', ctx.companyId)
+    .eq('user_id', ctx.userId)
+    .eq('date', date)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/attendance')
+  return { success: true }
 }

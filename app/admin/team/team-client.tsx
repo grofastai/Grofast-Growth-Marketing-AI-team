@@ -160,20 +160,23 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
         }
       }
 
-      const result = isEdit
-        ? await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, ...salaryFields, ...dateFields })
-        : await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, ...salaryFields, ...dateFields })
-
-      if (result.success) {
-        if (!isEdit && form.phone && result.whatsappSent === false) {
-          setWhatsappWarning("Member created, but WhatsApp notification failed. Check the phone number or Meta template status.")
-          router.refresh()
-        } else {
-          router.refresh()
-          onClose()
-        }
+      if (isEdit) {
+        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, ...salaryFields, ...dateFields })
+        if (result.success) { router.refresh(); onClose() }
+        else setError(result.error ?? "Something went wrong")
       } else {
-        setError(result.error ?? "Something went wrong")
+        const result = await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, ...salaryFields, ...dateFields })
+        if (result.success) {
+          if (form.phone && result.whatsappSent === false) {
+            setWhatsappWarning("Member created, but WhatsApp notification failed. Check the phone number or Meta template status.")
+            router.refresh()
+          } else {
+            router.refresh()
+            onClose()
+          }
+        } else {
+          setError(result.error ?? "Something went wrong")
+        }
       }
     })
   }

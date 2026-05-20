@@ -378,7 +378,8 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Work Start Date</label>
               <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }}
-                value={form.joined_at} onChange={set("joined_at")} />
+                value={form.joined_at} onChange={set("joined_at")}
+                max={new Date().toISOString().split("T")[0]} />
             </div>
           </div>
 

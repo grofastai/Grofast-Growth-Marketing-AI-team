@@ -33,11 +33,11 @@ export default async function MemberTasksPage() {
   const companyId = currentUserProfile?.company_id
 
   const [tasksResult, clockResult, updateResult, teamMembersResult] = await Promise.all([
-    // Use admin client to bypass RLS; created_by + assigner join only when column exists
+    // Fetch tasks assigned to me OR created by me (for "To Others" tab)
     admin
       .from("tasks")
-      .select("id, title, description, status, priority, due_date, created_by, projects(id, business_name), assignedBy:users!tasks_created_by_fkey(id, name)")
-      .eq("assigned_to", user.id)
+      .select("id, title, description, status, priority, due_date, created_by, assigned_to, projects(id, business_name), assignedBy:users!tasks_created_by_fkey(id, name), assignedToUser:users!tasks_assigned_to_fkey(id, name)")
+      .or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`)
       .order("due_date", { ascending: true, nullsFirst: false }),
     supabase
       .from("attendance_logs")

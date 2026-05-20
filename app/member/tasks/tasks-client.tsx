@@ -24,9 +24,12 @@ interface Task {
   priority: "low" | "medium" | "high"
   due_date: string | null
   created_by: string | null
+  assigned_to: string | null
   projects: { id: string; business_name: string } | null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   assignedBy: { id: string; name: string } | null | any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  assignedToUser: { id: string; name: string } | null | any
 }
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -252,7 +255,7 @@ function TaskCardInner({
           <p className="text-[12px] font-semibold leading-snug line-clamp-2" style={{ color: "#111111" }}>
             {task.title}
           </p>
-          {task.assignedBy && (
+          {task.assignedBy && task.created_by !== currentUserId && (
             <div className="flex items-center gap-1.5 mt-1">
               <div
                 className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black flex-shrink-0"
@@ -263,6 +266,20 @@ function TaskCardInner({
               </div>
               <span className="text-[10px]" style={{ color: "#9CA3AF" }}>
                 by {task.assignedBy.name}
+              </span>
+            </div>
+          )}
+          {task.assignedToUser && task.created_by === currentUserId && task.assigned_to !== currentUserId && (
+            <div className="flex items-center gap-1.5 mt-1">
+              <div
+                className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-black flex-shrink-0"
+                style={{ background: "#6366F1", color: "#FFFFFF" }}
+                title={`Assigned to ${task.assignedToUser.name}`}
+              >
+                {task.assignedToUser.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+              </div>
+              <span className="text-[10px]" style={{ color: "#9CA3AF" }}>
+                to {task.assignedToUser.name}
               </span>
             </div>
           )}
@@ -459,8 +476,9 @@ export default function MemberTasksClient({
   const activeCount = wip.length + todos.length
   const productivity = total > 0 ? Math.round((doneTasks.length / total) * 100) : 0
 
-  const byMeCount     = tasks.filter(t => t.created_by === currentUserId).length
-  const byOthersCount = tasks.filter(t => t.created_by !== currentUserId).length
+  const forMeCount     = tasks.filter(t => t.assigned_to === currentUserId && t.created_by === currentUserId).length
+  const byOtherCount   = tasks.filter(t => t.assigned_to === currentUserId && t.created_by !== currentUserId).length
+  const toOthersCount  = tasks.filter(t => t.created_by === currentUserId && t.assigned_to !== currentUserId).length
 
   // Tasks due within 7 days (not completed)
   const dueSoon = tasks
@@ -494,8 +512,9 @@ export default function MemberTasksClient({
   const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 }
   function colTasks(key: "todo" | "in_progress" | "completed") {
     let list = tasks.filter(t => t.status === key)
-    if (filter === "by_me")     list = list.filter(t => t.created_by === currentUserId)
-    else if (filter === "by_others") list = list.filter(t => t.created_by !== currentUserId)
+    if      (filter === "by_other")  list = list.filter(t => t.assigned_to === currentUserId && t.created_by !== currentUserId)
+    else if (filter === "to_others") list = list.filter(t => t.created_by === currentUserId && t.assigned_to !== currentUserId)
+    else if (filter === "for_me")    list = list.filter(t => t.assigned_to === currentUserId && t.created_by === currentUserId)
     if (search.trim()) {
       const q = search.toLowerCase()
       const project = (t: Task) => (Array.isArray(t.projects) ? t.projects[0] : t.projects)?.business_name ?? ""
@@ -537,9 +556,10 @@ export default function MemberTasksClient({
   ]
 
   const FILTER_TABS = [
-    { key: "all",         label: "All",         count: total },
-    { key: "by_me",       label: "Myself",      count: byMeCount },
-    { key: "by_others",   label: "Others",      count: byOthersCount },
+    { key: "all",        label: "All",       count: total },
+    { key: "by_other",   label: "By Other",  count: byOtherCount },
+    { key: "to_others",  label: "To Others", count: toOthersCount },
+    { key: "for_me",     label: "For Me",    count: forMeCount },
     { key: "todo",        label: "To Do",       count: todos.length },
     { key: "in_progress", label: "In Progress", count: wip.length },
     { key: "completed",   label: "Completed",   count: doneTasks.length },

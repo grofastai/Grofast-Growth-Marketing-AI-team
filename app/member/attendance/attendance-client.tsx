@@ -20,7 +20,7 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-type AttLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_in: string | null; break_out: string | null; work_type: string | null; status: string }
+type AttLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_in: string | null; break_out: string | null; break_total_mins: number; work_type: string | null; status: string }
 type DailyUpdate = { working_hours: number | null; learning_hours: number | null; shoot_count: number | null }
 
 interface Props {
@@ -37,12 +37,13 @@ function fmtTime(iso: string | null) {
 function calcHours(inIso: string, outIso: string | null): number {
   return ((outIso ? new Date(outIso).getTime() : Date.now()) - new Date(inIso).getTime()) / 3600000
 }
-function calcHoursNet(inIso: string, outIso: string | null, breakInIso: string | null, breakOutIso: string | null): number {
+function calcHoursNet(inIso: string, outIso: string | null, breakTotalMins: number, currentBreakInIso: string | null): number {
   const raw = calcHours(inIso, outIso)
-  const breakHrs = (breakInIso && breakOutIso)
-    ? (new Date(breakOutIso).getTime() - new Date(breakInIso).getTime()) / 3600000
+  // Subtract completed breaks (accumulated) + any in-progress break
+  const currentBreakHrs = currentBreakInIso
+    ? (Date.now() - new Date(currentBreakInIso).getTime()) / 3600000
     : 0
-  return Math.max(0, raw - breakHrs)
+  return Math.max(0, raw - breakTotalMins / 60 - currentBreakHrs)
 }
 function fmtDuration(s: number) {
   return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
@@ -180,13 +181,14 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
   const notLogged = !todayLog
 
-  const isOnBreak   = !!todayLog?.break_in && !todayLog?.break_out
-  const breakDone   = !!todayLog?.break_in && !!todayLog?.break_out
-  const breakMins   = (todayLog?.break_in && todayLog?.break_out)
-    ? Math.round((new Date(todayLog.break_out).getTime() - new Date(todayLog.break_in).getTime()) / 60000)
+  const isOnBreak       = !!todayLog?.break_in && !todayLog?.break_out
+  const breakTotalMins  = todayLog?.break_total_mins ?? 0
+  // Minutes into current active break (if on break right now)
+  const currentBreakMins = isOnBreak && todayLog?.break_in
+    ? Math.round((Date.now() - new Date(todayLog.break_in).getTime()) / 60000)
     : 0
   const hoursWorked    = todayLog?.clock_in
-    ? calcHoursNet(todayLog.clock_in, todayLog.clock_out, todayLog.break_in ?? null, todayLog.break_out ?? null)
+    ? calcHoursNet(todayLog.clock_in, todayLog.clock_out, breakTotalMins, todayLog.break_in ?? null)
     : 0
   const remainingHours = Math.max(SHIFT_HOURS - hoursWorked, 0)
 
@@ -304,9 +306,9 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       {isPending ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
                       Log Out
                     </button>
-                    {/* Break buttons */}
-                    <div className="flex gap-2 mt-3">
-                      {!isOnBreak && !breakDone && (
+                    {/* Break buttons — multiple breaks allowed */}
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {!isOnBreak && (
                         <button onClick={() => handle(breakIn)} disabled={isPending}
                           className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold disabled:opacity-50"
                           style={{ border: "1.5px solid #F59E0B", background: "rgba(245,158,11,0.08)", color: "#D97706" }}>
@@ -320,10 +322,16 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                           ▶ Break Out
                         </button>
                       )}
-                      {breakDone && (
-                        <div className="px-4 py-2 rounded-xl text-[12px] font-semibold"
+                      {isOnBreak && (
+                        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold"
+                          style={{ border: "1.5px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.07)", color: "#D97706" }}>
+                          ☕ On break · {currentBreakMins}m
+                        </div>
+                      )}
+                      {breakTotalMins > 0 && (
+                        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold"
                           style={{ border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280" }}>
-                          Break: {breakMins}m taken
+                          Total break: {breakTotalMins}m
                         </div>
                       )}
                     </div>
@@ -345,10 +353,11 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   </div>
                   <div>
                     <p className="text-[15px] font-bold mb-2" style={{ color: "#111111" }}>Completed for today ✓</p>
-                    <div className="flex gap-6">
+                    <div className="flex gap-6 flex-wrap">
                       {[
                         { label: "Log In",  value: fmtTime(todayLog.clock_in) },
                         { label: "Log Out", value: fmtTime(todayLog.clock_out) },
+                        { label: "Break",   value: breakTotalMins > 0 ? `${breakTotalMins}m` : "—" },
                         { label: "Total",   value: fmtHoursShort(hoursWorked) },
                       ].map(r => (
                         <div key={r.label}>
@@ -396,6 +405,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 { label: "Work Mode", value: todayLog?.work_type ? (todayLog.work_type === "wfh" ? "Work From Home" : "Office") : "—", color: "#111111" },
                 { label: "Log In",    value: fmtTime(todayLog?.clock_in ?? null), color: "#111111" },
                 { label: "Log Out",   value: fmtTime(todayLog?.clock_out ?? null), color: "#111111" },
+                { label: "Break",     value: isOnBreak ? `In progress (${currentBreakMins}m)` : breakTotalMins > 0 ? `${breakTotalMins}m taken` : "—", color: isOnBreak ? "#D97706" : breakTotalMins > 0 ? "#F59E0B" : "#9CA3AF" },
                 { label: "Hours",     value: hoursWorked > 0 ? `${fmtHoursShort(hoursWorked)} / ${SHIFT_HOURS}h` : "—", color: hoursWorked > 0 ? "#de1a1a" : "#9CA3AF" },
               ].map(row => (
                 <div key={row.label} className="flex items-center justify-between">

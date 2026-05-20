@@ -202,18 +202,22 @@ export async function breakOut(): Promise<{ success: boolean; error?: string }> 
 
   const { data: log } = await admin
     .from('attendance_logs')
-    .select('id, break_in, break_out')
+    .select('id, break_in, break_out, break_total_mins')
     .eq('company_id', ctx.companyId)
     .eq('user_id', ctx.userId)
     .eq('date', today)
     .maybeSingle()
 
-  if (!log?.break_in)  return { success: false, error: 'No break started yet.' }
-  if (log.break_out)   return { success: false, error: 'Break already ended today.' }
+  if (!log?.break_in) return { success: false, error: 'No break started yet.' }
+  if (log.break_out)  return { success: false, error: 'Break already ended.' }
+
+  // Accumulate this break's duration and reset break_in/break_out so another break can be taken
+  const breakMins = Math.round((Date.now() - new Date(log.break_in).getTime()) / 60000)
+  const newTotal  = (log.break_total_mins ?? 0) + Math.max(breakMins, 1)
 
   const { error } = await admin
     .from('attendance_logs')
-    .update({ break_out: new Date().toISOString() })
+    .update({ break_in: null, break_out: null, break_total_mins: newTotal })
     .eq('id', log.id)
 
   if (error) return { success: false, error: error.message }

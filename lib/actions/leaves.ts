@@ -70,6 +70,19 @@ export async function submitLeaveRequest(
     .eq('id', session.user.id)
     .single()
 
+  const { data: overlapping } = await supabase
+    .from('leaves')
+    .select('id')
+    .eq('user_id', session.user.id)
+    .lte('from_date', parsed.data.to_date)
+    .gte('to_date', parsed.data.from_date)
+    .not('status', 'eq', 'rejected')
+    .limit(1)
+
+  if (overlapping && overlapping.length > 0) {
+    return { error: 'You already have a leave request for those dates.' }
+  }
+
   const { data: inserted, error: insertError } = await supabase.from('leaves').insert({
     company_id,
     user_id:          session.user.id,
@@ -127,8 +140,6 @@ export async function deleteLeaveRequest(
 
   if (!leave) return { success: false, error: 'Leave not found' }
   if (leave.user_id !== user.id) return { success: false, error: 'Not authorized' }
-  if (leave.status !== 'pending') return { success: false, error: 'Can only delete pending requests' }
-
   const { error } = await supabase
     .from('leaves')
     .delete()

@@ -148,7 +148,8 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
   }, [updates])
 
   const router = useRouter()
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId]       = useState<string | null>(null)
+  const [infoDismissed, setInfoDismissed] = useState(false)
 
   const [selectedMonth, setSelectedMonth] = useState("")
   const [search, setSearch]               = useState("")
@@ -342,6 +343,20 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
       </div>
 
       <div className="px-4 md:px-7 pb-10 pt-5">
+
+        {/* Explanatory banner */}
+        {!infoDismissed && (
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, margin:"0 0 16px", padding:"12px 16px", borderRadius:14, background:"#F0F4FF", border:"1px solid #DBEAFE" }}>
+            <p style={{ fontSize:12, color:"#374151", margin:0 }}>
+              <span style={{ fontWeight:700 }}>Your personal work diary.</span>{" "}
+              Every daily update you submit appears here — filter by month, pick a date, or search by task or client.
+            </p>
+            <button onClick={() => setInfoDismissed(true)} style={{ flexShrink:0, background:"none", border:"none", cursor:"pointer", color:"#6B7280", padding:4 }}>
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
         {/* ── MAIN 2-COL GRID ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
 

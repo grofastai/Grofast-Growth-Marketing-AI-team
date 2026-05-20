@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useCallback } from "react"
 import Image from "next/image"
 import { LogOut, Loader2, Home, Building2, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch } from "lucide-react"
-import { clockIn, clockOut, markAbsent, breakIn, breakOut, getAttendanceByDate, manualClockOut } from "@/lib/actions/attendance"
+import { clockIn, clockOut, markAbsent, breakIn, breakOut, resumeAttendance, getAttendanceByDate, manualClockOut } from "@/lib/actions/attendance"
 import { useRouter } from "next/navigation"
 
 const OFFICE_LAT     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LAT ?? "")
@@ -20,7 +20,8 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-type AttLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_in: string | null; break_out: string | null; break_total_mins: number; work_type: string | null; status: string }
+type BreakSession = { in: string; out: string | null; mins: number | null }
+type AttLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_in: string | null; break_out: string | null; break_total_mins: number; break_sessions: BreakSession[] | null; work_type: string | null; status: string }
 type DailyUpdate = { working_hours: number | null; learning_hours: number | null; shoot_count: number | null }
 
 interface Props {
@@ -51,6 +52,10 @@ function fmtDuration(s: number) {
 function fmtHoursShort(h: number) {
   const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60)
   return mins === 0 ? `${hrs}h` : `${hrs}h ${mins}m`
+}
+function fmtTimeFromIso(iso: string | null) {
+  if (!iso) return "—"
+  return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
 }
 function addDays(dateStr: string, n: number) {
   const [y, m, d] = dateStr.split("-").map(Number)
@@ -335,6 +340,22 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                         </div>
                       )}
                     </div>
+                    {/* Break timeline */}
+                    {(todayLog?.break_sessions?.length ?? 0) > 0 && (
+                      <div className="mt-3 space-y-1.5">
+                        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Break History</p>
+                        {(todayLog?.break_sessions ?? []).map((s, i) => (
+                          <div key={i} className="flex items-center gap-2 text-[11px]" style={{ color: "#6B7280" }}>
+                            <span className="font-semibold" style={{ color: "#374151" }}>Break {i + 1}</span>
+                            <span>·</span>
+                            <span>{fmtTimeFromIso(s.in)}</span>
+                            <span>–</span>
+                            <span>{s.out ? fmtTimeFromIso(s.out) : <span style={{ color: "#F59E0B" }}>ongoing</span>}</span>
+                            {s.mins != null && <><span>·</span><span style={{ color: "#16A34A" }}>{s.mins} min</span></>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
                   </div>
                   {/* Large alarm clock illustration */}
@@ -346,27 +367,38 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
               {/* DONE */}
               {isDone && todayLog?.clock_in && todayLog?.clock_out && (
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(34,197,94,0.1)" }}>
-                    <CheckCircle2 size={24} style={{ color: "#22C55E" }} />
-                  </div>
-                  <div>
-                    <p className="text-[15px] font-bold mb-2" style={{ color: "#111111" }}>Completed for today ✓</p>
-                    <div className="flex gap-6 flex-wrap">
-                      {[
-                        { label: "Log In",  value: fmtTime(todayLog.clock_in) },
-                        { label: "Log Out", value: fmtTime(todayLog.clock_out) },
-                        { label: "Break",   value: breakTotalMins > 0 ? `${breakTotalMins}m` : "—" },
-                        { label: "Total",   value: fmtHoursShort(hoursWorked) },
-                      ].map(r => (
-                        <div key={r.label}>
-                          <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>{r.label}</p>
-                          <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{r.value}</p>
-                        </div>
-                      ))}
+                <div>
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: "rgba(34,197,94,0.1)" }}>
+                      <CheckCircle2 size={24} style={{ color: "#22C55E" }} />
+                    </div>
+                    <div>
+                      <p className="text-[15px] font-bold mb-2" style={{ color: "#111111" }}>Completed for today ✓</p>
+                      <div className="flex gap-6 flex-wrap">
+                        {[
+                          { label: "Log In",  value: fmtTime(todayLog.clock_in) },
+                          { label: "Log Out", value: fmtTime(todayLog.clock_out) },
+                          { label: "Break",   value: breakTotalMins > 0 ? `${breakTotalMins}m` : "—" },
+                          { label: "Total",   value: fmtHoursShort(hoursWorked) },
+                        ].map(r => (
+                          <div key={r.label}>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>{r.label}</p>
+                            <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{r.value}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
+                  {/* Overtime resume */}
+                  <button
+                    onClick={() => handle(() => resumeAttendance(today))}
+                    disabled={isPending}
+                    className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-[13px] font-bold transition-all"
+                    style={{ background: "rgba(222,26,26,0.08)", border: "1.5px dashed rgba(222,26,26,0.3)", color: "#de1a1a", cursor: "pointer" }}>
+                    {isPending ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <TrendingUp size={14} />}
+                    Continue Working (Overtime)
+                  </button>
                 </div>
               )}
 

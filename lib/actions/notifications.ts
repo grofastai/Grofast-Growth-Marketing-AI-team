@@ -1,0 +1,98 @@
+'use server'
+
+import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
+import { revalidatePath } from 'next/cache'
+
+function adminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
+
+export interface NotificationRow {
+  id: string
+  type: string
+  title: string
+  body: string | null
+  read: boolean
+  link: string | null
+  created_at: string
+}
+
+export async function getUnreadNotifications(): Promise<NotificationRow[]> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const admin = adminSupabase()
+  const { data } = await admin
+    .from('notifications')
+    .select('id, type, title, body, read, link, created_at')
+    .eq('user_id', user.id)
+    .eq('read', false)
+    .order('created_at', { ascending: false })
+    .limit(5)
+
+  return (data ?? []) as NotificationRow[]
+}
+
+export async function getNotificationCount(): Promise<number> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return 0
+
+  const admin = adminSupabase()
+  const { count } = await admin
+    .from('notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('read', false)
+
+  return count ?? 0
+}
+
+export async function markAllRead(): Promise<{ success: boolean }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false }
+
+  const admin = adminSupabase()
+  await admin.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false)
+  revalidatePath('/member', 'layout')
+  return { success: true }
+}
+
+export async function getAllNotifications(): Promise<NotificationRow[]> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const admin = adminSupabase()
+  const { data } = await admin
+    .from('notifications')
+    .select('id, type, title, body, read, link, created_at')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
+  return (data ?? []) as NotificationRow[]
+}
+
+export async function insertNotification({
+  companyId, userId, type, title, body, link,
+}: {
+  companyId: string; userId: string; type: string
+  title: string; body?: string; link?: string
+}): Promise<void> {
+  const admin = adminSupabase()
+  await admin.from('notifications').insert({
+    company_id: companyId,
+    user_id: userId,
+    type,
+    title,
+    body: body ?? null,
+    link: link ?? null,
+  })
+}

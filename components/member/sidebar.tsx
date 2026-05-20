@@ -41,7 +41,7 @@ const moreNavItems = [
 const DIVIDER = "rgba(255,255,255,0.08)"
 const MOBILE_BG = "linear-gradient(90deg, #0a0a0a 0%, #1a0000 60%, #de1a1a 100%)"
 
-export default function MemberSidebar({ name, employeeId, pendingLeaves = 0, photoUrl = null }: { name: string; employeeId: string; pendingLeaves?: number; photoUrl?: string | null }) {
+export default function MemberSidebar({ name, employeeId, unreadCount = 0, photoUrl = null }: { name: string; employeeId: string; unreadCount?: number; photoUrl?: string | null }) {
   const pathname = usePathname()
   const initials = name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
   const [showMore, setShowMore] = useState(false)
@@ -171,10 +171,10 @@ export default function MemberSidebar({ name, employeeId, pendingLeaves = 0, pho
                 className="relative w-8 h-8 rounded-full flex items-center justify-center"
                 style={{ background: "rgba(255,255,255,0.1)", border: "1.5px solid rgba(255,255,255,0.2)" }}>
                 <Bell size={13} style={{ color: "#FFFFFF" }} />
-                {pendingLeaves > 0 && (
+                {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
                     style={{ background: "#de1a1a", color: "#FFFFFF", border: "1.5px solid #080808" }}>
-                    {pendingLeaves}
+                    {unreadCount}
                   </span>
                 )}
               </button>
@@ -184,29 +184,20 @@ export default function MemberSidebar({ name, employeeId, pendingLeaves = 0, pho
                   <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
                     <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>Notifications</p>
                   </div>
-                  {pendingLeaves > 0 ? (
+                  {unreadCount > 0 ? (
                     <div className="px-4 py-3">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                          style={{ background: "rgba(222,26,26,0.2)" }}>
-                          <CalendarOff size={13} style={{ color: "#de1a1a" }} />
-                        </div>
-                        <div>
-                          <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>
-                            {pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending
-                          </p>
-                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Waiting for approval</p>
-                        </div>
-                      </div>
-                      <Link href="/member/leaves" onClick={() => setBellOpen(false)}
+                      <p className="text-[12px] font-bold mb-3" style={{ color: "#FFFFFF" }}>
+                        {unreadCount} unread notification{unreadCount !== 1 ? "s" : ""}
+                      </p>
+                      <Link href="/member/notifications" onClick={() => setBellOpen(false)}
                         className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-[11px] font-bold"
                         style={{ background: "rgba(222,26,26,0.15)", color: "#ff6b6b" }}>
-                        View Leaves <ChevronRight size={11} />
+                        View All Notifications <ChevronRight size={11} />
                       </Link>
                     </div>
                   ) : (
                     <div className="px-4 py-4 text-center">
-                      <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No pending notifications</p>
+                      <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No unread notifications</p>
                     </div>
                   )}
                 </div>
@@ -275,10 +266,10 @@ export default function MemberSidebar({ name, employeeId, pendingLeaves = 0, pho
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)" }}
             >
               <Bell size={16} />
-              {pendingLeaves > 0 && (
+              {unreadCount > 0 && (
                 <span className="absolute top-0 right-0 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
                   style={{ background: "#de1a1a", color: "#FFFFFF" }}>
-                  {pendingLeaves}
+                  {unreadCount}
                 </span>
               )}
             </button>
@@ -288,23 +279,20 @@ export default function MemberSidebar({ name, employeeId, pendingLeaves = 0, pho
                 <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
                   <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>Notifications</p>
                 </div>
-                {pendingLeaves > 0 ? (
+                {unreadCount > 0 ? (
                   <div className="px-4 py-3">
-                    <div className="flex items-center gap-3 mb-2">
-                      <CalendarOff size={13} style={{ color: "#de1a1a" }} />
-                      <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>
-                        {pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending
-                      </p>
-                    </div>
-                    <Link href="/member/leaves" onClick={() => setBellOpen(false)}
+                    <p className="text-[12px] font-bold mb-3" style={{ color: "#FFFFFF" }}>
+                      {unreadCount} unread notification{unreadCount !== 1 ? "s" : ""}
+                    </p>
+                    <Link href="/member/notifications" onClick={() => setBellOpen(false)}
                       className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-[11px] font-bold"
                       style={{ background: "rgba(222,26,26,0.15)", color: "#ff6b6b" }}>
-                      View Leaves <ChevronRight size={11} />
+                      View All Notifications <ChevronRight size={11} />
                     </Link>
                   </div>
                 ) : (
                   <div className="px-4 py-4 text-center">
-                    <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No pending notifications</p>
+                    <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No unread notifications</p>
                   </div>
                 )}
               </div>
@@ -351,10 +339,10 @@ export default function MemberSidebar({ name, employeeId, pendingLeaves = 0, pho
               className="relative w-8 h-8 rounded-full flex items-center justify-center"
               style={{ background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.2)" }}>
               <Bell size={13} style={{ color: "#FFFFFF" }} />
-              {pendingLeaves > 0 && (
+              {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
                   style={{ background: "#ff3b3b", color: "#FFFFFF", border: "1.5px solid #1a0000" }}>
-                  {pendingLeaves}
+                  {unreadCount}
                 </span>
               )}
             </button>
@@ -364,29 +352,20 @@ export default function MemberSidebar({ name, employeeId, pendingLeaves = 0, pho
                 <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
                   <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>Notifications</p>
                 </div>
-                {pendingLeaves > 0 ? (
+                {unreadCount > 0 ? (
                   <div className="px-4 py-3">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: "rgba(222,26,26,0.2)" }}>
-                        <CalendarOff size={13} style={{ color: "#de1a1a" }} />
-                      </div>
-                      <div>
-                        <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>
-                          {pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending
-                        </p>
-                        <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Waiting for approval</p>
-                      </div>
-                    </div>
-                    <Link href="/member/leaves" onClick={() => setBellOpen(false)}
+                    <p className="text-[12px] font-bold mb-3" style={{ color: "#FFFFFF" }}>
+                      {unreadCount} unread notification{unreadCount !== 1 ? "s" : ""}
+                    </p>
+                    <Link href="/member/notifications" onClick={() => setBellOpen(false)}
                       className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-[11px] font-bold"
                       style={{ background: "rgba(222,26,26,0.15)", color: "#ff6b6b" }}>
-                      View Leaves <ChevronRight size={11} />
+                      View All Notifications <ChevronRight size={11} />
                     </Link>
                   </div>
                 ) : (
                   <div className="px-4 py-4 text-center">
-                    <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No pending notifications</p>
+                    <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No unread notifications</p>
                   </div>
                 )}
               </div>

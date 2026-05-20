@@ -2,6 +2,7 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import MemberSidebar from "@/components/member/sidebar"
+import { getNotificationCount } from "@/lib/actions/notifications"
 
 function adminSupabase() {
   return createClient(
@@ -17,9 +18,9 @@ export default async function MemberLayout({ children }: { children: React.React
   if (!user) redirect("/login")
 
   const admin = adminSupabase()
-  const [{ data: profile }, { count: pendingLeaves }] = await Promise.all([
+  const [{ data: profile }, unreadCount] = await Promise.all([
     admin.from("users").select("name, employee_id, role, must_change_password, photo_url").eq("id", user.id).single(),
-    admin.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "pending"),
+    getNotificationCount(),
   ])
 
   if (profile?.role === "ADMIN")          redirect("/admin/dashboard")
@@ -31,7 +32,7 @@ export default async function MemberLayout({ children }: { children: React.React
       <MemberSidebar
         name={profile?.name ?? "Member"}
         employeeId={profile?.employee_id ?? ""}
-        pendingLeaves={pendingLeaves ?? 0}
+        unreadCount={unreadCount}
         photoUrl={profile?.photo_url ?? null}
       />
       <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0">

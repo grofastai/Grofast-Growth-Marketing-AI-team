@@ -137,6 +137,7 @@ function BalanceRing({ pct }: { pct: number }) {
 export default function MemberLeavesClient({ leaves: initialLeaves, userName }: { leaves: Leave[]; userName: string }) {
   const router = useRouter()
   const [leaves, setLeaves]         = useState(initialLeaves)
+  useEffect(() => { setLeaves(initialLeaves) }, [initialLeaves])
   const [showForm, setShowForm]     = useState(false)
   const [leaveType, setLeaveType]   = useState<LeaveType>("full_day")
   const [halfPeriod, setHalfPeriod] = useState<"morning" | "afternoon">("morning")
@@ -150,6 +151,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
   const [editing, startEdit]        = useTransition()
   const [editError, setEditError]   = useState<string | null>(null)
   const [newFormError, setNewFormError] = useState<string | null>(null)
+  const [dateError, setDateError]       = useState<string | null>(null)
   const [state, action, pending]    = useActionState(submitLeaveRequest, null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -390,7 +392,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
             ) : (
               <div style={{ position: "relative" }}>
                 {/* Vertical timeline line */}
-                <div style={{ position: "absolute", left: 55, top: 16, bottom: 16, width: 2, background: "linear-gradient(to bottom, #DE1A1A30, #10B98130, #EF444430)", borderRadius: 99, zIndex: 0 }} />
+                <div style={{ position: "absolute", left: 9, top: 16, bottom: 16, width: 2, background: "linear-gradient(to bottom, #DE1A1A30, #10B98130, #EF444430)", borderRadius: 99, zIndex: 0 }} />
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                   {visibleLeaves.map((leave, idx) => {
@@ -477,7 +479,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
                               <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0 }}>Requested on {fmtShort(leave.created_at)}</p>
                             )}
                             {/* Menu: edit+delete for pending; delete-only for approved/rejected full/half day */}
-                            {leave.status === "pending" && !isExpired(leave) ? (
+                            {leave.status === "pending" ? (
                               <div style={{ position: "relative" }} ref={menuOpenId === leave.id ? menuRef : undefined}>
                                 <button
                                   onClick={() => setMenuOpenId(menuOpenId === leave.id ? null : leave.id)}
@@ -677,14 +679,18 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
                 </div>
 
                 {leaveType === "full_day" && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>From *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} /></div>
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>To *</label><input name="to_date" type="date" required style={FIELD} defaultValue={editingLeave?.to_date ?? ""} min={editingLeave ? undefined : today} /></div>
+                  <div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>From *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={() => setDateError(null)} /></div>
+                      <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>To *</label><input name="to_date" type="date" required style={FIELD} defaultValue={editingLeave?.to_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={() => setDateError(null)} /></div>
+                    </div>
+                    {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}
                   </div>
                 )}
                 {leaveType === "half_day" && (
                   <>
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} /></div>
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={() => setDateError(null)} />
+                    {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}</div>
                     <div>
                       <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Which Half? *</label>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
@@ -698,7 +704,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
                 )}
                 {leaveType === "permission" && (
                   <>
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} /></div>
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={() => setDateError(null)} />
+                    {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}</div>
                     <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Hours *</label><input name="permission_hours" type="number" min="0.5" max="8" step="0.5" required placeholder="e.g. 2" style={FIELD} defaultValue={editingLeave?.permission_hours ?? ""} /></div>
                   </>
                 )}

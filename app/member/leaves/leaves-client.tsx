@@ -2,6 +2,7 @@
 
 import { useActionState, useState, useEffect, useTransition, useRef } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import Image from "next/image"
 import {
   Plus, X, Loader2, Calendar, CheckCircle2, XCircle,
@@ -279,12 +280,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
           {/* Right: bell + avatar + CTA */}
           <div style={{ position: "absolute", right: 28, top: 20, zIndex: 3, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 18 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ position: "relative" }}>
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: "#F5F6FA", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Link href="/member/notifications" style={{ position: "relative", display: "flex" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: "#F5F6FA", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
                   <Bell size={18} style={{ color: "#374151" }} />
                 </div>
                 <span style={{ position: "absolute", top: -5, right: -5, width: 18, height: 18, background: "#DE1A1A", borderRadius: "50%", fontSize: 9, fontWeight: 800, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>3</span>
-              </div>
+              </Link>
               {/* Avatar — blue gradient */}
               <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, border: "2.5px solid #A5B4FC", boxShadow: "0 4px 14px rgba(99,102,241,0.4)" }}>
                 {userName.slice(0, 2).toUpperCase()}
@@ -487,7 +488,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
                                   <MoreVertical size={14} style={{ color: "#9CA3AF" }} />
                                 </button>
                                 {menuOpenId === leave.id && (
-                                  <div style={{ position: "absolute", right: 0, top: "100%", background: "#fff", borderRadius: 12, border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.14)", zIndex: 30, minWidth: 150, overflow: "hidden" }}>
+                                  <div style={{ position: "absolute", right: 0, bottom: "calc(100% + 4px)", background: "#fff", borderRadius: 12, border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.14)", zIndex: 9999, minWidth: 160, overflow: "hidden" }}>
                                     <button
                                       onClick={() => { setEditingLeave(leave); setShowForm(true); setMenuOpenId(null) }}
                                       style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 14px", border: "none", background: "none", fontSize: 12, fontWeight: 600, color: "#374151", cursor: "pointer", textAlign: "left" }}>

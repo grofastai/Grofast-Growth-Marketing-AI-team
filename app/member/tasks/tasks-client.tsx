@@ -459,7 +459,9 @@ export default function MemberTasksClient({
     }
     setCommentSending(false)
   }
-  const [showSort, setShowSort]     = useState(false)
+  const [showSort, setShowSort]         = useState(false)
+  const [filterProject, setFilterProject] = useState("")
+  const [showProjectFilter, setShowProjectFilter] = useState(false)
   const [activeMobileCol, setActiveMobileCol] = useState<"todo" | "in_progress" | "completed">("todo")
   const [dragId, setDragId]         = useState<string | null>(null)
   const [overCol, setOverCol]       = useState<string | null>(null)
@@ -517,6 +519,12 @@ export default function MemberTasksClient({
     if      (filter === "by_other")  list = list.filter(t => t.assigned_to === currentUserId && t.created_by !== currentUserId)
     else if (filter === "to_others") list = list.filter(t => t.created_by === currentUserId && t.assigned_to !== currentUserId)
     else if (filter === "for_me")    list = list.filter(t => t.assigned_to === currentUserId && t.created_by === currentUserId)
+    if (filterProject) {
+      list = list.filter(t => {
+        const proj = Array.isArray(t.projects) ? t.projects[0] : t.projects
+        return proj?.id === filterProject
+      })
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       const project = (t: Task) => (Array.isArray(t.projects) ? t.projects[0] : t.projects)?.business_name ?? ""
@@ -667,6 +675,38 @@ export default function MemberTasksClient({
               )
             })}
           </div>
+          {/* Project filter dropdown */}
+          {projects.length > 0 && (
+            <div className="relative flex-shrink-0">
+              <button onClick={() => setShowProjectFilter(s => !s)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold"
+                style={{ background: filterProject ? "#de1a1a" : "#FFFFFF", border: `1px solid ${filterProject ? "#de1a1a" : "#E5E7EB"}`, color: filterProject ? "#FFFFFF" : "#374151" }}>
+                <span className="hidden sm:inline">
+                  {filterProject ? (projects.find(p => p.id === filterProject)?.business_name ?? "Client") : "All Clients"}
+                </span>
+                <span className="sm:hidden">Client</span>
+                <ChevronDown size={11} />
+              </button>
+              {showProjectFilter && (
+                <div className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-20"
+                  style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.1)", minWidth: 180 }}>
+                  <button onClick={() => { setFilterProject(""); setShowProjectFilter(false) }}
+                    className="w-full text-left px-4 py-2.5 text-[12px] font-semibold transition-colors hover:bg-gray-50"
+                    style={{ color: !filterProject ? "#de1a1a" : "#374151" }}>
+                    All Clients
+                  </button>
+                  {projects.map(p => (
+                    <button key={p.id} onClick={() => { setFilterProject(p.id); setShowProjectFilter(false) }}
+                      className="w-full text-left px-4 py-2.5 text-[12px] font-semibold transition-colors hover:bg-gray-50"
+                      style={{ color: filterProject === p.id ? "#de1a1a" : "#374151" }}>
+                      {p.business_name}{p.client_name ? ` · ${p.client_name}` : ""}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Sort dropdown */}
           <div className="relative flex-shrink-0">
             <button onClick={() => setShowSort(s => !s)}

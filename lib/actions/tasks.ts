@@ -76,6 +76,8 @@ export async function createMemberTask(
   _prev: { error: string } | { success: true } | null,
   formData: FormData
 ): Promise<{ error: string } | { success: true }> {
+  const promotionName = (formData.get('promotion_name') as string)?.trim() || null
+
   const raw = {
     title:       formData.get('title') as string,
     description: (formData.get('description') as string) || undefined,
@@ -104,6 +106,19 @@ export async function createMemberTask(
   const { data: profile } = await admin.from('users').select('company_id').eq('id', user.id).single()
   if (!profile?.company_id) return { error: 'Profile not found' }
 
+  // If a promotion name was provided, auto-create a quick project
+  let finalProjectId: string | null = parsed.data.project_id || null
+  if (promotionName) {
+    const { data: proj } = await admin.from('projects').insert({
+      company_id:   profile.company_id,
+      business_name: promotionName,
+      client_name:  '__member_quick__',
+      status:       'active',
+      progress_pct: 0,
+    }).select('id').single()
+    if (proj) finalProjectId = proj.id
+  }
+
   const { error } = await admin.from('tasks').insert({
     company_id:  profile.company_id,
     title:       parsed.data.title,
@@ -113,10 +128,31 @@ export async function createMemberTask(
     status:      'todo',
     created_by:  user.id,
     assigned_to: parsed.data.assigned_to || user.id,
-    project_id:  parsed.data.project_id || null,
+    project_id:  finalProjectId,
   })
 
   if (error) return { error: error.message }
+
+  revalidatePath('/member/tasks')
+  return { success: true }
+}
+
+export async function deleteQuickProject(id: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const [{ data: proj }, { data: profile }] = await Promise.all([
+    admin.from('projects').select('client_name, company_id').eq('id', id).single(),
+    admin.from('users').select('company_id').eq('id', user.id).single(),
+  ])
+
+  if (!proj || proj.client_name !== '__member_quick__') return { success: false, error: 'Cannot delete this project' }
+  if (!profile || proj.company_id !== profile.company_id) return { success: false, error: 'Unauthorized' }
+
+  const { error } = await admin.from('projects').delete().eq('id', id)
+  if (error) return { success: false, error: error.message }
 
   revalidatePath('/member/tasks')
   return { success: true }

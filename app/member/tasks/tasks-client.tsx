@@ -11,9 +11,9 @@ import {
   Search, Calendar, Clock, Sparkles, Target,
   TrendingUp, CheckCircle2, ChevronDown, Zap,
   Flame, AlertCircle, GripVertical, Plus, X, User,
-  Trash2, MessageSquare, Send, Loader2,
+  Trash2, MessageSquare, Send, Loader2, Pencil,
 } from "lucide-react"
-import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject } from "@/lib/actions/tasks"
+import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject, updateTask } from "@/lib/actions/tasks"
 import { getTaskComments, addTaskComment, type TaskComment } from "@/lib/actions/comments"
 
 interface Task {
@@ -187,7 +187,7 @@ function timeAgo(iso: string) {
 
 // ── Draggable Task Card ────────────────────────────────────────────────────────
 function DraggableCard({
-  task, today, onMove, isDragging, currentUserId, onDelete, onComment,
+  task, today, onMove, isDragging, currentUserId, onDelete, onComment, onEdit,
 }: {
   task: Task
   today: string
@@ -196,6 +196,7 @@ function DraggableCard({
   currentUserId?: string
   onDelete?: (id: string) => void
   onComment?: (id: string) => void
+  onEdit?: (task: Task) => void
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task.id, data: { status: task.status } })
   const style = transform
@@ -205,14 +206,14 @@ function DraggableCard({
   return (
     <div ref={setNodeRef} style={style}>
       <TaskCardInner task={task} today={today} onMove={onMove} dragProps={{ attributes, listeners }} isDragging={isDragging}
-        currentUserId={currentUserId} onDelete={onDelete} onComment={onComment} />
+        currentUserId={currentUserId} onDelete={onDelete} onComment={onComment} onEdit={onEdit} />
     </div>
   )
 }
 
 // ── Task Card Inner ────────────────────────────────────────────────────────────
 function TaskCardInner({
-  task, today, onMove, dragProps, isDragging, currentUserId, onDelete, onComment,
+  task, today, onMove, dragProps, isDragging, currentUserId, onDelete, onComment, onEdit,
 }: {
   task: Task
   today: string
@@ -223,6 +224,7 @@ function TaskCardInner({
   currentUserId?: string
   onDelete?: (id: string) => void
   onComment?: (id: string) => void
+  onEdit?: (task: Task) => void
 }) {
   const pr = PRIORITY_STYLE[task.priority]
   const project = Array.isArray(task.projects) ? task.projects[0] : task.projects
@@ -349,7 +351,7 @@ function TaskCardInner({
         </div>
       )}
 
-      {/* ── Action row: comment + delete ── */}
+      {/* ── Action row: comment + edit + delete ── */}
       <div style={{ display: "flex", gap: 5, marginTop: 7, paddingTop: 7, borderTop: "1px solid #F3F4F6" }}>
         <button
           onClick={e => { e.stopPropagation(); onComment?.(task.id) }}
@@ -358,6 +360,16 @@ function TaskCardInner({
           <MessageSquare size={10} style={{ color: "#6366F1" }} />
           <span style={{ fontSize: 9, color: "#6366F1", fontWeight: 700 }}>Comment</span>
         </button>
+        {currentUserId && task.created_by === currentUserId && onEdit && (
+          <button
+            onClick={e => { e.stopPropagation(); onEdit(task) }}
+            title="Edit task"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, padding: "4px 8px", borderRadius: 8, background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.18)", cursor: "pointer" }}
+          >
+            <Pencil size={10} style={{ color: "#10B981" }} />
+            <span style={{ fontSize: 9, color: "#10B981", fontWeight: 700 }}>Edit</span>
+          </button>
+        )}
         {currentUserId && task.created_by === currentUserId && onDelete && (
           <button
             onClick={e => { e.stopPropagation(); onDelete(task.id) }}
@@ -415,6 +427,11 @@ export default function MemberTasksClient({
   const [sortBy, setSortBy]         = useState<"priority" | "due_date">("priority")
   const [showAssign, setShowAssign] = useState(false)
   const [assignState, assignAction] = useActionState(createMemberTask, null)
+
+  // Edit task
+  const [editTask, setEditTask]         = useState<Task | null>(null)
+  const [editLoading, setEditLoading]   = useState(false)
+  const [editError, setEditError]       = useState<string | null>(null)
 
   // Comment panel
   const [commentTaskId, setCommentTaskId]   = useState<string | null>(null)
@@ -521,6 +538,32 @@ export default function MemberTasksClient({
       const res = await deleteQuickProject(id)
       if (!res.success) setDeletedProjectIds(prev => { const n = new Set(prev); n.delete(id); return n })
     })
+  }
+
+  async function handleEditSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    if (!editTask) return
+    setEditLoading(true)
+    setEditError(null)
+    const fd = new FormData(e.currentTarget)
+    const updates = {
+      title:       (fd.get("title") as string).trim(),
+      description: (fd.get("description") as string)?.trim() || null,
+      priority:    fd.get("priority") as "low" | "medium" | "high",
+      due_date:    (fd.get("due_date") as string) || null,
+      assigned_to: (fd.get("assigned_to") as string) || null,
+    }
+    const res = await updateTask(editTask.id, updates)
+    if (res.success) {
+      const assignedToUser = updates.assigned_to
+        ? (teamMembers.find(m => m.id === updates.assigned_to) ?? null)
+        : null
+      setTasks(prev => prev.map(t => t.id === editTask.id ? { ...t, ...updates, assignedToUser } : t))
+      setEditTask(null)
+    } else {
+      setEditError(res.error ?? "Failed to update task")
+    }
+    setEditLoading(false)
   }
 
   function handleFilterChange(key: string) {
@@ -801,7 +844,8 @@ export default function MemberTasksClient({
                       <TaskCardInner key={task.id} task={task} today={today} onMove={moveTask}
                         currentUserId={currentUserId}
                         onDelete={handleDeleteTask}
-                        onComment={id => setCommentTaskId(id)} />
+                        onComment={id => setCommentTaskId(id)}
+                        onEdit={setEditTask} />
                     ))
                   )}
                 </div>
@@ -850,7 +894,8 @@ export default function MemberTasksClient({
                             isDragging={dragId === task.id}
                             currentUserId={currentUserId}
                             onDelete={handleDeleteTask}
-                            onComment={id => setCommentTaskId(id)} />
+                            onComment={id => setCommentTaskId(id)}
+                            onEdit={setEditTask} />
                         ))
                       )}
                     </div>
@@ -1106,6 +1151,113 @@ export default function MemberTasksClient({
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      </>
+    )}
+
+    {/* ── Edit Task Modal ───────────────────────────────────────────────────── */}
+    {editTask && (
+      <>
+        <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          onClick={() => { setEditTask(null); setEditError(null) }} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-[440px] rounded-2xl shadow-2xl overflow-hidden"
+            style={{ background: "#FFFFFF", border: "1px solid rgba(16,185,129,0.2)" }}>
+
+            {/* Header */}
+            <div className="px-6 py-4 flex items-center justify-between"
+              style={{ borderBottom: "1px solid #E5E7EB", background: "rgba(16,185,129,0.03)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(16,185,129,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Pencil size={14} style={{ color: "#10B981" }} />
+                </div>
+                <div>
+                  <h2 className="text-[15px] font-bold" style={{ color: "#111111", margin: 0 }}>Edit Task</h2>
+                  <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Only you (the creator) can edit this</p>
+                </div>
+              </div>
+              <button onClick={() => { setEditTask(null); setEditError(null) }}
+                className="w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer" }}>
+                <X size={14} style={{ color: "#6B7280" }} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="px-6 py-5 space-y-4">
+              {/* Title */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Title *</label>
+                <input name="title" required defaultValue={editTask.title}
+                  className="w-full px-3 py-2 rounded-xl text-[13px]"
+                  style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Description</label>
+                <textarea name="description" rows={2} defaultValue={editTask.description ?? ""}
+                  placeholder="Details…"
+                  className="w-full px-3 py-2 rounded-xl text-[13px] resize-none"
+                  style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
+              </div>
+
+              {/* Priority + Due date */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Priority</label>
+                  <select name="priority" defaultValue={editTask.priority}
+                    className="w-full px-3 py-2 rounded-xl text-[13px]"
+                    style={{ border: "1.5px solid #EBEDF2", outline: "none" }}>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Due Date</label>
+                  <input type="date" name="due_date" defaultValue={editTask.due_date ?? ""}
+                    className="w-full px-3 py-2 rounded-xl text-[13px]"
+                    style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
+                </div>
+              </div>
+
+              {/* Assigned to */}
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>
+                  <User size={9} className="inline mr-1" />Assigned To
+                </label>
+                <select name="assigned_to" defaultValue={editTask.assigned_to ?? currentUserId}
+                  className="w-full px-3 py-2 rounded-xl text-[13px]"
+                  style={{ border: "1.5px solid #EBEDF2", outline: "none" }}>
+                  <option value={currentUserId}>Myself</option>
+                  {teamMembers.filter(m => m.id !== currentUserId).map(m => (
+                    <option key={m.id} value={m.id}>{m.name} ({m.employee_id})</option>
+                  ))}
+                </select>
+              </div>
+
+              {editError && (
+                <p className="text-[12px] px-3 py-2 rounded-lg"
+                  style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>
+                  {editError}
+                </p>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => { setEditTask(null); setEditError(null) }}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
+                  style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#6B7280", cursor: "pointer" }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={editLoading}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2"
+                  style={{ background: "linear-gradient(135deg, #10B981, #059669)", cursor: editLoading ? "default" : "pointer", opacity: editLoading ? 0.7 : 1 }}>
+                  {editLoading ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Pencil size={13} />}
+                  {editLoading ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </>

@@ -40,26 +40,8 @@ function getPal(ind: string) { return IND_PAL[ind] ?? DEF_PAL }
 function ini(name: string) {
   return name.split(" ").map(n => n[0] ?? "").join("").slice(0, 2).toUpperCase() || "??"
 }
-function parseAmt(s: string) {
-  const n = parseFloat(s.replace(/[^\d.]/g, ""))
-  return isNaN(n) ? 0 : n
-}
-function fmtRevenue(c: SheetClient): string {
-  const v = parseAmt(c.current_month) || parseAmt(c.received)
-  if (v >= 1000) return `₹${(v / 1000).toFixed(0)},000 /mo`
-  return v > 0 ? `₹${v}/mo` : c.package_name ? `${c.package_name}` : "—"
-}
-function healthScore(c: SheetClient) {
-  const ps = c.payment_status.toLowerCase()
-  if (ps.includes("paid"))    return 92
-  if (ps.includes("partial")) return 65
-  if (ps.includes("pending")) return 38
-  return 75
-}
-function healthCfg(score: number) {
-  if (score >= 80) return { label: "Excellent", color: "#16A34A", bg: "rgba(22,163,74,0.09)" }
-  if (score >= 60) return { label: "Good",      color: "#D97706", bg: "rgba(217,119,6,0.09)" }
-  return              { label: "At Risk",       color: "#DC2626", bg: "rgba(220,38,38,0.09)" }
+function fmtPackage(c: SheetClient): string {
+  return c.package_name || "—"
 }
 const isActive = (c: SheetClient) => c.client_status.toLowerCase().includes("active") || c.client_status.toLowerCase().includes("current")
 
@@ -80,20 +62,6 @@ function DonutChart({ pct, color, size = 112 }: { pct: number; color: string; si
   )
 }
 
-function HealthDonut({ pct, color }: { pct: number; color: string }) {
-  const r = 22, cx = 30, cy = 30, circ = 2 * Math.PI * r
-  const filled = (pct / 100) * circ
-  return (
-    <svg viewBox="0 0 60 60" width="52" height="52">
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F3F4F6" strokeWidth="7" />
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth="7"
-        strokeDasharray={`${filled} ${circ}`} strokeLinecap="round"
-        transform={`rotate(-90 ${cx} ${cy})`} />
-      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle"
-        fontSize="12" fontWeight="900" fill="#111827">{pct}%</text>
-    </svg>
-  )
-}
 
 // ── Left panel client card ────────────────────────────────────────────────────
 function ClientCard({ c, isSelected, onClick, idx }: {
@@ -101,7 +69,7 @@ function ClientCard({ c, isSelected, onClick, idx }: {
 }) {
   const p    = getPal(c.industry)
   const live = isActive(c)
-  const rev  = fmtRevenue(c)
+  const rev  = fmtPackage(c)
 
   return (
     <button onClick={onClick} style={{
@@ -155,11 +123,6 @@ function ClientCard({ c, isSelected, onClick, idx }: {
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSummary }) {
-  const received = parseAmt(c.received)
-  const pending  = parseAmt(c.pending)
-  const total    = received + pending
-  const pct      = total > 0 ? Math.round((received / total) * 100) : 0
-
   const purpleCard: React.CSSProperties = {
     background: "linear-gradient(135deg, #1A1560 0%, #130F52 55%, #0D0A3E 100%)",
     borderRadius: 20, border: "1px solid rgba(255,255,255,0.1)",
@@ -170,51 +133,10 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
   return (
     <div style={{ padding: "18px 22px 40px", display: "flex", flexDirection: "column", gap: 16 }}>
 
-      {/* Revenue + Payment Status */}
+      {/* Package Details */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-[14px]">
 
-        {/* Revenue */}
-        <div style={purpleCard}>
-          <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
-
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <p style={{ fontSize: 11, fontWeight: 800, color: "#FFFFFF", margin: "0 0 16px", textTransform: "uppercase", letterSpacing: "0.14em" }}>Revenue</p>
-            <div className="flex items-end gap-8 flex-wrap">
-              {received > 0 && (
-                <div>
-                  <p style={{ fontSize: 12, color: "#A5F3C8", fontWeight: 600, margin: "0 0 4px" }}>Received</p>
-                  <p style={{ fontSize: 30, fontWeight: 900, color: "#6EE7B7", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-                    ₹{received.toLocaleString("en-IN")}
-                  </p>
-                </div>
-              )}
-              {pending > 0 && (
-                <div>
-                  <p style={{ fontSize: 12, color: "#FEF08A", fontWeight: 600, margin: "0 0 4px" }}>Pending</p>
-                  <p style={{ fontSize: 30, fontWeight: 900, color: "#FACC15", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-                    ₹{pending.toLocaleString("en-IN")}
-                  </p>
-                </div>
-              )}
-              {received === 0 && pending === 0 && (
-                <p style={{ fontSize: 13, color: "#FFFFFF", margin: 0 }}>No payment data</p>
-              )}
-            </div>
-            {total > 0 && (
-              <div style={{ marginTop: 18 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 7 }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#FFFFFF" }}>Collection rate</span>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: "#6EE7B7" }}>{pct}%</span>
-                </div>
-                <div style={{ height: 6, borderRadius: 4, background: "rgba(255,255,255,0.2)", overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${pct}%`, background: "linear-gradient(90deg,#6EE7B7,#34D399)", borderRadius: 4 }} />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Package + Payment Status */}
+        {/* Package card */}
         <div style={purpleCard}>
           <div style={{ position: "absolute", top: -20, right: 60, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
 
@@ -223,9 +145,8 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
 
             <div style={{ display: "flex", flexDirection: "column", gap: 13, marginBottom: c.service ? 20 : 0 }}>
               {[
-                { label: "Package",        value: c.package_name || "—" },
-                { label: "Monthly Value",  value: c.current_month ? `₹${c.current_month}` : "—" },
-                { label: "Payment Status", value: c.payment_status || "—" },
+                { label: "Package",  value: c.package_name || "—" },
+                { label: "Period",   value: c.period || "—" },
               ].map(row => (
                 <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
                   <span style={{ fontSize: 13, color: "#C4C9FF", fontWeight: 500, flexShrink: 0 }}>{row.label}</span>
@@ -356,8 +277,6 @@ export default function ClientsSheetView({
   const TABS  = ["Overview", "Campaigns", "Payments", "Meetings", "Deliverables", "Notes", "Files"]
   const sel   = selected
   const selPal = sel ? getPal(sel.industry) : DEF_PAL
-  const selHp  = sel ? healthScore(sel) : 75
-  const selHl  = healthCfg(selHp)
 
   function pickClient(c: SheetClient) {
     setSelected(c)
@@ -628,37 +547,15 @@ export default function ClientsSheetView({
                 </div>
               </div>
 
-              {/* Relationship Health card */}
-              <div style={{ position: "absolute", top: 14, right: 14,
-                background: "rgba(255,255,255,0.95)", backdropFilter: "blur(16px)",
-                borderRadius: 18, padding: "14px 18px",
-                border: "1px solid rgba(255,255,255,0.8)",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.04)",
-                minWidth: 195 }}>
-                <p style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", margin: "0 0 10px",
-                  textTransform: "uppercase", letterSpacing: "0.12em" }}>Relationship Health</p>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                  <HealthDonut pct={selHp} color={selHl.color} />
-                  <div>
-                    <p style={{ fontSize: 22, fontWeight: 900, color: "#111827", margin: "0 0 2px",
-                      fontFamily: "var(--font-jakarta)" }}>{selHp}%</p>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: selHl.color, margin: 0 }}>{selHl.label}</p>
-                  </div>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  <p style={{ fontSize: 10, color: "#6B7280", margin: 0 }}>❤️ Strong partnership</p>
-                  <p style={{ fontSize: 10, color: "#6B7280", margin: 0 }}>📈 Long term potential</p>
-                </div>
-              </div>
             </div>
 
             {/* Info cards row */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-4 md:px-[22px] pt-[14px]">
               {[
-                { label: "Monthly Package",  value: sel.current_month ? `₹${sel.current_month}` : sel.package_name || "—", sub: sel.package_name || "",  emoji: "💜", bg: "rgba(139,92,246,0.07)", border: "rgba(139,92,246,0.2)" },
-                { label: "Payment Status",   value: sel.payment_status || "—",                    sub: sel.received ? `Received: ₹${sel.received}` : "No payment yet", emoji: "💳", bg: "rgba(22,163,74,0.07)", border: "rgba(22,163,74,0.2)" },
-                { label: "Industry",         value: sel.industry || "—",                           sub: "",                 emoji: "🏢", bg: selPal.bg, border: selPal.border },
-                { label: "Client Since",     value: sel.onboarded_month || "—",                    sub: sel.period || "",   emoji: "📅", bg: "rgba(59,130,246,0.07)", border: "rgba(59,130,246,0.2)" },
+                { label: "Package",      value: sel.package_name || "—",     sub: sel.period || "",         emoji: "💜", bg: "rgba(139,92,246,0.07)", border: "rgba(139,92,246,0.2)" },
+                { label: "Industry",    value: sel.industry || "—",         sub: "",                       emoji: "🏢", bg: selPal.bg, border: selPal.border },
+                { label: "Client Since",value: sel.onboarded_month || "—", sub: sel.period || "",          emoji: "📅", bg: "rgba(59,130,246,0.07)", border: "rgba(59,130,246,0.2)" },
+                { label: "Service",     value: sel.service || "—",          sub: sel.client_stage || "",   emoji: "🎯", bg: "rgba(16,185,129,0.07)", border: "rgba(16,185,129,0.2)" },
               ].map((card, i) => (
                 <div key={i} style={{ background: "#FFFFFF", borderRadius: 14, border: "1px solid #F0F1F5",
                   padding: "14px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)",

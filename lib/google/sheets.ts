@@ -87,6 +87,19 @@ function col(cols: string[], idx: number): string {
   return (cols[idx] ?? "").trim()
 }
 
+// Financial fields that should never leave the server for non-finance pages
+const FINANCIAL_FIELDS: (keyof SheetClient)[] = [
+  'due_date', 'payment_status', 'current_month', 'previous_month', 'received', 'pending',
+]
+
+export function stripFinancialFields(clients: SheetClient[]): SheetClient[] {
+  return clients.map(c => {
+    const safe = { ...c }
+    for (const f of FINANCIAL_FIELDS) safe[f] = ''
+    return safe
+  })
+}
+
 export async function fetchSheetClients(sheetId: string, gid?: string): Promise<SheetClient[]> {
   const gidParam = gid ? `&gid=${gid}` : ""
   const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv${gidParam}`

@@ -76,7 +76,11 @@ export async function createMemberTask(
   _prev: { error: string } | { success: true } | null,
   formData: FormData
 ): Promise<{ error: string } | { success: true }> {
-  const promotionName = (formData.get('promotion_name') as string)?.trim() || null
+  const rawPromoName = (formData.get('promotion_name') as string)?.trim() || null
+  const shopName     = (formData.get('shop_name') as string)?.trim() || null
+  const promotionName = rawPromoName
+    ? shopName ? `${rawPromoName} — ${shopName}` : rawPromoName
+    : null
 
   const raw = {
     title:       formData.get('title') as string,

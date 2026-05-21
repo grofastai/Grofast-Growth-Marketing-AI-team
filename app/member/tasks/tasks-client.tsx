@@ -466,6 +466,7 @@ export default function MemberTasksClient({
   const [showProjectFilter, setShowProjectFilter] = useState(false)
   const [promotionMode, setPromotionMode]   = useState(false)
   const [promoName, setPromoName]           = useState("")
+  const [shopName, setShopName]             = useState("")
   const [deletedProjectIds, setDeletedProjectIds] = useState<Set<string>>(new Set())
   const [activeMobileCol, setActiveMobileCol] = useState<"todo" | "in_progress" | "completed">("todo")
   const [dragId, setDragId]         = useState<string | null>(null)
@@ -1171,7 +1172,7 @@ export default function MemberTasksClient({
               <div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                   <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: "#6B7280" }}>Client / Project</label>
-                  <button type="button" onClick={() => { setPromotionMode(v => !v); setPromoName("") }}
+                  <button type="button" onClick={() => { setPromotionMode(v => !v); setPromoName(""); setShopName("") }}
                     style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 99, fontSize: 10, fontWeight: 700, cursor: "pointer", border: "1.5px solid", transition: "all 0.15s",
                       background: promotionMode ? "rgba(245,158,11,0.10)" : "#F5F6FA",
                       borderColor: promotionMode ? "rgba(245,158,11,0.4)" : "#E5E7EB",
@@ -1185,10 +1186,15 @@ export default function MemberTasksClient({
                     <input type="hidden" name="project_id" value="" />
                     <input name="promotion_name" required={promotionMode} value={promoName}
                       onChange={e => setPromoName(e.target.value)}
-                      placeholder="e.g. Diwali Sale, May Day Offer, Brand Shoot…"
+                      placeholder="Promotion name — e.g. Kutty Karthi Vlog, Masala Unlimit…"
                       className="w-full px-3 py-2 rounded-xl text-[13px]"
                       style={{ border: "1.5px solid rgba(245,158,11,0.4)", outline: "none", background: "rgba(245,158,11,0.03)" }} />
-                    <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 4 }}>A project will be created with this promotion name.</p>
+                    <input name="shop_name" value={shopName}
+                      onChange={e => setShopName(e.target.value)}
+                      placeholder="Shop name — e.g. Saravana Stores, Raj Bakery…"
+                      className="w-full px-3 py-2 rounded-xl text-[13px] mt-2"
+                      style={{ border: "1.5px solid rgba(245,158,11,0.3)", outline: "none", background: "rgba(245,158,11,0.02)" }} />
+                    <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 4 }}>A project will be created as &quot;{promoName || "Promotion"}{shopName ? ` — ${shopName}` : ""}&quot;.</p>
                   </>
                 ) : (
                   <>

@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import ProjectsClient from "@/app/admin/projects/projects-client"
 import ClientsSheetView from "./clients-sheet-view"
-import { fetchSheetClients } from "@/lib/google/sheets"
+import { fetchSheetClients, stripFinancialFields } from "@/lib/google/sheets"
 
 function adminClient() {
   return createClient(
@@ -79,11 +79,13 @@ export default async function ClientsPage() {
 
   // ── Google Sheets path ──────────────────────────────────────────────────────
   if (sheetId) {
-    const [activeClients, pastClients, clientWorkMap] = await Promise.all([
+    const [rawActive, rawPast, clientWorkMap] = await Promise.all([
       fetchSheetClients(sheetId, sheetGid).catch(() => []),
       pastGid ? fetchSheetClients(sheetId, pastGid).catch(() => []) : Promise.resolve([]),
       buildWorkMap().catch(() => ({} as Record<string, WorkSummary>)),
     ])
+    const activeClients = stripFinancialFields(rawActive)
+    const pastClients   = stripFinancialFields(rawPast)
     return <ClientsSheetView activeClients={activeClients} pastClients={pastClients} clientWorkMap={clientWorkMap} />
   }
 

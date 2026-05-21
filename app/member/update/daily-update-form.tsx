@@ -77,6 +77,15 @@ function DurationPicker({ value, onChange }: { value: number; onChange: (v: numb
   )
 }
 
+function fmtTravel(h: number) {
+  const hrs = Math.floor(h)
+  const mins = Math.round((h - hrs) * 60)
+  if (hrs === 0 && mins === 0) return null
+  if (hrs === 0) return `${mins} min`
+  if (mins === 0) return `${hrs} hr`
+  return `${hrs} hr ${mins} min`
+}
+
 const DRAFT_KEY = "gf_daily_update_draft"
 function getTodayStr() { return new Date().toLocaleDateString("en-CA") }
 function loadDraft(): TimeBlock[] {
@@ -642,7 +651,7 @@ export default function DailyUpdateForm({
               {[
                 { label:"SHOOTS",       value:`${shoots.length}`,        color:"#DE1A1A", bg:"rgba(222,26,26,0.07)",   icon:"📸" },
                 { label:"HRS SHOOTING", value:`${totalShootHours}h`,    color:"#EF4444", bg:"rgba(239,68,68,0.07)",   icon:"🎥" },
-                { label:"TRAVEL HRS",   value: totalTravelHours === 0 ? "0" : totalTravelHours < 1 ? "30m" : totalTravelHours % 1 ? `${Math.floor(totalTravelHours)}h 30m` : `${totalTravelHours}h`,   color:"#F59E0B", bg:"rgba(245,158,11,0.07)",  icon:"🚗" },
+                { label:"TRAVEL HRS",   value: fmtTravel(totalTravelHours) ?? "0",   color:"#F59E0B", bg:"rgba(245,158,11,0.07)",  icon:"🚗" },
                 { label:"EDITED COUNT", value:`${edits.length}`,        color:"#6366F1", bg:"rgba(99,102,241,0.07)",  icon:"🎬" },
               ].map(s => (
                 <div key={s.label} style={{ background:"#FFFFFF", borderRadius:16, border:`1.5px solid ${s.color}22`, padding:"14px 12px", textAlign:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
@@ -721,15 +730,33 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:10, marginBottom:10, alignItems:"end" }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🚗 Travel Time</label>
-                          <select value={s.travelHours} onChange={e => patchShoot(s.id, { travelHours: Number(e.target.value) })} style={{ ...F, width:"auto", minWidth:110 }}>
-                            {([
-                              [0, "None"], [0.5, "30 min"], [1, "1 hr"], [1.5, "1 hr 30 min"],
-                              [2, "2 hr"], [2.5, "2 hr 30 min"], [3, "3 hr"], [4, "4 hr"], [5, "5 hr"],
-                            ] as [number, string][]).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-                          </select>
+                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                            <input
+                              type="number" min={0} max={12} placeholder="0"
+                              value={Math.floor(s.travelHours) || ""}
+                              onChange={e => {
+                                const h = Math.max(0, Math.min(12, Number(e.target.value) || 0))
+                                const m = Math.round((s.travelHours - Math.floor(s.travelHours)) * 60)
+                                patchShoot(s.id, { travelHours: h + m / 60 })
+                              }}
+                              style={{ ...F, width:52, textAlign:"center", padding:"9px 6px" }}
+                            />
+                            <span style={{ fontSize:11, color:"#6B7280", fontWeight:600, flexShrink:0 }}>hr</span>
+                            <input
+                              type="number" min={0} max={59} placeholder="0"
+                              value={Math.round((s.travelHours - Math.floor(s.travelHours)) * 60) || ""}
+                              onChange={e => {
+                                const m = Math.max(0, Math.min(59, Number(e.target.value) || 0))
+                                const h = Math.floor(s.travelHours)
+                                patchShoot(s.id, { travelHours: h + m / 60 })
+                              }}
+                              style={{ ...F, width:52, textAlign:"center", padding:"9px 6px" }}
+                            />
+                            <span style={{ fontSize:11, color:"#6B7280", fontWeight:600, flexShrink:0 }}>min</span>
+                          </div>
                         </div>
                         <div style={{ fontSize:10, color:"#9CA3AF", paddingBottom:10 }}>
-                          {s.travelHours > 0 && <span style={{ fontWeight:700, color:"#F59E0B" }}>+{s.travelHours >= 1 ? `${Math.floor(s.travelHours)} hr${s.travelHours % 1 ? " 30 min" : ""}` : "30 min"} travel included</span>}
+                          {s.travelHours > 0 && <span style={{ fontWeight:700, color:"#F59E0B" }}>+{fmtTravel(s.travelHours)} travel included</span>}
                         </div>
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"start" }}>

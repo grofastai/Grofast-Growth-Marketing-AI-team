@@ -23,7 +23,7 @@ interface ShootEntry {
   notes: string; videoUploaded: boolean
 }
 interface EditEntry {
-  id: string; clientName: string; title: string
+  id: string; clientName: string; brand: string; customClient: string; title: string
   videoType: string; videoDuration: string
   dateGiven: string; dateFinished: string
   timeTaken: number; driveUpdated: boolean
@@ -167,7 +167,9 @@ function parseExistingEdits(existingUpdate: Record<string, unknown>): EditEntry[
     .filter(e => e.task_type === 'edit')
     .map(e => ({
       id: e.id ?? crypto.randomUUID(),
-      clientName: e.client_name ?? "",
+      clientName: e._client_type ?? e.client_name ?? "",
+      brand: e._brand ?? "",
+      customClient: e._custom_client ?? "",
       title: e.title ?? "",
       videoType: e.video_type ?? "",
       videoDuration: e.video_duration ?? "",
@@ -219,7 +221,7 @@ export default function DailyUpdateForm({
   // ── Edits (media) ────────────────────────────────────────────────────────
   const [edits, setEdits] = useState<EditEntry[]>(() => existingUpdate ? parseExistingEdits(existingUpdate) : [])
   const addEdit    = () => setEdits(p => [...p, {
-    id: crypto.randomUUID(), clientName: "", title: "", videoType: "", videoDuration: "",
+    id: crypto.randomUUID(), clientName: "", brand: "", customClient: "", title: "", videoType: "", videoDuration: "",
     dateGiven: todayStr, dateFinished: todayStr, timeTaken: 2,
     driveUpdated: false, revisions: 0, videoLink: "", notes: "",
   }])
@@ -324,13 +326,15 @@ export default function DailyUpdateForm({
       })),
       ...edits.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName || "Internal", task_type: "edit" as const,
+        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
+        task_type: "edit" as const,
         title: e.title || "Editing", start_time: "", end_time: "",
         duration_hours: e.timeTaken, notes: e.notes, video_uploaded: null,
         screenshot_url: "", video_link: e.videoLink, editing_videos: [],
         video_type: e.videoType, video_duration: e.videoDuration,
         date_given: e.dateGiven, date_finished: e.dateFinished,
         drive_updated: e.driveUpdated, revisions: e.revisions,
+        _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient,
       })),
     ]
     startTransition(async () => {
@@ -364,13 +368,15 @@ export default function DailyUpdateForm({
       })),
       ...edits.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName || "Internal", task_type: "edit" as const,
+        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
+        task_type: "edit" as const,
         title: e.title || "Editing", start_time: "", end_time: "",
         duration_hours: e.timeTaken, notes: e.notes, video_uploaded: null,
         screenshot_url: "", video_link: e.videoLink, editing_videos: [],
         video_type: e.videoType, video_duration: e.videoDuration,
         date_given: e.dateGiven, date_finished: e.dateFinished,
         drive_updated: e.driveUpdated, revisions: e.revisions,
+        _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient,
       })),
     ]
     startTransition(async () => {
@@ -524,6 +530,13 @@ export default function DailyUpdateForm({
             <p style={{ fontSize:9, color:"rgba(255,255,255,0.55)", margin:0 }}>{elapsed}/{totalWorkHours} hrs</p>
           </div>
         </div>
+      </div>
+
+      {/* ── PAST UPDATES LINK ────────────────────────────────────────────── */}
+      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:12 }}>
+        <a href="/member/history" style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12, fontWeight:700, color:"#DE1A1A", textDecoration:"none", padding:"7px 16px", borderRadius:10, background:"rgba(222,26,26,0.06)", border:"1.5px solid rgba(222,26,26,0.15)" }}>
+          <Clock size={13} /> View Past Updates
+        </a>
       </div>
 
       {/* ── TABS (media team only) ────────────────────────────────────────── */}
@@ -948,12 +961,26 @@ export default function DailyUpdateForm({
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client Name *</label>
                           <div style={{ position:"relative" }}>
-                            <select value={e.clientName} onChange={ev => patchEdit(e.id, { clientName: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                            <select value={e.clientName} onChange={ev => patchEdit(e.id, { clientName: ev.target.value, brand:"", customClient:"" })} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select client…</option>
+                              <option value="Promotion">📣 Our Brand (Promotion)</option>
+                              <option value="__custom__">✏️ Other (type manually)</option>
                               {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
                             </select>
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                           </div>
+                          {e.clientName === "Promotion" && (
+                            <div style={{ marginTop:8, position:"relative" }}>
+                              <select value={e.brand} onChange={ev => patchEdit(e.id, { brand: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none", background:"rgba(245,158,11,0.05)", borderColor:"rgba(245,158,11,0.3)" }}>
+                                <option value="">📣 Select brand…</option>
+                                {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                              </select>
+                              <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#D97706", pointerEvents:"none" }} />
+                            </div>
+                          )}
+                          {e.clientName === "__custom__" && (
+                            <input value={e.customClient} onChange={ev => patchEdit(e.id, { customClient: ev.target.value })} placeholder="Type client name…" style={{ ...F, marginTop:8, background:"rgba(99,102,241,0.05)", borderColor:"rgba(99,102,241,0.25)" }} />
+                          )}
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Name *</label>

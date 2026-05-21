@@ -26,9 +26,13 @@ export async function createTask(
   _prev: { error: string } | { success: true } | null,
   formData: FormData
 ): Promise<{ error: string } | { success: true }> {
+  const clientName = (formData.get('client_name') as string)?.trim() || null
+  const rawDescription = (formData.get('description') as string) || undefined
   const raw = {
     title: formData.get('title') as string,
-    description: (formData.get('description') as string) || undefined,
+    description: clientName
+      ? (rawDescription ? `Client: ${clientName}\n${rawDescription}` : `Client: ${clientName}`)
+      : rawDescription,
     project_id: (formData.get('project_id') as string) || null,
     priority: (formData.get('priority') as string) || 'medium',
     due_date: (formData.get('due_date') as string) || null,

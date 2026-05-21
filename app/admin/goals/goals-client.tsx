@@ -147,6 +147,8 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
   )
 }
 
+const OWN_BRANDS = ["Masala Unlimit", "Kutty Karthi Vlog", "GroFast Digital", "A2Z Automobile", "Kaka Mutta"]
+
 // ── Main Component ───────────────────────────────────────────────────────────
 export default function GoalsClient({ tasks: initialTasks, members, projects }: {
   tasks: Task[]; members: Member[]; projects: Project[]
@@ -161,6 +163,9 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [movingId, setMovingId] = useState<string | null>(null)
   const [archiveOpen, setArchiveOpen] = useState(false)
+  const [mediaClientType, setMediaClientType] = useState("")
+  const [mediaBrand, setMediaBrand] = useState("")
+  const [mediaCustomClient, setMediaCustomClient] = useState("")
 
   function openForm(preselect?: string) {
     setSelectedMembers(preselect ? [preselect] : [])
@@ -174,6 +179,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
     if (state && "success" in state) {
       setShowForm(false)
       setSelectedMembers([])
+      setMediaClientType(""); setMediaBrand(""); setMediaCustomClient("")
       startTransition(() => { router.refresh() })
     }
   }, [state]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -652,6 +658,32 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
                   </div>
                 )}
               </div>
+              {/* Media team client field */}
+              {selectedMembers.some(id => members.find(m => m.id === id)?.team === "Media Team") && (() => {
+                const effectiveClient = mediaClientType === "__custom__" ? (mediaCustomClient || "") : mediaClientType === "Promotion" ? (mediaBrand || "") : mediaClientType
+                return (
+                  <div style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(222,26,26,0.04)", border: "1.5px solid rgba(222,26,26,0.15)" }}>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#DE1A1A", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8 }}>🎬 Client / Brand (Media)</label>
+                    <input type="hidden" name="client_name" value={effectiveClient} />
+                    <select value={mediaClientType} onChange={e => { setMediaClientType(e.target.value); setMediaBrand(""); setMediaCustomClient("") }} className="ti" style={{ marginBottom: mediaClientType ? 8 : 0 }}>
+                      <option value="">Select client…</option>
+                      <option value="Promotion">📣 Our Brand (Promotion)</option>
+                      <option value="__custom__">✏️ Other (type manually)</option>
+                      {projects.map(p => <option key={p.id} value={p.business_name}>{p.business_name}</option>)}
+                    </select>
+                    {mediaClientType === "Promotion" && (
+                      <select value={mediaBrand} onChange={e => setMediaBrand(e.target.value)} className="ti">
+                        <option value="">📣 Select brand…</option>
+                        {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                      </select>
+                    )}
+                    {mediaClientType === "__custom__" && (
+                      <input value={mediaCustomClient} onChange={e => setMediaCustomClient(e.target.value)} placeholder="Type client name…" className="ti" />
+                    )}
+                  </div>
+                )
+              })()}
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>Priority</label>
@@ -679,7 +711,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
               )}
 
               <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
-                <button type="button" onClick={() => { setShowForm(false); setSelectedMembers([]); }}
+                <button type="button" onClick={() => { setShowForm(false); setSelectedMembers([]); setMediaClientType(""); setMediaBrand(""); setMediaCustomClient("") }}
                   style={{ flex: 1, padding: "12px 0", borderRadius: 12, fontSize: 13, fontWeight: 600, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: "pointer" }}>
                   Cancel
                 </button>

@@ -239,7 +239,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         <div className="rounded-3xl overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "0 4px 32px rgba(0,0,0,0.09)" }}>
 
           {/* ── Cinematic hero image ── */}
-          <div className="relative w-full" style={{ height: 380, background: "#1a1008" }}>
+          <div className="relative w-full h-[180px] md:h-[280px] lg:h-[380px]" style={{ background: "#1a1008" }}>
             <Image
               src="/brand/cinematic-boy.png"
               alt="Working character"

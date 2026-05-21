@@ -241,7 +241,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
         <div style={{
           background: "#FFFFFF",
-          position: "relative", overflow: "hidden", height: 260,
+          position: "relative", overflow: "hidden", height: "clamp(160px,35vw,260px)",
           boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
           borderBottom: "1px solid #EBEDF2",
         }}>
@@ -277,26 +277,21 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
               style={{ objectFit: "contain", objectPosition: "bottom center", display: "block" }} priority />
           </div>
 
-          {/* Right: bell + avatar + CTA */}
-          <div style={{ position: "absolute", right: 28, top: 20, zIndex: 3, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 18 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <Link href="/member/notifications" style={{ position: "relative", display: "flex" }}>
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: "#F5F6FA", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                  <Bell size={18} style={{ color: "#374151" }} />
-                </div>
-                <span style={{ position: "absolute", top: -5, right: -5, width: 18, height: 18, background: "#DE1A1A", borderRadius: "50%", fontSize: 9, fontWeight: 800, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff" }}>3</span>
-              </Link>
-              {/* Avatar — blue gradient */}
-              <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 800, border: "2.5px solid #A5B4FC", boxShadow: "0 4px 14px rgba(99,102,241,0.4)" }}>
-                {userName.slice(0, 2).toUpperCase()}
-              </div>
-            </div>
-            {/* Apply Leave — red gradient */}
+          {/* Apply Leave CTA — desktop only (top-right corner) */}
+          <div className="hidden md:flex" style={{ position: "absolute", right: 28, top: 20, zIndex: 3, flexDirection: "column", alignItems: "flex-end", gap: 18 }}>
             <button onClick={() => setShowForm(true)}
               style={{ display: "flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 14, background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)", color: "#FFFFFF", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 6px 24px rgba(222,26,26,0.35)", whiteSpace: "nowrap" }}>
               <Plus size={16} strokeWidth={2.5} /> Apply Leave
             </button>
           </div>
+        </div>
+
+        {/* Mobile Apply Leave button — shown only on mobile, below hero */}
+        <div className="md:hidden px-4 pt-4 pb-2">
+          <button onClick={() => setShowForm(true)}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "14px", borderRadius: 14, background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)", color: "#FFFFFF", fontSize: 15, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(222,26,26,0.35)" }}>
+            <Plus size={18} strokeWidth={2.5} /> Apply Leave
+          </button>
         </div>
 
         <div className="px-4 md:px-8 py-6">
@@ -530,8 +525,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
             )}
           </div>
 
-          {/* ── Bottom Banner — redesigned ───────────────────────────────── */}
-          <div style={{ position: "relative", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg,#FFF8EE 0%,#FFEFD0 55%,#FFF4E0 100%)", border: "1px solid #F0E4C8", minHeight: 300 }} className="flex flex-col md:flex-row">
+          {/* ── Bottom Banner — hidden on mobile ─────────────────────────── */}
+          <div style={{ position: "relative", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg,#FFF8EE 0%,#FFEFD0 55%,#FFF4E0 100%)", border: "1px solid #F0E4C8", minHeight: 300 }} className="hidden md:flex flex-col md:flex-row">
 
             {/* Left content */}
             <div style={{ position: "relative", zIndex: 2 }} className="flex flex-col p-6 md:p-8 flex-1">

@@ -627,6 +627,11 @@ export default function DailyUpdateForm({
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                   {timeBlocks.map(block => {
+                    const usedByOthers = new Set(
+                      timeBlocks
+                        .filter(b => b.id !== block.id)
+                        .flatMap(b => [b.startTime, b.endTime])
+                    )
                     const statusCfg = block.status === "completed"
                       ? { bg:"rgba(34,197,94,0.08)", color:"#16A34A", border:"rgba(34,197,94,0.25)" }
                       : block.status === "in_progress"
@@ -638,12 +643,12 @@ export default function DailyUpdateForm({
                           <Clock size={13} style={{ color:"#DE1A1A", flexShrink:0 }} />
                           <select value={block.startTime} onChange={e => patchBlock(block.id, { startTime: e.target.value })}
                             style={{ fontSize:12, fontWeight:700, color:"#111827", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }}>
-                            {TIME_OPTIONS_15.map(t => <option key={t} value={t}>{fmt12(t)}</option>)}
+                            {TIME_OPTIONS_15.filter(t => !usedByOthers.has(t) || t === block.startTime).map(t => <option key={t} value={t}>{fmt12(t)}</option>)}
                           </select>
                           <span style={{ fontSize:11, color:"#9CA3AF" }}>to</span>
                           <select value={block.endTime} onChange={e => patchBlock(block.id, { endTime: e.target.value })}
                             style={{ fontSize:12, fontWeight:700, color:"#111827", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }}>
-                            {TIME_OPTIONS_15.map(t => <option key={t} value={t}>{fmt12(t)}</option>)}
+                            {TIME_OPTIONS_15.filter(t => !usedByOthers.has(t) || t === block.endTime).map(t => <option key={t} value={t}>{fmt12(t)}</option>)}
                           </select>
                           {block.durationHours > 0 && (
                             <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>{block.durationHours}h</span>

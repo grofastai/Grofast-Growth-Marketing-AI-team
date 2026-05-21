@@ -734,11 +734,11 @@ export default function DailyUpdateForm({
                         </div>
                       )}
 
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 100px", gap:10, marginBottom:10 }}>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Start Time</label>
                           <div style={{ position:"relative" }}>
-                            <select value={s.startTime} onChange={e => { const st = e.target.value; patchShoot(s.id, { startTime: st, durationHours: calcDuration(st, s.endTime) || s.durationHours }) }} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                            <select value={s.startTime} onChange={e => { const st = e.target.value; patchShoot(s.id, { startTime: st, durationHours: calcDuration(st, s.endTime) }) }} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               {TIME_OPTIONS.map(t => <option key={t} value={t}>{fmt12(t)}</option>)}
                             </select>
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
@@ -747,15 +747,20 @@ export default function DailyUpdateForm({
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>End Time</label>
                           <div style={{ position:"relative" }}>
-                            <select value={s.endTime} onChange={e => { const et = e.target.value; patchShoot(s.id, { endTime: et, durationHours: calcDuration(s.startTime, et) || s.durationHours }) }} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                            <select value={s.endTime} onChange={e => { const et = e.target.value; patchShoot(s.id, { endTime: et, durationHours: calcDuration(s.startTime, et) }) }} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               {TIME_OPTIONS.map(t => <option key={t} value={t}>{fmt12(t)}</option>)}
                             </select>
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                           </div>
                         </div>
-                        <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration</label>
-                          <DurationPicker value={s.durationHours} onChange={v => patchShoot(s.id, { durationHours: v })} />
+                      </div>
+                      <div style={{ marginBottom:10 }}>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration</label>
+                        <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:8, background: calcDuration(s.startTime, s.endTime) > 0 ? "rgba(222,26,26,0.06)" : "#F9FAFB", border: calcDuration(s.startTime, s.endTime) > 0 ? "1.5px solid rgba(222,26,26,0.2)" : "1.5px solid #EBEDF2" }}>
+                          <span style={{ fontSize:13, fontWeight:700, color: calcDuration(s.startTime, s.endTime) > 0 ? "#DE1A1A" : "#9CA3AF" }}>
+                            {calcDuration(s.startTime, s.endTime) > 0 ? fmtTravel(calcDuration(s.startTime, s.endTime)) : "—"}
+                          </span>
+                          <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
                         </div>
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:10, marginBottom:10, alignItems:"end" }}>

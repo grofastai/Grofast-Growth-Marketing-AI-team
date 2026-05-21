@@ -642,7 +642,7 @@ export default function DailyUpdateForm({
               {[
                 { label:"SHOOTS",       value:`${shoots.length}`,        color:"#DE1A1A", bg:"rgba(222,26,26,0.07)",   icon:"📸" },
                 { label:"HRS SHOOTING", value:`${totalShootHours}h`,    color:"#EF4444", bg:"rgba(239,68,68,0.07)",   icon:"🎥" },
-                { label:"TRAVEL HRS",   value:`${totalTravelHours}h`,   color:"#F59E0B", bg:"rgba(245,158,11,0.07)",  icon:"🚗" },
+                { label:"TRAVEL HRS",   value: totalTravelHours === 0 ? "0" : totalTravelHours < 1 ? "30m" : totalTravelHours % 1 ? `${Math.floor(totalTravelHours)}h 30m` : `${totalTravelHours}h`,   color:"#F59E0B", bg:"rgba(245,158,11,0.07)",  icon:"🚗" },
                 { label:"EDITED COUNT", value:`${edits.length}`,        color:"#6366F1", bg:"rgba(99,102,241,0.07)",  icon:"🎬" },
               ].map(s => (
                 <div key={s.label} style={{ background:"#FFFFFF", borderRadius:16, border:`1.5px solid ${s.color}22`, padding:"14px 12px", textAlign:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
@@ -721,12 +721,15 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:10, marginBottom:10, alignItems:"end" }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🚗 Travel Time</label>
-                          <select value={s.travelHours} onChange={e => patchShoot(s.id, { travelHours: Number(e.target.value) })} style={{ ...F, width:"auto", minWidth:90 }}>
-                            {[0,0.5,1,1.5,2,2.5,3,4,5].map(v => <option key={v} value={v}>{v === 0 ? "None" : `${v}h`}</option>)}
+                          <select value={s.travelHours} onChange={e => patchShoot(s.id, { travelHours: Number(e.target.value) })} style={{ ...F, width:"auto", minWidth:110 }}>
+                            {([
+                              [0, "None"], [0.5, "30 min"], [1, "1 hr"], [1.5, "1 hr 30 min"],
+                              [2, "2 hr"], [2.5, "2 hr 30 min"], [3, "3 hr"], [4, "4 hr"], [5, "5 hr"],
+                            ] as [number, string][]).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
                           </select>
                         </div>
                         <div style={{ fontSize:10, color:"#9CA3AF", paddingBottom:10 }}>
-                          {s.travelHours > 0 && <span style={{ fontWeight:700, color:"#F59E0B" }}>+{s.travelHours}h travel included</span>}
+                          {s.travelHours > 0 && <span style={{ fontWeight:700, color:"#F59E0B" }}>+{s.travelHours >= 1 ? `${Math.floor(s.travelHours)} hr${s.travelHours % 1 ? " 30 min" : ""}` : "30 min"} travel included</span>}
                         </div>
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"start" }}>

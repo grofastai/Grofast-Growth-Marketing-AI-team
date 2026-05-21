@@ -744,11 +744,7 @@ export default function DailyUpdateForm({
                         </div>
                       )}
 
-                      {/* Shop Name — always visible for all clients */}
-                      <div style={{ marginBottom:10 }}>
-                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🏪 Shop Name</label>
-                        <input value={s.shopName} onChange={e => patchShoot(s.id, { shopName: e.target.value })} placeholder="e.g. Sri Murugan Mess" style={F} />
-                      </div>
+
 
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>

@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { insertNotification } from './notifications'
 
 function adminSupabase() {
   return createClient(
@@ -65,6 +66,21 @@ export async function createTask(
     const rows = assignedToList.map(id => ({ ...base, assigned_to: id }))
     const { error } = await admin.from('tasks').insert(rows)
     if (error) return { error: error.message }
+    // Notify each assignee (skip self-assignment)
+    const othersAssigned = assignedToList.filter(id => id !== user.id)
+    if (othersAssigned.length > 0) {
+      const { data: creator } = await admin.from('users').select('name').eq('id', user.id).single()
+      await Promise.all(othersAssigned.map(id =>
+        insertNotification({
+          companyId: profile.company_id,
+          userId: id,
+          type: 'task_assigned',
+          title: `${creator?.name ?? 'Admin'} assigned you a task`,
+          body: parsed.data.title,
+          link: '/member/tasks',
+        })
+      ))
+    }
   }
 
   revalidatePath('/admin/goals')
@@ -137,6 +153,20 @@ export async function createMemberTask(
 
   if (error) return { error: error.message }
 
+  // Notify assignee when task is assigned to someone else
+  const finalAssignee = parsed.data.assigned_to || user.id
+  if (finalAssignee !== user.id) {
+    const { data: creator } = await admin.from('users').select('name').eq('id', user.id).single()
+    await insertNotification({
+      companyId: profile.company_id,
+      userId: finalAssignee,
+      type: 'task_assigned',
+      title: `${creator?.name ?? 'Someone'} assigned you a task`,
+      body: parsed.data.title,
+      link: '/member/tasks',
+    })
+  }
+
   revalidatePath('/member/tasks')
   return { success: true }
 }
@@ -171,11 +201,28 @@ export async function updateTaskStatus(
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
-  const updates: Record<string, unknown> = { status }
-  if (status === 'completed') updates.completed_at = new Date().toISOString()
-  if (status !== 'completed') updates.completed_at = null
-  const { error } = await admin.from('tasks').update(updates).eq('id', taskId)
+  const dbUpdates: Record<string, unknown> = { status }
+  if (status === 'completed') dbUpdates.completed_at = new Date().toISOString()
+  if (status !== 'completed') dbUpdates.completed_at = null
+
+  // Fetch task before updating so we can notify creator
+  const { data: task } = await admin.from('tasks').select('title, company_id, created_by').eq('id', taskId).single()
+
+  const { error } = await admin.from('tasks').update(dbUpdates).eq('id', taskId)
   if (error) return { success: false, error: error.message }
+
+  // Notify the task creator when it's marked completed (skip if creator is completing own task)
+  if (status === 'completed' && task?.created_by && task.created_by !== user.id) {
+    const { data: completer } = await admin.from('users').select('name').eq('id', user.id).single()
+    insertNotification({
+      companyId: task.company_id,
+      userId: task.created_by,
+      type: 'task_completed',
+      title: `${completer?.name ?? 'Someone'} completed a task`,
+      body: task.title,
+      link: '/member/tasks',
+    }).catch(console.error)
+  }
 
   revalidatePath('/admin/goals')
   revalidatePath('/member/tasks')
@@ -214,6 +261,23 @@ export async function updateTask(
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
+
+  // If reassigning, notify the new assignee (before updating so we can check old value)
+  if (updates.assigned_to && updates.assigned_to !== user.id) {
+    const { data: task } = await admin.from('tasks').select('title, company_id, assigned_to').eq('id', id).single()
+    if (task && task.assigned_to !== updates.assigned_to) {
+      const { data: updater } = await admin.from('users').select('name').eq('id', user.id).single()
+      insertNotification({
+        companyId: task.company_id,
+        userId: updates.assigned_to,
+        type: 'task_assigned',
+        title: `${updater?.name ?? 'Someone'} assigned you a task`,
+        body: updates.title ?? task.title,
+        link: '/member/tasks',
+      }).catch(console.error)
+    }
+  }
+
   const { error } = await admin.from('tasks').update(updates).eq('id', id)
   if (error) return { success: false, error: error.message }
 

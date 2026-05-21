@@ -47,6 +47,8 @@ function getTypeMeta(type: string): NotifMeta {
       return { icon: <Megaphone size={18} style={{ color: '#F59E0B' }} />, bg: 'rgba(245,158,11,0.12)', label: 'Announcement' }
     case 'support_reply':
       return { icon: <LifeBuoy size={18} style={{ color: '#DE1A1A' }} />, bg: 'rgba(222,26,26,0.10)', label: 'Support' }
+    case 'task_completed':
+      return { icon: <CheckCircle2 size={18} style={{ color: '#22C55E' }} />, bg: 'rgba(34,197,94,0.12)', label: 'Task Done' }
     default:
       return { icon: <Bell size={18} style={{ color: '#9CA3AF' }} />, bg: 'rgba(156,163,175,0.12)', label: 'Notification' }
   }

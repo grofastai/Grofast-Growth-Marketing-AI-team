@@ -53,7 +53,7 @@ const ACTIVE_BG  = "rgba(255,255,255,0.14)"
 const HOVER_BG   = "rgba(255,255,255,0.07)"
 const DIVIDER    = "rgba(255,255,255,0.1)"
 
-export default function Sidebar({ pendingLeaves = 0, adminName = "Admin", photoUrl = null }: { pendingLeaves?: number; adminName?: string; photoUrl?: string | null }) {
+export default function Sidebar({ pendingLeaves = 0, adminName = "Admin", photoUrl = null, notifCount = 0 }: { pendingLeaves?: number; adminName?: string; photoUrl?: string | null; notifCount?: number }) {
   const pathname = usePathname()
   const [showMore, setShowMore] = useState(false)
   const [bellOpen, setBellOpen] = useState(false)
@@ -127,42 +127,52 @@ export default function Sidebar({ pendingLeaves = 0, adminName = "Admin", photoU
                 className="relative w-8 h-8 rounded-full flex items-center justify-center"
                 style={{ background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.2)" }}>
                 <Bell size={13} style={{ color: "#FFFFFF" }} />
-                {pendingLeaves > 0 && (
+                {notifCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
                     style={{ background: "#de1a1a", color: "#FFFFFF", border: "1.5px solid #0a100d" }}>
-                    {pendingLeaves}
+                    {notifCount > 9 ? '9+' : notifCount}
                   </span>
                 )}
               </button>
               {bellOpen && (
                 <div className="absolute bottom-full right-0 mb-2 z-50 rounded-2xl overflow-hidden"
-                  style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", minWidth: 240 }}>
-                  <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                  style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", minWidth: 256 }}>
+                  <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
                     <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>Notifications</p>
+                    {notifCount > 0 && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.2)", color: "#ff6b6b" }}>{notifCount} unread</span>}
                   </div>
-                  {pendingLeaves > 0 ? (
-                    <div className="px-4 py-3">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                          style={{ background: "rgba(222,26,26,0.2)" }}>
-                          <CalendarOff size={13} style={{ color: "#de1a1a" }} />
-                        </div>
-                        <div>
-                          <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>
-                            {pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending
-                          </p>
-                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Needs your approval</p>
-                        </div>
-                      </div>
-                      <Link href="/admin/leaves" onClick={() => setBellOpen(false)}
-                        className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-[11px] font-bold"
-                        style={{ background: "rgba(222,26,26,0.15)", color: "#ff6b6b" }}>
-                        Review Leaves <CalendarOff size={11} />
-                      </Link>
+                  {notifCount === 0 && pendingLeaves === 0 ? (
+                    <div className="px-4 py-5 text-center">
+                      <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>All caught up!</p>
                     </div>
                   ) : (
-                    <div className="px-4 py-4 text-center">
-                      <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No pending notifications</p>
+                    <div className="px-3 py-2 flex flex-col gap-1.5">
+                      {pendingLeaves > 0 && (
+                        <Link href="/admin/leaves" onClick={() => setBellOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+                          style={{ background: "rgba(222,26,26,0.12)" }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.22)"}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(222,26,26,0.12)"}>
+                          <CalendarOff size={14} style={{ color: "#ff6b6b", flexShrink: 0 }} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>{pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending</p>
+                            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Needs your approval</p>
+                          </div>
+                        </Link>
+                      )}
+                      {notifCount > 0 && (
+                        <Link href="/admin/support" onClick={() => setBellOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
+                          style={{ background: "rgba(255,255,255,0.06)" }}
+                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.12)"}
+                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"}>
+                          <LifeBuoy size={14} style={{ color: "#a78bfa", flexShrink: 0 }} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>{notifCount} New Notification{notifCount !== 1 ? "s" : ""}</p>
+                            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Tickets, leaves & more</p>
+                          </div>
+                        </Link>
+                      )}
                     </div>
                   )}
                 </div>
@@ -238,23 +248,24 @@ export default function Sidebar({ pendingLeaves = 0, adminName = "Admin", photoU
                 <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
                   <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>Notifications</p>
                 </div>
-                {pendingLeaves > 0 ? (
-                  <div className="px-4 py-3">
-                    <div className="flex items-center gap-3 mb-2">
-                      <CalendarOff size={13} style={{ color: "#de1a1a" }} />
-                      <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>
-                        {pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending
-                      </p>
-                    </div>
-                    <Link href="/admin/leaves" onClick={() => setBellOpen(false)}
-                      className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-[11px] font-bold"
-                      style={{ background: "rgba(222,26,26,0.15)", color: "#ff6b6b" }}>
-                      Review Leaves
-                    </Link>
+                {notifCount === 0 && pendingLeaves === 0 ? (
+                  <div className="px-4 py-4 text-center">
+                    <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>All caught up!</p>
                   </div>
                 ) : (
-                  <div className="px-4 py-4 text-center">
-                    <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No pending notifications</p>
+                  <div className="px-3 py-2 flex flex-col gap-1.5">
+                    {pendingLeaves > 0 && (
+                      <Link href="/admin/leaves" onClick={() => setBellOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "rgba(222,26,26,0.12)" }}>
+                        <CalendarOff size={13} style={{ color: "#ff6b6b" }} />
+                        <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>{pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending</p>
+                      </Link>
+                    )}
+                    {notifCount > 0 && (
+                      <Link href="/admin/support" onClick={() => setBellOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.06)" }}>
+                        <LifeBuoy size={13} style={{ color: "#a78bfa" }} />
+                        <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>{notifCount} New</p>
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>
@@ -300,42 +311,48 @@ export default function Sidebar({ pendingLeaves = 0, adminName = "Admin", photoU
               className="relative w-8 h-8 rounded-full flex items-center justify-center"
               style={{ background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.2)" }}>
               <Bell size={13} style={{ color: "#FFFFFF" }} />
-              {pendingLeaves > 0 && (
+              {notifCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
                   style={{ background: "#ff3b3b", color: "#FFFFFF", border: "1.5px solid #0a100d" }}>
-                  {pendingLeaves}
+                  {notifCount > 9 ? '9+' : notifCount}
                 </span>
               )}
             </button>
             {bellOpen && (
               <div className="absolute top-full right-0 mt-2 z-50 rounded-2xl overflow-hidden"
-                style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", minWidth: 240 }}>
-                <div className="px-4 py-2.5" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", minWidth: 248 }}>
+                <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
                   <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>Notifications</p>
+                  {notifCount > 0 && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.2)", color: "#ff6b6b" }}>{notifCount} unread</span>}
                 </div>
-                {pendingLeaves > 0 ? (
-                  <div className="px-4 py-3">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: "rgba(222,26,26,0.2)" }}>
-                        <CalendarOff size={13} style={{ color: "#de1a1a" }} />
-                      </div>
-                      <div>
-                        <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>
-                          {pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending
-                        </p>
-                        <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Needs your approval</p>
-                      </div>
-                    </div>
-                    <Link href="/admin/leaves" onClick={() => setBellOpen(false)}
-                      className="flex items-center justify-center gap-1 w-full py-2 rounded-xl text-[11px] font-bold"
-                      style={{ background: "rgba(222,26,26,0.15)", color: "#ff6b6b" }}>
-                      Review Leaves
-                    </Link>
+                {notifCount === 0 && pendingLeaves === 0 ? (
+                  <div className="px-4 py-5 text-center">
+                    <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>All caught up!</p>
                   </div>
                 ) : (
-                  <div className="px-4 py-4 text-center">
-                    <p className="text-[12px]" style={{ color: "rgba(255,255,255,0.35)" }}>No pending notifications</p>
+                  <div className="px-3 py-2 flex flex-col gap-1.5">
+                    {pendingLeaves > 0 && (
+                      <Link href="/admin/leaves" onClick={() => setBellOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                        style={{ background: "rgba(222,26,26,0.12)" }}>
+                        <CalendarOff size={14} style={{ color: "#ff6b6b", flexShrink: 0 }} />
+                        <div>
+                          <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>{pendingLeaves} Leave{pendingLeaves !== 1 ? "s" : ""} Pending</p>
+                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Needs your approval</p>
+                        </div>
+                      </Link>
+                    )}
+                    {notifCount > 0 && (
+                      <Link href="/admin/support" onClick={() => setBellOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl"
+                        style={{ background: "rgba(255,255,255,0.06)" }}>
+                        <LifeBuoy size={14} style={{ color: "#a78bfa", flexShrink: 0 }} />
+                        <div>
+                          <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>{notifCount} New Notification{notifCount !== 1 ? "s" : ""}</p>
+                          <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Tickets, leaves & more</p>
+                        </div>
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>

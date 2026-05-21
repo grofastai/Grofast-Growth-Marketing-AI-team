@@ -98,15 +98,15 @@ export async function submitLeaveRequest(
   if (insertError) return { error: insertError.message }
 
   if (profile && inserted?.id) {
-    const { data: adminPhone } = await supabase
+    const { data: adminUsers } = await supabase
       .from('users')
-      .select('phone')
+      .select('id, phone')
       .eq('company_id', company_id)
       .eq('role', 'ADMIN')
-      .limit(1)
-      .single()
 
-    if (adminPhone?.phone) {
+    // SMS to first admin
+    const adminWithPhone = adminUsers?.find(a => a.phone)
+    if (adminWithPhone?.phone) {
       sendNotification({
         event:         'leave.submitted',
         leave_id:      inserted.id,
@@ -115,8 +115,25 @@ export async function submitLeaveRequest(
         from_date:     parsed.data.from_date,
         to_date:       parsed.data.to_date,
         reason:        parsed.data.reason,
-        admin_phone:   adminPhone.phone,
+        admin_phone:   adminWithPhone.phone,
       }).catch(console.error)
+    }
+
+    // Bell notification to all admins
+    if (adminUsers?.length) {
+      const leaveLabel = parsed.data.leave_type === 'full_day'
+        ? `${parsed.data.from_date} → ${parsed.data.to_date}`
+        : parsed.data.leave_type === 'half_day' ? `Half-day on ${parsed.data.from_date}` : `Permission on ${parsed.data.from_date}`
+      await Promise.all(adminUsers.map(a =>
+        insertNotification({
+          companyId: company_id,
+          userId: a.id,
+          type: 'leave_submitted',
+          title: `${profile.name} applied for leave`,
+          body: leaveLabel,
+          link: '/admin/leaves',
+        })
+      ))
     }
   }
 

@@ -42,6 +42,22 @@ export async function createTicket(input: {
   })
 
   if (error) return { success: false, error: error.message }
+
+  // Notify all admins about the new support ticket
+  const { data: admins } = await admin.from('users').select('id').eq('company_id', profile.company_id).eq('role', 'ADMIN')
+  if (admins?.length) {
+    await Promise.all(admins.map(a =>
+      insertNotification({
+        companyId: profile.company_id,
+        userId:    a.id,
+        type:      'support_ticket',
+        title:     `New support ticket from ${profile.name}`,
+        body:      input.title,
+        link:      '/admin/support',
+      })
+    ))
+  }
+
   revalidatePath('/member/support')
   revalidatePath('/admin/support')
   return { success: true }
@@ -76,16 +92,33 @@ export async function addResponse(input: {
     .update({ updated_at: new Date().toISOString() })
     .eq('id', input.ticket_id)
 
-  // Notify the member only when an admin (or someone other than the ticket owner) replies
-  if (ticket && ticket.user_id !== profile.id) {
-    await insertNotification({
-      companyId: ticket.company_id,
-      userId:    ticket.user_id,
-      type:      'support_reply',
-      title:     'New reply on your support ticket',
-      body:      ticket.title,
-      link:      '/member/support',
-    })
+  if (ticket) {
+    if (ticket.user_id !== profile.id) {
+      // Admin/other replied → notify the ticket owner (member)
+      await insertNotification({
+        companyId: ticket.company_id,
+        userId:    ticket.user_id,
+        type:      'support_reply',
+        title:     `${profile.name} replied on your support ticket`,
+        body:      ticket.title,
+        link:      '/member/support',
+      })
+    } else {
+      // Member replied to their own ticket → notify all admins
+      const { data: admins } = await admin.from('users').select('id').eq('company_id', ticket.company_id).eq('role', 'ADMIN')
+      if (admins?.length) {
+        await Promise.all(admins.map(a =>
+          insertNotification({
+            companyId: ticket.company_id,
+            userId:    a.id,
+            type:      'support_reply',
+            title:     `${profile.name} replied on their support ticket`,
+            body:      ticket.title,
+            link:      '/admin/support',
+          })
+        ))
+      }
+    }
   }
 
   revalidatePath('/member/support')

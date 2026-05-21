@@ -478,10 +478,12 @@ export default function MemberTasksClient({
 
   const today = new Date().toISOString().split("T")[0]
 
-  const total       = tasks.length
-  const doneTasks   = tasks.filter(t => t.status === "completed")
-  const wip         = tasks.filter(t => t.status === "in_progress")
-  const todos       = tasks.filter(t => t.status === "todo")
+  // Productivity stats count only tasks assigned TO me (not tasks I assigned to others)
+  const myTasks     = tasks.filter(t => t.assigned_to === currentUserId)
+  const total       = myTasks.length
+  const doneTasks   = myTasks.filter(t => t.status === "completed")
+  const wip         = myTasks.filter(t => t.status === "in_progress")
+  const todos       = myTasks.filter(t => t.status === "todo")
   const activeCount = wip.length + todos.length
   const productivity = total > 0 ? Math.round((doneTasks.length / total) * 100) : 0
 
@@ -489,8 +491,8 @@ export default function MemberTasksClient({
   const byOtherCount   = tasks.filter(t => t.assigned_to === currentUserId && t.created_by !== currentUserId).length
   const toOthersCount  = tasks.filter(t => t.created_by === currentUserId && t.assigned_to !== currentUserId).length
 
-  // Tasks due within 7 days (not completed)
-  const dueSoon = tasks
+  // Tasks due within 7 days (not completed) — only MY tasks
+  const dueSoon = myTasks
     .filter(t => t.status !== "completed" && t.due_date)
     .filter(t => {
       const diff = (new Date(t.due_date!).getTime() - Date.now()) / 86400000

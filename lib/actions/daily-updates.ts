@@ -174,6 +174,36 @@ export async function deleteDailyUpdate(id: string): Promise<{ success: boolean;
   return { success: true }
 }
 
+export async function updatePastDailyUpdate(
+  id: string,
+  entries: Record<string, unknown>[]
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const totalHours = entries.reduce((s, e) => s + ((e.duration_hours as number) ?? 0), 0)
+
+  const { error } = await admin
+    .from('daily_updates')
+    .update({
+      work_entries: entries,
+      working_hours: Math.round(totalHours * 10) / 10 || null,
+      shoot_count: entries.filter(e => e.task_type === 'shoot').length,
+      editing_count: entries.filter(e => e.task_type === 'edit').length,
+    })
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/member/update')
+  revalidatePath('/member/history')
+  revalidatePath('/admin/activities')
+  return { success: true }
+}
+
 export async function getTodayUpdate() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()

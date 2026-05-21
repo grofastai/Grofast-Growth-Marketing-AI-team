@@ -8,7 +8,7 @@ import {
   Loader2, SendHorizonal, Clock, BookOpen,
   ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal,
 } from "lucide-react"
-import { submitDailyUpdate, deleteDailyUpdate } from "@/lib/actions/daily-updates"
+import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
 
 interface Project { id: string; business_name: string }
 
@@ -273,6 +273,10 @@ export default function DailyUpdateForm({
   const [savedIds,      setSavedIds]      = useState<Set<string>>(new Set())
   const [expandedId,    setExpandedId]    = useState<string | null>(null)
   const [deletingId,    setDeletingId]    = useState<string | null>(null)
+  const [editingUpdateId, setEditingUpdateId] = useState<string | null>(null)
+  const [editEntries,   setEditEntries]   = useState<Record<string, unknown>[]>([])
+  const [savingEdit,    setSavingEdit]    = useState(false)
+  const [editError,     setEditError]     = useState<string | null>(null)
 
   // Autosave time blocks
   useEffect(() => {
@@ -1218,17 +1222,21 @@ export default function DailyUpdateForm({
               </div>
               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                 {pastUpdates.map(u => {
-                  const isExpanded = expandedId === u.id
-                  const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-                  const tab = u.active_tab ?? "working"
-                  const dateStr = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"short", day:"numeric", month:"short" })
-                  const hoursLabel = u.working_hours ? `${u.working_hours}h` : u.learning_hours ? `${u.learning_hours}h` : "—"
-                  const tabColor = tab === "media" ? "#EF4444" : tab === "learning" ? "#10B981" : "#6366F1"
-                  const tabLabel = tab === "media" ? "🎬 Media" : tab === "learning" ? "📚 Learning" : "⏰ Working"
+                  const isExpanded  = expandedId === u.id
+                  const isEditing   = editingUpdateId === u.id
+                  const rawEntries  = Array.isArray(u.work_entries) ? u.work_entries as Record<string,unknown>[] : []
+                  const tabKey      = u.active_tab ?? "working"
+                  const dateStr     = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"short", day:"numeric", month:"short" })
+                  const hoursLabel  = u.working_hours ? `${u.working_hours}h` : u.learning_hours ? `${u.learning_hours}h` : "—"
+                  const tabColor    = tabKey === "media" ? "#EF4444" : tabKey === "learning" ? "#10B981" : "#6366F1"
+                  const tabLabel    = tabKey === "media" ? "🎬 Media" : tabKey === "learning" ? "📚 Learning" : "⏰ Working"
+
                   return (
-                    <div key={u.id} style={{ borderRadius:12, border:"1px solid #EBEDF2", overflow:"hidden" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", cursor:"pointer", background: isExpanded ? "#F9FAFB" : "#FFFFFF" }}
-                        onClick={() => setExpandedId(isExpanded ? null : u.id)}>
+                    <div key={u.id} style={{ borderRadius:12, border: isEditing ? "1.5px solid #6366F1" : "1px solid #EBEDF2", overflow:"hidden" }}>
+
+                      {/* Row header */}
+                      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", cursor:"pointer", background: isExpanded || isEditing ? "#F9FAFB" : "#FFFFFF" }}
+                        onClick={() => { if (!isEditing) setExpandedId(isExpanded ? null : u.id) }}>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                             <span style={{ fontSize:12, fontWeight:800, color:"#111827" }}>{dateStr}</span>
@@ -1237,13 +1245,18 @@ export default function DailyUpdateForm({
                             {u.shoot_count ? <span style={{ fontSize:10, color:"#9CA3AF" }}>{u.shoot_count} shoot{u.shoot_count > 1?"s":""}</span> : null}
                           </div>
                         </div>
-                        <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
-                          <button onClick={e => { e.stopPropagation(); router.push("/member/history") }}
-                            style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:8, border:"1.5px solid #E5E7EB", background:"#F9FAFB", color:"#374151", cursor:"pointer" }}>
-                            Edit
-                          </button>
-                          <button disabled={deletingId === u.id} onClick={async e => {
-                            e.stopPropagation()
+                        <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }} onClick={e => e.stopPropagation()}>
+                          {!isEditing && (
+                            <button onClick={() => {
+                              setEditEntries(JSON.parse(JSON.stringify(rawEntries)))
+                              setEditingUpdateId(u.id)
+                              setExpandedId(null)
+                              setEditError(null)
+                            }} style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:8, border:"1.5px solid #6366F1", background:"rgba(99,102,241,0.07)", color:"#6366F1", cursor:"pointer" }}>
+                              Edit
+                            </button>
+                          )}
+                          <button disabled={deletingId === u.id} onClick={async () => {
                             if (!confirm("Delete this day's update? This cannot be undone.")) return
                             setDeletingId(u.id)
                             await deleteDailyUpdate(u.id)
@@ -1252,37 +1265,102 @@ export default function DailyUpdateForm({
                           }} style={{ display:"flex", alignItems:"center", justifyContent:"center", width:28, height:28, borderRadius:8, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", opacity: deletingId === u.id ? 0.5 : 1 }}>
                             {deletingId === u.id ? <Loader2 size={12} className="animate-spin" style={{ color:"#EF4444" }} /> : <Trash2 size={12} style={{ color:"#EF4444" }} />}
                           </button>
-                          <ChevronDown size={14} style={{ color:"#9CA3AF", transform: isExpanded ? "rotate(180deg)" : "none", transition:"transform 0.2s" }} />
+                          {!isEditing && <ChevronDown size={14} style={{ color:"#9CA3AF", transform: isExpanded ? "rotate(180deg)" : "none", transition:"transform 0.2s" }} />}
                         </div>
                       </div>
-                      {isExpanded && entries.length > 0 && (
+
+                      {/* VIEW mode */}
+                      {isExpanded && !isEditing && (
                         <div style={{ borderTop:"1px solid #F0F1F5", padding:"10px 12px", display:"flex", flexDirection:"column", gap:6, background:"#FAFBFC" }}>
-                          {entries.map((entry, idx) => {
-                            const e = entry as Record<string, unknown>
-                            const type = e.task_type as string
-                            const color = type === "shoot" ? "#EF4444" : type === "edit" ? "#6366F1" : "#F59E0B"
-                            const label = type === "shoot" ? "📷" : type === "edit" ? "🎞️" : "🕐"
-                            return (
-                              <div key={idx} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"6px 8px", borderRadius:8, background:"#FFFFFF", border:"1px solid #F0F1F5" }}>
-                                <span style={{ fontSize:13, flexShrink:0, marginTop:1 }}>{label}</span>
-                                <div style={{ flex:1, minWidth:0 }}>
-                                  <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                                    <span style={{ fontSize:12, fontWeight:700, color:"#111827", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:180 }}>{(e.title as string) || "—"}</span>
-                                    {e.client_name && <span style={{ fontSize:10, color:color, fontWeight:600 }}>{e.client_name as string}</span>}
-                                    {e.duration_hours && <span style={{ fontSize:10, color:"#9CA3AF" }}>{e.duration_hours as number}h</span>}
+                          {rawEntries.length === 0
+                            ? <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{u.learning_topic ? `📚 ${u.learning_topic}` : "No entries recorded."}</p>
+                            : rawEntries.map((e, idx) => {
+                                const type = e.task_type as string
+                                const color = type === "shoot" ? "#EF4444" : type === "edit" ? "#6366F1" : "#F59E0B"
+                                const icon  = type === "shoot" ? "📷" : type === "edit" ? "🎞️" : "🕐"
+                                return (
+                                  <div key={idx} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"7px 10px", borderRadius:8, background:"#FFFFFF", border:"1px solid #F0F1F5" }}>
+                                    <span style={{ fontSize:13, flexShrink:0 }}>{icon}</span>
+                                    <div style={{ flex:1, minWidth:0 }}>
+                                      <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
+                                        <span style={{ fontSize:12, fontWeight:700, color:"#111827" }}>{(e.title as string) || "—"}</span>
+                                        {e.client_name && <span style={{ fontSize:10, color, fontWeight:600 }}>{e.client_name as string}</span>}
+                                        {e.duration_hours && <span style={{ fontSize:10, color:"#9CA3AF" }}>{e.duration_hours as number}h</span>}
+                                      </div>
+                                      {e.notes && <p style={{ fontSize:10, color:"#6B7280", margin:"2px 0 0", lineHeight:1.4 }}>{e.notes as string}</p>}
+                                    </div>
                                   </div>
-                                  {e.notes && <p style={{ fontSize:10, color:"#6B7280", margin:"2px 0 0", lineHeight:1.4 }}>{e.notes as string}</p>}
-                                </div>
-                              </div>
-                            )
-                          })}
+                                )
+                              })
+                          }
                         </div>
                       )}
-                      {isExpanded && entries.length === 0 && (
-                        <div style={{ borderTop:"1px solid #F0F1F5", padding:"10px 12px", background:"#FAFBFC" }}>
-                          {u.learning_topic
-                            ? <p style={{ fontSize:12, color:"#374151", margin:0 }}>📚 {u.learning_topic}</p>
-                            : <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>No entries recorded.</p>}
+
+                      {/* EDIT mode */}
+                      {isEditing && (
+                        <div style={{ borderTop:"1.5px solid #6366F1", padding:"12px", background:"#FAFBFC" }}>
+                          {editError && <p style={{ fontSize:11, color:"#EF4444", fontWeight:600, margin:"0 0 8px" }}>{editError}</p>}
+                          <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:10 }}>
+                            {editEntries.map((e, idx) => {
+                              const type = e.task_type as string
+                              const icon = type === "shoot" ? "📷" : type === "edit" ? "🎞️" : "🕐"
+                              const patch = (field: string, val: unknown) => {
+                                setEditEntries(prev => prev.map((en, i) => i === idx ? { ...en, [field]: val } : en))
+                              }
+                              return (
+                                <div key={idx} style={{ background:"#FFFFFF", borderRadius:10, border:"1px solid #E5E7EB", padding:"10px 12px" }}>
+                                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                                    <span style={{ fontSize:11, fontWeight:700, color:"#6B7280" }}>{icon} Entry {idx + 1}</span>
+                                    <button onClick={() => setEditEntries(prev => prev.filter((_, i) => i !== idx))}
+                                      style={{ display:"flex", alignItems:"center", gap:4, fontSize:10, fontWeight:700, color:"#EF4444", background:"rgba(239,68,68,0.07)", border:"none", borderRadius:6, padding:"3px 8px", cursor:"pointer" }}>
+                                      <Trash2 size={10} /> Remove
+                                    </button>
+                                  </div>
+                                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:6 }}>
+                                    <div>
+                                      <label style={{ display:"block", fontSize:9, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:3 }}>Title</label>
+                                      <input value={(e.title as string) ?? ""} onChange={ev => patch("title", ev.target.value)}
+                                        style={{ width:"100%", fontSize:12, padding:"6px 8px", borderRadius:7, border:"1.5px solid #E5E7EB", outline:"none", background:"#F9FAFB", boxSizing:"border-box" }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display:"block", fontSize:9, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:3 }}>Client</label>
+                                      <input value={(e.client_name as string) ?? ""} onChange={ev => patch("client_name", ev.target.value)}
+                                        style={{ width:"100%", fontSize:12, padding:"6px 8px", borderRadius:7, border:"1.5px solid #E5E7EB", outline:"none", background:"#F9FAFB", boxSizing:"border-box" }} />
+                                    </div>
+                                  </div>
+                                  <div style={{ display:"grid", gridTemplateColumns:"80px 1fr", gap:8 }}>
+                                    <div>
+                                      <label style={{ display:"block", fontSize:9, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:3 }}>Hours</label>
+                                      <input type="number" min={0} max={24} step={0.5} value={(e.duration_hours as number) ?? 0}
+                                        onChange={ev => patch("duration_hours", parseFloat(ev.target.value) || 0)}
+                                        style={{ width:"100%", fontSize:12, padding:"6px 8px", borderRadius:7, border:"1.5px solid #E5E7EB", outline:"none", background:"#F9FAFB", boxSizing:"border-box" }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display:"block", fontSize:9, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:3 }}>Notes</label>
+                                      <input value={(e.notes as string) ?? ""} onChange={ev => patch("notes", ev.target.value)}
+                                        style={{ width:"100%", fontSize:12, padding:"6px 8px", borderRadius:7, border:"1.5px solid #E5E7EB", outline:"none", background:"#F9FAFB", boxSizing:"border-box" }} />
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          <div style={{ display:"flex", gap:8 }}>
+                            <button onClick={() => { setEditingUpdateId(null); setEditEntries([]) }}
+                              style={{ flex:1, padding:"8px 0", borderRadius:10, border:"1.5px solid #E5E7EB", background:"#F9FAFB", color:"#6B7280", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                              Cancel
+                            </button>
+                            <button disabled={savingEdit} onClick={async () => {
+                              setSavingEdit(true); setEditError(null)
+                              const res = await updatePastDailyUpdate(u.id, editEntries)
+                              setSavingEdit(false)
+                              if (res.success) { setEditingUpdateId(null); setEditEntries([]); router.refresh() }
+                              else setEditError(res.error ?? "Save failed.")
+                            }} style={{ flex:2, padding:"8px 0", borderRadius:10, border:"none", background:"#6366F1", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor: savingEdit ? "not-allowed" : "pointer", opacity: savingEdit ? 0.7 : 1, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}>
+                              {savingEdit ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
+                              {savingEdit ? "Saving…" : "Save Changes"}
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>

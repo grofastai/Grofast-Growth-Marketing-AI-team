@@ -1284,10 +1284,10 @@ export default function DailyUpdateForm({
                                     <div style={{ flex:1, minWidth:0 }}>
                                       <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
                                         <span style={{ fontSize:12, fontWeight:700, color:"#111827" }}>{(e.title as string) || "—"}</span>
-                                        {e.client_name && <span style={{ fontSize:10, color, fontWeight:600 }}>{e.client_name as string}</span>}
-                                        {e.duration_hours && <span style={{ fontSize:10, color:"#9CA3AF" }}>{e.duration_hours as number}h</span>}
+                                        {!!(e.client_name) && <span style={{ fontSize:10, color, fontWeight:600 }}>{e.client_name as string}</span>}
+                                        {!!(e.duration_hours) && <span style={{ fontSize:10, color:"#9CA3AF" }}>{e.duration_hours as number}h</span>}
                                       </div>
-                                      {e.notes && <p style={{ fontSize:10, color:"#6B7280", margin:"2px 0 0", lineHeight:1.4 }}>{e.notes as string}</p>}
+                                      {!!(e.notes) && <p style={{ fontSize:10, color:"#6B7280", margin:"2px 0 0", lineHeight:1.4 }}>{e.notes as string}</p>}
                                     </div>
                                   </div>
                                 )

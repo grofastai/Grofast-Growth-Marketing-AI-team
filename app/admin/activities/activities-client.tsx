@@ -118,13 +118,13 @@ function WorkEntriesDetail({ entries, activeTab, learningTopic, learningNotes, l
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-[12px] font-semibold truncate" style={{ color: "#111111" }}>{String(e.title || "—")}</span>
-                    {e.client && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>{String(e.client)}</span>}
-                    {(e.start_time || e.end_time) && (
+                    {!!(e.client) && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>{String(e.client)}</span>}
+                    {!!(e.start_time || e.end_time) && (
                       <span className="text-[11px]" style={{ color: "#9CA3AF" }}>{String(e.start_time ?? "")} – {String(e.end_time ?? "")}</span>
                     )}
                     <span className="text-[11px] font-bold ml-auto" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</span>
                   </div>
-                  {e.notes && <p className="text-[11px] mt-0.5 truncate" style={{ color: "#9CA3AF" }}>{String(e.notes)}</p>}
+                  {!!(e.notes) && <p className="text-[11px] mt-0.5 truncate" style={{ color: "#9CA3AF" }}>{String(e.notes)}</p>}
                 </div>
               </div>
             ))}
@@ -148,22 +148,22 @@ function WorkEntriesDetail({ entries, activeTab, learningTopic, learningNotes, l
                       <span className="text-[11px] font-bold ml-auto" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</span>
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-                      {e._location && (
+                      {!!(e._location) && (
                         <span className="flex items-center gap-1 text-[11px]" style={{ color: "#6B7280" }}>
                           <MapPin size={9} /> {String(e._location)}
                         </span>
                       )}
-                      {e.video_link && (
+                      {!!(e.video_link) && (
                         <a href={String(e.video_link)} target="_blank" rel="noreferrer"
                           className="flex items-center gap-1 text-[11px]" style={{ color: "#de1a1a" }}>
                           <Link2 size={9} /> Drive Link
                         </a>
                       )}
-                      {e._travel_hours && Number(e._travel_hours) > 0 && (
+                      {!!(e._travel_hours) && Number(e._travel_hours) > 0 && (
                         <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Travel: {fmtHours(e._travel_hours)}</span>
                       )}
                     </div>
-                    {e.notes && <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>{String(e.notes)}</p>}
+                    {!!(e.notes) && <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>{String(e.notes)}</p>}
                   </div>
                 </div>
               </div>
@@ -183,20 +183,20 @@ function WorkEntriesDetail({ entries, activeTab, learningTopic, learningNotes, l
                   <Edit2 size={11} style={{ color: "#6366F1", flexShrink: 0 }} />
                   <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>{String(e.title || "—")}</span>
                   <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.06)", color: "#6366F1" }}>{clientLabel(e)}</span>
-                  {e.video_type && <span className="text-[11px]" style={{ color: "#9CA3AF" }}>{String(e.video_type)}</span>}
+                  {!!(e.video_type) && <span className="text-[11px]" style={{ color: "#9CA3AF" }}>{String(e.video_type)}</span>}
                   <span className="text-[11px] font-bold ml-auto" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</span>
                 </div>
                 <div className="flex flex-wrap gap-x-3 mt-1">
-                  {e.video_duration && <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Duration: {String(e.video_duration)}</span>}
-                  {e.revisions && Number(e.revisions) > 0 && <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Revisions: {String(e.revisions)}</span>}
-                  {e.video_link && (
+                  {!!(e.video_duration) && <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Duration: {String(e.video_duration)}</span>}
+                  {!!(e.revisions) && Number(e.revisions) > 0 && <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Revisions: {String(e.revisions)}</span>}
+                  {!!(e.video_link) && (
                     <a href={String(e.video_link)} target="_blank" rel="noreferrer"
                       className="flex items-center gap-1 text-[11px]" style={{ color: "#6366F1" }}>
                       <Video size={9} /> Video Link
                     </a>
                   )}
                 </div>
-                {e.notes && <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>{String(e.notes)}</p>}
+                {!!(e.notes) && <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>{String(e.notes)}</p>}
               </div>
             ))}
           </div>

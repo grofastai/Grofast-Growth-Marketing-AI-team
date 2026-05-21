@@ -107,6 +107,12 @@ type SavedEntry = {
   client_name?: string; is_multi_client?: boolean; client_names?: string[]
   start_time?: string | null; end_time?: string | null
   duration_hours?: number; notes?: string | null
+  video_uploaded?: boolean | null; video_link?: string
+  video_type?: string; video_duration?: string
+  date_given?: string; date_finished?: string
+  drive_updated?: boolean; revisions?: number
+  _client_type?: string; _brand?: string; _shop_name?: string
+  _custom_client?: string; _location?: string; _travel_hours?: number
 }
 
 function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock[] {
@@ -128,6 +134,50 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
       })(),
       isMultiClient: e.is_multi_client ?? false,
       clientNames: e.client_names ?? [],
+    }))
+}
+
+function parseExistingShoots(existingUpdate: Record<string, unknown>): ShootEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'shoot')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      clientName: e._client_type ?? e.client_name ?? "",
+      customClient: e._custom_client ?? "",
+      title: e.title ?? "",
+      startTime: e.start_time ?? "09:00",
+      endTime: e.end_time ?? "17:00",
+      durationHours: e.duration_hours ?? 0,
+      travelHours: e._travel_hours ?? 0,
+      brand: e._brand ?? "",
+      shopName: e._shop_name ?? "",
+      location: e._location ?? "",
+      driveLink: e.video_link ?? "",
+      notes: "",
+      videoUploaded: e.video_uploaded ?? false,
+    }))
+}
+
+function parseExistingEdits(existingUpdate: Record<string, unknown>): EditEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'edit')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      clientName: e.client_name ?? "",
+      title: e.title ?? "",
+      videoType: e.video_type ?? "",
+      videoDuration: e.video_duration ?? "",
+      dateGiven: e.date_given ?? new Date().toISOString().split("T")[0],
+      dateFinished: e.date_finished ?? new Date().toISOString().split("T")[0],
+      timeTaken: e.duration_hours ?? 0,
+      driveUpdated: e.drive_updated ?? false,
+      revisions: e.revisions ?? 0,
+      videoLink: e.video_link ?? "",
+      notes: e.notes ?? "",
     }))
 }
 
@@ -159,7 +209,7 @@ export default function DailyUpdateForm({
   ].filter(Boolean)
 
   // ── Shoots (media) ───────────────────────────────────────────────────────
-  const [shoots, setShoots] = useState<ShootEntry[]>([])
+  const [shoots, setShoots] = useState<ShootEntry[]>(() => existingUpdate ? parseExistingShoots(existingUpdate) : [])
   const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, travelHours:0, brand:"", shopName:"", location:"", driveLink:"", notes:"", videoUploaded:false }])
   const patchShoot  = (id: string, patch: Partial<ShootEntry>) => setShoots(p => p.map(s => s.id === id ? { ...s, ...patch } : s))
   const removeShoot = (id: string) => setShoots(p => p.filter(s => s.id !== id))
@@ -167,7 +217,7 @@ export default function DailyUpdateForm({
   const todayStr = new Date().toISOString().split("T")[0]
 
   // ── Edits (media) ────────────────────────────────────────────────────────
-  const [edits, setEdits] = useState<EditEntry[]>([])
+  const [edits, setEdits] = useState<EditEntry[]>(() => existingUpdate ? parseExistingEdits(existingUpdate) : [])
   const addEdit    = () => setEdits(p => [...p, {
     id: crypto.randomUUID(), clientName: "", title: "", videoType: "", videoDuration: "",
     dateGiven: todayStr, dateFinished: todayStr, timeTaken: 2,
@@ -270,6 +320,7 @@ export default function DailyUpdateForm({
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
         duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
+        _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours,
       })),
       ...edits.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
@@ -309,6 +360,7 @@ export default function DailyUpdateForm({
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
         duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
+        _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours,
       })),
       ...edits.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
@@ -387,8 +439,12 @@ export default function DailyUpdateForm({
           <p style={{ fontSize:20, fontWeight:900, color:"#111111", margin:"0 0 8px", fontFamily:"var(--font-jakarta)" }}>Daily Update Submitted!</p>
           <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 20px" }}>Great work, {firstName}. See you tomorrow!</p>
           <button onClick={() => {
-            setTimeBlocks(parseExistingBlocks(existingUpdateRef.current ?? {}))
+            const cur = existingUpdateRef.current ?? {}
+            setTimeBlocks(parseExistingBlocks(cur))
+            setShoots(parseExistingShoots(cur))
+            setEdits(parseExistingEdits(cur))
             setEditMode(true)
+            setSubmitted(false)
             if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
           }}
             style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 24px", borderRadius:12, border:"1.5px solid #DE1A1A", background:"#FFFFFF", color:"#DE1A1A", fontSize:13, fontWeight:700, cursor:"pointer" }}>

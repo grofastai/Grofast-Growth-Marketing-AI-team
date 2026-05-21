@@ -39,7 +39,7 @@ export default async function UpdatePage() {
 
   const { data: existingUpdate } = await admin
     .from("daily_updates")
-    .select("id, date, working_hours, shoot_count, editing_count, learning_hours, active_tab")
+    .select("id, date, working_hours, shoot_count, editing_count, learning_hours, active_tab, work_entries, learning_topic, learning_notes")
     .eq("user_id", user.id)
     .eq("date", today)
     .maybeSingle()

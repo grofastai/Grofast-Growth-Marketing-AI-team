@@ -149,15 +149,25 @@ export async function clockOut(): Promise<{ success: boolean; error?: string }> 
   const today = new Date().toISOString().split('T')[0]
   const admin = adminSupabase()
 
-  const { error } = await admin
+  const { data: log } = await admin
     .from('attendance_logs')
-    .update({ clock_out: new Date().toISOString() })
+    .select('id')
     .eq('company_id', ctx.companyId)
     .eq('user_id', ctx.userId)
     .eq('date', today)
+    .eq('status', 'present')
     .is('clock_out', null)
+    .maybeSingle()
+
+  if (!log) return { success: false, error: 'No active attendance record found for today.' }
+
+  const { error } = await admin
+    .from('attendance_logs')
+    .update({ clock_out: new Date().toISOString() })
+    .eq('id', log.id)
 
   if (error) return { success: false, error: error.message }
+  revalidatePath('/member/attendance')
   revalidatePath('/member/dashboard')
   revalidatePath('/admin/attendance')
   return { success: true }

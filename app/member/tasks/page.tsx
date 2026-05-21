@@ -32,7 +32,7 @@ export default async function MemberTasksPage() {
     .single()
   const companyId = currentUserProfile?.company_id
 
-  const [tasksResult, clockResult, updateResult, teamMembersResult] = await Promise.all([
+  const [tasksResult, clockResult, updateResult, teamMembersResult, projectsResult] = await Promise.all([
     // Fetch tasks assigned to me OR created by me (for "To Others" tab)
     admin
       .from("tasks")
@@ -59,11 +59,20 @@ export default async function MemberTasksPage() {
           .eq("status", "active")
           .order("name")
       : Promise.resolve({ data: [] as { id: string; name: string; employee_id: string }[] }),
+    companyId
+      ? admin
+          .from("projects")
+          .select("id, business_name, client_name")
+          .eq("company_id", companyId)
+          .eq("status", "active")
+          .order("business_name")
+      : Promise.resolve({ data: [] as { id: string; business_name: string; client_name: string | null }[] }),
   ])
 
   const clockLog     = clockResult.data as unknown as AttLog | null
   const dayUpd       = updateResult.data as unknown as DayUpd | null
   const teamMembers  = (teamMembersResult.data ?? []) as { id: string; name: string; employee_id: string }[]
+  const projects     = (projectsResult.data ?? []) as { id: string; business_name: string; client_name: string | null }[]
 
   // Derive today's worked hours
   let todayHours = 0
@@ -78,6 +87,17 @@ export default async function MemberTasksPage() {
     console.error("[MemberTasksPage] tasks query failed:", tasksResult.error.message)
   }
 
+  // Auto-delete completed tasks older than 7 days for this company
+  if (companyId) {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    await admin
+      .from("tasks")
+      .delete()
+      .eq("company_id", companyId)
+      .eq("status", "completed")
+      .lt("completed_at", sevenDaysAgo)
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const tasks = (tasksResult.data ?? []) as any[]
 
@@ -87,6 +107,7 @@ export default async function MemberTasksPage() {
       todayHours={todayHours}
       teamMembers={teamMembers}
       currentUserId={user.id}
+      projects={projects}
     />
   )
 }

@@ -469,22 +469,27 @@ export default function DailyUpdateForm({
 
           {/* Two-step progress indicator (non-media team only) */}
           {!isMediaTeam && (
-            <div style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 14px", borderRadius:14, background:"#F8F9FC", border:"1px solid #EBEDF2" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <div style={{ width:16, height:16, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", background: workingDone ? "#22C55E" : "#E5E7EB" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:12, flex:1, justifyContent:"center",
+                background: workingDone ? "rgba(34,197,94,0.08)" : "#F8F9FC",
+                border: workingDone ? "1.5px solid rgba(34,197,94,0.3)" : "1.5px solid #EBEDF2" }}>
+                <div style={{ width:16, height:16, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+                  background: workingDone ? "#22C55E" : "#E5E7EB" }}>
                   {workingDone && <span style={{ fontSize:9, color:"#fff", fontWeight:900 }}>✓</span>}
                 </div>
-                <span style={{ fontSize:11, fontWeight:600, color: workingDone ? "#16A34A" : "#9CA3AF" }}>
-                  {workingDone ? "Work Log submitted" : "Work Log — submit below"}
+                <span style={{ fontSize:11, fontWeight:700, color: workingDone ? "#16A34A" : "#9CA3AF" }}>
+                  {workingDone ? "Work Log ✓" : "Work Log"}
                 </span>
               </div>
-              <span style={{ color:"#D1D5DB" }}>·</span>
-              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                <div style={{ width:16, height:16, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", background: learningDone ? "#22C55E" : "#E5E7EB" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:12, flex:1, justifyContent:"center",
+                background: learningDone ? "rgba(34,197,94,0.08)" : "#F8F9FC",
+                border: learningDone ? "1.5px solid rgba(34,197,94,0.3)" : "1.5px solid #EBEDF2" }}>
+                <div style={{ width:16, height:16, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
+                  background: learningDone ? "#22C55E" : "#E5E7EB" }}>
                   {learningDone && <span style={{ fontSize:9, color:"#fff", fontWeight:900 }}>✓</span>}
                 </div>
-                <span style={{ fontSize:11, fontWeight:600, color: learningDone ? "#16A34A" : "#9CA3AF" }}>
-                  {learningDone ? "Learning submitted" : "Learning — submit below"}
+                <span style={{ fontSize:11, fontWeight:700, color: learningDone ? "#16A34A" : "#9CA3AF" }}>
+                  {learningDone ? "Learning ✓" : "Learning"}
                 </span>
               </div>
             </div>

@@ -29,7 +29,7 @@ interface Props {
 }
 
 const SHIFT_HOURS = 9
-const WEEK_DAYS   = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+const WEEK_DAYS   = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 function fmtTime(iso: string | null) {
   if (!iso) return "--:--"
@@ -201,7 +201,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const statusLabel = isAbsent ? "Absent" : (isIn || isDone) ? "Present" : "Not Logged"
   const statusGreen = (isIn || isDone) && !isAbsent
 
-  const weekDates = Array.from({ length: 6 }, (_, i) => addDays(weekStart, i))
+  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
   const logByDate = Object.fromEntries(weekLogs.map(l => [l.date, l]))
 
   const isBelowExpected  = isIn && hoursWorked > 0 && hoursWorked < SHIFT_HOURS
@@ -524,7 +524,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 <div key={stat.label} className="rounded-2xl p-3 text-center" style={{ background: stat.bg }}>
                   <p className="text-[24px] font-black leading-none mb-1" style={{ color: stat.color, fontFamily: "var(--font-jakarta)" }}>
                     {stat.value}
-                    <span className="text-[11px] font-semibold opacity-60">/6</span>
+                    <span className="text-[11px] font-semibold opacity-60">/7</span>
                   </p>
                   <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: stat.color }}>{stat.label}</p>
                 </div>

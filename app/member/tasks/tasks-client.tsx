@@ -399,11 +399,13 @@ export default function MemberTasksClient({
   todayHours,
   teamMembers = [],
   currentUserId = "",
+  projects = [],
 }: {
   tasks: Task[]
   todayHours: number
   teamMembers?: { id: string; name: string; employee_id: string }[]
   currentUserId?: string
+  projects?: { id: string; business_name: string; client_name: string | null }[]
 }) {
   const router = useRouter()
 
@@ -593,7 +595,7 @@ export default function MemberTasksClient({
                 </span>
               </h1>
               <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>
-                {activeCount > 0 ? `${activeCount} active · drag cards to move between columns` : "You're all caught up 🎉"}
+                {activeCount > 0 ? `${activeCount} active · grab the ⠿ handle on a card and drop it into another column to change its status` : "You're all caught up 🎉"}
               </p>
             </div>
 
@@ -774,7 +776,7 @@ export default function MemberTasksClient({
                       </div>
                       <span className="text-[9px] font-medium px-2 py-0.5 rounded-full"
                         style={{ background: `${col.accent}10`, color: col.accent }}>
-                        drag here
+                        drop cards here
                       </span>
                     </div>
                     {/* Task list */}
@@ -1108,6 +1110,18 @@ export default function MemberTasksClient({
                   <option value={currentUserId}>Myself</option>
                   {teamMembers.filter(m => m.id !== currentUserId).map(m => (
                     <option key={m.id} value={m.id}>{m.name} ({m.employee_id})</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Client / Project</label>
+                <select name="project_id" className="w-full px-3 py-2 rounded-xl text-[13px]"
+                  style={{ border: "1.5px solid #EBEDF2", outline: "none" }}>
+                  <option value="">— No project —</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.business_name}{p.client_name ? ` · ${p.client_name}` : ""}
+                    </option>
                   ))}
                 </select>
               </div>

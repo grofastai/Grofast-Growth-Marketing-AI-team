@@ -82,6 +82,7 @@ export async function createMemberTask(
     priority:    (formData.get('priority') as string) || 'medium',
     due_date:    (formData.get('due_date') as string) || null,
     assigned_to: (formData.get('assigned_to') as string) || null,
+    project_id:  (formData.get('project_id') as string) || null,
   }
 
   const parsed = z.object({
@@ -90,6 +91,7 @@ export async function createMemberTask(
     priority:    z.enum(['low','medium','high']).default('medium'),
     due_date:    z.string().optional().nullable(),
     assigned_to: z.string().uuid().optional().nullable(),
+    project_id:  z.string().uuid().optional().nullable(),
   }).safeParse(raw)
 
   if (!parsed.success) return { error: parsed.error.issues[0].message }
@@ -111,6 +113,7 @@ export async function createMemberTask(
     status:      'todo',
     created_by:  user.id,
     assigned_to: parsed.data.assigned_to || user.id,
+    project_id:  parsed.data.project_id || null,
   })
 
   if (error) return { error: error.message }

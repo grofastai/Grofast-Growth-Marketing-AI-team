@@ -9,15 +9,15 @@ export default async function AttendancePage() {
 
   const today = new Date().toISOString().split("T")[0]
 
-  // Week range: Monday → Saturday of current week
+  // Week range: Monday → Sunday of current week
   const nowDate  = new Date()
   const dow      = nowDate.getDay() // 0=Sun
   const monday   = new Date(nowDate)
   monday.setDate(nowDate.getDate() - (dow === 0 ? 6 : dow - 1))
-  const saturday = new Date(monday)
-  saturday.setDate(monday.getDate() + 5)
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + 6)
   const weekStart = monday.toISOString().split("T")[0]
-  const weekEnd   = saturday.toISOString().split("T")[0]
+  const weekEnd   = sunday.toISOString().split("T")[0]
 
   type BreakSession = { in: string; out: string | null; mins: number | null }
   type AttLog = {

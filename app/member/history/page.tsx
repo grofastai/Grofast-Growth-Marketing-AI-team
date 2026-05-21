@@ -47,7 +47,7 @@ export default async function HistoryPage() {
   const [updatesResult, profileResult] = await Promise.all([
     supabase
       .from("daily_updates")
-      .select("id, date, attendance_status, work_type, working_hours, learning_hours, shoot_count, work_entries, created_at")
+      .select("id, date, attendance_status, work_type, working_hours, learning_hours, shoot_count, editing_count, work_entries, created_at")
       .eq("user_id", user.id)
       .order("date", { ascending: false })
       .limit(90),

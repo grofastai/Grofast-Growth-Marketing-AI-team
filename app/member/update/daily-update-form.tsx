@@ -12,10 +12,10 @@ import { submitDailyUpdate } from "@/lib/actions/daily-updates"
 
 interface Project { id: string; business_name: string }
 
-const OWN_BRANDS = ["Masala Unlimit", "Kutty Karthi Vlog"]
+const OWN_BRANDS = ["Masala Unlimit", "Kutty Karthi Vlog", "GroFast Digital", "A2Z Automobile", "Kaka Mutta"]
 
 interface ShootEntry {
-  id: string; clientName: string; title: string
+  id: string; clientName: string; customClient: string; title: string
   startTime: string; endTime: string; durationHours: number
   travelHours: number
   brand: string; shopName: string
@@ -159,7 +159,7 @@ export default function DailyUpdateForm({
 
   // ── Shoots (media) ───────────────────────────────────────────────────────
   const [shoots, setShoots] = useState<ShootEntry[]>([])
-  const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, travelHours:0, brand:"", shopName:"", notes:"", videoUploaded:false }])
+  const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, travelHours:0, brand:"", shopName:"", notes:"", videoUploaded:false }])
   const patchShoot  = (id: string, patch: Partial<ShootEntry>) => setShoots(p => p.map(s => s.id === id ? { ...s, ...patch } : s))
   const removeShoot = (id: string) => setShoots(p => p.filter(s => s.id !== id))
 
@@ -262,9 +262,10 @@ export default function DailyUpdateForm({
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
-        client_name: s.clientName || "Internal", task_type: "shoot" as const,
+        client_name: s.clientName === "__custom__" ? (s.customClient || "Custom") : s.clientName === "Promotion" ? (s.brand || "Promotion") : s.clientName || "Internal",
+        task_type: "shoot" as const,
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
-        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", s.clientName === "Promotion" && s.shopName ? `Shop: ${s.shopName}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
+        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: "", editing_videos: [],
       })),
       ...edits.map(e => ({
@@ -298,9 +299,10 @@ export default function DailyUpdateForm({
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
-        client_name: s.clientName || "Internal", task_type: "shoot" as const,
+        client_name: s.clientName === "__custom__" ? (s.customClient || "Custom") : s.clientName === "Promotion" ? (s.brand || "Promotion") : s.clientName || "Internal",
+        task_type: "shoot" as const,
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
-        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", s.clientName === "Promotion" && s.shopName ? `Shop: ${s.shopName}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
+        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: "", editing_videos: [],
       })),
       ...edits.map(e => ({
@@ -700,9 +702,10 @@ export default function DailyUpdateForm({
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project *</label>
                           <div style={{ position:"relative" }}>
-                            <select value={s.clientName} onChange={e => patchShoot(s.id, { clientName: e.target.value, brand:"", shopName:"" })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                            <select value={s.clientName} onChange={e => patchShoot(s.id, { clientName: e.target.value, brand:"", shopName:"", customClient:"" })} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select client…</option>
-                              <option value="Promotion">📣 Promotion (Our Brand)</option>
+                              <option value="Promotion">📣 Our Brand (Promotion)</option>
+                              <option value="__custom__">✏️ Other (type manually)</option>
                               {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
                             </select>
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
@@ -714,7 +717,7 @@ export default function DailyUpdateForm({
                         </div>
                       </div>
 
-                      {/* Promotion sub-fields */}
+                      {/* Our Brand (Promotion) sub-fields */}
                       {s.clientName === "Promotion" && (
                         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10, padding:"12px 14px", borderRadius:12, background:"rgba(245,158,11,0.06)", border:"1.5px solid rgba(245,158,11,0.25)" }}>
                           <div>
@@ -729,6 +732,20 @@ export default function DailyUpdateForm({
                           </div>
                           <div>
                             <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#D97706", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🏪 Shop Name *</label>
+                            <input value={s.shopName} onChange={e => patchShoot(s.id, { shopName: e.target.value })} placeholder="e.g. Sri Murugan Mess" style={F} />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Custom client sub-fields */}
+                      {s.clientName === "__custom__" && (
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10, padding:"12px 14px", borderRadius:12, background:"rgba(99,102,241,0.05)", border:"1.5px solid rgba(99,102,241,0.2)" }}>
+                          <div>
+                            <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6366F1", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>✏️ Client Name *</label>
+                            <input value={s.customClient} onChange={e => patchShoot(s.id, { customClient: e.target.value })} placeholder="Type client name…" style={F} />
+                          </div>
+                          <div>
+                            <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6366F1", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🏪 Shop Name</label>
                             <input value={s.shopName} onChange={e => patchShoot(s.id, { shopName: e.target.value })} placeholder="e.g. Sri Murugan Mess" style={F} />
                           </div>
                         </div>

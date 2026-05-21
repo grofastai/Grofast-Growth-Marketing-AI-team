@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
 
   const [{ data: memberRaw }, { data: updatesRaw }, { data: logsRaw }, { data: companyRaw }, { data: runRaw }] = await Promise.all([
     admin.from('users')
-      .select('id, name, employee_id, team, position, employment_type, monthly_salary, hourly_rate, joined_at, bank_account, phone, passport_photo_url')
+      .select('id, name, employee_id, team, position, employment_type, monthly_salary, hourly_rate, created_at, bank_account, phone, passport_photo_url')
       .eq('id', userId).eq('company_id', requester.company_id).single(),
     admin.from('daily_updates').select('working_hours')
       .eq('user_id', userId).gte('date', monthStart).lte('date', monthEnd),
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
   type MemberRow = {
     id: string; name: string; employee_id: string; team: string | null
     position: string | null; employment_type: string | null; monthly_salary: number | null; hourly_rate: number | null
-    joined_at: string | null; bank_account: string | null; phone: string | null
+    created_at: string | null; bank_account: string | null; phone: string | null
     passport_photo_url: string | null
   }
   const member  = memberRaw as MemberRow
@@ -163,8 +163,8 @@ export async function GET(request: NextRequest) {
 
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(payslipId)}&bgcolor=FFFFFF&color=111827`
 
-  const joiningDateFmt = member.joined_at
-    ? new Date(member.joined_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+  const joiningDateFmt = member.created_at
+    ? new Date(member.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
     : '—'
 
   const html = `<!DOCTYPE html>

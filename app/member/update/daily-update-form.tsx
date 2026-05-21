@@ -8,7 +8,7 @@ import {
   Loader2, SendHorizonal, Clock, BookOpen,
   ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal,
 } from "lucide-react"
-import { submitDailyUpdate } from "@/lib/actions/daily-updates"
+import { submitDailyUpdate, deleteDailyUpdate } from "@/lib/actions/daily-updates"
 
 interface Project { id: string; business_name: string }
 
@@ -184,10 +184,17 @@ function parseExistingEdits(existingUpdate: Record<string, unknown>): EditEntry[
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+type PastUpdate = {
+  id: string; date: string; working_hours: number | null; learning_hours: number | null
+  shoot_count: number | null; editing_count: number | null
+  work_entries: Record<string, unknown>[] | null; active_tab: string | null; learning_topic: string | null
+}
+
 export default function DailyUpdateForm({
-  projects, sheetClientNames = [], userName, team, existingUpdate,
+  projects, sheetClientNames = [], userName, team, existingUpdate, pastUpdates = [],
 }: {
-  projects: Project[]; sheetClientNames?: string[]; userName: string; team?: string | null; existingUpdate?: Record<string, unknown> | null
+  projects: Project[]; sheetClientNames?: string[]; userName: string; team?: string | null
+  existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
 }) {
   const router = useRouter()
   const existingUpdateRef = useRef(existingUpdate)
@@ -264,6 +271,8 @@ export default function DailyUpdateForm({
   const [learningDone,  setLearningDone]  = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).learning_hours))
   const [editMode,      setEditMode]      = useState(false)
   const [savedIds,      setSavedIds]      = useState<Set<string>>(new Set())
+  const [expandedId,    setExpandedId]    = useState<string | null>(null)
+  const [deletingId,    setDeletingId]    = useState<string | null>(null)
 
   // Autosave time blocks
   useEffect(() => {
@@ -532,12 +541,6 @@ export default function DailyUpdateForm({
         </div>
       </div>
 
-      {/* ── PAST UPDATES LINK ────────────────────────────────────────────── */}
-      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:12, position:"relative", zIndex:10 }}>
-        <button onClick={() => router.push("/member/history")} style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12, fontWeight:700, color:"#DE1A1A", background:"rgba(222,26,26,0.06)", border:"1.5px solid rgba(222,26,26,0.15)", padding:"7px 16px", borderRadius:10, cursor:"pointer" }}>
-          <Clock size={13} /> View Past Updates
-        </button>
-      </div>
 
       {/* ── TABS (media team only) ────────────────────────────────────────── */}
       {isMediaTeam && (
@@ -1204,6 +1207,90 @@ export default function DailyUpdateForm({
               )}
             </div>
           </div>
+
+          {/* Past Updates */}
+          {pastUpdates.length > 0 && (
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:14 }}>
+                <Clock size={14} style={{ color:"#6366F1" }} />
+                <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>Past Updates</p>
+                <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>{pastUpdates.length}</span>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {pastUpdates.map(u => {
+                  const isExpanded = expandedId === u.id
+                  const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+                  const tab = u.active_tab ?? "working"
+                  const dateStr = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"short", day:"numeric", month:"short" })
+                  const hoursLabel = u.working_hours ? `${u.working_hours}h` : u.learning_hours ? `${u.learning_hours}h` : "—"
+                  const tabColor = tab === "media" ? "#EF4444" : tab === "learning" ? "#10B981" : "#6366F1"
+                  const tabLabel = tab === "media" ? "🎬 Media" : tab === "learning" ? "📚 Learning" : "⏰ Working"
+                  return (
+                    <div key={u.id} style={{ borderRadius:12, border:"1px solid #EBEDF2", overflow:"hidden" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", cursor:"pointer", background: isExpanded ? "#F9FAFB" : "#FFFFFF" }}
+                        onClick={() => setExpandedId(isExpanded ? null : u.id)}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                            <span style={{ fontSize:12, fontWeight:800, color:"#111827" }}>{dateStr}</span>
+                            <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:`${tabColor}18`, color:tabColor }}>{tabLabel}</span>
+                            <span style={{ fontSize:11, fontWeight:700, color:"#374151" }}>{hoursLabel}</span>
+                            {u.shoot_count ? <span style={{ fontSize:10, color:"#9CA3AF" }}>{u.shoot_count} shoot{u.shoot_count > 1?"s":""}</span> : null}
+                          </div>
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:6, flexShrink:0 }}>
+                          <button onClick={e => { e.stopPropagation(); router.push("/member/history") }}
+                            style={{ fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:8, border:"1.5px solid #E5E7EB", background:"#F9FAFB", color:"#374151", cursor:"pointer" }}>
+                            Edit
+                          </button>
+                          <button disabled={deletingId === u.id} onClick={async e => {
+                            e.stopPropagation()
+                            if (!confirm("Delete this day's update? This cannot be undone.")) return
+                            setDeletingId(u.id)
+                            await deleteDailyUpdate(u.id)
+                            setDeletingId(null)
+                            router.refresh()
+                          }} style={{ display:"flex", alignItems:"center", justifyContent:"center", width:28, height:28, borderRadius:8, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", opacity: deletingId === u.id ? 0.5 : 1 }}>
+                            {deletingId === u.id ? <Loader2 size={12} className="animate-spin" style={{ color:"#EF4444" }} /> : <Trash2 size={12} style={{ color:"#EF4444" }} />}
+                          </button>
+                          <ChevronDown size={14} style={{ color:"#9CA3AF", transform: isExpanded ? "rotate(180deg)" : "none", transition:"transform 0.2s" }} />
+                        </div>
+                      </div>
+                      {isExpanded && entries.length > 0 && (
+                        <div style={{ borderTop:"1px solid #F0F1F5", padding:"10px 12px", display:"flex", flexDirection:"column", gap:6, background:"#FAFBFC" }}>
+                          {entries.map((entry, idx) => {
+                            const e = entry as Record<string, unknown>
+                            const type = e.task_type as string
+                            const color = type === "shoot" ? "#EF4444" : type === "edit" ? "#6366F1" : "#F59E0B"
+                            const label = type === "shoot" ? "📷" : type === "edit" ? "🎞️" : "🕐"
+                            return (
+                              <div key={idx} style={{ display:"flex", alignItems:"flex-start", gap:8, padding:"6px 8px", borderRadius:8, background:"#FFFFFF", border:"1px solid #F0F1F5" }}>
+                                <span style={{ fontSize:13, flexShrink:0, marginTop:1 }}>{label}</span>
+                                <div style={{ flex:1, minWidth:0 }}>
+                                  <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                                    <span style={{ fontSize:12, fontWeight:700, color:"#111827", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:180 }}>{(e.title as string) || "—"}</span>
+                                    {e.client_name && <span style={{ fontSize:10, color:color, fontWeight:600 }}>{e.client_name as string}</span>}
+                                    {e.duration_hours && <span style={{ fontSize:10, color:"#9CA3AF" }}>{e.duration_hours as number}h</span>}
+                                  </div>
+                                  {e.notes && <p style={{ fontSize:10, color:"#6B7280", margin:"2px 0 0", lineHeight:1.4 }}>{e.notes as string}</p>}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                      {isExpanded && entries.length === 0 && (
+                        <div style={{ borderTop:"1px solid #F0F1F5", padding:"10px 12px", background:"#FAFBFC" }}>
+                          {u.learning_topic
+                            ? <p style={{ fontSize:12, color:"#374151", margin:0 }}>📚 {u.learning_topic}</p>
+                            : <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>No entries recorded.</p>}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Hours breakdown for media */}
           {tab === "media" && (totalShootHours > 0 || totalEditHours > 0) && (

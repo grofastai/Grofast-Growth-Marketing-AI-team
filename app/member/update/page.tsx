@@ -44,6 +44,14 @@ export default async function UpdatePage() {
     .eq("date", today)
     .maybeSingle()
 
+  const { data: pastUpdates } = await admin
+    .from("daily_updates")
+    .select("id, date, working_hours, learning_hours, shoot_count, editing_count, work_entries, active_tab, learning_topic")
+    .eq("user_id", user.id)
+    .neq("date", today)
+    .order("date", { ascending: false })
+    .limit(30)
+
   const projects = (projectsRaw ?? []) as unknown as Project[]
 
   const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
@@ -67,6 +75,7 @@ export default async function UpdatePage() {
         team={profile?.team ?? null}
         userName={(profile as { name?: string } | null)?.name ?? ""}
         existingUpdate={existingUpdate ?? null}
+        pastUpdates={pastUpdates ?? []}
       />
     </Suspense>
   )

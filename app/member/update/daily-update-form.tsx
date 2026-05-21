@@ -635,6 +635,22 @@ export default function DailyUpdateForm({
           {/* ══ MEDIA TAB: Shoots + Edits ═════════════════════════════════════ */}
           {tab === "media" && (<>
 
+            {/* ── Media Stats Row ─────────────────────────────────────────── */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:10 }}>
+              {[
+                { label:"HRS WORKED",   value:`${totalMediaHours}h`,    color:"#DE1A1A", bg:"rgba(222,26,26,0.07)",   icon:"⏱️" },
+                { label:"HRS LEARN",    value:`${learningHours}h`,      color:"#10B981", bg:"rgba(16,185,129,0.07)",  icon:"📚" },
+                { label:"HRS SHOOTING", value:`${totalShootHours}h`,    color:"#EF4444", bg:"rgba(239,68,68,0.07)",   icon:"🎥" },
+                { label:"EDITED COUNT", value:`${edits.length}`,        color:"#6366F1", bg:"rgba(99,102,241,0.07)",  icon:"🎬" },
+              ].map(s => (
+                <div key={s.label} style={{ background:"#FFFFFF", borderRadius:16, border:`1.5px solid ${s.color}22`, padding:"14px 12px", textAlign:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
+                  <div style={{ fontSize:20, marginBottom:4 }}>{s.icon}</div>
+                  <p style={{ fontSize:20, fontWeight:900, color:s.color, margin:"0 0 3px", fontFamily:"var(--font-jakarta)", lineHeight:1 }}>{s.value}</p>
+                  <p style={{ fontSize:9, fontWeight:800, color:"#9CA3AF", margin:0, textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+
             {/* Shoots */}
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
               <SectionHead icon={<Camera size={16} style={{ color:"#EF4444" }} />} label="Shoots Today" count={shoots.length} color="#EF4444" />

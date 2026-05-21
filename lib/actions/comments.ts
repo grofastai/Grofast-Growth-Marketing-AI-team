@@ -3,6 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { insertNotification } from '@/lib/actions/notifications'
 
 function adminSupabase() {
   return createClient(
@@ -78,6 +79,30 @@ export async function addTaskComment(
   })
 
   if (error) return { success: false, error: error.message }
+
+  // Notify the task assignee if someone else commented
+  const { data: task } = await admin
+    .from('tasks')
+    .select('assigned_to, title, company_id')
+    .eq('id', taskId)
+    .single()
+
+  if (task?.assigned_to && task.assigned_to !== user.id) {
+    const { data: commenter } = await admin
+      .from('users')
+      .select('name')
+      .eq('id', user.id)
+      .single()
+
+    await insertNotification({
+      companyId: task.company_id,
+      userId:    task.assigned_to,
+      type:      'task_comment',
+      title:     `${commenter?.name ?? 'Someone'} commented on your task`,
+      body:      task.title,
+      link:      '/member/tasks',
+    })
+  }
 
   revalidatePath('/member/tasks')
   revalidatePath('/admin/goals')

@@ -3,6 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { insertNotification } from '@/lib/actions/notifications'
 
 function adminSupabase() {
   return createClient(
@@ -63,10 +64,29 @@ export async function addResponse(input: {
 
   if (error) return { success: false, error: error.message }
 
+  // Fetch ticket owner + company to send notification
+  const { data: ticket } = await admin
+    .from('support_tickets')
+    .select('user_id, company_id, title')
+    .eq('id', input.ticket_id)
+    .single()
+
   await admin
     .from('support_tickets')
     .update({ updated_at: new Date().toISOString() })
     .eq('id', input.ticket_id)
+
+  // Notify the member only when an admin (or someone other than the ticket owner) replies
+  if (ticket && ticket.user_id !== profile.id) {
+    await insertNotification({
+      companyId: ticket.company_id,
+      userId:    ticket.user_id,
+      type:      'support_reply',
+      title:     'New reply on your support ticket',
+      body:      ticket.title,
+      link:      '/member/support',
+    })
+  }
 
   revalidatePath('/member/support')
   revalidatePath('/admin/support')

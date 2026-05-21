@@ -309,8 +309,8 @@ export default function Sidebar({ pendingLeaves = 0, adminName = "Admin", photoU
               onClick={() => setBellOpen(v => !v)}
               onBlur={() => setTimeout(() => setBellOpen(false), 150)}
               className="relative w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.2)" }}>
-              <Bell size={13} style={{ color: "#FFFFFF" }} />
+              style={{ background: "none", border: "none", color: "rgba(255,255,255,0.85)", cursor: "pointer" }}>
+              <Bell size={18} />
               {notifCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
                   style={{ background: "#ff3b3b", color: "#FFFFFF", border: "1.5px solid #0a100d" }}>

@@ -533,10 +533,10 @@ export default function DailyUpdateForm({
       </div>
 
       {/* ── PAST UPDATES LINK ────────────────────────────────────────────── */}
-      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:12 }}>
-        <a href="/member/history" style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12, fontWeight:700, color:"#DE1A1A", textDecoration:"none", padding:"7px 16px", borderRadius:10, background:"rgba(222,26,26,0.06)", border:"1.5px solid rgba(222,26,26,0.15)" }}>
+      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:12, position:"relative", zIndex:10 }}>
+        <button onClick={() => router.push("/member/history")} style={{ display:"inline-flex", alignItems:"center", gap:6, fontSize:12, fontWeight:700, color:"#DE1A1A", background:"rgba(222,26,26,0.06)", border:"1.5px solid rgba(222,26,26,0.15)", padding:"7px 16px", borderRadius:10, cursor:"pointer" }}>
           <Clock size={13} /> View Past Updates
-        </a>
+        </button>
       </div>
 
       {/* ── TABS (media team only) ────────────────────────────────────────── */}

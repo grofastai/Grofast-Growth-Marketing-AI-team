@@ -15,6 +15,7 @@ interface Project { id: string; business_name: string }
 interface ShootEntry {
   id: string; clientName: string; title: string
   startTime: string; endTime: string; durationHours: number
+  travelHours: number
   notes: string; videoUploaded: boolean
 }
 interface EditEntry {
@@ -140,7 +141,7 @@ export default function DailyUpdateForm({
 
   // ── Shoots (media) ───────────────────────────────────────────────────────
   const [shoots, setShoots] = useState<ShootEntry[]>([])
-  const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, notes:"", videoUploaded:false }])
+  const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, travelHours:0, notes:"", videoUploaded:false }])
   const patchShoot  = (id: string, patch: Partial<ShootEntry>) => setShoots(p => p.map(s => s.id === id ? { ...s, ...patch } : s))
   const removeShoot = (id: string) => setShoots(p => p.filter(s => s.id !== id))
 
@@ -199,7 +200,8 @@ export default function DailyUpdateForm({
     try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ date: getTodayStr(), blocks: timeBlocks })) } catch { /* ignore */ }
   }, [timeBlocks, workingDone, existingUpdate]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const totalShootHours = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
+  const totalShootHours  = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
+  const totalTravelHours = useMemo(() => shoots.reduce((s, e) => s + e.travelHours, 0), [shoots])
   const totalEditHours  = useMemo(() => edits.reduce((s, e) => s + e.timeTaken, 0), [edits])
   const totalMediaHours = totalShootHours + totalEditHours
   const totalLoggedHours = useMemo(() => timeBlocks.reduce((s, b) => s + b.durationHours, 0), [timeBlocks])
@@ -244,7 +246,7 @@ export default function DailyUpdateForm({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
         client_name: s.clientName || "Internal", task_type: "shoot" as const,
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
-        duration_hours: s.durationHours, notes: s.notes, video_uploaded: s.videoUploaded,
+        duration_hours: s.durationHours, notes: [s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: "", editing_videos: [],
       })),
       ...edits.map(e => ({
@@ -280,7 +282,7 @@ export default function DailyUpdateForm({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
         client_name: s.clientName || "Internal", task_type: "shoot" as const,
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
-        duration_hours: s.durationHours, notes: s.notes, video_uploaded: s.videoUploaded,
+        duration_hours: s.durationHours, notes: [s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: "", editing_videos: [],
       })),
       ...edits.map(e => ({
@@ -638,9 +640,9 @@ export default function DailyUpdateForm({
             {/* ── Media Stats Row ─────────────────────────────────────────── */}
             <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:10 }}>
               {[
-                { label:"HRS WORKED",   value:`${totalMediaHours}h`,    color:"#DE1A1A", bg:"rgba(222,26,26,0.07)",   icon:"⏱️" },
-                { label:"HRS LEARN",    value:`${learningHours}h`,      color:"#10B981", bg:"rgba(16,185,129,0.07)",  icon:"📚" },
+                { label:"SHOOTS",       value:`${shoots.length}`,        color:"#DE1A1A", bg:"rgba(222,26,26,0.07)",   icon:"📸" },
                 { label:"HRS SHOOTING", value:`${totalShootHours}h`,    color:"#EF4444", bg:"rgba(239,68,68,0.07)",   icon:"🎥" },
+                { label:"TRAVEL HRS",   value:`${totalTravelHours}h`,   color:"#F59E0B", bg:"rgba(245,158,11,0.07)",  icon:"🚗" },
                 { label:"EDITED COUNT", value:`${edits.length}`,        color:"#6366F1", bg:"rgba(99,102,241,0.07)",  icon:"🎬" },
               ].map(s => (
                 <div key={s.label} style={{ background:"#FFFFFF", borderRadius:16, border:`1.5px solid ${s.color}22`, padding:"14px 12px", textAlign:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
@@ -714,6 +716,17 @@ export default function DailyUpdateForm({
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration</label>
                           <DurationPicker value={s.durationHours} onChange={v => patchShoot(s.id, { durationHours: v })} />
+                        </div>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:10, marginBottom:10, alignItems:"end" }}>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🚗 Travel Time</label>
+                          <select value={s.travelHours} onChange={e => patchShoot(s.id, { travelHours: Number(e.target.value) })} style={{ ...F, width:"auto", minWidth:90 }}>
+                            {[0,0.5,1,1.5,2,2.5,3,4,5].map(v => <option key={v} value={v}>{v === 0 ? "None" : `${v}h`}</option>)}
+                          </select>
+                        </div>
+                        <div style={{ fontSize:10, color:"#9CA3AF", paddingBottom:10 }}>
+                          {s.travelHours > 0 && <span style={{ fontWeight:700, color:"#F59E0B" }}>+{s.travelHours}h travel included</span>}
                         </div>
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"start" }}>

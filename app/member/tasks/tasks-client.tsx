@@ -548,7 +548,7 @@ export default function MemberTasksClient({
     const fd = new FormData(e.currentTarget)
     const updates = {
       title:       (fd.get("title") as string).trim(),
-      description: (fd.get("description") as string)?.trim() || null,
+      description: (fd.get("description") as string)?.trim() || undefined,
       priority:    fd.get("priority") as "low" | "medium" | "high",
       due_date:    (fd.get("due_date") as string) || null,
       assigned_to: (fd.get("assigned_to") as string) || null,
@@ -558,7 +558,7 @@ export default function MemberTasksClient({
       const assignedToUser = updates.assigned_to
         ? (teamMembers.find(m => m.id === updates.assigned_to) ?? null)
         : null
-      setTasks(prev => prev.map(t => t.id === editTask.id ? { ...t, ...updates, assignedToUser } : t))
+      setTasks(prev => prev.map(t => t.id === editTask.id ? { ...t, ...updates, description: updates.description ?? null, assignedToUser } : t))
       setEditTask(null)
     } else {
       setEditError(res.error ?? "Failed to update task")

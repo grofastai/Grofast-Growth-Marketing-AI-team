@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import Image from "next/image"
 import { Bell, Search, ChevronDown, Pin, Settings } from "lucide-react"
 
@@ -26,9 +26,18 @@ function timeAgo(dateStr: string) {
 const CATEGORIES = ["All Categories", "General", "Policy", "Events", "Urgent"]
 
 export default function AnnouncementsClient({ announcements }: { announcements: AnnouncementRow[] }) {
-  const [search, setSearch]   = useState("")
+  const [search, setSearch]     = useState("")
   const [category, setCategory] = useState("All Categories")
   const [catOpen, setCatOpen]   = useState(false)
+  const catRef                  = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (catRef.current && !catRef.current.contains(e.target as Node)) setCatOpen(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [])
 
   const now          = new Date()
   const todayStr     = now.toISOString().split("T")[0]
@@ -59,9 +68,12 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
     <div style={{ background: "#F8F9FC", minHeight: "100vh" }}>
 
       {/* ── HERO BANNER ─────────────────────────────────────────────────────── */}
-      <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", position: "relative", overflow: "hidden", boxShadow: "0 8px 32px rgba(180,0,0,0.35)" }}>
-        <div style={{ position: "absolute", top: -50, right: -50, width: 240, height: 240, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }}/>
-        <div style={{ position: "absolute", bottom: -40, left: 80, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }}/>
+      <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", position: "relative", boxShadow: "0 8px 32px rgba(180,0,0,0.35)" }}>
+        {/* Decorative circles clipped in their own layer so the dropdown can escape */}
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+          <div style={{ position: "absolute", top: -50, right: -50, width: 240, height: 240, borderRadius: "50%", background: "rgba(255,255,255,0.05)" }}/>
+          <div style={{ position: "absolute", bottom: -40, left: 80, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }}/>
+        </div>
         <div className="p-4 md:p-[20px_28px]" style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 99, background: "rgba(255,255,255,0.15)", color: "#fff", marginBottom: 10, border: "1px solid rgba(255,255,255,0.2)", letterSpacing: "0.04em" }}>
@@ -86,7 +98,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
             </div>
 
             {/* Category dropdown */}
-            <div style={{ position: "relative" }}>
+            <div ref={catRef} style={{ position: "relative" }}>
               <button onClick={() => setCatOpen(o => !o)}
                 style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 14px", borderRadius: 12, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer", whiteSpace: "nowrap" }}>
                 <span style={{ fontSize: 15 }}>⊟</span>
@@ -94,7 +106,7 @@ export default function AnnouncementsClient({ announcements }: { announcements: 
                 <ChevronDown size={12} style={{ transform: catOpen ? "rotate(180deg)" : "none", transition: "0.2s" }} />
               </button>
               {catOpen && (
-                <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", zIndex: 50, minWidth: 170, overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 12, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", zIndex: 9999, minWidth: 170, overflow: "hidden" }}>
                   {CATEGORIES.map(c => (
                     <button key={c} onClick={() => { setCategory(c); setCatOpen(false) }}
                       style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 16px", fontSize: 13, fontWeight: c === category ? 700 : 500, color: c === category ? "#DE1A1A" : "#374151", background: c === category ? "rgba(222,26,26,0.05)" : "transparent", border: "none", cursor: "pointer" }}>

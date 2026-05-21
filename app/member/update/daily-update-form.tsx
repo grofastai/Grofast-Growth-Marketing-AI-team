@@ -19,6 +19,7 @@ interface ShootEntry {
   startTime: string; endTime: string; durationHours: number
   travelHours: number
   brand: string; shopName: string
+  location: string; driveLink: string
   notes: string; videoUploaded: boolean
 }
 interface EditEntry {
@@ -159,7 +160,7 @@ export default function DailyUpdateForm({
 
   // ── Shoots (media) ───────────────────────────────────────────────────────
   const [shoots, setShoots] = useState<ShootEntry[]>([])
-  const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, travelHours:0, brand:"", shopName:"", notes:"", videoUploaded:false }])
+  const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, travelHours:0, brand:"", shopName:"", location:"", driveLink:"", notes:"", videoUploaded:false }])
   const patchShoot  = (id: string, patch: Partial<ShootEntry>) => setShoots(p => p.map(s => s.id === id ? { ...s, ...patch } : s))
   const removeShoot = (id: string) => setShoots(p => p.filter(s => s.id !== id))
 
@@ -259,14 +260,16 @@ export default function DailyUpdateForm({
   function handleMediaSubmit() {
     setError(null)
     if (shoots.length === 0 && edits.length === 0) { setError("Add at least one shoot or edit entry."); return }
+    const missingDrive = shoots.find(s => !s.driveLink.trim())
+    if (missingDrive) { setError("Drive link is required for all shoots before submitting."); return }
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
         client_name: s.clientName === "__custom__" ? (s.customClient || "Custom") : s.clientName === "Promotion" ? (s.brand || "Promotion") : s.clientName || "Internal",
         task_type: "shoot" as const,
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
-        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
-        screenshot_url: "", video_link: "", editing_videos: [],
+        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
+        screenshot_url: "", video_link: s.driveLink, editing_videos: [],
       })),
       ...edits.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
@@ -296,14 +299,16 @@ export default function DailyUpdateForm({
     setError(null)
     const editEntry = edits.find(e => e.id === entryId)
     if (editEntry && !editEntry.videoLink.trim()) { setError("Drive link is required before saving."); return }
+    const shootEntry = shoots.find(s => s.id === entryId)
+    if (shootEntry && !shootEntry.driveLink.trim()) { setError("Drive link is required before saving the shoot."); return }
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
         client_name: s.clientName === "__custom__" ? (s.customClient || "Custom") : s.clientName === "Promotion" ? (s.brand || "Promotion") : s.clientName || "Internal",
         task_type: "shoot" as const,
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
-        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
-        screenshot_url: "", video_link: "", editing_videos: [],
+        duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
+        screenshot_url: "", video_link: s.driveLink, editing_videos: [],
       })),
       ...edits.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
@@ -812,10 +817,29 @@ export default function DailyUpdateForm({
                           {s.travelHours > 0 && <span style={{ fontWeight:700, color:"#F59E0B" }}>+{fmtTravel(s.travelHours)} travel included</span>}
                         </div>
                       </div>
+                      <div style={{ marginBottom:10 }}>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>📍 Location</label>
+                        <input value={s.location} onChange={e => patchShoot(s.id, { location: e.target.value })} placeholder="e.g. Anna Nagar, Chennai" style={F} />
+                      </div>
+                      <div style={{ marginBottom:10 }}>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color: s.driveLink.trim() ? "#374151" : "#EF4444", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>
+                          🔗 Drive Link <span style={{ color:"#EF4444" }}>*</span>
+                        </label>
+                        <div style={{ position:"relative" }}>
+                          <Link2 size={13} style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color: s.driveLink.trim() ? "#16A34A" : "#9CA3AF", pointerEvents:"none" }} />
+                          <input
+                            value={s.driveLink}
+                            onChange={e => patchShoot(s.id, { driveLink: e.target.value })}
+                            placeholder="Paste Google Drive / folder link…"
+                            style={{ ...F, paddingLeft:32, borderColor: !s.driveLink.trim() ? "rgba(239,68,68,0.4)" : undefined }}
+                          />
+                        </div>
+                        {!s.driveLink.trim() && <p style={{ fontSize:10, color:"#EF4444", margin:"4px 0 0", fontWeight:600 }}>Required before saving</p>}
+                      </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"start" }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Notes</label>
-                          <input value={s.notes} onChange={e => patchShoot(s.id, { notes: e.target.value })} placeholder="Location, shots taken, any issues…" style={F} />
+                          <input value={s.notes} onChange={e => patchShoot(s.id, { notes: e.target.value })} placeholder="Shots taken, any issues…" style={F} />
                         </div>
                         <div style={{ paddingTop:24 }}>
                           <button onClick={() => patchShoot(s.id, { videoUploaded: !s.videoUploaded })}

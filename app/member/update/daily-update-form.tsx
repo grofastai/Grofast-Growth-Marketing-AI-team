@@ -724,37 +724,31 @@ export default function DailyUpdateForm({
 
                       {/* Our Brand (Promotion) sub-fields */}
                       {s.clientName === "Promotion" && (
-                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10, padding:"12px 14px", borderRadius:12, background:"rgba(245,158,11,0.06)", border:"1.5px solid rgba(245,158,11,0.25)" }}>
-                          <div>
-                            <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#D97706", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>📣 Our Brand *</label>
-                            <div style={{ position:"relative" }}>
-                              <select value={s.brand} onChange={e => patchShoot(s.id, { brand: e.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">Select brand…</option>
-                                {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-                              </select>
-                              <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                            </div>
-                          </div>
-                          <div>
-                            <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#D97706", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🏪 Shop Name *</label>
-                            <input value={s.shopName} onChange={e => patchShoot(s.id, { shopName: e.target.value })} placeholder="e.g. Sri Murugan Mess" style={F} />
+                        <div style={{ marginBottom:10, padding:"12px 14px", borderRadius:12, background:"rgba(245,158,11,0.06)", border:"1.5px solid rgba(245,158,11,0.25)" }}>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#D97706", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>📣 Our Brand *</label>
+                          <div style={{ position:"relative" }}>
+                            <select value={s.brand} onChange={e => patchShoot(s.id, { brand: e.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                              <option value="">Select brand…</option>
+                              {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                           </div>
                         </div>
                       )}
 
                       {/* Custom client sub-fields */}
                       {s.clientName === "__custom__" && (
-                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10, padding:"12px 14px", borderRadius:12, background:"rgba(99,102,241,0.05)", border:"1.5px solid rgba(99,102,241,0.2)" }}>
-                          <div>
-                            <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6366F1", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>✏️ Client Name *</label>
-                            <input value={s.customClient} onChange={e => patchShoot(s.id, { customClient: e.target.value })} placeholder="Type client name…" style={F} />
-                          </div>
-                          <div>
-                            <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6366F1", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🏪 Shop Name</label>
-                            <input value={s.shopName} onChange={e => patchShoot(s.id, { shopName: e.target.value })} placeholder="e.g. Sri Murugan Mess" style={F} />
-                          </div>
+                        <div style={{ marginBottom:10, padding:"12px 14px", borderRadius:12, background:"rgba(99,102,241,0.05)", border:"1.5px solid rgba(99,102,241,0.2)" }}>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6366F1", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>✏️ Client Name *</label>
+                          <input value={s.customClient} onChange={e => patchShoot(s.id, { customClient: e.target.value })} placeholder="Type client name…" style={F} />
                         </div>
                       )}
+
+                      {/* Shop Name — always visible for all clients */}
+                      <div style={{ marginBottom:10 }}>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🏪 Shop Name</label>
+                        <input value={s.shopName} onChange={e => patchShoot(s.id, { shopName: e.target.value })} placeholder="e.g. Sri Murugan Mess" style={F} />
+                      </div>
 
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>

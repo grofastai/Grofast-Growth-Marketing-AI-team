@@ -478,36 +478,40 @@ export default function DailyUpdateForm({
         {/* ── LEFT ─────────────────────────────────────────────────────────── */}
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
 
-          {/* Two-step progress indicator (non-media team only) */}
+          {/* Tab switcher (non-media team) */}
           {!isMediaTeam && (
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:12, flex:1, justifyContent:"center",
-                background: workingDone ? "rgba(34,197,94,0.08)" : "#F8F9FC",
-                border: workingDone ? "1.5px solid rgba(34,197,94,0.3)" : "1.5px solid #EBEDF2" }}>
+              <button onClick={() => setTab("working")} style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 18px", borderRadius:12, flex:1, justifyContent:"center", cursor:"pointer", border:"none", transition:"all 0.18s",
+                background: tab === "working" ? "#DE1A1A" : workingDone ? "rgba(34,197,94,0.08)" : "#FFFFFF",
+                boxShadow: tab === "working" ? "0 4px 14px rgba(222,26,26,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
+                outline: tab === "working" ? "none" : workingDone ? "1.5px solid rgba(34,197,94,0.3)" : "1.5px solid #EBEDF2",
+              }}>
                 <div style={{ width:16, height:16, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
-                  background: workingDone ? "#22C55E" : "#E5E7EB" }}>
-                  {workingDone && <span style={{ fontSize:9, color:"#fff", fontWeight:900 }}>✓</span>}
+                  background: tab === "working" ? "rgba(255,255,255,0.3)" : workingDone ? "#22C55E" : "#E5E7EB" }}>
+                  {workingDone && tab !== "working" && <span style={{ fontSize:9, color:"#fff", fontWeight:900 }}>✓</span>}
                 </div>
-                <span style={{ fontSize:11, fontWeight:700, color: workingDone ? "#16A34A" : "#9CA3AF" }}>
-                  {workingDone ? "Work Log ✓" : "Work Log"}
+                <span style={{ fontSize:12, fontWeight:800, color: tab === "working" ? "#fff" : workingDone ? "#16A34A" : "#6B7280" }}>
+                  Work Log{workingDone && tab !== "working" ? " ✓" : ""}
                 </span>
-              </div>
-              <div style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:12, flex:1, justifyContent:"center",
-                background: learningDone ? "rgba(34,197,94,0.08)" : "#F8F9FC",
-                border: learningDone ? "1.5px solid rgba(34,197,94,0.3)" : "1.5px solid #EBEDF2" }}>
+              </button>
+              <button onClick={() => setTab("learning")} style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 18px", borderRadius:12, flex:1, justifyContent:"center", cursor:"pointer", border:"none", transition:"all 0.18s",
+                background: tab === "learning" ? "#DE1A1A" : learningDone ? "rgba(34,197,94,0.08)" : "#FFFFFF",
+                boxShadow: tab === "learning" ? "0 4px 14px rgba(222,26,26,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
+                outline: tab === "learning" ? "none" : learningDone ? "1.5px solid rgba(34,197,94,0.3)" : "1.5px solid #EBEDF2",
+              }}>
                 <div style={{ width:16, height:16, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
-                  background: learningDone ? "#22C55E" : "#E5E7EB" }}>
-                  {learningDone && <span style={{ fontSize:9, color:"#fff", fontWeight:900 }}>✓</span>}
+                  background: tab === "learning" ? "rgba(255,255,255,0.3)" : learningDone ? "#22C55E" : "#E5E7EB" }}>
+                  {learningDone && tab !== "learning" && <span style={{ fontSize:9, color:"#fff", fontWeight:900 }}>✓</span>}
                 </div>
-                <span style={{ fontSize:11, fontWeight:700, color: learningDone ? "#16A34A" : "#9CA3AF" }}>
-                  {learningDone ? "Learning ✓" : "Learning"}
+                <span style={{ fontSize:12, fontWeight:800, color: tab === "learning" ? "#fff" : learningDone ? "#16A34A" : "#6B7280" }}>
+                  Learning{learningDone && tab !== "learning" ? " ✓" : ""}
                 </span>
-              </div>
+              </button>
             </div>
           )}
 
           {/* ══ WORKING: Time Blocks ══════════════════════════════════════════ */}
-          {(!isMediaTeam || tab === "working") && (
+          {tab === "working" && (
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -910,7 +914,7 @@ export default function DailyUpdateForm({
           </>)}
 
           {/* ══ LEARNING ══════════════════════════════════════════════════════ */}
-          {(!isMediaTeam || tab === "learning") && (
+          {tab === "learning" && (
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
               <SectionHead icon={<BookOpen size={16} style={{ color:"#10B981" }} />} label="What did you learn today?" count={0} color="#10B981" />
               <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
@@ -990,8 +994,8 @@ export default function DailyUpdateForm({
                 <BarChart2 size={13} style={{ color:"#DE1A1A" }} /> Today&apos;s Overview
               </p>
 
-              {/* Non-media team: show both working + learning stats */}
-              {!isMediaTeam && (
+              {/* Non-media team: stats based on active tab */}
+              {!isMediaTeam && tab === "working" && (
                 <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
                   <p style={{ fontSize:10, fontWeight:700, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>⏰ Work Log</p>
                   {([
@@ -1004,18 +1008,20 @@ export default function DailyUpdateForm({
                       <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
                     </div>
                   ))}
-                  <div style={{ borderTop:"1px solid #F0F1F5", paddingTop:9, marginTop:2 }}>
-                    <p style={{ fontSize:10, fontWeight:700, color:"#10B981", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 6px" }}>📚 Learning</p>
-                    {([
-                      { label:"Topic", value: learningTopic || "Not set", color:"#10B981" },
-                      { label:"Hours", value:`${learningHours}h`,          color:"#6366F1" },
-                    ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
-                      <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
-                        <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
-                        <span style={{ fontSize:11, fontWeight:700, color:r.color, maxWidth:130, textOverflow:"ellipsis", overflow:"hidden", whiteSpace:"nowrap" }}>{r.value}</span>
-                      </div>
-                    ))}
-                  </div>
+                </div>
+              )}
+              {!isMediaTeam && tab === "learning" && (
+                <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                  <p style={{ fontSize:10, fontWeight:700, color:"#10B981", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>📚 Learning</p>
+                  {([
+                    { label:"Topic", value: learningTopic || "Not set", color:"#10B981" },
+                    { label:"Hours", value:`${learningHours}h`,          color:"#6366F1" },
+                  ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
+                    <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+                      <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
+                      <span style={{ fontSize:11, fontWeight:700, color:r.color, maxWidth:130, textOverflow:"ellipsis", overflow:"hidden", whiteSpace:"nowrap" }}>{r.value}</span>
+                    </div>
+                  ))}
                 </div>
               )}
 

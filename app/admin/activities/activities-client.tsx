@@ -1,7 +1,10 @@
-﻿"use client"
+"use client"
 
+import { useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Activity, Clock, Camera, BookOpen, Filter, AlertTriangle, UserX, Target } from "lucide-react"
+import { Activity, Clock, Camera, BookOpen, Filter, AlertTriangle, UserX, Target, ChevronDown, ChevronUp, Edit2, MapPin, Link2, Video } from "lucide-react"
+
+type WorkEntry = Record<string, unknown>
 
 interface Update {
   id: string
@@ -10,9 +13,14 @@ interface Update {
   work_type: string | null
   working_hours: number | null
   learning_hours: number
+  learning_topic: string | null
+  learning_notes: string | null
   shoot_count: number
+  editing_count: number | null
+  active_tab: string | null
   notes: string | null
   task_id: string | null
+  work_entries: WorkEntry[] | null
   users: { id: string; name: string; employee_id: string; role: string } | null
   tasks: { title: string } | null
 }
@@ -49,6 +57,155 @@ function ControlFlag({ hours, attendance }: { hours: number | null; attendance: 
   return null
 }
 
+function fmtHours(h: unknown): string {
+  const n = Number(h)
+  if (!n) return "—"
+  const hrs = Math.floor(n)
+  const mins = Math.round((n - hrs) * 60)
+  if (hrs && mins) return `${hrs}h ${mins}m`
+  if (hrs) return `${hrs}h`
+  return `${mins}m`
+}
+
+function clientLabel(entry: WorkEntry): string {
+  const ct = entry._client_type as string | undefined
+  const brand = entry._brand as string | undefined
+  const custom = entry._custom_client as string | undefined
+  const client = entry.client as string | undefined
+  if (ct === "Promotion" && brand) return `📣 ${brand}`
+  if (ct === "__custom__" && custom) return `✏️ ${custom}`
+  return client || "—"
+}
+
+function WorkEntriesDetail({ entries, activeTab, learningTopic, learningNotes, learningHours }: {
+  entries: WorkEntry[] | null
+  activeTab: string | null
+  learningTopic: string | null
+  learningNotes: string | null
+  learningHours: number
+}) {
+  if (!entries?.length && activeTab !== "learning") return (
+    <p className="text-[12px] italic" style={{ color: "#9CA3AF" }}>No detailed entries recorded.</p>
+  )
+
+  if (activeTab === "learning") {
+    return (
+      <div className="rounded-lg p-3" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}>
+        <div className="flex items-center gap-2 mb-1">
+          <BookOpen size={12} style={{ color: "#6366F1" }} />
+          <span className="text-[12px] font-bold" style={{ color: "#6366F1" }}>Learning</span>
+          <span className="text-[11px]" style={{ color: "#6B7280" }}>{fmtHours(learningHours)}</span>
+        </div>
+        {learningTopic && <p className="text-[12px] font-semibold" style={{ color: "#111111" }}>{learningTopic}</p>}
+        {learningNotes && <p className="text-[12px] mt-1" style={{ color: "#6B7280" }}>{learningNotes}</p>}
+      </div>
+    )
+  }
+
+  const shoots = entries?.filter(e => e.task_type === "shoot") ?? []
+  const edits  = entries?.filter(e => e.task_type === "edit") ?? []
+  const works  = entries?.filter(e => e.task_type === "work") ?? []
+
+  return (
+    <div className="space-y-3">
+      {/* Time blocks */}
+      {works.length > 0 && (
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Work Log</p>
+          <div className="space-y-1.5">
+            {works.map((e, i) => (
+              <div key={i} className="flex items-start gap-3 px-3 py-2 rounded-lg" style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F3F4F6" }}>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[12px] font-semibold truncate" style={{ color: "#111111" }}>{String(e.title || "—")}</span>
+                    {e.client && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>{String(e.client)}</span>}
+                    {(e.start_time || e.end_time) && (
+                      <span className="text-[11px]" style={{ color: "#9CA3AF" }}>{String(e.start_time ?? "")} – {String(e.end_time ?? "")}</span>
+                    )}
+                    <span className="text-[11px] font-bold ml-auto" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</span>
+                  </div>
+                  {e.notes && <p className="text-[11px] mt-0.5 truncate" style={{ color: "#9CA3AF" }}>{String(e.notes)}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Shoots */}
+      {shoots.length > 0 && (
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Shoots ({shoots.length})</p>
+          <div className="space-y-2">
+            {shoots.map((e, i) => (
+              <div key={i} className="px-3 py-2.5 rounded-lg" style={{ background: "rgba(222,26,26,0.02)", border: "1px solid rgba(222,26,26,0.08)" }}>
+                <div className="flex items-start gap-2 flex-wrap">
+                  <Camera size={11} style={{ color: "#de1a1a", marginTop: 2, flexShrink: 0 }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>{String(e.title || "—")}</span>
+                      <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>{clientLabel(e)}</span>
+                      <span className="text-[11px] font-bold ml-auto" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                      {e._location && (
+                        <span className="flex items-center gap-1 text-[11px]" style={{ color: "#6B7280" }}>
+                          <MapPin size={9} /> {String(e._location)}
+                        </span>
+                      )}
+                      {e.video_link && (
+                        <a href={String(e.video_link)} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-1 text-[11px]" style={{ color: "#de1a1a" }}>
+                          <Link2 size={9} /> Drive Link
+                        </a>
+                      )}
+                      {e._travel_hours && Number(e._travel_hours) > 0 && (
+                        <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Travel: {fmtHours(e._travel_hours)}</span>
+                      )}
+                    </div>
+                    {e.notes && <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>{String(e.notes)}</p>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Edits */}
+      {edits.length > 0 && (
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Editing ({edits.length})</p>
+          <div className="space-y-1.5">
+            {edits.map((e, i) => (
+              <div key={i} className="px-3 py-2.5 rounded-lg" style={{ background: "rgba(99,102,241,0.02)", border: "1px solid rgba(99,102,241,0.08)" }}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Edit2 size={11} style={{ color: "#6366F1", flexShrink: 0 }} />
+                  <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>{String(e.title || "—")}</span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.06)", color: "#6366F1" }}>{clientLabel(e)}</span>
+                  {e.video_type && <span className="text-[11px]" style={{ color: "#9CA3AF" }}>{String(e.video_type)}</span>}
+                  <span className="text-[11px] font-bold ml-auto" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</span>
+                </div>
+                <div className="flex flex-wrap gap-x-3 mt-1">
+                  {e.video_duration && <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Duration: {String(e.video_duration)}</span>}
+                  {e.revisions && Number(e.revisions) > 0 && <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Revisions: {String(e.revisions)}</span>}
+                  {e.video_link && (
+                    <a href={String(e.video_link)} target="_blank" rel="noreferrer"
+                      className="flex items-center gap-1 text-[11px]" style={{ color: "#6366F1" }}>
+                      <Video size={9} /> Video Link
+                    </a>
+                  )}
+                </div>
+                {e.notes && <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>{String(e.notes)}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ActivitiesClient({
   updates,
   members,
@@ -62,6 +219,7 @@ export default function ActivitiesClient({
 }) {
   const router = useRouter()
   const pathname = usePathname()
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   function navigate(date: string, member: string) {
     const params = new URLSearchParams()
@@ -161,7 +319,7 @@ export default function ActivitiesClient({
           style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
           <Activity size={36} style={{ color: "rgba(0,0,0,0.06)" }} className="mb-3" />
           <p className="text-[14px] font-semibold" style={{ color: "#6B7280" }}>No updates for this date</p>
-          <p className="text-[12px] mt-1" style={{ color: "rgba(0,0,0,0.08)" }}>Team members haven't submitted yet.</p>
+          <p className="text-[12px] mt-1" style={{ color: "rgba(0,0,0,0.08)" }}>Team members haven&apos;t submitted yet.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -170,72 +328,114 @@ export default function ActivitiesClient({
             const wt = u.work_type ? WORK_TYPE[u.work_type] : null
             const user = Array.isArray(u.users) ? u.users[0] : u.users
             const task = Array.isArray(u.tasks) ? u.tasks[0] : u.tasks
+            const isExpanded = expandedId === u.id
+            const hasEntries = (u.work_entries?.length ?? 0) > 0 || u.active_tab === "learning"
 
             return (
-              <div key={u.id} className="rounded-xl p-4 md:p-5"
-                style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
-                <div className="flex items-start gap-3 md:gap-4">
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)" }}>
-                    <span className="text-[11px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>
-                      {user?.name ? getInitials(user.name) : "?"}
-                    </span>
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center flex-wrap gap-2 mb-2">
-                      <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{user?.name ?? "Unknown"}</p>
-                      <span className="text-[11px]" style={{ color: "#6B7280" }}>#{user?.employee_id}</span>
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-                        style={{ background: sc.bg, color: sc.color }}>
-                        {sc.label}
+              <div key={u.id} className="rounded-xl overflow-hidden"
+                style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+                {/* Summary row */}
+                <div className="p-4 md:p-5">
+                  <div className="flex items-start gap-3 md:gap-4">
+                    {/* Avatar */}
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)" }}>
+                      <span className="text-[11px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>
+                        {user?.name ? getInitials(user.name) : "?"}
                       </span>
-                      {wt && (
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                          style={{ background: "rgba(0,0,0,0.04)", color: "#6B7280" }}>
-                          {wt}
-                        </span>
-                      )}
-                      <ControlFlag hours={u.working_hours} attendance={u.attendance_status} />
                     </div>
 
-                    {/* Stats */}
-                    <div className="flex flex-wrap gap-4 mb-2">
-                      <div className="flex items-center gap-1.5">
-                        <Clock size={11} style={{ color: "#D1D5DB" }} />
-                        <span className="text-[12px]" style={{ color: "#6B7280" }}>
-                          {u.working_hours != null ? `${u.working_hours}h work` : "—"}
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center flex-wrap gap-2 mb-2">
+                        <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{user?.name ?? "Unknown"}</p>
+                        <span className="text-[11px]" style={{ color: "#6B7280" }}>#{user?.employee_id}</span>
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
+                          style={{ background: sc.bg, color: sc.color }}>
+                          {sc.label}
                         </span>
+                        {wt && (
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                            style={{ background: "rgba(0,0,0,0.04)", color: "#6B7280" }}>
+                            {wt}
+                          </span>
+                        )}
+                        <ControlFlag hours={u.working_hours} attendance={u.attendance_status} />
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <BookOpen size={11} style={{ color: "#D1D5DB" }} />
-                        <span className="text-[12px]" style={{ color: "#6B7280" }}>{u.learning_hours}h learning</span>
-                      </div>
-                      {u.shoot_count > 0 && (
+
+                      {/* Stats */}
+                      <div className="flex flex-wrap gap-4 mb-2">
                         <div className="flex items-center gap-1.5">
-                          <Camera size={11} style={{ color: "#D1D5DB" }} />
-                          <span className="text-[12px]" style={{ color: "#6B7280" }}>{u.shoot_count} shoots</span>
+                          <Clock size={11} style={{ color: "#D1D5DB" }} />
+                          <span className="text-[12px]" style={{ color: "#6B7280" }}>
+                            {u.working_hours != null ? `${u.working_hours}h work` : "—"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <BookOpen size={11} style={{ color: "#D1D5DB" }} />
+                          <span className="text-[12px]" style={{ color: "#6B7280" }}>{u.learning_hours}h learning</span>
+                        </div>
+                        {u.shoot_count > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <Camera size={11} style={{ color: "#D1D5DB" }} />
+                            <span className="text-[12px]" style={{ color: "#6B7280" }}>{u.shoot_count} shoots</span>
+                          </div>
+                        )}
+                        {(u.editing_count ?? 0) > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <Edit2 size={11} style={{ color: "#D1D5DB" }} />
+                            <span className="text-[12px]" style={{ color: "#6B7280" }}>{u.editing_count} edits</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Task link */}
+                      {task && (
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <Target size={11} style={{ color: "#de1a1a" }} />
+                          <span className="text-[12px] font-semibold" style={{ color: "rgba(222,26,26,0.8)" }}>{task.title}</span>
                         </div>
                       )}
+
+                      {u.notes && (
+                        <p className="text-[12px] px-3 py-2 rounded-lg" style={{ background: "rgba(0,0,0,0.02)", color: "#6B7280" }}>
+                          {u.notes}
+                        </p>
+                      )}
                     </div>
 
-                    {/* Task link */}
-                    {task && (
-                      <div className="flex items-center gap-1.5 mb-2">
-                        <Target size={11} style={{ color: "#de1a1a" }} />
-                        <span className="text-[12px] font-semibold" style={{ color: "rgba(222,26,26,0.8)" }}>{task.title}</span>
-                      </div>
-                    )}
-
-                    {u.notes && (
-                      <p className="text-[12px] px-3 py-2 rounded-lg" style={{ background: "rgba(0,0,0,0.02)", color: "#6B7280" }}>
-                        {u.notes}
-                      </p>
+                    {/* Expand toggle */}
+                    {hasEntries && (
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : u.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold flex-shrink-0 transition-colors"
+                        style={{
+                          background: isExpanded ? "rgba(222,26,26,0.08)" : "rgba(0,0,0,0.04)",
+                          color: isExpanded ? "#de1a1a" : "#6B7280",
+                          border: `1px solid ${isExpanded ? "rgba(222,26,26,0.15)" : "#E5E7EB"}`,
+                        }}>
+                        {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        {isExpanded ? "Hide" : "Details"}
+                      </button>
                     )}
                   </div>
                 </div>
+
+                {/* Expanded work entries */}
+                {isExpanded && hasEntries && (
+                  <div className="px-4 pb-4 md:px-5 md:pb-5 pt-0 border-t"
+                    style={{ borderColor: "#F3F4F6" }}>
+                    <div className="pt-4">
+                      <WorkEntriesDetail
+                        entries={u.work_entries}
+                        activeTab={u.active_tab}
+                        learningTopic={u.learning_topic}
+                        learningNotes={u.learning_notes}
+                        learningHours={u.learning_hours}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })}

@@ -129,9 +129,9 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function DailyUpdateForm({
-  projects, userName, team, existingUpdate,
+  projects, sheetClientNames = [], userName, team, existingUpdate,
 }: {
-  projects: Project[]; userName: string; team?: string | null; existingUpdate?: Record<string, unknown> | null
+  projects: Project[]; sheetClientNames?: string[]; userName: string; team?: string | null; existingUpdate?: Record<string, unknown> | null
 }) {
   const router = useRouter()
   const existingUpdateRef = useRef(existingUpdate)
@@ -147,6 +147,12 @@ export default function DailyUpdateForm({
   const isMediaTeam = team === "Media Team"
 
   const [tab, setTab] = useState<"working" | "media" | "learning">(isMediaTeam ? "media" : "working")
+
+  // Combined client options: Supabase projects first, then Sheet clients not already listed
+  const allClientOptions = [
+    ...projects.map(p => p.business_name),
+    ...sheetClientNames.filter(n => !projects.find(p => p.business_name === n)),
+  ].filter(Boolean)
 
   // ── Shoots (media) ───────────────────────────────────────────────────────
   const [shoots, setShoots] = useState<ShootEntry[]>([])
@@ -690,17 +696,13 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project *</label>
-                          {projects.length > 0 ? (
-                            <div style={{ position:"relative" }}>
-                              <select value={s.clientName} onChange={e => patchShoot(s.id, { clientName: e.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">Select project…</option>
-                                {projects.map(p => <option key={p.id} value={p.business_name}>{p.business_name}</option>)}
-                              </select>
-                              <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                            </div>
-                          ) : (
-                            <input value={s.clientName} onChange={e => patchShoot(s.id, { clientName: e.target.value })} placeholder="Client name…" style={F} />
-                          )}
+                          <div style={{ position:"relative" }}>
+                            <select value={s.clientName} onChange={e => patchShoot(s.id, { clientName: e.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                              <option value="">Select client…</option>
+                              {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Shoot Type / Title *</label>
@@ -828,17 +830,13 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client Name *</label>
-                          {projects.length > 0 ? (
-                            <div style={{ position:"relative" }}>
-                              <select value={e.clientName} onChange={ev => patchEdit(e.id, { clientName: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">Select project…</option>
-                                {projects.map(p => <option key={p.id} value={p.business_name}>{p.business_name}</option>)}
-                              </select>
-                              <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                            </div>
-                          ) : (
-                            <input value={e.clientName} onChange={ev => patchEdit(e.id, { clientName: ev.target.value })} placeholder="Client name…" style={F} />
-                          )}
+                          <div style={{ position:"relative" }}>
+                            <select value={e.clientName} onChange={ev => patchEdit(e.id, { clientName: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                              <option value="">Select client…</option>
+                              {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Video Name *</label>

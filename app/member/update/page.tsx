@@ -4,6 +4,7 @@ import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import DailyUpdateForm from "./daily-update-form"
 import { Loader2 } from "lucide-react"
+import { fetchSheetClients, stripFinancialFields } from "@/lib/google/sheets"
 
 function adminSupabase() {
   return createClient(
@@ -45,6 +46,15 @@ export default async function UpdatePage() {
 
   const projects = (projectsRaw ?? []) as unknown as Project[]
 
+  const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
+  const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
+  const sheetClients = sheetId
+    ? await fetchSheetClients(sheetId, sheetGid).catch(() => [])
+    : []
+  const sheetClientNames = stripFinancialFields(sheetClients)
+    .map(c => (c.company_name || c.customer_name).trim())
+    .filter(Boolean)
+
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center py-16">
@@ -53,6 +63,7 @@ export default async function UpdatePage() {
     }>
       <DailyUpdateForm
         projects={projects}
+        sheetClientNames={sheetClientNames}
         team={profile?.team ?? null}
         userName={(profile as { name?: string } | null)?.name ?? ""}
         existingUpdate={existingUpdate ?? null}

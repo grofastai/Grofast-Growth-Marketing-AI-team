@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, ClipboardList, Target, CalendarOff,
   Megaphone, User, LogOut, Clock, History, LifeBuoy, ChevronRight,
-  MoreHorizontal, X, Bell,
+  MoreHorizontal, X, Bell, Briefcase,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
@@ -20,6 +20,7 @@ const navItems = [
   { label: "History",       href: "/member/history",       icon: History },
   { label: "Announcements", href: "/member/announcements", icon: Megaphone },
   { label: "Notifications", href: "/member/notifications", icon: Bell },
+  { label: "Clients",       href: "/member/clients",       icon: Briefcase },
   { label: "Profile",       href: "/member/profile",       icon: User },
   { label: "Support",       href: "/member/support",       icon: LifeBuoy },
 ]
@@ -36,6 +37,7 @@ const moreNavItems = [
   { label: "History",        href: "/member/history",       icon: History },
   { label: "Announcements",  href: "/member/announcements", icon: Megaphone },
   { label: "Notifications",  href: "/member/notifications", icon: Bell },
+  { label: "Clients",        href: "/member/clients",       icon: Briefcase },
   { label: "Support",        href: "/member/support",       icon: LifeBuoy },
   { label: "Profile",        href: "/member/profile",       icon: User },
 ]

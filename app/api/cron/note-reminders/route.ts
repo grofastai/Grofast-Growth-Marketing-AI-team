@@ -24,7 +24,7 @@ function isAuthorized(request: NextRequest): boolean {
   return false
 }
 
-// Vercel Cron calls this every hour (0 * * * * UTC).
+// Vercel Cron calls this daily at 6 AM UTC (11:30 AM IST) (0 6 * * * UTC).
 // Finds notes with due reminders and notifies the owner via in-app bell + WhatsApp.
 export async function GET(request: NextRequest) {
   if (!isAuthorized(request)) {

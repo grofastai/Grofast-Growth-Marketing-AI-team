@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/cron/note-reminders",
-      "schedule": "0 * * * *"
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/cron/birthdays",

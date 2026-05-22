@@ -334,6 +334,17 @@ export default function ActivitiesClient({
             const tasksCompleted = u.tasks_completed ?? 0
             const tasksTotal = u.tasks_total ?? 0
 
+            // Break down work_entries into work vs media
+            const entries = u.work_entries ?? []
+            const workEntries  = entries.filter(e => e.task_type === "work")
+            const shootEntries = entries.filter(e => e.task_type === "shoot")
+            const editEntries  = entries.filter(e => e.task_type === "edit")
+            const workHrs  = Math.round(workEntries.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
+            const shootHrs = Math.round(shootEntries.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
+            const editHrs  = Math.round(editEntries.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
+            const mediaHrs = Math.round((shootHrs + editHrs) * 10) / 10
+            const hasMedia = shootEntries.length > 0 || editEntries.length > 0
+
             return (
               <div key={u.id} className="rounded-xl overflow-hidden"
                 style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
@@ -367,38 +378,63 @@ export default function ActivitiesClient({
                       </div>
 
                       {/* Stats row */}
-                      <div className="flex flex-wrap gap-4 mb-2">
-                        <div className="flex items-center gap-1.5">
-                          <Clock size={11} style={{ color: "#D1D5DB" }} />
-                          <span className="text-[12px]" style={{ color: "#6B7280" }}>
-                            {u.working_hours != null ? `${u.working_hours}h work` : "—"}
-                          </span>
-                        </div>
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {/* Working */}
+                        {workEntries.length > 0 && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                            style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #F0F1F5" }}>
+                            <Clock size={11} style={{ color: "#6B7280" }} />
+                            <span className="text-[11px] font-semibold" style={{ color: "#374151" }}>
+                              Working
+                            </span>
+                            <span className="text-[11px] font-bold" style={{ color: "#111827" }}>{fmtHours(workHrs)}</span>
+                          </div>
+                        )}
+                        {/* Media */}
+                        {hasMedia && (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                            style={{ background: "rgba(222,26,26,0.04)", border: "1px solid rgba(222,26,26,0.12)" }}>
+                            <Camera size={11} style={{ color: "#de1a1a" }} />
+                            <span className="text-[11px] font-semibold" style={{ color: "#de1a1a" }}>Media</span>
+                            <span className="text-[11px] font-bold" style={{ color: "#de1a1a" }}>{fmtHours(mediaHrs)}</span>
+                            <span className="text-[10px]" style={{ color: "rgba(222,26,26,0.6)" }}>
+                              {shootEntries.length > 0 ? `${shootEntries.length} shoot${shootEntries.length > 1 ? "s" : ""}` : ""}
+                              {shootEntries.length > 0 && editEntries.length > 0 ? " · " : ""}
+                              {editEntries.length > 0 ? `${editEntries.length} edit${editEntries.length > 1 ? "s" : ""}` : ""}
+                            </span>
+                          </div>
+                        )}
+                        {/* Fallback total if no entries breakdown */}
+                        {workEntries.length === 0 && !hasMedia && u.working_hours != null && (
+                          <div className="flex items-center gap-1.5">
+                            <Clock size={11} style={{ color: "#D1D5DB" }} />
+                            <span className="text-[12px]" style={{ color: "#6B7280" }}>{u.working_hours}h work</span>
+                          </div>
+                        )}
+                        {/* Learning */}
                         {(u.learning_hours ?? 0) > 0 && (
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                            style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}>
                             <BookOpen size={11} style={{ color: "#6366F1" }} />
-                            <span className="text-[12px]" style={{ color: "#6366F1" }}>{u.learning_hours}h learning</span>
+                            <span className="text-[11px] font-semibold" style={{ color: "#6366F1" }}>Learning</span>
+                            <span className="text-[11px] font-bold" style={{ color: "#6366F1" }}>{fmtHours(u.learning_hours)}</span>
                           </div>
                         )}
-                        {u.shoot_count > 0 && (
-                          <div className="flex items-center gap-1.5">
-                            <Camera size={11} style={{ color: "#D1D5DB" }} />
-                            <span className="text-[12px]" style={{ color: "#6B7280" }}>{u.shoot_count} shoots</span>
-                          </div>
-                        )}
-                        {(u.editing_count ?? 0) > 0 && (
-                          <div className="flex items-center gap-1.5">
-                            <Edit2 size={11} style={{ color: "#D1D5DB" }} />
-                            <span className="text-[12px]" style={{ color: "#6B7280" }}>{u.editing_count} edits</span>
-                          </div>
-                        )}
-                        {/* Task completion badge */}
+                        {/* Tasks */}
                         {tasksTotal > 0 && (
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                            style={{
+                              background: tasksCompleted === tasksTotal ? "rgba(34,197,94,0.06)" : "rgba(245,158,11,0.06)",
+                              border: `1px solid ${tasksCompleted === tasksTotal ? "rgba(34,197,94,0.2)" : "rgba(245,158,11,0.2)"}`,
+                            }}>
                             <Target size={11} style={{ color: tasksCompleted === tasksTotal ? "#22C55E" : "#F59E0B" }} />
-                            <span className="text-[12px] font-semibold"
+                            <span className="text-[11px] font-semibold"
                               style={{ color: tasksCompleted === tasksTotal ? "#22C55E" : "#F59E0B" }}>
-                              {tasksCompleted}/{tasksTotal} tasks done
+                              Tasks
+                            </span>
+                            <span className="text-[11px] font-bold"
+                              style={{ color: tasksCompleted === tasksTotal ? "#22C55E" : "#F59E0B" }}>
+                              {tasksCompleted}/{tasksTotal}
                             </span>
                           </div>
                         )}

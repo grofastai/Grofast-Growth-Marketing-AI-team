@@ -36,27 +36,35 @@ export default async function ActivitiesPage({
 
   const companyId = profile?.company_id ?? ""
 
-  // Get all company member IDs first (reliable tenant filter for daily_updates)
-  const { data: members } = await admin
-    .from("users")
-    .select("id, name, employee_id, role")
-    .eq("company_id", companyId)
-    .order("name")
+  const [{ data: members }, updatesResult] = await Promise.all([
+    admin
+      .from("users")
+      .select("id, name, employee_id, role")
+      .eq("company_id", companyId)
+      .order("name"),
+    (async () => {
+      let q = admin
+        .from("daily_updates")
+        .select("*")
+        .eq("company_id", companyId)
+        .eq("date", dateFilter)
+        .order("created_at", { ascending: false })
+      if (params.member) q = q.eq("user_id", params.member)
+      return q
+    })(),
+  ])
 
-  const memberIds = (members ?? []).map(m => m.id)
-
-  let query = admin
-    .from("daily_updates")
-    .select("*, users(id, name, employee_id, role), tasks(title), work_entries, learning_topic, learning_notes, active_tab, editing_count")
-    .in("user_id", memberIds.length > 0 ? memberIds : ["00000000-0000-0000-0000-000000000000"])
-    .eq("date", dateFilter)
-    .order("created_at", { ascending: false })
-
-  if (params.member) {
-    query = query.eq("user_id", params.member)
+  if (updatesResult.error) {
+    console.error("[activities] daily_updates query error:", updatesResult.error)
   }
 
-  const { data: updates } = await query
+  // Attach user info from members list (avoids FK join failures)
+  const membersMap = Object.fromEntries((members ?? []).map(m => [m.id, m]))
+  const updates = (updatesResult.data ?? []).map(u => ({
+    ...u,
+    users: membersMap[u.user_id] ?? null,
+    tasks: null,
+  }))
 
-  return <ActivitiesClient updates={updates ?? []} members={members ?? []} dateFilter={dateFilter} memberFilter={params.member ?? ""} />
+  return <ActivitiesClient updates={updates} members={members ?? []} dateFilter={dateFilter} memberFilter={params.member ?? ""} />
 }

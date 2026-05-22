@@ -633,8 +633,8 @@ export default function ProfileClient({
                       { f: "aadhaar_back_url" as KYCDocField, l: "Aadhaar Back" },
                       { f: "pan_front_url" as KYCDocField,    l: "PAN Front" },
                       { f: "pan_back_url" as KYCDocField,     l: "PAN Back" },
-                      { f: "ration_card_url" as KYCDocField,  l: "Ration Card Front" },
-                      { f: "ration_card_url2" as KYCDocField, l: "Ration Card Back" },
+                      { f: "ration_card_url" as KYCDocField,  l: "Ration Card – Front Side" },
+                      { f: "ration_card_url2" as KYCDocField, l: "Ration Card – Back Side" },
                     ]).map(({ f, l }) => {
                       const url = (kyc as unknown as Record<string, unknown>)?.[f] as string | null
                       return (

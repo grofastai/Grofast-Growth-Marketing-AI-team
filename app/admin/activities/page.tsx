@@ -54,7 +54,7 @@ export default async function ActivitiesPage({
     })(),
     admin
       .from("tasks")
-      .select("assigned_to, status")
+      .select("id, assigned_to, title, status, priority")
       .eq("company_id", companyId),
   ])
 
@@ -62,23 +62,23 @@ export default async function ActivitiesPage({
     console.error("[activities] daily_updates query error:", updatesResult.error)
   }
 
-  // Build task stats per user: { userId: { total, completed } }
-  const taskStatsMap: Record<string, { total: number; completed: number }> = {}
+  // Group tasks by user
+  const tasksByUser: Record<string, { id: string; title: string; status: string; priority: string | null }[]> = {}
   for (const t of allTasks ?? []) {
     if (!t.assigned_to) continue
-    if (!taskStatsMap[t.assigned_to]) taskStatsMap[t.assigned_to] = { total: 0, completed: 0 }
-    taskStatsMap[t.assigned_to].total++
-    if (t.status === "completed") taskStatsMap[t.assigned_to].completed++
+    if (!tasksByUser[t.assigned_to]) tasksByUser[t.assigned_to] = []
+    tasksByUser[t.assigned_to].push({ id: t.id, title: t.title, status: t.status, priority: t.priority })
   }
 
-  // Attach user info and task stats (avoids FK join failures)
+  // Attach user info and tasks list
   const membersMap = Object.fromEntries((members ?? []).map(m => [m.id, m]))
   const updates = (updatesResult.data ?? []).map(u => ({
     ...u,
     users: membersMap[u.user_id] ?? null,
     tasks: null,
-    tasks_completed: taskStatsMap[u.user_id]?.completed ?? 0,
-    tasks_total: taskStatsMap[u.user_id]?.total ?? 0,
+    tasks_list: tasksByUser[u.user_id] ?? [],
+    tasks_completed: (tasksByUser[u.user_id] ?? []).filter(t => t.status === "completed").length,
+    tasks_total: (tasksByUser[u.user_id] ?? []).length,
   }))
 
   return <ActivitiesClient updates={updates} members={members ?? []} dateFilter={dateFilter} memberFilter={params.member ?? ""} />

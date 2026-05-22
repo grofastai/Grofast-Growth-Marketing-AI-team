@@ -2,9 +2,11 @@
 
 import { useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Activity, Clock, Camera, BookOpen, Filter, AlertTriangle, UserX, Target, ChevronDown, ChevronUp, Edit2, MapPin, Link2, Video } from "lucide-react"
+import { Activity, Clock, Camera, BookOpen, Filter, AlertTriangle, UserX, Target, Edit2, MapPin } from "lucide-react"
 
 type WorkEntry = Record<string, unknown>
+
+interface TaskItem { id: string; title: string; status: string; priority: string | null }
 
 interface Update {
   id: string
@@ -23,6 +25,7 @@ interface Update {
   work_entries: WorkEntry[] | null
   users: { id: string; name: string; employee_id: string; role: string } | null
   tasks: { title: string } | null
+  tasks_list: TaskItem[]
   tasks_completed: number
   tasks_total: number
 }
@@ -221,7 +224,7 @@ export default function ActivitiesClient({
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+
 
   function navigate(date: string, member: string) {
     const params = new URLSearchParams()
@@ -329,163 +332,157 @@ export default function ActivitiesClient({
             const sc = ATTENDANCE_STYLE[u.attendance_status] ?? ATTENDANCE_STYLE.present
             const wt = u.work_type ? WORK_TYPE[u.work_type] : null
             const user = Array.isArray(u.users) ? u.users[0] : u.users
-            const isExpanded = expandedId === u.id
-            const hasEntries = (u.work_entries?.length ?? 0) > 0 || u.active_tab === "learning"
-            const tasksCompleted = u.tasks_completed ?? 0
-            const tasksTotal = u.tasks_total ?? 0
-
-            // Break down work_entries into work vs media
             const entries = u.work_entries ?? []
             const workEntries  = entries.filter(e => e.task_type === "work")
             const shootEntries = entries.filter(e => e.task_type === "shoot")
             const editEntries  = entries.filter(e => e.task_type === "edit")
+            const otherEntries = entries.filter(e => !["work","shoot","edit"].includes(String(e.task_type ?? "")))
             const workHrs  = Math.round(workEntries.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
-            const shootHrs = Math.round(shootEntries.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
-            const editHrs  = Math.round(editEntries.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
-            const mediaHrs = Math.round((shootHrs + editHrs) * 10) / 10
+            const mediaHrs = Math.round([...shootEntries,...editEntries].reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
             const hasMedia = shootEntries.length > 0 || editEntries.length > 0
+            const tasksCompleted = u.tasks_completed ?? 0
+            const tasksTotal = u.tasks_total ?? 0
+            const tasksList = u.tasks_list ?? []
 
             return (
               <div key={u.id} className="rounded-xl overflow-hidden"
                 style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-                {/* Summary row */}
-                <div className="p-4 md:p-5">
-                  <div className="flex items-start gap-3 md:gap-4">
-                    {/* Avatar */}
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+
+                {/* ── Header ── */}
+                <div className="p-4 md:p-5 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
                       style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)" }}>
-                      <span className="text-[11px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>
+                      <span className="text-[11px] font-bold" style={{ color: "#de1a1a" }}>
                         {user?.name ? getInitials(user.name) : "?"}
                       </span>
                     </div>
-
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center flex-wrap gap-2 mb-2">
+                      <div className="flex items-center flex-wrap gap-2">
                         <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{user?.name ?? "Unknown"}</p>
-                        <span className="text-[11px]" style={{ color: "#6B7280" }}>#{user?.employee_id}</span>
-                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
-                          style={{ background: sc.bg, color: sc.color }}>
-                          {sc.label}
-                        </span>
-                        {wt && (
-                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                            style={{ background: "rgba(0,0,0,0.04)", color: "#6B7280" }}>
-                            {wt}
-                          </span>
-                        )}
+                        <span className="text-[11px]" style={{ color: "#9CA3AF" }}>#{user?.employee_id}</span>
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                        {wt && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.04)", color: "#6B7280" }}>{wt}</span>}
                         <ControlFlag hours={u.working_hours} attendance={u.attendance_status} />
                       </div>
-
-                      {/* Stats row */}
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        {/* Working */}
-                        {workEntries.length > 0 && (
-                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
-                            style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #F0F1F5" }}>
-                            <Clock size={11} style={{ color: "#6B7280" }} />
-                            <span className="text-[11px] font-semibold" style={{ color: "#374151" }}>
-                              Working
-                            </span>
-                            <span className="text-[11px] font-bold" style={{ color: "#111827" }}>{fmtHours(workHrs)}</span>
-                          </div>
-                        )}
-                        {/* Media */}
-                        {hasMedia && (
-                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
-                            style={{ background: "rgba(222,26,26,0.04)", border: "1px solid rgba(222,26,26,0.12)" }}>
-                            <Camera size={11} style={{ color: "#de1a1a" }} />
-                            <span className="text-[11px] font-semibold" style={{ color: "#de1a1a" }}>Media</span>
-                            <span className="text-[11px] font-bold" style={{ color: "#de1a1a" }}>{fmtHours(mediaHrs)}</span>
-                            <span className="text-[10px]" style={{ color: "rgba(222,26,26,0.6)" }}>
-                              {shootEntries.length > 0 ? `${shootEntries.length} shoot${shootEntries.length > 1 ? "s" : ""}` : ""}
-                              {shootEntries.length > 0 && editEntries.length > 0 ? " · " : ""}
-                              {editEntries.length > 0 ? `${editEntries.length} edit${editEntries.length > 1 ? "s" : ""}` : ""}
-                            </span>
-                          </div>
-                        )}
-                        {/* Fallback total if no entries breakdown */}
-                        {workEntries.length === 0 && !hasMedia && u.working_hours != null && (
-                          <div className="flex items-center gap-1.5">
-                            <Clock size={11} style={{ color: "#D1D5DB" }} />
-                            <span className="text-[12px]" style={{ color: "#6B7280" }}>{u.working_hours}h work</span>
-                          </div>
-                        )}
-                        {/* Learning */}
-                        {(u.learning_hours ?? 0) > 0 && (
-                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
-                            style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}>
-                            <BookOpen size={11} style={{ color: "#6366F1" }} />
-                            <span className="text-[11px] font-semibold" style={{ color: "#6366F1" }}>Learning</span>
-                            <span className="text-[11px] font-bold" style={{ color: "#6366F1" }}>{fmtHours(u.learning_hours)}</span>
-                          </div>
-                        )}
-                        {/* Tasks */}
-                        {tasksTotal > 0 && (
-                          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
-                            style={{
-                              background: tasksCompleted === tasksTotal ? "rgba(34,197,94,0.06)" : "rgba(245,158,11,0.06)",
-                              border: `1px solid ${tasksCompleted === tasksTotal ? "rgba(34,197,94,0.2)" : "rgba(245,158,11,0.2)"}`,
-                            }}>
-                            <Target size={11} style={{ color: tasksCompleted === tasksTotal ? "#22C55E" : "#F59E0B" }} />
-                            <span className="text-[11px] font-semibold"
-                              style={{ color: tasksCompleted === tasksTotal ? "#22C55E" : "#F59E0B" }}>
-                              Tasks
-                            </span>
-                            <span className="text-[11px] font-bold"
-                              style={{ color: tasksCompleted === tasksTotal ? "#22C55E" : "#F59E0B" }}>
-                              {tasksCompleted}/{tasksTotal}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {u.notes && (
-                        <p className="text-[12px] px-3 py-2 rounded-lg mb-2" style={{ background: "rgba(0,0,0,0.02)", color: "#6B7280" }}>
-                          {u.notes}
-                        </p>
-                      )}
-
-                      {/* Learning inline preview */}
-                      {u.active_tab === "learning" && u.learning_topic && (
-                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg mb-1"
-                          style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.12)" }}>
-                          <BookOpen size={11} style={{ color: "#6366F1", flexShrink: 0 }} />
-                          <span className="text-[12px] font-semibold truncate" style={{ color: "#6366F1" }}>{u.learning_topic}</span>
-                        </div>
-                      )}
                     </div>
-
-                    {/* Expand toggle */}
-                    {hasEntries && (
-                      <button
-                        onClick={() => setExpandedId(isExpanded ? null : u.id)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold flex-shrink-0 transition-colors"
-                        style={{
-                          background: isExpanded ? "rgba(222,26,26,0.08)" : "rgba(0,0,0,0.04)",
-                          color: isExpanded ? "#de1a1a" : "#6B7280",
-                          border: `1px solid ${isExpanded ? "rgba(222,26,26,0.15)" : "#E5E7EB"}`,
-                        }}>
-                        {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                        {isExpanded ? "Hide" : "Details"}
-                      </button>
-                    )}
                   </div>
                 </div>
 
-                {/* Expanded work entries */}
-                {isExpanded && hasEntries && (
-                  <div className="px-4 pb-4 md:px-5 md:pb-5 pt-0 border-t"
-                    style={{ borderColor: "#F3F4F6" }}>
-                    <div className="pt-4">
-                      <WorkEntriesDetail
-                        entries={u.work_entries}
-                        activeTab={u.active_tab}
-                        learningTopic={u.learning_topic}
-                        learningNotes={u.learning_notes}
-                        learningHours={u.learning_hours}
-                      />
+                {/* ── Work Entries ── */}
+                {[...workEntries, ...otherEntries].length > 0 && (
+                  <div className="px-4 md:px-5 pb-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>
+                      Work · {fmtHours(workHrs)}
+                    </p>
+                    <div className="space-y-1">
+                      {[...workEntries, ...otherEntries].map((e, i) => (
+                        <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                          style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F3F4F6" }}>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[12px] font-semibold" style={{ color: "#111827" }}>{String(e.title || e.task_title || "—")}</span>
+                            {e.client && <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded" style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>{String(e.client)}</span>}
+                            {e._custom_client && <span className="ml-2 text-[11px]" style={{ color: "#6B7280" }}>{String(e._custom_client)}</span>}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {(e.start_time || e.end_time) && <span className="text-[10px]" style={{ color: "#9CA3AF" }}>{String(e.start_time ?? "")}–{String(e.end_time ?? "")}</span>}
+                            <span className="text-[11px] font-bold" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
+                  </div>
+                )}
+
+                {/* ── Media (Shooting + Editing) ── */}
+                {hasMedia && (
+                  <div className="px-4 md:px-5 pb-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>
+                      Media · {fmtHours(mediaHrs)}
+                      {shootEntries.length > 0 && <span className="ml-1 normal-case font-normal">({shootEntries.length} shoot{shootEntries.length > 1 ? "s" : ""}{editEntries.length > 0 ? ` · ${editEntries.length} edit${editEntries.length > 1 ? "s" : ""}` : ""})</span>}
+                    </p>
+                    <div className="space-y-1">
+                      {[...shootEntries, ...editEntries].map((e, i) => {
+                        const isShoot = e.task_type === "shoot"
+                        return (
+                          <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                            style={{ background: isShoot ? "rgba(222,26,26,0.02)" : "rgba(99,102,241,0.02)", border: `1px solid ${isShoot ? "rgba(222,26,26,0.08)" : "rgba(99,102,241,0.08)"}` }}>
+                            {isShoot ? <Camera size={11} style={{ color: "#de1a1a", flexShrink: 0 }} /> : <Edit2 size={11} style={{ color: "#6366F1", flexShrink: 0 }} />}
+                            <span className="flex-1 text-[12px] font-semibold truncate" style={{ color: "#111827" }}>{String(e.title || "—")}</span>
+                            {(e._brand || e._custom_client || e.client) && (
+                              <span className="text-[11px] px-1.5 py-0.5 rounded flex-shrink-0"
+                                style={{ background: isShoot ? "rgba(222,26,26,0.06)" : "rgba(99,102,241,0.06)", color: isShoot ? "#de1a1a" : "#6366F1" }}>
+                                {String(e._brand || e._custom_client || e.client)}
+                              </span>
+                            )}
+                            {e._location && <span className="text-[10px] flex items-center gap-0.5" style={{ color: "#9CA3AF" }}><MapPin size={9} />{String(e._location)}</span>}
+                            <span className="text-[11px] font-bold flex-shrink-0" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Learning ── */}
+                {u.active_tab === "learning" && (
+                  <div className="px-4 md:px-5 pb-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>
+                      Learning · {fmtHours(u.learning_hours)}
+                    </p>
+                    <div className="px-3 py-2.5 rounded-lg" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}>
+                      <div className="flex items-center gap-2">
+                        <BookOpen size={12} style={{ color: "#6366F1", flexShrink: 0 }} />
+                        <span className="text-[12px] font-semibold" style={{ color: "#6366F1" }}>{u.learning_topic ?? "—"}</span>
+                      </div>
+                      {u.learning_notes && <p className="text-[11px] mt-1 ml-5" style={{ color: "#6B7280" }}>{u.learning_notes}</p>}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Tasks ── */}
+                {tasksList.length > 0 && (
+                  <div className="px-4 md:px-5 pb-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>
+                      Tasks · {tasksCompleted}/{tasksTotal} completed
+                    </p>
+                    <div className="space-y-1">
+                      {tasksList.map((t) => {
+                        const done = t.status === "completed"
+                        const inProg = t.status === "in_progress"
+                        return (
+                          <div key={t.id} className="flex items-center gap-2 px-3 py-2 rounded-lg"
+                            style={{ background: done ? "rgba(34,197,94,0.03)" : "rgba(0,0,0,0.02)", border: `1px solid ${done ? "rgba(34,197,94,0.12)" : "#F3F4F6"}` }}>
+                            <div className="w-3.5 h-3.5 rounded-full flex-shrink-0 flex items-center justify-center"
+                              style={{ background: done ? "#22C55E" : inProg ? "#F59E0B" : "#E5E7EB" }}>
+                              {done && <span style={{ color: "#fff", fontSize: 8, lineHeight: 1 }}>✓</span>}
+                            </div>
+                            <span className="flex-1 text-[12px] font-medium truncate" style={{ color: done ? "#6B7280" : "#111827", textDecoration: done ? "line-through" : "none" }}>{t.title}</span>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0"
+                              style={{
+                                background: done ? "rgba(34,197,94,0.1)" : inProg ? "rgba(245,158,11,0.1)" : "rgba(0,0,0,0.04)",
+                                color: done ? "#22C55E" : inProg ? "#F59E0B" : "#9CA3AF",
+                              }}>
+                              {done ? "Done" : inProg ? "In Progress" : "Todo"}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Notes ── */}
+                {u.notes && (
+                  <div className="px-4 md:px-5 pb-4">
+                    <p className="text-[11px] px-3 py-2 rounded-lg" style={{ background: "rgba(0,0,0,0.02)", color: "#6B7280" }}>{u.notes}</p>
+                  </div>
+                )}
+
+                {/* ── Empty state ── */}
+                {entries.length === 0 && u.active_tab !== "learning" && tasksList.length === 0 && (
+                  <div className="px-4 pb-4">
+                    <p className="text-[12px] italic" style={{ color: "#D1D5DB" }}>No detailed entries recorded.</p>
                   </div>
                 )}
               </div>

@@ -36,10 +36,19 @@ export default async function ActivitiesPage({
 
   const companyId = profile?.company_id ?? ""
 
+  // Get all company member IDs first (reliable tenant filter for daily_updates)
+  const { data: members } = await admin
+    .from("users")
+    .select("id, name, employee_id, role")
+    .eq("company_id", companyId)
+    .order("name")
+
+  const memberIds = (members ?? []).map(m => m.id)
+
   let query = admin
     .from("daily_updates")
     .select("*, users(id, name, employee_id, role), tasks(title), work_entries, learning_topic, learning_notes, active_tab, editing_count")
-    .eq("company_id", companyId)
+    .in("user_id", memberIds.length > 0 ? memberIds : ["00000000-0000-0000-0000-000000000000"])
     .eq("date", dateFilter)
     .order("created_at", { ascending: false })
 
@@ -47,10 +56,7 @@ export default async function ActivitiesPage({
     query = query.eq("user_id", params.member)
   }
 
-  const [{ data: updates }, { data: members }] = await Promise.all([
-    query,
-    admin.from("users").select("id, name, employee_id, role").eq("company_id", companyId).order("name"),
-  ])
+  const { data: updates } = await query
 
   return <ActivitiesClient updates={updates ?? []} members={members ?? []} dateFilter={dateFilter} memberFilter={params.member ?? ""} />
 }

@@ -11,7 +11,7 @@ import {
   Search, Calendar, Clock, Sparkles, Target,
   TrendingUp, CheckCircle2, ChevronDown, Zap,
   Flame, AlertCircle, GripVertical, Plus, X, User,
-  Trash2, MessageSquare, Send, Loader2, Pencil,
+  Trash2, MessageSquare, Send, Loader2, Pencil, Layers,
 } from "lucide-react"
 import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject, updateTask } from "@/lib/actions/tasks"
 import { getTaskComments, addTaskComment, type TaskComment } from "@/lib/actions/comments"
@@ -479,6 +479,7 @@ export default function MemberTasksClient({
     setCommentSending(false)
   }
   const [showSort, setShowSort]             = useState(false)
+  const [groupByProject, setGroupByProject] = useState(false)
   const [filterProject, setFilterProject]   = useState("")
   const [showProjectFilter, setShowProjectFilter] = useState(false)
   const [promotionMode, setPromotionMode]   = useState(false)
@@ -766,6 +767,21 @@ export default function MemberTasksClient({
             </div>
           )}
 
+          {/* Group by Project toggle */}
+          <button
+            onClick={() => setGroupByProject(g => !g)}
+            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all"
+            style={{
+              background: groupByProject ? "#de1a1a" : "#FFFFFF",
+              border: `1px solid ${groupByProject ? "#de1a1a" : "#E5E7EB"}`,
+              color: groupByProject ? "#FFFFFF" : "#374151",
+            }}
+            title="Toggle group by project"
+          >
+            <Layers size={12} />
+            <span className="hidden sm:inline">Group by Project</span>
+          </button>
+
           {/* Sort dropdown */}
           <div className="relative flex-shrink-0">
             <button onClick={() => setShowSort(s => !s)}
@@ -854,7 +870,107 @@ export default function MemberTasksClient({
           })}
         </div>
 
+        {/* ── Group by Project view (desktop + mobile) ── */}
+        {groupByProject && (() => {
+          // Collect all filtered tasks across all statuses
+          const allFiltered = [
+            ...colTasks("todo"),
+            ...colTasks("in_progress"),
+            ...colTasks("completed"),
+          ]
+          // Build unique project groups preserving insertion order
+          const projectMap = new Map<string, { name: string; tasks: Task[] }>()
+          for (const task of allFiltered) {
+            const proj = Array.isArray(task.projects) ? task.projects[0] : task.projects
+            const key  = proj?.id ?? "__none__"
+            const name = proj?.business_name ?? "Internal / No Project"
+            if (!projectMap.has(key)) projectMap.set(key, { name, tasks: [] })
+            projectMap.get(key)!.tasks.push(task)
+          }
+          // Sort: named projects first (alphabetically), then "No Project"
+          const groups = [...projectMap.entries()]
+            .sort(([ka, va], [kb, vb]) => {
+              if (ka === "__none__") return 1
+              if (kb === "__none__") return -1
+              return va.name.localeCompare(vb.name)
+            })
+
+          const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
+            todo:        { bg: "rgba(107,114,128,0.1)", color: "#6B7280", label: "To Do"       },
+            in_progress: { bg: "rgba(245,158,11,0.1)",  color: "#D97706", label: "In Progress" },
+            completed:   { bg: "rgba(34,197,94,0.1)",   color: "#16A34A", label: "Completed"   },
+          }
+
+          if (groups.length === 0) {
+            return (
+              <div className="mb-6 flex items-center justify-center py-16 rounded-2xl"
+                style={{ border: "2px dashed #E5E7EB" }}>
+                <p className="text-[13px]" style={{ color: "#D1D5DB" }}>No tasks match the current filter</p>
+              </div>
+            )
+          }
+
+          return (
+            <div className="mb-6 space-y-5">
+              {groups.map(([key, group]) => {
+                const countByStatus = {
+                  todo:        group.tasks.filter(t => t.status === "todo").length,
+                  in_progress: group.tasks.filter(t => t.status === "in_progress").length,
+                  completed:   group.tasks.filter(t => t.status === "completed").length,
+                }
+                return (
+                  <div key={key} className="rounded-2xl overflow-hidden"
+                    style={{ border: "1px solid #E8E9EF", background: "#FFFFFF" }}>
+                    {/* Section header */}
+                    <div className="flex items-center gap-3 px-5 py-3.5"
+                      style={{ background: "linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%)", borderBottom: "1px solid #E8E9EF" }}>
+                      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ background: key === "__none__" ? "rgba(107,114,128,0.1)" : "rgba(222,26,26,0.1)" }}>
+                        <Layers size={13} style={{ color: key === "__none__" ? "#6B7280" : "#de1a1a" }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-black truncate" style={{ color: "#111111" }}>{group.name}</p>
+                        <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{group.tasks.length} task{group.tasks.length !== 1 ? "s" : ""}</p>
+                      </div>
+                      {/* Status summary badges */}
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {(["todo", "in_progress", "completed"] as const).map(s => {
+                          const cnt = countByStatus[s]
+                          if (cnt === 0) return null
+                          const sb = STATUS_BADGE[s]
+                          return (
+                            <span key={s} className="text-[9px] font-bold px-2 py-0.5 rounded-full"
+                              style={{ background: sb.bg, color: sb.color }}>
+                              {sb.label} {cnt}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    {/* Task grid */}
+                    <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {group.tasks.map(task => (
+                        <TaskCardInner
+                          key={task.id}
+                          task={task}
+                          today={today}
+                          onMove={moveTask}
+                          currentUserId={currentUserId}
+                          onDelete={handleDeleteTask}
+                          onComment={id => setCommentTaskId(id)}
+                          onEdit={setEditTask}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })()}
+
         {/* Desktop: DnD Kanban 3-column grid */}
+        {!groupByProject && (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver as never} onDragEnd={handleDragEnd}>
           <div className="hidden md:grid grid-cols-3 gap-4 mb-6">
             {KANBAN_COLS.map(col => {
@@ -914,6 +1030,7 @@ export default function MemberTasksClient({
             ) : null}
           </DragOverlay>
         </DndContext>
+        )}
 
         {/* ── Bottom row ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -6,9 +6,9 @@ import { LogOut, Loader2, Home, Building2, CheckCircle2, AlertTriangle, MapPin, 
 import { clockIn, clockOut, markAbsent, breakIn, breakOut, resumeAttendance, getAttendanceByDate, manualClockOut } from "@/lib/actions/attendance"
 import { useRouter } from "next/navigation"
 
-const OFFICE_LAT     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LAT ?? "")
-const OFFICE_LNG     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LNG ?? "")
-const OFFICE_RADIUS  = parseFloat(process.env.NEXT_PUBLIC_OFFICE_RADIUS_METERS ?? "300")
+const OFFICE_LAT     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LAT     ?? "12.415145713024462")
+const OFFICE_LNG     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LNG     ?? "78.22769145276305")
+const OFFICE_RADIUS  = parseFloat(process.env.NEXT_PUBLIC_OFFICE_RADIUS_METERS ?? "500")
 const OFFICE_CHECK_ENABLED = !isNaN(OFFICE_LAT) && !isNaN(OFFICE_LNG)
 
 function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {

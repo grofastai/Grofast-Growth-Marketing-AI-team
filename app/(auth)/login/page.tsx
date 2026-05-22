@@ -1,85 +1,12 @@
 'use client'
 
-import { useActionState, useState, useTransition } from 'react'
+import { useActionState, useState } from 'react'
 import { loginAction } from '@/lib/actions/auth'
 import Image from 'next/image'
 
-const OFFICE_LAT = 12.415145713024462
-const OFFICE_LNG = 78.22769145276305
-const OFFICE_RADIUS_M = 300
-
-function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000
-  const toRad = (d: number) => (d * Math.PI) / 180
-  const dLat = toRad(lat2 - lat1)
-  const dLng = toRad(lng2 - lng1)
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-
 export default function LoginPage() {
-  const [state, action] = useActionState(loginAction, null)
-  const [isPending, startTransition] = useTransition()
+  const [state, action, pending] = useActionState(loginAction, null)
   const [showPassword, setShowPassword] = useState(false)
-  const [locationError, setLocationError] = useState<string | null>(null)
-  const [checkingLocation, setCheckingLocation] = useState(false)
-
-  const pending = checkingLocation || isPending
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setLocationError(null)
-
-    if (!navigator?.geolocation) {
-      setLocationError('Your browser does not support location services. Login is only allowed from the office.')
-      return
-    }
-
-    setCheckingLocation(true)
-
-    try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) =>
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          timeout: 12000,
-          maximumAge: 0,
-        })
-      )
-
-      const dist = haversineMeters(
-        position.coords.latitude,
-        position.coords.longitude,
-        OFFICE_LAT,
-        OFFICE_LNG
-      )
-
-      if (dist > OFFICE_RADIUS_M) {
-        setLocationError(
-          `Access denied. You are ${Math.round(dist)} m from the office. Login is only allowed within ${OFFICE_RADIUS_M} m of the office.`
-        )
-        setCheckingLocation(false)
-        return
-      }
-
-      const formData = new FormData(e.currentTarget)
-      setCheckingLocation(false)
-      startTransition(() => {
-        action(formData)
-      })
-    } catch (err: unknown) {
-      const code = (err as GeolocationPositionError)?.code
-      if (code === 1) {
-        setLocationError('Location access was denied. Please allow location permission in your browser and try again.')
-      } else if (code === 2) {
-        setLocationError('Unable to determine your location. Please check GPS/network and try again.')
-      } else {
-        setLocationError('Location check timed out. Please try again.')
-      }
-      setCheckingLocation(false)
-    }
-  }
 
   return (
     <>
@@ -413,7 +340,7 @@ export default function LoginPage() {
                 <div className="r-dl"/><span className="r-dt">Sign In</span><div className="r-dl"/>
               </div>
 
-              <form onSubmit={handleSubmit}>
+              <form action={action}>
                 <div className="r-fld">
                   <div className="r-fh"><label className="r-lb">Email</label></div>
                   <div className="r-iw">
@@ -461,23 +388,21 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                {(locationError || state?.error) && (
+                {state?.error && (
                   <div className="r-err">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{flexShrink:0,marginTop:1}}>
                       <circle cx="12" cy="12" r="10"/>
                       <line x1="12" y1="8" x2="12" y2="12"/>
                       <line x1="12" y1="16" x2="12.01" y2="16"/>
                     </svg>
-                    {locationError ?? state?.error}
+                    {state.error}
                   </div>
                 )}
 
                 <button type="submit" disabled={pending} className="r-btn">
-                  {checkingLocation
-                    ? <><svg className="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Checking Location…</>
-                    : isPending
-                      ? <><svg className="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Signing In…</>
-                      : <>Sign In <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></>
+                  {pending
+                    ? <><svg className="spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Signing In…</>
+                    : <>Sign In <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></>
                   }
                 </button>
               </form>

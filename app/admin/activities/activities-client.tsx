@@ -327,12 +327,12 @@ export default function ActivitiesClient({
                               style={{ border: "1px solid #F3F4F6" }}>
                               <div className="flex-1 min-w-0">
                                 <p className="text-[12px] font-semibold" style={{ color: "#111827" }}>{String(e.title || e.task_title || "—")}</p>
-                                {(e.client || e._custom_client) && (
+                                {!!(e.client || e._custom_client) && (
                                   <p className="text-[11px] mt-0.5" style={{ color: "#de1a1a" }}>{String(e.client || e._custom_client)}</p>
                                 )}
                               </div>
                               <div className="flex-shrink-0 text-right">
-                                {(e.start_time || e.end_time) && <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{String(e.start_time ?? "")} – {String(e.end_time ?? "")}</p>}
+                                {!!(e.start_time || e.end_time) && <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{String(e.start_time ?? "")} – {String(e.end_time ?? "")}</p>}
                                 <p className="text-[12px] font-bold" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</p>
                               </div>
                             </div>
@@ -356,10 +356,10 @@ export default function ActivitiesClient({
                                 {isShoot ? <Camera size={12} style={{ color: "#de1a1a", flexShrink: 0 }} /> : <Edit2 size={12} style={{ color: "#6366F1", flexShrink: 0 }} />}
                                 <div className="flex-1 min-w-0">
                                   <p className="text-[12px] font-semibold" style={{ color: "#111827" }}>{String(e.title || "—")}</p>
-                                  {(e._brand || e._custom_client || e.client) && (
+                                  {!!(e._brand || e._custom_client || e.client) && (
                                     <p className="text-[11px]" style={{ color: isShoot ? "#de1a1a" : "#6366F1" }}>{String(e._brand || e._custom_client || e.client)}</p>
                                   )}
-                                  {e._location && <p className="text-[10px] flex items-center gap-1 mt-0.5" style={{ color: "#9CA3AF" }}><MapPin size={9} />{String(e._location)}</p>}
+                                  {!!e._location && <p className="text-[10px] flex items-center gap-1 mt-0.5" style={{ color: "#9CA3AF" }}><MapPin size={9} />{String(e._location)}</p>}
                                 </div>
                                 <p className="text-[12px] font-bold flex-shrink-0" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</p>
                               </div>

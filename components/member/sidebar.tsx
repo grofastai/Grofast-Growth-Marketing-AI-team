@@ -1,15 +1,32 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, ClipboardList, Target, CalendarOff,
   Megaphone, User, LogOut, Clock, History, LifeBuoy, ChevronRight,
-  MoreHorizontal, X, Bell,
+  MoreHorizontal, X, Bell, ArrowRight,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
+import { getUnreadNotifications, markAllRead, type NotificationRow } from "@/lib/actions/notifications"
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return "just now"
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
+
+const NOTIF_ICON: Record<string, React.ElementType> = {
+  leave_status: CalendarOff,
+  task_assigned: Target,
+  announcement: Megaphone,
+}
 
 const navItems = [
   { label: "Dashboard",     href: "/member/dashboard",     icon: LayoutDashboard },
@@ -47,6 +64,21 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
   const pathname = usePathname()
   const initials = name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
   const [showMore, setShowMore] = useState(false)
+  const [bellOpen, setBellOpen] = useState(false)
+  const [panelNotifs, setPanelNotifs] = useState<NotificationRow[]>([])
+  const [localUnread, setLocalUnread] = useState(unreadCount)
+  useEffect(() => { setLocalUnread(unreadCount) }, [unreadCount])
+
+  async function handleBellClick() {
+    if (bellOpen) { setBellOpen(false); return }
+    const notifs = await getUnreadNotifications()
+    setPanelNotifs(notifs)
+    setBellOpen(true)
+    if (localUnread > 0) {
+      setLocalUnread(0)
+      markAllRead()
+    }
+  }
 
   function isActive(href: string) {
     return pathname === href || (href !== "/member/dashboard" && pathname.startsWith(href))
@@ -165,16 +197,71 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
               </div>
             </div>
             {/* Bell notification */}
-            <Link href="/member/notifications" className="relative w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(255,255,255,0.1)", border: "1.5px solid rgba(255,255,255,0.2)" }}>
-              <Bell size={13} style={{ color: "#FFFFFF" }} />
-              {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
-                  style={{ background: "#de1a1a", color: "#FFFFFF", border: "1.5px solid #080808" }}>
-                  {unreadCount}
-                </span>
+            <div className="relative">
+              <button onClick={handleBellClick} className="relative w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: bellOpen ? "rgba(222,26,26,0.25)" : "rgba(255,255,255,0.1)", border: `1.5px solid ${bellOpen ? "rgba(222,26,26,0.6)" : "rgba(255,255,255,0.2)"}` }}>
+                <Bell size={13} style={{ color: "#FFFFFF" }} />
+                {localUnread > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[8px] font-black flex items-center justify-center"
+                    style={{ background: "#de1a1a", color: "#FFFFFF", border: "1.5px solid #080808" }}>
+                    {localUnread}
+                  </span>
+                )}
+              </button>
+              {bellOpen && (
+                <>
+                  {/* backdrop */}
+                  <div className="fixed inset-0 z-40" onClick={() => setBellOpen(false)} />
+                  {/* panel */}
+                  <div className="absolute bottom-10 left-10 z-50 w-72 rounded-2xl overflow-hidden"
+                    style={{ background: "#FFFFFF", boxShadow: "0 8px 40px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.06)" }}>
+                    <div className="flex items-center justify-between px-4 py-3"
+                      style={{ borderBottom: "1px solid #F0F2F5" }}>
+                      <span className="text-[13px] font-black" style={{ color: "#111" }}>Notifications</span>
+                      <button onClick={() => setBellOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", padding: 2 }}>
+                        <X size={13} />
+                      </button>
+                    </div>
+                    {panelNotifs.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 gap-2">
+                        <Bell size={22} style={{ color: "#D1D5DB" }} />
+                        <p className="text-[12px]" style={{ color: "#9CA3AF" }}>All caught up!</p>
+                      </div>
+                    ) : (
+                      <div>
+                        {panelNotifs.map(n => {
+                          const Icon = NOTIF_ICON[n.type] ?? Bell
+                          return (
+                            <Link key={n.id} href={n.link ?? "/member/notifications"} onClick={() => setBellOpen(false)}
+                              className="flex items-start gap-3 px-4 py-3 transition-colors"
+                              style={{ borderBottom: "1px solid #F9FAFB" }}
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F9FAFB"}
+                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
+                              <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                                style={{ background: "#FEF2F2" }}>
+                                <Icon size={13} style={{ color: "#DE1A1A" }} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[12px] font-semibold leading-snug truncate" style={{ color: "#111" }}>{n.title}</p>
+                                {n.body && <p className="text-[11px] mt-0.5 line-clamp-1" style={{ color: "#6B7280" }}>{n.body}</p>}
+                                <p className="text-[10px] mt-1" style={{ color: "#9CA3AF" }}>{timeAgo(n.created_at)}</p>
+                              </div>
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <Link href="/member/notifications" onClick={() => setBellOpen(false)}
+                      className="flex items-center justify-center gap-1.5 py-3 text-[12px] font-semibold transition-colors"
+                      style={{ color: "#DE1A1A", borderTop: "1px solid #F0F2F5" }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#FEF2F2"}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
+                      All Notifications <ArrowRight size={12} />
+                    </Link>
+                  </div>
+                </>
               )}
-            </Link>
+            </div>
           </div>
 
           {/* Sign Out */}

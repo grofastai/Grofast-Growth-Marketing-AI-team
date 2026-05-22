@@ -572,9 +572,9 @@ export default function DailyUpdateForm({
 
           {/* Two-step progress indicator (non-media team) */}
           {!isMediaTeam && (
-            <div style={{ background:"#FFFFFF", borderRadius:14, border:"1px solid #EBEDF2", padding:"12px 16px", boxShadow:"0 1px 4px rgba(0,0,0,0.05)", display:"flex", alignItems:"center", gap:0 }}>
+            <div style={{ background:"#FFFFFF", borderRadius:14, border:"1px solid #EBEDF2", padding:"12px 16px", boxShadow:"0 1px 4px rgba(0,0,0,0.05)", display:"flex", alignItems:"center", gap:8 }}>
               {/* Step 1: Work Log */}
-              <div style={{ flex:1, display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:10 }}>
                 <div style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center",
                   background: workingDone ? "#22C55E" : tab === "working" ? "#DE1A1A" : "#E5E7EB",
                   border: workingDone ? "none" : tab === "working" ? "none" : "2px solid #D1D5DB",
@@ -600,9 +600,9 @@ export default function DailyUpdateForm({
               }} />
 
               {/* Step 2: Learning */}
-              <div style={{ flex:1, display:"flex", alignItems:"center", gap:10 }}>
+              <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:10 }}>
                 <div style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center",
-                  background: learningDone ? "#22C55E" : tab === "learning" ? "#10B981" : "#E5E7EB",
+                  background: learningDone ? "#22C55E" : tab === "learning" ? "#DE1A1A" : "#E5E7EB",
                   border: learningDone ? "none" : tab === "learning" ? "none" : "2px solid #D1D5DB",
                 }}>
                   {learningDone

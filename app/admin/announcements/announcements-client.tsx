@@ -12,7 +12,7 @@ interface Announcement {
   title: string
   message: string
   pinned: boolean
-  category: string
+  category: 'General' | 'Policy' | 'Events' | 'Urgent'
   created_at: string
   users: { name: string } | { name: string }[] | null
 }

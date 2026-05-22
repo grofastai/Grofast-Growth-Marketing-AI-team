@@ -812,7 +812,7 @@ export default function MemberTasksClient({
         {/* ── Kanban board ── */}
 
         {/* Mobile: column tab switcher */}
-        <div className="md:hidden flex gap-1.5 overflow-x-auto mb-3 pb-1" style={{ scrollbarWidth: "none" }}>
+        {!groupByProject && <div className="md:hidden flex gap-1.5 overflow-x-auto mb-3 pb-1" style={{ scrollbarWidth: "none" }}>
           {KANBAN_COLS.map(col => (
             <button key={col.key} onClick={() => setActiveMobileCol(col.key)}
               className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all"
@@ -830,10 +830,10 @@ export default function MemberTasksClient({
               </span>
             </button>
           ))}
-        </div>
+        </div>}
 
         {/* Mobile: single active column (no dnd) */}
-        <div className="md:hidden mb-6">
+        {!groupByProject && <div className="md:hidden mb-6">
           {KANBAN_COLS.filter(col => col.key === activeMobileCol).map(col => {
             const list = colTasks(col.key)
             return (
@@ -868,7 +868,7 @@ export default function MemberTasksClient({
               </div>
             )
           })}
-        </div>
+        </div>}
 
         {/* ── Group by Project view (desktop + mobile) ── */}
         {groupByProject && (() => {

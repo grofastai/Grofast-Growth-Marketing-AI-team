@@ -9,6 +9,14 @@
       "schedule": "30 15 * * *"
     },
     {
+      "path": "/api/cron/admin-morning-report",
+      "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/weekly-report",
+      "schedule": "0 4 * * 1"
+    },
+    {
       "path": "/api/cron/birthdays",
       "schedule": "30 3 * * *"
     },

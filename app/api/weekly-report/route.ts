@@ -3,11 +3,13 @@ export const revalidate = 0
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-// Called via x-webhook-secret header + ?company_id=UUID query param.
-// Returns weekly performance metrics for admin reporting.
+// Vercel Cron calls this every Monday 9:30 AM IST (0 4 * * 1 UTC).
+// Also callable manually via x-webhook-secret + ?company_id=UUID.
+// Sends grofast_weekly_report to admin with the past 7-day performance summary.
 
 function adminSupabase() {
   return createClient(
@@ -17,20 +19,40 @@ function adminSupabase() {
   )
 }
 
+function isAuthorized(request: NextRequest): boolean {
+  const cronSecret = process.env.CRON_SECRET
+  const webhookSecret = process.env.INTERNAL_WEBHOOK_SECRET
+  const authHeader = request.headers.get('authorization')
+  if (cronSecret && authHeader === `Bearer ${cronSecret}`) return true
+  const webhookHeader = request.headers.get('x-webhook-secret')
+  if (webhookSecret && webhookHeader === webhookSecret) return true
+  return false
+}
+
+function getCompanyId(request: NextRequest): string | null {
+  const fromParam = request.nextUrl.searchParams.get('company_id')
+  if (fromParam && UUID_RE.test(fromParam)) return fromParam
+  const fromEnv = process.env.CRON_COMPANY_ID
+  if (fromEnv && UUID_RE.test(fromEnv)) return fromEnv
+  return null
+}
+
 function resolveUser(u: unknown): { name: string; employee_id: string } | null {
   if (!u) return null
   return Array.isArray(u) ? (u[0] ?? null) : (u as { name: string; employee_id: string })
 }
 
 export async function GET(request: NextRequest) {
-  const secret = request.headers.get('x-webhook-secret')
-  if (!secret || secret !== process.env.INTERNAL_WEBHOOK_SECRET) {
+  if (!isAuthorized(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const companyId = request.nextUrl.searchParams.get('company_id')
-  if (!companyId || !UUID_RE.test(companyId)) {
-    return NextResponse.json({ error: 'Valid company_id UUID is required' }, { status: 400 })
+  const companyId = getCompanyId(request)
+  if (!companyId) {
+    return NextResponse.json(
+      { error: 'company_id required — provide ?company_id=UUID or set CRON_COMPANY_ID env var' },
+      { status: 400 }
+    )
   }
 
   const admin = adminSupabase()
@@ -110,17 +132,46 @@ export async function GET(request: NextRequest) {
     return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
   }
 
+  const periodLabel = `${fmtDate(weekAgo)} – ${fmtDate(today)}`
+  const roundedHours = Math.round(totalHours * 10) / 10
+  const overdueTaskCount = (overdueTasks ?? []).length
+  const overdueProjectCount = (overdueProjects ?? []).length
+
+  // Send weekly summary to admin via WhatsApp
+  let whatsappSent = false
+  const { data: adminUser } = await admin
+    .from('users')
+    .select('phone')
+    .eq('company_id', companyId)
+    .eq('role', 'ADMIN')
+    .limit(1)
+    .single()
+
+  if (adminUser?.phone) {
+    whatsappSent = await sendWhatsAppTemplate(
+      formatPhone(adminUser.phone),
+      'grofast_weekly_report',
+      [
+        periodLabel,
+        String(roundedHours),
+        topPerformer?.name ?? 'N/A',
+        String(overdueTaskCount + overdueProjectCount),
+      ]
+    )
+  }
+
   return NextResponse.json({
     period: { from: weekAgo, to: today },
-    periodLabel: `${fmtDate(weekAgo)} – ${fmtDate(today)}`,
-    totalHours: Math.round(totalHours * 10) / 10,
+    periodLabel,
+    totalHours: roundedHours,
     totalShoots,
     topPerformer: topPerformer
       ? { name: topPerformer.name, hours: Math.round(topPerformer.hours * 10) / 10, shoots: topPerformer.shoots }
       : null,
-    overdueTaskCount: (overdueTasks ?? []).length,
-    overdueProjectCount: (overdueProjects ?? []).length,
+    overdueTaskCount,
+    overdueProjectCount,
     missedUpdateDays,
+    whatsappSent,
     dashboardUrl: `${appUrl}/admin/dashboard`,
   })
 }

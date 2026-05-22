@@ -36,7 +36,7 @@ export default async function ActivitiesPage({
 
   const companyId = profile?.company_id ?? ""
 
-  const [{ data: members }, updatesResult] = await Promise.all([
+  const [{ data: members }, updatesResult, { data: allTasks }] = await Promise.all([
     admin
       .from("users")
       .select("id, name, employee_id, role")
@@ -52,18 +52,33 @@ export default async function ActivitiesPage({
       if (params.member) q = q.eq("user_id", params.member)
       return q
     })(),
+    admin
+      .from("tasks")
+      .select("assigned_to, status")
+      .eq("company_id", companyId),
   ])
 
   if (updatesResult.error) {
     console.error("[activities] daily_updates query error:", updatesResult.error)
   }
 
-  // Attach user info from members list (avoids FK join failures)
+  // Build task stats per user: { userId: { total, completed } }
+  const taskStatsMap: Record<string, { total: number; completed: number }> = {}
+  for (const t of allTasks ?? []) {
+    if (!t.assigned_to) continue
+    if (!taskStatsMap[t.assigned_to]) taskStatsMap[t.assigned_to] = { total: 0, completed: 0 }
+    taskStatsMap[t.assigned_to].total++
+    if (t.status === "completed") taskStatsMap[t.assigned_to].completed++
+  }
+
+  // Attach user info and task stats (avoids FK join failures)
   const membersMap = Object.fromEntries((members ?? []).map(m => [m.id, m]))
   const updates = (updatesResult.data ?? []).map(u => ({
     ...u,
     users: membersMap[u.user_id] ?? null,
     tasks: null,
+    tasks_completed: taskStatsMap[u.user_id]?.completed ?? 0,
+    tasks_total: taskStatsMap[u.user_id]?.total ?? 0,
   }))
 
   return <ActivitiesClient updates={updates} members={members ?? []} dateFilter={dateFilter} memberFilter={params.member ?? ""} />

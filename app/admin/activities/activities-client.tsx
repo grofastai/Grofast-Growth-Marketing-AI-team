@@ -23,6 +23,8 @@ interface Update {
   work_entries: WorkEntry[] | null
   users: { id: string; name: string; employee_id: string; role: string } | null
   tasks: { title: string } | null
+  tasks_completed: number
+  tasks_total: number
 }
 
 interface Member { id: string; name: string; employee_id: string }
@@ -327,9 +329,10 @@ export default function ActivitiesClient({
             const sc = ATTENDANCE_STYLE[u.attendance_status] ?? ATTENDANCE_STYLE.present
             const wt = u.work_type ? WORK_TYPE[u.work_type] : null
             const user = Array.isArray(u.users) ? u.users[0] : u.users
-            const task = Array.isArray(u.tasks) ? u.tasks[0] : u.tasks
             const isExpanded = expandedId === u.id
             const hasEntries = (u.work_entries?.length ?? 0) > 0 || u.active_tab === "learning"
+            const tasksCompleted = u.tasks_completed ?? 0
+            const tasksTotal = u.tasks_total ?? 0
 
             return (
               <div key={u.id} className="rounded-xl overflow-hidden"
@@ -363,7 +366,7 @@ export default function ActivitiesClient({
                         <ControlFlag hours={u.working_hours} attendance={u.attendance_status} />
                       </div>
 
-                      {/* Stats */}
+                      {/* Stats row */}
                       <div className="flex flex-wrap gap-4 mb-2">
                         <div className="flex items-center gap-1.5">
                           <Clock size={11} style={{ color: "#D1D5DB" }} />
@@ -371,10 +374,12 @@ export default function ActivitiesClient({
                             {u.working_hours != null ? `${u.working_hours}h work` : "—"}
                           </span>
                         </div>
-                        <div className="flex items-center gap-1.5">
-                          <BookOpen size={11} style={{ color: "#D1D5DB" }} />
-                          <span className="text-[12px]" style={{ color: "#6B7280" }}>{u.learning_hours}h learning</span>
-                        </div>
+                        {(u.learning_hours ?? 0) > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <BookOpen size={11} style={{ color: "#6366F1" }} />
+                            <span className="text-[12px]" style={{ color: "#6366F1" }}>{u.learning_hours}h learning</span>
+                          </div>
+                        )}
                         {u.shoot_count > 0 && (
                           <div className="flex items-center gap-1.5">
                             <Camera size={11} style={{ color: "#D1D5DB" }} />
@@ -387,20 +392,31 @@ export default function ActivitiesClient({
                             <span className="text-[12px]" style={{ color: "#6B7280" }}>{u.editing_count} edits</span>
                           </div>
                         )}
+                        {/* Task completion badge */}
+                        {tasksTotal > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <Target size={11} style={{ color: tasksCompleted === tasksTotal ? "#22C55E" : "#F59E0B" }} />
+                            <span className="text-[12px] font-semibold"
+                              style={{ color: tasksCompleted === tasksTotal ? "#22C55E" : "#F59E0B" }}>
+                              {tasksCompleted}/{tasksTotal} tasks done
+                            </span>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Task link */}
-                      {task && (
-                        <div className="flex items-center gap-1.5 mb-2">
-                          <Target size={11} style={{ color: "#de1a1a" }} />
-                          <span className="text-[12px] font-semibold" style={{ color: "rgba(222,26,26,0.8)" }}>{task.title}</span>
-                        </div>
-                      )}
-
                       {u.notes && (
-                        <p className="text-[12px] px-3 py-2 rounded-lg" style={{ background: "rgba(0,0,0,0.02)", color: "#6B7280" }}>
+                        <p className="text-[12px] px-3 py-2 rounded-lg mb-2" style={{ background: "rgba(0,0,0,0.02)", color: "#6B7280" }}>
                           {u.notes}
                         </p>
+                      )}
+
+                      {/* Learning inline preview */}
+                      {u.active_tab === "learning" && u.learning_topic && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg mb-1"
+                          style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.12)" }}>
+                          <BookOpen size={11} style={{ color: "#6366F1", flexShrink: 0 }} />
+                          <span className="text-[12px] font-semibold truncate" style={{ color: "#6366F1" }}>{u.learning_topic}</span>
+                        </div>
                       )}
                     </div>
 

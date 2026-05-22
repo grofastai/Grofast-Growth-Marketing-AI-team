@@ -12,27 +12,20 @@ interface Announcement {
   title: string
   message: string
   pinned: boolean
+  category: string
   created_at: string
   users: { name: string } | { name: string }[] | null
 }
 
 type ActionState = { error: string } | { success: true } | null
 
-const FILTERS = ["All", "Pinned", "General", "Events", "Policies", "Updates"]
+const FILTERS = ["All", "Pinned", "General", "Policy", "Events", "Urgent"]
 
 const CATEGORY_STYLE: Record<string, { bg: string; color: string }> = {
-  General:  { bg: "#EFF6FF", color: "#3B82F6" },
-  Events:   { bg: "#F0FDF4", color: "#16A34A" },
-  Policies: { bg: "#FFF7ED", color: "#EA580C" },
-  Updates:  { bg: "#FAF5FF", color: "#9333EA" },
-}
-
-function getCategory(title: string, message: string): string {
-  const t = (title + " " + message).toLowerCase()
-  if (/event|meeting|party|ceremon|celebrat|holiday|fest/.test(t)) return "Events"
-  if (/polic|rule|guideline|compliance|regulat/.test(t)) return "Policies"
-  if (/update|system|upgrade|release|mainten|new feature/.test(t)) return "Updates"
-  return "General"
+  General: { bg: "#EFF6FF", color: "#3B82F6" },
+  Policy:  { bg: "#FFF7ED", color: "#EA580C" },
+  Events:  { bg: "#F0FDF4", color: "#16A34A" },
+  Urgent:  { bg: "#FFF1F2", color: "#E11D48" },
 }
 
 function timeAgo(dateStr: string): string {
@@ -145,11 +138,10 @@ export default function AnnouncementsClient({
   }
 
   const filtered = announcements.filter((ann) => {
-    const category = getCategory(ann.title, ann.message)
     const matchesFilter =
       activeFilter === "All" ||
       (activeFilter === "Pinned" && ann.pinned) ||
-      category === activeFilter
+      ann.category === activeFilter
     const matchesSearch =
       !search ||
       ann.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -274,8 +266,7 @@ export default function AnnouncementsClient({
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {filtered.map((ann) => {
                 const creator = resolveUser(ann.users)
-                const category = getCategory(ann.title, ann.message)
-                const catStyle = CATEGORY_STYLE[category] ?? CATEGORY_STYLE.General
+                const catStyle = CATEGORY_STYLE[ann.category] ?? CATEGORY_STYLE.General
                 return (
                   <div
                     key={ann.id}
@@ -306,7 +297,7 @@ export default function AnnouncementsClient({
                           </span>
                         )}
                         <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, background: catStyle.bg, color: catStyle.color }}>
-                          {category.toUpperCase()}
+                          {ann.category.toUpperCase()}
                         </span>
                         <h3 style={{ fontSize: 14, fontWeight: 700, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 320 }}>
                           {ann.title}
@@ -451,8 +442,7 @@ export default function AnnouncementsClient({
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {recentNotifications.map((ann) => {
-                  const category = getCategory(ann.title, ann.message)
-                  const catStyle = CATEGORY_STYLE[category] ?? CATEGORY_STYLE.General
+                  const catStyle = CATEGORY_STYLE[ann.category] ?? CATEGORY_STYLE.General
                   return (
                     <div key={ann.id} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                       <div style={{ width: 32, height: 32, borderRadius: 10, background: ann.pinned ? "rgba(229,57,53,0.1)" : catStyle.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>

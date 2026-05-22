@@ -570,6 +570,58 @@ export default function DailyUpdateForm({
         {/* ── LEFT ─────────────────────────────────────────────────────────── */}
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
 
+          {/* Two-step progress indicator (non-media team) */}
+          {!isMediaTeam && (
+            <div style={{ background:"#FFFFFF", borderRadius:14, border:"1px solid #EBEDF2", padding:"12px 16px", boxShadow:"0 1px 4px rgba(0,0,0,0.05)", display:"flex", alignItems:"center", gap:0 }}>
+              {/* Step 1: Work Log */}
+              <div style={{ flex:1, display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center",
+                  background: workingDone ? "#22C55E" : tab === "working" ? "#DE1A1A" : "#E5E7EB",
+                  border: workingDone ? "none" : tab === "working" ? "none" : "2px solid #D1D5DB",
+                }}>
+                  {workingDone
+                    ? <span style={{ fontSize:11, color:"#fff", fontWeight:900, lineHeight:1 }}>✓</span>
+                    : <span style={{ fontSize:10, color: tab === "working" ? "#fff" : "#9CA3AF", fontWeight:900, lineHeight:1 }}>1</span>
+                  }
+                </div>
+                <div>
+                  <p style={{ margin:0, fontSize:12, fontWeight:800, color: workingDone ? "#16A34A" : tab === "working" ? "#111827" : "#9CA3AF" }}>
+                    Work Log{workingDone ? " submitted" : ""}
+                  </p>
+                  <p style={{ margin:0, fontSize:10, color: workingDone ? "#16A34A" : tab === "working" ? "#6B7280" : "#C4C9D4" }}>
+                    {workingDone ? "Done ✓" : tab === "working" ? "Fill & submit below" : "Pending"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Connector line */}
+              <div style={{ width:32, height:2, borderRadius:99, flexShrink:0,
+                background: workingDone ? "#22C55E" : "#E5E7EB",
+              }} />
+
+              {/* Step 2: Learning */}
+              <div style={{ flex:1, display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center",
+                  background: learningDone ? "#22C55E" : tab === "learning" ? "#10B981" : "#E5E7EB",
+                  border: learningDone ? "none" : tab === "learning" ? "none" : "2px solid #D1D5DB",
+                }}>
+                  {learningDone
+                    ? <span style={{ fontSize:11, color:"#fff", fontWeight:900, lineHeight:1 }}>✓</span>
+                    : <span style={{ fontSize:10, color: tab === "learning" ? "#fff" : "#9CA3AF", fontWeight:900, lineHeight:1 }}>2</span>
+                  }
+                </div>
+                <div>
+                  <p style={{ margin:0, fontSize:12, fontWeight:800, color: learningDone ? "#16A34A" : tab === "learning" ? "#111827" : "#9CA3AF" }}>
+                    Learning{learningDone ? " submitted" : ""}
+                  </p>
+                  <p style={{ margin:0, fontSize:10, color: learningDone ? "#16A34A" : tab === "learning" ? "#6B7280" : "#C4C9D4" }}>
+                    {learningDone ? "Done ✓" : workingDone && tab !== "learning" ? "Submit below ↓" : tab === "learning" ? "Fill & submit below" : "Pending"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Tab switcher (non-media team) */}
           {!isMediaTeam && (
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>

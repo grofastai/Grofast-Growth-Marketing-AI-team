@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, ClipboardList, Target, CalendarOff,
   Megaphone, User, LogOut, Clock, History, LifeBuoy, ChevronRight,
-  MoreHorizontal, X, Bell, ArrowRight,
+  MoreHorizontal, X, Bell, ArrowRight, StickyNote,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 import { getUnreadNotifications, markAllRead, type NotificationRow } from "@/lib/actions/notifications"
@@ -36,6 +36,7 @@ const navItems = [
   { label: "Leaves",        href: "/member/leaves",        icon: CalendarOff },
   { label: "History",       href: "/member/history",       icon: History },
   { label: "Announcements", href: "/member/announcements", icon: Megaphone },
+  { label: "Notes",         href: "/member/notes",         icon: StickyNote },
   { label: "Notifications", href: "/member/notifications", icon: Bell },
   { label: "Profile",       href: "/member/profile",       icon: User },
   { label: "Support",       href: "/member/support",       icon: LifeBuoy },
@@ -52,6 +53,7 @@ const moreNavItems = [
   { label: "Leaves",         href: "/member/leaves",        icon: CalendarOff },
   { label: "History",        href: "/member/history",       icon: History },
   { label: "Announcements",  href: "/member/announcements", icon: Megaphone },
+  { label: "Notes",          href: "/member/notes",         icon: StickyNote },
   { label: "Notifications",  href: "/member/notifications", icon: Bell },
   { label: "Support",        href: "/member/support",       icon: LifeBuoy },
   { label: "Profile",        href: "/member/profile",       icon: User },

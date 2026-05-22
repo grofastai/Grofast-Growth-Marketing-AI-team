@@ -47,7 +47,8 @@ export default async function MemberClientsPage() {
 
   if ((dbClients ?? []).length > 0) {
     // Convert Supabase clients to SheetClient shape for the existing UI
-    const toSheet = (c: typeof dbClients![0]): SheetClient => ({
+    type DbRow = NonNullable<typeof dbClients>[0]
+    const toSheet = (c: DbRow): SheetClient => ({
       sno: '', client_status: c.status === 'active' ? 'Active' : 'Past',
       customer_name: c.contact_name ?? '', company_name: c.name,
       period: '', due_date: '', package_name: c.package_name ?? '',

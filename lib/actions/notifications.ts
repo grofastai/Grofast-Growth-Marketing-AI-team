@@ -12,6 +12,10 @@ function adminSupabase() {
   )
 }
 
+// The `notifications` table is shared with a legacy WhatsApp send-log (007/008).
+// Those rows have no title/body and must never appear in the in-app bell list.
+const LOG_ONLY_TYPES = ['whatsapp_onboarding', 'whatsapp_daily_alert', 'whatsapp_blast']
+
 export interface NotificationRow {
   id: string
   type: string
@@ -33,6 +37,7 @@ export async function getUnreadNotifications(): Promise<NotificationRow[]> {
     .select('id, type, title, body, read, link, created_at')
     .eq('user_id', user.id)
     .eq('read', false)
+    .not('type', 'in', `(${LOG_ONLY_TYPES.join(',')})`)
     .order('created_at', { ascending: false })
     .limit(5)
 
@@ -50,6 +55,7 @@ export async function getNotificationCount(): Promise<number> {
     .select('*', { count: 'exact', head: true })
     .eq('user_id', user.id)
     .eq('read', false)
+    .not('type', 'in', `(${LOG_ONLY_TYPES.join(',')})`)
 
   return count ?? 0
 }
@@ -60,7 +66,9 @@ export async function markAllRead(): Promise<{ success: boolean }> {
   if (!user) return { success: false }
 
   const admin = adminSupabase()
-  await admin.from('notifications').update({ read: true }).eq('user_id', user.id).eq('read', false)
+  await admin.from('notifications').update({ read: true })
+    .eq('user_id', user.id).eq('read', false)
+    .not('type', 'in', `(${LOG_ONLY_TYPES.join(',')})`)
   revalidatePath('/member', 'layout')
   return { success: true }
 }
@@ -75,6 +83,7 @@ export async function getAllNotifications(): Promise<NotificationRow[]> {
     .from('notifications')
     .select('id, type, title, body, read, link, created_at')
     .eq('user_id', user.id)
+    .not('type', 'in', `(${LOG_ONLY_TYPES.join(',')})`)
     .order('created_at', { ascending: false })
 
   return (data ?? []) as NotificationRow[]

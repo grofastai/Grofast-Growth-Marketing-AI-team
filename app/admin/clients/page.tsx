@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import ProjectsClient from "@/app/admin/projects/projects-client"
 import ClientsSheetView from "./clients-sheet-view"
 import { fetchSheetClients, stripFinancialFields } from "@/lib/google/sheets"
+import { syncSheetClientsToSupabase } from "@/lib/actions/clients"
 
 function adminClient() {
   return createClient(
@@ -86,7 +87,37 @@ export default async function ClientsPage() {
     ])
     const activeClients = stripFinancialFields(rawActive)
     const pastClients   = stripFinancialFields(rawPast)
-    return <ClientsSheetView activeClients={activeClients} pastClients={pastClients} clientWorkMap={clientWorkMap} />
+
+    // Sync Sheet clients → Supabase so the member panel always reads fresh data
+    const toSyncRow = (c: (typeof activeClients)[0]) => ({
+      name:         (c.company_name || c.customer_name).trim(),
+      contact_name: c.customer_name || undefined,
+      industry:     c.industry      || undefined,
+      location:     c.place         || undefined,
+      service:      c.service       || undefined,
+      package_name: c.package_name  || undefined,
+    })
+    syncSheetClientsToSupabase(
+      cid,
+      activeClients.filter(c => c.company_name || c.customer_name).map(toSyncRow),
+      pastClients.filter(c => c.company_name || c.customer_name).map(toSyncRow),
+    ).catch(() => {})
+
+    // Also fetch any manually-added Supabase clients not in Google Sheets
+    const { data: dbClients } = await admin
+      .from('clients')
+      .select('id, name, industry, location, service, package_name, status')
+      .eq('company_id', cid)
+      .order('name')
+    const sheetNames    = new Set([...activeClients, ...pastClients].map(c => (c.company_name || c.customer_name).toLowerCase()))
+    const dbOnlyClients = (dbClients ?? []).filter((c: { name: string }) => !sheetNames.has(c.name.toLowerCase()))
+
+    return <ClientsSheetView
+      activeClients={activeClients}
+      pastClients={pastClients}
+      clientWorkMap={clientWorkMap}
+      dbOnlyClients={dbOnlyClients}
+    />
   }
 
   // ── Supabase fallback path ─────────────────────────────────────────────────

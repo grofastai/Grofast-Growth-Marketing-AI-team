@@ -21,7 +21,7 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
 }
 
 type BreakSession = { in: string; out: string | null; mins: number | null }
-type AttLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_in: string | null; break_out: string | null; break_total_mins: number; break_sessions: BreakSession[] | null; work_type: string | null; status: string }
+type AttLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_in: string | null; break_out: string | null; break_total_mins: number; break_sessions: BreakSession[] | null; work_type: string | null; status: string; paused_seconds: number }
 type DailyUpdate = { working_hours: number | null; learning_hours: number | null; shoot_count: number | null }
 
 interface Props {
@@ -38,13 +38,13 @@ function fmtTime(iso: string | null) {
 function calcHours(inIso: string, outIso: string | null): number {
   return ((outIso ? new Date(outIso).getTime() : Date.now()) - new Date(inIso).getTime()) / 3600000
 }
-function calcHoursNet(inIso: string, outIso: string | null, breakTotalMins: number, currentBreakInIso: string | null): number {
+function calcHoursNet(inIso: string, outIso: string | null, breakTotalMins: number, currentBreakInIso: string | null, pausedSeconds = 0): number {
   const raw = calcHours(inIso, outIso)
-  // Subtract completed breaks (accumulated) + any in-progress break
+  // Subtract completed breaks (accumulated) + any in-progress break + app-logout pause time
   const currentBreakHrs = currentBreakInIso
     ? (Date.now() - new Date(currentBreakInIso).getTime()) / 3600000
     : 0
-  return Math.max(0, raw - breakTotalMins / 60 - currentBreakHrs)
+  return Math.max(0, raw - breakTotalMins / 60 - currentBreakHrs - pausedSeconds / 3600)
 }
 function fmtDuration(s: number) {
   return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
@@ -63,8 +63,10 @@ function addDays(dateStr: string, n: number) {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`
 }
 
-function LiveTimer({ clockInIso }: { clockInIso: string }) {
-  const [secs, setSecs] = useState(() => Math.floor((Date.now() - new Date(clockInIso).getTime()) / 1000))
+function LiveTimer({ clockInIso, pausedSeconds }: { clockInIso: string; pausedSeconds: number }) {
+  const [secs, setSecs] = useState(() =>
+    Math.max(0, Math.floor((Date.now() - new Date(clockInIso).getTime()) / 1000) - pausedSeconds)
+  )
   useEffect(() => { const id = setInterval(() => setSecs(s => s + 1), 1000); return () => clearInterval(id) }, [clockInIso])
   return (
     <span className="font-mono text-[44px] font-black tracking-tight leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
@@ -193,7 +195,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     ? Math.round((Date.now() - new Date(todayLog.break_in).getTime()) / 60000)
     : 0
   const hoursWorked    = todayLog?.clock_in
-    ? calcHoursNet(todayLog.clock_in, todayLog.clock_out, breakTotalMins, todayLog.break_in ?? null)
+    ? calcHoursNet(todayLog.clock_in, todayLog.clock_out, breakTotalMins, todayLog.break_in ?? null, todayLog.paused_seconds)
     : 0
   const remainingHours = Math.max(SHIFT_HOURS - hoursWorked, 0)
 
@@ -300,7 +302,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       <CheckCircle2 size={15} style={{ color: "#22C55E" }} />
                     </div>
                     <p className="text-[12px] mb-1.5" style={{ color: "#9CA3AF" }}>Working for</p>
-                    <LiveTimer clockInIso={todayLog.clock_in} />
+                    <LiveTimer clockInIso={todayLog.clock_in} pausedSeconds={todayLog.paused_seconds} />
                     <SegmentBar hoursWorked={hoursWorked} />
                     <p className="text-[12px] mb-4" style={{ color: "#9CA3AF" }}>
                       {fmtHoursShort(hoursWorked)} / {SHIFT_HOURS}h

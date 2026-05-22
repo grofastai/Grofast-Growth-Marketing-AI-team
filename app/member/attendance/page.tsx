@@ -27,6 +27,7 @@ export default async function AttendancePage() {
     break_total_mins: number
     break_sessions: BreakSession[] | null
     work_type: string | null; status: string
+    paused_seconds: number
   }
   type DailyUpdate = {
     working_hours: number | null
@@ -36,10 +37,10 @@ export default async function AttendancePage() {
 
   const [{ data: todayLogRaw }, { data: weekLogsRaw }, { data: todayUpdateRaw }] = await Promise.all([
     supabase.from("attendance_logs")
-      .select("id, date, clock_in, clock_out, break_in, break_out, break_total_mins, break_sessions, work_type, status")
+      .select("id, date, clock_in, clock_out, break_in, break_out, break_total_mins, break_sessions, work_type, status, paused_seconds")
       .eq("user_id", user.id).eq("date", today).maybeSingle(),
     supabase.from("attendance_logs")
-      .select("id, date, clock_in, clock_out, break_in, break_out, break_total_mins, break_sessions, work_type, status")
+      .select("id, date, clock_in, clock_out, break_in, break_out, break_total_mins, break_sessions, work_type, status, paused_seconds")
       .eq("user_id", user.id).gte("date", weekStart).lte("date", weekEnd),
     supabase.from("daily_updates")
       .select("working_hours, learning_hours, shoot_count")

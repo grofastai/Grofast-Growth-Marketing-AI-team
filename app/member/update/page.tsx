@@ -30,12 +30,20 @@ export default async function UpdatePage() {
     .eq("id", user.id)
     .single()
 
-  const { data: projectsRaw } = await admin
-    .from("projects")
-    .select("id, business_name")
-    .eq("company_id", profile?.company_id ?? "")
-    .eq("status", "active")
-    .order("business_name")
+  const [{ data: projectsRaw }, { data: supabaseClientsRaw }] = await Promise.all([
+    admin
+      .from("projects")
+      .select("id, business_name")
+      .eq("company_id", profile?.company_id ?? "")
+      .eq("status", "active")
+      .order("business_name"),
+    admin
+      .from("clients")
+      .select("name")
+      .eq("company_id", profile?.company_id ?? "")
+      .eq("status", "active")
+      .order("name"),
+  ])
 
   const { data: existingUpdate } = await admin
     .from("daily_updates")
@@ -54,14 +62,21 @@ export default async function UpdatePage() {
 
   const projects = (projectsRaw ?? []) as unknown as Project[]
 
-  const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
-  const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
-  const sheetClients = sheetId
-    ? await fetchSheetClients(sheetId, sheetGid).catch(() => [])
-    : []
-  const sheetClientNames = stripFinancialFields(sheetClients)
-    .map(c => (c.company_name || c.customer_name).trim())
-    .filter(Boolean)
+  // Supabase clients table — always fresh, synced from Google Sheets by admin page
+  const supabaseClientNames = (supabaseClientsRaw ?? []).map((c: { name: string }) => c.name)
+
+  // Fall back to Google Sheets if Supabase clients table is empty (before first admin sync)
+  let sheetClientNames: string[] = []
+  if (supabaseClientNames.length === 0) {
+    const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
+    const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
+    const sheetClients = sheetId
+      ? await fetchSheetClients(sheetId, sheetGid).catch(() => [])
+      : []
+    sheetClientNames = stripFinancialFields(sheetClients)
+      .map(c => (c.company_name || c.customer_name).trim())
+      .filter(Boolean)
+  }
 
   return (
     <Suspense fallback={
@@ -71,7 +86,7 @@ export default async function UpdatePage() {
     }>
       <DailyUpdateForm
         projects={projects}
-        sheetClientNames={sheetClientNames}
+        sheetClientNames={supabaseClientNames.length > 0 ? supabaseClientNames : sheetClientNames}
         team={profile?.team ?? null}
         userName={(profile as { name?: string } | null)?.name ?? ""}
         existingUpdate={existingUpdate ?? null}

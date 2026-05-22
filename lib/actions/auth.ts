@@ -48,6 +48,31 @@ export async function loginAction(
     .eq('id', user.id)
     .maybeSingle()
 
+  // Resume timer: accumulate offline seconds into paused_seconds
+  const today = new Date().toISOString().split('T')[0]
+  const { data: pausedLog } = await admin
+    .from('attendance_logs')
+    .select('id, paused_seconds, session_paused_at')
+    .eq('user_id', user.id)
+    .eq('date', today)
+    .eq('status', 'present')
+    .is('clock_out', null)
+    .not('session_paused_at', 'is', null)
+    .maybeSingle()
+
+  if (pausedLog?.session_paused_at) {
+    const offlineSecs = Math.floor(
+      (Date.now() - new Date(pausedLog.session_paused_at).getTime()) / 1000
+    )
+    await admin
+      .from('attendance_logs')
+      .update({
+        paused_seconds: (pausedLog.paused_seconds ?? 0) + offlineSecs,
+        session_paused_at: null,
+      })
+      .eq('id', pausedLog.id)
+  }
+
   if (profile?.must_change_password) {
     redirect('/change-password')
   }
@@ -92,6 +117,22 @@ export async function changePasswordAction(
 
 export async function logoutAction(): Promise<void> {
   const supabase = await createServerClient()
+
+  // Pause the live timer for any active clock-in before signing out
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const admin = adminSupabase()
+    const today = new Date().toISOString().split('T')[0]
+    await admin
+      .from('attendance_logs')
+      .update({ session_paused_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .eq('status', 'present')
+      .is('clock_out', null)
+      .is('session_paused_at', null)
+  }
+
   await supabase.auth.signOut()
   redirect('/login')
 }

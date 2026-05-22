@@ -1,8 +1,15 @@
-export const revalidate = 60
-
 import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { fetchSheetClients, stripFinancialFields, type SheetClient } from "@/lib/google/sheets"
+
+function adminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 function ini(name: string) {
   return name.split(" ").map(n => n[0] ?? "").join("").slice(0, 2).toUpperCase() || "??"
@@ -25,27 +32,49 @@ export default async function MemberClientsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
-  const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
-  const pastGid  = process.env.GOOGLE_PAST_CLIENTS_SHEET_GID
+  const admin = adminSupabase()
+  const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
 
-  if (!sheetId) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh", flexDirection: "column", gap: 12 }}>
-        <div style={{ fontSize: 40 }}>📋</div>
-        <p style={{ fontSize: 16, fontWeight: 700, color: "#374151" }}>Client data not configured</p>
-        <p style={{ fontSize: 13, color: "#9CA3AF" }}>Contact your admin to set up the client sheet.</p>
-      </div>
-    )
+  // Primary source: Supabase clients (synced from Google Sheets by admin page)
+  const { data: dbClients } = await admin
+    .from("clients")
+    .select("name, industry, location, service, package_name, status, contact_name")
+    .eq("company_id", profile?.company_id ?? "")
+    .order("name")
+
+  let activeClients: SheetClient[] = []
+  let pastClients:   SheetClient[] = []
+
+  if ((dbClients ?? []).length > 0) {
+    // Convert Supabase clients to SheetClient shape for the existing UI
+    const toSheet = (c: typeof dbClients![0]): SheetClient => ({
+      sno: '', client_status: c.status === 'active' ? 'Active' : 'Past',
+      customer_name: c.contact_name ?? '', company_name: c.name,
+      period: '', due_date: '', package_name: c.package_name ?? '',
+      payment_status: '', current_month: '', previous_month: '',
+      received: '', pending: '',
+      industry: c.industry ?? '', place: c.location ?? '',
+      mob_no: '', gender: '', position: '', age_group: '',
+      client_income_stage: '', business_stage: '', email: '',
+      source: '', onboarded_month: '', service: c.service ?? '', client_stage: '',
+    })
+    activeClients = (dbClients ?? []).filter(c => c.status === 'active').map(toSheet)
+    pastClients   = (dbClients ?? []).filter(c => c.status !== 'active').map(toSheet)
+  } else {
+    // Fallback to Google Sheets if Supabase clients are not yet synced
+    const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
+    const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
+    const pastGid  = process.env.GOOGLE_PAST_CLIENTS_SHEET_GID
+    if (sheetId) {
+      const [rawActive, rawPast] = await Promise.all([
+        fetchSheetClients(sheetId, sheetGid).catch(() => []),
+        pastGid ? fetchSheetClients(sheetId, pastGid).catch(() => []) : Promise.resolve([]),
+      ])
+      activeClients = stripFinancialFields(rawActive)
+      pastClients   = stripFinancialFields(rawPast)
+    }
   }
 
-  const [rawActive, rawPast] = await Promise.all([
-    fetchSheetClients(sheetId, sheetGid).catch(() => []),
-    pastGid ? fetchSheetClients(sheetId, pastGid).catch(() => []) : Promise.resolve([]),
-  ])
-
-  const activeClients = stripFinancialFields(rawActive)
-  const pastClients   = stripFinancialFields(rawPast)
   const total = activeClients.length + pastClients.length
 
   return (

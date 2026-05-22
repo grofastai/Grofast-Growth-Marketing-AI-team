@@ -1,13 +1,17 @@
 "use client"
 
-import { useState, useMemo, useRef, useEffect } from "react"
+import { useState, useMemo, useRef, useEffect, useTransition } from "react"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import {
   Search, Plus, MoreHorizontal,
-  ChevronDown, Sparkles, X,
+  ChevronDown, Sparkles, X, Loader2,
 } from "lucide-react"
 import type { SheetClient } from "@/lib/google/sheets"
 import type { WorkSummary } from "./page"
+import { addClient } from "@/lib/actions/clients"
+
+type DbClient = { id: string; name: string; industry: string | null; location: string | null; service: string | null; package_name: string | null; status: string }
 
 function getWorkTypeCfg(wt: string): { label: string; color: string; bg: string; emoji: string } {
   const t = wt.toLowerCase()
@@ -240,14 +244,32 @@ function OverviewTab({ c, workSummary }: { c: SheetClient; workSummary?: WorkSum
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function ClientsSheetView({
-  activeClients, pastClients, clientWorkMap = {},
-}: { activeClients: SheetClient[]; pastClients: SheetClient[]; clientWorkMap?: Record<string, WorkSummary> }) {
+  activeClients, pastClients, clientWorkMap = {}, dbOnlyClients = [],
+}: { activeClients: SheetClient[]; pastClients: SheetClient[]; clientWorkMap?: Record<string, WorkSummary>; dbOnlyClients?: DbClient[] }) {
+  const router = useRouter()
   const [listTab, setListTab]       = useState<"active" | "past">("active")
   const [selected, setSelected]     = useState<SheetClient | null>(activeClients[0] ?? pastClients[0] ?? null)
   const [search, setSearch]         = useState("")
   const [dropOpen, setDropOpen]     = useState(false)
   const [contentTab, setContentTab] = useState("overview")
+  const [showAddModal, setShowAddModal] = useState(false)
   const dropRef = useRef<HTMLDivElement>(null)
+
+  // Convert DB-only clients to SheetClient shape for display
+  const dbSheetClients: SheetClient[] = dbOnlyClients
+    .filter(c => c.status === 'active')
+    .map(c => ({
+      sno: '', client_status: 'Active',
+      customer_name: '', company_name: c.name,
+      period: '', due_date: '', package_name: c.package_name ?? '',
+      payment_status: '', current_month: '', previous_month: '',
+      received: '', pending: '',
+      industry: c.industry ?? '', place: c.location ?? '',
+      mob_no: '', gender: '', position: '', age_group: '',
+      client_income_stage: '', business_stage: '', email: '',
+      source: '', onboarded_month: '', service: c.service ?? '', client_stage: '',
+    }))
+  const mergedActiveClients = [...activeClients, ...dbSheetClients]
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -261,7 +283,7 @@ export default function ClientsSheetView({
     return () => document.removeEventListener("mousedown", handle)
   }, [dropOpen])
 
-  const allClients = listTab === "active" ? activeClients : pastClients
+  const allClients = listTab === "active" ? mergedActiveClients : pastClients
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     if (!q) return allClients
@@ -273,7 +295,7 @@ export default function ClientsSheetView({
     )
   }, [allClients, search])
 
-  const total = activeClients.length + pastClients.length
+  const total = mergedActiveClients.length + pastClients.length
   const TABS  = ["Overview", "Campaigns", "Payments", "Meetings", "Deliverables", "Notes", "Files"]
   const sel   = selected
   const selPal = sel ? getPal(sel.industry) : DEF_PAL
@@ -323,7 +345,8 @@ export default function ClientsSheetView({
 
         {/* Right: Buttons */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-          <button style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10,
+          <button onClick={() => setShowAddModal(true)}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 10,
             background: "#DE1A1A", border: "none", color: "#FFFFFF",
             fontSize: 12, fontWeight: 700, cursor: "pointer",
             boxShadow: "0 4px 14px rgba(222,26,26,0.35)" }}>
@@ -346,7 +369,7 @@ export default function ClientsSheetView({
                 background: listTab === t ? "#DE1A1A" : "#F3F4F6",
                 color: listTab === t ? "#FFFFFF" : "#6B7280",
                 boxShadow: listTab === t ? "0 2px 8px rgba(222,26,26,0.3)" : "none" }}>
-              {t === "active" ? `Active · ${activeClients.length}` : `Past · ${pastClients.length}`}
+              {t === "active" ? `Active · ${mergedActiveClients.length}` : `Past · ${pastClients.length}`}
             </button>
           ))}
         </div>
@@ -462,7 +485,8 @@ export default function ClientsSheetView({
 
               {/* Add new client footer */}
               <div style={{ padding: "8px 12px", borderTop: "1px solid #F0F1F5" }}>
-                <button style={{ width: "100%", padding: "8px 0", borderRadius: 10,
+                <button onClick={() => { setDropOpen(false); setShowAddModal(true) }}
+                  style={{ width: "100%", padding: "8px 0", borderRadius: 10,
                   border: "1.5px dashed #E5E7EB", background: "transparent", cursor: "pointer",
                   fontSize: 11, fontWeight: 700, color: "#9CA3AF",
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -621,6 +645,112 @@ export default function ClientsSheetView({
         </div>
 
       </div>
+
+      {/* ══ ADD CLIENT MODAL ════════════════════════════════════════════════ */}
+      {showAddModal && (
+        <AddClientModal onClose={() => setShowAddModal(false)} onSuccess={() => { setShowAddModal(false); router.refresh() }} />
+      )}
     </div>
+  )
+}
+
+// ── Add Client Modal ──────────────────────────────────────────────────────────
+function AddClientModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setError(null)
+    const formData = new FormData(e.currentTarget)
+    startTransition(async () => {
+      const res = await addClient(formData)
+      if (res.success) { onSuccess() }
+      else { setError(res.error ?? 'Failed to add client') }
+    })
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", boxSizing: "border-box" as const,
+    padding: "9px 12px", borderRadius: 10, border: "1.5px solid #E5E7EB",
+    fontSize: 13, color: "#111827", background: "#F9FAFB", outline: "none",
+  }
+  const labelStyle: React.CSSProperties = {
+    display: "block", fontSize: 11, fontWeight: 700, color: "#6B7280",
+    textTransform: "uppercase" as const, letterSpacing: "0.06em", marginBottom: 5,
+  }
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, backdropFilter: "blur(2px)" }} />
+      {/* Modal */}
+      <div style={{
+        position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
+        zIndex: 1001, background: "#FFFFFF", borderRadius: 20, padding: "28px 28px 24px",
+        width: "100%", maxWidth: 440, boxShadow: "0 24px 80px rgba(0,0,0,0.22)",
+        border: "1px solid #EEEEF2",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>Add Client</h2>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", padding: 4 }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <label style={labelStyle}>Client / Business Name *</label>
+            <input name="name" required placeholder="e.g. Aasfie Briyani" style={inputStyle} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Industry</label>
+              <input name="industry" placeholder="e.g. Restaurant" style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Location</label>
+              <input name="location" placeholder="e.g. Krishnagiri" style={inputStyle} />
+            </div>
+          </div>
+          <div>
+            <label style={labelStyle}>Services</label>
+            <input name="service" placeholder="e.g. Meta Ads, Social Media" style={inputStyle} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Package</label>
+              <input name="package_name" placeholder="e.g. Monthly" style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>Status</label>
+              <select name="status" defaultValue="active" style={inputStyle}>
+                <option value="active">Active</option>
+                <option value="past">Past</option>
+              </select>
+            </div>
+          </div>
+
+          {error && (
+            <p style={{ fontSize: 12, color: "#EF4444", fontWeight: 600, margin: 0 }}>{error}</p>
+          )}
+
+          <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+            <button type="button" onClick={onClose} disabled={isPending}
+              style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1.5px solid #E5E7EB",
+                background: "#F9FAFB", color: "#374151", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+              Cancel
+            </button>
+            <button type="submit" disabled={isPending}
+              style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none",
+                background: "#DE1A1A", color: "#FFFFFF", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                opacity: isPending ? 0.6 : 1 }}>
+              {isPending ? <><Loader2 size={13} className="animate-spin" /> Saving…</> : 'Add Client'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </>
   )
 }

@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, Clock, Target,
   CalendarOff, Megaphone, Briefcase, LogOut, BarChart2,
   Receipt, IndianRupee, FolderOpen, LifeBuoy,
-  MoreHorizontal, X, Bell, UserCircle2, ClipboardList,
+  MoreHorizontal, X, Bell, UserCircle2, ClipboardList, Activity,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
@@ -16,6 +16,7 @@ const navItems = [
   { label: "Dashboard",     href: "/admin/dashboard",     icon: LayoutDashboard },
   { label: "Team",          href: "/admin/team",          icon: Users },
   { label: "Daily Update",  href: "/admin/update",        icon: ClipboardList },
+  { label: "Activities",    href: "/admin/activities",    icon: Activity },
   { label: "Attendance",    href: "/admin/attendance",    icon: Clock },
   { label: "Tasks",         href: "/admin/goals",         icon: Target },
   { label: "Clients",       href: "/admin/clients",       icon: Briefcase },
@@ -38,6 +39,7 @@ const bottomNavItems = [
 ]
 
 const moreNavItems = [
+  { label: "Activities",    href: "/admin/activities",    icon: Activity },
   { label: "Attendance",    href: "/admin/attendance",    icon: Clock },
   { label: "Clients",       href: "/admin/clients",       icon: Briefcase },
   { label: "Announcements", href: "/admin/announcements", icon: Megaphone },

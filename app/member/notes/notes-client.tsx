@@ -1,8 +1,50 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Pin, PinOff, Trash2, Plus, X, Bell, BellOff, StickyNote } from 'lucide-react'
+import { Pin, PinOff, Trash2, Plus, X, Bell, BellOff, StickyNote, Search } from 'lucide-react'
 import { createNote, updateNote, deleteNote, togglePin, type NoteRow, type NoteInput } from '@/lib/actions/notes'
+
+// Generate 30-minute time slots: 12:00 AM … 11:30 PM (48 unique slots in order)
+function generateTimeSlots(): string[] {
+  const slots: string[] = []
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      const period = h < 12 ? 'AM' : 'PM'
+      const display = h === 0 ? 12 : h > 12 ? h - 12 : h
+      slots.push(`${display}:${m === 0 ? '00' : '30'} ${period}`)
+    }
+  }
+  return slots
+}
+const TIME_SLOTS = generateTimeSlots()
+
+function parseReminderDate(iso: string | null | undefined): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+}
+
+function parseReminderTime(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const h = Number(d.toLocaleString('en-IN', { hour: 'numeric', hour12: false, timeZone: 'Asia/Kolkata' }))
+  const m = Number(d.toLocaleString('en-IN', { minute: 'numeric', timeZone: 'Asia/Kolkata' }))
+  const roundedM = m < 15 ? 0 : m < 45 ? 30 : 0
+  const roundedH = m >= 45 ? (h + 1) % 24 : h
+  const period = roundedH < 12 ? 'AM' : 'PM'
+  const display = roundedH === 0 ? 12 : roundedH > 12 ? roundedH - 12 : roundedH
+  return `${display}:${roundedM === 0 ? '00' : '30'} ${period}`
+}
+
+function buildReminderISO(date: string, time: string): string | null {
+  if (!date || !time) return null
+  const [timePart, period] = time.split(' ')
+  const [hStr, mStr] = timePart.split(':')
+  let h = parseInt(hStr)
+  const m = parseInt(mStr)
+  if (period === 'PM' && h !== 12) h += 12
+  if (period === 'AM' && h === 12) h = 0
+  return new Date(`${date}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`).toISOString()
+}
 
 const NOTE_COLORS = [
   { label: 'White',  value: '#FFFFFF' },
@@ -21,14 +63,6 @@ function formatReminder(iso: string): string {
   })
 }
 
-function toLocalDateTimeInput(iso: string | null | undefined): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000)
-  return `${local.getUTCFullYear()}-${pad(local.getUTCMonth() + 1)}-${pad(local.getUTCDate())}T${pad(local.getUTCHours())}:${pad(local.getUTCMinutes())}`
-}
-
 interface ModalState {
   open: boolean
   editing: NoteRow | null
@@ -43,6 +77,8 @@ export default function NotesClient({ initialNotes }: { initialNotes: NoteRow[] 
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterDate, setFilterDate] = useState('')
 
   function openCreate() {
     setDraft(EMPTY_DRAFT)
@@ -112,8 +148,17 @@ export default function NotesClient({ initialNotes }: { initialNotes: NoteRow[] 
     startTransition(async () => { await togglePin(note.id, newPinned) })
   }
 
-  const pinned = notes.filter(n => n.pinned)
-  const unpinned = notes.filter(n => !n.pinned)
+  const q = searchQuery.trim().toLowerCase()
+  const visibleNotes = notes.filter(n => {
+    if (q && !(n.title ?? '').toLowerCase().includes(q) && !n.content.toLowerCase().includes(q)) return false
+    if (filterDate) {
+      const noteDate = new Date(n.created_at).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+      if (noteDate !== filterDate) return false
+    }
+    return true
+  })
+  const pinned = visibleNotes.filter(n => n.pinned)
+  const unpinned = visibleNotes.filter(n => !n.pinned)
 
   return (
     <div style={{ padding: '24px 20px', maxWidth: 900, margin: '0 auto' }}>
@@ -137,10 +182,56 @@ export default function NotesClient({ initialNotes }: { initialNotes: NoteRow[] 
         </button>
       </div>
 
+      {/* Search + Date Filter */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
+        <div style={{ flex: 1, minWidth: 200, position: 'relative' }}>
+          <Search size={14} color="#aaa" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+          <input
+            type="text"
+            placeholder="Search notes…"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%', padding: '8px 10px 8px 32px',
+              borderRadius: 10, border: '1px solid #e0e0e0',
+              fontSize: 13, outline: 'none', background: '#fafafa',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input
+            type="date"
+            value={filterDate}
+            onChange={e => setFilterDate(e.target.value)}
+            style={{
+              padding: '8px 10px', borderRadius: 10, border: '1px solid #e0e0e0',
+              fontSize: 13, outline: 'none', background: '#fafafa', color: filterDate ? '#111' : '#aaa',
+            }}
+          />
+          {filterDate && (
+            <button
+              onClick={() => setFilterDate('')}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, color: '#999', fontSize: 13 }}
+              title="Clear date filter"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      </div>
+
       {notes.length === 0 && (
         <div style={{ textAlign: 'center', padding: '60px 0', color: '#aaa' }}>
           <StickyNote size={48} color="#ddd" style={{ marginBottom: 12 }} />
           <p style={{ fontSize: 15, margin: 0 }}>No notes yet. Tap &ldquo;New Note&rdquo; to get started.</p>
+        </div>
+      )}
+
+      {notes.length > 0 && visibleNotes.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '60px 0', color: '#aaa' }}>
+          <Search size={40} color="#ddd" style={{ marginBottom: 12 }} />
+          <p style={{ fontSize: 15, margin: 0 }}>No notes match your search.</p>
         </div>
       )}
 
@@ -242,15 +333,38 @@ export default function NotesClient({ initialNotes }: { initialNotes: NoteRow[] 
                   </p>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <input
-                      type="datetime-local"
-                      value={toLocalDateTimeInput(draft.reminder_at)}
-                      onChange={e => setDraft(d => ({ ...d, reminder_at: e.target.value ? new Date(e.target.value).toISOString() : null }))}
+                      type="date"
+                      value={parseReminderDate(draft.reminder_at)}
+                      min={new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })}
+                      onChange={e => {
+                        const date = e.target.value
+                        const time = parseReminderTime(draft.reminder_at) || TIME_SLOTS[18]
+                        setDraft(d => ({ ...d, reminder_at: buildReminderISO(date, time) }))
+                      }}
                       style={{
                         flex: 1, padding: '7px 10px', borderRadius: 8,
                         border: '1px solid #ddd', fontSize: 13,
                         background: 'rgba(255,255,255,0.6)',
                       }}
                     />
+                    <select
+                      value={parseReminderTime(draft.reminder_at)}
+                      onChange={e => {
+                        const time = e.target.value
+                        const date = parseReminderDate(draft.reminder_at) || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
+                        setDraft(d => ({ ...d, reminder_at: buildReminderISO(date, time) }))
+                      }}
+                      style={{
+                        padding: '7px 8px', borderRadius: 8,
+                        border: '1px solid #ddd', fontSize: 13,
+                        background: 'rgba(255,255,255,0.6)',
+                      }}
+                    >
+                      <option value="">-- Time --</option>
+                      {TIME_SLOTS.map(slot => (
+                        <option key={slot} value={slot}>{slot}</option>
+                      ))}
+                    </select>
                     {draft.reminder_at && (
                       <button
                         onClick={() => setDraft(d => ({ ...d, reminder_at: null }))}

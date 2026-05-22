@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { insertNotification } from './notifications'
+import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 
 const schema = z.object({
   title: z.string().min(1, 'Title required').max(120),
@@ -43,7 +44,7 @@ export async function createAnnouncement(
 
   if (error) return { error: error.message }
 
-  const { data: companyUsers } = await supabase.from('users').select('id').eq('company_id', claims.company_id)
+  const { data: companyUsers } = await supabase.from('users').select('id, phone, role').eq('company_id', claims.company_id)
   if (companyUsers) {
     await Promise.all(companyUsers.map(u =>
       insertNotification({
@@ -55,6 +56,17 @@ export async function createAnnouncement(
         link: '/member/announcements',
       })
     ))
+
+    // WhatsApp blast to all members with a phone number
+    const messageSnippet = parsed.data.message.slice(0, 100)
+    const membersWithPhone = companyUsers.filter((u: any) => u.role === 'MEMBER' && u.phone)
+    if (membersWithPhone.length) {
+      ;(async () => {
+        await Promise.all(membersWithPhone.map((u: any) =>
+          sendWhatsAppTemplate(formatPhone(u.phone), 'grofast_announcement', [parsed.data.title, messageSnippet])
+        ))
+      })().catch(console.error)
+    }
   }
 
   revalidatePath('/admin/announcements')

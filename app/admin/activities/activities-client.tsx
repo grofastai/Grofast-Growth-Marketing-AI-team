@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Activity, Clock, Camera, BookOpen, Filter, AlertTriangle, UserX, Target, Edit2, MapPin } from "lucide-react"
+import { Activity, Clock, Camera, BookOpen, Filter, AlertTriangle, UserX, Target, Edit2, MapPin, ChevronDown, ChevronUp } from "lucide-react"
 
 type WorkEntry = Record<string, unknown>
 
@@ -82,135 +82,6 @@ function clientLabel(entry: WorkEntry): string {
   return client || "—"
 }
 
-function WorkEntriesDetail({ entries, activeTab, learningTopic, learningNotes, learningHours }: {
-  entries: WorkEntry[] | null
-  activeTab: string | null
-  learningTopic: string | null
-  learningNotes: string | null
-  learningHours: number
-}) {
-  if (!entries?.length && activeTab !== "learning") return (
-    <p className="text-[12px] italic" style={{ color: "#9CA3AF" }}>No detailed entries recorded.</p>
-  )
-
-  if (activeTab === "learning") {
-    return (
-      <div className="rounded-lg p-3" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}>
-        <div className="flex items-center gap-2 mb-1">
-          <BookOpen size={12} style={{ color: "#6366F1" }} />
-          <span className="text-[12px] font-bold" style={{ color: "#6366F1" }}>Learning</span>
-          <span className="text-[11px]" style={{ color: "#6B7280" }}>{fmtHours(learningHours)}</span>
-        </div>
-        {learningTopic && <p className="text-[12px] font-semibold" style={{ color: "#111111" }}>{learningTopic}</p>}
-        {learningNotes && <p className="text-[12px] mt-1" style={{ color: "#6B7280" }}>{learningNotes}</p>}
-      </div>
-    )
-  }
-
-  const shoots = entries?.filter(e => e.task_type === "shoot") ?? []
-  const edits  = entries?.filter(e => e.task_type === "edit") ?? []
-  const works  = entries?.filter(e => e.task_type === "work") ?? []
-
-  return (
-    <div className="space-y-3">
-      {/* Time blocks */}
-      {works.length > 0 && (
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Work Log</p>
-          <div className="space-y-1.5">
-            {works.map((e, i) => (
-              <div key={i} className="flex items-start gap-3 px-3 py-2 rounded-lg" style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F3F4F6" }}>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[12px] font-semibold truncate" style={{ color: "#111111" }}>{String(e.title || "—")}</span>
-                    {!!(e.client) && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>{String(e.client)}</span>}
-                    {!!(e.start_time || e.end_time) && (
-                      <span className="text-[11px]" style={{ color: "#9CA3AF" }}>{String(e.start_time ?? "")} – {String(e.end_time ?? "")}</span>
-                    )}
-                    <span className="text-[11px] font-bold ml-auto" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</span>
-                  </div>
-                  {!!(e.notes) && <p className="text-[11px] mt-0.5 truncate" style={{ color: "#9CA3AF" }}>{String(e.notes)}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Shoots */}
-      {shoots.length > 0 && (
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Shoots ({shoots.length})</p>
-          <div className="space-y-2">
-            {shoots.map((e, i) => (
-              <div key={i} className="px-3 py-2.5 rounded-lg" style={{ background: "rgba(222,26,26,0.02)", border: "1px solid rgba(222,26,26,0.08)" }}>
-                <div className="flex items-start gap-2 flex-wrap">
-                  <Camera size={11} style={{ color: "#de1a1a", marginTop: 2, flexShrink: 0 }} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>{String(e.title || "—")}</span>
-                      <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>{clientLabel(e)}</span>
-                      <span className="text-[11px] font-bold ml-auto" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-                      {!!(e._location) && (
-                        <span className="flex items-center gap-1 text-[11px]" style={{ color: "#6B7280" }}>
-                          <MapPin size={9} /> {String(e._location)}
-                        </span>
-                      )}
-                      {!!(e.video_link) && (
-                        <a href={String(e.video_link)} target="_blank" rel="noreferrer"
-                          className="flex items-center gap-1 text-[11px]" style={{ color: "#de1a1a" }}>
-                          <Link2 size={9} /> Drive Link
-                        </a>
-                      )}
-                      {!!(e._travel_hours) && Number(e._travel_hours) > 0 && (
-                        <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Travel: {fmtHours(e._travel_hours)}</span>
-                      )}
-                    </div>
-                    {!!(e.notes) && <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>{String(e.notes)}</p>}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Edits */}
-      {edits.length > 0 && (
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Editing ({edits.length})</p>
-          <div className="space-y-1.5">
-            {edits.map((e, i) => (
-              <div key={i} className="px-3 py-2.5 rounded-lg" style={{ background: "rgba(99,102,241,0.02)", border: "1px solid rgba(99,102,241,0.08)" }}>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Edit2 size={11} style={{ color: "#6366F1", flexShrink: 0 }} />
-                  <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>{String(e.title || "—")}</span>
-                  <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.06)", color: "#6366F1" }}>{clientLabel(e)}</span>
-                  {!!(e.video_type) && <span className="text-[11px]" style={{ color: "#9CA3AF" }}>{String(e.video_type)}</span>}
-                  <span className="text-[11px] font-bold ml-auto" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</span>
-                </div>
-                <div className="flex flex-wrap gap-x-3 mt-1">
-                  {!!(e.video_duration) && <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Duration: {String(e.video_duration)}</span>}
-                  {!!(e.revisions) && Number(e.revisions) > 0 && <span className="text-[11px]" style={{ color: "#9CA3AF" }}>Revisions: {String(e.revisions)}</span>}
-                  {!!(e.video_link) && (
-                    <a href={String(e.video_link)} target="_blank" rel="noreferrer"
-                      className="flex items-center gap-1 text-[11px]" style={{ color: "#6366F1" }}>
-                      <Video size={9} /> Video Link
-                    </a>
-                  )}
-                </div>
-                {!!(e.notes) && <p className="text-[11px] mt-0.5" style={{ color: "#9CA3AF" }}>{String(e.notes)}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 export default function ActivitiesClient({
   updates,
   members,
@@ -224,7 +95,15 @@ export default function ActivitiesClient({
 }) {
   const router = useRouter()
   const pathname = usePathname()
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
+  function toggleExpand(id: string) {
+    setExpandedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   function navigate(date: string, member: string) {
     const params = new URLSearchParams()
@@ -332,157 +211,209 @@ export default function ActivitiesClient({
             const sc = ATTENDANCE_STYLE[u.attendance_status] ?? ATTENDANCE_STYLE.present
             const wt = u.work_type ? WORK_TYPE[u.work_type] : null
             const user = Array.isArray(u.users) ? u.users[0] : u.users
-            const entries = u.work_entries ?? []
+            const isExpanded = expandedIds.has(u.id)
+            const entries = Array.isArray(u.work_entries) ? u.work_entries : []
             const workEntries  = entries.filter(e => e.task_type === "work")
             const shootEntries = entries.filter(e => e.task_type === "shoot")
             const editEntries  = entries.filter(e => e.task_type === "edit")
             const otherEntries = entries.filter(e => !["work","shoot","edit"].includes(String(e.task_type ?? "")))
-            const workHrs  = Math.round(workEntries.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
+            const allWorkLike  = [...workEntries, ...otherEntries]
+            const workHrs  = Math.round(allWorkLike.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
             const mediaHrs = Math.round([...shootEntries,...editEntries].reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
             const hasMedia = shootEntries.length > 0 || editEntries.length > 0
             const tasksCompleted = u.tasks_completed ?? 0
             const tasksTotal = u.tasks_total ?? 0
             const tasksList = u.tasks_list ?? []
+            const hasDetails = entries.length > 0 || u.active_tab === "learning" || tasksList.length > 0
 
             return (
               <div key={u.id} className="rounded-xl overflow-hidden"
                 style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
 
-                {/* ── Header ── */}
-                <div className="p-4 md:p-5 pb-3">
+                {/* ── Compact header row ── */}
+                <div className="p-4 md:p-5">
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                    {/* Avatar */}
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                       style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)" }}>
                       <span className="text-[11px] font-bold" style={{ color: "#de1a1a" }}>
                         {user?.name ? getInitials(user.name) : "?"}
                       </span>
                     </div>
+
+                    {/* Name + badges */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center flex-wrap gap-2">
+                      <div className="flex items-center flex-wrap gap-2 mb-2">
                         <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{user?.name ?? "Unknown"}</p>
                         <span className="text-[11px]" style={{ color: "#9CA3AF" }}>#{user?.employee_id}</span>
                         <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
                         {wt && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.04)", color: "#6B7280" }}>{wt}</span>}
                         <ControlFlag hours={u.working_hours} attendance={u.attendance_status} />
                       </div>
+
+                      {/* Stat chips */}
+                      <div className="flex flex-wrap gap-2">
+                        {allWorkLike.length > 0 ? (
+                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold"
+                            style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #F0F1F5", color: "#374151" }}>
+                            <Clock size={10} style={{ color: "#6B7280" }} />
+                            Work · {fmtHours(workHrs)}
+                          </span>
+                        ) : u.working_hours != null ? (
+                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px]"
+                            style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #F0F1F5", color: "#6B7280" }}>
+                            <Clock size={10} /> {u.working_hours}h
+                          </span>
+                        ) : null}
+                        {hasMedia && (
+                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold"
+                            style={{ background: "rgba(222,26,26,0.04)", border: "1px solid rgba(222,26,26,0.12)", color: "#de1a1a" }}>
+                            <Camera size={10} />
+                            Media · {fmtHours(mediaHrs)}
+                            <span style={{ opacity: 0.6, fontWeight: 400 }}>
+                              {shootEntries.length > 0 ? ` ${shootEntries.length}S` : ""}
+                              {editEntries.length > 0 ? ` ${editEntries.length}E` : ""}
+                            </span>
+                          </span>
+                        )}
+                        {(u.learning_hours ?? 0) > 0 && (
+                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold"
+                            style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)", color: "#6366F1" }}>
+                            <BookOpen size={10} />
+                            Learning · {fmtHours(u.learning_hours)}
+                          </span>
+                        )}
+                        {tasksTotal > 0 && (
+                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold"
+                            style={{
+                              background: tasksCompleted === tasksTotal ? "rgba(34,197,94,0.06)" : "rgba(245,158,11,0.06)",
+                              border: `1px solid ${tasksCompleted === tasksTotal ? "rgba(34,197,94,0.2)" : "rgba(245,158,11,0.2)"}`,
+                              color: tasksCompleted === tasksTotal ? "#22C55E" : "#F59E0B",
+                            }}>
+                            <Target size={10} />
+                            Tasks · {tasksCompleted}/{tasksTotal}
+                          </span>
+                        )}
+                      </div>
                     </div>
+
+                    {/* View Details button */}
+                    {hasDetails && (
+                      <button onClick={() => toggleExpand(u.id)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-semibold flex-shrink-0 transition-all"
+                        style={{
+                          background: isExpanded ? "rgba(222,26,26,0.08)" : "#F9FAFB",
+                          color: isExpanded ? "#de1a1a" : "#374151",
+                          border: `1px solid ${isExpanded ? "rgba(222,26,26,0.2)" : "#E5E7EB"}`,
+                        }}>
+                        {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                        {isExpanded ? "Hide" : "View Details"}
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* ── Work Entries ── */}
-                {[...workEntries, ...otherEntries].length > 0 && (
-                  <div className="px-4 md:px-5 pb-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>
-                      Work · {fmtHours(workHrs)}
-                    </p>
-                    <div className="space-y-1">
-                      {[...workEntries, ...otherEntries].map((e, i) => (
-                        <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg"
-                          style={{ background: "rgba(0,0,0,0.02)", border: "1px solid #F3F4F6" }}>
-                          <div className="flex-1 min-w-0">
-                            <span className="text-[12px] font-semibold" style={{ color: "#111827" }}>{String(e.title || e.task_title || "—")}</span>
-                            {e.client && <span className="ml-2 text-[11px] px-1.5 py-0.5 rounded" style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>{String(e.client)}</span>}
-                            {e._custom_client && <span className="ml-2 text-[11px]" style={{ color: "#6B7280" }}>{String(e._custom_client)}</span>}
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {(e.start_time || e.end_time) && <span className="text-[10px]" style={{ color: "#9CA3AF" }}>{String(e.start_time ?? "")}–{String(e.end_time ?? "")}</span>}
-                            <span className="text-[11px] font-bold" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {/* ── Expanded Details ── */}
+                {isExpanded && (
+                  <div className="border-t px-4 md:px-5 py-4 space-y-4" style={{ borderColor: "#F3F4F6", background: "#FAFAFA" }}>
 
-                {/* ── Media (Shooting + Editing) ── */}
-                {hasMedia && (
-                  <div className="px-4 md:px-5 pb-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>
-                      Media · {fmtHours(mediaHrs)}
-                      {shootEntries.length > 0 && <span className="ml-1 normal-case font-normal">({shootEntries.length} shoot{shootEntries.length > 1 ? "s" : ""}{editEntries.length > 0 ? ` · ${editEntries.length} edit${editEntries.length > 1 ? "s" : ""}` : ""})</span>}
-                    </p>
-                    <div className="space-y-1">
-                      {[...shootEntries, ...editEntries].map((e, i) => {
-                        const isShoot = e.task_type === "shoot"
-                        return (
-                          <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg"
-                            style={{ background: isShoot ? "rgba(222,26,26,0.02)" : "rgba(99,102,241,0.02)", border: `1px solid ${isShoot ? "rgba(222,26,26,0.08)" : "rgba(99,102,241,0.08)"}` }}>
-                            {isShoot ? <Camera size={11} style={{ color: "#de1a1a", flexShrink: 0 }} /> : <Edit2 size={11} style={{ color: "#6366F1", flexShrink: 0 }} />}
-                            <span className="flex-1 text-[12px] font-semibold truncate" style={{ color: "#111827" }}>{String(e.title || "—")}</span>
-                            {(e._brand || e._custom_client || e.client) && (
-                              <span className="text-[11px] px-1.5 py-0.5 rounded flex-shrink-0"
-                                style={{ background: isShoot ? "rgba(222,26,26,0.06)" : "rgba(99,102,241,0.06)", color: isShoot ? "#de1a1a" : "#6366F1" }}>
-                                {String(e._brand || e._custom_client || e.client)}
-                              </span>
-                            )}
-                            {e._location && <span className="text-[10px] flex items-center gap-0.5" style={{ color: "#9CA3AF" }}><MapPin size={9} />{String(e._location)}</span>}
-                            <span className="text-[11px] font-bold flex-shrink-0" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Learning ── */}
-                {u.active_tab === "learning" && (
-                  <div className="px-4 md:px-5 pb-3">
-                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>
-                      Learning · {fmtHours(u.learning_hours)}
-                    </p>
-                    <div className="px-3 py-2.5 rounded-lg" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}>
-                      <div className="flex items-center gap-2">
-                        <BookOpen size={12} style={{ color: "#6366F1", flexShrink: 0 }} />
-                        <span className="text-[12px] font-semibold" style={{ color: "#6366F1" }}>{u.learning_topic ?? "—"}</span>
-                      </div>
-                      {u.learning_notes && <p className="text-[11px] mt-1 ml-5" style={{ color: "#6B7280" }}>{u.learning_notes}</p>}
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Tasks ── */}
-                {tasksList.length > 0 && (
-                  <div className="px-4 md:px-5 pb-4">
-                    <p className="text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#9CA3AF" }}>
-                      Tasks · {tasksCompleted}/{tasksTotal} completed
-                    </p>
-                    <div className="space-y-1">
-                      {tasksList.map((t) => {
-                        const done = t.status === "completed"
-                        const inProg = t.status === "in_progress"
-                        return (
-                          <div key={t.id} className="flex items-center gap-2 px-3 py-2 rounded-lg"
-                            style={{ background: done ? "rgba(34,197,94,0.03)" : "rgba(0,0,0,0.02)", border: `1px solid ${done ? "rgba(34,197,94,0.12)" : "#F3F4F6"}` }}>
-                            <div className="w-3.5 h-3.5 rounded-full flex-shrink-0 flex items-center justify-center"
-                              style={{ background: done ? "#22C55E" : inProg ? "#F59E0B" : "#E5E7EB" }}>
-                              {done && <span style={{ color: "#fff", fontSize: 8, lineHeight: 1 }}>✓</span>}
+                    {/* Work entries */}
+                    {allWorkLike.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Work · {fmtHours(workHrs)}</p>
+                        <div className="space-y-1.5">
+                          {allWorkLike.map((e, i) => (
+                            <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white"
+                              style={{ border: "1px solid #F3F4F6" }}>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[12px] font-semibold" style={{ color: "#111827" }}>{String(e.title || e.task_title || "—")}</p>
+                                {(e.client || e._custom_client) && (
+                                  <p className="text-[11px] mt-0.5" style={{ color: "#de1a1a" }}>{String(e.client || e._custom_client)}</p>
+                                )}
+                              </div>
+                              <div className="flex-shrink-0 text-right">
+                                {(e.start_time || e.end_time) && <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{String(e.start_time ?? "")} – {String(e.end_time ?? "")}</p>}
+                                <p className="text-[12px] font-bold" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</p>
+                              </div>
                             </div>
-                            <span className="flex-1 text-[12px] font-medium truncate" style={{ color: done ? "#6B7280" : "#111827", textDecoration: done ? "line-through" : "none" }}>{t.title}</span>
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0"
-                              style={{
-                                background: done ? "rgba(34,197,94,0.1)" : inProg ? "rgba(245,158,11,0.1)" : "rgba(0,0,0,0.04)",
-                                color: done ? "#22C55E" : inProg ? "#F59E0B" : "#9CA3AF",
-                              }}>
-                              {done ? "Done" : inProg ? "In Progress" : "Todo"}
-                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Media entries */}
+                    {hasMedia && (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>
+                          Media · {fmtHours(mediaHrs)} · {shootEntries.length} shoot{shootEntries.length !== 1 ? "s" : ""} {editEntries.length > 0 ? `· ${editEntries.length} edit${editEntries.length !== 1 ? "s" : ""}` : ""}
+                        </p>
+                        <div className="space-y-1.5">
+                          {[...shootEntries, ...editEntries].map((e, i) => {
+                            const isShoot = e.task_type === "shoot"
+                            return (
+                              <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
+                                style={{ background: isShoot ? "rgba(222,26,26,0.03)" : "rgba(99,102,241,0.03)", border: `1px solid ${isShoot ? "rgba(222,26,26,0.1)" : "rgba(99,102,241,0.1)"}` }}>
+                                {isShoot ? <Camera size={12} style={{ color: "#de1a1a", flexShrink: 0 }} /> : <Edit2 size={12} style={{ color: "#6366F1", flexShrink: 0 }} />}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[12px] font-semibold" style={{ color: "#111827" }}>{String(e.title || "—")}</p>
+                                  {(e._brand || e._custom_client || e.client) && (
+                                    <p className="text-[11px]" style={{ color: isShoot ? "#de1a1a" : "#6366F1" }}>{String(e._brand || e._custom_client || e.client)}</p>
+                                  )}
+                                  {e._location && <p className="text-[10px] flex items-center gap-1 mt-0.5" style={{ color: "#9CA3AF" }}><MapPin size={9} />{String(e._location)}</p>}
+                                </div>
+                                <p className="text-[12px] font-bold flex-shrink-0" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</p>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Learning */}
+                    {u.active_tab === "learning" && (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Learning · {fmtHours(u.learning_hours)}</p>
+                        <div className="px-3 py-2.5 rounded-lg" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <BookOpen size={12} style={{ color: "#6366F1" }} />
+                            <span className="text-[12px] font-semibold" style={{ color: "#6366F1" }}>{u.learning_topic ?? "—"}</span>
                           </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
+                          {u.learning_notes && <p className="text-[11px] ml-5" style={{ color: "#6B7280" }}>{u.learning_notes}</p>}
+                        </div>
+                      </div>
+                    )}
 
-                {/* ── Notes ── */}
-                {u.notes && (
-                  <div className="px-4 md:px-5 pb-4">
-                    <p className="text-[11px] px-3 py-2 rounded-lg" style={{ background: "rgba(0,0,0,0.02)", color: "#6B7280" }}>{u.notes}</p>
-                  </div>
-                )}
+                    {/* Tasks list */}
+                    {tasksList.length > 0 && (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Tasks · {tasksCompleted}/{tasksTotal} completed</p>
+                        <div className="space-y-1.5">
+                          {tasksList.map((t) => {
+                            const done = t.status === "completed"
+                            const inProg = t.status === "in_progress"
+                            return (
+                              <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white"
+                                style={{ border: `1px solid ${done ? "rgba(34,197,94,0.15)" : "#F3F4F6"}` }}>
+                                <div className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center"
+                                  style={{ background: done ? "#22C55E" : inProg ? "#F59E0B" : "#E5E7EB" }}>
+                                  {done && <span style={{ color: "#fff", fontSize: 9 }}>✓</span>}
+                                  {inProg && <span style={{ color: "#fff", fontSize: 9 }}>→</span>}
+                                </div>
+                                <span className="flex-1 text-[12px] font-medium" style={{ color: done ? "#9CA3AF" : "#111827", textDecoration: done ? "line-through" : "none" }}>{t.title}</span>
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                                  style={{ background: done ? "rgba(34,197,94,0.1)" : inProg ? "rgba(245,158,11,0.1)" : "rgba(0,0,0,0.05)", color: done ? "#22C55E" : inProg ? "#F59E0B" : "#9CA3AF" }}>
+                                  {done ? "Done" : inProg ? "In Progress" : "To Do"}
+                                </span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
 
-                {/* ── Empty state ── */}
-                {entries.length === 0 && u.active_tab !== "learning" && tasksList.length === 0 && (
-                  <div className="px-4 pb-4">
-                    <p className="text-[12px] italic" style={{ color: "#D1D5DB" }}>No detailed entries recorded.</p>
+                    {entries.length === 0 && u.active_tab !== "learning" && (
+                      <p className="text-[12px] italic" style={{ color: "#D1D5DB" }}>No detailed work entries recorded for this day.</p>
+                    )}
                   </div>
                 )}
               </div>

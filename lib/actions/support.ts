@@ -18,7 +18,7 @@ async function getProfile() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
   const admin = adminSupabase()
-  const { data } = await admin.from('users').select('id, company_id, name, role').eq('id', user.id).single()
+  const { data } = await admin.from('users').select('id, company_id, name, role, employee_id').eq('id', user.id).single()
   return data
 }
 

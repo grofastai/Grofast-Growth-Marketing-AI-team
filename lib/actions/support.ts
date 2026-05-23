@@ -178,3 +178,26 @@ export async function getMemberName(user_id: string): Promise<string> {
 export async function getCurrentUser() {
   return getProfile()
 }
+
+export async function closeTicket(ticket_id: string): Promise<{ success: boolean; error?: string }> {
+  const profile = await getProfile()
+  if (!profile) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  let query = admin
+    .from('support_tickets')
+    .update({ status: 'closed', updated_at: new Date().toISOString() })
+    .eq('id', ticket_id)
+    .eq('company_id', profile.company_id)
+
+  if (profile.role !== 'ADMIN') {
+    query = query.eq('user_id', profile.id)
+  }
+
+  const { error } = await query
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/member/support')
+  revalidatePath('/admin/support')
+  return { success: true }
+}

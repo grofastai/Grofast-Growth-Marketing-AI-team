@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo, useEffect } from 'react'
+import { useState, useTransition, useMemo, useEffect, useRef } from 'react'
 import Image from 'next/image'
 import {
   Plus, Send, Loader2, X, Search, AlertCircle, Clock,
@@ -109,6 +109,20 @@ function DonutChart({ pct }: { pct: number }) {
   )
 }
 
+function renderMessage(msg: string) {
+  if (msg.startsWith('[img]')) {
+    return (
+      <img
+        src={msg.slice(5)}
+        alt="attachment"
+        style={{ maxWidth: '100%', borderRadius: 10, display: 'block', cursor: 'pointer' }}
+        onClick={() => window.open(msg.slice(5), '_blank')}
+      />
+    )
+  }
+  return <>{msg}</>
+}
+
 function NewTicketModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState({ title: '', category: 'general', description: '', priority: 'normal' })
   const [error, setError] = useState('')
@@ -208,6 +222,8 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
 
   const supabase = createBrowserClient()
   const [realtimeMsgs, setRealtimeMsgs] = useState<Record<string, { id: string; responder_id: string; responder_name: string; message: string; created_at: string }[]>>({})
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const stats = useMemo(() => ({
     open:        tickets.filter(t => t.status === 'open').length,
@@ -279,6 +295,29 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
   function handleReply() {
     if (!reply.trim() || !featured) return
     startReply(async () => { await addResponse({ ticket_id: featured.id, message: reply.trim() }); setReply('') })
+  }
+
+  async function handleFileUpload() {
+    if (!featured) return
+    fileInputRef.current?.click()
+  }
+
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !featured) return
+    if (file.size > 5 * 1024 * 1024) { alert('Max file size is 5 MB'); return }
+    setIsUploading(true)
+    try {
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const path = `${featured.id}/${Date.now()}.${ext}`
+      const { data, error } = await supabase.storage.from('support-attachments').upload(path, file)
+      if (error || !data) { console.error(error); return }
+      const { data: { publicUrl } } = supabase.storage.from('support-attachments').getPublicUrl(data.path)
+      await addResponse({ ticket_id: featured.id, message: `[img]${publicUrl}` })
+    } finally {
+      setIsUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   function handleStatus(tid: string, s: string) {
@@ -545,7 +584,7 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
                                   border: isAdmin ? '1px solid rgba(222,26,26,0.09)' : '1px solid #E5E7EB',
                                   fontSize: 13, color: '#374151', lineHeight: 1.55,
                                 }}>
-                                  {r.message}
+                                  {renderMessage(r.message)}
                                 </div>
                                 <p style={{ fontSize: 10, color: '#9CA3AF', margin: '3px 4px 0', textAlign: isAdmin ? 'right' : 'left' }}>
                                   {new Date(r.created_at).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -554,12 +593,30 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
                             )
                           })}
                         {/* Reply input */}
-                        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center' }}>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={handleFileSelect}
+                          />
+                          <button
+                            onClick={handleFileUpload}
+                            disabled={isUploading || replyPending}
+                            style={{ width: 38, height: 38, borderRadius: 10, border: '1px solid #E5E7EB', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                          >
+                            {isUploading
+                              ? <Loader2 size={14} color="#9CA3AF" className="animate-spin" />
+                              : <Paperclip size={14} color="#9CA3AF" />
+                            }
+                          </button>
                           <input value={reply} onChange={e => setReply(e.target.value)} placeholder="Type a reply…"
                             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleReply() } }}
+                            disabled={isUploading}
                             style={{ flex: 1, padding: '10px 14px', borderRadius: 12, fontSize: 13, background: '#F9FAFB', border: '1px solid #E5E7EB', color: '#111111', outline: 'none', fontFamily: 'inherit' }} />
-                          <button onClick={handleReply} disabled={replyPending || !reply.trim()}
-                            style={{ padding: '10px 16px', borderRadius: 12, background: 'linear-gradient(135deg,#DE1A1A,#7F1D1D)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 600, opacity: (!reply.trim() || replyPending) ? 0.5 : 1, boxShadow: '0 4px 12px rgba(222,26,26,0.3)' }}>
+                          <button onClick={handleReply} disabled={replyPending || isUploading || !reply.trim()}
+                            style={{ padding: '10px 16px', borderRadius: 12, background: 'linear-gradient(135deg,#DE1A1A,#7F1D1D)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 600, opacity: (!reply.trim() || replyPending || isUploading) ? 0.5 : 1, boxShadow: '0 4px 12px rgba(222,26,26,0.3)' }}>
                             {replyPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Send
                           </button>
                         </div>

@@ -156,7 +156,7 @@ export async function getTickets(role: 'ADMIN' | 'MEMBER') {
     .select(`
       id, title, category, description, status, priority, created_at, updated_at,
       user_id,
-      support_responses ( id, responder_name, message, created_at )
+      support_responses ( id, responder_id, responder_name, message, created_at )
     `)
     .eq('company_id', profile.company_id)
     .order('updated_at', { ascending: false })
@@ -173,4 +173,8 @@ export async function getMemberName(user_id: string): Promise<string> {
   const admin = adminSupabase()
   const { data } = await admin.from('users').select('name').eq('id', user_id).single()
   return data?.name ?? 'Unknown'
+}
+
+export async function getCurrentUser() {
+  return getProfile()
 }

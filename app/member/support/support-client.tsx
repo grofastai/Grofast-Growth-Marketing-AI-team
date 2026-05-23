@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase/client'
 import { createTicket, addResponse, closeTicket } from '@/lib/actions/support'
-import { ArrowLeft, Send, Loader2, Plus, MessageCircle, XCircle } from 'lucide-react'
+import { ArrowLeft, Send, Loader2, Plus, MessageCircle, XCircle, Paperclip, CheckCircle } from 'lucide-react'
 
 type Response = {
   id: string
@@ -58,6 +58,20 @@ function timeAgo(s: string) {
   const h = Math.floor(m / 60)
   if (h < 24) return `${h}h ago`
   return `${Math.floor(h / 24)}d ago`
+}
+
+function renderMessage(msg: string) {
+  if (msg.startsWith('[img]')) {
+    return (
+      <img
+        src={msg.slice(5)}
+        alt="attachment"
+        style={{ maxWidth: '100%', borderRadius: 10, display: 'block', cursor: 'pointer' }}
+        onClick={() => window.open(msg.slice(5), '_blank')}
+      />
+    )
+  }
+  return <>{msg}</>
 }
 
 function CloseDialog({
@@ -126,7 +140,9 @@ export default function MemberSupportClient({
   const [isPending, startTransition] = useTransition()
   const [isClosePending, startCloseTransition] = useTransition()
   const [realtimeMsgs, setRealtimeMsgs] = useState<Record<string, Response[]>>({})
+  const [isUploading, setIsUploading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const allMessages: Response[] = chatTicket
     ? [
@@ -193,6 +209,24 @@ export default function MemberSupportClient({
     })
   }
 
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !chatTicket) return
+    if (file.size > 5 * 1024 * 1024) { alert('Max file size is 5 MB'); return }
+    setIsUploading(true)
+    try {
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const path = `${chatTicket.id}/${Date.now()}.${ext}`
+      const { data, error } = await supabase.storage.from('support-attachments').upload(path, file)
+      if (error || !data) { console.error(error); return }
+      const { data: { publicUrl } } = supabase.storage.from('support-attachments').getPublicUrl(data.path)
+      await addResponse({ ticket_id: chatTicket.id, message: `[img]${publicUrl}` })
+    } finally {
+      setIsUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
   // ── CHAT VIEW ────────────────────────────────────────────────────────
   if (view === 'chat' && chatTicket) {
     const sc = STATUS_CONFIG[chatTicket.status] ?? STATUS_CONFIG.open
@@ -246,7 +280,7 @@ export default function MemberSupportClient({
                   color: isMine ? '#FFFFFF' : '#111111',
                   fontSize: 14, lineHeight: 1.45, wordBreak: 'break-word',
                 }}>
-                  {msg.message}
+                  {renderMessage(msg.message)}
                 </div>
                 <p style={{ fontSize: 10, color: '#9CA3AF', margin: '4px 4px 0', textAlign: isMine ? 'right' : 'left' }}>
                   {formatTime(msg.created_at)}
@@ -254,6 +288,23 @@ export default function MemberSupportClient({
               </div>
             )
           })}
+          {chatTicket.status === 'resolved' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '20px 0 8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 20px', borderRadius: 99, background: '#DCFCE7', border: '1px solid rgba(21,128,61,0.2)' }}>
+                <CheckCircle size={14} color="#15803D" />
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#15803D' }}>Ticket Resolved</span>
+              </div>
+              <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0, textAlign: 'center' }}>
+                The support team has resolved your ticket.
+              </p>
+              <button
+                onClick={() => setCloseConfirm(chatTicket.id)}
+                style={{ padding: '8px 20px', borderRadius: 10, border: '1.5px solid #E5E7EB', background: 'transparent', color: '#6B7280', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Close Ticket
+              </button>
+            </div>
+          )}
           <div ref={bottomRef} />
         </div>
 
@@ -262,21 +313,38 @@ export default function MemberSupportClient({
           <div style={{ padding: '10px 16px 20px', background: '#fff', borderTop: '1px solid #EBEDF2', flexShrink: 0 }}>
             <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
               <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleFileSelect}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading || isPending}
+                style={{ width: 38, height: 38, borderRadius: '50%', border: '1px solid #E5E7EB', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+              >
+                {isUploading
+                  ? <Loader2 size={16} color="#9CA3AF" className="animate-spin" />
+                  : <Paperclip size={16} color="#9CA3AF" />
+                }
+              </button>
+              <input
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
                 placeholder="Type a message…"
-                disabled={isPending}
+                disabled={isPending || isUploading}
                 style={{ flex: 1, padding: '12px 16px', borderRadius: 24, background: '#F3F4F6', border: 'none', fontSize: 14, color: '#111111', outline: 'none', fontFamily: 'inherit' }}
               />
               <button
                 onClick={handleSend}
-                disabled={isPending || !message.trim()}
-                style={{ width: 44, height: 44, borderRadius: '50%', border: 'none', background: message.trim() && !isPending ? '#DE1A1A' : '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: message.trim() && !isPending ? 'pointer' : 'not-allowed', flexShrink: 0 }}
+                disabled={isPending || isUploading || !message.trim()}
+                style={{ width: 44, height: 44, borderRadius: '50%', border: 'none', background: message.trim() && !isPending && !isUploading ? '#DE1A1A' : '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: message.trim() && !isPending && !isUploading ? 'pointer' : 'not-allowed', flexShrink: 0 }}
               >
                 {isPending
                   ? <Loader2 size={18} color="#9CA3AF" className="animate-spin" />
-                  : <Send size={18} color={message.trim() ? '#FFFFFF' : '#9CA3AF'} />
+                  : <Send size={18} color={message.trim() && !isUploading ? '#FFFFFF' : '#9CA3AF'} />
                 }
               </button>
             </div>

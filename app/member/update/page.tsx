@@ -41,7 +41,7 @@ export default async function UpdatePage() {
       .from("clients")
       .select("name")
       .eq("company_id", profile?.company_id ?? "")
-      .eq("status", "active")
+      .in("status", ["active", "past"])
       .order("name"),
   ])
 

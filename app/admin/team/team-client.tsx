@@ -348,12 +348,27 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
             </div>
           </div>
 
-          {form.employment_type === "regular" && (
+          {form.employment_type === "regular" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Monthly Salary (₹)</label>
+                <input type="number" min="0" step="500" className="sheet-input" style={FIELD}
+                  placeholder="e.g. 15000" value={form.monthly_salary}
+                  onChange={(e) => setForm((prev) => ({ ...prev, monthly_salary: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Paid Leave/Month</label>
+                <input type="number" min="0" max="30" step="1" className="sheet-input" style={FIELD}
+                  placeholder="5" value={form.paid_leave_days}
+                  onChange={(e) => setForm((prev) => ({ ...prev, paid_leave_days: e.target.value }))} />
+              </div>
+            </div>
+          ) : (
             <div>
-              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Paid Leave/Month</label>
-              <input type="number" min="0" max="30" step="1" className="sheet-input" style={FIELD}
-                placeholder="5" value={form.paid_leave_days}
-                onChange={(e) => setForm((prev) => ({ ...prev, paid_leave_days: e.target.value }))} />
+              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Hourly Rate (₹)</label>
+              <input type="number" min="0" step="10" className="sheet-input" style={FIELD}
+                placeholder="e.g. 150" value={form.hourly_rate}
+                onChange={(e) => setForm((prev) => ({ ...prev, hourly_rate: e.target.value }))} />
             </div>
           )}
 

@@ -43,19 +43,17 @@ export async function createTicket(input: {
 
   if (error) return { success: false, error: error.message }
 
-  // Notify all admins about the new support ticket
-  const { data: admins } = await admin.from('users').select('id').eq('company_id', profile.company_id).eq('role', 'ADMIN')
-  if (admins?.length) {
-    await Promise.all(admins.map(a =>
-      insertNotification({
-        companyId: profile.company_id,
-        userId:    a.id,
-        type:      'support_ticket',
-        title:     `New support ticket from ${profile.name}`,
-        body:      input.title,
-        link:      '/admin/support',
-      })
-    ))
+  // Notify Sajetah SK (gf003) — designated support handler
+  const { data: handler } = await admin.from('users').select('id').eq('company_id', profile.company_id).eq('employee_id', 'gf003').single()
+  if (handler) {
+    await insertNotification({
+      companyId: profile.company_id,
+      userId:    handler.id,
+      type:      'support_ticket',
+      title:     `New support ticket from ${profile.name}`,
+      body:      input.title,
+      link:      '/admin/support',
+    })
   }
 
   revalidatePath('/member/support')
@@ -104,19 +102,17 @@ export async function addResponse(input: {
         link:      '/member/support',
       })
     } else {
-      // Member replied to their own ticket → notify all admins
-      const { data: admins } = await admin.from('users').select('id').eq('company_id', ticket.company_id).eq('role', 'ADMIN')
-      if (admins?.length) {
-        await Promise.all(admins.map(a =>
-          insertNotification({
+      // Member replied → notify Sajetah SK (gf003) — designated support handler
+      const { data: handler } = await admin.from('users').select('id').eq('company_id', ticket.company_id).eq('employee_id', 'gf003').single()
+      if (handler) {
+        await insertNotification({
             companyId: ticket.company_id,
-            userId:    a.id,
+            userId:    handler.id,
             type:      'support_reply',
             title:     `${profile.name} replied on their support ticket`,
             body:      ticket.title,
             link:      '/admin/support',
           })
-        ))
       }
     }
   }

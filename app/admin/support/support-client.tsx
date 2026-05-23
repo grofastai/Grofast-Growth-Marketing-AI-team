@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useEffect } from 'react'
 import Image from 'next/image'
 import {
   Plus, Send, Loader2, X, Search, AlertCircle, Clock,
@@ -9,8 +9,9 @@ import {
   Paperclip, Activity,
 } from 'lucide-react'
 import { addResponse, updateTicketStatus, createTicket } from '@/lib/actions/support'
+import { createBrowserClient } from '@/lib/supabase/client'
 
-type Response = { id: string; responder_name: string; message: string; created_at: string }
+type Response = { id: string; responder_id: string; responder_name: string; message: string; created_at: string }
 type Ticket = {
   id: string; user_id: string; title: string; category: string
   description: string; status: string; priority: string
@@ -193,7 +194,7 @@ function NewTicketModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
+export default function AdminSupportClient({ tickets, currentUserId }: { tickets: Ticket[]; currentUserId: string }) {
   const [filter, setFilter]             = useState('all')
   const [search, setSearch]             = useState('')
   const [activeTab, setActiveTab]       = useState('Conversation')
@@ -202,6 +203,9 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
   const [reply, setReply]               = useState('')
   const [replyPending, startReply]      = useTransition()
   const [statusPending, startStatus]    = useTransition()
+
+  const supabase = createBrowserClient()
+  const [realtimeMsgs, setRealtimeMsgs] = useState<Record<string, { id: string; responder_id: string; responder_name: string; message: string; created_at: string }[]>>({})
 
   const stats = useMemo(() => ({
     open:        tickets.filter(t => t.status === 'open').length,
@@ -242,6 +246,33 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
     () => filtered.filter(t => t.id !== featured?.id),
     [filtered, featured]
   )
+
+  useEffect(() => {
+    if (!featured) return
+    const ticketId = featured.id
+    const channel = supabase
+      .channel(`admin-support-${ticketId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'support_responses',
+          filter: `ticket_id=eq.${ticketId}`,
+        },
+        (payload) => {
+          setRealtimeMsgs(prev => ({
+            ...prev,
+            [ticketId]: [
+              ...(prev[ticketId] ?? []),
+              payload.new as { id: string; responder_id: string; responder_name: string; message: string; created_at: string },
+            ],
+          }))
+        }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [featured?.id])
 
   function handleReply() {
     if (!reply.trim() || !featured) return
@@ -488,24 +519,34 @@ export default function AdminSupportClient({ tickets }: { tickets: Ticket[] }) {
                             </div>
                           </div>
                         </div>
-                        {responses.map(r => (
-                          <div key={r.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', flexDirection: 'row-reverse' }}>
-                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#DE1A1A,#7F1D1D)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                              {r.responder_name.charAt(0).toUpperCase()}
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                              <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end', marginBottom: 4 }}>
-                                <span style={{ fontSize: 11, color: '#9CA3AF' }}>
+                        {[
+                          ...responses,
+                          ...(realtimeMsgs[featured.id] ?? []),
+                        ]
+                          .filter((r, i, arr) => arr.findIndex(x => x.id === r.id) === i)
+                          .map(r => {
+                            const isAdmin = r.responder_id !== featured.user_id
+                            return (
+                              <div key={r.id} style={{ display: 'flex', flexDirection: 'column', alignItems: isAdmin ? 'flex-end' : 'flex-start', marginBottom: 4 }}>
+                                <p style={{ fontSize: 11, color: '#9CA3AF', margin: '0 0 4px', paddingLeft: isAdmin ? 0 : 12, paddingRight: isAdmin ? 12 : 0 }}>
+                                  {isAdmin ? `${r.responder_name} (Support)` : 'Member'}
+                                </p>
+                                <div style={{
+                                  maxWidth: 380,
+                                  padding: '10px 14px',
+                                  borderRadius: isAdmin ? '14px 4px 14px 14px' : '4px 14px 14px 14px',
+                                  background: isAdmin ? 'rgba(222,26,26,0.06)' : '#F3F4F6',
+                                  border: isAdmin ? '1px solid rgba(222,26,26,0.09)' : '1px solid #E5E7EB',
+                                  fontSize: 13, color: '#374151', lineHeight: 1.55,
+                                }}>
+                                  {r.message}
+                                </div>
+                                <p style={{ fontSize: 10, color: '#9CA3AF', margin: '3px 4px 0', textAlign: isAdmin ? 'right' : 'left' }}>
                                   {new Date(r.created_at).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                </span>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: '#DE1A1A' }}>{r.responder_name} (Support)</span>
+                                </p>
                               </div>
-                              <div style={{ background: 'rgba(222,26,26,0.05)', borderRadius: '14px 4px 14px 14px', padding: '10px 14px', fontSize: 13, color: '#374151', lineHeight: 1.55, border: '1px solid rgba(222,26,26,0.09)', maxWidth: 360, marginLeft: 'auto' }}>
-                                {r.message}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                            )
+                          })}
                         {/* Reply input */}
                         <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                           <input value={reply} onChange={e => setReply(e.target.value)} placeholder="Type a reply…"

@@ -8,7 +8,7 @@ import {
   ArrowRight, Star, Bell, LayoutGrid, List as ListIcon,
   Paperclip, Activity,
 } from 'lucide-react'
-import { addResponse, updateTicketStatus, createTicket } from '@/lib/actions/support'
+import { addResponse, updateTicketStatus, createTicket, closeTicket } from '@/lib/actions/support'
 import { createBrowserClient } from '@/lib/supabase/client'
 
 type Response = { id: string; responder_id: string; responder_name: string; message: string; created_at: string }
@@ -203,6 +203,8 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
   const [reply, setReply]               = useState('')
   const [replyPending, startReply]      = useTransition()
   const [statusPending, startStatus]    = useTransition()
+  const [isClosePending, startClose]    = useTransition()
+  const [closeConfirm, setCloseConfirm] = useState<string | null>(null)
 
   const supabase = createBrowserClient()
   const [realtimeMsgs, setRealtimeMsgs] = useState<Record<string, { id: string; responder_id: string; responder_name: string; message: string; created_at: string }[]>>({})
@@ -281,6 +283,10 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
 
   function handleStatus(tid: string, s: string) {
     startStatus(async () => { await updateTicketStatus(tid, s) })
+  }
+
+  function handleCloseAdmin(tid: string) {
+    startClose(async () => { await closeTicket(tid); setCloseConfirm(null) })
   }
 
   const maxCat = Math.max(...CATEGORIES_DEF.map(c => catCounts[c.key] ?? 0), 1)
@@ -609,6 +615,11 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
                           style={{ padding: '9px 10px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#15803D', background: '#DCFCE7', border: '1px solid rgba(21,128,61,0.18)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, opacity: featured.status === 'resolved' ? 0.5 : 1 }}>
                           <CheckCircle2 size={12} /> Resolve Ticket
                         </button>
+                        <button onClick={() => setCloseConfirm(featured.id)}
+                          disabled={featured.status === 'closed'}
+                          style={{ padding: '9px 10px', borderRadius: 10, fontSize: 12, fontWeight: 600, color: '#6B7280', background: '#F3F4F6', border: '1px solid #E5E7EB', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, opacity: featured.status === 'closed' ? 0.5 : 1 }}>
+                          <XCircle size={12} /> Close Ticket
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -658,7 +669,21 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
                       <span style={{ fontSize: 11, color: '#9CA3AF' }}>{timeAgo(t.updated_at)}</span>
                       <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#DE1A1A,#7F1D1D)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff' }}>A</div>
                     </div>
-                    <ChevronDown size={13} color="#9CA3AF" />
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={() => { setSelectedId(t.id); setActiveTab('Conversation') }}
+                        style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: 11, fontWeight: 600, color: '#374151', cursor: 'pointer', whiteSpace: 'nowrap' }}
+                      >
+                        {t.support_responses.length > 0 ? 'Continue Chat' : 'Start Chat'}
+                      </button>
+                      <button
+                        onClick={() => setCloseConfirm(t.id)}
+                        disabled={t.status === 'closed'}
+                        style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: 11, fontWeight: 600, color: '#6B7280', cursor: 'pointer', opacity: t.status === 'closed' ? 0.5 : 1 }}
+                      >
+                        Close
+                      </button>
+                    </div>
                   </div>
                 )
               })}
@@ -799,6 +824,41 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
       )}
 
       {showNewTicket && <NewTicketModal onClose={() => setShowNew(false)} />}
+
+      {closeConfirm && (
+        <>
+          <div
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 40 }}
+            onClick={() => setCloseConfirm(null)}
+          />
+          <div style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+            background: '#fff', borderRadius: '24px 24px 0 0', padding: '24px 20px 36px',
+          }}>
+            <div style={{ width: 40, height: 4, borderRadius: 99, background: '#E5E7EB', margin: '0 auto 20px' }} />
+            <h3 style={{ fontSize: 17, fontWeight: 800, color: '#111111', margin: '0 0 8px' }}>Close Ticket?</h3>
+            <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px', lineHeight: 1.5 }}>
+              This will mark the ticket as closed. The member will no longer be able to send messages.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setCloseConfirm(null)}
+                style={{ flex: 1, padding: '12px', borderRadius: 14, border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: 14, fontWeight: 600, color: '#6B7280', cursor: 'pointer' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleCloseAdmin(closeConfirm!)}
+                disabled={isClosePending}
+                style={{ flex: 1, padding: '12px', borderRadius: 14, border: 'none', background: '#DE1A1A', fontSize: 14, fontWeight: 700, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: isClosePending ? 0.7 : 1 }}
+              >
+                {isClosePending && <Loader2 size={14} className="animate-spin" />}
+                Close Ticket
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   )
 }

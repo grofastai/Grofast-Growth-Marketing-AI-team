@@ -20,6 +20,7 @@ export default async function MemberAnnouncementsPage() {
     .select("id, title, message, pinned, category, created_at, users(name)")
     .order("pinned", { ascending: false })
     .order("created_at", { ascending: false })
+    .limit(30)
 
   const announcements = (raw ?? []) as unknown as AnnouncementRow[]
 

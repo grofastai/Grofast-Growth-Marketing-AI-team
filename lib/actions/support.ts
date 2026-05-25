@@ -4,6 +4,8 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { insertNotification } from '@/lib/actions/notifications'
+import { ticketLimiter, replyLimiter } from '@/lib/ratelimit'
+import { cacheGet, cacheSet, cacheDel } from '@/lib/cache'
 
 function adminSupabase() {
   return createClient(
@@ -36,6 +38,11 @@ export async function createTicket(input: {
   const profile = await getProfile()
   if (!profile) return { success: false, error: 'Not authenticated' }
 
+  if (ticketLimiter) {
+    const { success } = await ticketLimiter.limit(profile.id)
+    if (!success) return { success: false, error: 'Too many tickets created recently. Try again in a few minutes.' }
+  }
+
   const admin = adminSupabase()
   const { error } = await admin.from('support_tickets').insert({
     company_id:  profile.company_id,
@@ -47,6 +54,8 @@ export async function createTicket(input: {
   })
 
   if (error) return { success: false, error: error.message }
+
+  await cacheDel(`tickets:ADMIN:${profile.company_id}`, `tickets:MEMBER:${profile.id}`)
 
   // Notify Sajetah SK (gf003) — designated support handler
   const { data: handler } = await admin.from('users').select('id').eq('company_id', profile.company_id).eq('employee_id', 'GF003').single()
@@ -73,6 +82,11 @@ export async function addResponse(input: {
   const profile = await getProfile()
   if (!profile) return { success: false, error: 'Not authenticated' }
 
+  if (replyLimiter) {
+    const { success } = await replyLimiter.limit(profile.id)
+    if (!success) return { success: false, error: 'Too many messages sent. Slow down a bit.' }
+  }
+
   const admin = adminSupabase()
   const { error } = await admin.from('support_responses').insert({
     ticket_id:      input.ticket_id,
@@ -94,6 +108,8 @@ export async function addResponse(input: {
     .from('support_tickets')
     .update({ updated_at: new Date().toISOString() })
     .eq('id', input.ticket_id)
+
+  if (ticket) await cacheDel(`tickets:ADMIN:${ticket.company_id}`, `tickets:MEMBER:${ticket.user_id}`)
 
   if (ticket) {
     if (isSupportHandler(profile)) {
@@ -142,6 +158,7 @@ export async function updateTicketStatus(
     .eq('company_id', profile!.company_id)
 
   if (error) return { success: false, error: error.message }
+  await cacheDel(`tickets:ADMIN:${profile!.company_id}`)
   revalidatePath('/admin/support')
   revalidatePath('/member/support')
   return { success: true }
@@ -150,6 +167,13 @@ export async function updateTicketStatus(
 export async function getTickets(role: 'ADMIN' | 'MEMBER') {
   const profile = await getProfile()
   if (!profile) return []
+
+  const cacheKey = role === 'ADMIN'
+    ? `tickets:ADMIN:${profile.company_id}`
+    : `tickets:MEMBER:${profile.id}`
+
+  const cached = await cacheGet<unknown[]>(cacheKey)
+  if (cached) return cached
 
   const admin = adminSupabase()
   let query = admin
@@ -167,6 +191,7 @@ export async function getTickets(role: 'ADMIN' | 'MEMBER') {
   }
 
   const { data } = await query
+  await cacheSet(cacheKey, data ?? [], 30)
   return data ?? []
 }
 
@@ -198,6 +223,7 @@ export async function closeTicket(ticket_id: string): Promise<{ success: boolean
   const { error } = await query
   if (error) return { success: false, error: error.message }
 
+  await cacheDel(`tickets:ADMIN:${profile.company_id}`, `tickets:MEMBER:${profile.id}`)
   revalidatePath('/member/support')
   revalidatePath('/admin/support')
   return { success: true }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
+import { uploadLimiter } from "@/lib/ratelimit"
 
 function adminSupabase() {
   return createClient(
@@ -14,6 +15,11 @@ export async function POST(req: NextRequest) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  if (uploadLimiter) {
+    const { success } = await uploadLimiter.limit(user.id)
+    if (!success) return NextResponse.json({ error: "Too many uploads. Try again in a few minutes." }, { status: 429 })
+  }
 
   const formData = await req.formData()
   const file = formData.get("file") as File | null

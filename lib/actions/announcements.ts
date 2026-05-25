@@ -3,7 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { insertNotification } from './notifications'
+import { insertManyNotifications } from './notifications'
 import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 
 const schema = z.object({
@@ -46,16 +46,14 @@ export async function createAnnouncement(
 
   const { data: companyUsers } = await supabase.from('users').select('id, phone, role').eq('company_id', claims.company_id)
   if (companyUsers) {
-    await Promise.all(companyUsers.map(u =>
-      insertNotification({
-        companyId: claims.company_id,
-        userId: u.id,
-        type: 'announcement',
-        title: parsed.data.title,
-        body: parsed.data.message.slice(0, 120),
-        link: '/member/announcements',
-      })
-    ))
+    await insertManyNotifications(companyUsers.map(u => ({
+      companyId: claims.company_id,
+      userId: u.id,
+      type: 'announcement',
+      title: parsed.data.title,
+      body: parsed.data.message.slice(0, 120),
+      link: '/member/announcements',
+    })))
 
     // WhatsApp blast to all members with a phone number
     const messageSnippet = parsed.data.message.slice(0, 100)

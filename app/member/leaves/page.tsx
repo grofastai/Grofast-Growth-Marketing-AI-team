@@ -25,7 +25,8 @@ export default async function MemberLeavesPage() {
       .from("leaves")
       .select("*")
       .eq("user_id", user.id)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(50),
     admin
       .from("users")
       .select("name")

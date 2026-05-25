@@ -105,3 +105,20 @@ export async function insertNotification({
     link: link ?? null,
   })
 }
+
+export async function insertManyNotifications(items: {
+  companyId: string; userId: string; type: string; title: string; body?: string; link?: string
+}[]): Promise<void> {
+  if (!items.length) return
+  const admin = adminSupabase()
+  await admin.from('notifications').insert(
+    items.map(i => ({
+      company_id: i.companyId,
+      user_id: i.userId,
+      type: i.type,
+      title: i.title,
+      body: i.body ?? null,
+      link: i.link ?? null,
+    }))
+  )
+}

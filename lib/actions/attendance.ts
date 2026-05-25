@@ -4,7 +4,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
-import { insertNotification } from './notifications'
+import { insertManyNotifications } from './notifications'
 
 // 10:00 AM IST = 04:30 UTC. Returns true if clock-in is after 10:00 AM IST.
 function isLateArrival(isoUtc: string): boolean {
@@ -106,16 +106,14 @@ export async function clockIn(workType: 'wfh' | 'office'): Promise<{ success: bo
         })
       }
       if (adminUsers?.length) {
-        await Promise.all(adminUsers.map((a: any) =>
-          insertNotification({
-            companyId: ctx.companyId,
-            userId: a.id,
-            type: 'attendance_late',
-            title: `${profile.name} clocked in late`,
-            body: `Arrived at ${formatISTTime(clockInTime)}`,
-            link: '/admin/attendance',
-          })
-        ))
+        await insertManyNotifications(adminUsers.map((a: any) => ({
+          companyId: ctx.companyId,
+          userId: a.id,
+          type: 'attendance_late',
+          title: `${profile.name} clocked in late`,
+          body: `Arrived at ${formatISTTime(clockInTime)}`,
+          link: '/admin/attendance',
+        })))
       }
     })().catch(console.error)
   }
@@ -127,16 +125,14 @@ export async function clockIn(workType: 'wfh' | 'office'): Promise<{ success: bo
         admin.from('users').select('id').eq('company_id', ctx.companyId).eq('role', 'ADMIN'),
       ])
       if (!profile || !adminUsers?.length) return
-      await Promise.all(adminUsers.map((a: any) =>
-        insertNotification({
-          companyId: ctx.companyId,
-          userId: a.id,
-          type: 'wfh_started',
-          title: `${profile.name} is working from home`,
-          body: today,
-          link: '/admin/attendance',
-        })
-      ))
+      await insertManyNotifications(adminUsers.map((a: any) => ({
+        companyId: ctx.companyId,
+        userId: a.id,
+        type: 'wfh_started',
+        title: `${profile.name} is working from home`,
+        body: today,
+        link: '/admin/attendance',
+      })))
     })().catch(console.error)
   }
 

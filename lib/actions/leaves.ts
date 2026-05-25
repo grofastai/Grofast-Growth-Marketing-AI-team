@@ -4,7 +4,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
-import { insertNotification } from './notifications'
+import { insertNotification, insertManyNotifications } from './notifications'
 import { z } from 'zod'
 
 function createAdminClient() {
@@ -124,16 +124,14 @@ export async function submitLeaveRequest(
       const leaveLabel = parsed.data.leave_type === 'full_day'
         ? `${parsed.data.from_date} → ${parsed.data.to_date}`
         : parsed.data.leave_type === 'half_day' ? `Half-day on ${parsed.data.from_date}` : `Permission on ${parsed.data.from_date}`
-      await Promise.all(adminUsers.map(a =>
-        insertNotification({
-          companyId: company_id,
-          userId: a.id,
-          type: 'leave_submitted',
-          title: `${profile.name} applied for leave`,
-          body: leaveLabel,
-          link: '/admin/leaves',
-        })
-      ))
+      await insertManyNotifications(adminUsers.map(a => ({
+        companyId: company_id,
+        userId: a.id,
+        type: 'leave_submitted',
+        title: `${profile.name} applied for leave`,
+        body: leaveLabel,
+        link: '/admin/leaves',
+      })))
     }
   }
 

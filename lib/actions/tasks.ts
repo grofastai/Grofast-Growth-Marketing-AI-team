@@ -4,7 +4,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { insertNotification } from './notifications'
+import { insertNotification, insertManyNotifications } from './notifications'
 
 function adminSupabase() {
   return createClient(
@@ -74,16 +74,14 @@ export async function createTask(
     const othersAssigned = assignedToList.filter(id => id !== user.id)
     if (othersAssigned.length > 0) {
       const { data: creator } = await admin.from('users').select('name').eq('id', user.id).single()
-      await Promise.all(othersAssigned.map(id =>
-        insertNotification({
-          companyId: profile.company_id,
-          userId: id,
-          type: 'task_assigned',
-          title: `${creator?.name ?? 'Admin'} assigned you a task`,
-          body: parsed.data.title,
-          link: '/member/tasks',
-        })
-      ))
+      await insertManyNotifications(othersAssigned.map(id => ({
+        companyId: profile.company_id,
+        userId: id,
+        type: 'task_assigned',
+        title: `${creator?.name ?? 'Admin'} assigned you a task`,
+        body: parsed.data.title,
+        link: '/member/tasks',
+      })))
     }
   }
 

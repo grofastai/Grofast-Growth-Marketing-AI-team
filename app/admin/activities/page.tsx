@@ -55,7 +55,9 @@ export default async function ActivitiesPage({
     admin
       .from("tasks")
       .select("id, assigned_to, title, status, priority")
-      .eq("company_id", companyId),
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false })
+      .limit(200),
   ])
 
   if (updatesResult.error) {

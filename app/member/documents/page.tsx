@@ -44,6 +44,7 @@ export default async function MemberDocumentsPage() {
     .select("id, name, file_url, file_type, file_size, doc_type, created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
+    .limit(50)
 
   const docs = (raw ?? []) as Doc[]
 

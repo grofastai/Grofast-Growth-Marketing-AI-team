@@ -25,7 +25,8 @@ export default async function GoalsPage() {
     admin.from("tasks")
       .select("*, users!tasks_assigned_to_fkey(id, name, employee_id, team), projects(id, business_name)")
       .eq("company_id", cid)
-      .order("created_at", { ascending: false }),
+      .order("created_at", { ascending: false })
+      .limit(100),
     admin.from("users")
       .select("id, name, employee_id, team, gender")
       .eq("company_id", cid)

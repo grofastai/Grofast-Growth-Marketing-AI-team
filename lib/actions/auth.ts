@@ -3,7 +3,9 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { loginSchema, changePasswordSchema } from '@/lib/validations/auth'
+import { loginLimiter } from '@/lib/ratelimit'
 
 function adminSupabase() {
   return createClient(
@@ -17,6 +19,13 @@ export async function loginAction(
   _prev: { error: string } | null,
   formData: FormData
 ): Promise<{ error: string } | null> {
+  if (loginLimiter) {
+    const h = await headers()
+    const ip = h.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'anonymous'
+    const { success } = await loginLimiter.limit(ip)
+    if (!success) return { error: 'Too many login attempts. Please wait a minute and try again.' }
+  }
+
   const raw = {
     email: (formData.get('email') as string)?.trim(),
     password: formData.get('password') as string,

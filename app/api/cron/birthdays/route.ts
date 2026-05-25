@@ -22,17 +22,7 @@ export async function GET(request: NextRequest) {
   const mm = String(istDate.getMonth() + 1).padStart(2, '0')
   const dd = String(istDate.getDate()).padStart(2, '0')
 
-  // Fetch all active members with date_of_birth
-  const { data: members } = await admin
-    .from('users')
-    .select('id, name, phone, company_id')
-    .eq('status', 'active')
-    .is('deleted_at', null)
-    .not('date_of_birth', 'is', null)
-
-  if (!members?.length) return NextResponse.json({ sent: 0 })
-
-  // Filter by today's month-day
+  // Fetch only members with today's birthday (MM-DD match)
   const { data: birthdayMembers } = await admin
     .from('users')
     .select('id, name, phone, company_id')

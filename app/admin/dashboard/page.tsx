@@ -1,6 +1,7 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import type { CSSProperties } from "react"
+import { cacheGet, cacheSet } from "@/lib/cache"
 import {
   Users, FolderOpen, Target, CalendarOff, Clock, CheckCircle2,
   Plus, Megaphone, Bell, UserX,
@@ -61,37 +62,52 @@ export default async function DashboardPage() {
     .single()
   const cid = profile?.company_id as string
 
+  // Stat counts are cached per company per day (60s TTL) — reduces 8 DB round-trips to 1 cache read
+  type StatCache = { presentToday: number; activeTasks: number; activeClients: number; onLeaveTodayCount: number; taskCompleted: number; taskInProgress: number; taskTodo: number; taskOverdue: number }
+  const statsKey = `dashboard:stats:${cid}:${today}`
+  let statCounts = await cacheGet<StatCache>(statsKey)
+
+  if (!statCounts) {
+    const [p, a, c, l, tc, ti, tt, to] = await Promise.all([
+      admin.from("attendance_logs").select("*", { count: "exact", head: true })
+        .eq("company_id", cid).eq("date", today).eq("status", "present"),
+      admin.from("tasks").select("*", { count: "exact", head: true })
+        .eq("company_id", cid).neq("status", "completed"),
+      admin.from("projects").select("*", { count: "exact", head: true })
+        .eq("company_id", cid).eq("status", "active"),
+      admin.from("leaves").select("*", { count: "exact", head: true })
+        .eq("company_id", cid).eq("status", "approved")
+        .lte("from_date", today).gte("to_date", today),
+      admin.from("tasks").select("*", { count: "exact", head: true })
+        .eq("company_id", cid).eq("status", "completed"),
+      admin.from("tasks").select("*", { count: "exact", head: true })
+        .eq("company_id", cid).eq("status", "in_progress"),
+      admin.from("tasks").select("*", { count: "exact", head: true })
+        .eq("company_id", cid).eq("status", "todo"),
+      admin.from("tasks").select("*", { count: "exact", head: true })
+        .eq("company_id", cid).neq("status", "completed").lt("due_date", today),
+    ])
+    statCounts = {
+      presentToday:     p.count ?? 0,
+      activeTasks:      a.count ?? 0,
+      activeClients:    c.count ?? 0,
+      onLeaveTodayCount: l.count ?? 0,
+      taskCompleted:    tc.count ?? 0,
+      taskInProgress:   ti.count ?? 0,
+      taskTodo:         tt.count ?? 0,
+      taskOverdue:      to.count ?? 0,
+    }
+    await cacheSet(statsKey, statCounts, 60)
+  }
+
+  const { presentToday, activeTasks, activeClients, onLeaveTodayCount, taskCompleted, taskInProgress, taskTodo, taskOverdue } = statCounts
+
   const [
-    { count: presentToday },
-    { count: activeTasks },
-    { count: activeClients },
-    { count: onLeaveTodayCount },
-    { count: taskCompleted },
-    { count: taskInProgress },
-    { count: taskTodo },
-    { count: taskOverdue },
     { data: pendingLeavesRaw },
     { data: recentUpdatesRaw },
     { data: monthLeavesRaw },
     alerts,
   ] = await Promise.all([
-    admin.from("attendance_logs").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).eq("date", today).eq("status", "present"),
-    admin.from("tasks").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).neq("status", "completed"),
-    admin.from("projects").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).eq("status", "active"),
-    admin.from("leaves").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).eq("status", "approved")
-      .lte("from_date", today).gte("to_date", today),
-    admin.from("tasks").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).eq("status", "completed"),
-    admin.from("tasks").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).eq("status", "in_progress"),
-    admin.from("tasks").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).eq("status", "todo"),
-    admin.from("tasks").select("*", { count: "exact", head: true })
-      .eq("company_id", cid).neq("status", "completed").lt("due_date", today),
     admin.from("leaves")
       .select("id, from_date, to_date, reason, users(name, employee_id)")
       .eq("company_id", cid).eq("status", "pending")

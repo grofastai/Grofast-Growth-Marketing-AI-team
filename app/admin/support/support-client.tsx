@@ -592,8 +592,17 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
                               </div>
                             )
                           })}
+                        {featured.status === 'closed' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '20px 0 12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', borderRadius: 99, background: '#F3F4F6', border: '1px solid #E5E7EB' }}>
+                              <XCircle size={13} color="#6B7280" />
+                              <span style={{ fontSize: 12, fontWeight: 700, color: '#6B7280' }}>Ticket Closed</span>
+                            </div>
+                            <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>This ticket has been closed.</p>
+                          </div>
+                        )}
                         {/* Reply input */}
-                        <div style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center' }}>
+                        {featured.status !== 'closed' && <div style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center' }}>
                           <input
                             ref={fileInputRef}
                             type="file"
@@ -619,7 +628,7 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
                             style={{ padding: '10px 16px', borderRadius: 12, background: 'linear-gradient(135deg,#DE1A1A,#7F1D1D)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 600, opacity: (!reply.trim() || replyPending || isUploading) ? 0.5 : 1, boxShadow: '0 4px 12px rgba(222,26,26,0.3)' }}>
                             {replyPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />} Send
                           </button>
-                        </div>
+                        </div>}
                       </div>
                     ) : (
                       <div style={{ padding: '32px 0', textAlign: 'center', color: '#9CA3AF', fontSize: 13 }}>

@@ -451,6 +451,16 @@ export default function MemberSupportClient({
                   </div>
                 )}
 
+                {selectedTicket.status === 'closed' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '20px 0 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', borderRadius: 99, background: '#F3F4F6', border: '1px solid #E5E7EB' }}>
+                      <XCircle size={13} color="#6B7280" />
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#6B7280' }}>Ticket Closed</span>
+                    </div>
+                    <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>This ticket has been closed. Raise a new ticket if you need further help.</p>
+                  </div>
+                )}
+
                 <div ref={bottomRef} />
               </div>
 

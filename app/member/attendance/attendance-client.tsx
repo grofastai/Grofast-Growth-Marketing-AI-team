@@ -33,7 +33,7 @@ const WEEK_DAYS   = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 function fmtTime(iso: string | null) {
   if (!iso) return "--:--"
-  return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
+  return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })
 }
 function calcHours(inIso: string, outIso: string | null): number {
   return ((outIso ? new Date(outIso).getTime() : Date.now()) - new Date(inIso).getTime()) / 3600000
@@ -55,7 +55,7 @@ function fmtHoursShort(h: number) {
 }
 function fmtTimeFromIso(iso: string | null) {
   if (!iso) return "—"
-  return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
+  return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" })
 }
 function addDays(dateStr: string, n: number) {
   const [y, m, d] = dateStr.split("-").map(Number)

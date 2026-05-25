@@ -172,6 +172,7 @@ export async function markAbsent(): Promise<{ success: boolean; error?: string }
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/member/dashboard')
+  revalidatePath('/member/attendance')
   revalidatePath('/admin/attendance')
   return { success: true }
 }

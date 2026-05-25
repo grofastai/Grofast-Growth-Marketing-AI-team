@@ -260,33 +260,52 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               {/* NOT LOGGED IN */}
               {notLogged && (
                 <div className="space-y-4">
-                  <div>
-                    <p className="text-[12px] font-semibold mb-2" style={{ color: "#9CA3AF" }}>Select Work Mode</p>
-                    <div className="flex gap-2">
-                      {(["office", "wfh"] as const).map((mode) => {
-                        const Icon = mode === "wfh" ? Home : Building2
-                        const active = selectedMode === mode
-                        return (
-                          <button key={mode} onClick={() => setSelectedMode(mode)} disabled={isPending}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
-                            style={{ background: active ? "#de1a1a" : "#F9FAFB", color: active ? "#FFFFFF" : "#6B7280", border: active ? "none" : "1px solid #E5E7EB" }}>
-                            <Icon size={14} />{mode === "wfh" ? "Work From Home" : "Office"}
-                          </button>
-                        )
-                      })}
+                  {!confirmAbsent ? (
+                    <>
+                      <div>
+                        <p className="text-[12px] font-semibold mb-2" style={{ color: "#9CA3AF" }}>Select Work Mode</p>
+                        <div className="flex gap-2">
+                          {(["office", "wfh"] as const).map((mode) => {
+                            const Icon = mode === "wfh" ? Home : Building2
+                            const active = selectedMode === mode
+                            return (
+                              <button key={mode} onClick={() => setSelectedMode(mode)} disabled={isPending}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
+                                style={{ background: active ? "#de1a1a" : "#F9FAFB", color: active ? "#FFFFFF" : "#6B7280", border: active ? "none" : "1px solid #E5E7EB" }}>
+                                <Icon size={14} />{mode === "wfh" ? "Work From Home" : "Office"}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button onClick={handleLogIn} disabled={isPending || geoLoading}
+                          className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
+                          style={{ background: "#de1a1a", color: "#FFFFFF" }}>
+                          {geoLoading ? <><MapPin size={14} className="animate-pulse" />Verifying…</> : isPending ? <Loader2 size={14} className="animate-spin" /> : <><LogIn size={14} />Log In</>}
+                        </button>
+                        <button onClick={() => setConfirmAbsent(true)} disabled={isPending}
+                          className="text-[12px] font-medium underline underline-offset-2" style={{ color: "#EF4444" }}>
+                          Mark Absent
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="rounded-2xl p-4" style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)" }}>
+                      <p className="text-[14px] font-bold mb-1" style={{ color: "#111111" }}>Mark today as absent?</p>
+                      <p className="text-[12px] mb-4" style={{ color: "#6B7280" }}>This will record your absence. Cannot be undone.</p>
+                      <div className="flex gap-3">
+                        <button onClick={() => { handle(markAbsent); setConfirmAbsent(false) }} disabled={isPending}
+                          className="px-5 py-2 rounded-xl text-[13px] font-bold disabled:opacity-50"
+                          style={{ background: "#EF4444", color: "#FFFFFF" }}>
+                          {isPending ? <Loader2 size={13} className="animate-spin" /> : "Confirm Absent"}
+                        </button>
+                        <button onClick={() => setConfirmAbsent(false)}
+                          className="px-5 py-2 rounded-xl text-[13px] font-bold"
+                          style={{ background: "#F3F4F6", color: "#374151" }}>Cancel</button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={handleLogIn} disabled={isPending || geoLoading}
-                      className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
-                      style={{ background: "#de1a1a", color: "#FFFFFF" }}>
-                      {geoLoading ? <><MapPin size={14} className="animate-pulse" />Verifying…</> : isPending ? <Loader2 size={14} className="animate-spin" /> : <><LogIn size={14} />Log In</>}
-                    </button>
-                    <button onClick={() => setConfirmAbsent(true)} disabled={isPending}
-                      className="text-[12px] font-medium underline underline-offset-2" style={{ color: "#EF4444" }}>
-                      Mark Absent
-                    </button>
-                  </div>
+                  )}
                   {error && <p className="text-[12px] font-medium" style={{ color: "#EF4444" }}>{error}</p>}
                 </div>
               )}
@@ -544,24 +563,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         </div>{/* end third col */}
 
       </div>
-
-      {/* ── Absent confirm ── */}
-      {confirmAbsent && (
-        <div className="rounded-2xl p-5 mb-5" style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)" }}>
-          <p className="text-[14px] font-bold mb-1" style={{ color: "#111111" }}>Mark today as absent?</p>
-          <p className="text-[12px] mb-4" style={{ color: "#6B7280" }}>This will record your absence. Cannot be undone.</p>
-          <div className="flex gap-3">
-            <button onClick={() => { handle(markAbsent); setConfirmAbsent(false) }} disabled={isPending}
-              className="px-5 py-2 rounded-xl text-[13px] font-bold disabled:opacity-50"
-              style={{ background: "#EF4444", color: "#FFFFFF" }}>
-              {isPending ? <Loader2 size={13} className="animate-spin" /> : "Confirm Absent"}
-            </button>
-            <button onClick={() => setConfirmAbsent(false)}
-              className="px-5 py-2 rounded-xl text-[13px] font-bold"
-              style={{ background: "#F3F4F6", color: "#374151" }}>Cancel</button>
-          </div>
-        </div>
-      )}
 
       {/* ── Daily Insight + Summary ── */}
       <div className="rounded-3xl p-5 relative overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>

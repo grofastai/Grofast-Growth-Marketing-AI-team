@@ -44,7 +44,7 @@ export async function createTicket(input: {
   if (error) return { success: false, error: error.message }
 
   // Notify Sajetah SK (gf003) — designated support handler
-  const { data: handler } = await admin.from('users').select('id').eq('company_id', profile.company_id).eq('employee_id', 'gf003').single()
+  const { data: handler } = await admin.from('users').select('id').eq('company_id', profile.company_id).eq('employee_id', 'GF003').single()
   if (handler) {
     await insertNotification({
       companyId: profile.company_id,
@@ -103,7 +103,7 @@ export async function addResponse(input: {
       })
     } else {
       // Member replied → notify Sajetah SK (gf003) — designated support handler
-      const { data: handler } = await admin.from('users').select('id').eq('company_id', ticket.company_id).eq('employee_id', 'gf003').single()
+      const { data: handler } = await admin.from('users').select('id').eq('company_id', ticket.company_id).eq('employee_id', 'GF003').single()
       if (handler) {
         await insertNotification({
             companyId: ticket.company_id,

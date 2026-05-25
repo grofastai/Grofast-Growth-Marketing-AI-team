@@ -8,7 +8,7 @@ export default async function MemberSupportPage() {
   const user = await getCurrentUser()
 
   // GF003 (Sajetah SK) is the designated support handler — show full admin workspace
-  if (user?.employee_id === 'gf003') {
+  if (user?.employee_id?.toUpperCase() === 'GF003') {
     const allTickets = await getTickets('ADMIN')
     return <AdminSupportClient tickets={allTickets as any} currentUserId={user.id} />
   }

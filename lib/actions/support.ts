@@ -22,6 +22,11 @@ async function getProfile() {
   return data
 }
 
+function isSupportHandler(profile: { role: string; employee_id: string } | null) {
+  if (!profile) return false
+  return profile.role === 'ADMIN' || profile.employee_id?.toUpperCase() === 'GF003'
+}
+
 export async function createTicket(input: {
   title: string
   category: string
@@ -91,8 +96,8 @@ export async function addResponse(input: {
     .eq('id', input.ticket_id)
 
   if (ticket) {
-    if (ticket.user_id !== profile.id) {
-      // Admin/other replied → notify the ticket owner (member)
+    if (isSupportHandler(profile)) {
+      // Support handler (admin or GF003) replied → notify the ticket owner
       await insertNotification({
         companyId: ticket.company_id,
         userId:    ticket.user_id,
@@ -102,17 +107,17 @@ export async function addResponse(input: {
         link:      '/member/support',
       })
     } else {
-      // Member replied → notify Sajetah SK (gf003) — designated support handler
+      // Member replied → notify GF003 (designated support handler)
       const { data: handler } = await admin.from('users').select('id').eq('company_id', ticket.company_id).eq('employee_id', 'GF003').single()
       if (handler) {
         await insertNotification({
-            companyId: ticket.company_id,
-            userId:    handler.id,
-            type:      'support_reply',
-            title:     `${profile.name} replied on their support ticket`,
-            body:      ticket.title,
-            link:      '/admin/support',
-          })
+          companyId: ticket.company_id,
+          userId:    handler.id,
+          type:      'support_reply',
+          title:     `${profile.name} replied on their support ticket`,
+          body:      ticket.title,
+          link:      '/member/support',
+        })
       }
     }
   }
@@ -127,14 +132,14 @@ export async function updateTicketStatus(
   status: string
 ): Promise<{ success: boolean; error?: string }> {
   const profile = await getProfile()
-  if (!profile || profile.role !== 'ADMIN') return { success: false, error: 'Unauthorized' }
+  if (!isSupportHandler(profile)) return { success: false, error: 'Unauthorized' }
 
   const admin = adminSupabase()
   const { error } = await admin
     .from('support_tickets')
     .update({ status, updated_at: new Date().toISOString() })
     .eq('id', ticket_id)
-    .eq('company_id', profile.company_id)
+    .eq('company_id', profile!.company_id)
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/support')
@@ -186,7 +191,7 @@ export async function closeTicket(ticket_id: string): Promise<{ success: boolean
     .eq('id', ticket_id)
     .eq('company_id', profile.company_id)
 
-  if (profile.role !== 'ADMIN') {
+  if (!isSupportHandler(profile)) {
     query = query.eq('user_id', profile.id)
   }
 

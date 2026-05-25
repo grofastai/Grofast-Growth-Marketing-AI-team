@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition, useCallback } from "react"
 import Image from "next/image"
-import { LogOut, Loader2, Home, Building2, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch } from "lucide-react"
+import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch } from "lucide-react"
 import { clockIn, clockOut, markAbsent, breakIn, breakOut, resumeAttendance, getAttendanceByDate, manualClockOut } from "@/lib/actions/attendance"
 import { useRouter } from "next/navigation"
 
@@ -89,7 +89,7 @@ function SegmentBar({ hoursWorked }: { hoursWorked: number }) {
 export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [selectedMode, setSelectedMode] = useState<"wfh" | "office">("office")
+  const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">("office")
   const [confirmAbsent, setConfirmAbsent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [geoLoading, setGeoLoading] = useState(false)
@@ -264,15 +264,16 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     <>
                       <div>
                         <p className="text-[12px] font-semibold mb-2" style={{ color: "#9CA3AF" }}>Select Work Mode</p>
-                        <div className="flex gap-2">
-                          {(["office", "wfh"] as const).map((mode) => {
-                            const Icon = mode === "wfh" ? Home : Building2
+                        <div className="flex gap-2 flex-wrap">
+                          {(["office", "wfh", "shoot"] as const).map((mode) => {
+                            const Icon = mode === "wfh" ? Home : mode === "shoot" ? Camera : Building2
+                            const label = mode === "wfh" ? "Work From Home" : mode === "shoot" ? "Shoot" : "Office"
                             const active = selectedMode === mode
                             return (
                               <button key={mode} onClick={() => setSelectedMode(mode)} disabled={isPending}
                                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
                                 style={{ background: active ? "#de1a1a" : "#F9FAFB", color: active ? "#FFFFFF" : "#6B7280", border: active ? "none" : "1px solid #E5E7EB" }}>
-                                <Icon size={14} />{mode === "wfh" ? "Work From Home" : "Office"}
+                                <Icon size={14} />{label}
                               </button>
                             )
                           })}

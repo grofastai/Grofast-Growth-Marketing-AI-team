@@ -57,7 +57,7 @@ async function getUserContext(): Promise<{ userId: string; companyId: string } |
   return { error: 'Account not linked to a company — contact your admin to re-create your account' }
 }
 
-export async function clockIn(workType: 'wfh' | 'office'): Promise<{ success: boolean; error?: string }> {
+export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ success: boolean; error?: string }> {
   const ctxResult = await getUserContext()
   if ('error' in ctxResult) return { success: false, error: ctxResult.error }
   const ctx = ctxResult

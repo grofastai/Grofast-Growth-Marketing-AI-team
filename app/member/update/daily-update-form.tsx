@@ -325,8 +325,6 @@ export default function DailyUpdateForm({
   function handleMediaSubmit() {
     setError(null)
     if (shoots.length === 0 && edits.length === 0) { setError("Add at least one shoot or edit entry."); return }
-    const missingDrive = shoots.find(s => !s.driveLink.trim())
-    if (missingDrive) { setError("Drive link is required for all shoots before submitting."); return }
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
@@ -368,7 +366,6 @@ export default function DailyUpdateForm({
     const editEntry = edits.find(e => e.id === entryId)
     if (editEntry && !editEntry.videoLink.trim()) { setError("Drive link is required before saving."); return }
     const shootEntry = shoots.find(s => s.id === entryId)
-    if (shootEntry && !shootEntry.driveLink.trim()) { setError("Drive link is required before saving the shoot."); return }
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
@@ -945,8 +942,8 @@ export default function DailyUpdateForm({
                         <input value={s.location} onChange={e => patchShoot(s.id, { location: e.target.value })} placeholder="e.g. Anna Nagar, Chennai" style={F} />
                       </div>
                       <div style={{ marginBottom:10 }}>
-                        <label style={{ display:"block", fontSize:10, fontWeight:700, color: s.driveLink.trim() ? "#374151" : "#EF4444", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>
-                          🔗 Drive Link <span style={{ color:"#EF4444" }}>*</span>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>
+                          🔗 Drive Link
                         </label>
                         <div style={{ position:"relative" }}>
                           <Link2 size={13} style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color: s.driveLink.trim() ? "#16A34A" : "#9CA3AF", pointerEvents:"none" }} />
@@ -954,10 +951,9 @@ export default function DailyUpdateForm({
                             value={s.driveLink}
                             onChange={e => patchShoot(s.id, { driveLink: e.target.value })}
                             placeholder="Paste Google Drive / folder link…"
-                            style={{ ...F, paddingLeft:32, borderColor: !s.driveLink.trim() ? "rgba(239,68,68,0.4)" : undefined }}
+                            style={{ ...F, paddingLeft:32 }}
                           />
                         </div>
-                        {!s.driveLink.trim() && <p style={{ fontSize:10, color:"#EF4444", margin:"4px 0 0", fontWeight:600 }}>Required before saving</p>}
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"start" }}>
                         <div>

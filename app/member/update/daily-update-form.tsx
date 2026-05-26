@@ -721,7 +721,7 @@ export default function DailyUpdateForm({
                             style={{ fontSize:11, fontWeight:700, color: block.projectName ? "#DE1A1A" : "#9CA3AF", background: block.projectName ? "rgba(222,26,26,0.06)" : "#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", cursor:"pointer", outline:"none" }}>
                             <option value="">Project</option>
                             <option value="GroFast (Internal)">GroFast (Internal)</option>
-                            {projects.map(p => <option key={p.id} value={p.business_name}>{p.business_name}</option>)}
+                            {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
                           </select>
                           <select value={block.status} onChange={e => patchBlock(block.id, { status: e.target.value as TimeBlock["status"] })}
                             style={{ fontSize:11, fontWeight:700, color:statusCfg.color, background:statusCfg.bg, border:`1.5px solid ${statusCfg.border}`, borderRadius:8, padding:"7px 10px", cursor:"pointer", outline:"none" }}>

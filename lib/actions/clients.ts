@@ -119,5 +119,8 @@ export async function syncSheetClientsToSupabase(
       onConflict: 'company_id,name',
       ignoreDuplicates: false,
     })
+    revalidatePath('/member/update')
+    revalidatePath('/member/clients')
+    revalidatePath('/admin/clients')
   }
 }

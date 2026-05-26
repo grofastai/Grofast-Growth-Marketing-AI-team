@@ -294,6 +294,8 @@ export async function updateMember(input: {
   if (error) return { success: false, error: error.message }
 
   revalidatePath('/admin/team')
+  revalidatePath('/admin/expenses')
+  revalidatePath('/admin/payroll')
   return { success: true }
 }
 

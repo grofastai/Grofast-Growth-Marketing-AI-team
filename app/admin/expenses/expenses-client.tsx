@@ -234,21 +234,38 @@ function PricingPanel({
           </div>
           <div className="pt-4">
             <p className="text-[10px] font-bold uppercase tracking-[0.15em] mb-3" style={{ color: "#6B7280" }}>
-              Team Member Rates <span className="normal-case font-normal">(₹ per hour)</span>
+              Team Member Rates <span className="normal-case font-normal">(₹ per hour — derived from salary)</span>
             </p>
             <div className="space-y-1.5">
-              {users.map(u => (
-                <div key={u.id} className="flex items-center gap-3 px-3 py-2 rounded-xl"
-                  style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] font-bold"
-                    style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
-                    {ini(u.name)}
+              {users.map(u => {
+                const derived = derivePerHour(u)
+                const fromSalary = !!(u.monthly_salary && u.monthly_salary > 0)
+                return (
+                  <div key={u.id} className="flex items-center gap-3 px-3 py-2 rounded-xl"
+                    style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[9px] font-bold"
+                      style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
+                      {ini(u.name)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12px] font-medium truncate" style={{ color: "#374151" }}>{u.name}</p>
+                      {fromSalary && (
+                        <p className="text-[10px]" style={{ color: "#9CA3AF" }}>
+                          ₹{u.monthly_salary?.toLocaleString("en-IN")}/mo ÷ 25d ÷ 9h
+                        </p>
+                      )}
+                    </div>
+                    {fromSalary ? (
+                      <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>
+                        ₹{Math.round(derived)}/hr
+                      </span>
+                    ) : (
+                      <InlineEdit value={u.hourly_rate ?? 0} suffix="/hr" dim={!u.hourly_rate}
+                        onSave={val => onUpdateEmployeeRate(u.id, val)} />
+                    )}
                   </div>
-                  <span className="flex-1 text-[12px] font-medium truncate" style={{ color: "#374151" }}>{u.name}</span>
-                  <InlineEdit value={u.hourly_rate ?? 0} suffix="/hr" dim={!u.hourly_rate}
-                    onSave={val => onUpdateEmployeeRate(u.id, val)} />
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>

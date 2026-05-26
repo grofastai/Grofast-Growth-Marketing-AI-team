@@ -43,12 +43,22 @@ export async function submitDailyUpdate(
   const roundedHours = Math.round(totalWorkHours * 10) / 10
 
   // Check if a record already exists for today (allow appending more work)
-  const { data: existingRecord } = await admin
-    .from('daily_updates')
-    .select('id, work_entries, working_hours, shoot_count, editing_count, learning_hours')
-    .eq('user_id', user.id)
-    .eq('date', today)
-    .maybeSingle()
+  const [{ data: existingRecord }, { data: attLog }] = await Promise.all([
+    admin
+      .from('daily_updates')
+      .select('id, work_entries, working_hours, shoot_count, editing_count, learning_hours')
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .maybeSingle(),
+    admin
+      .from('attendance_logs')
+      .select('work_type')
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .maybeSingle(),
+  ])
+
+  const workType = (attLog as { work_type?: string | null } | null)?.work_type ?? null
 
   let isFirstSubmission = false
 
@@ -65,6 +75,7 @@ export async function submitDailyUpdate(
       working_hours:   newWorkHours || null,
       shoot_count:     (existingRecord.shoot_count   || 0) + d.shoot_count,
       editing_count:   (existingRecord.editing_count || 0) + d.editing_count,
+      ...(workType ? { work_type: workType } : {}),
     }
     if (d.learning_topic) {
       updatePayload.learning_topic = d.learning_topic
@@ -87,6 +98,7 @@ export async function submitDailyUpdate(
         user_id:             user.id,
         date:                today,
         attendance_status:   'present',
+        work_type:           workType,
         working_hours:       d.active_tab !== 'learning' ? roundedHours : null,
         learning_hours:      d.learning_hours,
         shoot_count:         d.shoot_count,

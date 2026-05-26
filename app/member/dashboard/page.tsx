@@ -21,7 +21,8 @@ export default async function MemberDashboardPage() {
   type UpdateRow     = { working_hours: number | null; shoot_count: number | null }
   type TaskRow       = { id: string; title: string; status: string; priority: string; due_date: string | null }
   type AttLog        = { clock_in: string | null; clock_out: string | null }
-  type MonthlyUpdate = { working_hours: number | null; work_type: string | null; attendance_status: string }
+  type MonthlyUpdate = { working_hours: number | null; attendance_status: string }
+  type MonthlyAttLog = { work_type: string | null; status: string }
   type LeaveRow      = { from_date: string; to_date: string }
 
   const [
@@ -34,6 +35,7 @@ export default async function MemberDashboardPage() {
     { data: clockLogRaw },
     { data: monthlyUpdatesRaw },
     { data: approvedLeavesRaw },
+    { data: monthlyAttLogsRaw },
   ] = await Promise.all([
     supabase.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name").eq("id", user.id).single(),
     supabase.from("daily_updates").select("working_hours, shoot_count").eq("user_id", user.id).eq("date", today).maybeSingle(),
@@ -42,8 +44,9 @@ export default async function MemberDashboardPage() {
     supabase.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "pending"),
     supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", user.id).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
     supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", user.id).eq("date", today).maybeSingle(),
-    supabase.from("daily_updates").select("working_hours, work_type, attendance_status").eq("user_id", user.id).gte("date", monthStart).lte("date", today),
+    supabase.from("daily_updates").select("working_hours, attendance_status").eq("user_id", user.id).gte("date", monthStart).lte("date", today),
     supabase.from("leaves").select("from_date, to_date").eq("user_id", user.id).eq("status", "approved").gte("from_date", monthStart),
+    supabase.from("attendance_logs").select("work_type, status").eq("user_id", user.id).gte("date", monthStart).lte("date", today),
   ])
 
   const profile        = profileRaw as unknown as ProfileRow | null
@@ -52,6 +55,7 @@ export default async function MemberDashboardPage() {
   const clockLog       = clockLogRaw as unknown as AttLog | null
   const monthlyUpdates = (monthlyUpdatesRaw ?? []) as unknown as MonthlyUpdate[]
   const approvedLeaves = (approvedLeavesRaw ?? []) as unknown as LeaveRow[]
+  const monthlyAttLogs = (monthlyAttLogsRaw ?? []) as unknown as MonthlyAttLog[]
   // Today hours
   let todayHours = 0
   if (clockLog?.clock_in) {
@@ -67,11 +71,12 @@ export default async function MemberDashboardPage() {
   const pendingLeaves  = pendingLeavesCount ?? 0
   const todayOverdue   = myTasks.filter(t => t.due_date && t.due_date < today)
 
-  // Monthly calculations
+  // Monthly calculations — work_type comes from attendance_logs (set at clock-in)
   const presentRows    = monthlyUpdates.filter(u => u.attendance_status === "present")
   const workingDays    = presentRows.length
-  const officeDays     = presentRows.filter(u => u.work_type === "office").length
-  const wfhDays        = presentRows.filter(u => u.work_type === "wfh").length
+  const presentAttLogs = monthlyAttLogs.filter(l => l.status === "present")
+  const officeDays     = presentAttLogs.filter(l => l.work_type === "office").length
+  const wfhDays        = presentAttLogs.filter(l => l.work_type === "wfh").length
   const holidayDays    = monthlyUpdates.filter(u => u.attendance_status === "holiday").length
   const totalMonthHrs  = presentRows.reduce((s, u) => s + (u.working_hours ?? 0), 0)
   const avgHoursPerDay = workingDays > 0 ? Math.round((totalMonthHrs / workingDays) * 10) / 10 : 0

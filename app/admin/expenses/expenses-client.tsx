@@ -314,6 +314,8 @@ function DonutChart({ segments, total }: {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
+const OWN_BRANDS = ["Masala Unlimit", "Kutty Karthi Vlog", "GroFast Digital", "A2Z Automobile", "Kaka Mutta"]
+
 export default function ExpensesClient({
   updates, users, expenses, pricingRates, costOverrides,
 }: {
@@ -702,7 +704,7 @@ export default function ExpensesClient({
         {tab === "analytics" && (
           <div className="space-y-6">
 
-            {/* Client cards */}
+            {/* Client cards — split into Our Brands + Clients */}
             {perClientData.length === 0 ? (
               <div className="flex flex-col items-center py-24 rounded-2xl"
                 style={{ background: "rgba(0,0,0,0.02)", border: "1px dashed #E5E7EB" }}>
@@ -710,22 +712,26 @@ export default function ExpensesClient({
                 <p className="text-[14px] font-semibold" style={{ color: "#9CA3AF" }}>No client data yet</p>
                 <p className="text-[12px] mt-1" style={{ color: "#D1D5DB" }}>Team members submit daily updates to populate this view</p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {perClientData.map((client, idx) => {
-                  const statusOptions = [
-                    { label: "Top Client",     color: "#E53935", bg: "rgba(229,57,53,0.1)"   },
-                    { label: "High Volume",    color: "#8B5CF6", bg: "rgba(139,92,246,0.1)"  },
-                    { label: "Growing",        color: "#F97316", bg: "rgba(249,115,22,0.1)"  },
-                    { label: "Active",         color: "#16A34A", bg: "rgba(22,163,74,0.1)"   },
-                  ]
+            ) : (() => {
+              const ownBrandSet = new Set(OWN_BRANDS.map(b => b.toLowerCase()))
+              const ownBrands   = perClientData.filter(c => ownBrandSet.has(c.name.toLowerCase()))
+              const clients     = perClientData.filter(c => !ownBrandSet.has(c.name.toLowerCase()))
+
+              const statusOptions = [
+                { label: "Top",        color: "#E53935", bg: "rgba(229,57,53,0.1)"   },
+                { label: "High Volume",color: "#8B5CF6", bg: "rgba(139,92,246,0.1)"  },
+                { label: "Growing",    color: "#F97316", bg: "rgba(249,115,22,0.1)"  },
+                { label: "Active",     color: "#16A34A", bg: "rgba(22,163,74,0.1)"   },
+              ]
+
+              const renderCards = (list: typeof perClientData, accentColor: string) =>
+                list.map((client, idx) => {
                   const status = statusOptions[Math.min(idx, statusOptions.length - 1)]
-                  const maxCost = perClientData[0]?.workCost ?? 1
-                  const barPct = Math.max(8, Math.round((client.workCost / maxCost) * 100))
+                  const maxCost = list[0]?.workCost ?? 1
+                  const barPct  = Math.max(8, Math.round((client.workCost / maxCost) * 100))
                   return (
                     <div key={client.name} className="rounded-2xl p-5 flex flex-col gap-4"
                       style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 2px 16px rgba(0,0,0,0.05)" }}>
-                      {/* Header */}
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <p className="text-[15px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
@@ -741,22 +747,19 @@ export default function ExpensesClient({
                         </span>
                       </div>
 
-                      {/* Stats row */}
                       <div className="grid grid-cols-3 gap-2">
                         {[
-                          { label: "Videos",    value: client.videoCount || "—", color: "#E53935" },
-                          { label: "Shoots",    value: client.shootCount || "—", color: "#F97316" },
-                          { label: "Hours",     value: `${client.totalHours.toFixed(0)}h`,        color: "#8B5CF6" },
+                          { label: "Videos", value: client.videoCount || "—", color: "#E53935" },
+                          { label: "Shoots", value: client.shootCount || "—", color: "#F97316" },
+                          { label: "Hours",  value: `${client.totalHours.toFixed(0)}h`, color: "#8B5CF6" },
                         ].map(s => (
-                          <div key={s.label} className="text-center rounded-xl py-2.5"
-                            style={{ background: "#F9FAFB" }}>
+                          <div key={s.label} className="text-center rounded-xl py-2.5" style={{ background: "#F9FAFB" }}>
                             <p className="text-[17px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: s.color }}>{s.value}</p>
                             <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{s.label}</p>
                           </div>
                         ))}
                       </div>
 
-                      {/* Work cost + bar */}
                       <div>
                         <div className="flex items-center justify-between mb-1.5">
                           <span className="text-[11px] font-semibold" style={{ color: "#6B7280" }}>Work Cost</span>
@@ -766,11 +769,10 @@ export default function ExpensesClient({
                         </div>
                         <div className="h-1.5 rounded-full" style={{ background: "#F3F4F6" }}>
                           <div className="h-full rounded-full transition-all duration-500"
-                            style={{ width: `${barPct}%`, background: status.color }} />
+                            style={{ width: `${barPct}%`, background: accentColor }} />
                         </div>
                       </div>
 
-                      {/* Team avatars + CTA */}
                       <div className="flex items-center justify-between">
                         <div className="flex -space-x-2">
                           {client.employeeIds.slice(0, 4).map(uid => (
@@ -795,9 +797,40 @@ export default function ExpensesClient({
                       </div>
                     </div>
                   )
-                })}
-              </div>
-            )}
+                })
+
+              return (
+                <div className="space-y-6">
+                  {/* Our Brands */}
+                  {ownBrands.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1 h-4 rounded-full" style={{ background: "#de1a1a" }} />
+                        <h3 className="text-[12px] font-black uppercase tracking-[0.15em]" style={{ color: "#de1a1a" }}>Our Brands</h3>
+                        <span className="text-[11px] font-medium" style={{ color: "#9CA3AF" }}>({ownBrands.length})</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {renderCards(ownBrands, "#de1a1a")}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Client Brands */}
+                  {clients.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1 h-4 rounded-full" style={{ background: "#6366F1" }} />
+                        <h3 className="text-[12px] font-black uppercase tracking-[0.15em]" style={{ color: "#6366F1" }}>Clients</h3>
+                        <span className="text-[11px] font-medium" style={{ color: "#9CA3AF" }}>({clients.length})</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {renderCards(clients, "#6366F1")}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Bottom row: Recent Expenses + Donut + Team overview + AI insight */}
             <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5">

@@ -136,6 +136,7 @@ export async function submitLeaveRequest(
   }
 
   revalidatePath('/member/leaves')
+  revalidatePath('/member/dashboard')
   revalidatePath('/admin/leaves')
   return { success: true }
 }
@@ -164,6 +165,7 @@ export async function deleteLeaveRequest(
   if (error) return { success: false, error: error.message }
 
   revalidatePath('/member/leaves')
+  revalidatePath('/member/dashboard')
   revalidatePath('/admin/leaves')
   return { success: true }
 }
@@ -286,5 +288,6 @@ export async function updateLeaveStatus(
 
   revalidatePath('/admin/leaves')
   revalidatePath('/member/leaves')
+  revalidatePath('/member/dashboard')
   return { success: true }
 }

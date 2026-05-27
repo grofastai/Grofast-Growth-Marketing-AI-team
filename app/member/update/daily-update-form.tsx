@@ -58,24 +58,25 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
   }
 
   const numStyle: React.CSSProperties = {
-    width: 38, textAlign: "center", fontSize: 13, fontWeight: 700,
+    width: 44, textAlign: "center", fontSize: 13, fontWeight: 700,
     color: "#111827", background: "#fff", border: "1.5px solid #EBEDF2",
     borderRadius: 8, padding: "5px 4px", outline: "none",
-    MozAppearance: "textfield",
   }
 
   return (
     <div style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
       <input
+        className="time-num"
         type="number" min={1} max={12} value={hour12}
         onChange={e => commit(Number(e.target.value), m24, isPM)}
         style={numStyle}
       />
       <span style={{ fontSize:13, fontWeight:700, color:"#9CA3AF" }}>:</span>
       <input
+        className="time-num"
         type="number" min={0} max={59} value={m24}
         onChange={e => commit(hour12, Number(e.target.value), isPM)}
-        style={{ ...numStyle, width:38 }}
+        style={numStyle}
       />
       <button
         type="button"

@@ -56,9 +56,9 @@ export async function GET(request: NextRequest) {
   const monthEnd    = `${month}-${new Date(year, mon, 0).getDate()}`
   const workDays    = workingDaysInMonth(year, mon)
 
-  const [{ data: memberRaw }, { data: updatesRaw }, { data: logsRaw }, { data: companyRaw }, { data: runRaw }] = await Promise.all([
+  const [{ data: memberRaw }, { data: updatesRaw }, { data: logsRaw }, { data: companyRaw }, { data: runRaw }, { data: kycRaw }] = await Promise.all([
     admin.from('users')
-      .select('id, name, employee_id, team, position, employment_type, monthly_salary, hourly_rate, created_at, bank_account, phone, passport_photo_url')
+      .select('id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, created_at, phone, passport_photo_url')
       .eq('id', userId).eq('company_id', requester.company_id).single(),
     admin.from('daily_updates').select('working_hours')
       .eq('user_id', userId).gte('date', monthStart).lte('date', monthEnd),
@@ -67,6 +67,8 @@ export async function GET(request: NextRequest) {
     admin.from('companies').select('name, slug').eq('id', requester.company_id).single(),
     admin.from('payroll_runs').select('bonus, advance, incentive, is_paid, paid_at')
       .eq('user_id', userId).eq('month', month).maybeSingle(),
+    admin.from('member_kyc').select('bank_account, bank_name, bank_ifsc')
+      .eq('user_id', userId).maybeSingle(),
   ])
 
   if (!memberRaw) return new NextResponse('Member not found', { status: 404 })
@@ -86,12 +88,12 @@ export async function GET(request: NextRequest) {
 
   type MemberRow = {
     id: string; name: string; employee_id: string; team: string | null
-    position: string | null; employment_type: string | null; monthly_salary: number | null; hourly_rate: number | null
-    created_at: string | null; bank_account: string | null; phone: string | null
-    passport_photo_url: string | null
+    employment_type: string | null; monthly_salary: number | null; hourly_rate: number | null
+    created_at: string | null; phone: string | null; passport_photo_url: string | null
   }
   const member  = memberRaw as MemberRow
   const company = companyRaw as { name: string; slug: string } | null
+  const kyc     = kycRaw as { bank_account: string | null; bank_name: string | null; bank_ifsc: string | null } | null
 
   const bonus     = (runRaw as any)?.bonus     ?? 0
   const advance   = (runRaw as any)?.advance   ?? 0
@@ -344,7 +346,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
       </div>
       <div>
         <div class="emp-lbl">${R.card} Bank Account</div>
-        <div class="emp-val">${member.bank_account ? member.bank_account : '—'}</div>
+        <div class="emp-val">${kyc?.bank_account ? kyc.bank_account : '—'}</div>
       </div>
       <div>
         <div class="emp-lbl">${R.building} Department</div>
@@ -352,15 +354,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
       </div>
       <div>
         <div class="emp-lbl">${R.bank} Bank Name</div>
-        <div class="emp-val">—</div>
+        <div class="emp-val">${kyc?.bank_name ?? '—'}</div>
       </div>
       <div>
         <div class="emp-lbl">${R.person} Designation</div>
-        <div class="emp-val">${member.position ?? (member.team ? 'Team Member' : 'Employee')}</div>
+        <div class="emp-val">${member.team ? 'Team Member' : 'Employee'}</div>
       </div>
       <div>
         <div class="emp-lbl">${R.hash} IFSC Code</div>
-        <div class="emp-val">—</div>
+        <div class="emp-val">${kyc?.bank_ifsc ?? '—'}</div>
       </div>
     </div>
   </div>
@@ -502,7 +504,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
       </div>
       <div class="bot-row">
         <div class="bot-lbl"><div class="bot-ico">${B.card}</div>Account Number</div>
-        <div class="bot-val">${member.bank_account ? `••••${member.bank_account.slice(-4)}` : '—'}</div>
+        <div class="bot-val">${kyc?.bank_account ? `••••${kyc.bank_account.slice(-4)}` : '—'}</div>
       </div>
       <div class="bot-row">
         <div class="bot-lbl"><div class="bot-ico">${B.id}</div>Transaction ID</div>

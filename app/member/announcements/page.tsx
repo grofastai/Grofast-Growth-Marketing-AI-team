@@ -1,6 +1,8 @@
-export const revalidate = 60
+export const revalidate = 0
 
 import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@supabase/supabase-js"
+import { redirect } from "next/navigation"
 import AnnouncementsClient from "./announcements-client"
 
 type AnnouncementRow = {
@@ -13,11 +15,32 @@ type AnnouncementRow = {
   users: { name: string } | null
 }
 
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
+
 export default async function MemberAnnouncementsPage() {
   const supabase = await createServerClient()
-  const { data: raw } = await supabase
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect("/login")
+
+  const admin = adminClient()
+  const { data: profile } = await admin
+    .from("users")
+    .select("company_id")
+    .eq("id", user.id)
+    .single()
+
+  if (!profile) redirect("/login")
+
+  const { data: raw } = await admin
     .from("announcements")
     .select("id, title, message, pinned, category, created_at, users(name)")
+    .eq("company_id", profile.company_id)
     .order("pinned", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(30)

@@ -775,17 +775,21 @@ export default function DailyUpdateForm({
                       <div key={block.id} style={{ background:"#F9FAFB", borderRadius:14, border:"1px solid #EBEDF2", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                           <Clock size={13} style={{ color:"#DE1A1A", flexShrink:0 }} />
-                          <select value={block.startTime} onChange={e => patchBlock(block.id, { startTime: e.target.value })}
-                            style={{ fontSize:12, fontWeight:700, color:"#111827", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }}>
-                            {TIME_OPTIONS_15.filter(t => !usedByOthers.has(t) || t === block.startTime).map(t => <option key={t} value={t}>{fmt12(t)}</option>)}
-                          </select>
+                          <input
+                            type="time"
+                            value={block.startTime}
+                            onChange={e => patchBlock(block.id, { startTime: e.target.value })}
+                            style={{ fontSize:12, fontWeight:700, color:"#111827", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 10px", cursor:"pointer", outline:"none" }}
+                          />
                           <span style={{ fontSize:11, color:"#9CA3AF" }}>to</span>
-                          <select value={block.endTime} onChange={e => patchBlock(block.id, { endTime: e.target.value })}
-                            style={{ fontSize:12, fontWeight:700, color:"#111827", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }}>
-                            {TIME_OPTIONS_15.filter(t => !usedByOthers.has(t) || t === block.endTime).map(t => <option key={t} value={t}>{fmt12(t)}</option>)}
-                          </select>
+                          <input
+                            type="time"
+                            value={block.endTime}
+                            onChange={e => patchBlock(block.id, { endTime: e.target.value })}
+                            style={{ fontSize:12, fontWeight:700, color:"#111827", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 10px", cursor:"pointer", outline:"none" }}
+                          />
                           {block.durationHours > 0 && (
-                            <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>{block.durationHours}h</span>
+                            <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>{fmtTravel(block.durationHours)}</span>
                           )}
                           <button onClick={() => removeBlock(block.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex" }}>
                             <Trash2 size={13} style={{ color:"#EF4444" }} />
@@ -957,20 +961,14 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Start Time</label>
-                          <div style={{ position:"relative" }}>
-                            <select value={s.startTime} onChange={e => { const st = e.target.value; patchShoot(s.id, { startTime: st, durationHours: calcDuration(st, s.endTime) }) }} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                              {TIME_OPTIONS.map(t => <option key={t} value={t}>{fmt12(t)}</option>)}
-                            </select>
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          <div>
+                            <input type="time" value={s.startTime} onChange={e => { const st = e.target.value; patchShoot(s.id, { startTime: st, durationHours: calcDuration(st, s.endTime) }) }} style={{ ...F }} />
                           </div>
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>End Time</label>
-                          <div style={{ position:"relative" }}>
-                            <select value={s.endTime} onChange={e => { const et = e.target.value; patchShoot(s.id, { endTime: et, durationHours: calcDuration(s.startTime, et) }) }} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                              {TIME_OPTIONS.map(t => <option key={t} value={t}>{fmt12(t)}</option>)}
-                            </select>
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          <div>
+                            <input type="time" value={s.endTime} onChange={e => { const et = e.target.value; patchShoot(s.id, { endTime: et, durationHours: calcDuration(s.startTime, et) }) }} style={{ ...F }} />
                           </div>
                         </div>
                       </div>

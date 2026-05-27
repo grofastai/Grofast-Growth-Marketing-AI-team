@@ -163,15 +163,15 @@ export default function Sidebar({ pendingLeaves = 0, adminName = "Admin", photoU
                         </Link>
                       )}
                       {notifCount > 0 && (
-                        <Link href="/admin/support" onClick={() => setBellOpen(false)}
+                        <Link href="/admin/notifications" onClick={() => setBellOpen(false)}
                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all"
                           style={{ background: "rgba(255,255,255,0.06)" }}
                           onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.12)"}
                           onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)"}>
-                          <LifeBuoy size={14} style={{ color: "#a78bfa", flexShrink: 0 }} />
+                          <Bell size={14} style={{ color: "#a78bfa", flexShrink: 0 }} />
                           <div className="flex-1 min-w-0">
                             <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>{notifCount} New Notification{notifCount !== 1 ? "s" : ""}</p>
-                            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Tickets, leaves & more</p>
+                            <p className="text-[10px]" style={{ color: "rgba(255,255,255,0.4)" }}>Tap to view all</p>
                           </div>
                         </Link>
                       )}
@@ -263,8 +263,8 @@ export default function Sidebar({ pendingLeaves = 0, adminName = "Admin", photoU
                       </Link>
                     )}
                     {notifCount > 0 && (
-                      <Link href="/admin/support" onClick={() => setBellOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.06)" }}>
-                        <LifeBuoy size={13} style={{ color: "#a78bfa" }} />
+                      <Link href="/admin/notifications" onClick={() => setBellOpen(false)} className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.06)" }}>
+                        <Bell size={13} style={{ color: "#a78bfa" }} />
                         <p className="text-[12px] font-bold" style={{ color: "#FFFFFF" }}>{notifCount} New</p>
                       </Link>
                     )}

@@ -15,7 +15,7 @@ interface WorkEntry {
   id?: string; task_type: "shoot" | "edit" | "other"
   title: string; client_name: string; duration_hours: number
   notes: string; start_time?: string | null; end_time?: string | null
-  screenshot_url?: string | null
+  screenshot_url?: string | null; video_link?: string | null
   description?: string | null; project_name?: string | null
 }
 interface UpdateRow {
@@ -175,7 +175,17 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
 
   function startEditEntry(updateId: string, entryIdx: number, entry: WorkEntry) {
     setEditingKey(`${updateId}:${entryIdx}`)
-    setEditDraft({ title: entry.title, client_name: entry.client_name, duration_hours: entry.duration_hours, notes: entry.notes })
+    setEditDraft({
+      task_type: entry.task_type,
+      title: entry.title,
+      client_name: entry.client_name,
+      duration_hours: entry.duration_hours,
+      notes: entry.notes,
+      start_time: entry.start_time ?? "",
+      end_time: entry.end_time ?? "",
+      video_link: entry.video_link ?? "",
+      project_name: entry.project_name ?? "",
+    })
   }
 
   async function saveEntry(updateId: string, allEntries: WorkEntry[], entryIdx: number) {
@@ -572,7 +582,7 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                                 {(e.notes || e.description) && (
                                   <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{e.notes || e.description}</p>
                                 )}
-                                <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:4 }}>
+                                <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:4, flexWrap:"wrap" }}>
                                   {(e.duration_hours ?? 0) > 0 && (
                                     <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:3 }}>
                                       <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(e.duration_hours)}
@@ -580,6 +590,11 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                                   )}
                                   {e.start_time && e.end_time && (
                                     <span style={{ fontSize:10, color:"#9CA3AF" }}>{fmt12(e.start_time)} – {fmt12(e.end_time)}</span>
+                                  )}
+                                  {e.video_link && (
+                                    <a href={e.video_link} target="_blank" rel="noopener noreferrer" style={{ fontSize:10, fontWeight:700, color:"#6366F1", textDecoration:"none", display:"flex", alignItems:"center", gap:2 }}>
+                                      🔗 Drive Link
+                                    </a>
                                   )}
                                 </div>
                               </div>
@@ -606,6 +621,8 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                               <div style={{ margin:"0 18px 14px", padding:"14px", borderRadius:12, background:"#F8F9FF", border:"1.5px solid rgba(99,102,241,0.25)" }}>
                                 <p style={{ fontSize:11, fontWeight:700, color:"#6366F1", margin:"0 0 10px" }}>Edit Entry</p>
                                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+
+                                  {/* Title + Client — all types */}
                                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                                     <div>
                                       <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Title</label>
@@ -624,15 +641,71 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                                       />
                                     </div>
                                   </div>
-                                  <div>
-                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Hours</label>
-                                    <input
-                                      type="number" min="0" step="0.5"
-                                      value={editDraft.duration_hours ?? ""}
-                                      onChange={ev => setEditDraft(d => ({ ...d, duration_hours: parseFloat(ev.target.value) || 0 }))}
-                                      style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                    />
-                                  </div>
+
+                                  {/* Shoot & Other: start/end time */}
+                                  {(editDraft.task_type === "shoot" || editDraft.task_type === "other") && (
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                                      <div>
+                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Start Time</label>
+                                        <input
+                                          type="time"
+                                          value={editDraft.start_time ?? ""}
+                                          onChange={ev => setEditDraft(d => ({ ...d, start_time: ev.target.value }))}
+                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>End Time</label>
+                                        <input
+                                          type="time"
+                                          value={editDraft.end_time ?? ""}
+                                          onChange={ev => setEditDraft(d => ({ ...d, end_time: ev.target.value }))}
+                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Edit: hours */}
+                                  {editDraft.task_type === "edit" && (
+                                    <div>
+                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Editing Hours</label>
+                                      <input
+                                        type="number" min="0" step="0.5"
+                                        value={editDraft.duration_hours ?? ""}
+                                        onChange={ev => setEditDraft(d => ({ ...d, duration_hours: parseFloat(ev.target.value) || 0 }))}
+                                        style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Shoot & Edit: drive link */}
+                                  {(editDraft.task_type === "shoot" || editDraft.task_type === "edit") && (
+                                    <div>
+                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Drive Link</label>
+                                      <input
+                                        type="url"
+                                        value={editDraft.video_link ?? ""}
+                                        onChange={ev => setEditDraft(d => ({ ...d, video_link: ev.target.value }))}
+                                        placeholder="https://drive.google.com/…"
+                                        style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Other: project name */}
+                                  {editDraft.task_type === "other" && (
+                                    <div>
+                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Project / Task Name</label>
+                                      <input
+                                        value={editDraft.project_name ?? ""}
+                                        onChange={ev => setEditDraft(d => ({ ...d, project_name: ev.target.value }))}
+                                        style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
+                                      />
+                                    </div>
+                                  )}
+
+                                  {/* Notes — all types */}
                                   <div>
                                     <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
                                     <textarea
@@ -642,6 +715,7 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                                       style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }}
                                     />
                                   </div>
+
                                   <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                                     <button
                                       onClick={() => { setEditingKey(null); setEditDraft({}) }}

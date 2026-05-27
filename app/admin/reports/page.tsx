@@ -49,10 +49,10 @@ export default async function ReportsPage({
     { data: projectsRaw },
     { data: taskActivityRaw },
   ] = await Promise.all([
-    // Use user client (RLS handles company isolation) — same as activities page
-    supabase
+    admin
       .from("daily_updates")
       .select("id, user_id, working_hours, shoot_count, learning_hours, attendance_status, work_type, task_id, users(id, name, employee_id)")
+      .eq("company_id", cid)
       .eq("date", dateFilter),
     admin
       .from("users")

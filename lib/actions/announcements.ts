@@ -1,6 +1,7 @@
 'use server'
 
 import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { insertManyNotifications } from './notifications'
@@ -13,8 +14,12 @@ const schema = z.object({
   category: z.enum(['General', 'Policy', 'Events', 'Urgent']).default('General'),
 })
 
-function parseJwt(token: string) {
-  try { return JSON.parse(atob(token.split('.')[1])) } catch { return null }
+function adminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
 }
 
 export async function createAnnouncement(
@@ -32,22 +37,24 @@ export async function createAnnouncement(
   if (!parsed.success) return { error: parsed.error.issues[0].message }
 
   const supabase = await createServerClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return { error: 'Not authenticated' }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
 
-  const claims = parseJwt(session.access_token)
-  if (!claims?.company_id) return { error: 'Missing company claim — re-login' }
+  const admin = adminSupabase()
+  const { data: profile } = await admin.from('users').select('company_id').eq('id', user.id).single()
+  if (!profile?.company_id) return { error: 'Company not found' }
 
-  const row = { company_id: claims.company_id, title: parsed.data.title, message: parsed.data.message, pinned: parsed.data.pinned, category: parsed.data.category, created_by: session.user.id }
+  const companyId = profile.company_id as string
+  const row = { company_id: companyId, title: parsed.data.title, message: parsed.data.message, pinned: parsed.data.pinned, category: parsed.data.category, created_by: user.id }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase.from('announcements').insert(row as any)
 
   if (error) return { error: error.message }
 
-  const { data: companyUsers } = await supabase.from('users').select('id, phone, role').eq('company_id', claims.company_id)
+  const { data: companyUsers } = await admin.from('users').select('id, phone, role').eq('company_id', companyId)
   if (companyUsers) {
     await insertManyNotifications(companyUsers.map(u => ({
-      companyId: claims.company_id,
+      companyId: companyId,
       userId: u.id,
       type: 'announcement',
       title: parsed.data.title,

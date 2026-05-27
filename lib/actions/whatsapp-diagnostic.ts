@@ -65,7 +65,7 @@ export async function runWhatsAppDiagnostic(): Promise<WhatsAppDiagnosticResult>
   const cronSecret = process.env.CRON_SECRET ?? ''
   const cronCompanyId = process.env.CRON_COMPANY_ID ?? ''
   const internalSecret = process.env.INTERNAL_WEBHOOK_SECRET ?? ''
-  const templateLang = process.env.WHATSAPP_TEMPLATE_LANG ?? 'en_US'
+  const templateLang = process.env.WHATSAPP_TEMPLATE_LANG ?? 'en'
 
   // ── 2. Meta API check — verify token + phone ID ───────────────────────────
   let metaResult: WhatsAppDiagnosticResult['metaApi'] = { ok: false, error: 'Env vars not set' }
@@ -150,7 +150,7 @@ export async function sendTestWhatsApp(toPhone: string): Promise<{ ok: boolean; 
 
   const token = process.env.META_WHATSAPP_TOKEN
   const phoneId = process.env.META_PHONE_NUMBER_ID
-  const lang = process.env.WHATSAPP_TEMPLATE_LANG ?? 'en_US'
+  const lang = process.env.WHATSAPP_TEMPLATE_LANG ?? 'en'
 
   if (!token || !phoneId) return { ok: false, detail: 'META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID not set' }
 

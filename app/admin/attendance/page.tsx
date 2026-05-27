@@ -62,7 +62,7 @@ export default async function AttendancePage({
   const weekStart = weekDates[0]
   const lateThreshold = `${selectedDate}T04:30:00.000Z`
 
-  const [{ data: members }, { data: logs }, { data: lateLogs }, { data: weeklyRaw }] = await Promise.all([
+  const [{ data: members }, { data: logs }, { data: lateLogs }, { data: weeklyRaw }, { data: dayPermissions }] = await Promise.all([
     admin.from("users").select("id, name, employee_id")
       .eq("company_id", cid).eq("role", "MEMBER").eq("status", "active").order("name"),
     admin.from("attendance_logs")
@@ -75,6 +75,12 @@ export default async function AttendancePage({
     admin.from("attendance_logs")
       .select("date, user_id").eq("company_id", cid)
       .gte("date", weekStart).lte("date", today).not("clock_in", "is", null),
+    admin.from("leaves")
+      .select("user_id, permission_hours")
+      .eq("company_id", cid)
+      .eq("leave_type", "permission")
+      .eq("status", "approved")
+      .eq("from_date", selectedDate),
   ])
 
   type Log     = { user_id: string; clock_in: string | null; clock_out: string | null; status: string }
@@ -82,6 +88,22 @@ export default async function AttendancePage({
 
   const logMap = new Map<string, Log>()
   for (const l of (logs ?? []) as Log[]) logMap.set(l.user_id, l)
+
+  // Approved permissions for the selected date — sum hours per user
+  const permHoursMap = new Map<string, number>()
+  for (const p of (dayPermissions ?? []) as { user_id: string; permission_hours: number | null }[]) {
+    permHoursMap.set(p.user_id, (permHoursMap.get(p.user_id) ?? 0) + (p.permission_hours ?? 1))
+  }
+
+  function calcDurationNet(clockIn: string | null, clockOut: string | null, userId: string) {
+    if (!clockIn) return null
+    const end  = clockOut ? new Date(clockOut) : new Date()
+    const raw  = (end.getTime() - new Date(clockIn).getTime()) / 60000
+    const perm = (permHoursMap.get(userId) ?? 0) * 60
+    const net  = Math.max(0, raw - perm)
+    if (net < 60) return `${Math.round(net)}m`
+    return `${Math.floor(net / 60)}h ${Math.round(net % 60)}m`
+  }
 
   const memberMap    = new Map((members ?? []).map(m => [m.id, m]))
   const lateEntries  = (lateLogs ?? [] as LateLog[]).map(l => ({ ...l, member: memberMap.get(l.user_id) })).filter(l => l.member)
@@ -281,7 +303,7 @@ export default async function AttendancePage({
                     const isAbsent  = log?.status === "absent" && !log?.clock_in
                     const isWorking = !!(log?.clock_in && !log?.clock_out)
                     const isDone    = !!(log?.clock_in && log?.clock_out)
-                    const dur       = calcDuration(log?.clock_in ?? null, log?.clock_out ?? null)
+                    const dur       = calcDurationNet(log?.clock_in ?? null, log?.clock_out ?? null, m.id)
 
                     let statusLabel = "Not Logged"; let statusColor = "#9CA3AF"; let statusBg = "#F3F4F6"; let statusDot = "#D1D5DB"
                     if (isAbsent)  { statusLabel = "Absent";  statusColor = "#DE1A1A"; statusBg = "rgba(222,26,26,0.08)"; statusDot = "#DE1A1A" }

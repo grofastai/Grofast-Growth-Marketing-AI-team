@@ -35,7 +35,7 @@ export default async function AttendancePage() {
     shoot_count: number | null
   }
 
-  const [{ data: todayLogRaw }, { data: weekLogsRaw }, { data: todayUpdateRaw }] = await Promise.all([
+  const [{ data: todayLogRaw }, { data: weekLogsRaw }, { data: todayUpdateRaw }, { data: weekPermissions }] = await Promise.all([
     supabase.from("attendance_logs")
       .select("id, date, clock_in, clock_out, break_in, break_out, break_total_mins, break_sessions, work_type, status, paused_seconds")
       .eq("user_id", user.id).eq("date", today).maybeSingle(),
@@ -45,7 +45,21 @@ export default async function AttendancePage() {
     supabase.from("daily_updates")
       .select("working_hours, learning_hours, shoot_count")
       .eq("user_id", user.id).eq("date", today).maybeSingle(),
+    supabase.from("leaves")
+      .select("from_date, permission_hours")
+      .eq("user_id", user.id)
+      .eq("leave_type", "permission")
+      .eq("status", "approved")
+      .gte("from_date", weekStart)
+      .lte("from_date", weekEnd),
   ])
+
+  // Sum approved permission hours per date
+  const permHoursByDate: Record<string, number> = {}
+  for (const p of (weekPermissions ?? []) as { from_date: string; permission_hours: number | null }[]) {
+    permHoursByDate[p.from_date] = (permHoursByDate[p.from_date] ?? 0) + (p.permission_hours ?? 1)
+  }
+  const todayPermissionHours = permHoursByDate[today] ?? 0
 
   return (
     <AttendanceClient
@@ -54,6 +68,8 @@ export default async function AttendancePage() {
       todayUpdate={todayUpdateRaw as unknown as DailyUpdate | null}
       today={today}
       weekStart={weekStart}
+      todayPermissionHours={todayPermissionHours}
+      permHoursByDate={permHoursByDate}
     />
   )
 }

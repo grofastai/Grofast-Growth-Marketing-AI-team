@@ -26,6 +26,7 @@ type DailyUpdate = { working_hours: number | null; learning_hours: number | null
 
 interface Props {
   todayLog: AttLog | null; weekLogs: AttLog[]; todayUpdate: DailyUpdate | null; today: string; weekStart: string
+  todayPermissionHours?: number; permHoursByDate?: Record<string, number>
 }
 
 const SHIFT_HOURS = 9
@@ -86,7 +87,7 @@ function SegmentBar({ hoursWorked }: { hoursWorked: number }) {
   )
 }
 
-export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart }: Props) {
+export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {} }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">("office")
@@ -195,7 +196,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     ? Math.round((Date.now() - new Date(todayLog.break_in).getTime()) / 60000)
     : 0
   const hoursWorked    = todayLog?.clock_in
-    ? calcHoursNet(todayLog.clock_in, todayLog.clock_out, breakTotalMins, todayLog.break_in ?? null, todayLog.paused_seconds)
+    ? Math.max(0, calcHoursNet(todayLog.clock_in, todayLog.clock_out, breakTotalMins, todayLog.break_in ?? null, todayLog.paused_seconds) - todayPermissionHours)
     : 0
   const remainingHours = Math.max(SHIFT_HOURS - hoursWorked, 0)
 
@@ -213,8 +214,9 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const wfhCount        = weekLogs.filter(l => l.work_type === "wfh" && l.status === "present").length
   const officeCount     = weekLogs.filter(l => l.work_type === "office" && l.status === "present").length
   const totalWeekHours  = weekLogs.filter(l => l.clock_in && l.status === "present").reduce((sum, l) => {
-    if (!l.clock_out) return l.date === today ? sum + calcHours(l.clock_in!, null) : sum
-    return sum + calcHours(l.clock_in!, l.clock_out)
+    const raw = l.clock_out ? calcHours(l.clock_in!, l.clock_out) : (l.date === today ? calcHours(l.clock_in!, null) : 0)
+    const perm = permHoursByDate[l.date] ?? 0
+    return sum + Math.max(0, raw - (l.break_total_mins ?? 0) / 60 - perm)
   }, 0)
 
   return (
@@ -324,9 +326,14 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     <p className="text-[12px] mb-1.5" style={{ color: "#9CA3AF" }}>Working for</p>
                     <LiveTimer clockInIso={todayLog.clock_in} pausedSeconds={todayLog.paused_seconds} />
                     <SegmentBar hoursWorked={hoursWorked} />
-                    <p className="text-[12px] mb-4" style={{ color: "#9CA3AF" }}>
+                    <p className="text-[12px] mb-1" style={{ color: "#9CA3AF" }}>
                       {fmtHoursShort(hoursWorked)} / {SHIFT_HOURS}h
                     </p>
+                    {todayPermissionHours > 0 && (
+                      <p className="text-[11px] mb-3 font-semibold" style={{ color: "#7C3AED" }}>
+                        −{todayPermissionHours}h permission deducted
+                      </p>
+                    )}
                     <button onClick={() => handle(clockOut)} disabled={isPending}
                       className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
                       style={{ background: "#de1a1a", color: "#FFFFFF" }}>

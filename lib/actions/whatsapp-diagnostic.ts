@@ -172,7 +172,6 @@ export async function sendTestWhatsApp(toPhone: string): Promise<{ ok: boolean; 
             type: 'body',
             parameters: [
               { type: 'text', text: profile.name ?? 'Admin' },
-              { type: 'text', text: today },
             ],
           }],
         },

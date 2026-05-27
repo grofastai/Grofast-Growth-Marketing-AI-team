@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 
   await Promise.all(
     pending.map(async (m: any) => {
-      const ok = await sendWhatsAppTemplate(formatPhone(m.phone), 'grofast_daily_reminder', [m.name, dateLabel])
+      const ok = await sendWhatsAppTemplate(formatPhone(m.phone), 'grofast_daily_reminder', [m.name])
       if (ok) sent++
       else { failed++; failedNames.push(m.name) }
     })

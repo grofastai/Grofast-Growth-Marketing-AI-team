@@ -17,7 +17,7 @@ interface Task {
   priority: "low" | "medium" | "high"
   due_date: string | null
   users: { id: string; name: string; employee_id: string; team?: string | null } | null
-  creator: { id: string; name: string } | null
+  creator: { id: string; name: string; photo_url?: string | null } | null
   projects: { id: string; business_name: string } | null
 }
 
@@ -110,21 +110,26 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
         <p className="text-[13px] font-semibold leading-snug flex-1" style={{ color: "#111827" }}>{task.title}</p>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {creator && (
-            <div className="relative" style={{ display: "inline-block" }}>
-              <div
-                title={`Assigned by ${creator.name}`}
-                style={{
+            <div title={`Assigned by ${creator.name}`} style={{ flexShrink: 0, cursor: "default" }}>
+              {creator.photo_url ? (
+                <Image
+                  src={creator.photo_url}
+                  alt={creator.name}
+                  width={22} height={22}
+                  style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", border: "1.5px solid #fff", boxShadow: "0 1px 4px rgba(0,0,0,0.18)" }}
+                />
+              ) : (
+                <div style={{
                   width: 22, height: 22, borderRadius: "50%",
                   background: creatorColor(creator.name),
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: 8, fontWeight: 800, color: "#fff",
-                  cursor: "default", flexShrink: 0,
                   boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
                   border: "1.5px solid #fff",
-                }}
-              >
-                {creatorInitials(creator.name)}
-              </div>
+                }}>
+                  {creatorInitials(creator.name)}
+                </div>
+              )}
             </div>
           )}
           <button onClick={() => onDelete(task.id)} disabled={isDeleting}

@@ -68,7 +68,7 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
       <input
         className="time-num"
         type="number" min={1} max={12} value={hour12}
-        onChange={e => commit(Number(e.target.value), m24, isPM)}
+        onChange={e => { const h = Number(e.target.value); commit(h, m24, h === 12 ? true : isPM) }}
         style={numStyle}
       />
       <span style={{ fontSize:13, fontWeight:700, color:"#9CA3AF" }}>:</span>

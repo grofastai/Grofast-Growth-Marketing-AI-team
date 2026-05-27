@@ -47,7 +47,7 @@ export async function createAnnouncement(
   const companyId = profile.company_id as string
   const row = { company_id: companyId, title: parsed.data.title, message: parsed.data.message, pinned: parsed.data.pinned, category: parsed.data.category, created_by: user.id }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await supabase.from('announcements').insert(row as any)
+  const { error } = await admin.from('announcements').insert(row as any)
 
   if (error) return { error: error.message }
 
@@ -83,7 +83,8 @@ export async function deleteAnnouncement(id: string): Promise<{ success: boolean
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
-  const { error } = await supabase.from('announcements').delete().eq('id', id)
+  const admin = adminSupabase()
+  const { error } = await admin.from('announcements').delete().eq('id', id)
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/announcements')
   revalidatePath('/member/announcements')
@@ -94,7 +95,8 @@ export async function togglePin(id: string, pinned: boolean): Promise<{ success:
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
-  const { error } = await supabase.from('announcements').update({ pinned }).eq('id', id)
+  const admin = adminSupabase()
+  const { error } = await admin.from('announcements').update({ pinned }).eq('id', id)
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/announcements')
   revalidatePath('/member/announcements')

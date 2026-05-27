@@ -168,6 +168,7 @@ export interface Database {
           status: 'pending' | 'approved' | 'rejected'; created_at: string
           leave_type: 'full_day' | 'half_day' | 'permission'
           permission_hours: number | null
+          permission_time: string | null
           half_day_period: 'morning' | 'afternoon' | null
         }
         Insert: {
@@ -176,6 +177,7 @@ export interface Database {
           status?: 'pending' | 'approved' | 'rejected'; created_at?: string
           leave_type?: 'full_day' | 'half_day' | 'permission'
           permission_hours?: number | null
+          permission_time?: string | null
           half_day_period?: 'morning' | 'afternoon' | null
         }
         Update: {
@@ -183,6 +185,7 @@ export interface Database {
           status?: 'pending' | 'approved' | 'rejected'
           leave_type?: 'full_day' | 'half_day' | 'permission'
           permission_hours?: number | null
+          permission_time?: string | null
           half_day_period?: 'morning' | 'afternoon' | null
         }
         Relationships: []

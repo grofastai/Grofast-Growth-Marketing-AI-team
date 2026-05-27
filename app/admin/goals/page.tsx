@@ -23,7 +23,7 @@ export default async function GoalsPage() {
 
   const [{ data: tasks }, { data: members }, { data: projects }] = await Promise.all([
     admin.from("tasks")
-      .select("*, users!tasks_assigned_to_fkey(id, name, employee_id, team), projects(id, business_name)")
+      .select("*, users!tasks_assigned_to_fkey(id, name, employee_id, team), creator:users!tasks_created_by_fkey(id, name), projects(id, business_name)")
       .eq("company_id", cid)
       .order("created_at", { ascending: false })
       .limit(100),

@@ -17,6 +17,7 @@ interface Task {
   priority: "low" | "medium" | "high"
   due_date: string | null
   users: { id: string; name: string; employee_id: string; team?: string | null } | null
+  creator: { id: string; name: string } | null
   projects: { id: string; business_name: string } | null
 }
 
@@ -69,6 +70,15 @@ const PREV: Record<string, "todo" | "in_progress" | "completed" | null> = {
   todo: null, in_progress: "todo", completed: "in_progress",
 }
 
+const AVATAR_PALETTE = ["#de1a1a","#6366F1","#10B981","#F59E0B","#8B5CF6","#06B6D4","#F97316","#EC4899"]
+function creatorColor(name: string) {
+  let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % AVATAR_PALETTE.length
+  return AVATAR_PALETTE[h]
+}
+function creatorInitials(name: string) {
+  return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
+}
+
 // ── Task Card ────────────────────────────────────────────────────────────────
 function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
   task: Task
@@ -79,6 +89,7 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
   const pr = PRIORITY_COLORS[task.priority]
   const st = STATUS_CONFIG[task.status]
   const project = Array.isArray(task.projects) ? task.projects[0] : task.projects
+  const creator = Array.isArray(task.creator) ? task.creator[0] : task.creator
   const overdue = isOverdue(task.due_date, task.status)
   const next = NEXT[task.status]
   const prev = PREV[task.status]
@@ -97,11 +108,31 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <p className="text-[13px] font-semibold leading-snug flex-1" style={{ color: "#111827" }}>{task.title}</p>
-        <button onClick={() => onDelete(task.id)} disabled={isDeleting}
-          className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
-          {isDeleting ? <Loader2 size={11} className="animate-spin" style={{ color: "#de1a1a" }} />
-            : <Trash2 size={11} style={{ color: "rgba(222,26,26,0.45)" }} />}
-        </button>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          {creator && (
+            <div className="relative" style={{ display: "inline-block" }}>
+              <div
+                title={`Assigned by ${creator.name}`}
+                style={{
+                  width: 22, height: 22, borderRadius: "50%",
+                  background: creatorColor(creator.name),
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 8, fontWeight: 800, color: "#fff",
+                  cursor: "default", flexShrink: 0,
+                  boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+                  border: "1.5px solid #fff",
+                }}
+              >
+                {creatorInitials(creator.name)}
+              </div>
+            </div>
+          )}
+          <button onClick={() => onDelete(task.id)} disabled={isDeleting}
+            className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+            {isDeleting ? <Loader2 size={11} className="animate-spin" style={{ color: "#de1a1a" }} />
+              : <Trash2 size={11} style={{ color: "rgba(222,26,26,0.45)" }} />}
+          </button>
+        </div>
       </div>
       {task.description && (
         <p className="text-[11px] mb-2.5 leading-relaxed" style={{ color: "#9CA3AF" }}>{task.description}</p>

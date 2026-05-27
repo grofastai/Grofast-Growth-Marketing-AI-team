@@ -69,7 +69,7 @@ export async function createTask(
     if (error) return { error: error.message }
   } else {
     const rows = assignedToList.map(id => ({ ...base, assigned_to: id }))
-    const { error } = await admin.from('tasks').insert(rows)
+    const { data: insertedTasks, error } = await admin.from('tasks').insert(rows).select('id, assigned_to')
     if (error) return { error: error.message }
     // Notify each assignee (skip self-assignment)
     const othersAssigned = assignedToList.filter(id => id !== user.id)
@@ -84,20 +84,22 @@ export async function createTask(
         body: parsed.data.title,
         link: '/member/tasks',
       })))
-      // WhatsApp blast — fire and forget
-      if (assignees?.length) {
+      // WhatsApp blast with "Got it" ack button — fire and forget
+      if (assignees?.length && insertedTasks?.length) {
         const dueStr = parsed.data.due_date ?? 'No due date'
         ;(async () => {
           await Promise.all(
             assignees
               .filter((u: { phone?: string | null }) => u.phone)
-              .map((u: { name: string; phone: string }) =>
-                sendWhatsAppTemplate(
+              .map((u: { id: string; name: string; phone: string }) => {
+                const taskRow = insertedTasks.find((t: { assigned_to: string }) => t.assigned_to === u.id)
+                return sendWhatsAppTemplate(
                   formatPhone(u.phone),
                   'grofast_task_assigned',
-                  [u.name, creator?.name ?? 'Admin', parsed.data.title, dueStr]
+                  [u.name, creator?.name ?? 'Admin', parsed.data.title, dueStr],
+                  taskRow ? [{ index: 0, payload: `ack:${taskRow.id}` }] : undefined
                 )
-              )
+              })
           )
         })().catch(console.error)
       }
@@ -160,7 +162,7 @@ export async function createMemberTask(
     if (proj) finalProjectId = proj.id
   }
 
-  const { error } = await admin.from('tasks').insert({
+  const { data: insertedTask, error } = await admin.from('tasks').insert({
     company_id:  profile.company_id,
     title:       parsed.data.title,
     description: parsed.data.description || null,
@@ -170,7 +172,7 @@ export async function createMemberTask(
     created_by:  user.id,
     assigned_to: parsed.data.assigned_to || user.id,
     project_id:  finalProjectId,
-  })
+  }).select('id').single()
 
   if (error) return { error: error.message }
 
@@ -189,13 +191,14 @@ export async function createMemberTask(
       body: parsed.data.title,
       link: '/member/tasks',
     })
-    // WhatsApp notification — fire and forget
+    // WhatsApp notification with ack button — fire and forget
     if (assignee?.phone) {
       const dueStr = parsed.data.due_date ?? 'No due date'
       sendWhatsAppTemplate(
         formatPhone(assignee.phone),
         'grofast_task_assigned',
-        [assignee.name, creator?.name ?? 'Admin', parsed.data.title, dueStr]
+        [assignee.name, creator?.name ?? 'Admin', parsed.data.title, dueStr],
+        insertedTask ? [{ index: 0, payload: `ack:${insertedTask.id}` }] : undefined
       ).catch(console.error)
     }
   }
@@ -312,13 +315,14 @@ export async function updateTask(
         body: taskTitle,
         link: '/member/tasks',
       }).catch(console.error)
-      // WhatsApp notification — fire and forget
+      // WhatsApp notification with ack button — fire and forget
       if (assignee?.phone) {
         const dueStr = (updates.due_date ?? task.due_date) ?? 'No due date'
         sendWhatsAppTemplate(
           formatPhone(assignee.phone),
           'grofast_task_assigned',
-          [assignee.name, updater?.name ?? 'Admin', taskTitle, dueStr]
+          [assignee.name, updater?.name ?? 'Admin', taskTitle, dueStr],
+          [{ index: 0, payload: `ack:${id}` }]
         ).catch(console.error)
       }
     }

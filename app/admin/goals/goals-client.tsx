@@ -16,6 +16,7 @@ interface Task {
   status: "todo" | "in_progress" | "completed"
   priority: "low" | "medium" | "high"
   due_date: string | null
+  acknowledged_at: string | null
   users: { id: string; name: string; employee_id: string; team?: string | null } | null
   creator: { id: string; name: string; photo_url?: string | null } | null
   projects: { id: string; business_name: string } | null
@@ -159,6 +160,16 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
             style={{ background: overdue ? "rgba(222,26,26,0.08)" : "#F3F4F6", color: overdue ? "#de1a1a" : "#9CA3AF" }}>
             <Calendar size={9} /> {fmt(task.due_date)}{overdue ? " ⚠" : ""}
           </span>
+        )}
+        {task.users && (
+          task.acknowledged_at ? (
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+              title={`Seen at ${new Date(task.acknowledged_at).toLocaleString()}`}
+              style={{ background: "rgba(16,185,129,0.1)", color: "#10B981" }}>✓ Seen</span>
+          ) : (
+            <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+              style={{ background: "rgba(156,163,175,0.12)", color: "#9CA3AF" }}>Not seen</span>
+          )
         )}
       </div>
       <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pt-2"

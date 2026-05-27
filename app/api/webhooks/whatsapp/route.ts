@@ -61,13 +61,34 @@ async function processWebhook(body: unknown) {
         if (message.interactive?.type !== 'button_reply') continue
 
         const id = message.interactive.button_reply?.id ?? ''
-        // id format: "approve:<leave_uuid>" or "reject:<leave_uuid>"
-        const [action, leaveId] = id.split(':')
-        if ((action !== 'approve' && action !== 'reject') || !leaveId) continue
+        const [action, entityId] = id.split(':')
+        if (!entityId) continue
 
-        await handleLeaveAction(leaveId, action as 'approve' | 'reject')
+        if (action === 'approve' || action === 'reject') {
+          await handleLeaveAction(entityId, action as 'approve' | 'reject')
+        } else if (action === 'ack') {
+          await handleTaskAck(entityId)
+        }
       }
     }
+  }
+}
+
+async function handleTaskAck(taskId: string) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+  const { error } = await supabase
+    .from('tasks')
+    .update({ acknowledged_at: new Date().toISOString() })
+    .eq('id', taskId)
+    .is('acknowledged_at', null)
+
+  if (error) {
+    console.error('[whatsapp-webhook] task ack error:', error)
+  } else {
+    console.log(`[whatsapp-webhook] task ${taskId} acknowledged`)
   }
 }
 

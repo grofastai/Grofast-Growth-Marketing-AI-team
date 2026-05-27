@@ -425,13 +425,13 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     </div>
                     <div>
                       <p className="text-[15px] font-bold mb-2" style={{ color: "#111111" }}>Completed for today ✓</p>
-                      <div className="flex gap-6 flex-wrap">
+                      <div className="flex gap-5 flex-wrap">
                         {[
-                          { label: "Log In",     value: fmtTime(todayLog.clock_in),  color: "#111111" },
-                          { label: "Log Out",    value: fmtTime(todayLog.clock_out), color: "#111111" },
-                          { label: "Total Span", value: fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out)), color: "#6366F1" },
-                          { label: "Break",      value: breakTotalMins > 0 ? `${breakTotalMins}m` : "—", color: "#F59E0B" },
-                          { label: "Worked",     value: fmtHoursShort(hoursWorked), color: "#22C55E" },
+                          { label: "Log In",  value: fmtTime(todayLog.clock_in),  color: "#111111" },
+                          { label: "Log Out", value: fmtTime(todayLog.clock_out), color: "#111111" },
+                          { label: "Span",    value: fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out)), color: "#6366F1" },
+                          { label: "Break",   value: breakTotalMins > 0 ? fmtHoursShort(breakTotalMins / 60) : "—", color: "#F59E0B" },
+                          { label: "Worked",  value: fmtHoursShort(hoursWorked), color: "#22C55E" },
                         ].map(r => (
                           <div key={r.label}>
                             <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>{r.label}</p>
@@ -494,36 +494,48 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   <span className="text-[13px] font-semibold" style={{ color: row.color }}>{row.value}</span>
                 </div>
               ))}
-              {/* Divider */}
-              {todayLog?.clock_in && (
-                <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-                  {/* Total span */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px]" style={{ color: "#9CA3AF" }}>Total Span</span>
-                    <span className="text-[13px] font-semibold" style={{ color: "#6366F1" }}>
-                      {fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out))}
-                    </span>
+              {/* Time breakdown */}
+              {todayLog?.clock_in && (() => {
+                const spanH      = calcHours(todayLog.clock_in, todayLog.clock_out)
+                const totalBreakMins = isOnBreak ? breakTotalMins + currentBreakMins : breakTotalMins
+                const breakH     = totalBreakMins / 60
+                return (
+                  <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12, marginTop: 4 }}>
+                    {/* Visual equation: span − break = worked */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", alignItems: "center", gap: 4, marginBottom: 10 }}>
+                      {/* Span */}
+                      <div style={{ textAlign: "center", background: "rgba(99,102,241,0.07)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(99,102,241,0.15)" }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px" }}>Span</p>
+                        <p style={{ fontSize: 15, fontWeight: 900, color: "#6366F1", margin: 0, fontFamily: "var(--font-jakarta)" }}>{fmtHoursShort(spanH)}</p>
+                      </div>
+                      <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>−</span>
+                      {/* Break */}
+                      <div style={{ textAlign: "center", background: isOnBreak ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.06)", borderRadius: 10, padding: "8px 4px", border: `1px solid rgba(245,158,11,${isOnBreak ? "0.35" : "0.15"})` }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: "#D97706", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px" }}>Break</p>
+                        <p style={{ fontSize: 15, fontWeight: 900, color: "#D97706", margin: 0, fontFamily: "var(--font-jakarta)" }}>
+                          {totalBreakMins > 0 ? fmtHoursShort(breakH) : "0h"}
+                        </p>
+                        {isOnBreak && <p style={{ fontSize: 9, color: "#D97706", margin: 0, fontWeight: 700 }}>ongoing</p>}
+                      </div>
+                      <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>=</span>
+                      {/* Worked */}
+                      <div style={{ textAlign: "center", background: "rgba(34,197,94,0.08)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(34,197,94,0.2)" }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px" }}>Worked</p>
+                        <p style={{ fontSize: 15, fontWeight: 900, color: "#16A34A", margin: 0, fontFamily: "var(--font-jakarta)" }}>
+                          {hoursWorked > 0 ? fmtHoursShort(hoursWorked) : "—"}
+                        </p>
+                      </div>
+                    </div>
+                    {/* Target bar */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: 11, color: "#9CA3AF" }}>Target: {SHIFT_HOURS}h shift</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: hoursWorked >= SHIFT_HOURS ? "#16A34A" : "#de1a1a" }}>
+                        {hoursWorked >= SHIFT_HOURS ? "Target reached ✓" : `${fmtHoursShort(Math.max(0, SHIFT_HOURS - hoursWorked))} remaining`}
+                      </span>
+                    </div>
                   </div>
-                  {/* Break */}
-                  <div className="flex items-center justify-between">
-                    <span className="text-[13px]" style={{ color: "#9CA3AF" }}>Break</span>
-                    <span className="text-[13px] font-semibold"
-                      style={{ color: isOnBreak ? "#D97706" : breakTotalMins > 0 ? "#F59E0B" : "#9CA3AF" }}>
-                      {isOnBreak
-                        ? `${breakTotalMins + currentBreakMins}m (on break)`
-                        : breakTotalMins > 0 ? `${breakTotalMins}m` : "—"}
-                    </span>
-                  </div>
-                  {/* Net worked */}
-                  <div className="flex items-center justify-between rounded-xl px-3 py-2"
-                    style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.18)" }}>
-                    <span className="text-[13px] font-bold" style={{ color: "#16A34A" }}>Worked</span>
-                    <span className="text-[13px] font-bold" style={{ color: "#16A34A" }}>
-                      {hoursWorked > 0 ? `${fmtHoursShort(hoursWorked)} / ${SHIFT_HOURS}h` : "—"}
-                    </span>
-                  </div>
-                </div>
-              )}
+                )
+              })()}
             </div>
             {isBelowExpected && (
               <div className="flex items-center gap-2 mt-4 px-3 py-2.5 rounded-xl"

@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { insertNotification, insertManyNotifications } from './notifications'
+import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 
 function adminSupabase() {
   return createClient(
@@ -74,6 +75,7 @@ export async function createTask(
     const othersAssigned = assignedToList.filter(id => id !== user.id)
     if (othersAssigned.length > 0) {
       const { data: creator } = await admin.from('users').select('name').eq('id', user.id).single()
+      const { data: assignees } = await admin.from('users').select('id, name, phone').in('id', othersAssigned)
       await insertManyNotifications(othersAssigned.map(id => ({
         companyId: profile.company_id,
         userId: id,
@@ -82,6 +84,23 @@ export async function createTask(
         body: parsed.data.title,
         link: '/member/tasks',
       })))
+      // WhatsApp blast — fire and forget
+      if (assignees?.length) {
+        const dueStr = parsed.data.due_date ?? 'No due date'
+        ;(async () => {
+          await Promise.all(
+            assignees
+              .filter((u: { phone?: string | null }) => u.phone)
+              .map((u: { name: string; phone: string }) =>
+                sendWhatsAppTemplate(
+                  formatPhone(u.phone),
+                  'grofast_task_assigned',
+                  [u.name, creator?.name ?? 'Admin', parsed.data.title, dueStr]
+                )
+              )
+          )
+        })().catch(console.error)
+      }
     }
   }
 
@@ -158,7 +177,10 @@ export async function createMemberTask(
   // Notify assignee when task is assigned to someone else
   const finalAssignee = parsed.data.assigned_to || user.id
   if (finalAssignee !== user.id) {
-    const { data: creator } = await admin.from('users').select('name').eq('id', user.id).single()
+    const [{ data: creator }, { data: assignee }] = await Promise.all([
+      admin.from('users').select('name').eq('id', user.id).single(),
+      admin.from('users').select('name, phone').eq('id', finalAssignee).single(),
+    ])
     await insertNotification({
       companyId: profile.company_id,
       userId: finalAssignee,
@@ -167,6 +189,15 @@ export async function createMemberTask(
       body: parsed.data.title,
       link: '/member/tasks',
     })
+    // WhatsApp notification — fire and forget
+    if (assignee?.phone) {
+      const dueStr = parsed.data.due_date ?? 'No due date'
+      sendWhatsAppTemplate(
+        formatPhone(assignee.phone),
+        'grofast_task_assigned',
+        [assignee.name, creator?.name ?? 'Admin', parsed.data.title, dueStr]
+      ).catch(console.error)
+    }
   }
 
   revalidatePath('/member/tasks')
@@ -266,17 +297,30 @@ export async function updateTask(
 
   // If reassigning, notify the new assignee (before updating so we can check old value)
   if (updates.assigned_to && updates.assigned_to !== user.id) {
-    const { data: task } = await admin.from('tasks').select('title, company_id, assigned_to').eq('id', id).single()
+    const { data: task } = await admin.from('tasks').select('title, company_id, assigned_to, due_date').eq('id', id).single()
     if (task && task.assigned_to !== updates.assigned_to) {
-      const { data: updater } = await admin.from('users').select('name').eq('id', user.id).single()
+      const [{ data: updater }, { data: assignee }] = await Promise.all([
+        admin.from('users').select('name').eq('id', user.id).single(),
+        admin.from('users').select('name, phone').eq('id', updates.assigned_to).single(),
+      ])
+      const taskTitle = updates.title ?? task.title
       insertNotification({
         companyId: task.company_id,
         userId: updates.assigned_to,
         type: 'task_assigned',
         title: `${updater?.name ?? 'Someone'} assigned you a task`,
-        body: updates.title ?? task.title,
+        body: taskTitle,
         link: '/member/tasks',
       }).catch(console.error)
+      // WhatsApp notification — fire and forget
+      if (assignee?.phone) {
+        const dueStr = (updates.due_date ?? task.due_date) ?? 'No due date'
+        sendWhatsAppTemplate(
+          formatPhone(assignee.phone),
+          'grofast_task_assigned',
+          [assignee.name, updater?.name ?? 'Admin', taskTitle, dueStr]
+        ).catch(console.error)
+      }
     }
   }
 

@@ -66,7 +66,7 @@ export default async function AttendancePage({
     admin.from("users").select("id, name, employee_id")
       .eq("company_id", cid).eq("role", "MEMBER").eq("status", "active").order("name"),
     admin.from("attendance_logs")
-      .select("user_id, clock_in, clock_out, status")
+      .select("user_id, clock_in, clock_out, status, break_total_mins")
       .eq("company_id", cid).eq("date", selectedDate),
     admin.from("attendance_logs")
       .select("user_id, clock_in")
@@ -83,7 +83,7 @@ export default async function AttendancePage({
       .eq("from_date", selectedDate),
   ])
 
-  type Log     = { user_id: string; clock_in: string | null; clock_out: string | null; status: string }
+  type Log     = { user_id: string; clock_in: string | null; clock_out: string | null; status: string; break_total_mins: number | null }
   type LateLog = { user_id: string; clock_in: string }
 
   const logMap = new Map<string, Log>()
@@ -95,12 +95,12 @@ export default async function AttendancePage({
     permHoursMap.set(p.user_id, (permHoursMap.get(p.user_id) ?? 0) + (p.permission_hours ?? 1))
   }
 
-  function calcDurationNet(clockIn: string | null, clockOut: string | null, userId: string) {
+  function calcDurationNet(clockIn: string | null, clockOut: string | null, userId: string, breakTotalMins: number | null) {
     if (!clockIn) return null
     const end  = clockOut ? new Date(clockOut) : new Date()
     const raw  = (end.getTime() - new Date(clockIn).getTime()) / 60000
     const perm = (permHoursMap.get(userId) ?? 0) * 60
-    const net  = Math.max(0, raw - perm)
+    const net  = Math.max(0, raw - (breakTotalMins ?? 0) - perm)
     if (net < 60) return `${Math.round(net)}m`
     return `${Math.floor(net / 60)}h ${Math.round(net % 60)}m`
   }
@@ -303,7 +303,7 @@ export default async function AttendancePage({
                     const isAbsent  = log?.status === "absent" && !log?.clock_in
                     const isWorking = !!(log?.clock_in && !log?.clock_out)
                     const isDone    = !!(log?.clock_in && log?.clock_out)
-                    const dur       = calcDurationNet(log?.clock_in ?? null, log?.clock_out ?? null, m.id)
+                    const dur       = calcDurationNet(log?.clock_in ?? null, log?.clock_out ?? null, m.id, log?.break_total_mins ?? null)
 
                     let statusLabel = "Not Logged"; let statusColor = "#9CA3AF"; let statusBg = "#F3F4F6"; let statusDot = "#D1D5DB"
                     if (isAbsent)  { statusLabel = "Absent";  statusColor = "#DE1A1A"; statusBg = "rgba(222,26,26,0.08)"; statusDot = "#DE1A1A" }

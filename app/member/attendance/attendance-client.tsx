@@ -216,7 +216,11 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const totalWeekHours  = weekLogs.filter(l => l.clock_in && l.status === "present").reduce((sum, l) => {
     const raw = l.clock_out ? calcHours(l.clock_in!, l.clock_out) : (l.date === today ? calcHours(l.clock_in!, null) : 0)
     const perm = permHoursByDate[l.date] ?? 0
-    return sum + Math.max(0, raw - (l.break_total_mins ?? 0) / 60 - perm)
+    // For today's active session, also deduct any ongoing break
+    const activeBreakHrs = (l.date === today && !l.clock_out && l.break_in && !l.break_out)
+      ? (Date.now() - new Date(l.break_in).getTime()) / 3600000
+      : 0
+    return sum + Math.max(0, raw - (l.break_total_mins ?? 0) / 60 - activeBreakHrs - perm)
   }, 0)
 
   return (
@@ -507,10 +511,11 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 const isToday    = date === today
                 const present    = log?.status === "present"
                 const absent     = log?.status === "absent"
-                // Only count hours up to clock_out; for past days with no clock_out use 0
-                const h = log?.clock_in
+                // Net hours = (clock_out - clock_in) minus breaks and permission deductions
+                const rawH = log?.clock_in
                   ? (log.clock_out ? calcHours(log.clock_in, log.clock_out) : (isToday ? calcHours(log.clock_in, null) : 0))
                   : 0
+                const h = Math.max(0, rawH - (log?.break_total_mins ?? 0) / 60 - (permHoursByDate[date] ?? 0))
 
                 let dot = "#D1D5DB"; let label = "No record"; let color = "#9CA3AF"
                 if (isFuture)    { dot = "#E5E7EB"; label = "—"; color = "rgba(0,0,0,0.1)" }

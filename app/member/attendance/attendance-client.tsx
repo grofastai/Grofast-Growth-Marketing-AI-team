@@ -64,13 +64,25 @@ function addDays(dateStr: string, n: number) {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`
 }
 
-function LiveTimer({ clockInIso, pausedSeconds }: { clockInIso: string; pausedSeconds: number }) {
-  const [secs, setSecs] = useState(() =>
-    Math.max(0, Math.floor((Date.now() - new Date(clockInIso).getTime()) / 1000) - pausedSeconds)
-  )
-  useEffect(() => { const id = setInterval(() => setSecs(s => s + 1), 1000); return () => clearInterval(id) }, [clockInIso])
+function LiveTimer({ clockInIso, pausedSeconds, breakTotalMins = 0, currentBreakInIso = null }: {
+  clockInIso: string; pausedSeconds: number; breakTotalMins?: number; currentBreakInIso?: string | null
+}) {
+  function netSecs() {
+    const raw       = (Date.now() - new Date(clockInIso).getTime()) / 1000
+    const completed = breakTotalMins * 60
+    const ongoing   = currentBreakInIso ? (Date.now() - new Date(currentBreakInIso).getTime()) / 1000 : 0
+    return Math.max(0, Math.floor(raw - pausedSeconds - completed - ongoing))
+  }
+  const [secs, setSecs] = useState(netSecs)
+  useEffect(() => {
+    if (currentBreakInIso) { setSecs(netSecs()); return }   // freeze timer during break
+    const id = setInterval(() => setSecs(netSecs()), 1000)
+    return () => clearInterval(id)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clockInIso, currentBreakInIso, breakTotalMins, pausedSeconds])
   return (
-    <span className="font-mono text-[44px] font-black tracking-tight leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+    <span className="font-mono text-[44px] font-black tracking-tight leading-none"
+      style={{ color: currentBreakInIso ? "#9CA3AF" : "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
       {fmtDuration(secs)}
     </span>
   )
@@ -328,7 +340,12 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       <CheckCircle2 size={15} style={{ color: "#22C55E" }} />
                     </div>
                     <p className="text-[12px] mb-1.5" style={{ color: "#9CA3AF" }}>Working for</p>
-                    <LiveTimer clockInIso={todayLog.clock_in} pausedSeconds={todayLog.paused_seconds} />
+                    <LiveTimer
+                      clockInIso={todayLog.clock_in}
+                      pausedSeconds={todayLog.paused_seconds}
+                      breakTotalMins={breakTotalMins}
+                      currentBreakInIso={isOnBreak ? (todayLog.break_in ?? null) : null}
+                    />
                     <SegmentBar hoursWorked={hoursWorked} />
                     <p className="text-[12px] mb-1" style={{ color: "#9CA3AF" }}>
                       {fmtHoursShort(hoursWorked)} / {SHIFT_HOURS}h

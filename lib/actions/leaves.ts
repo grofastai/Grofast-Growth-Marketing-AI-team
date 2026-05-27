@@ -21,6 +21,7 @@ const leaveSchema = z.object({
   to_date:          z.string().min(1, 'End date required'),
   half_day_period:  z.enum(['morning', 'afternoon']).optional(),
   permission_hours: z.coerce.number().min(0.5).max(8).optional(),
+  permission_time:  z.string().optional(),
   reason:           z.string().min(3, 'Please provide a reason'),
 })
 
@@ -46,6 +47,7 @@ export async function submitLeaveRequest(
     to_date:          leaveType === 'full_day' ? (formData.get('to_date') as string) : (formData.get('from_date') as string),
     half_day_period:  formData.get('half_day_period') || undefined,
     permission_hours: formData.get('permission_hours') ? Number(formData.get('permission_hours')) : undefined,
+    permission_time:  (formData.get('permission_time') as string) || undefined,
     reason:           formData.get('reason') as string,
   }
 
@@ -92,6 +94,7 @@ export async function submitLeaveRequest(
     reason:           parsed.data.reason,
     leave_type:       parsed.data.leave_type,
     permission_hours: parsed.data.permission_hours ?? null,
+    permission_time:  parsed.data.permission_time ?? null,
     half_day_period:  (parsed.data.half_day_period ?? null) as 'morning' | 'afternoon' | null,
   }).select('id').single()
 
@@ -182,6 +185,7 @@ export async function updateLeaveRequest(
     to_date:          leaveType === 'full_day' ? (formData.get('to_date') as string) : (formData.get('from_date') as string),
     half_day_period:  formData.get('half_day_period') || undefined,
     permission_hours: formData.get('permission_hours') ? Number(formData.get('permission_hours')) : undefined,
+    permission_time:  (formData.get('permission_time') as string) || undefined,
     reason:           formData.get('reason') as string,
   }
 
@@ -211,6 +215,7 @@ export async function updateLeaveRequest(
       reason:           parsed.data.reason,
       leave_type:       parsed.data.leave_type,
       permission_hours: parsed.data.permission_hours ?? null,
+      permission_time:  parsed.data.permission_time ?? null,
       half_day_period:  (parsed.data.half_day_period ?? null) as 'morning' | 'afternoon' | null,
     })
     .eq('id', leaveId)

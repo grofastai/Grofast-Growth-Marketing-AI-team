@@ -32,7 +32,8 @@ interface EditEntry {
 interface TimeBlock {
   id: string; startTime: string; endTime: string
   durationHours: number; description: string
-  projectName: string; status: "completed" | "in_progress" | "not_started"
+  projectName: string; brand: string; customClient: string
+  status: "completed" | "in_progress" | "not_started"
   isMultiClient: boolean; clientNames: string[]
 }
 
@@ -158,6 +159,7 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
       durationHours: e.duration_hours ?? 1,
       description: e.title ?? '',
       projectName: e.is_multi_client ? '' : (e.client_name === 'Internal' ? '' : (e.client_name ?? '')),
+      brand: '', customClient: '',
       status: (() => {
         const rawStatus = e.notes?.replace(/^\[/, '').replace(/\]$/, '') ?? ''
         const VALID = ['completed', 'in_progress', 'not_started'] as const
@@ -314,8 +316,8 @@ export default function DailyUpdateForm({
   )
   const addTimeBlock = () => setTimeBlocks(p => [...p, {
     id: crypto.randomUUID(), startTime: "09:00", endTime: "10:00",
-    durationHours: 1, description: "", projectName: "", status: "not_started" as const,
-    isMultiClient: false, clientNames: [],
+    durationHours: 1, description: "", projectName: "", brand: "", customClient: "",
+    status: "not_started" as const, isMultiClient: false, clientNames: [],
   }])
   const patchBlock = (id: string, patch: Partial<TimeBlock>) =>
     setTimeBlocks(p => p.map(b => {
@@ -372,17 +374,21 @@ export default function DailyUpdateForm({
   function handleWorkingSubmit() {
     setWorkingError(null)
     if (filledBlocks.length === 0) { setWorkingError("Add at least one time block with a description."); return }
-    const work_entries = filledBlocks.map(t => ({
+    const work_entries = filledBlocks.map(t => {
+      const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")
+        : t.projectName === "__custom__" ? (t.customClient || "Internal")
+        : (t.projectName || "Internal")
+      return {
       id: t.id,
-      client_id: projects.find(p => p.business_name === t.projectName)?.id ?? null,
-      client_name: t.isMultiClient ? (t.clientNames[0] || "Internal") : (t.projectName || "Internal"),
-      client_names: t.isMultiClient ? t.clientNames : (t.projectName ? [t.projectName] : []),
+      client_id: projects.find(p => p.business_name === effClient)?.id ?? null,
+      client_name: t.isMultiClient ? (t.clientNames[0] || "Internal") : effClient,
+      client_names: t.isMultiClient ? t.clientNames : (effClient !== "Internal" ? [effClient] : []),
       is_multi_client: t.isMultiClient,
       task_type: "other" as const,
       title: t.description, start_time: t.startTime, end_time: t.endTime,
       duration_hours: t.durationHours, notes: `[${t.status}]`,
       video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
-    }))
+    }})
     startTransition(async () => {
       const res = await submitDailyUpdate({
         active_tab: "working", date: selectedDate, work_entries, links: [],
@@ -820,12 +826,40 @@ export default function DailyUpdateForm({
                           <input value={block.description} onChange={e => patchBlock(block.id, { description: e.target.value })}
                             placeholder="What did you work on?"
                             style={{ flex:1, minWidth:140, background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", fontSize:12, color:"#111827", outline:"none" }} />
-                          <select value={block.projectName} onChange={e => patchBlock(block.id, { projectName: e.target.value })}
-                            style={{ fontSize:11, fontWeight:700, color: block.projectName ? "#DE1A1A" : "#9CA3AF", background: block.projectName ? "rgba(222,26,26,0.06)" : "#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", cursor:"pointer", outline:"none" }}>
-                            <option value="">Project</option>
-                            <option value="GroFast (Internal)">GroFast (Internal)</option>
-                            {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                          </select>
+                          <div style={{ display:"flex", flexDirection:"column", gap:4, flex:1, minWidth:120 }}>
+                            <div style={{ position:"relative" }}>
+                              <select
+                                value={block.projectName}
+                                onChange={e => patchBlock(block.id, { projectName: e.target.value, brand: "", customClient: "" })}
+                                style={{ width:"100%", fontSize:11, fontWeight:700, color: block.projectName ? "#DE1A1A" : "#9CA3AF", background: block.projectName ? "rgba(222,26,26,0.06)" : "#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 28px 7px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                                <option value="">Client / Project</option>
+                                <option value="Promotion">📣 Our Brand (Promotion)</option>
+                                <option value="__custom__">✏️ Other (type manually)</option>
+                                <optgroup label="── Clients ──">
+                                  {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                </optgroup>
+                              </select>
+                              <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                            </div>
+                            {block.projectName === "Promotion" && (
+                              <div style={{ position:"relative" }}>
+                                <select value={block.brand} onChange={e => patchBlock(block.id, { brand: e.target.value })}
+                                  style={{ width:"100%", fontSize:11, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.3)", borderRadius:8, padding:"7px 28px 7px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                                  <option value="">📣 Select brand…</option>
+                                  {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                                </select>
+                                <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#D97706", pointerEvents:"none" }} />
+                              </div>
+                            )}
+                            {block.projectName === "__custom__" && (
+                              <input
+                                value={block.customClient}
+                                onChange={e => patchBlock(block.id, { customClient: e.target.value })}
+                                placeholder="Type client name…"
+                                style={{ width:"100%", fontSize:11, fontWeight:600, color:"#111827", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", outline:"none", boxSizing:"border-box" }}
+                              />
+                            )}
+                          </div>
                           <select value={block.status} onChange={e => patchBlock(block.id, { status: e.target.value as TimeBlock["status"] })}
                             style={{ fontSize:11, fontWeight:700, color:statusCfg.color, background:statusCfg.bg, border:`1.5px solid ${statusCfg.border}`, borderRadius:8, padding:"7px 10px", cursor:"pointer", outline:"none" }}>
                             <option value="not_started">Not Started</option>

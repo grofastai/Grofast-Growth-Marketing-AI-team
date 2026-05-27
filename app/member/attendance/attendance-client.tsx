@@ -427,14 +427,15 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       <p className="text-[15px] font-bold mb-2" style={{ color: "#111111" }}>Completed for today ✓</p>
                       <div className="flex gap-6 flex-wrap">
                         {[
-                          { label: "Log In",  value: fmtTime(todayLog.clock_in) },
-                          { label: "Log Out", value: fmtTime(todayLog.clock_out) },
-                          { label: "Break",   value: breakTotalMins > 0 ? `${breakTotalMins}m` : "—" },
-                          { label: "Total",   value: fmtHoursShort(hoursWorked) },
+                          { label: "Log In",     value: fmtTime(todayLog.clock_in),  color: "#111111" },
+                          { label: "Log Out",    value: fmtTime(todayLog.clock_out), color: "#111111" },
+                          { label: "Total Span", value: fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out)), color: "#6366F1" },
+                          { label: "Break",      value: breakTotalMins > 0 ? `${breakTotalMins}m` : "—", color: "#F59E0B" },
+                          { label: "Worked",     value: fmtHoursShort(hoursWorked), color: "#22C55E" },
                         ].map(r => (
                           <div key={r.label}>
                             <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>{r.label}</p>
-                            <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{r.value}</p>
+                            <p className="text-[14px] font-bold" style={{ color: r.color }}>{r.value}</p>
                           </div>
                         ))}
                       </div>
@@ -483,18 +484,46 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             </div>
             <div className="space-y-3">
               {[
-                { label: "Status",    value: isAbsent ? "Absent" : (isIn || isDone) ? "Present" : "Not Logged", color: isAbsent ? "#EF4444" : (isIn || isDone) ? "#22C55E" : "#9CA3AF" },
-                { label: "Work Mode", value: todayLog?.work_type ? (todayLog.work_type === "wfh" ? "Work From Home" : "Office") : "—", color: "#111111" },
-                { label: "Log In",    value: fmtTime(todayLog?.clock_in ?? null), color: "#111111" },
-                { label: "Log Out",   value: fmtTime(todayLog?.clock_out ?? null), color: "#111111" },
-                { label: "Break",     value: isOnBreak ? `In progress (${currentBreakMins}m)` : breakTotalMins > 0 ? `${breakTotalMins}m taken` : "—", color: isOnBreak ? "#D97706" : breakTotalMins > 0 ? "#F59E0B" : "#9CA3AF" },
-                { label: "Hours",     value: hoursWorked > 0 ? `${fmtHoursShort(hoursWorked)} / ${SHIFT_HOURS}h` : "—", color: hoursWorked > 0 ? "#de1a1a" : "#9CA3AF" },
+                { label: "Status",     value: isAbsent ? "Absent" : (isIn || isDone) ? "Present" : "Not Logged", color: isAbsent ? "#EF4444" : (isIn || isDone) ? "#22C55E" : "#9CA3AF" },
+                { label: "Work Mode",  value: todayLog?.work_type ? (todayLog.work_type === "wfh" ? "Work From Home" : "Office") : "—", color: "#111111" },
+                { label: "Log In",     value: fmtTime(todayLog?.clock_in ?? null), color: "#111111" },
+                { label: "Log Out",    value: fmtTime(todayLog?.clock_out ?? null), color: "#111111" },
               ].map(row => (
                 <div key={row.label} className="flex items-center justify-between">
                   <span className="text-[13px]" style={{ color: "#9CA3AF" }}>{row.label}</span>
                   <span className="text-[13px] font-semibold" style={{ color: row.color }}>{row.value}</span>
                 </div>
               ))}
+              {/* Divider */}
+              {todayLog?.clock_in && (
+                <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {/* Total span */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px]" style={{ color: "#9CA3AF" }}>Total Span</span>
+                    <span className="text-[13px] font-semibold" style={{ color: "#6366F1" }}>
+                      {fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out))}
+                    </span>
+                  </div>
+                  {/* Break */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-[13px]" style={{ color: "#9CA3AF" }}>Break</span>
+                    <span className="text-[13px] font-semibold"
+                      style={{ color: isOnBreak ? "#D97706" : breakTotalMins > 0 ? "#F59E0B" : "#9CA3AF" }}>
+                      {isOnBreak
+                        ? `${breakTotalMins + currentBreakMins}m (on break)`
+                        : breakTotalMins > 0 ? `${breakTotalMins}m` : "—"}
+                    </span>
+                  </div>
+                  {/* Net worked */}
+                  <div className="flex items-center justify-between rounded-xl px-3 py-2"
+                    style={{ background: "rgba(34,197,94,0.07)", border: "1px solid rgba(34,197,94,0.18)" }}>
+                    <span className="text-[13px] font-bold" style={{ color: "#16A34A" }}>Worked</span>
+                    <span className="text-[13px] font-bold" style={{ color: "#16A34A" }}>
+                      {hoursWorked > 0 ? `${fmtHoursShort(hoursWorked)} / ${SHIFT_HOURS}h` : "—"}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
             {isBelowExpected && (
               <div className="flex items-center gap-2 mt-4 px-3 py-2.5 rounded-xl"

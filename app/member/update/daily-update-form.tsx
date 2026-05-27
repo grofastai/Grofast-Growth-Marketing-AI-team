@@ -36,28 +36,59 @@ interface TimeBlock {
   isMultiClient: boolean; clientNames: string[]
 }
 
-// 15-min intervals: 6:00–7:00, then 9:00–22:00
-const TIME_OPTIONS_15 = [
-  ...Array.from({ length: 5 }, (_, i) => {
-    const mins = 6 * 60 + i * 15
-    return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`
-  }),
-  ...Array.from({ length: 53 }, (_, i) => {
-    const mins = 9 * 60 + i * 15
-    return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`
-  }),
-]
-
-const TIME_OPTIONS = [
-  "07:00","07:30","08:00","08:30","09:00","09:30","10:00","10:30","11:00","11:30",
-  "12:00","12:30","13:00","13:30","14:00","14:30","15:00","15:30","16:00","16:30",
-  "17:00","17:30","18:00","18:30","19:00","19:30","20:00","20:30","21:00","21:30","22:00",
-]
-
 function fmt12(t: string) {
   if (!t) return ""
   const [h, m] = t.split(":").map(Number)
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${h >= 12 ? "PM" : "AM"}`
+}
+
+// 12-hour AM/PM time picker — stores value as "HH:MM" (24h) internally
+function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [h24, m24] = value ? value.split(":").map(Number) : [9, 0]
+  const isPM   = h24 >= 12
+  const hour12 = h24 % 12 || 12
+
+  function commit(newH12: number, newM: number, newIsPM: boolean) {
+    const clamped12 = Math.min(12, Math.max(1, newH12))
+    const clampedM  = Math.min(59, Math.max(0, newM))
+    let h = clamped12 % 12 + (newIsPM ? 12 : 0)
+    if (h === 12 && !newIsPM) h = 0   // 12 AM → 00
+    onChange(`${String(h).padStart(2, "0")}:${String(clampedM).padStart(2, "0")}`)
+  }
+
+  const numStyle: React.CSSProperties = {
+    width: 38, textAlign: "center", fontSize: 13, fontWeight: 700,
+    color: "#111827", background: "#fff", border: "1.5px solid #EBEDF2",
+    borderRadius: 8, padding: "5px 4px", outline: "none",
+    MozAppearance: "textfield",
+  }
+
+  return (
+    <div style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
+      <input
+        type="number" min={1} max={12} value={hour12}
+        onChange={e => commit(Number(e.target.value), m24, isPM)}
+        style={numStyle}
+      />
+      <span style={{ fontSize:13, fontWeight:700, color:"#9CA3AF" }}>:</span>
+      <input
+        type="number" min={0} max={59} value={m24}
+        onChange={e => commit(hour12, Number(e.target.value), isPM)}
+        style={{ ...numStyle, width:38 }}
+      />
+      <button
+        type="button"
+        onClick={() => commit(hour12, m24, !isPM)}
+        style={{
+          fontSize:11, fontWeight:800, padding:"5px 8px", borderRadius:8, cursor:"pointer", border:"1.5px solid #EBEDF2",
+          background: isPM ? "#FEE2E2" : "#EFF6FF",
+          color:      isPM ? "#DC2626" : "#2563EB",
+        }}
+      >
+        {isPM ? "PM" : "AM"}
+      </button>
+    </div>
+  )
 }
 function calcDuration(start: string, end: string) {
   if (!start || !end) return 0
@@ -775,19 +806,9 @@ export default function DailyUpdateForm({
                       <div key={block.id} style={{ background:"#F9FAFB", borderRadius:14, border:"1px solid #EBEDF2", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                           <Clock size={13} style={{ color:"#DE1A1A", flexShrink:0 }} />
-                          <input
-                            type="time"
-                            value={block.startTime}
-                            onChange={e => patchBlock(block.id, { startTime: e.target.value })}
-                            style={{ fontSize:12, fontWeight:700, color:"#111827", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 10px", cursor:"pointer", outline:"none" }}
-                          />
+                          <TimePicker value={block.startTime} onChange={v => patchBlock(block.id, { startTime: v })} />
                           <span style={{ fontSize:11, color:"#9CA3AF" }}>to</span>
-                          <input
-                            type="time"
-                            value={block.endTime}
-                            onChange={e => patchBlock(block.id, { endTime: e.target.value })}
-                            style={{ fontSize:12, fontWeight:700, color:"#111827", background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 10px", cursor:"pointer", outline:"none" }}
-                          />
+                          <TimePicker value={block.endTime} onChange={v => patchBlock(block.id, { endTime: v })} />
                           {block.durationHours > 0 && (
                             <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>{fmtTravel(block.durationHours)}</span>
                           )}
@@ -962,13 +983,13 @@ export default function DailyUpdateForm({
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Start Time</label>
                           <div>
-                            <input type="time" value={s.startTime} onChange={e => { const st = e.target.value; patchShoot(s.id, { startTime: st, durationHours: calcDuration(st, s.endTime) }) }} style={{ ...F }} />
+                            <TimePicker value={s.startTime} onChange={st => patchShoot(s.id, { startTime: st, durationHours: calcDuration(st, s.endTime) })} />
                           </div>
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>End Time</label>
                           <div>
-                            <input type="time" value={s.endTime} onChange={e => { const et = e.target.value; patchShoot(s.id, { endTime: et, durationHours: calcDuration(s.startTime, et) }) }} style={{ ...F }} />
+                            <TimePicker value={s.endTime} onChange={et => patchShoot(s.id, { endTime: et, durationHours: calcDuration(s.startTime, et) })} />
                           </div>
                         </div>
                       </div>

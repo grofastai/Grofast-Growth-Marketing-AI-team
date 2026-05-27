@@ -6,7 +6,7 @@ import Image from "next/image"
 import {
   Camera, Film, Plus, Trash2, CheckCircle2,
   Loader2, SendHorizonal, Clock, BookOpen,
-  ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal,
+  ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal, Calendar,
 } from "lucide-react"
 import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
 
@@ -205,9 +205,53 @@ export default function DailyUpdateForm({
   const now       = new Date()
   const h         = now.getHours()
   const greeting  = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"
-  const dateLabel = now.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
 
   const isMediaTeam = team === "Media Team"
+
+  const todayStr = new Date().toISOString().split("T")[0]
+
+  // ── Date selector ────────────────────────────────────────────────────────
+  const [selectedDate, setSelectedDate] = useState(todayStr)
+  const [activeUpdate, setActiveUpdate] = useState<Record<string, unknown> | null>(existingUpdate ?? null)
+
+  const dateLabel = new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
+  const isToday = selectedDate === todayStr
+  const isPastDate = !isToday
+
+  function handleDateChange(date: string) {
+    if (date > todayStr) return
+    setSelectedDate(date)
+
+    let found: Record<string, unknown> | null = null
+    if (date === todayStr) {
+      found = existingUpdate ?? null
+    } else {
+      const past = pastUpdates.find(u => u.date === date)
+      found = past ? (past as unknown as Record<string, unknown>) : null
+    }
+    setActiveUpdate(found)
+
+    setShoots(found ? parseExistingShoots(found) : [])
+    setEdits(found ? parseExistingEdits(found) : [])
+    setTimeBlocks(found ? parseExistingBlocks(found) : [])
+    setLearningTopic((found?.learning_topic as string) ?? "")
+    setLearningHours((found?.learning_hours as number) ?? 1)
+    setLearningNotes((found?.learning_notes as string) ?? "")
+    setWorkingDone(!!(found && (found as Record<string, unknown>).working_hours))
+    setLearningDone(!!(found && (found as Record<string, unknown>).learning_hours))
+    setSubmitted(false)
+    setEditMode(false)
+    setError(null)
+    setWorkingError(null)
+    setLearningError(null)
+
+    const foundTab = (found?.active_tab as string) ?? null
+    if (foundTab === "media" || foundTab === "learning" || foundTab === "working") {
+      setTab(foundTab as "working" | "media" | "learning")
+    } else {
+      setTab(isMediaTeam ? "media" : "working")
+    }
+  }
 
   const [tab, setTab] = useState<"working" | "media" | "learning">(isMediaTeam ? "media" : "working")
 
@@ -222,8 +266,6 @@ export default function DailyUpdateForm({
   const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, travelHours:0, brand:"", shopName:"", location:"", driveLink:"", notes:"", videoUploaded:false }])
   const patchShoot  = (id: string, patch: Partial<ShootEntry>) => setShoots(p => p.map(s => s.id === id ? { ...s, ...patch } : s))
   const removeShoot = (id: string) => setShoots(p => p.filter(s => s.id !== id))
-
-  const todayStr = new Date().toISOString().split("T")[0]
 
   // ── Edits (media) ────────────────────────────────────────────────────────
   const [edits, setEdits] = useState<EditEntry[]>(() => existingUpdate ? parseExistingEdits(existingUpdate) : [])
@@ -312,7 +354,7 @@ export default function DailyUpdateForm({
     }))
     startTransition(async () => {
       const res = await submitDailyUpdate({
-        active_tab: "working", work_entries, links: [],
+        active_tab: "working", date: selectedDate, work_entries, links: [],
         shoot_count: 0, editing_count: 0,
         shoot_time_hours: 0, editing_time_hours: 0, learning_hours: 0,
       })
@@ -350,7 +392,7 @@ export default function DailyUpdateForm({
     ]
     startTransition(async () => {
       const res = await submitDailyUpdate({
-        active_tab: "media", work_entries, links: [],
+        active_tab: "media", date: selectedDate, work_entries, links: [],
         shoot_count: shoots.length, editing_count: edits.length,
         shoot_time_hours: totalShootHours, editing_time_hours: totalEditHours,
         learning_hours: 0,
@@ -391,7 +433,7 @@ export default function DailyUpdateForm({
     ]
     startTransition(async () => {
       const res = await submitDailyUpdate({
-        active_tab: "media", work_entries, links: [],
+        active_tab: "media", date: selectedDate, work_entries, links: [],
         shoot_count: shoots.length, editing_count: edits.length,
         shoot_time_hours: totalShootHours, editing_time_hours: totalEditHours,
         learning_hours: 0,
@@ -407,7 +449,7 @@ export default function DailyUpdateForm({
     if (!learningTopic.trim()) { setLearningError("Enter what you learned today."); return }
     startTransition(async () => {
       const res = await submitDailyUpdate({
-        active_tab: "learning", work_entries: [], links: [],
+        active_tab: "learning", date: selectedDate, work_entries: [], links: [],
         shoot_count: 0, editing_count: 0,
         shoot_time_hours: 0, editing_time_hours: 0,
         learning_hours: learningHours,
@@ -446,7 +488,7 @@ export default function DailyUpdateForm({
   }
 
   // ── Already submitted screen ──────────────────────────────────────────────
-  const allDone = isMediaTeam ? (submitted || !!existingUpdate) : (workingDone && learningDone)
+  const allDone = isMediaTeam ? (submitted || !!activeUpdate) : (workingDone && learningDone)
   if (allDone && !editMode) {
     return (
       <div style={{ background:"#F5F6FA", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
@@ -455,7 +497,7 @@ export default function DailyUpdateForm({
           <p style={{ fontSize:20, fontWeight:900, color:"#111111", margin:"0 0 8px", fontFamily:"var(--font-jakarta)" }}>Daily Update Submitted!</p>
           <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 20px" }}>Great work, {firstName}. See you tomorrow!</p>
           <button onClick={() => {
-            const cur = existingUpdateRef.current ?? {}
+            const cur = activeUpdate ?? existingUpdateRef.current ?? {}
             setTimeBlocks(parseExistingBlocks(cur))
             setShoots(parseExistingShoots(cur))
             setEdits(parseExistingEdits(cur))
@@ -464,7 +506,7 @@ export default function DailyUpdateForm({
             if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
           }}
             style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 24px", borderRadius:12, border:"1.5px solid #DE1A1A", background:"#FFFFFF", color:"#DE1A1A", fontSize:13, fontWeight:700, cursor:"pointer" }}>
-            Edit Today&apos;s Update
+            Edit {isToday ? "Today's" : dateLabel.split(",")[0] + "'s"} Update
           </button>
         </div>
       </div>
@@ -542,6 +584,42 @@ export default function DailyUpdateForm({
         </div>
       </div>
 
+
+      {/* ── DATE SELECTOR ────────────────────────────────────────────────── */}
+      <div style={{ background:"#FFFFFF", borderRadius:14, border: isPastDate ? "1.5px solid #F59E0B" : "1px solid #EBEDF2", padding:"10px 16px", display:"flex", alignItems:"center", gap:12, marginBottom:16, boxShadow:"0 1px 4px rgba(0,0,0,0.05)", flexWrap:"wrap" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, flex:1, minWidth:200 }}>
+          <div style={{ width:32, height:32, borderRadius:10, background: isPastDate ? "rgba(245,158,11,0.12)" : "rgba(222,26,26,0.08)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+            <Calendar size={15} style={{ color: isPastDate ? "#D97706" : "#DE1A1A" }} />
+          </div>
+          <div>
+            <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 1px" }}>
+              {isPastDate ? "Submitting for past date" : "Submitting for today"}
+            </p>
+            <p style={{ fontSize:13, fontWeight:800, color: isPastDate ? "#D97706" : "#111827", margin:0 }}>
+              {dateLabel}
+            </p>
+          </div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          {isPastDate && (
+            <button onClick={() => handleDateChange(todayStr)}
+              style={{ fontSize:11, fontWeight:700, padding:"5px 12px", borderRadius:8, border:"1.5px solid #DE1A1A", background:"rgba(222,26,26,0.06)", color:"#DE1A1A", cursor:"pointer", whiteSpace:"nowrap" }}>
+              Back to Today
+            </button>
+          )}
+          <label style={{ fontSize:11, fontWeight:700, color:"#6B7280", display:"flex", alignItems:"center", gap:6, cursor:"pointer" }}>
+            <span style={{ whiteSpace:"nowrap" }}>{isPastDate ? "Change date" : "Pick past date"}</span>
+            <input
+              type="date"
+              value={selectedDate}
+              max={todayStr}
+              min={(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split("T")[0] })()}
+              onChange={e => e.target.value && handleDateChange(e.target.value)}
+              style={{ fontSize:12, fontWeight:600, color:"#374151", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }}
+            />
+          </label>
+        </div>
+      </div>
 
       {/* ── TABS (media team only) ────────────────────────────────────────── */}
       {isMediaTeam && (

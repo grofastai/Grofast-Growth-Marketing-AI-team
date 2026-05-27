@@ -42,6 +42,7 @@ export const workEntrySchema = z.object({
 export const dailyUpdateSchema = z
   .object({
     active_tab:   z.enum(['working', 'media', 'learning']),
+    date:         z.string().optional(),
 
     work_entries:       z.array(workEntrySchema).optional().default([]),
     links:              z.array(z.string()).optional().default([]),

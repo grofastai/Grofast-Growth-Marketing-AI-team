@@ -35,8 +35,10 @@ export async function submitDailyUpdate(
 
   if (!profile?.company_id) return { success: false, error: 'Profile not found — re-login required' }
 
-  const today = new Date().toISOString().split('T')[0]
+  const todayStr = new Date().toISOString().split('T')[0]
   const d = parsed.data
+  const today = d.date ?? todayStr
+  const isPastDate = today !== todayStr
 
   // Total working hours = sum of all entry durations
   const totalWorkHours = d.work_entries.reduce((sum, e) => sum + e.duration_hours, 0)
@@ -115,9 +117,9 @@ export async function submitDailyUpdate(
     if (insertError) return { success: false, error: insertError.message }
   }
 
-  // WhatsApp notification to admin — only on first submission
+  // WhatsApp notification to admin — only on first submission of today's update
   try {
-    if (!isFirstSubmission) {
+    if (!isFirstSubmission || isPastDate) {
       revalidatePath('/member/update')
       revalidatePath('/member/dashboard')
       revalidatePath('/admin/activities')

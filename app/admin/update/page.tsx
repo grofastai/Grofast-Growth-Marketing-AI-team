@@ -31,21 +31,38 @@ export default async function AdminUpdatePage() {
     .eq("id", user.id)
     .single()
 
-  const { data: projectsRaw } = await admin
-    .from("projects")
-    .select("id, business_name")
-    .eq("company_id", profile?.company_id ?? "")
-    .eq("status", "active")
-    .order("business_name")
+  const companyId = profile?.company_id ?? ""
 
-  const { data: existingUpdate } = await admin
-    .from("daily_updates")
-    .select("id, date, working_hours, shoot_count, editing_count, learning_hours, active_tab")
-    .eq("user_id", user.id)
-    .eq("date", today)
-    .maybeSingle()
+  const [{ data: projectsRaw }, { data: supabaseClientsRaw }, { data: existingUpdate }, { data: pastUpdates }] = await Promise.all([
+    admin
+      .from("projects")
+      .select("id, business_name")
+      .eq("company_id", companyId)
+      .eq("status", "active")
+      .order("business_name"),
+    admin
+      .from("clients")
+      .select("name")
+      .eq("company_id", companyId)
+      .in("status", ["active", "past"])
+      .order("name"),
+    admin
+      .from("daily_updates")
+      .select("id, date, working_hours, shoot_count, editing_count, learning_hours, active_tab, work_entries, learning_topic, learning_notes")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .maybeSingle(),
+    admin
+      .from("daily_updates")
+      .select("id, date, working_hours, learning_hours, shoot_count, editing_count, work_entries, active_tab, learning_topic")
+      .eq("user_id", user.id)
+      .neq("date", today)
+      .order("date", { ascending: false })
+      .limit(30),
+  ])
 
   const projects = (projectsRaw ?? []) as unknown as Project[]
+  const clientNames = (supabaseClientsRaw ?? []).map((c: { name: string }) => c.name)
 
   return (
     <Suspense fallback={
@@ -55,9 +72,11 @@ export default async function AdminUpdatePage() {
     }>
       <DailyUpdateForm
         projects={projects}
+        sheetClientNames={clientNames}
         team={profile?.team ?? null}
         userName={(profile as { name?: string } | null)?.name ?? ""}
         existingUpdate={existingUpdate ?? null}
+        pastUpdates={pastUpdates ?? []}
       />
     </Suspense>
   )

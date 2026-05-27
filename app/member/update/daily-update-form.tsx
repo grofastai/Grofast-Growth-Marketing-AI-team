@@ -52,8 +52,8 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
   function commit(newH12: number, newM: number, newIsPM: boolean) {
     const clamped12 = Math.min(12, Math.max(1, newH12))
     const clampedM  = Math.min(59, Math.max(0, newM))
-    let h = clamped12 % 12 + (newIsPM ? 12 : 0)
-    if (h === 12 && !newIsPM) h = 0   // 12 AM → 00
+    const effectivePM = clamped12 === 12 ? true : newIsPM  // 12 is always noon, never midnight
+    const h = clamped12 % 12 + (effectivePM ? 12 : 0)
     onChange(`${String(h).padStart(2, "0")}:${String(clampedM).padStart(2, "0")}`)
   }
 
@@ -68,7 +68,7 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
       <input
         className="time-num"
         type="number" min={1} max={12} value={hour12}
-        onChange={e => { const h = Number(e.target.value); commit(h, m24, h === 12 ? true : isPM) }}
+        onChange={e => commit(Number(e.target.value), m24, isPM)}
         style={numStyle}
       />
       <span style={{ fontSize:13, fontWeight:700, color:"#9CA3AF" }}>:</span>

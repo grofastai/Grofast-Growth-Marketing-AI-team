@@ -21,7 +21,7 @@ export default async function GoalsPage() {
     .from("users").select("company_id").eq("id", user!.id).single()
   const cid = profile?.company_id as string
 
-  const [{ data: tasks }, { data: members }, { data: projects }] = await Promise.all([
+  const [{ data: tasks }, { data: members }, { data: projects }, { data: clients }] = await Promise.all([
     admin.from("tasks")
       .select("*, users!tasks_assigned_to_fkey(id, name, employee_id, team), creator:users!tasks_created_by_fkey(id, name, photo_url), projects(id, business_name)")
       .eq("company_id", cid)
@@ -37,7 +37,12 @@ export default async function GoalsPage() {
       .eq("company_id", cid)
       .eq("status", "active")
       .order("business_name"),
+    admin.from("clients")
+      .select("id, name")
+      .eq("company_id", cid)
+      .eq("status", "active")
+      .order("name"),
   ])
 
-  return <GoalsClient tasks={tasks ?? []} members={members ?? []} projects={projects ?? []} />
+  return <GoalsClient tasks={tasks ?? []} members={members ?? []} projects={projects ?? []} clients={(clients ?? []) as { id: string; name: string }[]} />
 }

@@ -197,8 +197,8 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
 const OWN_BRANDS = ["Masala Unlimit", "Kutty Karthi Vlog", "GroFast Digital", "A2Z Automobile", "Kaka Mutta"]
 
 // ── Main Component ───────────────────────────────────────────────────────────
-export default function GoalsClient({ tasks: initialTasks, members, projects }: {
-  tasks: Task[]; members: Member[]; projects: Project[]
+export default function GoalsClient({ tasks: initialTasks, members, projects, clients = [] }: {
+  tasks: Task[]; members: Member[]; projects: Project[]; clients?: { id: string; name: string }[]
 }) {
   const router = useRouter()
   const [tasks, setTasks] = useState(initialTasks)
@@ -716,7 +716,10 @@ export default function GoalsClient({ tasks: initialTasks, members, projects }: 
                       <option value="">Select client…</option>
                       <option value="Promotion">📣 Our Brand (Promotion)</option>
                       <option value="__custom__">✏️ Other (type manually)</option>
-                      {projects.map(p => <option key={p.id} value={p.business_name}>{p.business_name}</option>)}
+                      {[
+                        ...projects.map(p => p.business_name),
+                        ...clients.map(c => c.name).filter(n => !projects.some(p => p.business_name === n)),
+                      ].sort().map(name => <option key={name} value={name}>{name}</option>)}
                     </select>
                     {mediaClientType === "Promotion" && (
                       <select value={mediaBrand} onChange={e => setMediaBrand(e.target.value)} className="ti">

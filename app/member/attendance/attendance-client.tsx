@@ -485,7 +485,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             <div className="space-y-3">
               {[
                 { label: "Status",     value: isAbsent ? "Absent" : (isIn || isDone) ? "Present" : "Not Logged", color: isAbsent ? "#EF4444" : (isIn || isDone) ? "#22C55E" : "#9CA3AF" },
-                { label: "Work Mode",  value: todayLog?.work_type ? (todayLog.work_type === "wfh" ? "Work From Home" : "Office") : "—", color: "#111111" },
+                { label: "Work Mode",  value: todayLog?.work_type === "wfh" ? "Work From Home" : todayLog?.work_type === "shoot" ? "Shoot (Outside)" : todayLog?.work_type === "office" ? "Office" : "—", color: "#111111" },
                 { label: "Log In",     value: fmtTime(todayLog?.clock_in ?? null), color: "#111111" },
                 { label: "Log Out",    value: fmtTime(todayLog?.clock_out ?? null), color: "#111111" },
               ].map(row => (
@@ -712,7 +712,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
                 { label: "Status",    value: historyLog.status === "present" ? "Present" : "Absent", color: historyLog.status === "present" ? "#22C55E" : "#EF4444" },
-                { label: "Work Mode", value: historyLog.work_type === "wfh" ? "WFH" : historyLog.work_type === "office" ? "Office" : "—", color: "#111111" },
+                { label: "Work Mode", value: historyLog.work_type === "wfh" ? "WFH" : historyLog.work_type === "shoot" ? "Shoot (Outside)" : historyLog.work_type === "office" ? "Office" : "—", color: "#111111" },
                 { label: "Log In",    value: fmtTime(historyLog.clock_in), color: "#111111" },
                 { label: "Log Out",   value: historyLog.clock_out ? fmtTime(historyLog.clock_out) : "—", color: historyLog.clock_out ? "#111111" : "#EF4444" },
               ].map(r => (

@@ -261,7 +261,7 @@ async function interpretAttendanceText(
 Return JSON only, no explanation: {"work_type":"office"|"wfh"|"shoot"|"leave","present":true|false}`,
       }],
     })
-    const text = msg.content[0].type === 'text' ? msg.content[0].text : ''
+    const text = msg.content.length > 0 && msg.content[0].type === 'text' ? msg.content[0].text : ''
     const parsed = JSON.parse(text.trim())
     if (!['office', 'wfh', 'shoot', 'leave'].includes(parsed.work_type)) return null
     if (typeof parsed.present !== 'boolean') return null

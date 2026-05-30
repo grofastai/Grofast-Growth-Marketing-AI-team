@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
   const { data: employees, error: empError } = await admin
     .from('users')
-    .select('id, name, phone, company_id')
+    .select('id, name, phone')
     .eq('role', 'MEMBER')
     .eq('status', 'active')
     .not('phone', 'is', null)
@@ -90,7 +90,10 @@ export async function GET(request: NextRequest) {
           { index: 1, payload: 'attendance_wfh' },
           { index: 2, payload: 'attendance_leave' },
         ]
-      ).catch(() => false)
+      ).catch((err) => {
+        console.error(`[attendance-nudge] failed to send to ${emp.name} (${formatPhone(emp.phone)}):`, err)
+        return false
+      })
       if (ok) sent++
     })
   )

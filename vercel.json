@@ -18,7 +18,7 @@
     },
     {
       "path": "/api/cron/note-reminders",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 9 * * *"
     },
     {
       "path": "/api/cron/birthdays",
@@ -31,6 +31,10 @@
     {
       "path": "/api/cron/cleanup-tasks",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/attendance-nudge",
+      "schedule": "30 4 * * *"
     }
   ]
 }

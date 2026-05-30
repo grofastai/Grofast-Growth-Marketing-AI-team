@@ -71,6 +71,34 @@ export async function updateKYC(data: {
   return { success: true }
 }
 
+export async function uploadProfessionalPhoto(formData: FormData): Promise<{ success?: boolean; url?: string; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized' }
+
+  const file = formData.get('file') as File | null
+  if (!file) return { error: 'No file provided' }
+  if (file.size > 3 * 1024 * 1024) return { error: 'File too large (max 3MB)' }
+
+  const admin = adminSupabase()
+  const { data: prof } = await admin.from('users').select('company_id').eq('id', user.id).single()
+  if (!prof) return { error: 'Not found' }
+
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+  const path = `${prof.company_id}/${user.id}.${ext}`
+  const buf = Buffer.from(await file.arrayBuffer())
+
+  const { error: upErr } = await admin.storage
+    .from('passport-photos')
+    .upload(path, buf, { contentType: file.type, upsert: true })
+  if (upErr) return { error: upErr.message }
+
+  const { data: { publicUrl } } = admin.storage.from('passport-photos').getPublicUrl(path)
+  await admin.from('users').update({ passport_photo_url: publicUrl }).eq('id', user.id)
+  revalidatePath('/member/profile')
+  return { success: true, url: publicUrl }
+}
+
 export type KYCDocField = 'govt_id_url' | 'aadhaar_back_url' | 'pan_front_url' | 'pan_back_url' | 'ration_card_url' | 'ration_card_url2'
 
 export async function deleteKYCDocument(
@@ -106,4 +134,22 @@ export async function deleteKYCDocument(
   if (error) return { success: false, error: error.message }
   revalidatePath('/member/profile')
   return { success: true }
+}
+
+export async function getMyPayslipHistory(): Promise<
+  { month: string; is_paid: boolean; paid_at: string | null }[]
+> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const admin = adminSupabase()
+  const { data } = await admin
+    .from('payroll_runs')
+    .select('month, is_paid, paid_at')
+    .eq('user_id', user.id)
+    .order('month', { ascending: false })
+    .limit(12)
+
+  return (data ?? []) as { month: string; is_paid: boolean; paid_at: string | null }[]
 }

@@ -3,6 +3,7 @@ export const revalidate = 60
 import { createServerClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import ProfileClient from "./profile-client"
+import { getMyPayslipHistory } from "@/lib/actions/profile"
 
 export default async function ProfilePage() {
   const supabase = await createServerClient()
@@ -31,6 +32,7 @@ export default async function ProfilePage() {
     email: string | null; phone: string | null
     status: string; created_at: string
     photo_url: string | null
+    passport_photo_url: string | null
     position: string | null
     blood_group: string | null
     address: string | null
@@ -56,7 +58,7 @@ export default async function ProfilePage() {
   ] = await Promise.all([
     supabase
       .from("users")
-      .select("name, employee_id, role, email, phone, status, created_at, photo_url, position, blood_group, address, emergency_contact_name, emergency_contact_phone")
+      .select("name, employee_id, role, email, phone, status, created_at, photo_url, passport_photo_url, position, blood_group, address, emergency_contact_name, emergency_contact_phone")
       .eq("id", user.id)
       .single(),
     supabase
@@ -80,6 +82,8 @@ export default async function ProfilePage() {
       .eq("user_id", user.id)
       .maybeSingle(),
   ])
+
+  const payslipHistory = await getMyPayslipHistory()
 
   const profile    = profileRaw as unknown as ProfileRow | null
   const kyc        = kycRaw as unknown as KYCRow | null
@@ -132,6 +136,7 @@ export default async function ProfilePage() {
         status:      profile.status,
         joined,
         photo_url:               profile.photo_url ?? null,
+        passport_photo_url:      profile.passport_photo_url ?? null,
         position:                profile.position ?? null,
         blood_group:             profile.blood_group ?? null,
         address:                 profile.address ?? null,
@@ -149,6 +154,7 @@ export default async function ProfilePage() {
       chartData={sevenDayChart}
       recentUpdates={recentUpdates}
       authEmail={user.email ?? ""}
+      payslipHistory={payslipHistory}
     />
   )
 }

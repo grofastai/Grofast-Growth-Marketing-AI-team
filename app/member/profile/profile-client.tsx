@@ -11,14 +11,14 @@ import {
   ChevronRight, Bell, Settings, Lock, FolderOpen, User, Download,
 } from "lucide-react"
 import { updateOwnProfile } from "@/lib/actions/team"
-import { updatePersonalDetails, updateKYC, deleteKYCDocument, type KYCDocField } from "@/lib/actions/profile"
+import { updatePersonalDetails, updateKYC, deleteKYCDocument, uploadProfessionalPhoto, type KYCDocField } from "@/lib/actions/profile"
 import { logoutAction } from "@/lib/actions/auth"
 import { createBrowserClient } from "@/lib/supabase/client"
 
 interface ProfileData {
   id: string; name: string; employee_id: string; role: string
   email: string; phone: string; status: string; joined: string
-  photo_url: string | null; position: string | null
+  photo_url: string | null; passport_photo_url: string | null; position: string | null
   blood_group: string | null; address: string | null
   emergency_contact_name: string | null; emergency_contact_phone: string | null
 }
@@ -123,10 +123,11 @@ function WeekChart({ data }: { data: ChartDay[] }) {
 const DOT_COLORS = ["#DE1A1A", "#F59E0B", "#3B82F6", "#22C55E", "#8B5CF6"]
 
 export default function ProfileClient({
-  profile, kyc, stats, chartData, recentUpdates, authEmail,
+  profile, kyc, stats, chartData, recentUpdates, authEmail, payslipHistory,
 }: {
   profile: ProfileData | null; kyc: KYCData | null; stats: Stats
   chartData: ChartDay[]; recentUpdates: RecentUpdate[]; authEmail: string
+  payslipHistory: { month: string; is_paid: boolean; paid_at: string | null }[]
 }) {
   const router = useRouter()
 
@@ -160,7 +161,8 @@ export default function ProfileClient({
   const [kycSuccess, setKycSuccess] = useState(false)
   const [uploadingField, setUploadingField] = useState<string | null>(null)
 
-  const photoRef = useRef<HTMLInputElement>(null)
+  const photoRef    = useRef<HTMLInputElement>(null)
+  const profPhotoRef = useRef<HTMLInputElement>(null)
   const docRefs: Record<KYCDocField, RefObject<HTMLInputElement | null>> = {
     govt_id_url:      useRef<HTMLInputElement>(null),
     aadhaar_back_url: useRef<HTMLInputElement>(null),
@@ -169,8 +171,11 @@ export default function ProfileClient({
     ration_card_url:  useRef<HTMLInputElement>(null),
     ration_card_url2: useRef<HTMLInputElement>(null),
   }
-  const [photoBusy, setPhotoBusy]   = useState(false)
-  const [photoError, setPhotoError] = useState<string | null>(null)
+  const [photoBusy, setPhotoBusy]         = useState(false)
+  const [photoError, setPhotoError]       = useState<string | null>(null)
+  const [profPhotoBusy, setProfPhotoBusy] = useState(false)
+  const [profPhotoError, setProfPhotoError] = useState<string | null>(null)
+  const [profPhotoUrl, setProfPhotoUrl]   = useState<string | null>(profile?.passport_photo_url ?? null)
   const [showPicker, setShowPicker] = useState(false)
   const [logoutPending, startLogout] = useTransition()
 
@@ -241,6 +246,17 @@ export default function ProfileClient({
       await updatePersonalDetails({ photo_url: json.url }); router.refresh()
     } catch { setPhotoError("Upload failed") } finally { setPhotoBusy(false) }
   }
+  async function handleProfPhotoUpload(file: File) {
+    setProfPhotoBusy(true); setProfPhotoError(null)
+    try {
+      const fd = new FormData(); fd.append("file", file)
+      const res = await uploadProfessionalPhoto(fd)
+      if (res.error) { setProfPhotoError(res.error); return }
+      if (res.url) setProfPhotoUrl(res.url)
+      router.refresh()
+    } catch { setProfPhotoError("Upload failed") } finally { setProfPhotoBusy(false) }
+  }
+
   async function handlePresetPick(url: string) {
     setShowPicker(false); setPhotoBusy(true); setPhotoError(null)
     try {
@@ -758,6 +774,33 @@ export default function ProfileClient({
               <div>
                 <p style={{ fontSize: 14, fontWeight: 800, color: "#111111", margin: 0 }}>My Payslip</p>
                 <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Download your salary slip</p>
+              </div>
+            </div>
+
+            {/* Professional photo upload */}
+            <div style={{ marginBottom: 14, padding: "12px 14px", borderRadius: 12, background: "#F8F9FC", border: "1px solid #EBEDF2" }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "#374151", margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                Professional Photo <span style={{ color: "#9CA3AF", fontWeight: 500, textTransform: "none" }}>— appears in payslip</span>
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 56, height: 56, borderRadius: "50%", overflow: "hidden", flexShrink: 0, border: "2px solid #E5E7EB", background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  {profPhotoUrl
+                    ? <img src={profPhotoUrl} alt="Professional" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : <Camera size={18} style={{ color: "#D1D5DB" }} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <input ref={profPhotoRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleProfPhotoUpload(f); e.target.value = "" }} />
+                  <button
+                    onClick={() => profPhotoRef.current?.click()}
+                    disabled={profPhotoBusy}
+                    style={{ width: "100%", padding: "8px", borderRadius: 10, border: "1.5px dashed #D1D5DB", background: "#fff", fontSize: 12, fontWeight: 600, color: "#374151", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    {profPhotoBusy ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} style={{ color: "#DE1A1A" }} />}
+                    {profPhotoBusy ? "Uploading…" : profPhotoUrl ? "Change Photo" : "Upload Photo"}
+                  </button>
+                  {profPhotoError && <p style={{ fontSize: 11, color: "#DC2626", margin: "4px 0 0" }}>{profPhotoError}</p>}
+                  {profPhotoUrl && !profPhotoError && <p style={{ fontSize: 11, color: "#16A34A", margin: "4px 0 0" }}>✓ Photo saved</p>}
+                </div>
               </div>
             </div>
             <div style={{ marginBottom: 12 }}>

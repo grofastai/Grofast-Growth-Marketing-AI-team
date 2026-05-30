@@ -175,39 +175,42 @@ async function handleAttendanceButtonReply(
   )
 
   const last10 = from.replace(/\D/g, '').slice(-10)
-  const { data: user } = await supabase
+  const { data: user, error: lookupErr } = await supabase
     .from('users')
     .select('id, company_id, name')
     .like('phone', `%${last10}`)
     .eq('role', 'MEMBER')
-    .single()
+    .maybeSingle()
 
-  if (!user) {
-    console.warn(`[whatsapp-webhook] no user for phone ${from}`)
+  if (lookupErr || !user) {
+    console.warn(`[whatsapp-webhook] no unique user for phone ${from}`, lookupErr?.message ?? '')
     return
   }
 
   const today = new Date().toISOString().split('T')[0]
-  const { data: existing } = await supabase
+  const { data: existingRows } = await supabase
     .from('attendance_logs')
     .select('id')
     .eq('company_id', user.company_id)
     .eq('user_id', user.id)
     .eq('date', today)
-    .single()
 
-  if (existing) {
+  if (existingRows && existingRows.length > 0) {
     await sendWhatsAppReply(from, 'Your attendance is already marked for today ✅')
     return
   }
 
   if (buttonId === 'attendance_leave') {
-    await supabase.from('attendance_logs').insert({
+    const { error: leaveErr } = await supabase.from('attendance_logs').insert({
       company_id: user.company_id,
       user_id: user.id,
       date: today,
       status: 'absent',
     })
+    if (leaveErr) {
+      console.error('[whatsapp-webhook] attendance insert error:', leaveErr)
+      return
+    }
     await sendWhatsAppReply(from, 'Got it! Marked as On Leave for today ✅')
     return
   }

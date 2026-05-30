@@ -37,6 +37,7 @@ interface MetaWebhookBody {
         messages?: Array<{
           from?: string
           type?: string
+          text?: { body?: string }
           interactive?: {
             type?: string
             button_reply?: {
@@ -61,6 +62,20 @@ async function processWebhook(body: unknown) {
         if (message.interactive?.type !== 'button_reply') continue
 
         const id = message.interactive.button_reply?.id ?? ''
+
+        // Attendance buttons use no colon — must check before the entityId guard below
+        if (
+          id === 'attendance_office' ||
+          id === 'attendance_wfh' ||
+          id === 'attendance_leave'
+        ) {
+          await handleAttendanceButtonReply(
+            message.from ?? '',
+            id as 'attendance_office' | 'attendance_wfh' | 'attendance_leave'
+          )
+          continue
+        }
+
         const [action, entityId] = id.split(':')
         if (!entityId) continue
 
@@ -148,4 +163,94 @@ async function handleLeaveAction(leaveId: string, action: 'approve' | 'reject') 
       [employeeName, leave.from_date, leave.to_date]
     )
   }
+}
+
+async function handleAttendanceButtonReply(
+  from: string,
+  buttonId: 'attendance_office' | 'attendance_wfh' | 'attendance_leave'
+) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const last10 = from.replace(/\D/g, '').slice(-10)
+  const { data: user } = await supabase
+    .from('users')
+    .select('id, company_id, name')
+    .like('phone', `%${last10}`)
+    .eq('role', 'MEMBER')
+    .single()
+
+  if (!user) {
+    console.warn(`[whatsapp-webhook] no user for phone ${from}`)
+    return
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+  const { data: existing } = await supabase
+    .from('attendance_logs')
+    .select('id')
+    .eq('company_id', user.company_id)
+    .eq('user_id', user.id)
+    .eq('date', today)
+    .single()
+
+  if (existing) {
+    await sendWhatsAppReply(from, 'Your attendance is already marked for today ✅')
+    return
+  }
+
+  if (buttonId === 'attendance_leave') {
+    await supabase.from('attendance_logs').insert({
+      company_id: user.company_id,
+      user_id: user.id,
+      date: today,
+      status: 'absent',
+    })
+    await sendWhatsAppReply(from, 'Got it! Marked as On Leave for today ✅')
+    return
+  }
+
+  const workType = buttonId === 'attendance_office' ? 'office'
+    : buttonId === 'attendance_wfh' ? 'wfh'
+    : 'shoot'
+
+  const { error } = await supabase.from('attendance_logs').insert({
+    company_id: user.company_id,
+    user_id: user.id,
+    date: today,
+    clock_in: new Date().toISOString(),
+    work_type: workType,
+    status: 'present',
+  })
+
+  if (error) {
+    console.error('[whatsapp-webhook] attendance insert error:', error)
+    return
+  }
+
+  const label = workType === 'office' ? 'In Office' : 'Work from Home'
+  await sendWhatsAppReply(from, `Got it! Marked as ${label} for today ✅`)
+  console.log(`[whatsapp-webhook] attendance marked for ${user.name} — ${workType}`)
+}
+
+async function sendWhatsAppReply(to: string, message: string): Promise<void> {
+  const token = process.env.META_WHATSAPP_TOKEN
+  const phoneId = process.env.META_PHONE_NUMBER_ID
+  if (!token || !phoneId) return
+
+  await fetch(`https://graph.facebook.com/v19.0/${phoneId}/messages`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'text',
+      text: { body: message },
+    }),
+  }).catch(err => console.error('[whatsapp-webhook] reply send failed:', err))
 }

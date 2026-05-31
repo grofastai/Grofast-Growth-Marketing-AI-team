@@ -17,6 +17,7 @@ interface WorkEntry {
   notes: string; start_time?: string | null; end_time?: string | null
   screenshot_url?: string | null; video_link?: string | null
   description?: string | null; project_name?: string | null
+  is_multi_client?: boolean; client_names?: string[]
 }
 interface UpdateRow {
   id: string; date: string; attendance_status: string
@@ -154,6 +155,7 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
   // Per-entry edit state
   const [editingKey, setEditingKey]   = useState<string | null>(null) // "updateId:entryIdx"
   const [editDraft, setEditDraft]     = useState<Partial<WorkEntry>>({})
+  const [editEntryStatus, setEditEntryStatus] = useState<"completed" | "in_progress" | "not_started">("not_started")
   const [savingKey, setSavingKey]     = useState<string | null>(null)
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
 
@@ -175,12 +177,19 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
 
   function startEditEntry(updateId: string, entryIdx: number, entry: WorkEntry) {
     setEditingKey(`${updateId}:${entryIdx}`)
+    let notes = entry.notes ?? ""
+    let parsedStatus: "completed" | "in_progress" | "not_started" = "not_started"
+    if (entry.task_type === "other") {
+      const m = notes.match(/^\[(completed|in_progress|not_started)\]$/)
+      if (m) { parsedStatus = m[1] as typeof parsedStatus; notes = "" }
+    }
+    setEditEntryStatus(parsedStatus)
     setEditDraft({
       task_type: entry.task_type,
       title: entry.title,
       client_name: entry.client_name,
       duration_hours: entry.duration_hours,
-      notes: entry.notes,
+      notes,
       start_time: entry.start_time ?? "",
       end_time: entry.end_time ?? "",
       video_link: entry.video_link ?? "",
@@ -191,8 +200,11 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
   async function saveEntry(updateId: string, allEntries: WorkEntry[], entryIdx: number) {
     const key = `${updateId}:${entryIdx}`
     setSavingKey(key)
+    const draftToSave = editDraft.task_type === "other"
+      ? { ...editDraft, notes: `[${editEntryStatus}]` }
+      : editDraft
     const updated = allEntries.map((e, i) =>
-      i === entryIdx ? { ...(e as unknown as Record<string, unknown>), ...editDraft } : (e as unknown as Record<string, unknown>)
+      i === entryIdx ? { ...(e as unknown as Record<string, unknown>), ...draftToSave } : (e as unknown as Record<string, unknown>)
     )
     const result = await updatePastDailyUpdate(updateId, updated)
     if (result.success) {
@@ -576,9 +588,12 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                                   <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{e.title || cfg.label}</span>
                                   <span style={{ fontSize:10, fontWeight:700, color:cfg.color, background:cfg.bg, padding:"2px 8px", borderRadius:99 }}>{cfg.label}</span>
                                 </div>
-                                {e.client_name && (
-                                  <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{e.client_name}</p>
-                                )}
+                                {(e.is_multi_client && e.client_names && e.client_names.length > 0)
+                                  ? <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{e.client_names.join(" · ")}</p>
+                                  : e.client_name
+                                    ? <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{e.client_name}</p>
+                                    : null
+                                }
                                 {(e.notes || e.description) && (
                                   <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{e.notes || e.description}</p>
                                 )}
@@ -693,28 +708,43 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                                     </div>
                                   )}
 
-                                  {/* Other: project name */}
+                                  {/* Other: project name + status */}
                                   {editDraft.task_type === "other" && (
+                                    <>
+                                      <div>
+                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Project / Task Name</label>
+                                        <input
+                                          value={editDraft.project_name ?? ""}
+                                          onChange={ev => setEditDraft(d => ({ ...d, project_name: ev.target.value }))}
+                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
+                                        />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Status</label>
+                                        <select
+                                          value={editEntryStatus}
+                                          onChange={ev => setEditEntryStatus(ev.target.value as typeof editEntryStatus)}
+                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                          <option value="not_started">Not Started</option>
+                                          <option value="in_progress">In Progress</option>
+                                          <option value="completed">Completed ✓</option>
+                                        </select>
+                                      </div>
+                                    </>
+                                  )}
+
+                                  {/* Notes — shoot + edit types only */}
+                                  {editDraft.task_type !== "other" && (
                                     <div>
-                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Project / Task Name</label>
-                                      <input
-                                        value={editDraft.project_name ?? ""}
-                                        onChange={ev => setEditDraft(d => ({ ...d, project_name: ev.target.value }))}
-                                        style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
+                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
+                                      <textarea
+                                        rows={2}
+                                        value={editDraft.notes ?? ""}
+                                        onChange={ev => setEditDraft(d => ({ ...d, notes: ev.target.value }))}
+                                        style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }}
                                       />
                                     </div>
                                   )}
-
-                                  {/* Notes — all types */}
-                                  <div>
-                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
-                                    <textarea
-                                      rows={2}
-                                      value={editDraft.notes ?? ""}
-                                      onChange={ev => setEditDraft(d => ({ ...d, notes: ev.target.value }))}
-                                      style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }}
-                                    />
-                                  </div>
 
                                   <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                                     <button

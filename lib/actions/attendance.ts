@@ -362,7 +362,7 @@ export async function resumeAttendance(date: string): Promise<{ success: boolean
 
   const { data: log } = await admin
     .from('attendance_logs')
-    .select('id, clock_out')
+    .select('id, clock_out, paused_seconds')
     .eq('company_id', ctx.companyId)
     .eq('user_id', ctx.userId)
     .eq('date', date)
@@ -372,9 +372,14 @@ export async function resumeAttendance(date: string): Promise<{ success: boolean
   if (!log) return { success: false, error: 'No attendance record found for today.' }
   if (!log.clock_out) return { success: false, error: 'Already clocked in — not clocked out yet.' }
 
+  // Add the gap between clock_out and now to paused_seconds so the live timer
+  // doesn't count the idle window between logout and the overtime resume click.
+  const gapSeconds = Math.floor((Date.now() - new Date(log.clock_out).getTime()) / 1000)
+  const newPausedSeconds = ((log.paused_seconds as number) ?? 0) + gapSeconds
+
   const { error } = await admin
     .from('attendance_logs')
-    .update({ clock_out: null })
+    .update({ clock_out: null, paused_seconds: newPausedSeconds })
     .eq('id', log.id)
 
   if (error) return { success: false, error: error.message }

@@ -41,6 +41,7 @@ export default async function InsightsPage({
     { data: postsRaw },
     { data: activitiesRaw },
     { data: usersRaw },
+    { data: clientsRaw },
   ] = await Promise.all([
     admin.from('work_logs')
       .select('user_id, activity_id, client_name, hours, unit_count, cost, date')
@@ -54,6 +55,10 @@ export default async function InsightsPage({
     admin.from('users')
       .select('id, name, employee_id, monthly_salary, hourly_rate')
       .eq('company_id', cid).eq('role', 'MEMBER').eq('status', 'active').order('name'),
+    admin.from('clients')
+      .select('name, monthly_fee')
+      .eq('company_id', cid)
+      .order('name'),
   ])
 
   type LogRow  = { user_id: string; activity_id: string; client_name: string | null; hours: number; unit_count: number; cost: number; date: string }
@@ -114,6 +119,28 @@ export default async function InsightsPage({
     clientStats[cn].cost  += l.cost
   }
 
+  // Build fee map: client name → monthly_fee (null if not set)
+  type ClientFeeRow = { name: string; monthly_fee: number | null }
+  const clientFeeMap: Record<string, number | null> = {}
+  for (const c of ((clientsRaw ?? []) as ClientFeeRow[])) {
+    clientFeeMap[c.name] = c.monthly_fee
+  }
+
+  // Profitability: merge cost from work_logs with fee from clients table
+  const profitability = Object.values(clientStats)
+    .filter(c => c.name !== 'Unassigned')
+    .map(c => ({
+      name:    c.name,
+      hours:   c.hours,
+      cost:    c.cost,
+      fee:     clientFeeMap[c.name] ?? null,
+      profit:  clientFeeMap[c.name] != null ? clientFeeMap[c.name]! - c.cost : null,
+      margin:  clientFeeMap[c.name] != null && clientFeeMap[c.name]! > 0
+        ? Math.round(((clientFeeMap[c.name]! - c.cost) / clientFeeMap[c.name]!) * 100)
+        : null,
+    }))
+    .sort((a, b) => (b.fee ?? 0) - (a.fee ?? 0))
+
   // ── Post summary ─────────────────────────────────────────────────────────
   const postsByType: Record<string, number>     = {}
   const postsByPlatform: Record<string, number> = {}
@@ -142,6 +169,7 @@ export default async function InsightsPage({
       activityStats={Object.values(activityStats).sort((a, b) => b.hours - a.hours)}
       memberStats={Object.values(memberStats).sort((a, b) => b.hours - a.hours)}
       clientStats={Object.values(clientStats).filter(c => c.name !== 'Unassigned').sort((a, b) => b.hours - a.hours)}
+      profitability={profitability}
       postsByType={postsByType}
       postsByPlatform={postsByPlatform}
       recentPosts={recentPosts}

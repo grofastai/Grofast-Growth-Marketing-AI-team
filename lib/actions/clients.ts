@@ -46,6 +46,7 @@ export async function addClient(formData: FormData): Promise<{ success: boolean;
   }
 
   revalidatePath('/admin/clients')
+  revalidatePath('/admin/update')
   revalidatePath('/member/update')
   revalidatePath('/member/clients')
   return { success: true }
@@ -65,6 +66,7 @@ export async function updateClientStatus(id: string, status: 'active' | 'past'):
   if (error) return { success: false, error: error.message }
 
   revalidatePath('/admin/clients')
+  revalidatePath('/admin/update')
   revalidatePath('/member/update')
   revalidatePath('/member/clients')
   return { success: true }
@@ -84,6 +86,7 @@ export async function deleteClient(id: string): Promise<{ success: boolean; erro
   if (error) return { success: false, error: error.message }
 
   revalidatePath('/admin/clients')
+  revalidatePath('/admin/update')
   revalidatePath('/member/update')
   revalidatePath('/member/clients')
   return { success: true }
@@ -123,4 +126,24 @@ export async function syncSheetClientsToSupabase(
     revalidatePath('/member/clients')
     revalidatePath('/admin/clients')
   }
+}
+
+export async function updateClientMonthlyFee(
+  name: string,
+  fee: number | null,
+): Promise<{ success: boolean; error?: string }> {
+  const companyId = await getCompanyId()
+  if (!companyId) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { error } = await admin
+    .from('clients')
+    .update({ monthly_fee: fee, updated_at: new Date().toISOString() })
+    .eq('company_id', companyId)
+    .eq('name', name)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/insights')
+  return { success: true }
 }

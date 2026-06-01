@@ -32,12 +32,13 @@ type LogState = {
   activity_id: string
   client_name: string
   hours: string
-  unit_count: string
+  item_titles: string[]   // one entry per produced item; length = unit_count
   notes: string
 }
 
 type PostState = {
   id: string
+  title: string
   client_name: string
   platform: string
   post_type: string
@@ -48,7 +49,7 @@ type PostState = {
 function emptyPost(): PostState {
   return {
     id: crypto.randomUUID(),
-    client_name: '', platform: 'Instagram', post_type: 'Reel',
+    title: '', client_name: '', platform: 'Instagram', post_type: 'Reel',
     post_link: '', notes: '',
   }
 }
@@ -71,8 +72,8 @@ export default function ActivityUpdateForm({
   today: string
   userName: string
   hourlyRate: number
-  existingLogs: Array<{ activity_id: string; client_name: string | null; hours: number; unit_count: number; notes: string | null }>
-  existingPosts: Array<{ client_name: string | null; platform: string; post_type: string; post_link: string | null; notes: string | null }>
+  existingLogs: Array<{ activity_id: string; client_name: string | null; hours: number; unit_count: number; item_titles: string[]; notes: string | null }>
+  existingPosts: Array<{ title: string | null; client_name: string | null; platform: string; post_type: string; post_link: string | null; notes: string | null }>
 }) {
   const router = useRouter()
   const [isPending, start] = useTransition()
@@ -88,11 +89,14 @@ export default function ActivityUpdateForm({
   const [logs, setLogs] = useState<Record<string, LogState>>(() => {
     const m: Record<string, LogState> = {}
     for (const l of existingLogs) {
+      const titles = l.item_titles?.length > 0
+        ? l.item_titles
+        : l.unit_count > 0 ? Array(l.unit_count).fill('') : ['']
       m[l.activity_id] = {
         activity_id: l.activity_id,
         client_name: l.client_name ?? '',
-        hours:       l.hours > 0      ? String(l.hours)      : '',
-        unit_count:  l.unit_count > 0 ? String(l.unit_count) : '',
+        hours:       l.hours > 0 ? String(l.hours) : '',
+        item_titles: titles,
         notes:       l.notes ?? '',
       }
     }
@@ -103,6 +107,7 @@ export default function ActivityUpdateForm({
     existingPosts.length > 0
       ? existingPosts.map(p => ({
           id: crypto.randomUUID(),
+          title: p.title ?? '',
           client_name: p.client_name ?? '',
           platform: p.platform, post_type: p.post_type,
           post_link: p.post_link ?? '', notes: p.notes ?? '',
@@ -118,7 +123,7 @@ export default function ActivityUpdateForm({
         setLogs(l => { const n = { ...l }; delete n[id]; return n })
       } else {
         next.add(id)
-        setLogs(l => ({ ...l, [id]: { activity_id: id, client_name: '', hours: '', unit_count: '', notes: '' } }))
+        setLogs(l => ({ ...l, [id]: { activity_id: id, client_name: '', hours: '', item_titles: [''], notes: '' } }))
       }
       return next
     })
@@ -153,17 +158,21 @@ export default function ActivityUpdateForm({
     }
     const logInputs: WorkLogInput[] = Object.values(logs)
       .filter(l => selected.has(l.activity_id))
-      .map(l => ({
-        activity_id: l.activity_id,
-        client_name: l.client_name,
-        hours:       parseFloat(l.hours)    || 0,
-        unit_count:  parseInt(l.unit_count) || 0,
-        notes:       l.notes,
-      }))
+      .map(l => {
+        const filledTitles = l.item_titles.filter(t => t.trim() !== '')
+        return {
+          activity_id: l.activity_id,
+          client_name: l.client_name,
+          hours:       parseFloat(l.hours) || 0,
+          unit_count:  filledTitles.length || 0,
+          item_titles: filledTitles,
+          notes:       l.notes,
+        }
+      })
     const postInputs: ContentPostInput[] = posts
       .filter(p => p.platform && p.post_type)
       .map(p => ({
-        client_name: p.client_name, platform: p.platform,
+        title: p.title, client_name: p.client_name, platform: p.platform,
         post_type: p.post_type, post_link: p.post_link, notes: p.notes,
       }))
 
@@ -302,7 +311,7 @@ export default function ActivityUpdateForm({
             {Array.from(selected).map(actId => {
               const act = activities.find(a => a.id === actId)
               if (!act) return null
-              const log = logs[actId] ?? { activity_id: actId, client_name: '', hours: '', unit_count: '', notes: '' }
+              const log = logs[actId] ?? { activity_id: actId, client_name: '', hours: '', item_titles: [''], notes: '' }
               const cfg = TEAM_LABELS[act.team_category]
               return (
                 <div key={actId} style={{

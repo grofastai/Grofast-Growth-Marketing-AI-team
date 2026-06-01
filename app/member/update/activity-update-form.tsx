@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useTransition, useMemo, useEffect, useCallback } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, Loader2, Plus, Trash2, Clock, Hash, Play, Square, Timer } from 'lucide-react'
+import { CheckCircle2, Loader2, Plus, Trash2, Clock, Hash } from 'lucide-react'
 import { submitWorkLogs, type Activity, type WorkLogInput, type ContentPostInput } from '@/lib/actions/work-logs'
 
 const TEAM_LABELS: Record<string, { label: string; color: string; bg: string }> = {
@@ -61,26 +61,6 @@ function unitLabel(activity: Activity): string {
   return 'Count'
 }
 
-const TIMER_KEY = 'grofast_active_timer'
-
-type TimerState = {
-  activityId: string
-  activityName: string
-  clientName: string
-  startEpoch: number
-}
-
-function fmtElapsed(ms: number): string {
-  const totalSecs = Math.floor(ms / 1000)
-  const h = Math.floor(totalSecs / 3600)
-  const m = Math.floor((totalSecs % 3600) / 60)
-  const s = totalSecs % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
-
-function elapsedHours(startEpoch: number): number {
-  return Math.round(((Date.now() - startEpoch) / 3600000) * 10) / 10
-}
 
 export default function ActivityUpdateForm({
   activities, clientNames, today, userName, hourlyRate,
@@ -98,72 +78,6 @@ export default function ActivityUpdateForm({
   const [isPending, start] = useTransition()
   const [submitted, setSubmitted] = useState(existingLogs.length > 0 || existingPosts.length > 0)
   const [error, setError] = useState<string | null>(null)
-
-  // ── Live Timer ──────────────────────────────────────────────────────────────
-  const [timerState, setTimerState] = useState<TimerState | null>(() => {
-    if (typeof window === 'undefined') return null
-    try { return JSON.parse(localStorage.getItem(TIMER_KEY) ?? 'null') } catch { return null }
-  })
-  const [elapsed, setElapsed]       = useState(0)
-  const [showTimerPicker, setShowTimerPicker] = useState(false)
-  const [timerActivity, setTimerActivity]     = useState('')
-  const [timerClient, setTimerClient]         = useState('')
-
-  // Tick every second while timer is running
-  useEffect(() => {
-    if (!timerState) { setElapsed(0); return }
-    setElapsed(Date.now() - timerState.startEpoch)
-    const id = setInterval(() => setElapsed(Date.now() - timerState.startEpoch), 1000)
-    return () => clearInterval(id)
-  }, [timerState])
-
-  const startTimer = useCallback(() => {
-    if (!timerActivity) return
-    const act = activities.find(a => a.id === timerActivity)
-    if (!act) return
-    const ts: TimerState = {
-      activityId:   act.id,
-      activityName: act.name,
-      clientName:   timerClient,
-      startEpoch:   Date.now(),
-    }
-    localStorage.setItem(TIMER_KEY, JSON.stringify(ts))
-    setTimerState(ts)
-    setShowTimerPicker(false)
-  }, [timerActivity, timerClient, activities])
-
-  const stopTimer = useCallback(() => {
-    if (!timerState) return
-    const rawHrs = elapsedHours(timerState.startEpoch)
-    const hrs = Math.min(24, Math.max(0.1, rawHrs))
-    const stillExists = activities.find(a => a.id === timerState.activityId)
-    if (!stillExists) {
-      localStorage.removeItem(TIMER_KEY)
-      setTimerState(null)
-      setElapsed(0)
-      return
-    }
-    setSelected(prev => {
-      const next = new Set(prev)
-      next.add(timerState.activityId)
-      return next
-    })
-    setLogs(prev => ({
-      ...prev,
-      [timerState.activityId]: {
-        activity_id: timerState.activityId,
-        client_name: timerState.clientName,
-        hours:       String(hrs),
-        unit_count:  prev[timerState.activityId]?.unit_count ?? '',
-        notes:       prev[timerState.activityId]?.notes ?? '',
-      },
-    }))
-    localStorage.removeItem(TIMER_KEY)
-    setTimerState(null)
-    setElapsed(0)
-    setTimerActivity('')
-    setTimerClient('')
-  }, [timerState, activities])
 
   const [selected, setSelected] = useState<Set<string>>(() => {
     const s = new Set<string>()
@@ -257,10 +171,6 @@ export default function ActivityUpdateForm({
       const res = await submitWorkLogs(today, logInputs, postInputs)
       if (!res.success) { setError(res.error ?? 'Submission failed.'); return }
       setSubmitted(true)
-      // Clear any running timer when the day's update is submitted
-      localStorage.removeItem(TIMER_KEY)
-      setTimerState(null)
-      setElapsed(0)
       router.refresh()
     })
   }
@@ -334,94 +244,6 @@ export default function ActivityUpdateForm({
           )}
         </p>
       </div>
-
-      {/* ── Live Timer Banner ───────────────────────────────────────────────── */}
-      {timerState ? (
-        <div style={{
-          background: 'linear-gradient(135deg, #1A1A2E 0%, #16213E 100%)',
-          borderRadius: 16, padding: '16px 20px', marginBottom: 20,
-          display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
-        }}>
-          <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#22C55E', flexShrink: 0, boxShadow: '0 0 8px #22C55E' }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>
-              Timer Running
-            </p>
-            <p style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {timerState.activityName}{timerState.clientName ? ` · ${timerState.clientName}` : ''}
-            </p>
-          </div>
-          <span style={{ fontSize: 28, fontWeight: 900, color: '#22C55E', fontFamily: 'var(--font-jakarta)', letterSpacing: '-0.02em', flexShrink: 0 }}>
-            {fmtElapsed(elapsed)}
-          </span>
-          <button onClick={stopTimer} style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '10px 18px', borderRadius: 10, border: 'none',
-            background: '#DE1A1A', color: '#FFF', fontSize: 13, fontWeight: 800,
-            cursor: 'pointer', flexShrink: 0,
-            boxShadow: '0 3px 10px rgba(222,26,26,0.5)',
-          }}>
-            <Square size={13} fill="currentColor" /> Stop & Log
-          </button>
-        </div>
-      ) : (
-        <div style={{ marginBottom: 20 }}>
-          {showTimerPicker ? (
-            <div style={{
-              background: '#FFFFFF', borderRadius: 16, border: '1.5px solid #E5E7EB',
-              padding: '16px 18px', boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-            }}>
-              <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', margin: '0 0 14px', fontFamily: 'var(--font-jakarta)' }}>
-                <Timer size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
-                Start Timer
-              </p>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-                <div style={{ flex: 1, minWidth: 160 }}>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 4 }}>Activity</label>
-                  <select value={timerActivity} onChange={e => setTimerActivity(e.target.value)}
-                    style={{ ...SEL, appearance: 'auto', fontSize: 13 }}>
-                    <option value="">— Select activity —</option>
-                    {activities.map(a => <option key={a.id} value={a.id}>{a.emoji} {a.name}</option>)}
-                  </select>
-                </div>
-                <div style={{ flex: 1, minWidth: 160 }}>
-                  <label style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 4 }}>Client</label>
-                  <select value={timerClient} onChange={e => setTimerClient(e.target.value)}
-                    style={{ ...SEL, appearance: 'auto', fontSize: 13 }}>
-                    <option value="">— Select client —</option>
-                    {clientNames.map(n => <option key={n} value={n}>{n}</option>)}
-                    <option value="Internal">Internal / Our Brand</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button onClick={startTimer} disabled={!timerActivity} style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '9px 20px', borderRadius: 10, border: 'none',
-                  background: timerActivity ? '#16A34A' : '#D1D5DB',
-                  color: '#FFF', fontSize: 13, fontWeight: 700,
-                  cursor: timerActivity ? 'pointer' : 'not-allowed',
-                }}>
-                  <Play size={13} fill="currentColor" /> Start
-                </button>
-                <button onClick={() => setShowTimerPicker(false)} style={{ padding: '9px 16px', borderRadius: 10, border: '1px solid #E5E7EB', background: '#F9FAFB', color: '#6B7280', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button onClick={() => setShowTimerPicker(true)} style={{
-              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              padding: '11px 0', borderRadius: 12,
-              border: '1.5px dashed #16A34A', background: 'rgba(22,163,74,0.04)',
-              color: '#16A34A', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            }}>
-              <Timer size={15} /> Start Task Timer
-            </button>
-          )}
-        </div>
-      )}
 
       {/* ── STEP 1: Activity Picker ─────────────────────────────────────────── */}
       <div style={{

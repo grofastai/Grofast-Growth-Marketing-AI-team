@@ -44,7 +44,7 @@ export default async function InsightsPage({
     { data: clientsRaw },
   ] = await Promise.all([
     admin.from('work_logs')
-      .select('user_id, activity_id, client_name, hours, unit_count, cost, date')
+      .select('user_id, activity_id, client_name, hours, unit_count, item_titles, cost, date')
       .eq('company_id', cid).gte('date', dateFrom).lte('date', dateTo),
     admin.from('content_posts')
       .select('user_id, client_name, platform, post_type, date')
@@ -61,7 +61,7 @@ export default async function InsightsPage({
       .order('name'),
   ])
 
-  type LogRow  = { user_id: string; activity_id: string; client_name: string | null; hours: number; unit_count: number; cost: number; date: string }
+  type LogRow  = { user_id: string; activity_id: string; client_name: string | null; hours: number; unit_count: number; item_titles: string[]; cost: number; date: string }
   type PostRow = { user_id: string; client_name: string | null; platform: string; post_type: string; date: string }
   type ActRow  = { id: string; name: string; team_category: string; unit_type: string; emoji: string }
   type UserRow = { id: string; name: string; employee_id: string; monthly_salary: number | null; hourly_rate: number | null }
@@ -85,16 +85,17 @@ export default async function InsightsPage({
   }
 
   // ── Activity stats ────────────────────────────────────────────────────────
-  const activityStats: Record<string, { name: string; emoji: string; team: string; hours: number; count: number; cost: number }> = {}
+  const activityStats: Record<string, { name: string; emoji: string; team: string; hours: number; count: number; cost: number; titles: string[] }> = {}
   for (const l of logs) {
     const act = actMap[l.activity_id]
     if (!act) continue
     if (!activityStats[l.activity_id]) {
-      activityStats[l.activity_id] = { name: act.name, emoji: act.emoji, team: act.team_category, hours: 0, count: 0, cost: 0 }
+      activityStats[l.activity_id] = { name: act.name, emoji: act.emoji, team: act.team_category, hours: 0, count: 0, cost: 0, titles: [] }
     }
-    activityStats[l.activity_id].hours += l.hours
-    activityStats[l.activity_id].count += l.unit_count
-    activityStats[l.activity_id].cost  += l.cost
+    activityStats[l.activity_id].hours  += l.hours
+    activityStats[l.activity_id].count  += l.unit_count
+    activityStats[l.activity_id].cost   += l.cost
+    activityStats[l.activity_id].titles.push(...(l.item_titles ?? []).filter(t => t.trim() !== ''))
   }
 
   // ── Member performance ────────────────────────────────────────────────────

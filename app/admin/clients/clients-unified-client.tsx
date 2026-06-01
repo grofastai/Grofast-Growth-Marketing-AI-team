@@ -148,6 +148,7 @@ export default function ClientsUnifiedClient({
   selectedClientName, selectedClientRow,
   deliverables,
   mode, period, today,
+  dateFrom, dateTo,
 }: {
   activeClients: ClientRow[]
   pastClients:   ClientRow[]
@@ -157,6 +158,8 @@ export default function ClientsUnifiedClient({
   mode: 'month' | 'day'
   period: string
   today: string
+  dateFrom: string
+  dateTo: string
 }) {
   const router = useRouter()
   const [listTab, setListTab] = useState<'active' | 'past'>('active')
@@ -175,8 +178,12 @@ export default function ClientsUnifiedClient({
   }, [allClients, search])
 
   function selectClient(name: string) {
-    const currentMonth = today.slice(0, 7)
-    router.push(`/admin/clients?client=${encodeURIComponent(name)}&mode=month&period=${currentMonth}`)
+    // Default to previous month so data is visible on the 1st of each month
+    const d = new Date()
+    d.setDate(1)
+    d.setMonth(d.getMonth() - 1)
+    const prevMonth = d.toISOString().slice(0, 7)
+    router.push(`/admin/clients?client=${encodeURIComponent(name)}&mode=month&period=${prevMonth}`)
   }
 
   function setMode(newMode: 'month' | 'day') {
@@ -392,14 +399,24 @@ export default function ClientsUnifiedClient({
             {/* ── No data ──────────────────────────────────────────────── */}
             {deliverables && !hasData && (
               <div style={{
-                background: '#FFFFFF', borderRadius: 16, padding: '48px 24px',
+                background: '#FFFFFF', borderRadius: 16, padding: '40px 28px',
                 border: '1px dashed #E5E7EB', textAlign: 'center',
               }}>
                 <div style={{ fontSize: 36, marginBottom: 12 }}>📭</div>
-                <p style={{ fontSize: 14, fontWeight: 700, color: '#374151', margin: '0 0 6px' }}>No work logged for this period</p>
-                <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0 }}>
-                  Make sure team members select &ldquo;{selectedClientRow.name}&rdquo; as the client in their daily updates.
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#374151', margin: '0 0 6px' }}>
+                  No work logged for this period
                 </p>
+                <p style={{ fontSize: 12, color: '#9CA3AF', margin: '0 0 16px' }}>
+                  Searched {fmtDate(dateFrom)}{dateFrom !== dateTo ? ` – ${fmtDate(dateTo)}` : ''} for client name &ldquo;{selectedClientRow.name}&rdquo;
+                </p>
+                <div style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <p style={{ fontSize: 11, color: '#6B7280', margin: 0, background: '#F9FAFB', padding: '6px 14px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+                    Try selecting a different month ← use the month picker above
+                  </p>
+                  <p style={{ fontSize: 11, color: '#6B7280', margin: 0, background: '#F9FAFB', padding: '6px 14px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+                    Members must select &ldquo;{selectedClientRow.name}&rdquo; exactly in their daily update
+                  </p>
+                </div>
               </div>
             )}
 

@@ -47,7 +47,15 @@ export default async function ClientsUnifiedPage({
   const todayStr = new Date().toISOString().split('T')[0]
   const mode = rawMode === 'day' ? 'day' : 'month'
 
-  let period = rawPeriod ?? todayStr.slice(0, 7)
+  // Default to previous month so admins always see data on the first of the month
+  function prevMonthStr(): string {
+    const d = new Date()
+    d.setDate(1)
+    d.setMonth(d.getMonth() - 1)
+    return d.toISOString().slice(0, 7)
+  }
+
+  let period = rawPeriod ?? prevMonthStr()
   if (mode === 'month' && period.length > 7) period = period.slice(0, 7)
   if (mode === 'day'   && period.length < 10) period = todayStr
 
@@ -173,6 +181,8 @@ export default async function ClientsUnifiedPage({
       mode={mode}
       period={period}
       today={todayStr}
+      dateFrom={dateFrom}
+      dateTo={dateTo}
     />
   )
 }

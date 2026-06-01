@@ -117,6 +117,20 @@ export function fmtDate(s: string) {
   })
 }
 
+function inferVideoType(title: string | undefined): string {
+  const t = (title ?? '').toLowerCase()
+  if (t.includes('reel'))        return 'Reel'
+  if (t.includes('short'))       return 'Short'
+  if (t.includes('long'))        return 'Long Form'
+  if (t.includes('story'))       return 'Story'
+  if (t.includes('poster'))      return 'Poster'
+  if (t.includes('voice'))       return 'Voice Over'
+  if (t.includes('ad') || t.includes('campaign')) return 'Ad'
+  if (t.includes('design'))      return 'Design'
+  if (t.includes('edit'))        return 'Editing'
+  return 'Video'
+}
+
 function calcVideoCost(
   video: EditingVideo,
   hourlyRate: number,
@@ -182,24 +196,49 @@ export function computeDeliverables(
 
       } else if (tt === 'edit') {
         let editCost = 0
-        for (const v of entry.editing_videos ?? []) {
-          const vType = (v.video_type ?? 'Unknown').trim()
-          const vCost = calcVideoCost(v, hourly, rateMap)
-          editCost += vCost
-          tm.videoCount++
+        const storedVideos = entry.editing_videos ?? []
 
+        if (storedVideos.length > 0) {
+          // Old/full format: video details stored inside editing_videos array
+          for (const v of storedVideos) {
+            const vType = (v.video_type ?? '').trim() || inferVideoType(entry.title)
+            const vCost = calcVideoCost(v, hourly, rateMap)
+            editCost += vCost
+            tm.videoCount++
+            if (!videoMap[vType]) videoMap[vType] = { videoType: vType, count: 0, totalTimeTaken: 0, totalCost: 0, videos: [] }
+            videoMap[vType].count++
+            videoMap[vType].totalTimeTaken += v.time_taken ?? 0
+            videoMap[vType].totalCost      += vCost
+            videoMap[vType].videos.push({
+              date: row.date, memberName: user.name,
+              videoName: v.video_name ?? entry.title ?? '—', videoType: vType,
+              timeTaken: v.time_taken ?? 0, revisions: v.revisions ?? 0, cost: vCost,
+            })
+          }
+        } else {
+          // Current format: the entry itself IS one video (editing_videos always saved as [])
+          // Infer video type from the title and any flat fields stored on the entry
+          const anyEntry = entry as Record<string, unknown>
+          const vType = ((anyEntry.video_type as string | undefined) ?? '').trim()
+            || inferVideoType(entry.title)
+          const timeTaken = (anyEntry.time_taken as number | undefined) ?? hrs
+          const typeRate  = rateMap[vType.toLowerCase()] ?? 0
+          const laborCost = hourly * timeTaken
+          const vCost     = typeRate + laborCost
+          editCost = vCost
+          tm.videoCount++
           if (!videoMap[vType]) videoMap[vType] = { videoType: vType, count: 0, totalTimeTaken: 0, totalCost: 0, videos: [] }
           videoMap[vType].count++
-          videoMap[vType].totalTimeTaken += v.time_taken ?? 0
+          videoMap[vType].totalTimeTaken += timeTaken
           videoMap[vType].totalCost      += vCost
           videoMap[vType].videos.push({
             date: row.date, memberName: user.name,
-            videoName: v.video_name ?? '—', videoType: vType,
-            timeTaken: v.time_taken ?? 0, revisions: v.revisions ?? 0, cost: vCost,
+            videoName: entry.title ?? '—', videoType: vType,
+            timeTaken, revisions: (anyEntry.revisions as number | undefined) ?? 0, cost: vCost,
           })
         }
         tm.cost += editCost
-        dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'edit', itemCount: (entry.editing_videos ?? []).length, hours: hrs, cost: editCost, label: 'Editing' })
+        dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'edit', itemCount: Math.max(storedVideos.length, 1), hours: hrs, cost: editCost, label: 'Editing' })
 
       } else {
         const cost = hourly * hrs

@@ -366,17 +366,47 @@ export default function ActivityUpdateForm({
                         </div>
                       )}
                       {(act.unit_type === 'count' || act.unit_type === 'both') && (
-                        <div style={{ flex: 1, minWidth: 120 }}>
-                          <label style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 5 }}>
-                            <Hash size={10} style={{ display: 'inline', marginRight: 3 }} />{unitLabel(act)}
-                          </label>
-                          <input
-                            type="number" min="0" step="1"
-                            placeholder="e.g. 3"
-                            value={log.unit_count}
-                            onChange={e => patchLog(actId, { unit_count: e.target.value })}
-                            style={{ ...INP, width: '100%' }}
-                          />
+                        <div style={{ width: '100%' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <label style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                              <Hash size={10} style={{ display: 'inline', marginRight: 3 }} />{unitLabel(act)}
+                            </label>
+                            <span style={{ fontSize: 10, color: '#9CA3AF' }}>{log.item_titles.length} item{log.item_titles.length !== 1 ? 's' : ''}</span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {log.item_titles.map((title, idx) => (
+                              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <input
+                                  type="text"
+                                  placeholder={`Title ${idx + 1} (e.g. Summer Sale Reel)`}
+                                  value={title}
+                                  onChange={e => {
+                                    const next = [...log.item_titles]
+                                    next[idx] = e.target.value
+                                    patchLog(actId, { item_titles: next })
+                                  }}
+                                  style={{ ...INP, flex: 1 }}
+                                />
+                                {log.item_titles.length > 1 && (
+                                  <button
+                                    onClick={() => patchLog(actId, { item_titles: log.item_titles.filter((_, i) => i !== idx) })}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', padding: 4, flexShrink: 0 }}>
+                                    <Trash2 size={13} />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          <button
+                            onClick={() => patchLog(actId, { item_titles: [...log.item_titles, ''] })}
+                            style={{
+                              marginTop: 8, display: 'flex', alignItems: 'center', gap: 5,
+                              padding: '6px 12px', borderRadius: 8,
+                              border: `1px dashed ${cfg.color}`, background: cfg.bg,
+                              color: cfg.color, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                            }}>
+                            <Plus size={11} /> Add Item
+                          </button>
                         </div>
                       )}
                     </div>
@@ -435,7 +465,17 @@ export default function ActivityUpdateForm({
         ) : (
           <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
             {posts.map(post => (
-              <div key={post.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 8, alignItems: 'end' }}>
+              <div key={post.id} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr 1fr auto', gap: 8, alignItems: 'end' }}>
+                <div>
+                  <label style={{ fontSize: 9, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 3 }}>Title</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Summer Sale Reel"
+                    value={post.title}
+                    onChange={e => patchPost(post.id, { title: e.target.value })}
+                    style={{ ...INP, fontSize: 12 }}
+                  />
+                </div>
                 <div>
                   <label style={{ fontSize: 9, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'block', marginBottom: 3 }}>Client</label>
                   <select value={post.client_name} onChange={e => patchPost(post.id, { client_name: e.target.value })} style={{ ...SEL, fontSize: 12, appearance: 'auto' }}>

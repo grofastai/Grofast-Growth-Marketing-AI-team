@@ -40,16 +40,16 @@ export default async function MemberClientsPage() {
     .from("clients")
     .select("name, industry, location, service, package_name, status, contact_name")
     .eq("company_id", profile?.company_id ?? "")
+    .eq("status", "active")
     .order("name")
 
   let activeClients: SheetClient[] = []
-  let pastClients:   SheetClient[] = []
 
   if ((dbClients ?? []).length > 0) {
     // Convert Supabase clients to SheetClient shape for the existing UI
     type DbRow = NonNullable<typeof dbClients>[0]
     const toSheet = (c: DbRow): SheetClient => ({
-      sno: '', client_status: c.status === 'active' ? 'Active' : 'Past',
+      sno: '', client_status: 'Active',
       customer_name: c.contact_name ?? '', company_name: c.name,
       period: '', due_date: '', package_name: c.package_name ?? '',
       payment_status: '', current_month: '', previous_month: '',
@@ -59,24 +59,18 @@ export default async function MemberClientsPage() {
       client_income_stage: '', business_stage: '', email: '',
       source: '', onboarded_month: '', service: c.service ?? '', client_stage: '',
     })
-    activeClients = (dbClients ?? []).filter(c => c.status === 'active').map(toSheet)
-    pastClients   = (dbClients ?? []).filter(c => c.status !== 'active').map(toSheet)
+    activeClients = (dbClients ?? []).map(toSheet)
   } else {
     // Fallback to Google Sheets if Supabase clients are not yet synced
     const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
     const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
-    const pastGid  = process.env.GOOGLE_PAST_CLIENTS_SHEET_GID
     if (sheetId) {
-      const [rawActive, rawPast] = await Promise.all([
-        fetchSheetClients(sheetId, sheetGid).catch(() => []),
-        pastGid ? fetchSheetClients(sheetId, pastGid).catch(() => []) : Promise.resolve([]),
-      ])
+      const rawActive = await fetchSheetClients(sheetId, sheetGid).catch(() => [])
       activeClients = stripFinancialFields(rawActive)
-      pastClients   = stripFinancialFields(rawPast)
     }
   }
 
-  const total = activeClients.length + pastClients.length
+  const total = activeClients.length
 
   return (
     <div style={{ padding: "24px 20px", maxWidth: 900, margin: "0 auto" }}>
@@ -92,7 +86,7 @@ export default async function MemberClientsPage() {
             {total}
           </span>
         </div>
-        <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0 }}>All clients your team is working with</p>
+        <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0 }}>Active clients your team is currently working with</p>
       </div>
 
       {/* Active clients */}
@@ -106,21 +100,6 @@ export default async function MemberClientsPage() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {activeClients.map((c, i) => <ClientRow key={i} c={c} isPast={false} />)}
-          </div>
-        </section>
-      )}
-
-      {/* Past clients */}
-      {pastClients.length > 0 && (
-        <section>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#9CA3AF", flexShrink: 0 }} />
-            <p style={{ fontSize: 12, fontWeight: 800, color: "#374151", margin: 0, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-              Past · {pastClients.length}
-            </p>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {pastClients.map((c, i) => <ClientRow key={i} c={c} isPast={true} />)}
           </div>
         </section>
       )}

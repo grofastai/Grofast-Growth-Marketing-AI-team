@@ -125,7 +125,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
       const checkPosition = (pos: GeolocationPosition) => {
         setGeoLoading(false)
-        if (pos.coords.accuracy > OFFICE_RADIUS) { doClockIn(); return }
         const dist = haversineMeters(pos.coords.latitude, pos.coords.longitude, OFFICE_LAT, OFFICE_LNG)
         if (dist > OFFICE_RADIUS) { setError(`You are ${Math.round(dist)}m from the office (max ${OFFICE_RADIUS}m).`); return }
         doClockIn()

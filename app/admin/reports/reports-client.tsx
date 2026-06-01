@@ -2,7 +2,7 @@
 
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { ChevronLeft, ChevronRight, CalendarDays, MoreHorizontal, Eye } from "lucide-react"
+import { ChevronLeft, ChevronRight, CalendarDays, Eye } from "lucide-react"
 
 interface Performer {
   name: string
@@ -85,28 +85,6 @@ function DonutChart({ pct, color, size = 100 }: { pct: number; color: string; si
   )
 }
 
-// ── Sparkline ──────────────────────────────────────────────────────────────────
-function Spark({ color }: { color: string }) {
-  const paths = [
-    "M0,12 C8,8 16,14 24,10 C32,6 40,11 48,7 C56,3 64,9 72,6",
-    "M0,10 C10,14 20,6 30,10 C40,14 50,4 60,8 C68,11 72,5 80,9",
-    "M0,8 C12,12 24,4 36,8 C48,12 60,3 72,7",
-    "M0,14 C10,8 22,12 32,6 C42,10 54,4 64,9 C70,11 74,6 80,10",
-  ]
-  return (
-    <svg width="80" height="20" viewBox="0 0 80 20" fill="none">
-      <path d={paths[Math.floor(Math.random() * 4)]} stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" />
-    </svg>
-  )
-}
-
-// Deterministic sparkline by index
-const SPARK_PATHS = [
-  "M0,12 C8,8 16,14 24,10 C32,6 40,11 48,7 C56,3 64,9 72,6",
-  "M0,10 C10,14 20,6 30,10 C40,14 50,4 60,8 C68,11 72,5 80,9",
-  "M0,8 C12,12 24,4 36,8 C48,12 60,3 72,7",
-  "M0,14 C10,8 22,12 32,6 C42,10 54,4 64,9 C70,11 74,6 80,10",
-]
 
 export default function ReportsClient({
   date, today,
@@ -125,12 +103,6 @@ export default function ReportsClient({
   // productivity score based on present/total
   const totalMembers = presentCount + absentCount + notUpdatedMembers.length
   const productivityPct = totalMembers > 0 ? Math.round((presentCount / totalMembers) * 100) : 82
-
-  // mood score based on avg hours
-  const avgHours = hasData && topPerformers.length > 0
-    ? topPerformers.reduce((s, p) => s + p.hours, 0) / topPerformers.length
-    : 0
-
 
   return (
     <div style={{ padding: "20px 16px 40px", background: "#F8F9FB", minHeight: "100vh" }} className="sm:px-7">
@@ -289,7 +261,7 @@ export default function ReportsClient({
                 <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 600 }}>
                   <thead>
                     <tr style={{ background: "#F9FAFB" }}>
-                      {["Issue","Status","Due Date","Priority","Assigned To","Progress","Action"].map((col) => (
+                      {["Issue","Status","Due Date","Priority","Assigned To","Action"].map((col) => (
                         <th key={col} style={{ padding: "10px 16px", fontSize: 11, fontWeight: 600, color: "#6B7280", textAlign: "left", whiteSpace: "nowrap", borderBottom: "1px solid #F3F4F6", letterSpacing: "0.04em" }}>
                           {col}
                         </th>
@@ -300,8 +272,6 @@ export default function ReportsClient({
                     {overdueTasks.map((task, i) => {
                       const days = daysOverdue(task.due_date, today)
                       const isHigh = task.priority?.toLowerCase() === "high"
-                      const progPct = Math.max(10, Math.min(90, 60 - days * 5))
-                      const progColor = progPct >= 60 ? "#10B981" : progPct >= 35 ? "#F59E0B" : "#EF4444"
                       const assigneeName = task.assigned_name ?? "Unassigned"
                       const aColor = avatarColor(assigneeName)
                       return (
@@ -358,23 +328,11 @@ export default function ReportsClient({
                               <span style={{ fontSize: 12, fontWeight: 500, color: "#374151" }}>{assigneeName}</span>
                             </div>
                           </td>
-                          {/* Progress */}
-                          <td style={{ padding: "14px 16px", minWidth: 120 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", minWidth: 32 }}>{progPct}%</span>
-                              <div style={{ flex: 1, height: 6, background: "#F3F4F6", borderRadius: 4, overflow: "hidden" }}>
-                                <div style={{ width: `${progPct}%`, height: "100%", background: progColor, borderRadius: 4 }} />
-                              </div>
-                            </div>
-                          </td>
                           {/* Action */}
                           <td style={{ padding: "14px 16px" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <button style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "#374151", background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 7, padding: "5px 12px", cursor: "pointer", whiteSpace: "nowrap" }}>
                                 <Eye size={12} /> View Details
-                              </button>
-                              <button style={{ width: 28, height: 28, background: "#F9FAFB", border: "1px solid #F3F4F6", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                                <MoreHorizontal size={14} style={{ color: "#9CA3AF" }} />
                               </button>
                             </div>
                           </td>
@@ -418,21 +376,10 @@ export default function ReportsClient({
                           <td style={{ padding: "14px 16px" }}>
                             <span style={{ fontSize: 12, color: "#9CA3AF" }}>—</span>
                           </td>
-                          <td style={{ padding: "14px 16px", minWidth: 120 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={{ fontSize: 12, fontWeight: 600, color: "#374151", minWidth: 32 }}>20%</span>
-                              <div style={{ flex: 1, height: 6, background: "#F3F4F6", borderRadius: 4, overflow: "hidden" }}>
-                                <div style={{ width: "20%", height: "100%", background: "#EF4444", borderRadius: 4 }} />
-                              </div>
-                            </div>
-                          </td>
                           <td style={{ padding: "14px 16px" }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <button style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 600, color: "#374151", background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 7, padding: "5px 12px", cursor: "pointer", whiteSpace: "nowrap" }}>
                                 <Eye size={12} /> View Details
-                              </button>
-                              <button style={{ width: 28, height: 28, background: "#F9FAFB", border: "1px solid #F3F4F6", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                                <MoreHorizontal size={14} style={{ color: "#9CA3AF" }} />
                               </button>
                             </div>
                           </td>
@@ -463,9 +410,8 @@ export default function ReportsClient({
 
           {/* Team Productivity */}
           <div style={{ background: "#FFF", borderRadius: 16, border: "1px solid #F3F4F6", padding: "20px" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+            <div style={{ marginBottom: 16 }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>Team Productivity</span>
-              <MoreHorizontal size={16} style={{ color: "#9CA3AF", cursor: "pointer" }} />
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", position: "relative", marginBottom: 12 }}>
               <DonutChart pct={productivityPct} color="#10B981" size={110} />
@@ -474,42 +420,31 @@ export default function ReportsClient({
                 <p style={{ fontSize: 10, color: "#6B7280", margin: 0 }}>Productive</p>
               </div>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "center" }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="18 15 12 9 6 15"/>
-              </svg>
-              <span style={{ fontSize: 12, color: "#10B981", fontWeight: 600 }}>12% vs yesterday</span>
-            </div>
+            <p style={{ fontSize: 11, color: "#9CA3AF", textAlign: "center", margin: 0 }}>
+              {presentCount} of {totalMembers} members present
+            </p>
           </div>
-
 
           </div>{/* end sm 2-col grid */}
 
-          {/* Quick Insights */}
+          {/* Real Insights */}
           <div style={{ background: "#FFF", borderRadius: 16, border: "1px solid #F3F4F6", padding: "20px" }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: "#111827", display: "block", marginBottom: 16 }}>Quick Insights</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: "#111827", display: "block", marginBottom: 16 }}>Day Summary</span>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {[
-                { label: "Completed Tasks", value: topPerformers.length > 0 ? topPerformers.length * 4 + 8 : 24, color: "#10B981", path: SPARK_PATHS[0], icon: "✅" },
-                { label: "Pending Approvals", value: notUpdatedMembers.length + 3, color: "#F59E0B", path: SPARK_PATHS[1], icon: "🟧" },
-                { label: "Meetings Attended", value: presentCount > 0 ? Math.max(1, presentCount - 1) : 5, color: "#8B5CF6", path: SPARK_PATHS[2], icon: "📅" },
-                { label: "Upcoming Tasks", value: totalActiveTasks, color: "#3B82F6", path: SPARK_PATHS[3], icon: "📋" },
-              ].map(({ label, value, color, path, icon }) => (
+                { label: "Members Present",    value: presentCount,               icon: "✅", color: "#10B981" },
+                { label: "Members Absent",     value: absentCount,                icon: "❌", color: "#EF4444" },
+                { label: "Not Submitted",      value: notUpdatedMembers.length,   icon: "⚠️", color: "#F59E0B" },
+                { label: "Active Tasks",       value: totalActiveTasks,           icon: "📋", color: "#3B82F6" },
+                { label: "Overdue Tasks",      value: overdueTasks.length,        icon: "🔴", color: "#DE1A1A" },
+                { label: "Active Projects",    value: activeProjects,             icon: "📁", color: "#8B5CF6" },
+              ].map(({ label, value, icon, color }) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 13 }}>{icon}</span>
-                    <div>
-                      <p style={{ fontSize: 12, color: "#374151", margin: 0, fontWeight: 500 }}>{label}</p>
-                    </div>
+                    <p style={{ fontSize: 12, color: "#374151", margin: 0, fontWeight: 500 }}>{label}</p>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <svg width="60" height="20" viewBox="0 0 80 20" fill="none">
-                      <path d={path} stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" />
-                    </svg>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#111827", minWidth: 24, textAlign: "right" }}>
-                      {String(value).padStart(2, "0")}
-                    </span>
-                  </div>
+                  <span style={{ fontSize: 14, fontWeight: 800, color, fontFamily: "var(--font-jakarta)" }}>{value}</span>
                 </div>
               ))}
             </div>

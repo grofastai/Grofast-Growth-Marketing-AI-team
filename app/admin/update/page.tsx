@@ -44,7 +44,7 @@ export default async function AdminUpdatePage() {
       .from("clients")
       .select("name")
       .eq("company_id", companyId)
-      .in("status", ["active", "past"])
+      .eq("status", "active")
       .order("name"),
     admin
       .from("daily_updates")

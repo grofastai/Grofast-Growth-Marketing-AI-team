@@ -58,15 +58,22 @@ export default function InsightsClient({
   kpis: { totalHours: number; totalCost: number; totalVideos: number; totalPosters: number; totalPosts: number }
 }) {
   const router = useRouter()
-  const [isPending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
   const [editingFee, setEditingFee] = useState<string | null>(null)
   const [feeInput, setFeeInput]     = useState('')
+  const [savingFee, setSavingFee]   = useState<string | null>(null)
   const maxTeamHours = Math.max(...Object.values(teamHours), 1)
 
   function saveFee(clientName: string) {
     const fee = parseFloat(feeInput.replace(/[^\d.]/g, ''))
+    setSavingFee(clientName)
     startTransition(async () => {
-      await updateClientMonthlyFee(clientName, isNaN(fee) ? null : fee)
+      const res = await updateClientMonthlyFee(clientName, isNaN(fee) ? null : fee)
+      setSavingFee(null)
+      if (!res.success) {
+        alert(res.error ?? 'Failed to save fee')
+        return
+      }
       setEditingFee(null)
       router.refresh()
     })
@@ -251,7 +258,7 @@ export default function InsightsClient({
                   const noFee     = c.fee == null
                   const isEditing = editingFee === c.name
                   return (
-                    <tr key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
+                    <tr key={c.name} style={{ borderBottom: '1px solid #F9FAFB' }}>
                       {/* Client */}
                       <td style={{ padding: '12px 16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -278,9 +285,9 @@ export default function InsightsClient({
                               placeholder="₹ monthly fee"
                               style={{ width: 110, padding: '5px 8px', borderRadius: 7, border: '1.5px solid #DE1A1A', fontSize: 12, color: '#111827', background: '#FFF', outline: 'none' }}
                             />
-                            <button onClick={() => saveFee(c.name)} disabled={isPending}
+                            <button onClick={() => saveFee(c.name)} disabled={savingFee === c.name}
                               style={{ padding: '5px 10px', borderRadius: 7, background: '#DE1A1A', color: '#FFF', fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
-                              {isPending ? '…' : 'Save'}
+                              {savingFee === c.name ? '…' : 'Save'}
                             </button>
                             <button onClick={() => setEditingFee(null)}
                               style={{ padding: '5px 8px', borderRadius: 7, background: '#F3F4F6', color: '#6B7280', fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
@@ -316,7 +323,7 @@ export default function InsightsClient({
                             background: isProfit ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)',
                             color: isProfit ? '#16A34A' : '#DC2626',
                           }}>
-                            {c.margin}%
+                            {c.margin != null ? `${c.margin}%` : '—'}
                           </span>
                         )}
                       </td>

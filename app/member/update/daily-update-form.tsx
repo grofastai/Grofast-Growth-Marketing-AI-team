@@ -848,13 +848,13 @@ export default function DailyUpdateForm({
                             <div style={{ marginTop:8 }}>
                               <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Select clients (cost split equally)</p>
                               <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                                {projects.map(p => {
-                                  const selected = block.clientNames.includes(p.business_name)
+                                {allClientOptions.map(name => {
+                                  const selected = block.clientNames.includes(name)
                                   return (
-                                    <button key={p.id} type="button"
-                                      onClick={() => { const next = selected ? block.clientNames.filter(n => n !== p.business_name) : [...block.clientNames, p.business_name]; patchBlock(block.id, { clientNames: next }) }}
+                                    <button key={name} type="button"
+                                      onClick={() => { const next = selected ? block.clientNames.filter(n => n !== name) : [...block.clientNames, name]; patchBlock(block.id, { clientNames: next }) }}
                                       style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${selected ? "#de1a1a" : "#EBEDF2"}`, background: selected ? "rgba(222,26,26,0.08)" : "#F9FAFB", color: selected ? "#de1a1a" : "#6B7280" }}>
-                                      {p.business_name}
+                                      {name}
                                     </button>
                                   )
                                 })}

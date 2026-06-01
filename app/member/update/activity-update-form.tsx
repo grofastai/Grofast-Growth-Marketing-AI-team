@@ -134,7 +134,15 @@ export default function ActivityUpdateForm({
 
   const stopTimer = useCallback(() => {
     if (!timerState) return
-    const hrs = elapsedHours(timerState.startEpoch)
+    const rawHrs = elapsedHours(timerState.startEpoch)
+    const hrs = Math.min(24, Math.max(0.1, rawHrs))
+    const stillExists = activities.find(a => a.id === timerState.activityId)
+    if (!stillExists) {
+      localStorage.removeItem(TIMER_KEY)
+      setTimerState(null)
+      setElapsed(0)
+      return
+    }
     setSelected(prev => {
       const next = new Set(prev)
       next.add(timerState.activityId)
@@ -153,7 +161,9 @@ export default function ActivityUpdateForm({
     localStorage.removeItem(TIMER_KEY)
     setTimerState(null)
     setElapsed(0)
-  }, [timerState])
+    setTimerActivity('')
+    setTimerClient('')
+  }, [timerState, activities])
 
   const [selected, setSelected] = useState<Set<string>>(() => {
     const s = new Set<string>()
@@ -247,6 +257,10 @@ export default function ActivityUpdateForm({
       const res = await submitWorkLogs(today, logInputs, postInputs)
       if (!res.success) { setError(res.error ?? 'Submission failed.'); return }
       setSubmitted(true)
+      // Clear any running timer when the day's update is submitted
+      localStorage.removeItem(TIMER_KEY)
+      setTimerState(null)
+      setElapsed(0)
       router.refresh()
     })
   }

@@ -17,10 +17,12 @@ export type WorkLogInput = {
   client_name: string
   hours: number
   unit_count: number
+  item_titles: string[]
   notes: string
 }
 
 export type ContentPostInput = {
+  title: string
   client_name: string
   platform: string
   post_type: string
@@ -76,6 +78,7 @@ export async function submitWorkLogs(
         client_name: l.client_name || null,
         hours:       l.hours,
         unit_count:  l.unit_count,
+        item_titles: l.item_titles.filter(t => t.trim() !== ''),
         notes:       l.notes || null,
         cost:        Math.round(hourlyRate * l.hours * 100) / 100,
       }))
@@ -92,6 +95,7 @@ export async function submitWorkLogs(
         company_id:  cid,
         user_id:     user.id,
         date,
+        title:       p.title || null,
         client_name: p.client_name || null,
         platform:    p.platform,
         post_type:   p.post_type,
@@ -110,8 +114,8 @@ export async function submitWorkLogs(
 }
 
 export async function getWorkLogsForDate(date: string): Promise<{
-  logs: Array<{ activity_id: string; client_name: string | null; hours: number; unit_count: number; notes: string | null }>
-  posts: Array<{ client_name: string | null; platform: string; post_type: string; post_link: string | null; notes: string | null }>
+  logs: Array<{ activity_id: string; client_name: string | null; hours: number; unit_count: number; item_titles: string[]; notes: string | null }>
+  posts: Array<{ title: string | null; client_name: string | null; platform: string; post_type: string; post_link: string | null; notes: string | null }>
 }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -123,15 +127,15 @@ export async function getWorkLogsForDate(date: string): Promise<{
 
   const [{ data: logs }, { data: posts }] = await Promise.all([
     admin.from('work_logs')
-      .select('activity_id, client_name, hours, unit_count, notes')
+      .select('activity_id, client_name, hours, unit_count, item_titles, notes')
       .eq('user_id', user.id).eq('date', date).eq('company_id', profile.company_id),
     admin.from('content_posts')
-      .select('client_name, platform, post_type, post_link, notes')
+      .select('title, client_name, platform, post_type, post_link, notes')
       .eq('user_id', user.id).eq('date', date).eq('company_id', profile.company_id),
   ])
 
   return {
-    logs:  (logs  ?? []) as Array<{ activity_id: string; client_name: string | null; hours: number; unit_count: number; notes: string | null }>,
-    posts: (posts ?? []) as Array<{ client_name: string | null; platform: string; post_type: string; post_link: string | null; notes: string | null }>,
+    logs:  (logs  ?? []) as Array<{ activity_id: string; client_name: string | null; hours: number; unit_count: number; item_titles: string[]; notes: string | null }>,
+    posts: (posts ?? []) as Array<{ title: string | null; client_name: string | null; platform: string; post_type: string; post_link: string | null; notes: string | null }>,
   }
 }

@@ -48,7 +48,7 @@ export default function InsightsClient({
   month: string
   today: string
   teamHours: Record<string, number>
-  activityStats: Array<{ name: string; emoji: string; team: string; hours: number; count: number; cost: number }>
+  activityStats: Array<{ name: string; emoji: string; team: string; hours: number; count: number; cost: number; titles: string[] }>
   memberStats: Array<{ name: string; employee_id: string; hours: number; cost: number; entries: number }>
   clientStats: Array<{ name: string; hours: number; cost: number }>
   profitability: ProfitRow[]
@@ -170,16 +170,32 @@ export default function InsightsClient({
                 {activityStats.map((a, i) => {
                   const cfg = TEAM_CFG[a.team]
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderBottom: '1px solid #F9FAFB' }}>
-                      <span style={{ fontSize: 17, flexShrink: 0 }}>{a.emoji}</span>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#374151', flex: 1 }}>{a.name}</span>
-                      {a.count > 0 && (
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: `${cfg.color}12`, color: cfg.color, flexShrink: 0 }}>
-                          {a.count} units
-                        </span>
+                    <div key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px' }}>
+                        <span style={{ fontSize: 17, flexShrink: 0 }}>{a.emoji}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#374151', flex: 1 }}>{a.name}</span>
+                        {a.count > 0 && (
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: `${cfg.color}12`, color: cfg.color, flexShrink: 0 }}>
+                            {a.count} units
+                          </span>
+                        )}
+                        <span style={{ fontSize: 12, color: '#6B7280', minWidth: 38, textAlign: 'right', flexShrink: 0 }}>{fmtH(a.hours)}</span>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#111827', minWidth: 58, textAlign: 'right', fontFamily: 'var(--font-jakarta)', flexShrink: 0 }}>{fmtRupee(a.cost)}</span>
+                      </div>
+                      {a.titles.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '0 18px 10px 44px' }}>
+                          {a.titles.slice(0, 5).map((t, ti) => (
+                            <span key={ti} style={{ fontSize: 10, fontWeight: 600, color: '#6B7280', background: '#F3F4F6', borderRadius: 5, padding: '2px 7px', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {t}
+                            </span>
+                          ))}
+                          {a.titles.length > 5 && (
+                            <span style={{ fontSize: 10, fontWeight: 600, color: '#9CA3AF', background: '#F3F4F6', borderRadius: 5, padding: '2px 7px' }}>
+                              +{a.titles.length - 5} more
+                            </span>
+                          )}
+                        </div>
                       )}
-                      <span style={{ fontSize: 12, color: '#6B7280', minWidth: 38, textAlign: 'right', flexShrink: 0 }}>{fmtH(a.hours)}</span>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: '#111827', minWidth: 58, textAlign: 'right', fontFamily: 'var(--font-jakarta)', flexShrink: 0 }}>{fmtRupee(a.cost)}</span>
                     </div>
                   )
                 })}

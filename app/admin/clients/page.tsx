@@ -1,12 +1,18 @@
-export const revalidate = 60
+export const dynamic = 'force-dynamic'
 
-import { createServerClient } from "@/lib/supabase/server"
-import { createClient } from "@supabase/supabase-js"
-import { redirect } from "next/navigation"
-import ProjectsClient from "@/app/admin/projects/projects-client"
-import ClientsSheetView from "./clients-sheet-view"
-import { fetchSheetClients, stripFinancialFields } from "@/lib/google/sheets"
-import { syncSheetClientsToSupabase } from "@/lib/actions/clients"
+import { createServerClient } from '@/lib/supabase/server'
+import { createClient } from '@supabase/supabase-js'
+import { redirect } from 'next/navigation'
+import { fetchSheetClients, stripFinancialFields } from '@/lib/google/sheets'
+import { syncSheetClientsToSupabase } from '@/lib/actions/clients'
+import {
+  computeDeliverables,
+  type MemberUser,
+  type PricingRate,
+  type UpdateRow,
+  type DeliverableResult,
+} from '@/lib/clients-deliverables'
+import ClientsUnifiedClient from './clients-unified-client'
 
 function adminClient() {
   return createClient(
@@ -16,130 +22,157 @@ function adminClient() {
   )
 }
 
-export interface WorkSummary {
-  workTypes: Record<string, number>
-  shoots: number
-  hours: number
-  days: number
+export type ClientRow = {
+  id: string
+  name: string
+  industry: string | null
+  location: string | null
+  service: string | null
+  package_name: string | null
+  status: string
+  contact_name: string | null
 }
 
-export default async function ClientsPage() {
+function lastDayOfMonth(year: number, month: number): string {
+  return new Date(year, month, 0).toISOString().split('T')[0]
+}
+
+export default async function ClientsUnifiedPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ client?: string; mode?: string; period?: string }>
+}) {
+  const { client: selectedClient, mode: rawMode, period: rawPeriod } = await searchParams
+
+  const todayStr = new Date().toISOString().split('T')[0]
+  const mode = rawMode === 'day' ? 'day' : 'month'
+
+  let period = rawPeriod ?? todayStr.slice(0, 7)
+  if (mode === 'month' && period.length > 7) period = period.slice(0, 7)
+  if (mode === 'day'   && period.length < 10) period = todayStr
+
+  let dateFrom: string
+  let dateTo: string
+  if (mode === 'month') {
+    const [y, m] = period.split('-').map(Number)
+    dateFrom = `${period}-01`
+    dateTo   = lastDayOfMonth(y, m)
+  } else {
+    dateFrom = period
+    dateTo   = period
+  }
+
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect("/login")
+  if (!user) redirect('/login')
 
   const admin = adminClient()
-  const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
-  if (!profile) redirect("/login")
+  const { data: profile } = await admin
+    .from('users')
+    .select('company_id, role')
+    .eq('id', user.id)
+    .single()
+  if (!profile) redirect('/login')
+  if (profile.role !== 'ADMIN') redirect('/member/dashboard')
 
   const cid = profile.company_id
+
+  // ── Always: fetch client list ──────────────────────────────────────────────
   const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
   const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
   const pastGid  = process.env.GOOGLE_PAST_CLIENTS_SHEET_GID
 
-  // Build client→workSummary map from Supabase for both paths
-  const buildWorkMap = async (): Promise<Record<string, WorkSummary>> => {
-    const [{ data: projects }, { data: tasks }, { data: updates }] = await Promise.all([
-      admin.from("projects").select("id, business_name, client_name").eq("company_id", cid),
-      admin.from("tasks").select("id, project_id").eq("company_id", cid).not("project_id", "is", null),
-      admin.from("daily_updates")
-        .select("task_id, work_type, shoot_count, working_hours, date")
-        .eq("company_id", cid),
-    ])
+  let activeClients: ClientRow[] = []
+  let pastClients:   ClientRow[] = []
 
-    // task_id → project_id
-    const taskToProject: Record<string, string> = {}
-    for (const t of tasks ?? []) {
-      if (t.project_id) taskToProject[t.id] = t.project_id
-    }
-
-    // project_id → WorkSummary
-    const projectWork: Record<string, { workTypes: Record<string, number>; shoots: number; hours: number; dates: Set<string> }> = {}
-    for (const u of updates ?? []) {
-      const pid = u.task_id ? taskToProject[u.task_id] : null
-      if (!pid) continue
-      if (!projectWork[pid]) projectWork[pid] = { workTypes: {}, shoots: 0, hours: 0, dates: new Set() }
-      const wt = (u.work_type ?? "").toLowerCase().trim()
-      if (wt) projectWork[pid].workTypes[wt] = (projectWork[pid].workTypes[wt] ?? 0) + 1
-      projectWork[pid].shoots += u.shoot_count ?? 0
-      projectWork[pid].hours  += u.working_hours ?? 0
-      if (u.date) projectWork[pid].dates.add(u.date)
-    }
-
-    // client name → WorkSummary (match by business_name or client_name)
-    const map: Record<string, WorkSummary> = {}
-    for (const p of projects ?? []) {
-      const raw = projectWork[p.id]
-      if (!raw) continue
-      const ws: WorkSummary = { workTypes: raw.workTypes, shoots: raw.shoots, hours: raw.hours, days: raw.dates.size }
-      if (p.business_name) map[p.business_name.toLowerCase()] = ws
-      if (p.client_name)   map[p.client_name.toLowerCase()]   = ws
-    }
-    return map
-  }
-
-  // ── Google Sheets path ──────────────────────────────────────────────────────
   if (sheetId) {
-    const [rawActive, rawPast, clientWorkMap] = await Promise.all([
+    const [rawActive, rawPast] = await Promise.all([
       fetchSheetClients(sheetId, sheetGid).catch(() => []),
       pastGid ? fetchSheetClients(sheetId, pastGid).catch(() => []) : Promise.resolve([]),
-      buildWorkMap().catch(() => ({} as Record<string, WorkSummary>)),
     ])
-    const activeClients = stripFinancialFields(rawActive)
-    const pastClients   = stripFinancialFields(rawPast)
+    const stripped     = stripFinancialFields(rawActive)
+    const strippedPast = stripFinancialFields(rawPast)
 
-    // Sync Sheet clients → Supabase so the member panel always reads fresh data
-    const toSyncRow = (c: (typeof activeClients)[0]) => ({
+    const toRow = (c: (typeof stripped)[0], status: string): ClientRow => ({
+      id:           (c.company_name || c.customer_name).toLowerCase().replace(/\s+/g, '-'),
       name:         (c.company_name || c.customer_name).trim(),
-      contact_name: c.customer_name || undefined,
-      industry:     c.industry      || undefined,
-      location:     c.place         || undefined,
-      service:      c.service       || undefined,
-      package_name: c.package_name  || undefined,
+      industry:     c.industry     || null,
+      location:     c.place        || null,
+      service:      c.service      || null,
+      package_name: c.package_name || null,
+      status,
+      contact_name: c.customer_name || null,
     })
+
+    activeClients = stripped.filter(c => c.company_name || c.customer_name).map(c => toRow(c, 'active'))
+    pastClients   = strippedPast.filter(c => c.company_name || c.customer_name).map(c => toRow(c, 'past'))
+
     syncSheetClientsToSupabase(
       cid,
-      activeClients.filter(c => c.company_name || c.customer_name).map(toSyncRow),
-      pastClients.filter(c => c.company_name || c.customer_name).map(toSyncRow),
+      activeClients.map(c => ({ name: c.name, industry: c.industry ?? undefined, location: c.location ?? undefined, service: c.service ?? undefined, package_name: c.package_name ?? undefined })),
+      pastClients.map(c => ({ name: c.name, industry: c.industry ?? undefined, location: c.location ?? undefined, service: c.service ?? undefined, package_name: c.package_name ?? undefined })),
     ).catch(() => {})
-
-    // Also fetch any manually-added Supabase clients not in Google Sheets
-    const { data: dbClients } = await admin
+  } else {
+    const { data: dbRows } = await admin
       .from('clients')
-      .select('id, name, industry, location, service, package_name, status')
+      .select('id, name, industry, location, service, package_name, status, contact_name')
       .eq('company_id', cid)
       .order('name')
-    const sheetNames    = new Set([...activeClients, ...pastClients].map(c => (c.company_name || c.customer_name).toLowerCase()))
-    const dbOnlyClients = (dbClients ?? []).filter((c: { name: string }) => !sheetNames.has(c.name.toLowerCase()))
+    activeClients = ((dbRows ?? []) as ClientRow[]).filter(c => c.status === 'active')
+    pastClients   = ((dbRows ?? []) as ClientRow[]).filter(c => c.status !== 'active')
+  }
 
-    return <ClientsSheetView
+  // ── Conditionally: compute deliverables for selected client ───────────────
+  let deliverables: DeliverableResult | null = null
+  let selectedClientRow: ClientRow | null = null
+
+  if (selectedClient) {
+    const nameLower = selectedClient.toLowerCase()
+    selectedClientRow =
+      [...activeClients, ...pastClients].find(c => c.name.toLowerCase() === nameLower) ?? null
+
+    const [
+      { data: updatesRaw },
+      { data: usersRaw },
+      { data: pricingRaw },
+    ] = await Promise.all([
+      admin
+        .from('daily_updates')
+        .select('id, user_id, date, work_entries')
+        .eq('company_id', cid)
+        .gte('date', dateFrom)
+        .lte('date', dateTo)
+        .order('date', { ascending: false }),
+      admin
+        .from('users')
+        .select('id, name, employee_id, hourly_rate, monthly_salary')
+        .eq('company_id', cid),
+      admin
+        .from('pricing_rates')
+        .select('video_type, rate_per_video')
+        .eq('company_id', cid),
+    ])
+
+    deliverables = computeDeliverables(
+      (updatesRaw ?? []) as UpdateRow[],
+      (usersRaw  ?? []) as MemberUser[],
+      (pricingRaw ?? []) as PricingRate[],
+      selectedClient,
+      dateFrom,
+      dateTo,
+    )
+  }
+
+  return (
+    <ClientsUnifiedClient
       activeClients={activeClients}
       pastClients={pastClients}
-      clientWorkMap={clientWorkMap}
-      dbOnlyClients={dbOnlyClients}
+      selectedClientName={selectedClient ?? null}
+      selectedClientRow={selectedClientRow}
+      deliverables={deliverables}
+      mode={mode}
+      period={period}
+      today={todayStr}
     />
-  }
-
-  // ── Supabase fallback path ─────────────────────────────────────────────────
-  const [{ data: projects }, { data: tasks }] = await Promise.all([
-    admin.from("projects")
-      .select("id, business_name, client_name, location, service_types, status, package_name, start_month, end_month, progress_pct, created_at")
-      .eq("company_id", cid)
-      .order("created_at", { ascending: false }),
-    admin.from("tasks")
-      .select("id, project_id, status")
-      .eq("company_id", cid)
-      .not("project_id", "is", null),
-  ])
-
-  const taskStats: Record<string, { total: number; completed: number; active: number }> = {}
-  for (const t of tasks ?? []) {
-    if (!t.project_id) continue
-    if (!taskStats[t.project_id]) taskStats[t.project_id] = { total: 0, completed: 0, active: 0 }
-    taskStats[t.project_id].total++
-    if (t.status === "completed") taskStats[t.project_id].completed++
-    else taskStats[t.project_id].active++
-  }
-
-  return <ProjectsClient projects={projects ?? []} taskStats={taskStats} />
+  )
 }

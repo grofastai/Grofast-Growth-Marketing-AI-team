@@ -15,7 +15,6 @@ interface AddFreelancerInput {
   employee_id: string
   phone?: string
   specialty?: string
-  password: string
   company_id: string
 }
 
@@ -37,9 +36,10 @@ export async function addFreelancer(input: AddFreelancerInput): Promise<{
 }> {
   if (!input.name.trim())        return { success: false, error: "Name is required" }
   if (!input.employee_id.trim()) return { success: false, error: "Employee ID is required" }
-  if (input.password.length < 6) return { success: false, error: "Password must be at least 6 characters" }
 
   const admin = adminSupabase()
+  // Freelancers never log in — generate a random password they'll never know
+  const password = crypto.randomUUID() + crypto.randomUUID()
 
   // Get the company slug
   const { data: company } = await admin
@@ -62,10 +62,10 @@ export async function addFreelancer(input: AddFreelancerInput): Promise<{
 
   if (existing) return { success: false, error: "Employee ID already exists" }
 
-  // Create auth user
+  // Create auth user (freelancers never log in — password is random and never exposed)
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email,
-    password: input.password,
+    password,
     email_confirm: true,
     user_metadata: { name: input.name },
   })

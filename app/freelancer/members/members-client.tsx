@@ -53,10 +53,9 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
   const [employeeId, setEmployeeId] = useState("")
   const [phone, setPhone] = useState("")
   const [specialty, setSpecialty] = useState("")
-  const [password, setPassword] = useState("")
 
   function resetForm() {
-    setName(""); setEmployeeId(""); setPhone(""); setSpecialty(""); setPassword("")
+    setName(""); setEmployeeId(""); setPhone(""); setSpecialty("")
     setStatus("idle"); setErrorMsg("")
   }
 
@@ -64,7 +63,7 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
     e.preventDefault()
     setStatus("loading")
     setErrorMsg("")
-    const result = await addFreelancer({ name, employee_id: employeeId, phone, specialty, password, company_id: companyId })
+    const result = await addFreelancer({ name, employee_id: employeeId, phone, specialty, company_id: companyId })
     if (result.success && result.freelancer) {
       setFreelancers(prev => [...prev, result.freelancer!])
       setStatus("success")
@@ -172,10 +171,6 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
               <div>
                 <label style={LABEL}>Phone (optional)</label>
                 <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91 98765 43210" style={INPUT} />
-              </div>
-              <div>
-                <label style={LABEL}>Password</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Set a login password" required minLength={6} style={INPUT} />
               </div>
 
               {status === "success" && (

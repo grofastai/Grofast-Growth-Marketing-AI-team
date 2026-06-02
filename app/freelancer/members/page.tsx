@@ -27,7 +27,7 @@ export default async function FreelancerMembersPage() {
 
   const { data: freelancers } = await admin
     .from("users")
-    .select("id, name, employee_id, email, phone, specialty, status, created_at")
+    .select("id, name, employee_id, phone, specialty, status, created_at, vo_number, vo_price_per_min, vo_free_time, vo_total_price, vo_pending, vo_top_rank, vo_video1_name, vo_video1_pay, vo_video2_name, vo_video2_pay, vo_video3_name, vo_video3_pay, vo_video4_name, vo_video4_pay")
     .eq("company_id", profile.company_id)
     .eq("role", "FREELANCER")
     .order("name")

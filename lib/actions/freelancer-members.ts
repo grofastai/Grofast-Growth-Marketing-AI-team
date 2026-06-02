@@ -15,17 +15,45 @@ interface AddFreelancerInput {
   phone?: string
   specialty?: string
   company_id: string
+  // VO rate card
+  vo_number?: number
+  vo_price_per_min?: number
+  vo_free_time?: number
+  vo_total_price?: number
+  vo_pending?: number
+  vo_top_rank?: boolean
+  vo_video1_name?: string
+  vo_video1_pay?: 'paid' | 'unpaid'
+  vo_video2_name?: string
+  vo_video2_pay?: 'paid' | 'unpaid'
+  vo_video3_name?: string
+  vo_video3_pay?: 'paid' | 'unpaid'
+  vo_video4_name?: string
+  vo_video4_pay?: 'paid' | 'unpaid'
 }
 
 interface FreelancerRow {
   id: string
   name: string
   employee_id: string
-  email: string | null
   phone: string | null
   specialty: string | null
   status: string
   created_at: string
+  vo_number: number | null
+  vo_price_per_min: number | null
+  vo_free_time: number | null
+  vo_total_price: number | null
+  vo_pending: number | null
+  vo_top_rank: boolean | null
+  vo_video1_name: string | null
+  vo_video1_pay: string | null
+  vo_video2_name: string | null
+  vo_video2_pay: string | null
+  vo_video3_name: string | null
+  vo_video3_pay: string | null
+  vo_video4_name: string | null
+  vo_video4_pay: string | null
 }
 
 export async function addFreelancer(input: AddFreelancerInput): Promise<{
@@ -75,17 +103,31 @@ export async function addFreelancer(input: AddFreelancerInput): Promise<{
   const { data: newUser, error: dbError } = await admin
     .from("users")
     .insert({
-      id:          authData.user.id,
-      company_id:  input.company_id,
+      id:               authData.user.id,
+      company_id:       input.company_id,
       employee_id,
-      name:        input.name,
+      name:             input.name,
       email,
-      phone:       input.phone?.trim() || null,
-      specialty:   input.specialty?.trim() || null,
-      role:        "FREELANCER",
-      status:      "active",
+      phone:            input.phone?.trim() || null,
+      specialty:        input.specialty?.trim() || null,
+      role:             "FREELANCER",
+      status:           "active",
+      vo_number:        input.vo_number ?? null,
+      vo_price_per_min: input.vo_price_per_min ?? null,
+      vo_free_time:     input.vo_free_time ?? 0,
+      vo_total_price:   input.vo_total_price ?? null,
+      vo_pending:       input.vo_pending ?? 0,
+      vo_top_rank:      input.vo_top_rank ?? false,
+      vo_video1_name:   input.vo_video1_name || null,
+      vo_video1_pay:    input.vo_video1_name ? (input.vo_video1_pay ?? 'unpaid') : null,
+      vo_video2_name:   input.vo_video2_name || null,
+      vo_video2_pay:    input.vo_video2_name ? (input.vo_video2_pay ?? 'unpaid') : null,
+      vo_video3_name:   input.vo_video3_name || null,
+      vo_video3_pay:    input.vo_video3_name ? (input.vo_video3_pay ?? 'unpaid') : null,
+      vo_video4_name:   input.vo_video4_name || null,
+      vo_video4_pay:    input.vo_video4_name ? (input.vo_video4_pay ?? 'unpaid') : null,
     })
-    .select("id, name, employee_id, email, phone, specialty, status, created_at")
+    .select("id, name, employee_id, phone, specialty, status, created_at, vo_number, vo_price_per_min, vo_free_time, vo_total_price, vo_pending, vo_top_rank, vo_video1_name, vo_video1_pay, vo_video2_name, vo_video2_pay, vo_video3_name, vo_video3_pay, vo_video4_name, vo_video4_pay")
     .single()
 
   if (dbError) {

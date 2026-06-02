@@ -1,18 +1,31 @@
 "use client"
 
 import { useState } from "react"
-import { Users, Plus, X, CheckCircle, AlertCircle } from "lucide-react"
+import { Users, Plus, X, CheckCircle, AlertCircle, Star } from "lucide-react"
 import { addFreelancer } from "@/lib/actions/freelancer-members"
 
 interface Freelancer {
   id: string
   name: string
   employee_id: string
-  email: string | null
   phone: string | null
   specialty: string | null
   status: string
   created_at: string
+  vo_number: number | null
+  vo_price_per_min: number | null
+  vo_free_time: number | null
+  vo_total_price: number | null
+  vo_pending: number | null
+  vo_top_rank: boolean | null
+  vo_video1_name: string | null
+  vo_video1_pay: string | null
+  vo_video2_name: string | null
+  vo_video2_pay: string | null
+  vo_video3_name: string | null
+  vo_video3_pay: string | null
+  vo_video4_name: string | null
+  vo_video4_pay: string | null
 }
 
 interface Props {
@@ -20,27 +33,46 @@ interface Props {
   companyId: string
 }
 
-const INPUT = {
+const INPUT: React.CSSProperties = {
   width: "100%",
   padding: "10px 14px",
   borderRadius: 10,
   border: "1.5px solid #E2E8F0",
-  fontSize: 14,
+  fontSize: 13,
   background: "#FAFAFA",
   color: "#1A202C",
   outline: "none",
   fontFamily: "inherit",
-  boxSizing: "border-box" as const,
+  boxSizing: "border-box",
 }
 
-const LABEL = {
-  fontSize: 12,
-  fontWeight: 600 as const,
+const LABEL: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 700,
   color: "#4A5568",
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.06em",
-  marginBottom: 6,
+  textTransform: "uppercase",
+  letterSpacing: "0.07em",
+  marginBottom: 5,
   display: "block",
+}
+
+const NUM_INPUT: React.CSSProperties = {
+  ...INPUT,
+  padding: "9px 12px",
+}
+
+function PayBtn({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button type="button" onClick={onClick} style={{
+      padding: "7px 10px", borderRadius: 7, border: "1.5px solid", fontSize: 10, fontWeight: 700,
+      cursor: "pointer", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap",
+      borderColor: active ? (label === "PAID" ? "#2D6A4F" : "#EF4444") : "#E2E8F0",
+      background: active ? (label === "PAID" ? "rgba(45,106,79,0.1)" : "rgba(239,68,68,0.07)") : "#FAFAFA",
+      color: active ? (label === "PAID" ? "#2D6A4F" : "#EF4444") : "#A0AEC0",
+    }}>
+      {label === "PAID" ? "✓ Paid" : "Unpaid"}
+    </button>
+  )
 }
 
 export default function FreelancerMembersClient({ freelancers: initial, companyId }: Props) {
@@ -49,12 +81,37 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const [errorMsg, setErrorMsg] = useState("")
 
+  // Basic fields
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
   const [specialty, setSpecialty] = useState("")
 
+  // VO rate card
+  const [voNumber, setVoNumber] = useState("")
+  const [voPricePerMin, setVoPricePerMin] = useState("")
+  const [voFreeTime, setVoFreeTime] = useState("0")
+  const [voTotalPrice, setVoTotalPrice] = useState("")
+  const [voPending, setVoPending] = useState("0")
+  const [voTopRank, setVoTopRank] = useState(false)
+  const [voVideos, setVoVideos] = useState<{ name: string; pay: "paid" | "unpaid" }[]>([
+    { name: "", pay: "unpaid" },
+    { name: "", pay: "unpaid" },
+    { name: "", pay: "unpaid" },
+    { name: "", pay: "unpaid" },
+  ])
+
+  function recalcTotal(num: string, price: string, free: string) {
+    const n = parseFloat(num) || 0
+    const p = parseFloat(price) || 0
+    const f = parseFloat(free) || 0
+    const total = Math.max(0, (n - f) * p)
+    setVoTotalPrice(total > 0 ? total.toFixed(2) : "")
+  }
+
   function resetForm() {
     setName(""); setPhone(""); setSpecialty("")
+    setVoNumber(""); setVoPricePerMin(""); setVoFreeTime("0"); setVoTotalPrice(""); setVoPending("0"); setVoTopRank(false)
+    setVoVideos([{ name: "", pay: "unpaid" }, { name: "", pay: "unpaid" }, { name: "", pay: "unpaid" }, { name: "", pay: "unpaid" }])
     setStatus("idle"); setErrorMsg("")
   }
 
@@ -62,7 +119,23 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
     e.preventDefault()
     setStatus("loading")
     setErrorMsg("")
-    const result = await addFreelancer({ name, phone, specialty, company_id: companyId })
+    const result = await addFreelancer({
+      name, phone, specialty, company_id: companyId,
+      vo_number:        voNumber ? parseInt(voNumber) : undefined,
+      vo_price_per_min: voPricePerMin ? parseFloat(voPricePerMin) : undefined,
+      vo_free_time:     parseFloat(voFreeTime) || 0,
+      vo_total_price:   voTotalPrice ? parseFloat(voTotalPrice) : undefined,
+      vo_pending:       parseFloat(voPending) || 0,
+      vo_top_rank:      voTopRank,
+      vo_video1_name:   voVideos[0].name || undefined,
+      vo_video1_pay:    voVideos[0].pay,
+      vo_video2_name:   voVideos[1].name || undefined,
+      vo_video2_pay:    voVideos[1].pay,
+      vo_video3_name:   voVideos[2].name || undefined,
+      vo_video3_pay:    voVideos[2].pay,
+      vo_video4_name:   voVideos[3].name || undefined,
+      vo_video4_pay:    voVideos[3].pay,
+    })
     if (result.success && result.freelancer) {
       setFreelancers(prev => [...prev, result.freelancer!])
       setStatus("success")
@@ -73,16 +146,14 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
     }
   }
 
+  const TABLE_HEADERS = ["VO Artist", "No.", "₹/Min", "Free Time", "Total", "Pending", "Rank", "Video 1", "Pay", "Video 2", "Pay", "Video 3", "Pay", "Video 4", "Pay"]
+
   return (
     <div>
-      {/* Add button */}
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-        <button
-          onClick={() => { setShowAdd(true); resetForm() }}
-          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", background: "#2D6A4F", color: "#FFFFFF", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700 }}
-        >
-          <Plus size={16} />
-          Add Freelancer
+        <button onClick={() => { setShowAdd(true); resetForm() }}
+          style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 18px", background: "#2D6A4F", color: "#FFFFFF", borderRadius: 10, border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700 }}>
+          <Plus size={16} /> Add Freelancer
         </button>
       </div>
 
@@ -96,45 +167,48 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 1100 }}>
               <thead>
                 <tr style={{ background: "#F7FAFC" }}>
-                  {["Name", "What They Do", "Employee ID", "Phone", "Status", "Joined"].map(h => (
-                    <th key={h} style={{ padding: "12px 18px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#718096", textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: "1px solid #E2E8F0", whiteSpace: "nowrap" }}>{h}</th>
+                  {TABLE_HEADERS.map(h => (
+                    <th key={h} style={{ padding: "11px 14px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "#718096", textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: "1px solid #E2E8F0", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {freelancers.map((f, i) => (
                   <tr key={f.id} style={{ borderBottom: i < freelancers.length - 1 ? "1px solid #F7FAFC" : "none" }}>
-                    <td style={{ padding: "14px 18px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(45,106,79,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "#2D6A4F" }}>
-                            {f.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
-                          </span>
+                    <td style={{ padding: "12px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(45,106,79,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#2D6A4F" }}>{f.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}</span>
                         </div>
-                        <span style={{ fontSize: 14, fontWeight: 600, color: "#2D3748", whiteSpace: "nowrap" }}>{f.name}</span>
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 600, color: "#2D3748", margin: 0, whiteSpace: "nowrap" }}>{f.name}</p>
+                          {f.specialty && <p style={{ fontSize: 11, color: "#718096", margin: 0 }}>{f.specialty}</p>}
+                        </div>
                       </div>
                     </td>
-                    <td style={{ padding: "14px 18px" }}>
-                      {f.specialty
-                        ? <span style={{ fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: "rgba(59,130,246,0.08)", color: "#3B82F6" }}>{f.specialty}</span>
-                        : <span style={{ fontSize: 13, color: "#CBD5E0" }}>—</span>}
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#4A5568", textAlign: "center" }}>{f.vo_number ?? "—"}</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#2D3748", whiteSpace: "nowrap" }}>{f.vo_price_per_min != null ? `₹${f.vo_price_per_min}` : "—"}</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#4A5568" }}>{f.vo_free_time != null ? `${f.vo_free_time} min` : "—"}</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, fontWeight: 700, color: "#2D6A4F", whiteSpace: "nowrap" }}>{f.vo_total_price != null ? `₹${f.vo_total_price}` : "—"}</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, fontWeight: 700, color: f.vo_pending ? "#EF4444" : "#A0AEC0", whiteSpace: "nowrap" }}>{f.vo_pending != null ? `₹${f.vo_pending}` : "—"}</td>
+                    <td style={{ padding: "12px 14px", textAlign: "center" }}>
+                      {f.vo_top_rank ? <Star size={16} color="#F59E0B" fill="#F59E0B" /> : <span style={{ fontSize: 12, color: "#CBD5E0" }}>—</span>}
                     </td>
-                    <td style={{ padding: "14px 18px", fontSize: 13, color: "#4A5568", fontFamily: "monospace" }}>{f.employee_id}</td>
-                    <td style={{ padding: "14px 18px", fontSize: 13, color: "#718096", whiteSpace: "nowrap" }}>{f.phone ?? "—"}</td>
-                    <td style={{ padding: "14px 18px" }}>
-                      <span style={{
-                        fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20,
-                        background: f.status === "active" ? "rgba(45,106,79,0.1)" : "rgba(239,68,68,0.08)",
-                        color: f.status === "active" ? "#2D6A4F" : "#EF4444",
-                        textTransform: "uppercase", letterSpacing: "0.06em",
-                      }}>{f.status}</span>
-                    </td>
-                    <td style={{ padding: "14px 18px", fontSize: 12, color: "#A0AEC0", whiteSpace: "nowrap" }}>
-                      {new Date(f.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                    </td>
+                    {[1, 2, 3, 4].map(n => {
+                      const vName = f[`vo_video${n}_name` as keyof Freelancer] as string | null
+                      const vPay  = f[`vo_video${n}_pay`  as keyof Freelancer] as string | null
+                      return [
+                        <td key={`v${n}`} style={{ padding: "12px 14px", fontSize: 12, color: "#2D3748", whiteSpace: "nowrap" }}>{vName || "—"}</td>,
+                        <td key={`p${n}`} style={{ padding: "12px 14px" }}>
+                          {vName
+                            ? <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: vPay === "paid" ? "rgba(45,106,79,0.1)" : "rgba(239,68,68,0.07)", color: vPay === "paid" ? "#2D6A4F" : "#EF4444", textTransform: "uppercase" }}>{vPay}</span>
+                            : <span style={{ fontSize: 12, color: "#CBD5E0" }}>—</span>}
+                        </td>
+                      ]
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -147,25 +221,96 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
       {showAdd && (
         <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)" }} onClick={() => { setShowAdd(false); resetForm() }} />
-          <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 20, padding: 28, width: "100%", maxWidth: 460, boxShadow: "0 20px 60px rgba(0,0,0,0.18)", maxHeight: "90vh", overflowY: "auto" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-              <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1A202C", margin: 0 }}>Add Freelancer</h3>
+          <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 20, padding: 28, width: "100%", maxWidth: 600, boxShadow: "0 20px 60px rgba(0,0,0,0.18)", maxHeight: "92vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22 }}>
+              <h3 style={{ fontSize: 17, fontWeight: 800, color: "#1A202C", margin: 0 }}>Add Voice Over Artist</h3>
               <button onClick={() => { setShowAdd(false); resetForm() }} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
                 <X size={18} color="#718096" />
               </button>
             </div>
-            <form onSubmit={handleAdd} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              <div>
-                <label style={LABEL}>Full Name</label>
-                <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Ravi Kumar" required style={INPUT} />
+
+            <form onSubmit={handleAdd} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+              {/* Basic info */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={LABEL}>Full Name *</label>
+                  <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Ravi Kumar" required style={INPUT} />
+                </div>
+                <div>
+                  <label style={LABEL}>Specialty</label>
+                  <input value={specialty} onChange={e => setSpecialty(e.target.value)} placeholder="e.g. Voice Artist" style={INPUT} />
+                </div>
+                <div>
+                  <label style={LABEL}>Phone</label>
+                  <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91 98765 43210" style={INPUT} />
+                </div>
               </div>
-              <div>
-                <label style={LABEL}>What They Do</label>
-                <input value={specialty} onChange={e => setSpecialty(e.target.value)} placeholder="e.g. Video Editor, Photographer, Voice Artist" style={INPUT} />
+
+              {/* VO Rate Card */}
+              <div style={{ background: "#F7FAFC", borderRadius: 12, padding: "16px 18px", border: "1.5px solid #E2E8F0" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "#2D6A4F", textTransform: "uppercase", letterSpacing: "0.1em", margin: 0 }}>Voice Over Details</p>
+                  {/* Top Rank toggle */}
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                    <div onClick={() => setVoTopRank(v => !v)} style={{ width: 36, height: 20, borderRadius: 10, position: "relative", cursor: "pointer", transition: "background 0.2s", background: voTopRank ? "#F59E0B" : "#CBD5E0" }}>
+                      <div style={{ position: "absolute", top: 2, left: voTopRank ? 17 : 2, width: 16, height: 16, borderRadius: "50%", background: "#FFFFFF", transition: "left 0.2s" }} />
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: voTopRank ? "#F59E0B" : "#718096" }}>⭐ Top Rank</span>
+                  </label>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 10 }}>
+                  <div>
+                    <label style={LABEL}>Number</label>
+                    <input type="number" min="0" step="1" value={voNumber} placeholder="e.g. 10"
+                      onChange={e => { setVoNumber(e.target.value); recalcTotal(e.target.value, voPricePerMin, voFreeTime) }}
+                      style={NUM_INPUT} />
+                  </div>
+                  <div>
+                    <label style={LABEL}>Price / Min (₹)</label>
+                    <input type="number" min="0" step="0.5" value={voPricePerMin} placeholder="e.g. 25"
+                      onChange={e => { setVoPricePerMin(e.target.value); recalcTotal(voNumber, e.target.value, voFreeTime) }}
+                      style={NUM_INPUT} />
+                  </div>
+                  <div>
+                    <label style={LABEL}>Free Time (min)</label>
+                    <input type="number" min="0" step="0.5" value={voFreeTime} placeholder="0"
+                      onChange={e => { setVoFreeTime(e.target.value); recalcTotal(voNumber, voPricePerMin, e.target.value) }}
+                      style={NUM_INPUT} />
+                  </div>
+                  <div>
+                    <label style={LABEL}>Total Price (₹)</label>
+                    <input type="number" min="0" step="0.5" value={voTotalPrice} placeholder="Auto"
+                      onChange={e => setVoTotalPrice(e.target.value)}
+                      style={{ ...NUM_INPUT, background: "#EDF2F7", fontWeight: 700 }} />
+                  </div>
+                  <div>
+                    <label style={LABEL}>Pending (₹)</label>
+                    <input type="number" min="0" step="0.5" value={voPending} placeholder="0"
+                      onChange={e => setVoPending(e.target.value)}
+                      style={NUM_INPUT} />
+                  </div>
+                </div>
               </div>
+
+              {/* Videos 1–4 */}
               <div>
-                <label style={LABEL}>Phone (optional)</label>
-                <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91 98765 43210" style={INPUT} />
+                <label style={{ ...LABEL, marginBottom: 10 }}>Videos</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {voVideos.map((v, i) => (
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center" }}>
+                      <input value={v.name}
+                        onChange={e => setVoVideos(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                        placeholder={`Video ${i + 1} name (optional)`}
+                        style={{ ...INPUT, fontSize: 13 }} />
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <PayBtn active={v.pay === "unpaid"} label="UNPAID" onClick={() => setVoVideos(prev => prev.map((x, j) => j === i ? { ...x, pay: "unpaid" } : x))} />
+                        <PayBtn active={v.pay === "paid"}   label="PAID"   onClick={() => setVoVideos(prev => prev.map((x, j) => j === i ? { ...x, pay: "paid"   } : x))} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {status === "success" && (
@@ -181,11 +326,8 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={status === "loading"}
-                style={{ padding: "12px", borderRadius: 10, border: "none", background: status === "loading" ? "#718096" : "#2D6A4F", color: "#FFFFFF", fontSize: 14, fontWeight: 700, cursor: status === "loading" ? "not-allowed" : "pointer" }}
-              >
+              <button type="submit" disabled={status === "loading"}
+                style={{ padding: "13px", borderRadius: 10, border: "none", background: status === "loading" ? "#718096" : "#2D6A4F", color: "#FFFFFF", fontSize: 14, fontWeight: 700, cursor: status === "loading" ? "not-allowed" : "pointer" }}>
                 {status === "loading" ? "Adding…" : "Add Freelancer"}
               </button>
             </form>

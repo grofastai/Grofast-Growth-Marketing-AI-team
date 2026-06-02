@@ -216,7 +216,7 @@ function EmployeeCard({
       if (r.isPaid) {
         await markEmployeeUnpaid(r.id, month)
       } else {
-        await markEmployeePaid(r.id, month)
+        await markEmployeePaid(r.id, month, localFinalNetPay)
       }
     })
   }
@@ -548,7 +548,8 @@ export default function PayrollClient({
   function confirmRunPayroll() {
     setShowConfirm(false)
     startRunTransition(async () => {
-      await runPayroll(month, unpaidRows.map(r => r.id))
+      const netPayMap = Object.fromEntries(unpaidRows.map(r => [r.id, r.finalNetPay]))
+      await runPayroll(month, unpaidRows.map(r => r.id), netPayMap)
     })
   }
 

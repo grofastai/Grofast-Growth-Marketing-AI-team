@@ -115,9 +115,27 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
   const [editNotes, setEditNotes] = useState("")
 
   // Voice Over
-  const [scriptName, setScriptName] = useState("")
-  const [voDuration, setVoDuration] = useState("")
-  const [voNotes, setVoNotes] = useState("")
+  const [voNumber, setVoNumber] = useState("")
+  const [voPricePerMin, setVoPricePerMin] = useState("")
+  const [voFreeTime, setVoFreeTime] = useState("0")
+  const [voTotalPrice, setVoTotalPrice] = useState("")
+  const [voPending, setVoPending] = useState("0")
+  const [voTopRank, setVoTopRank] = useState(false)
+  const [voVideos, setVoVideos] = useState<{ name: string; pay: "paid" | "unpaid" }[]>([
+    { name: "", pay: "unpaid" },
+    { name: "", pay: "unpaid" },
+    { name: "", pay: "unpaid" },
+    { name: "", pay: "unpaid" },
+  ])
+
+  // Auto-calculate total price when number, price, or free time changes
+  function recalcTotal(num: string, price: string, free: string) {
+    const n = parseFloat(num) || 0
+    const p = parseFloat(price) || 0
+    const f = parseFloat(free) || 0
+    const total = Math.max(0, (n - f) * p)
+    setVoTotalPrice(total > 0 ? total.toFixed(2) : "")
+  }
 
   const selectedClient = clients.find(c => c.id === clientId)
   const clientName = selectedClient ? (selectedClient.client_name || selectedClient.business_name) : ""
@@ -125,7 +143,8 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
   function resetWorkFields() {
     setShootTitle(""); setShootDuration(""); setShootNotes(""); setVideoUploaded(false)
     setVideoName(""); setVideoType(""); setTimeTaken(""); setDriveLink(""); setRevisions("0"); setEditNotes("")
-    setScriptName(""); setVoDuration(""); setVoNotes("")
+    setVoNumber(""); setVoPricePerMin(""); setVoFreeTime("0"); setVoTotalPrice(""); setVoPending("0"); setVoTopRank(false)
+    setVoVideos([{ name: "", pay: "unpaid" }, { name: "", pay: "unpaid" }, { name: "", pay: "unpaid" }, { name: "", pay: "unpaid" }])
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -171,10 +190,21 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
     } else {
       result = await submitFreelancerUpdate({
         ...commonFields,
-        work_type:   "voice_over",
-        script_name: scriptName,
-        vo_duration: voDuration,
-        vo_notes:    voNotes || undefined,
+        work_type:        "voice_over",
+        vo_number:        parseInt(voNumber) || 1,
+        vo_price_per_min: parseFloat(voPricePerMin) || 0,
+        vo_free_time:     parseFloat(voFreeTime) || 0,
+        vo_total_price:   parseFloat(voTotalPrice) || 0,
+        vo_pending:       parseFloat(voPending) || 0,
+        vo_top_rank:      voTopRank,
+        vo_video1_name:   voVideos[0].name || undefined,
+        vo_video1_pay:    voVideos[0].pay,
+        vo_video2_name:   voVideos[1].name || undefined,
+        vo_video2_pay:    voVideos[1].pay,
+        vo_video3_name:   voVideos[2].name || undefined,
+        vo_video3_pay:    voVideos[2].pay,
+        vo_video4_name:   voVideos[3].name || undefined,
+        vo_video4_pay:    voVideos[3].pay,
       })
     }
 
@@ -330,19 +360,78 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
 
         {/* Voice Over fields */}
         {workType === "voice_over" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "20px", background: "#F7FAFC", borderRadius: 12, border: "1.5px solid #E2E8F0" }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: "#2D6A4F", textTransform: "uppercase", letterSpacing: "0.1em", margin: 0 }}>Voice Over Details</p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <Field label="Script Name">
-                <TextInput value={scriptName} onChange={setScriptName} placeholder="e.g. Brand promo script" />
+          <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: "20px", background: "#F7FAFC", borderRadius: 12, border: "1.5px solid #E2E8F0" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: "#2D6A4F", textTransform: "uppercase", letterSpacing: "0.1em", margin: 0 }}>Voice Over Details</p>
+              {/* Top Rank toggle */}
+              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                <div onClick={() => setVoTopRank(v => !v)} style={{
+                  width: 38, height: 22, borderRadius: 11, position: "relative", cursor: "pointer", transition: "background 0.2s",
+                  background: voTopRank ? "#F59E0B" : "#CBD5E0",
+                }}>
+                  <div style={{
+                    position: "absolute", top: 3, left: voTopRank ? 18 : 3, width: 16, height: 16,
+                    borderRadius: "50%", background: "#FFFFFF", transition: "left 0.2s",
+                  }} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 700, color: voTopRank ? "#F59E0B" : "#718096" }}>
+                  ⭐ Top Rank
+                </span>
+              </label>
+            </div>
+
+            {/* Row 1: Number, Price/min, Free Time, Total Price, Pending */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 12 }}>
+              <Field label="Number">
+                <NumberInput value={voNumber} onChange={v => { setVoNumber(v); recalcTotal(v, voPricePerMin, voFreeTime) }} placeholder="e.g. 10" step="1" />
               </Field>
-              <Field label="Duration">
-                <TextInput value={voDuration} onChange={setVoDuration} placeholder="e.g. 2 min 30 sec" />
+              <Field label="Price / Min (₹)">
+                <NumberInput value={voPricePerMin} onChange={v => { setVoPricePerMin(v); recalcTotal(voNumber, v, voFreeTime) }} placeholder="e.g. 25" step="0.5" />
+              </Field>
+              <Field label="Free Time (min)">
+                <NumberInput value={voFreeTime} onChange={v => { setVoFreeTime(v); recalcTotal(voNumber, voPricePerMin, v) }} placeholder="0" step="0.5" />
+              </Field>
+              <Field label="Total Price (₹)">
+                <input type="number" value={voTotalPrice} onChange={e => setVoTotalPrice(e.target.value)}
+                  placeholder="Auto" min="0" step="0.5"
+                  style={{ ...INPUT, background: "#EDF2F7", fontWeight: 700 }} />
+              </Field>
+              <Field label="Pending (₹)">
+                <NumberInput value={voPending} onChange={setVoPending} placeholder="0" step="0.5" />
               </Field>
             </div>
-            <Field label="Notes (optional)">
-              <TextArea value={voNotes} onChange={setVoNotes} placeholder="Any notes about the recording…" />
-            </Field>
+
+            {/* Videos 1–4 */}
+            <div>
+              <label style={{ ...LABEL, marginBottom: 10 }}>Videos</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {voVideos.map((v, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center" }}>
+                    <input
+                      value={v.name}
+                      onChange={e => setVoVideos(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                      placeholder={`Video ${i + 1} name (optional)`}
+                      style={{ ...INPUT, fontSize: 13 }}
+                    />
+                    <div style={{ display: "flex", gap: 6 }}>
+                      {(["unpaid", "paid"] as const).map(s => (
+                        <button key={s} type="button"
+                          onClick={() => setVoVideos(prev => prev.map((x, j) => j === i ? { ...x, pay: s } : x))}
+                          style={{
+                            padding: "8px 12px", borderRadius: 8, border: "1.5px solid", fontSize: 11, fontWeight: 700, cursor: "pointer",
+                            borderColor: v.pay === s ? (s === "paid" ? "#2D6A4F" : "#EF4444") : "#E2E8F0",
+                            background: v.pay === s ? (s === "paid" ? "rgba(45,106,79,0.1)" : "rgba(239,68,68,0.07)") : "#FAFAFA",
+                            color: v.pay === s ? (s === "paid" ? "#2D6A4F" : "#EF4444") : "#A0AEC0",
+                            textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap",
+                          }}>
+                          {s === "paid" ? "✓ Paid" : "Unpaid"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 

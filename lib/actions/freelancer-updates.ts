@@ -32,10 +32,25 @@ const editingSchema = z.object({
 })
 
 const voiceOverSchema = z.object({
-  work_type: z.literal('voice_over'),
-  script_name: z.string().min(1, 'Script name required'),
-  vo_duration: z.string().min(1, 'Duration required'),
-  vo_notes: z.string().optional(),
+  work_type:        z.literal('voice_over'),
+  vo_number:        z.number().int().min(1, 'Number required'),
+  vo_price_per_min: z.number().nonnegative(),
+  vo_free_time:     z.number().nonnegative().default(0),
+  vo_total_price:   z.number().nonnegative(),
+  vo_pending:       z.number().nonnegative().default(0),
+  vo_top_rank:      z.boolean().default(false),
+  vo_video1_name:   z.string().optional(),
+  vo_video1_pay:    z.enum(['paid', 'unpaid']).default('unpaid'),
+  vo_video2_name:   z.string().optional(),
+  vo_video2_pay:    z.enum(['paid', 'unpaid']).default('unpaid'),
+  vo_video3_name:   z.string().optional(),
+  vo_video3_pay:    z.enum(['paid', 'unpaid']).default('unpaid'),
+  vo_video4_name:   z.string().optional(),
+  vo_video4_pay:    z.enum(['paid', 'unpaid']).default('unpaid'),
+  // kept for backward compat with old records
+  script_name: z.string().optional(),
+  vo_duration: z.string().optional(),
+  vo_notes:    z.string().optional(),
 })
 
 const baseSchema = z.object({
@@ -100,10 +115,22 @@ export async function submitFreelancerUpdate(
   } else if (input.work_type === 'voice_over') {
     const parsed = voiceOverSchema.safeParse(input)
     if (!parsed.success) return { success: false, error: parsed.error.issues[0].message }
+    const d = parsed.data
     typePayload = {
-      script_name: parsed.data.script_name,
-      vo_duration: parsed.data.vo_duration,
-      vo_notes:    parsed.data.vo_notes ?? null,
+      vo_number:        d.vo_number,
+      vo_price_per_min: d.vo_price_per_min,
+      vo_free_time:     d.vo_free_time,
+      vo_total_price:   d.vo_total_price,
+      vo_pending:       d.vo_pending,
+      vo_top_rank:      d.vo_top_rank,
+      vo_video1_name:   d.vo_video1_name || null,
+      vo_video1_pay:    d.vo_video1_name ? d.vo_video1_pay : null,
+      vo_video2_name:   d.vo_video2_name || null,
+      vo_video2_pay:    d.vo_video2_name ? d.vo_video2_pay : null,
+      vo_video3_name:   d.vo_video3_name || null,
+      vo_video3_pay:    d.vo_video3_name ? d.vo_video3_pay : null,
+      vo_video4_name:   d.vo_video4_name || null,
+      vo_video4_pay:    d.vo_video4_name ? d.vo_video4_pay : null,
     }
   }
 

@@ -85,16 +85,10 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
   const [name, setName] = useState("")
   const [specialty, setSpecialty] = useState("")
 
-  // VO rate card
-  const [voPhone, setVoPhone] = useState("")
-  const [voPricePerMin, setVoPricePerMin] = useState("")
-  const [voFreeTime, setVoFreeTime] = useState("")
-  const [voTotalPrice, setVoTotalPrice] = useState("")
-  const [voTopRank, setVoTopRank] = useState(false)
+  const [phone, setPhone] = useState("")
 
   function resetForm() {
-    setName(""); setSpecialty("")
-    setVoPhone(""); setVoPricePerMin(""); setVoFreeTime(""); setVoTotalPrice(""); setVoTopRank(false)
+    setName(""); setSpecialty(""); setPhone("")
     setStatus("idle"); setErrorMsg("")
   }
 
@@ -102,12 +96,7 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
     e.preventDefault()
     setStatus("loading")
     setErrorMsg("")
-    const result = await addFreelancer({
-      name, phone: voPhone, specialty, company_id: companyId,
-      vo_price_per_min: voPricePerMin ? parseFloat(voPricePerMin) : undefined,
-      vo_total_price:   voTotalPrice ? parseFloat(voTotalPrice) : undefined,
-      vo_top_rank:      voTopRank,
-    })
+    const result = await addFreelancer({ name, phone, specialty, company_id: companyId })
     if (result.success && result.freelancer) {
       setFreelancers(prev => [...prev, result.freelancer!])
       setStatus("success")
@@ -202,8 +191,7 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
 
             <form onSubmit={handleAdd} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
-              {/* Basic info */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={LABEL}>Full Name *</label>
                   <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Ravi Kumar" required style={INPUT} />
@@ -212,37 +200,9 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
                   <label style={LABEL}>Specialty</label>
                   <input value={specialty} onChange={e => setSpecialty(e.target.value)} placeholder="e.g. Voice Artist" style={INPUT} />
                 </div>
-              </div>
-
-              {/* VO Rate Card */}
-              <div style={{ background: "#F7FAFC", borderRadius: 12, padding: "16px 18px", border: "1.5px solid #E2E8F0" }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: "#2D6A4F", textTransform: "uppercase", letterSpacing: "0.1em", margin: 0 }}>Voice Over Details</p>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                    <div onClick={() => setVoTopRank(v => !v)} style={{ width: 36, height: 20, borderRadius: 10, position: "relative", cursor: "pointer", transition: "background 0.2s", background: voTopRank ? "#F59E0B" : "#CBD5E0" }}>
-                      <div style={{ position: "absolute", top: 2, left: voTopRank ? 17 : 2, width: 16, height: 16, borderRadius: "50%", background: "#FFFFFF", transition: "left 0.2s" }} />
-                    </div>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: voTopRank ? "#F59E0B" : "#718096" }}>⭐ Top Rank</span>
-                  </label>
-                </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 2fr 1fr", gap: 12 }}>
-                  <div>
-                    <label style={LABEL}>Phone Number</label>
-                    <input type="text" value={voPhone} onChange={e => setVoPhone(e.target.value)} placeholder="+91 98765 43210" style={NUM_INPUT} />
-                  </div>
-                  <div>
-                    <label style={LABEL}>Price / Min (₹)</label>
-                    <input type="number" min="0" step="0.5" value={voPricePerMin} onChange={e => setVoPricePerMin(e.target.value)} placeholder="e.g. 25" style={NUM_INPUT} />
-                  </div>
-                  <div>
-                    <label style={LABEL}>Free Time</label>
-                    <input type="text" value={voFreeTime} onChange={e => setVoFreeTime(e.target.value)} placeholder="e.g. Night Time, 2 min, Weekends" style={NUM_INPUT} />
-                  </div>
-                  <div>
-                    <label style={LABEL}>Total Price (₹)</label>
-                    <input type="number" min="0" step="0.5" value={voTotalPrice} onChange={e => setVoTotalPrice(e.target.value)} placeholder="e.g. 500" style={{ ...NUM_INPUT, fontWeight: 700 }} />
-                  </div>
+                <div>
+                  <label style={LABEL}>Phone</label>
+                  <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91 98765 43210" style={INPUT} />
                 </div>
               </div>
 

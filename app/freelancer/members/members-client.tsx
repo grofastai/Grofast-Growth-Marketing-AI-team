@@ -50,12 +50,11 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
   const [errorMsg, setErrorMsg] = useState("")
 
   const [name, setName] = useState("")
-  const [employeeId, setEmployeeId] = useState("")
   const [phone, setPhone] = useState("")
   const [specialty, setSpecialty] = useState("")
 
   function resetForm() {
-    setName(""); setEmployeeId(""); setPhone(""); setSpecialty("")
+    setName(""); setPhone(""); setSpecialty("")
     setStatus("idle"); setErrorMsg("")
   }
 
@@ -63,7 +62,7 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
     e.preventDefault()
     setStatus("loading")
     setErrorMsg("")
-    const result = await addFreelancer({ name, employee_id: employeeId, phone, specialty, company_id: companyId })
+    const result = await addFreelancer({ name, phone, specialty, company_id: companyId })
     if (result.success && result.freelancer) {
       setFreelancers(prev => [...prev, result.freelancer!])
       setStatus("success")
@@ -163,10 +162,6 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
               <div>
                 <label style={LABEL}>What They Do</label>
                 <input value={specialty} onChange={e => setSpecialty(e.target.value)} placeholder="e.g. Video Editor, Photographer, Voice Artist" style={INPUT} />
-              </div>
-              <div>
-                <label style={LABEL}>Employee ID</label>
-                <input value={employeeId} onChange={e => setEmployeeId(e.target.value)} placeholder="e.g. FL001" required style={INPUT} />
               </div>
               <div>
                 <label style={LABEL}>Phone (optional)</label>

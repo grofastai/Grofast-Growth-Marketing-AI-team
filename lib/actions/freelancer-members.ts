@@ -12,7 +12,6 @@ function adminSupabase() {
 
 interface AddFreelancerInput {
   name: string
-  employee_id: string
   phone?: string
   specialty?: string
   company_id: string
@@ -34,14 +33,10 @@ export async function addFreelancer(input: AddFreelancerInput): Promise<{
   error?: string
   freelancer?: FreelancerRow
 }> {
-  if (!input.name.trim())        return { success: false, error: "Name is required" }
-  if (!input.employee_id.trim()) return { success: false, error: "Employee ID is required" }
+  if (!input.name.trim()) return { success: false, error: "Name is required" }
 
   const admin = adminSupabase()
-  // Freelancers never log in — generate a random password they'll never know
-  const password = crypto.randomUUID() + crypto.randomUUID()
 
-  // Get the company slug
   const { data: company } = await admin
     .from("companies")
     .select("slug")
@@ -50,19 +45,22 @@ export async function addFreelancer(input: AddFreelancerInput): Promise<{
 
   if (!company?.slug) return { success: false, error: "Company not found" }
 
-  const email = `${input.employee_id.toLowerCase()}@${company.slug}.internal`
-
-  // Check for duplicate employee_id in this company
+  // Auto-generate next FL### employee ID
   const { data: existing } = await admin
     .from("users")
-    .select("id")
+    .select("employee_id")
     .eq("company_id", input.company_id)
-    .eq("employee_id", input.employee_id)
-    .maybeSingle()
+    .eq("role", "FREELANCER")
 
-  if (existing) return { success: false, error: "Employee ID already exists" }
+  const nums = (existing ?? [])
+    .map(u => { const m = u.employee_id.match(/^FL(\d+)$/i); return m ? parseInt(m[1]) : 0 })
+    .filter(n => n > 0)
+  const next = nums.length > 0 ? Math.max(...nums) + 1 : 1
+  const employee_id = `FL${String(next).padStart(3, "0")}`
 
-  // Create auth user (freelancers never log in — password is random and never exposed)
+  const email = `${employee_id.toLowerCase()}@${company.slug}.internal`
+  const password = crypto.randomUUID() + crypto.randomUUID()
+
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email,
     password,
@@ -74,13 +72,12 @@ export async function addFreelancer(input: AddFreelancerInput): Promise<{
     return { success: false, error: authError?.message ?? "Failed to create account" }
   }
 
-  // Insert into users table
   const { data: newUser, error: dbError } = await admin
     .from("users")
     .insert({
       id:          authData.user.id,
       company_id:  input.company_id,
-      employee_id: input.employee_id,
+      employee_id,
       name:        input.name,
       email,
       phone:       input.phone?.trim() || null,
@@ -92,7 +89,6 @@ export async function addFreelancer(input: AddFreelancerInput): Promise<{
     .single()
 
   if (dbError) {
-    // Clean up the auth user if DB insert failed
     await admin.auth.admin.deleteUser(authData.user.id)
     return { success: false, error: dbError.message }
   }

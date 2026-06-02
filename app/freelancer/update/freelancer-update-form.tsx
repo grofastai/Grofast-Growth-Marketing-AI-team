@@ -115,12 +115,6 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
   const [editNotes, setEditNotes] = useState("")
 
   // Voice Over
-  const [voNumber, setVoNumber] = useState("")
-  const [voPricePerMin, setVoPricePerMin] = useState("")
-  const [voFreeTime, setVoFreeTime] = useState("0")
-  const [voTotalPrice, setVoTotalPrice] = useState("")
-  const [voPending, setVoPending] = useState("0")
-  const [voTopRank, setVoTopRank] = useState(false)
   const [voVideos, setVoVideos] = useState<{ name: string; pay: "paid" | "unpaid" }[]>([
     { name: "", pay: "unpaid" },
     { name: "", pay: "unpaid" },
@@ -128,22 +122,12 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
     { name: "", pay: "unpaid" },
   ])
 
-  // Auto-calculate total price when number, price, or free time changes
-  function recalcTotal(num: string, price: string, free: string) {
-    const n = parseFloat(num) || 0
-    const p = parseFloat(price) || 0
-    const f = parseFloat(free) || 0
-    const total = Math.max(0, (n - f) * p)
-    setVoTotalPrice(total > 0 ? total.toFixed(2) : "")
-  }
-
   const selectedClient = clients.find(c => c.id === clientId)
   const clientName = selectedClient ? (selectedClient.client_name || selectedClient.business_name) : ""
 
   function resetWorkFields() {
     setShootTitle(""); setShootDuration(""); setShootNotes(""); setVideoUploaded(false)
     setVideoName(""); setVideoType(""); setTimeTaken(""); setDriveLink(""); setRevisions("0"); setEditNotes("")
-    setVoNumber(""); setVoPricePerMin(""); setVoFreeTime("0"); setVoTotalPrice(""); setVoPending("0"); setVoTopRank(false)
     setVoVideos([{ name: "", pay: "unpaid" }, { name: "", pay: "unpaid" }, { name: "", pay: "unpaid" }, { name: "", pay: "unpaid" }])
   }
 
@@ -190,21 +174,21 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
     } else {
       result = await submitFreelancerUpdate({
         ...commonFields,
-        work_type:        "voice_over",
-        vo_number:        parseInt(voNumber) || 1,
-        vo_price_per_min: parseFloat(voPricePerMin) || 0,
-        vo_free_time:     parseFloat(voFreeTime) || 0,
-        vo_total_price:   parseFloat(voTotalPrice) || 0,
-        vo_pending:       parseFloat(voPending) || 0,
-        vo_top_rank:      voTopRank,
-        vo_video1_name:   voVideos[0].name || undefined,
-        vo_video1_pay:    voVideos[0].pay,
-        vo_video2_name:   voVideos[1].name || undefined,
-        vo_video2_pay:    voVideos[1].pay,
-        vo_video3_name:   voVideos[2].name || undefined,
-        vo_video3_pay:    voVideos[2].pay,
-        vo_video4_name:   voVideos[3].name || undefined,
-        vo_video4_pay:    voVideos[3].pay,
+        work_type:      "voice_over",
+        vo_number:      1,
+        vo_price_per_min: 0,
+        vo_free_time:   0,
+        vo_total_price: 0,
+        vo_pending:     0,
+        vo_top_rank:    false,
+        vo_video1_name: voVideos[0].name || undefined,
+        vo_video1_pay:  voVideos[0].pay,
+        vo_video2_name: voVideos[1].name || undefined,
+        vo_video2_pay:  voVideos[1].pay,
+        vo_video3_name: voVideos[2].name || undefined,
+        vo_video3_pay:  voVideos[2].pay,
+        vo_video4_name: voVideos[3].name || undefined,
+        vo_video4_pay:  voVideos[3].pay,
       })
     }
 
@@ -360,46 +344,8 @@ export default function FreelancerUpdateForm({ freelancers, clients }: Props) {
 
         {/* Voice Over fields */}
         {workType === "voice_over" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 20, padding: "20px", background: "#F7FAFC", borderRadius: 12, border: "1.5px solid #E2E8F0" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: "#2D6A4F", textTransform: "uppercase", letterSpacing: "0.1em", margin: 0 }}>Voice Over Details</p>
-              {/* Top Rank toggle */}
-              <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                <div onClick={() => setVoTopRank(v => !v)} style={{
-                  width: 38, height: 22, borderRadius: 11, position: "relative", cursor: "pointer", transition: "background 0.2s",
-                  background: voTopRank ? "#F59E0B" : "#CBD5E0",
-                }}>
-                  <div style={{
-                    position: "absolute", top: 3, left: voTopRank ? 18 : 3, width: 16, height: 16,
-                    borderRadius: "50%", background: "#FFFFFF", transition: "left 0.2s",
-                  }} />
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: voTopRank ? "#F59E0B" : "#718096" }}>
-                  ⭐ Top Rank
-                </span>
-              </label>
-            </div>
-
-            {/* Row 1: Number, Price/min, Free Time, Total Price, Pending */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 12 }}>
-              <Field label="Number">
-                <NumberInput value={voNumber} onChange={v => { setVoNumber(v); recalcTotal(v, voPricePerMin, voFreeTime) }} placeholder="e.g. 10" step="1" />
-              </Field>
-              <Field label="Price / Min (₹)">
-                <NumberInput value={voPricePerMin} onChange={v => { setVoPricePerMin(v); recalcTotal(voNumber, v, voFreeTime) }} placeholder="e.g. 25" step="0.5" />
-              </Field>
-              <Field label="Free Time (min)">
-                <NumberInput value={voFreeTime} onChange={v => { setVoFreeTime(v); recalcTotal(voNumber, voPricePerMin, v) }} placeholder="0" step="0.5" />
-              </Field>
-              <Field label="Total Price (₹)">
-                <input type="number" value={voTotalPrice} onChange={e => setVoTotalPrice(e.target.value)}
-                  placeholder="Auto" min="0" step="0.5"
-                  style={{ ...INPUT, background: "#EDF2F7", fontWeight: 700 }} />
-              </Field>
-              <Field label="Pending (₹)">
-                <NumberInput value={voPending} onChange={setVoPending} placeholder="0" step="0.5" />
-              </Field>
-            </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, padding: "20px", background: "#F7FAFC", borderRadius: 12, border: "1.5px solid #E2E8F0" }}>
+            <p style={{ fontSize: 11, fontWeight: 700, color: "#2D6A4F", textTransform: "uppercase", letterSpacing: "0.1em", margin: 0 }}>Voice Over — Videos</p>
 
             {/* Videos 1–4 */}
             <div>

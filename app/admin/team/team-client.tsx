@@ -168,7 +168,7 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
         const result = await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, ...salaryFields, ...dateFields })
         if (result.success) {
           if (form.phone && result.whatsappSent === false) {
-            setWhatsappWarning("Member created, but WhatsApp notification failed. Check the phone number or Meta template status.")
+            setWhatsappWarning(result.whatsappError ?? "Member created, but WhatsApp notification failed. Check the phone number or Meta template status.")
             router.refresh()
           } else {
             router.refresh()

@@ -15,17 +15,17 @@ function adminSupabase() {
 async function notifyWhatsApp(
   payload: { name: string; email: string; employee_id: string; phone: string; loginLink: string; password: string; team: string },
   meta: { companyId: string; userId: string }
-): Promise<boolean> {
+): Promise<{ sent: boolean; errorDetail?: string }> {
   const metaToken   = process.env.META_WHATSAPP_TOKEN
   const metaPhoneId = process.env.META_PHONE_NUMBER_ID
   if (!metaToken || !metaPhoneId) {
-    console.warn('[notifyWhatsApp] META credentials not set — skipping onboarding WhatsApp')
-    return false
+    return { sent: false, errorDetail: 'META_WHATSAPP_TOKEN or META_PHONE_NUMBER_ID not set in environment variables' }
   }
 
   const admin = adminSupabase()
   let status: 'sent' | 'failed' = 'sent'
   let providerRef: string | null = null
+  let errorDetail: string | undefined
 
   const templateName = process.env.WHATSAPP_ONBOARDING_TEMPLATE ?? 'grofast_member_welcome'
 
@@ -65,12 +65,15 @@ async function notifyWhatsApp(
     const json = await res.json().catch(() => ({}))
     if (!res.ok) {
       status = 'failed'
+      const metaMsg = json?.error?.message ?? json?.error?.error_data?.details ?? JSON.stringify(json)
+      errorDetail = `Meta API error (${res.status}): ${metaMsg}`
       console.error('[notifyWhatsApp] Meta API error:', json)
     } else {
       providerRef = json?.messages?.[0]?.id ?? null
     }
   } catch (err) {
     status = 'failed'
+    errorDetail = `Network error: ${err instanceof Error ? err.message : String(err)}`
     console.error('[notifyWhatsApp] fetch failed:', err)
   }
 
@@ -87,7 +90,7 @@ async function notifyWhatsApp(
       .update({ last_onboarding_notified_at: new Date().toISOString() })
       .eq('id', meta.userId),
   ])
-  return status === 'sent'
+  return { sent: status === 'sent', errorDetail }
 }
 
 export async function createMember(input: {
@@ -106,7 +109,7 @@ export async function createMember(input: {
   date_of_birth?: string | null
   joined_at?: string | null
   gender?: 'male' | 'female'
-}): Promise<{ success: boolean; error?: string; whatsappSent?: boolean }> {
+}): Promise<{ success: boolean; error?: string; whatsappSent?: boolean; whatsappError?: string }> {
   if (!input.name || !input.employee_id || !input.email || !input.password) {
     return { success: false, error: 'Name, Employee ID, Email and Password are required' }
   }
@@ -226,6 +229,7 @@ export async function createMember(input: {
   const skipNotification = input.employment_type === 'part_time' || input.employment_type === 'freelancer'
 
   let whatsappSent = false
+  let whatsappError: string | undefined
   if (input.phone && !recentlySent && !skipNotification) {
     const loginLink = 'https://grofastteam.vercel.app/'
 
@@ -233,7 +237,7 @@ export async function createMember(input: {
     // Auto-add India country code for 10-digit numbers
     if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone
     else if (cleanPhone.startsWith('0') && cleanPhone.length === 11) cleanPhone = '91' + cleanPhone.slice(1)
-    whatsappSent = await notifyWhatsApp(
+    const notifyResult = await notifyWhatsApp(
       {
         name: input.name,
         email: input.email,
@@ -244,11 +248,13 @@ export async function createMember(input: {
         team: input.team || '',
       },
       { companyId: company_id, userId: authUserId }
-    ).catch(() => false)
+    ).catch((err) => ({ sent: false, errorDetail: String(err) }))
+    whatsappSent = notifyResult.sent
+    whatsappError = notifyResult.errorDetail
   }
 
   revalidatePath('/admin/team')
-  return { success: true, whatsappSent }
+  return { success: true, whatsappSent, whatsappError }
 }
 
 export async function updateMember(input: {

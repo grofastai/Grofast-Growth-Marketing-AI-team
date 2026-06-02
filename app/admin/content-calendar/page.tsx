@@ -40,12 +40,12 @@ export default async function ContentCalendarPage() {
       .lte("scheduled_date", monthEnd)
       .order("scheduled_date"),
     admin.from("shoots")
-      .select("id, title, shoot_date, client_name, status")
+      .select("id, title, start_time, client, status")
       .eq("company_id", cid)
-      .gte("shoot_date", monthStart)
-      .lte("shoot_date", monthEnd),
+      .gte("start_time", monthStart)
+      .lte("start_time", monthEnd + "T23:59:59"),
     admin.from("tasks")
-      .select("id, title, due_date, status, assigned_to, users!assigned_to(name)")
+      .select("id, title, due_date, status, assigned_to")
       .eq("company_id", cid)
       .not("due_date", "is", null)
       .gte("due_date", monthStart)

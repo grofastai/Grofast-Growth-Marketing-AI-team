@@ -16,8 +16,8 @@ interface Post {
   assigned_to: string | null; drive_link: string | null
   assignee?: { name: string } | null
 }
-interface Shoot { id: string; title: string; shoot_date: string; client_name: string; status: string }
-interface Task  { id: string; title: string; due_date: string; status: string; users?: { name: string } | null }
+interface Shoot { id: string; title: string; start_time: string; client: string; status: string }
+interface Task  { id: string; title: string; due_date: string; status: string }
 interface Member { id: string; name: string; employee_id: string }
 interface Client { id: string; business_name: string; client_name: string }
 
@@ -113,7 +113,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   }
   function shootsOnDay(d: number) {
     const ds = dateStr(d)
-    return shoots.filter(s => s.shoot_date === ds)
+    return shoots.filter(s => s.start_time.split("T")[0] === ds)
   }
   function tasksOnDay(d: number) {
     const ds = dateStr(d)
@@ -267,7 +267,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                   {dayShoots.map(s => (
                     <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", borderRadius: 5, background: "rgba(59,130,246,0.1)", marginBottom: 2 }}>
                       <Camera size={9} color="#3B82F6" />
-                      <span style={{ fontSize: 10, fontWeight: 600, color: "#3B82F6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title || s.client_name}</span>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: "#3B82F6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title || s.client}</span>
                     </div>
                   ))}
 

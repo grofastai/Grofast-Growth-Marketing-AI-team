@@ -109,7 +109,7 @@ export async function createMember(input: {
   date_of_birth?: string | null
   joined_at?: string | null
   gender?: 'male' | 'female'
-}): Promise<{ success: boolean; error?: string; whatsappSent?: boolean; whatsappError?: string }> {
+}): Promise<{ success: boolean; error?: string; whatsappSent?: boolean; whatsappSkipped?: boolean; whatsappError?: string }> {
   if (!input.name || !input.employee_id || !input.email || !input.password) {
     return { success: false, error: 'Name, Employee ID, Email and Password are required' }
   }
@@ -254,7 +254,7 @@ export async function createMember(input: {
   }
 
   revalidatePath('/admin/team')
-  return { success: true, whatsappSent, whatsappError }
+  return { success: true, whatsappSent, whatsappSkipped: skipNotification, whatsappError }
 }
 
 export async function updateMember(input: {

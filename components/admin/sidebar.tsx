@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, Clock, Target,
   CalendarOff, Megaphone, Briefcase, LogOut, BarChart2,
   Receipt, IndianRupee, FolderOpen, LifeBuoy,
-  MoreHorizontal, X, Bell, UserCircle2, ClipboardList, Activity, TrendingUp,
+  MoreHorizontal, X, Bell, UserCircle2, ClipboardList, Activity, TrendingUp, CalendarDays,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
@@ -22,13 +22,14 @@ const navItems = [
   { label: "Clients",       href: "/admin/clients",       icon: Briefcase },
   { label: "Reports",       href: "/admin/reports",       icon: BarChart2 },
   { label: "Insights",      href: "/admin/insights",      icon: TrendingUp },
-  { label: "Leaves",        href: "/admin/leaves",        icon: CalendarOff },
-  { label: "Announcements", href: "/admin/announcements", icon: Megaphone },
-  { label: "Expenses",      href: "/admin/expenses",      icon: Receipt },
-  { label: "Payroll",       href: "/admin/payroll",       icon: IndianRupee },
-  { label: "Documents",     href: "/admin/documents",     icon: FolderOpen },
-  { label: "Support",       href: "/admin/support",       icon: LifeBuoy },
-  { label: "Profile",       href: "/admin/profile",       icon: UserCircle2 },
+  { label: "Leaves",        href: "/admin/leaves",           icon: CalendarOff },
+  { label: "Content Cal",   href: "/admin/content-calendar", icon: CalendarDays },
+  { label: "Announcements", href: "/admin/announcements",    icon: Megaphone },
+  { label: "Expenses",      href: "/admin/expenses",         icon: Receipt },
+  { label: "Payroll",       href: "/admin/payroll",          icon: IndianRupee },
+  { label: "Documents",     href: "/admin/documents",        icon: FolderOpen },
+  { label: "Support",       href: "/admin/support",          icon: LifeBuoy },
+  { label: "Profile",       href: "/admin/profile",          icon: UserCircle2 },
 ]
 
 const bottomNavItems = [
@@ -40,14 +41,15 @@ const bottomNavItems = [
 ]
 
 const moreNavItems = [
-  { label: "Activities",    href: "/admin/activities",    icon: Activity },
-  { label: "Attendance",    href: "/admin/attendance",    icon: Clock },
-  { label: "Clients",       href: "/admin/clients",       icon: Briefcase },
-  { label: "Announcements", href: "/admin/announcements", icon: Megaphone },
-  { label: "Expenses",      href: "/admin/expenses",      icon: Receipt },
-  { label: "Payroll",       href: "/admin/payroll",       icon: IndianRupee },
-  { label: "Documents",     href: "/admin/documents",     icon: FolderOpen },
-  { label: "Support",       href: "/admin/support",       icon: LifeBuoy },
+  { label: "Activities",    href: "/admin/activities",       icon: Activity },
+  { label: "Attendance",    href: "/admin/attendance",       icon: Clock },
+  { label: "Clients",       href: "/admin/clients",          icon: Briefcase },
+  { label: "Content Cal",   href: "/admin/content-calendar", icon: CalendarDays },
+  { label: "Announcements", href: "/admin/announcements",    icon: Megaphone },
+  { label: "Expenses",      href: "/admin/expenses",         icon: Receipt },
+  { label: "Payroll",       href: "/admin/payroll",          icon: IndianRupee },
+  { label: "Documents",     href: "/admin/documents",        icon: FolderOpen },
+  { label: "Support",       href: "/admin/support",          icon: LifeBuoy },
 ]
 
 const SIDEBAR_BG = "linear-gradient(160deg, #0a100d 0%, #520000 55%, #de1a1a 100%)"

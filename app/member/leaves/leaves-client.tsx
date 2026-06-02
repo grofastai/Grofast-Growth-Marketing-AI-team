@@ -135,7 +135,7 @@ function BalanceRing({ pct }: { pct: number }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function MemberLeavesClient({ leaves: initialLeaves, userName }: { leaves: Leave[]; userName: string }) {
+export default function MemberLeavesClient({ leaves: initialLeaves, userName, paidLeaveDays = 0, usedLeaveDays = 0 }: { leaves: Leave[]; userName: string; paidLeaveDays?: number; usedLeaveDays?: number }) {
   const router = useRouter()
   const [leaves, setLeaves]         = useState(initialLeaves)
   useEffect(() => { setLeaves(initialLeaves) }, [initialLeaves])
@@ -309,7 +309,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
               { label: "Pending\nRequests",             val: pendingL.length, color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "⏳", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
               { label: "Approved\nLeaves",              val: approved.length, color: "#10B981", bg: "rgba(16,185,129,0.1)",  icon: "✅", trend: "up"   as const, sub: "↑ 22% from last week",   subColor: "#10B981" },
               { label: "Rejected\nRequests",            val: rejected.length, color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "❌", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
-              { label: "Paid Leave\nLeft This Month",     val: monthlyBalance,  color: "#0EA5E9", bg: "rgba(14,165,233,0.1)",  icon: "🏖️", trend: null,            sub: null,                        subColor: "" },
+              { label: "Annual Leave\nRemaining",          val: Math.max(0, paidLeaveDays - usedLeaveDays), color: "#0EA5E9", bg: "rgba(14,165,233,0.1)", icon: "🏖️", trend: null, sub: null, subColor: "" },
               { label: "Upcoming\nHolidays",            val: HOLIDAYS.filter(h => h.date >= today).length, color: "#EC4899", bg: "rgba(236,72,153,0.1)", icon: "🎁", trend: null, sub: null, subColor: "" },
             ].map((s, i) => (
               <div key={i} style={{ background: "#fff", borderRadius: 18, padding: "18px 16px 14px", border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", gap: 0, position: "relative", overflow: "hidden" }}>
@@ -328,12 +328,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName }: 
                     <p style={{ fontSize: 9, color: s.subColor, fontWeight: 600 }}>{s.sub}</p>
                     <Sparkline color={s.color} trend={s.trend} />
                   </div>
-                ) : s.label.includes("Paid Leave") ? (
+                ) : s.label.includes("Annual Leave") ? (
                   <div>
                     <div style={{ height: 4, borderRadius: 99, background: "#EEF0F5", marginBottom: 8, overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${balancePct}%`, background: "#0EA5E9", borderRadius: 99 }} />
+                      <div style={{ height: "100%", width: paidLeaveDays > 0 ? `${Math.min(100, Math.round((usedLeaveDays / paidLeaveDays) * 100))}%` : "0%", background: "#0EA5E9", borderRadius: 99 }} />
                     </div>
-                    <p style={{ fontSize: 10, color: "#0EA5E9", fontWeight: 700 }}>{monthlyUsed} of {MONTHLY_LIMIT} used</p>
+                    <p style={{ fontSize: 10, color: "#0EA5E9", fontWeight: 700 }}>{usedLeaveDays} of {paidLeaveDays} days used</p>
                   </div>
                 ) : null}
               </div>

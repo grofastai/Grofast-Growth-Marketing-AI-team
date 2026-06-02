@@ -83,35 +83,19 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
 
   // Basic fields
   const [name, setName] = useState("")
-  const [phone, setPhone] = useState("")
   const [specialty, setSpecialty] = useState("")
 
   // VO rate card
-  const [voNumber, setVoNumber] = useState("")
+  const [voPhone, setVoPhone] = useState("")        // Phone Number (was "Number")
   const [voPricePerMin, setVoPricePerMin] = useState("")
-  const [voFreeTime, setVoFreeTime] = useState("0")
+  const [voFreeTime, setVoFreeTime] = useState("")  // text box
   const [voTotalPrice, setVoTotalPrice] = useState("")
   const [voPending, setVoPending] = useState("0")
   const [voTopRank, setVoTopRank] = useState(false)
-  const [voVideos, setVoVideos] = useState<{ name: string; pay: "paid" | "unpaid" }[]>([
-    { name: "", pay: "unpaid" },
-    { name: "", pay: "unpaid" },
-    { name: "", pay: "unpaid" },
-    { name: "", pay: "unpaid" },
-  ])
-
-  function recalcTotal(num: string, price: string, free: string) {
-    const n = parseFloat(num) || 0
-    const p = parseFloat(price) || 0
-    const f = parseFloat(free) || 0
-    const total = Math.max(0, (n - f) * p)
-    setVoTotalPrice(total > 0 ? total.toFixed(2) : "")
-  }
 
   function resetForm() {
-    setName(""); setPhone(""); setSpecialty("")
-    setVoNumber(""); setVoPricePerMin(""); setVoFreeTime("0"); setVoTotalPrice(""); setVoPending("0"); setVoTopRank(false)
-    setVoVideos([{ name: "", pay: "unpaid" }, { name: "", pay: "unpaid" }, { name: "", pay: "unpaid" }, { name: "", pay: "unpaid" }])
+    setName(""); setSpecialty("")
+    setVoPhone(""); setVoPricePerMin(""); setVoFreeTime(""); setVoTotalPrice(""); setVoPending("0"); setVoTopRank(false)
     setStatus("idle"); setErrorMsg("")
   }
 
@@ -120,21 +104,11 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
     setStatus("loading")
     setErrorMsg("")
     const result = await addFreelancer({
-      name, phone, specialty, company_id: companyId,
-      vo_number:        voNumber ? parseInt(voNumber) : undefined,
+      name, phone: voPhone, specialty, company_id: companyId,
       vo_price_per_min: voPricePerMin ? parseFloat(voPricePerMin) : undefined,
-      vo_free_time:     parseFloat(voFreeTime) || 0,
       vo_total_price:   voTotalPrice ? parseFloat(voTotalPrice) : undefined,
       vo_pending:       parseFloat(voPending) || 0,
       vo_top_rank:      voTopRank,
-      vo_video1_name:   voVideos[0].name || undefined,
-      vo_video1_pay:    voVideos[0].pay,
-      vo_video2_name:   voVideos[1].name || undefined,
-      vo_video2_pay:    voVideos[1].pay,
-      vo_video3_name:   voVideos[2].name || undefined,
-      vo_video3_pay:    voVideos[2].pay,
-      vo_video4_name:   voVideos[3].name || undefined,
-      vo_video4_pay:    voVideos[3].pay,
     })
     if (result.success && result.freelancer) {
       setFreelancers(prev => [...prev, result.freelancer!])
@@ -146,7 +120,7 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
     }
   }
 
-  const TABLE_HEADERS = ["VO Artist", "No.", "₹/Min", "Free Time", "Total", "Pending", "Rank", "Video 1", "Pay", "Video 2", "Pay", "Video 3", "Pay", "Video 4", "Pay"]
+  const TABLE_HEADERS = ["VO Artist", "Phone", "₹/Min", "Free Time", "Total", "Pending", "Rank", "Video 1", "Pay", "Video 2", "Pay", "Video 3", "Pay", "Video 4", "Pay"]
 
   return (
     <div>
@@ -189,7 +163,7 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#4A5568", textAlign: "center" }}>{f.vo_number ?? "—"}</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#4A5568", whiteSpace: "nowrap" }}>{f.phone ?? "—"}</td>
                     <td style={{ padding: "12px 14px", fontSize: 13, color: "#2D3748", whiteSpace: "nowrap" }}>{f.vo_price_per_min != null ? `₹${f.vo_price_per_min}` : "—"}</td>
                     <td style={{ padding: "12px 14px", fontSize: 13, color: "#4A5568" }}>{f.vo_free_time != null ? `${f.vo_free_time} min` : "—"}</td>
                     <td style={{ padding: "12px 14px", fontSize: 13, fontWeight: 700, color: "#2D6A4F", whiteSpace: "nowrap" }}>{f.vo_total_price != null ? `₹${f.vo_total_price}` : "—"}</td>
@@ -232,7 +206,7 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
             <form onSubmit={handleAdd} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
 
               {/* Basic info */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={LABEL}>Full Name *</label>
                   <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Ravi Kumar" required style={INPUT} />
@@ -241,17 +215,12 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
                   <label style={LABEL}>Specialty</label>
                   <input value={specialty} onChange={e => setSpecialty(e.target.value)} placeholder="e.g. Voice Artist" style={INPUT} />
                 </div>
-                <div>
-                  <label style={LABEL}>Phone</label>
-                  <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91 98765 43210" style={INPUT} />
-                </div>
               </div>
 
               {/* VO Rate Card */}
               <div style={{ background: "#F7FAFC", borderRadius: 12, padding: "16px 18px", border: "1.5px solid #E2E8F0" }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                   <p style={{ fontSize: 11, fontWeight: 700, color: "#2D6A4F", textTransform: "uppercase", letterSpacing: "0.1em", margin: 0 }}>Voice Over Details</p>
-                  {/* Top Rank toggle */}
                   <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
                     <div onClick={() => setVoTopRank(v => !v)} style={{ width: 36, height: 20, borderRadius: 10, position: "relative", cursor: "pointer", transition: "background 0.2s", background: voTopRank ? "#F59E0B" : "#CBD5E0" }}>
                       <div style={{ position: "absolute", top: 2, left: voTopRank ? 17 : 2, width: 16, height: 16, borderRadius: "50%", background: "#FFFFFF", transition: "left 0.2s" }} />
@@ -262,54 +231,25 @@ export default function FreelancerMembersClient({ freelancers: initial, companyI
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr 1fr", gap: 10 }}>
                   <div>
-                    <label style={LABEL}>Number</label>
-                    <input type="number" min="0" step="1" value={voNumber} placeholder="e.g. 10"
-                      onChange={e => { setVoNumber(e.target.value); recalcTotal(e.target.value, voPricePerMin, voFreeTime) }}
-                      style={NUM_INPUT} />
+                    <label style={LABEL}>Phone Number</label>
+                    <input type="text" value={voPhone} onChange={e => setVoPhone(e.target.value)} placeholder="+91 98765 43210" style={NUM_INPUT} />
                   </div>
                   <div>
                     <label style={LABEL}>Price / Min (₹)</label>
-                    <input type="number" min="0" step="0.5" value={voPricePerMin} placeholder="e.g. 25"
-                      onChange={e => { setVoPricePerMin(e.target.value); recalcTotal(voNumber, e.target.value, voFreeTime) }}
-                      style={NUM_INPUT} />
+                    <input type="number" min="0" step="0.5" value={voPricePerMin} onChange={e => setVoPricePerMin(e.target.value)} placeholder="e.g. 25" style={NUM_INPUT} />
                   </div>
                   <div>
-                    <label style={LABEL}>Free Time (min)</label>
-                    <input type="number" min="0" step="0.5" value={voFreeTime} placeholder="0"
-                      onChange={e => { setVoFreeTime(e.target.value); recalcTotal(voNumber, voPricePerMin, e.target.value) }}
-                      style={NUM_INPUT} />
+                    <label style={LABEL}>Free Time</label>
+                    <input type="text" value={voFreeTime} onChange={e => setVoFreeTime(e.target.value)} placeholder="e.g. 2 min" style={NUM_INPUT} />
                   </div>
                   <div>
                     <label style={LABEL}>Total Price (₹)</label>
-                    <input type="number" min="0" step="0.5" value={voTotalPrice} placeholder="Auto"
-                      onChange={e => setVoTotalPrice(e.target.value)}
-                      style={{ ...NUM_INPUT, background: "#EDF2F7", fontWeight: 700 }} />
+                    <input type="number" min="0" step="0.5" value={voTotalPrice} onChange={e => setVoTotalPrice(e.target.value)} placeholder="e.g. 500" style={{ ...NUM_INPUT, fontWeight: 700 }} />
                   </div>
                   <div>
                     <label style={LABEL}>Pending (₹)</label>
-                    <input type="number" min="0" step="0.5" value={voPending} placeholder="0"
-                      onChange={e => setVoPending(e.target.value)}
-                      style={NUM_INPUT} />
+                    <input type="number" min="0" step="0.5" value={voPending} onChange={e => setVoPending(e.target.value)} placeholder="0" style={NUM_INPUT} />
                   </div>
-                </div>
-              </div>
-
-              {/* Videos 1–4 */}
-              <div>
-                <label style={{ ...LABEL, marginBottom: 10 }}>Videos</label>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {voVideos.map((v, i) => (
-                    <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 10, alignItems: "center" }}>
-                      <input value={v.name}
-                        onChange={e => setVoVideos(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
-                        placeholder={`Video ${i + 1} name (optional)`}
-                        style={{ ...INPUT, fontSize: 13 }} />
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <PayBtn active={v.pay === "unpaid"} label="UNPAID" onClick={() => setVoVideos(prev => prev.map((x, j) => j === i ? { ...x, pay: "unpaid" } : x))} />
-                        <PayBtn active={v.pay === "paid"}   label="PAID"   onClick={() => setVoVideos(prev => prev.map((x, j) => j === i ? { ...x, pay: "paid"   } : x))} />
-                      </div>
-                    </div>
-                  ))}
                 </div>
               </div>
 

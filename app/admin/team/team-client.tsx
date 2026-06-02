@@ -100,8 +100,39 @@ interface SheetProps {
   nextId?: string
 }
 
+const ACCOUNT_TYPES = [
+  {
+    role: "MEMBER" as const,
+    label: "Team Member",
+    desc: "Logs daily updates, tasks, attendance",
+    icon: User,
+    color: "#DE1A1A",
+    bg: "rgba(222,26,26,0.06)",
+    border: "rgba(222,26,26,0.2)",
+  },
+  {
+    role: "ADMIN" as const,
+    label: "Admin",
+    desc: "Full access — manages team & reports",
+    icon: Shield,
+    color: "#7C3AED",
+    bg: "rgba(124,58,237,0.06)",
+    border: "rgba(124,58,237,0.2)",
+  },
+  {
+    role: "FREELANCER_MGR" as const,
+    label: "Freelancer Manager",
+    desc: "Manages freelancer portal & work logs",
+    icon: UserCheck,
+    color: "#2D6A4F",
+    bg: "rgba(45,106,79,0.06)",
+    border: "rgba(45,106,79,0.2)",
+  },
+]
+
 function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
   const isEdit = !!member
+  const [step, setStep] = useState<"type" | "details">(isEdit ? "details" : "type")
   const [form, setForm] = useState({
     name: member?.name ?? "",
     employee_id: member?.employee_id ?? nextId ?? "",
@@ -183,21 +214,34 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
 
   if (!open) return null
 
+  const selectedType = ACCOUNT_TYPES.find(t => t.role === form.role)!
+  const isFreelancerMgr = form.role === "FREELANCER_MGR"
+
   return (
     <>
       <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }} onClick={onClose} />
       <div className="fixed right-0 top-0 h-full w-full sm:w-[420px] z-50 shadow-2xl flex flex-col"
         style={{ background: "#FFFFFF", borderLeft: "1px solid rgba(222,26,26,0.15)" }}>
 
+        {/* Header */}
         <div className="px-6 py-5 flex items-center justify-between flex-shrink-0"
           style={{ borderBottom: "1px solid #E5E7EB" }}>
-          <div>
-            <h2 className="text-[17px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
-              {isEdit ? "Edit Member" : "Add New Member"}
-            </h2>
-            <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
-              {isEdit ? "Update member details" : "Create a new team member account"}
-            </p>
+          <div className="flex items-center gap-3">
+            {!isEdit && step === "details" && (
+              <button onClick={() => { setStep("type"); setError(""); setWhatsappWarning("") }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+                style={{ background: "#F3F4F6", border: "1px solid #E5E7EB" }}>
+                <ChevronDown size={13} style={{ color: "#6B7280", transform: "rotate(90deg)" }} />
+              </button>
+            )}
+            <div>
+              <h2 className="text-[17px] font-bold" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+                {isEdit ? "Edit Member" : step === "type" ? "Select Account Type" : `New ${selectedType.label}`}
+              </h2>
+              <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
+                {isEdit ? "Update member details" : step === "type" ? "Choose the type of account to create" : selectedType.desc}
+              </p>
+            </div>
           </div>
           <button onClick={onClose}
             className="w-8 h-8 rounded-full flex items-center justify-center transition-all hover:bg-gray-100"
@@ -209,217 +253,260 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
         <div className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
           <style>{`.sheet-input:focus{border-color:rgba(222,26,26,0.4)!important}`}</style>
 
-          {/* Passport Photo — edit only */}
-          {isEdit && (
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Passport Photo</label>
-              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                {/* Preview box — passport ratio 3:4 */}
-                <div style={{
-                  width: 64, height: 80, borderRadius: 10, overflow: "hidden", flexShrink: 0,
-                  border: "2px solid #E5E7EB", background: "#F9FAFB",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                }}>
-                  {(photoPreview ?? member?.passport_photo_url) ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={photoPreview ?? member?.passport_photo_url ?? ""} alt="Passport" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  ) : (
-                    <User size={22} style={{ color: "#D1D5DB" }} />
-                  )}
-                </div>
-                {/* Upload label */}
-                <label style={{ flex: 1, cursor: "pointer" }}>
-                  <div style={{ padding: "12px", borderRadius: 10, border: "1.5px dashed #E5E7EB", background: "#FAFAFA", textAlign: "center" }}>
-                    <Camera size={16} style={{ color: "#9CA3AF", margin: "0 auto 5px" }} />
-                    <p style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>
-                      {(photoPreview ?? member?.passport_photo_url) ? "Change Photo" : "Upload Photo"}
-                    </p>
-                    <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 2 }}>JPG or PNG · Max 2MB</p>
+          {/* ── Step 1: Account Type Picker ── */}
+          {!isEdit && step === "type" && (
+            <div className="space-y-3">
+              {ACCOUNT_TYPES.map((type) => {
+                const Icon = type.icon
+                return (
+                  <button key={type.role} type="button"
+                    onClick={() => { setForm(p => ({ ...p, role: type.role })); setStep("details") }}
+                    className="w-full flex items-center gap-4 rounded-2xl transition-all text-left"
+                    style={{ padding: "18px 20px", background: type.bg, border: `1.5px solid ${type.border}` }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = "0.85"}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = "1"}>
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: "#FFFFFF", border: `1.5px solid ${type.border}` }}>
+                      <Icon size={20} style={{ color: type.color }} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{type.label}</p>
+                      <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>{type.desc}</p>
+                    </div>
+                    <ChevronDown size={14} style={{ color: "#D1D5DB", transform: "rotate(-90deg)", flexShrink: 0 }} />
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          {/* ── Step 2: Details Form ── */}
+          {(isEdit || step === "details") && (
+            <>
+              {/* Passport Photo — edit only */}
+              {isEdit && (
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Passport Photo</label>
+                  <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <div style={{ width: 64, height: 80, borderRadius: 10, overflow: "hidden", flexShrink: 0, border: "2px solid #E5E7EB", background: "#F9FAFB", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      {(photoPreview ?? member?.passport_photo_url) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={photoPreview ?? member?.passport_photo_url ?? ""} alt="Passport" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <User size={22} style={{ color: "#D1D5DB" }} />
+                      )}
+                    </div>
+                    <label style={{ flex: 1, cursor: "pointer" }}>
+                      <div style={{ padding: "12px", borderRadius: 10, border: "1.5px dashed #E5E7EB", background: "#FAFAFA", textAlign: "center" }}>
+                        <Camera size={16} style={{ color: "#9CA3AF", margin: "0 auto 5px" }} />
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{(photoPreview ?? member?.passport_photo_url) ? "Change Photo" : "Upload Photo"}</p>
+                        <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 2 }}>JPG or PNG · Max 2MB</p>
+                      </div>
+                      <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handlePhotoSelect} />
+                    </label>
                   </div>
-                  <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={handlePhotoSelect} />
-                </label>
-              </div>
-              {photoFile && (
-                <p style={{ fontSize: 11, color: "#16A34A", marginTop: 6 }}>✓ New photo selected — will upload on save</p>
+                  {photoFile && <p style={{ fontSize: 11, color: "#16A34A", marginTop: 6 }}>✓ New photo selected — will upload on save</p>}
+                </div>
               )}
-            </div>
-          )}
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Full Name *</label>
-            <input className="sheet-input" value={form.name} onChange={set("name")} placeholder="e.g. Priya Sharma" style={FIELD} />
-          </div>
+              {/* Freelancer Mgr — simplified fields */}
+              {isFreelancerMgr ? (
+                <>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Account Handler Name *</label>
+                    <input className="sheet-input" value={form.name} onChange={set("name")} placeholder="e.g. Karthik R" style={FIELD} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Email Address *</label>
+                    <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. karthik@gmail.com" style={FIELD} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>WhatsApp Number</label>
+                    <input className="sheet-input" value={form.phone} onChange={set("phone")} placeholder="e.g. 9876543210" style={FIELD} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Team *</label>
+                    <div className="relative">
+                      <select className="sheet-input" value={form.team} onChange={set("team")} style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}>
+                        <option value="">Select a team…</option>
+                        {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#6B7280" }} />
+                    </div>
+                  </div>
+                  {!isEdit && (
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
+                          Employee ID * <span style={{ color: "#22C55E", fontWeight: 700, textTransform: "none", letterSpacing: 0 }}>· Auto-generated</span>
+                        </label>
+                        <input className="sheet-input" value={form.employee_id} onChange={set("employee_id")} placeholder="e.g. GF001" style={{ ...FIELD, fontFamily: "monospace", fontWeight: 700 }} />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Temporary Password *</label>
+                        <input type="text" className="sheet-input" value={form.password} onChange={set("password")} placeholder="Min 6 characters" style={FIELD} />
+                        <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Will be sent via WhatsApp.</p>
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                /* Member / Admin — full fields */
+                <>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Full Name *</label>
+                    <input className="sheet-input" value={form.name} onChange={set("name")} placeholder="e.g. Priya Sharma" style={FIELD} />
+                  </div>
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Gender *</label>
-            <div style={{ display: "flex", gap: 10 }}>
-              {(["male", "female"] as const).map(g => (
-                <button key={g} type="button" onClick={() => setForm(p => ({ ...p, gender: g }))}
-                  style={{
-                    flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 700,
-                    border: "1.5px solid", cursor: "pointer", transition: "all 0.15s",
-                    background: form.gender === g ? (g === "male" ? "rgba(59,130,246,0.08)" : "rgba(236,72,153,0.08)") : "#F9FAFB",
-                    borderColor: form.gender === g ? (g === "male" ? "#3B82F6" : "#EC4899") : "#E5E7EB",
-                    color: form.gender === g ? (g === "male" ? "#2563EB" : "#DB2777") : "#6B7280",
-                  }}>
-                  {g === "male" ? "👦 Male" : "👧 Female"}
-                </button>
-              ))}
-            </div>
-          </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Gender *</label>
+                    <div style={{ display: "flex", gap: 10 }}>
+                      {(["male", "female"] as const).map(g => (
+                        <button key={g} type="button" onClick={() => setForm(p => ({ ...p, gender: g }))}
+                          style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 13, fontWeight: 700, border: "1.5px solid", cursor: "pointer", transition: "all 0.15s",
+                            background: form.gender === g ? (g === "male" ? "rgba(59,130,246,0.08)" : "rgba(236,72,153,0.08)") : "#F9FAFB",
+                            borderColor: form.gender === g ? (g === "male" ? "#3B82F6" : "#EC4899") : "#E5E7EB",
+                            color: form.gender === g ? (g === "male" ? "#2563EB" : "#DB2777") : "#6B7280",
+                          }}>
+                          {g === "male" ? "👦 Male" : "👧 Female"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-          {!isEdit && (
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
-                Employee ID * <span style={{ color: "#22C55E", fontWeight: 700, textTransform: "none", letterSpacing: 0 }}>· Auto-generated</span>
-              </label>
-              <input className="sheet-input" value={form.employee_id} onChange={set("employee_id")} placeholder="e.g. GF001" style={{ ...FIELD, fontFamily: "monospace", fontWeight: 700 }} />
-              <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Auto-filled — you can change it. Cannot be edited after creation.</p>
-            </div>
-          )}
+                  {!isEdit && (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
+                        Employee ID * <span style={{ color: "#22C55E", fontWeight: 700, textTransform: "none", letterSpacing: 0 }}>· Auto-generated</span>
+                      </label>
+                      <input className="sheet-input" value={form.employee_id} onChange={set("employee_id")} placeholder="e.g. GF001" style={{ ...FIELD, fontFamily: "monospace", fontWeight: 700 }} />
+                      <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Auto-filled — you can change it. Cannot be edited after creation.</p>
+                    </div>
+                  )}
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Email Address *</label>
-            <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com" style={FIELD} />
-          </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Email Address *</label>
+                    <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com" style={FIELD} />
+                  </div>
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>WhatsApp Number</label>
-            <input className="sheet-input" value={form.phone} onChange={set("phone")} placeholder="e.g. 919876543210" style={FIELD} />
-            <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Credentials will be sent here after account creation.</p>
-          </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>WhatsApp Number</label>
+                    <input className="sheet-input" value={form.phone} onChange={set("phone")} placeholder="e.g. 919876543210" style={FIELD} />
+                    <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Credentials will be sent here after account creation.</p>
+                  </div>
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Team *</label>
-            <div className="relative">
-              <select className="sheet-input" value={form.team} onChange={set("team")}
-                style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}>
-                <option value="">Select a team…</option>
-                {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#6B7280" }} />
-            </div>
-          </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Team *</label>
+                    <div className="relative">
+                      <select className="sheet-input" value={form.team} onChange={set("team")} style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}>
+                        <option value="">Select a team…</option>
+                        {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#6B7280" }} />
+                    </div>
+                  </div>
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Position / Designation</label>
-            <input className="sheet-input" value={form.position} onChange={set("position")} placeholder="e.g. Social Media Executive, Videographer…" style={FIELD} />
-          </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Position / Designation</label>
+                    <input className="sheet-input" value={form.position} onChange={set("position")} placeholder="e.g. Social Media Executive, Videographer…" style={FIELD} />
+                  </div>
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Role *</label>
-            <div className="grid gap-2" style={{ gridTemplateColumns: "1fr 1fr 1fr" }}>
-              {(["MEMBER", "ADMIN", "FREELANCER_MGR"] as const).map((r) => (
-                <button key={r} type="button" onClick={() => setForm((prev) => ({ ...prev, role: r }))}
-                  className="py-2.5 rounded-xl text-[12px] font-semibold transition-all"
-                  style={form.role === r
-                    ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
-                    : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }
-                  }>
-                  {r === "MEMBER" ? "Member" : r === "ADMIN" ? "Admin" : "Freelancer Mgr"}
-                </button>
-              ))}
-            </div>
-            {form.role === "FREELANCER_MGR" && (
-              <p className="text-[11px] mt-1.5" style={{ color: "#6B7280" }}>
-                This account manages freelancers — it will log in to the Freelancer Portal.
-              </p>
-            )}
-          </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Employment Type *</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {([
+                        { value: "regular", label: "Regular" },
+                        { value: "part_time", label: "Part Time" },
+                        { value: "freelancer", label: "Freelancer" },
+                      ] as const).map(({ value, label }) => (
+                        <button key={value} type="button"
+                          onClick={() => setForm((prev) => ({ ...prev, employment_type: value, monthly_salary: "", hourly_rate: "", paid_leave_days: value === "regular" ? "5" : "0" }))}
+                          className="py-2.5 rounded-xl text-[13px] font-semibold transition-all"
+                          style={form.employment_type === value
+                            ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
+                            : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }
+                          }>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Employment Type *</label>
-            <div className="grid grid-cols-3 gap-2">
-              {([
-                { value: "regular", label: "Regular" },
-                { value: "part_time", label: "Part Time" },
-                { value: "freelancer", label: "Freelancer" },
-              ] as const).map(({ value, label }) => (
-                <button key={value} type="button"
-                  onClick={() => setForm((prev) => ({ ...prev, employment_type: value, monthly_salary: "", hourly_rate: "", paid_leave_days: value === "regular" ? "5" : "0" }))}
-                  className="py-2.5 rounded-xl text-[13px] font-semibold transition-all"
-                  style={form.employment_type === value
-                    ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
-                    : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }
-                  }>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
+                  {form.employment_type === "regular" ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Monthly Salary (₹)</label>
+                        <input type="number" min="0" step="500" className="sheet-input" style={FIELD}
+                          placeholder="e.g. 15000" value={form.monthly_salary}
+                          onChange={(e) => setForm((prev) => ({ ...prev, monthly_salary: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Paid Leave/Month</label>
+                        <input type="number" min="0" max="30" step="1" className="sheet-input" style={FIELD}
+                          placeholder="5" value={form.paid_leave_days}
+                          onChange={(e) => setForm((prev) => ({ ...prev, paid_leave_days: e.target.value }))} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Hourly Rate (₹)</label>
+                      <input type="number" min="0" step="10" className="sheet-input" style={FIELD}
+                        placeholder="e.g. 150" value={form.hourly_rate}
+                        onChange={(e) => setForm((prev) => ({ ...prev, hourly_rate: e.target.value }))} />
+                    </div>
+                  )}
 
-          {form.employment_type === "regular" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Monthly Salary (₹)</label>
-                <input type="number" min="0" step="500" className="sheet-input" style={FIELD}
-                  placeholder="e.g. 15000" value={form.monthly_salary}
-                  onChange={(e) => setForm((prev) => ({ ...prev, monthly_salary: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Paid Leave/Month</label>
-                <input type="number" min="0" max="30" step="1" className="sheet-input" style={FIELD}
-                  placeholder="5" value={form.paid_leave_days}
-                  onChange={(e) => setForm((prev) => ({ ...prev, paid_leave_days: e.target.value }))} />
-              </div>
-            </div>
-          ) : (
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Hourly Rate (₹)</label>
-              <input type="number" min="0" step="10" className="sheet-input" style={FIELD}
-                placeholder="e.g. 150" value={form.hourly_rate}
-                onChange={(e) => setForm((prev) => ({ ...prev, hourly_rate: e.target.value }))} />
-            </div>
-          )}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Date of Birth</label>
+                      <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }} value={form.date_of_birth} onChange={set("date_of_birth")} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Work Start Date</label>
+                      <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }} value={form.joined_at} onChange={set("joined_at")} max={new Date().toISOString().split("T")[0]} />
+                    </div>
+                  </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Date of Birth</label>
-              <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }}
-                value={form.date_of_birth} onChange={set("date_of_birth")} />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Work Start Date</label>
-              <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }}
-                value={form.joined_at} onChange={set("joined_at")}
-                max={new Date().toISOString().split("T")[0]} />
-            </div>
-          </div>
+                  {!isEdit && (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Temporary Password *</label>
+                      <input type="text" className="sheet-input" value={form.password} onChange={set("password")} placeholder="Min 6 characters" style={FIELD} />
+                      <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Will be sent via WhatsApp.</p>
+                    </div>
+                  )}
+                </>
+              )}
 
-          {!isEdit && (
-            <div>
-              <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Temporary Password *</label>
-              <input type="text" className="sheet-input" value={form.password} onChange={set("password")}
-                placeholder="Min 6 characters" style={FIELD} />
-              <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Will be sent via WhatsApp.</p>
-            </div>
-          )}
-
-          {whatsappWarning && (
-            <div className="rounded-xl px-4 py-3" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>
-              <p className="text-[12px] font-semibold" style={{ color: "#B45309" }}>WhatsApp not sent</p>
-              <p className="text-[11px] mt-0.5" style={{ color: "#B45309" }}>{whatsappWarning}</p>
-            </div>
-          )}
-          {error && (
-            <p className="text-[12px] rounded-xl px-4 py-3"
-              style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}>{error}</p>
+              {whatsappWarning && (
+                <div className="rounded-xl px-4 py-3" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>
+                  <p className="text-[12px] font-semibold" style={{ color: "#B45309" }}>WhatsApp not sent</p>
+                  <p className="text-[11px] mt-0.5" style={{ color: "#B45309" }}>{whatsappWarning}</p>
+                </div>
+              )}
+              {error && (
+                <p className="text-[12px] rounded-xl px-4 py-3"
+                  style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.2)" }}>{error}</p>
+              )}
+            </>
           )}
         </div>
 
-        <div className="px-6 py-4 flex items-center gap-3 flex-shrink-0" style={{ borderTop: "1px solid #E5E7EB" }}>
-          <button onClick={whatsappWarning ? onClose : onClose}
-            className="flex-1 py-3 rounded-xl text-[13px] font-semibold transition-all"
-            style={{ background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }}>
-            {whatsappWarning ? "Close" : "Cancel"}
-          </button>
-          <button onClick={handleSubmit} disabled={isPending || !!whatsappWarning}
-            className="flex-1 py-3 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
-            style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", boxShadow: "0 4px 16px rgba(222,26,26,0.25)" }}>
-            {isPending && <Loader2 size={13} className="animate-spin" />}
-            {isEdit ? "Save Changes" : "Add Member"}
-          </button>
-        </div>
+        {/* Footer */}
+        {(isEdit || step === "details") && (
+          <div className="px-6 py-4 flex items-center gap-3 flex-shrink-0" style={{ borderTop: "1px solid #E5E7EB" }}>
+            <button onClick={onClose}
+              className="flex-1 py-3 rounded-xl text-[13px] font-semibold transition-all"
+              style={{ background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }}>
+              {whatsappWarning ? "Close" : "Cancel"}
+            </button>
+            <button onClick={handleSubmit} disabled={isPending || !!whatsappWarning}
+              className="flex-1 py-3 rounded-xl text-[13px] font-semibold flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
+              style={{ background: isFreelancerMgr ? "linear-gradient(135deg, #2D6A4F, #1A4731)" : "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", boxShadow: isFreelancerMgr ? "0 4px 16px rgba(45,106,79,0.25)" : "0 4px 16px rgba(222,26,26,0.25)" }}>
+              {isPending && <Loader2 size={13} className="animate-spin" />}
+              {isEdit ? "Save Changes" : "Create Account"}
+            </button>
+          </div>
+        )}
       </div>
     </>
   )

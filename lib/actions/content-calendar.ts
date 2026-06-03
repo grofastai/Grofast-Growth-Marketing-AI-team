@@ -83,15 +83,23 @@ export async function updateContentPostStatus(
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users').select('company_id, role').eq('id', user.id).single()
-  if (!profile || profile.role !== 'ADMIN') return { success: false, error: 'Admin only' }
+  if (!profile) return { success: false, error: 'Profile not found' }
 
-  const { error } = await admin.from('content_posts')
+  // Admins can update any post; members can only update posts assigned to them
+  let query = admin.from('content_posts')
     .update({ status, posted_date: status === 'posted' ? (postedDate || new Date().toISOString().split('T')[0]) : null })
     .eq('id', postId)
     .eq('company_id', profile.company_id)
 
+  if (profile.role !== 'ADMIN') {
+    query = query.eq('assigned_to', user.id)
+  }
+
+  const { error } = await query
+
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/content-calendar')
+  revalidatePath('/member/content-calendar')
   return { success: true }
 }
 

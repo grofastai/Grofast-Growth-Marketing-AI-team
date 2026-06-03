@@ -47,6 +47,7 @@ export async function createContentPost(input: ContentPostInput) {
     client_name:    input.client_name,
     date:           input.scheduled_date,
     scheduled_date: input.scheduled_date,
+    post_type:      input.content_type,
     assigned_to:    input.assigned_to || null,
     drive_link:     input.drive_link || null,
     caption:        input.caption || null,

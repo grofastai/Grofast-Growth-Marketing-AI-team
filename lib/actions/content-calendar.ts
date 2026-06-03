@@ -34,7 +34,7 @@ export async function createContentPost(input: ContentPostInput) {
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users').select('company_id, role, name').eq('id', user.id).single()
-  if (!profile || profile.role !== 'ADMIN') return { success: false, error: 'Admin only' }
+  if (!profile) return { success: false, error: 'Profile not found' }
 
   const { data: post, error } = await admin.from('content_posts').insert({
     company_id:     profile.company_id,
@@ -69,6 +69,7 @@ export async function createContentPost(input: ContentPostInput) {
   }
 
   revalidatePath('/admin/content-calendar')
+  revalidatePath('/member/content-calendar')
   return { success: true, id: post?.id }
 }
 

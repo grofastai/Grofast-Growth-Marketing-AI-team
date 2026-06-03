@@ -4,9 +4,9 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   ChevronLeft, ChevronRight, Camera, Clock,
-  CheckCircle2, PlayCircle, Image, Film, Layers,
+  CheckCircle2, Plus, X, Loader2, Send,
 } from "lucide-react"
-import { updateContentPostStatus } from "@/lib/actions/content-calendar"
+import { updateContentPostStatus, createContentPost } from "@/lib/actions/content-calendar"
 
 interface Post {
   id: string; title: string; platform: string; content_type: string
@@ -38,6 +38,7 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> =
   posted:      { label: "Posted ✓",    color: "#10B981", bg: "rgba(16,185,129,0.1)" },
   cancelled:   { label: "Cancelled",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"  },
 }
+const CONTENT_TYPES = ["post", "reel", "video", "story", "carousel", "other"]
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"]
 const DAYS   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
 
@@ -52,7 +53,20 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [month, setMonth] = useState(initialMonth)
   const [view, setView]   = useState<"calendar" | "list">("calendar")
   const [filter, setFilter] = useState<"all" | "mine">("all")
-  const [, start] = useTransition()
+  const [, start]      = useTransition()
+  const [isPending, startCreate] = useTransition()
+
+  // Create form state
+  const [showAdd, setShowAdd]       = useState(false)
+  const [schedDate, setSchedDate]   = useState("")
+  const [title, setTitle]           = useState("")
+  const [platform, setPlatform]     = useState("instagram")
+  const [contentType, setContentType] = useState("post")
+  const [clientName, setClientName] = useState("")
+  const [driveLink, setDriveLink]   = useState("")
+  const [caption, setCaption]       = useState("")
+  const [formError, setFormError]   = useState("")
+  const [formSuccess, setFormSuccess] = useState(false)
 
   const firstDay  = new Date(year, month, 1).getDay()
   const daysCount = new Date(year, month + 1, 0).getDate()
@@ -79,6 +93,38 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
     })
   }
 
+  function openAdd(date?: string) {
+    setSchedDate(date ?? new Date().toISOString().split("T")[0])
+    setTitle(""); setPlatform("instagram"); setContentType("post")
+    setClientName(""); setDriveLink(""); setCaption("")
+    setFormError(""); setFormSuccess(false)
+    setShowAdd(true)
+  }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!title.trim()) { setFormError("Title is required"); return }
+    if (!schedDate)    { setFormError("Date is required");  return }
+    setFormError("")
+    startCreate(async () => {
+      const res = await createContentPost({
+        title, platform, content_type: contentType,
+        client_name: clientName || "Internal",
+        scheduled_date: schedDate,
+        assigned_to: userId,
+        drive_link: driveLink || undefined,
+        caption: caption || undefined,
+      })
+      if (res.success) {
+        setFormSuccess(true)
+        router.refresh()
+        setTimeout(() => { setShowAdd(false); setFormSuccess(false) }, 1200)
+      } else {
+        setFormError(res.error ?? "Something went wrong")
+      }
+    })
+  }
+
   const today      = new Date().toISOString().split("T")[0]
   const myPosts    = posts.filter(p => p.assigned_to === userId)
   const postedCount  = myPosts.filter(p => p.status === "posted").length
@@ -96,6 +142,10 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 2 }}>Your scheduled posts, reels & shoots</p>
           </div>
           <div className="ml-auto flex items-center gap-3">
+            <button onClick={() => openAdd()}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "#FFFFFF", color: "#DE1A1A", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800 }}>
+              <Plus size={14} /> Add Content
+            </button>
             {/* Filter toggle */}
             <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
               {(["all", "mine"] as const).map(f => (
@@ -312,6 +362,112 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   </div>
                 )
               })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Content Modal ── */}
+      {showAdd && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }} onClick={() => setShowAdd(false)} />
+          <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 20, padding: 28, width: "100%", maxWidth: 520, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <div>
+                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#111827", margin: 0 }}>Schedule Content</h3>
+                <p style={{ fontSize: 12, color: "#6B7280", margin: "2px 0 0" }}>Will be assigned to you</p>
+              </div>
+              <button onClick={() => setShowAdd(false)} style={{ background: "none", border: "none", cursor: "pointer" }}>
+                <X size={18} color="#6B7280" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Title */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Title *</label>
+                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Diwali Sale Reel" required
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", boxSizing: "border-box" }} />
+              </div>
+
+              {/* Platform */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Platform</label>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {PLATFORMS.map(p => (
+                    <button key={p.id} type="button" onClick={() => setPlatform(p.id)}
+                      style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${platform === p.id ? p.color : "#E2E8F0"}`, background: platform === p.id ? `${p.color}18` : "#FAFAFA", color: platform === p.id ? p.color : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Content type */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Content Type</label>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {CONTENT_TYPES.map(ct => (
+                    <button key={ct} type="button" onClick={() => setContentType(ct)}
+                      style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${contentType === ct ? "#DE1A1A" : "#E2E8F0"}`, background: contentType === ct ? "rgba(222,26,26,0.08)" : "#FAFAFA", color: contentType === ct ? "#DE1A1A" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      {ct.charAt(0).toUpperCase() + ct.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date + Client */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Date *</label>
+                  <input type="date" value={schedDate} onChange={e => setSchedDate(e.target.value)} required
+                    style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", boxSizing: "border-box" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Client</label>
+                  <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client or brand name"
+                    style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", boxSizing: "border-box" }} />
+                </div>
+              </div>
+
+              {/* Caption */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Caption (optional)</label>
+                <textarea value={caption} onChange={e => setCaption(e.target.value)} rows={2} placeholder="Post caption or script brief…"
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", resize: "vertical", lineHeight: 1.5, boxSizing: "border-box" }} />
+              </div>
+
+              {/* Drive link */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Drive Link (optional)</label>
+                <input type="url" value={driveLink} onChange={e => setDriveLink(e.target.value)} placeholder="https://drive.google.com/…"
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", boxSizing: "border-box" }} />
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(37,211,102,0.07)", borderRadius: 8, border: "1px solid rgba(37,211,102,0.2)" }}>
+                <Send size={13} color="#25D366" />
+                <span style={{ fontSize: 12, color: "#25D366", fontWeight: 600 }}>This post will be assigned to you</span>
+              </div>
+
+              {formError && <p style={{ fontSize: 12, color: "#EF4444", background: "rgba(239,68,68,0.07)", padding: "10px 14px", borderRadius: 8, margin: 0 }}>{formError}</p>}
+              {formSuccess && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(16,185,129,0.08)", borderRadius: 8 }}>
+                  <span style={{ fontSize: 12, color: "#10B981", fontWeight: 600 }}>✓ Content scheduled!</span>
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 10 }}>
+                <button type="button" onClick={() => setShowAdd(false)}
+                  style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#FAFAFA", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#6B7280" }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={isPending}
+                  style={{ flex: 2, padding: "12px", borderRadius: 10, border: "none", background: isPending ? "#718096" : "#DE1A1A", color: "#FFFFFF", fontSize: 13, fontWeight: 700, cursor: isPending ? "not-allowed" : "pointer" }}>
+                  {isPending
+                    ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Loader2 size={14} className="animate-spin" />Saving…</span>
+                    : "Schedule Content"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

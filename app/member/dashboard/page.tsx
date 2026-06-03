@@ -94,6 +94,14 @@ export default async function MemberDashboardPage() {
   const dateStr   = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
   const firstName = profile?.name?.split(" ")[0] ?? "there"
 
+  // Next salary date: 5th of current month if today < 5, else 5th of next month
+  const todayDay = now.getDate()
+  const nextSalaryDate = todayDay < 5
+    ? new Date(now.getFullYear(), now.getMonth(), 5)
+    : new Date(now.getFullYear(), now.getMonth() + 1, 5)
+  const nextSalaryDaysLeft = Math.max(0, Math.ceil((nextSalaryDate.getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 86400000))
+  const nextSalaryLabel = nextSalaryDate.toLocaleDateString("en-IN", { day: "numeric", month: "long" })
+
   let productivitySignal: { icon: "zap" | "warn"; text: string; color: string } | null = null
   if (clockLog?.clock_in) {
     if (todayHours > 9)
@@ -314,6 +322,30 @@ export default async function MemberDashboardPage() {
             </div>
             <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
           </Link>
+
+          {/* Salary Date Card */}
+          <div className="rounded-2xl p-4 flex items-center gap-3"
+            style={{
+              background: nextSalaryDaysLeft <= 2
+                ? "linear-gradient(135deg, #FEF3C7, #FDE68A)"
+                : "linear-gradient(135deg, #F0FDF4, #DCFCE7)",
+              border: nextSalaryDaysLeft <= 2 ? "1px solid #FCD34D" : "1px solid #86EFAC",
+            }}>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+              style={{ background: nextSalaryDaysLeft <= 2 ? "#FDE68A" : "#DCFCE7" }}>
+              <span style={{ fontSize: 20 }}>💰</span>
+            </div>
+            <div className="flex-1">
+              <p className="text-[12px] font-black leading-none"
+                style={{ color: nextSalaryDaysLeft <= 2 ? "#92400E" : "#15803D", fontFamily: "var(--font-jakarta)" }}>
+                {nextSalaryDaysLeft === 0 ? "Salary Day! 🎉" : nextSalaryDaysLeft === 1 ? "Salary tomorrow! 🎉" : `Salary in ${nextSalaryDaysLeft} days`}
+              </p>
+              <p className="text-[10px] font-medium mt-0.5"
+                style={{ color: nextSalaryDaysLeft <= 2 ? "#78350F" : "#16A34A" }}>
+                {nextSalaryLabel} · 5th every month
+              </p>
+            </div>
+          </div>
 
           {/* Today Summary — red wave card */}
           <div className="rounded-2xl p-4 relative overflow-hidden" style={{ background: "#0a0a0a" }}>

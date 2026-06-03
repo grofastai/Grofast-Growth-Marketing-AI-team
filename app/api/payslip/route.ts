@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
   const finalNetPay     = Math.round((totalEarnings - totalDeductions) * 100) / 100
   const attendPct      = workDays > 0 ? Math.round((presentDays / workDays) * 100) : 0
 
-  const payDate     = new Date(year, mon, 3)
+  const payDate     = new Date(year, mon, 5)
   const payDateStr  = payDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
   const monthName   = new Date(year, mon - 1).toLocaleString('en-IN', { month: 'long', year: 'numeric' })
   const generatedOn = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })

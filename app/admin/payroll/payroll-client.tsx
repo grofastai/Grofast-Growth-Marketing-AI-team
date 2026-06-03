@@ -530,9 +530,16 @@ export default function PayrollClient({
   const pendingCount    = rows.filter(r => r.basePay === 0).length
 
   const today    = new Date()
-  const payDate  = new Date(year, mon, 3)
+  const payDate  = new Date(year, mon, 5)
   const daysLeft = Math.max(0, Math.ceil((payDate.getTime() - today.getTime()) / 86400000))
   const payMonthName = payDate.toLocaleString("en-IN", { month: "long", year: "numeric" })
+  // Next upcoming salary date: 5th of next month from today
+  const todayDay = today.getDate()
+  const nextSalaryDate = todayDay < 5
+    ? new Date(today.getFullYear(), today.getMonth(), 5)
+    : new Date(today.getFullYear(), today.getMonth() + 1, 5)
+  const nextSalaryDaysLeft = Math.max(0, Math.ceil((nextSalaryDate.getTime() - today.setHours(0,0,0,0)) / 86400000))
+  const nextSalaryLabel = nextSalaryDate.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })
 
   function changeMonth(delta: number) {
     const d = new Date(year, mon - 1 + delta)
@@ -704,6 +711,44 @@ export default function PayrollClient({
                 <MiniSparkline color={card.color} idx={card.idx} />
               </div>
             ))}
+          </div>
+
+          {/* ── Salary Date Banner ── */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12,
+            padding: "14px 20px", borderRadius: 16,
+            background: nextSalaryDaysLeft <= 2
+              ? "linear-gradient(135deg, #FEF3C7, #FDE68A)"
+              : "linear-gradient(135deg, #F0FDF4, #DCFCE7)",
+            border: nextSalaryDaysLeft <= 2 ? "1.5px solid #FCD34D" : "1.5px solid #86EFAC",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{
+                width: 40, height: 40, borderRadius: 12, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                background: nextSalaryDaysLeft <= 2 ? "#FDE68A" : "#DCFCE7",
+                border: nextSalaryDaysLeft <= 2 ? "1.5px solid #FCD34D" : "1.5px solid #86EFAC",
+              }}>
+                <FileText size={18} style={{ color: nextSalaryDaysLeft <= 2 ? "#D97706" : "#16A34A" }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 800, color: "#111111", margin: 0 }}>
+                  Next Salary Date — <span style={{ color: nextSalaryDaysLeft <= 2 ? "#D97706" : "#16A34A" }}>5th of every month</span>
+                </p>
+                <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>
+                  Upcoming: {nextSalaryLabel}
+                </p>
+              </div>
+            </div>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 99,
+              background: nextSalaryDaysLeft <= 2 ? "#FCD34D" : "#22C55E",
+              color: nextSalaryDaysLeft <= 2 ? "#78350F" : "#fff",
+            }}>
+              <Clock size={13} />
+              <span style={{ fontSize: 12, fontWeight: 800 }}>
+                {nextSalaryDaysLeft === 0 ? "Due today!" : nextSalaryDaysLeft === 1 ? "Due tomorrow!" : `${nextSalaryDaysLeft} days left`}
+              </span>
+            </div>
           </div>
 
           {/* Employee Payroll Cards */}

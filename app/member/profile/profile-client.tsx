@@ -11,7 +11,7 @@ import {
   ChevronRight, Bell, Settings, Lock, FolderOpen, User, Download,
 } from "lucide-react"
 import { updateOwnProfile } from "@/lib/actions/team"
-import { updatePersonalDetails, updateKYC, deleteKYCDocument, uploadProfessionalPhoto, type KYCDocField } from "@/lib/actions/profile"
+import { updatePersonalDetails, updateKYC, deleteKYCDocument, type KYCDocField } from "@/lib/actions/profile"
 import { logoutAction } from "@/lib/actions/auth"
 import { createBrowserClient } from "@/lib/supabase/client"
 
@@ -247,10 +247,16 @@ export default function ProfileClient({
   async function handleProfPhotoUpload(file: File) {
     setProfPhotoBusy(true); setProfPhotoError(null)
     try {
-      const fd = new FormData(); fd.append("file", file)
-      const res = await uploadProfessionalPhoto(fd)
-      if (res.error) { setProfPhotoError(res.error); return }
-      if (res.url) setProfPhotoUrl(res.url)
+      if (file.size > 4 * 1024 * 1024) { setProfPhotoError("File too large (max 4MB)"); return }
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("folder", "passport-photos")
+      const res = await fetch("/api/upload-photo", { method: "POST", body: fd })
+      if (!res.ok) { setProfPhotoError("Upload failed — try a smaller image"); return }
+      const { url } = await res.json()
+      if (!url) { setProfPhotoError("Upload failed"); return }
+      await updatePersonalDetails({ passport_photo_url: url })
+      setProfPhotoUrl(url)
       router.refresh()
     } catch { setProfPhotoError("Upload failed") } finally { setProfPhotoBusy(false) }
   }

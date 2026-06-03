@@ -14,6 +14,7 @@ function adminSupabase() {
 
 export async function updatePersonalDetails(data: {
   photo_url?: string | null
+  passport_photo_url?: string | null
   blood_group?: string | null
   address?: string | null
   emergency_contact_name?: string | null

@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, ClipboardList, Target, CalendarOff,
   Megaphone, User, LogOut, Clock, History, LifeBuoy, ChevronRight,
-  MoreHorizontal, X, Bell, ArrowRight, StickyNote, CalendarDays,
+  MoreHorizontal, X, Bell, ArrowRight, StickyNote, CalendarDays, Receipt,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 import { getUnreadNotifications, markAllRead, type NotificationRow } from "@/lib/actions/notifications"
@@ -34,6 +34,7 @@ const navItems = [
   { label: "Daily Update",     href: "/member/update",             icon: ClipboardList },
   { label: "My Tasks",         href: "/member/tasks",              icon: Target },
   { label: "Content Calendar", href: "/member/content-calendar",   icon: CalendarDays },
+  { label: "My Payslip",       href: "/member/payslip",            icon: Receipt },
   { label: "Leaves",           href: "/member/leaves",             icon: CalendarOff },
   { label: "History",          href: "/member/history",            icon: History },
   { label: "Announcements",    href: "/member/announcements",      icon: Megaphone },
@@ -52,6 +53,7 @@ const mainBottomNav = [
 
 const moreNavItems = [
   { label: "Content Cal",    href: "/member/content-calendar", icon: CalendarDays },
+  { label: "My Payslip",     href: "/member/payslip",          icon: Receipt },
   { label: "Leaves",         href: "/member/leaves",           icon: CalendarOff },
   { label: "History",        href: "/member/history",          icon: History },
   { label: "Announcements",  href: "/member/announcements",    icon: Megaphone },

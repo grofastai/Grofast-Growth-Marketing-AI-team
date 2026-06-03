@@ -38,6 +38,8 @@ export async function createContentPost(input: ContentPostInput) {
 
   const { data: post, error } = await admin.from('content_posts').insert({
     company_id:     profile.company_id,
+    user_id:        user.id,
+    created_by:     user.id,
     title:          input.title,
     platform:       input.platform,
     content_type:   input.content_type,
@@ -48,7 +50,6 @@ export async function createContentPost(input: ContentPostInput) {
     drive_link:     input.drive_link || null,
     caption:        input.caption || null,
     notes:          input.notes || null,
-    created_by:     user.id,
   }).select('id').single()
 
   if (error) return { success: false, error: error.message }

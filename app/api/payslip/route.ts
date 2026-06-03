@@ -205,7 +205,6 @@ export async function GET(request: NextRequest) {
 <title>${payslipId} — ${member.name} — ${monthName}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet"/>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:13px}
@@ -320,7 +319,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
   <span class="topbar-id">${payslipId}</span>
   <button class="dl-btn" id="dl-btn" onclick="downloadPDF()">
     <svg id="dl-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-    <span id="dl-label">Download PDF</span>
+    <span id="dl-label">Download / Print</span>
   </button>
 </div>
 <div class="page">
@@ -505,10 +504,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:#F3F4F6;color:#111827;-
 </div>
 <script>
 function downloadPDF(){
-  const btn=document.getElementById('dl-btn'),label=document.getElementById('dl-label');
-  btn.disabled=true;btn.style.opacity='0.7';label.textContent='Generating…';
-  const opt={margin:0,filename:'${payslipId}.pdf',image:{type:'jpeg',quality:0.98},html2canvas:{scale:2,useCORS:true,allowTaint:false,logging:false,backgroundColor:'#ffffff'},jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}};
-  html2pdf().set(opt).from(document.querySelector('.page')).save().then(()=>{btn.disabled=false;btn.style.opacity='1';label.textContent='Download PDF';});
+  window.print();
 }
 </script>
 </body>

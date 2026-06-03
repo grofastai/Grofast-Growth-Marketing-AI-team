@@ -4,7 +4,7 @@ import { useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   ChevronLeft, ChevronRight, Plus, X, Camera, Scissors,
-  Instagram, Youtube, Facebook, Loader2, CheckCircle2, Clock,
+  Loader2, CheckCircle2, Clock,
   PlayCircle, Image, Film, Layers, Send, Trash2,
 } from "lucide-react"
 import { createContentPost, updateContentPostStatus, deleteContentPost } from "@/lib/actions/content-calendar"

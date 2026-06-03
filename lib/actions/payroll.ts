@@ -37,7 +37,9 @@ async function sendSalaryPaidNotification(userId: string, month: string, netPay:
 
   const [year, mon] = month.split("-").map(Number)
   const monthLabel = new Date(year, mon - 1).toLocaleString("en-IN", { month: "long", year: "numeric" })
-  const amount = `₹${netPay.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+  const amount = netPay > 0
+    ? `₹${netPay.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+    : "your salary"
 
   sendWhatsAppTemplate(
     formatPhone(emp.phone),
@@ -64,7 +66,7 @@ export async function markEmployeePaid(userId: string, month: string, netPay = 0
 
   if (error) throw new Error(error.message)
 
-  if (netPay > 0) sendSalaryPaidNotification(userId, month, netPay)
+  sendSalaryPaidNotification(userId, month, netPay)
 
   revalidatePath("/admin/payroll")
 }
@@ -112,8 +114,7 @@ export async function runPayroll(month: string, userIds: string[], netPayMap: Re
 
   // Send WhatsApp to each paid employee
   userIds.forEach(uid => {
-    const net = netPayMap[uid] ?? 0
-    if (net > 0) sendSalaryPaidNotification(uid, month, net)
+    sendSalaryPaidNotification(uid, month, netPayMap[uid] ?? 0)
   })
 
   revalidatePath("/admin/payroll")

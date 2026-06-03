@@ -22,7 +22,8 @@ interface WorkEntry {
 interface UpdateRow {
   id: string; date: string; attendance_status: string
   work_type: string | null; working_hours: number | null
-  learning_hours: number | null; shoot_count: number | null
+  learning_hours: number | null; learning_topic: string | null; learning_notes: string | null
+  shoot_count: number | null
   work_entries: WorkEntry[] | null; created_at: string
 }
 
@@ -544,13 +545,22 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                       </div>
                       <div>
                         <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{dateLabel}</p>
-                        <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{entries.length} work {entries.length === 1 ? "entry" : "entries"}</p>
+                        <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
+                          {entries.length > 0
+                            ? `${entries.length} work ${entries.length === 1 ? "entry" : "entries"}${u.learning_topic ? " + learning" : ""}`
+                            : u.learning_topic ? "Learning session" : "No entries"}
+                        </p>
                       </div>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(u.working_hours ?? 0) > 0 && (
                         <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
                           <Clock size={11} style={{ color:"#9CA3AF" }}/> {fmtH(u.working_hours ?? 0)}
+                        </span>
+                      )}
+                      {!(u.working_hours) && (u.learning_hours ?? 0) > 0 && (
+                        <span style={{ fontSize:11, fontWeight:700, color:"#F59E0B", display:"flex", alignItems:"center", gap:4 }}>
+                          <BookOpen size={11} style={{ color:"#F59E0B" }}/> {fmtH(u.learning_hours!)}
                         </span>
                       )}
                       <span style={{ fontSize:11, fontWeight:700, color:st.color, background:st.bg, padding:"3px 10px", borderRadius:99 }}>
@@ -567,10 +577,51 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                   </div>
 
                   {/* Work entries */}
-                  {entries.length === 0 ? (
+                  {entries.length === 0 && u.learning_topic ? (
+                    <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
+                      <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <BookOpen size={15} style={{ color:"#F59E0B" }}/>
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
+                          <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
+                          <span style={{ fontSize:10, fontWeight:700, color:"#F59E0B", background:"rgba(245,158,11,0.1)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
+                        </div>
+                        {u.learning_notes && (
+                          <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>
+                        )}
+                        {(u.learning_hours ?? 0) > 0 && (
+                          <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:3, marginTop:4 }}>
+                            <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(u.learning_hours!)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : entries.length === 0 ? (
                     <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>No work entries logged</p>
                   ) : (
                     <div>
+                      {u.learning_topic && (
+                        <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start", borderBottom:"1px solid #F5F6FA", background:"rgba(245,158,11,0.03)" }}>
+                          <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <BookOpen size={15} style={{ color:"#F59E0B" }}/>
+                          </div>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
+                              <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
+                              <span style={{ fontSize:10, fontWeight:700, color:"#F59E0B", background:"rgba(245,158,11,0.1)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
+                            </div>
+                            {u.learning_notes && (
+                              <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>
+                            )}
+                            {(u.learning_hours ?? 0) > 0 && (
+                              <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:3, marginTop:4 }}>
+                                <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(u.learning_hours!)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       {entries.map((e, ei) => {
                         const cfg = TASK_CFG[e.task_type] ?? TASK_CFG.other
                         const { Icon } = cfg

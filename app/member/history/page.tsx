@@ -24,6 +24,8 @@ type UpdateRow = {
   work_type: string | null
   working_hours: number | null
   learning_hours: number | null
+  learning_topic: string | null
+  learning_notes: string | null
   shoot_count: number | null
   work_entries: WorkEntry[] | null
   created_at: string
@@ -47,7 +49,7 @@ export default async function HistoryPage() {
   const [updatesResult, profileResult] = await Promise.all([
     supabase
       .from("daily_updates")
-      .select("id, date, attendance_status, work_type, working_hours, learning_hours, shoot_count, editing_count, work_entries, created_at")
+      .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, shoot_count, editing_count, work_entries, created_at")
       .eq("user_id", user.id)
       .order("date", { ascending: false })
       .limit(90),

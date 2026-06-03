@@ -107,6 +107,22 @@ export async function updateContentPostStatus(
   return { success: true }
 }
 
+export async function updatePostLink(postId: string, link: string) {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { error } = await admin.from('content_posts')
+    .update({ drive_link: link, post_link: link })
+    .eq('id', postId)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/admin/content-calendar')
+  revalidatePath('/member/content-calendar')
+  return { success: true }
+}
+
 export async function deleteContentPost(postId: string) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()

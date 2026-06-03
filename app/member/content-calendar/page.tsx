@@ -32,6 +32,7 @@ export default async function MemberContentCalendarPage() {
     { data: posts },
     { data: shoots },
     { data: tasks },
+    { data: members },
   ] = await Promise.all([
     admin.from("content_posts")
       .select("*, assignee:users!assigned_to(name)")
@@ -51,6 +52,11 @@ export default async function MemberContentCalendarPage() {
       .gte("due_date", monthStart)
       .lte("due_date", monthEnd)
       .neq("status", "completed"),
+    admin.from("users")
+      .select("id, name")
+      .eq("company_id", cid)
+      .eq("status", "active")
+      .order("name"),
   ])
 
   return (
@@ -58,6 +64,7 @@ export default async function MemberContentCalendarPage() {
       posts={posts ?? []}
       shoots={shoots ?? []}
       tasks={tasks ?? []}
+      members={members ?? []}
       userId={user.id}
       initialYear={now.getFullYear()}
       initialMonth={now.getMonth()}

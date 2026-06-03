@@ -14,11 +14,13 @@ interface Post {
   assigned_to: string | null; drive_link: string | null
   assignee?: { name: string } | null
 }
-interface Shoot { id: string; title: string; start_time: string; client: string; status: string }
-interface Task  { id: string; title: string; due_date: string; status: string }
+interface Shoot  { id: string; title: string; start_time: string; client: string; status: string }
+interface Task   { id: string; title: string; due_date: string; status: string }
+interface Member { id: string; name: string }
 
 interface Props {
   posts: Post[]; shoots: Shoot[]; tasks: Task[]
+  members: Member[]
   userId: string; initialYear: number; initialMonth: number
 }
 
@@ -46,7 +48,7 @@ function platformColor(p: string) { return PLATFORMS.find(x => x.id === p)?.colo
 function platformLabel(p: string) { return PLATFORMS.find(x => x.id === p)?.label ?? p }
 function platformEmoji(p: string) { return PLATFORMS.find(x => x.id === p)?.emoji ?? "📱" }
 
-export default function MemberContentCalendarClient({ posts: initial, shoots, tasks, userId, initialYear, initialMonth }: Props) {
+export default function MemberContentCalendarClient({ posts: initial, shoots, tasks, members, userId, initialYear, initialMonth }: Props) {
   const router = useRouter()
   const [posts, setPosts] = useState(initial)
   const [year, setYear]   = useState(initialYear)
@@ -57,16 +59,22 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [isPending, startCreate] = useTransition()
 
   // Create form state
-  const [showAdd, setShowAdd]       = useState(false)
-  const [schedDate, setSchedDate]   = useState("")
-  const [title, setTitle]           = useState("")
-  const [platform, setPlatform]     = useState("instagram")
+  const [showAdd, setShowAdd]         = useState(false)
+  const [schedDate, setSchedDate]     = useState("")
+  const [title, setTitle]             = useState("")
+  const [platform, setPlatform]       = useState("instagram")
   const [contentType, setContentType] = useState("post")
-  const [clientName, setClientName] = useState("")
-  const [driveLink, setDriveLink]   = useState("")
-  const [caption, setCaption]       = useState("")
-  const [formError, setFormError]   = useState("")
+  const [clientName, setClientName]   = useState("")
+  const [driveLink, setDriveLink]     = useState("")
+  const [caption, setCaption]         = useState("")
+  const [assignedTo, setAssignedTo]   = useState("")
+  const [formError, setFormError]     = useState("")
   const [formSuccess, setFormSuccess] = useState(false)
+
+  // Post link modal (shown when marking a post as "posted")
+  const [postLinkModal, setPostLinkModal] = useState<{ postId: string; title: string } | null>(null)
+  const [postLink, setPostLink]           = useState("")
+  const [savingPostLink, setSavingPostLink] = useState(false)
 
   const firstDay  = new Date(year, month, 1).getDay()
   const daysCount = new Date(year, month + 1, 0).getDate()
@@ -86,6 +94,12 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   function handleStatusChange(postId: string, status: string) {
     const post = posts.find(p => p.id === postId)
     if (!post || post.assigned_to !== userId) return
+    // When marking as posted, show modal to capture live post link
+    if (status === "posted") {
+      setPostLink("")
+      setPostLinkModal({ postId, title: post.title })
+      return
+    }
     start(async () => {
       await updateContentPostStatus(postId, status as "posted")
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, status } : p))
@@ -93,10 +107,25 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
     })
   }
 
+  async function confirmPosted() {
+    if (!postLinkModal) return
+    setSavingPostLink(true)
+    await updateContentPostStatus(postLinkModal.postId, "posted")
+    // Save drive_link if user entered a post URL
+    if (postLink.trim()) {
+      const { updatePostLink } = await import("@/lib/actions/content-calendar")
+      await updatePostLink(postLinkModal.postId, postLink.trim())
+    }
+    setPosts(prev => prev.map(p => p.id === postLinkModal.postId ? { ...p, status: "posted", drive_link: postLink.trim() || p.drive_link } : p))
+    setSavingPostLink(false)
+    setPostLinkModal(null)
+    router.refresh()
+  }
+
   function openAdd(date?: string) {
     setSchedDate(date ?? new Date().toISOString().split("T")[0])
     setTitle(""); setPlatform("instagram"); setContentType("post")
-    setClientName(""); setDriveLink(""); setCaption("")
+    setClientName(""); setDriveLink(""); setCaption(""); setAssignedTo("")
     setFormError(""); setFormSuccess(false)
     setShowAdd(true)
   }
@@ -111,7 +140,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
         title, platform, content_type: contentType,
         client_name: clientName || "Internal",
         scheduled_date: schedDate,
-        assigned_to: userId,
+        assigned_to: assignedTo || userId,
         drive_link: driveLink || undefined,
         caption: caption || undefined,
       })
@@ -366,6 +395,48 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
         </div>
       )}
 
+      {/* ── Posted — Add Post Link Modal ── */}
+      {postLinkModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }} onClick={() => setPostLinkModal(null)} />
+          <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 20, padding: 28, width: "100%", maxWidth: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
+              <h3 style={{ fontSize: 18, fontWeight: 900, color: "#111827", margin: "0 0 6px" }}>Content Posted!</h3>
+              <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}>
+                <strong>{postLinkModal.title}</strong> — add the live post link so the team can see it.
+              </p>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6, display: "block" }}>
+                Live Post Link (optional)
+              </label>
+              <input
+                type="url"
+                value={postLink}
+                onChange={e => setPostLink(e.target.value)}
+                placeholder="https://instagram.com/p/…"
+                autoFocus
+                style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", boxSizing: "border-box" }}
+              />
+              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "5px 0 0" }}>Instagram, YouTube, Facebook post URL etc.</p>
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setPostLinkModal(null)}
+                style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#FAFAFA", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#6B7280" }}>
+                Cancel
+              </button>
+              <button onClick={confirmPosted} disabled={savingPostLink}
+                style={{ flex: 2, padding: "12px", borderRadius: 10, border: "none", background: savingPostLink ? "#9CA3AF" : "#10B981", color: "#FFFFFF", fontSize: 13, fontWeight: 800, cursor: savingPostLink ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                {savingPostLink ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : "✓ Mark as Posted"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Add Content Modal ── */}
       {showAdd && (
         <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -429,6 +500,18 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </div>
               </div>
 
+              {/* Assign To */}
+              <div>
+                <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Assign To</label>
+                <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)}
+                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", boxSizing: "border-box" }}>
+                  <option value="">— Myself —</option>
+                  {members.filter(m => m.id !== userId).map(m => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Caption */}
               <div>
                 <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Caption (optional)</label>
@@ -445,7 +528,11 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(37,211,102,0.07)", borderRadius: 8, border: "1px solid rgba(37,211,102,0.2)" }}>
                 <Send size={13} color="#25D366" />
-                <span style={{ fontSize: 12, color: "#25D366", fontWeight: 600 }}>This post will be assigned to you</span>
+                <span style={{ fontSize: 12, color: "#25D366", fontWeight: 600 }}>
+                  {assignedTo
+                    ? `WhatsApp notification will be sent to ${members.find(m => m.id === assignedTo)?.name ?? "assignee"}`
+                    : "This post will be assigned to you"}
+                </span>
               </div>
 
               {formError && <p style={{ fontSize: 12, color: "#EF4444", background: "rgba(239,68,68,0.07)", padding: "10px 14px", borderRadius: 8, margin: 0 }}>{formError}</p>}

@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     year: 'numeric',
   })
 
-  const [{ data: members }, { data: todayUpdates }] = await Promise.all([
+  const [{ data: members }, { data: todayUpdates }, { data: todayLeaves }] = await Promise.all([
     admin
       .from('users')
       .select('id, name, phone')
@@ -68,10 +68,18 @@ export async function GET(request: NextRequest) {
       .select('user_id')
       .eq('company_id', companyId)
       .eq('date', today),
+    admin
+      .from('leaves')
+      .select('user_id')
+      .eq('company_id', companyId)
+      .eq('status', 'approved')
+      .lte('from_date', today)
+      .gte('to_date', today),
   ])
 
   const submittedIds = new Set((todayUpdates ?? []).map((u: any) => u.user_id))
-  const pending = (members ?? []).filter((m: any) => !submittedIds.has(m.id) && m.phone)
+  const onLeaveIds = new Set((todayLeaves ?? []).map((l: any) => l.user_id))
+  const pending = (members ?? []).filter((m: any) => !submittedIds.has(m.id) && !onLeaveIds.has(m.id) && m.phone)
 
   let sent = 0
   let failed = 0

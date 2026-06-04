@@ -36,7 +36,7 @@ export default async function ActivitiesPage({
 
   const companyId = profile?.company_id ?? ""
 
-  const [{ data: members }, updatesResult, { data: allTasks }] = await Promise.all([
+  const [{ data: members }, updatesResult, { data: allTasks }, { data: approvedLeaves }] = await Promise.all([
     admin
       .from("users")
       .select("id, name, employee_id, role")
@@ -58,6 +58,13 @@ export default async function ActivitiesPage({
       .eq("company_id", companyId)
       .order("created_at", { ascending: false })
       .limit(200),
+    admin
+      .from("leaves")
+      .select("user_id")
+      .eq("company_id", companyId)
+      .eq("status", "approved")
+      .lte("from_date", dateFilter)
+      .gte("to_date", dateFilter),
   ])
 
   if (updatesResult.error) {
@@ -83,5 +90,7 @@ export default async function ActivitiesPage({
     tasks_total: (tasksByUser[u.user_id] ?? []).length,
   }))
 
-  return <ActivitiesClient updates={updates} members={members ?? []} dateFilter={dateFilter} memberFilter={params.member ?? ""} />
+  const onLeaveIds = new Set((approvedLeaves ?? []).map((l: { user_id: string }) => l.user_id))
+
+  return <ActivitiesClient updates={updates} members={members ?? []} dateFilter={dateFilter} memberFilter={params.member ?? ""} onLeaveIds={onLeaveIds} />
 }

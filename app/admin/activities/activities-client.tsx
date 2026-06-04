@@ -87,11 +87,13 @@ export default function ActivitiesClient({
   members,
   dateFilter,
   memberFilter,
+  onLeaveIds,
 }: {
   updates: Update[]
   members: Member[]
   dateFilter: string
   memberFilter: string
+  onLeaveIds: Set<string>
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -116,7 +118,7 @@ export default function ActivitiesClient({
     const user = Array.isArray(u.users) ? u.users[0] : u.users
     return user?.id
   }))
-  const notUpdated = memberFilter ? [] : members.filter((m) => !submittedIds.has(m.id))
+  const notUpdated = memberFilter ? [] : members.filter((m) => !submittedIds.has(m.id) && !onLeaveIds.has(m.id))
 
   const presentCount = updates.filter((u) => u.attendance_status === "present").length
   const absentCount  = updates.filter((u) => u.attendance_status === "absent").length

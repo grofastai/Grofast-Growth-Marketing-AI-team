@@ -5,6 +5,10 @@
       "schedule": "30 15 * * *"
     },
     {
+      "path": "/api/send-daily-reminder",
+      "schedule": "0 4 * * *"
+    },
+    {
       "path": "/api/cron/admin-morning-report",
       "schedule": "30 4 * * *"
     },

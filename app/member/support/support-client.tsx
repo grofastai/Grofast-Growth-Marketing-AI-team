@@ -285,12 +285,29 @@ export default function MemberSupportClient({
     })
   }
 
+  const [windowWidth, setWindowWidth] = useState(0)
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list')
+
+  useEffect(() => {
+    setWindowWidth(window.innerWidth)
+    const handler = () => setWindowWidth(window.innerWidth)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+
+  const isMobile = windowWidth > 0 && windowWidth < 768
+
+  function handleTicketSelect(t: Ticket) {
+    setSelectedTicket(t)
+    if (isMobile) setMobileView('chat')
+  }
+
   const sc = selectedTicket ? (STATUS_CONFIG[selectedTicket.status] ?? STATUS_CONFIG.closed) : null
   const isActive = selectedTicket ? ['open', 'in_progress'].includes(selectedTicket.status) : false
   const cat = selectedTicket ? CATEGORIES.find(c => c.key === selectedTicket.category) : null
 
   return (
-    <div style={{ background: '#F4F5F7', minHeight: '100vh' }}>
+    <div style={{ background: '#F4F5F7', minHeight: '100vh', overflow: 'hidden' }}>
 
       {/* ── HERO ── */}
       <div style={{
@@ -331,7 +348,7 @@ export default function MemberSupportClient({
       <div style={{ display: 'flex', gap: 18, padding: '20px 20px', alignItems: 'flex-start' }}>
 
         {/* LEFT: ticket list */}
-        <div style={{ width: 290, flexShrink: 0 }}>
+        <div style={{ width: isMobile ? '100%' : 290, flexShrink: 0, display: isMobile && mobileView === 'chat' ? 'none' : 'block' }}>
           <div style={{ background: '#fff', borderRadius: 22, boxShadow: '0 2px 16px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.05)', overflow: 'hidden' }}>
             <div style={{ padding: '14px 16px', borderBottom: '1px solid #F3F4F6' }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: '#111111' }}>My Tickets</span>
@@ -350,7 +367,7 @@ export default function MemberSupportClient({
                 return (
                   <div
                     key={t.id}
-                    onClick={() => setSelectedTicket(t)}
+                    onClick={() => handleTicketSelect(t)}
                     style={{
                       padding: '12px 16px',
                       borderBottom: i < sorted.length - 1 ? '1px solid #F9FAFB' : 'none',
@@ -376,7 +393,7 @@ export default function MemberSupportClient({
         </div>
 
         {/* RIGHT: conversation */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0, display: isMobile && mobileView === 'list' ? 'none' : 'block', width: isMobile ? '100%' : undefined }}>
           {!selectedTicket ? (
             <div style={{ background: '#fff', borderRadius: 22, padding: '80px 20px', textAlign: 'center', boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.05)' }}>
               <MessageCircle size={48} color="#E5E7EB" />
@@ -388,6 +405,14 @@ export default function MemberSupportClient({
 
               {/* Ticket header */}
               <div style={{ padding: '14px 18px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 10 }}>
+                {isMobile && (
+                  <button
+                    onClick={() => setMobileView('list')}
+                    style={{ width: 30, height: 30, borderRadius: '50%', border: '1px solid #E5E7EB', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
+                  >
+                    <ArrowLeft size={13} color="#374151" />
+                  </button>
+                )}
                 <span style={{ fontSize: 22, flexShrink: 0 }}>{cat?.emoji ?? '📋'}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 14, fontWeight: 700, color: '#111111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{selectedTicket.title}</p>

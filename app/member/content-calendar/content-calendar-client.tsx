@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
   ChevronLeft, ChevronRight, Camera, Clock,
@@ -12,6 +12,7 @@ interface Post {
   id: string; title: string; platform: string; content_type: string
   client_name: string; scheduled_date: string; status: string
   assigned_to: string | null; drive_link: string | null
+  content_pillar?: string | null; priority?: string | null
   assignee?: { name: string } | null
 }
 interface Shoot  { id: string; title: string; start_time: string; client: string; status: string }
@@ -34,19 +35,37 @@ const PLATFORMS = [
   { id: "other",     label: "Other",     color: "#6B7280", emoji: "📱" },
 ]
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  pending:     { label: "Pending",     color: "#F59E0B", bg: "rgba(245,158,11,0.1)" },
-  in_progress: { label: "In Progress", color: "#3B82F6", bg: "rgba(59,130,246,0.1)" },
-  ready:       { label: "Ready",       color: "#8B5CF6", bg: "rgba(139,92,246,0.1)" },
-  posted:      { label: "Posted ✓",    color: "#10B981", bg: "rgba(16,185,129,0.1)" },
-  cancelled:   { label: "Cancelled",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"  },
+  pending:     { label: "Scheduled",   color: "#F59E0B", bg: "rgba(245,158,11,0.1)"  },
+  in_progress: { label: "In Progress", color: "#3B82F6", bg: "rgba(59,130,246,0.1)"  },
+  ready:       { label: "Ready",       color: "#8B5CF6", bg: "rgba(139,92,246,0.1)"  },
+  posted:      { label: "Posted ✓",    color: "#10B981", bg: "rgba(16,185,129,0.1)"  },
+  cancelled:   { label: "Cancelled",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"   },
+  missed:      { label: "Missed",      color: "#EF4444", bg: "rgba(239,68,68,0.08)"  },
 }
-const CONTENT_TYPES = ["post", "reel", "video", "story", "carousel", "other"]
+const PRIORITY_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  low:    { label: "Low",    color: "#6B7280", bg: "rgba(107,114,128,0.1)" },
+  medium: { label: "Medium", color: "#F59E0B", bg: "rgba(245,158,11,0.1)" },
+  high:   { label: "High",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"  },
+  urgent: { label: "Urgent", color: "#7C3AED", bg: "rgba(124,58,237,0.1)" },
+}
+const CONTENT_PILLARS = ["Branding","Cinematic","Educational","Offer","Testimonial","Behind The Scenes","Trending","Festival","Engagement"]
+const CONTENT_TYPES   = ["post", "reel", "video", "story", "carousel", "other"]
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"]
 const DAYS   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
 
 function platformColor(p: string) { return PLATFORMS.find(x => x.id === p)?.color ?? "#6B7280" }
 function platformLabel(p: string) { return PLATFORMS.find(x => x.id === p)?.label ?? p }
 function platformEmoji(p: string) { return PLATFORMS.find(x => x.id === p)?.emoji ?? "📱" }
+
+const F: React.CSSProperties = {
+  width: "100%", padding: "10px 14px", borderRadius: 10,
+  border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA",
+  color: "#1A202C", outline: "none", fontFamily: "inherit", boxSizing: "border-box",
+}
+const L: React.CSSProperties = {
+  fontSize: 11, fontWeight: 700, color: "#4A5568",
+  textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block",
+}
 
 export default function MemberContentCalendarClient({ posts: initial, shoots, tasks, members, userId, initialYear, initialMonth }: Props) {
   const router = useRouter()
@@ -55,23 +74,27 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [month, setMonth] = useState(initialMonth)
   const [view, setView]   = useState<"calendar" | "list">("calendar")
   const [filter, setFilter] = useState<"all" | "mine">("all")
-  const [, start]      = useTransition()
+  const [, start]           = useTransition()
   const [isPending, startCreate] = useTransition()
 
-  // Create form state
+  // Client filter
+  const [clientFilter, setClientFilter] = useState("all")
+
+  // Create form
   const [showAdd, setShowAdd]         = useState(false)
   const [schedDate, setSchedDate]     = useState("")
   const [title, setTitle]             = useState("")
   const [platform, setPlatform]       = useState("instagram")
   const [contentType, setContentType] = useState("post")
   const [clientName, setClientName]   = useState("")
-  const [driveLink, setDriveLink]     = useState("")
-  const [caption, setCaption]         = useState("")
   const [assignedTo, setAssignedTo]   = useState("")
+  const [instructions, setInstructions] = useState("")
+  const [contentPillar, setContentPillar] = useState("")
+  const [priority, setPriority]       = useState("medium")
   const [formError, setFormError]     = useState("")
   const [formSuccess, setFormSuccess] = useState(false)
 
-  // Post link modal (shown when marking a post as "posted")
+  // Post link modal
   const [postLinkModal, setPostLinkModal] = useState<{ postId: string; title: string } | null>(null)
   const [postLink, setPostLink]           = useState("")
   const [savingPostLink, setSavingPostLink] = useState(false)
@@ -85,21 +108,22 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   function nextMonth() { if (month === 11) { setYear(y => y + 1); setMonth(0) } else setMonth(m => m + 1) }
   function dateStr(d: number) { return `${year}-${String(month + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}` }
 
-  const filteredPosts = filter === "mine" ? posts.filter(p => p.assigned_to === userId) : posts
+  const clientOptions = useMemo(() => [...new Set(posts.map(p => p.client_name).filter(Boolean))].sort(), [posts])
 
-  function postsOnDay(d: number) { const ds = dateStr(d); return filteredPosts.filter(p => p.scheduled_date === ds) }
+  const filteredPosts = useMemo(() => {
+    let p = filter === "mine" ? posts.filter(p => p.assigned_to === userId) : posts
+    if (clientFilter !== "all") p = p.filter(p => p.client_name === clientFilter)
+    return p
+  }, [posts, filter, clientFilter, userId])
+
+  function postsOnDay(d: number)  { const ds = dateStr(d); return filteredPosts.filter(p => p.scheduled_date === ds) }
   function shootsOnDay(d: number) { const ds = dateStr(d); return shoots.filter(s => s.start_time.split("T")[0] === ds) }
-  function tasksOnDay(d: number) { const ds = dateStr(d); return tasks.filter(t => t.due_date === ds) }
+  function tasksOnDay(d: number)  { const ds = dateStr(d); return tasks.filter(t => t.due_date === ds) }
 
   function handleStatusChange(postId: string, status: string) {
     const post = posts.find(p => p.id === postId)
     if (!post || post.assigned_to !== userId) return
-    // When marking as posted, show modal to capture live post link
-    if (status === "posted") {
-      setPostLink("")
-      setPostLinkModal({ postId, title: post.title })
-      return
-    }
+    if (status === "posted") { setPostLink(""); setPostLinkModal({ postId, title: post.title }); return }
     start(async () => {
       await updateContentPostStatus(postId, status as "posted")
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, status } : p))
@@ -111,7 +135,6 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
     if (!postLinkModal) return
     setSavingPostLink(true)
     await updateContentPostStatus(postLinkModal.postId, "posted")
-    // Save drive_link if user entered a post URL
     if (postLink.trim()) {
       const { updatePostLink } = await import("@/lib/actions/content-calendar")
       await updatePostLink(postLinkModal.postId, postLink.trim())
@@ -125,7 +148,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   function openAdd(date?: string) {
     setSchedDate(date ?? new Date().toISOString().split("T")[0])
     setTitle(""); setPlatform("instagram"); setContentType("post")
-    setClientName(""); setDriveLink(""); setCaption(""); setAssignedTo("")
+    setClientName(""); setAssignedTo(""); setInstructions("")
+    setContentPillar(""); setPriority("medium")
     setFormError(""); setFormSuccess(false)
     setShowAdd(true)
   }
@@ -141,8 +165,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
         client_name: clientName || "Internal",
         scheduled_date: schedDate,
         assigned_to: assignedTo || userId,
-        drive_link: driveLink || undefined,
-        caption: caption || undefined,
+        notes: instructions || undefined,
+        content_pillar: contentPillar || null,
+        priority: priority || "medium",
       })
       if (res.success) {
         setFormSuccess(true)
@@ -154,11 +179,12 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
     })
   }
 
-  const today      = new Date().toISOString().split("T")[0]
-  const myPosts    = posts.filter(p => p.assigned_to === userId)
-  const postedCount  = myPosts.filter(p => p.status === "posted").length
-  const pendingCount = myPosts.filter(p => p.status === "pending" || p.status === "in_progress").length
-  const totalCount   = filteredPosts.length
+  const today        = new Date().toISOString().split("T")[0]
+  const myPosts      = posts.filter(p => p.assigned_to === userId)
+  const totalContent = filteredPosts.length
+  const readyCount   = filteredPosts.filter(p => p.status === "ready").length
+  const inProgCount  = filteredPosts.filter(p => p.status === "in_progress").length
+  const postedCount  = filteredPosts.filter(p => p.status === "posted").length
 
   return (
     <div className="p-4 md:p-6 xl:p-8" style={{ background: "#F5F6FA", minHeight: "100vh" }}>
@@ -170,12 +196,11 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             <h1 className="text-[26px] font-black text-white">Content Calendar</h1>
             <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 2 }}>Your scheduled posts, reels & shoots</p>
           </div>
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-3 flex-wrap">
             <button onClick={() => openAdd()}
               style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "#FFFFFF", color: "#DE1A1A", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800 }}>
               <Plus size={14} /> Add Content
             </button>
-            {/* Filter toggle */}
             <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
               {(["all", "mine"] as const).map(f => (
                 <button key={f} onClick={() => setFilter(f)}
@@ -184,7 +209,6 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </button>
               ))}
             </div>
-            {/* View toggle */}
             <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
               {(["calendar","list"] as const).map(v => (
                 <button key={v} onClick={() => setView(v)}
@@ -198,23 +222,36 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
       </div>
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         {[
-          { label: "Scheduled This Month", value: totalCount,   color: "#3B82F6" },
-          { label: "My Completed",         value: postedCount,  color: "#10B981" },
-          { label: "My Pending",           value: pendingCount, color: "#F59E0B" },
+          { label: "Total Content",  value: totalContent, color: "#3B82F6" },
+          { label: "Ready To Post",  value: readyCount,   color: "#8B5CF6" },
+          { label: "In Progress",    value: inProgCount,  color: "#F59E0B" },
+          { label: "Posted",         value: postedCount,  color: "#10B981" },
         ].map(s => (
           <div key={s.label} style={{ background: "#FFFFFF", borderRadius: 16, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
-            <p style={{ fontSize: 32, fontWeight: 900, color: s.color, margin: 0 }}>{s.value}</p>
+            <p style={{ fontSize: 30, fontWeight: 900, color: s.color, margin: 0 }}>{s.value}</p>
             <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0", fontWeight: 600 }}>{s.label}</p>
           </div>
         ))}
       </div>
 
+      {/* ── Client Filter ── */}
+      {clientOptions.length > 0 && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", alignSelf: "center", textTransform: "uppercase", letterSpacing: "0.06em" }}>Filter:</span>
+          {["all", ...clientOptions].map(c => (
+            <button key={c} onClick={() => setClientFilter(c)}
+              style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: "pointer", border: `1.5px solid ${clientFilter === c ? "#DE1A1A" : "#E5E7EB"}`, background: clientFilter === c ? "rgba(222,26,26,0.08)" : "#FFFFFF", color: clientFilter === c ? "#DE1A1A" : "#6B7280" }}>
+              {c === "all" ? "All Clients" : c}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* ── Calendar / List ── */}
       {view === "calendar" ? (
         <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
-          {/* Month nav */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px", borderBottom: "1px solid #F3F4F6" }}>
             <button onClick={prevMonth} style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <ChevronLeft size={16} color="#6B7280" />
@@ -224,15 +261,11 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               <ChevronRight size={16} color="#6B7280" />
             </button>
           </div>
-
-          {/* Day headers */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid #F3F4F6" }}>
             {DAYS.map(d => (
               <div key={d} style={{ padding: "10px 0", textAlign: "center", fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em" }}>{d}</div>
             ))}
           </div>
-
-          {/* Cells */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
             {cells.map((day, i) => {
               if (!day) return <div key={i} style={{ minHeight: 90, borderRight: i % 7 !== 6 ? "1px solid #F9FAFB" : "none", borderBottom: "1px solid #F9FAFB" }} />
@@ -243,32 +276,25 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               const isToday   = ds === today
               return (
                 <div key={i} style={{ minHeight: 90, padding: "7px 5px", borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6", background: isToday ? "rgba(222,26,26,0.03)" : "transparent" }}>
-                  <span style={{
-                    fontSize: 13, fontWeight: isToday ? 900 : 500, lineHeight: 1,
-                    width: 24, height: 24, display: "inline-flex", alignItems: "center", justifyContent: "center",
-                    borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent",
-                    color: isToday ? "#FFFFFF" : "#374151", marginBottom: 4,
-                  }}>{day}</span>
-
+                  <span style={{ fontSize: 13, fontWeight: isToday ? 900 : 500, width: 24, height: 24, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent", color: isToday ? "#FFFFFF" : "#374151", marginBottom: 4 }}>{day}</span>
                   {dayShoots.map(s => (
                     <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 5px", borderRadius: 4, background: "rgba(59,130,246,0.1)", marginBottom: 2 }}>
                       <Camera size={8} color="#3B82F6" />
                       <span style={{ fontSize: 9, fontWeight: 600, color: "#3B82F6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title || s.client}</span>
                     </div>
                   ))}
-
                   {dayTasks.map(t => (
                     <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 5px", borderRadius: 4, background: "rgba(245,158,11,0.1)", marginBottom: 2 }}>
                       <Clock size={8} color="#F59E0B" />
                       <span style={{ fontSize: 9, fontWeight: 600, color: "#F59E0B", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
                     </div>
                   ))}
-
                   {dayPosts.map(p => {
                     const isMine = p.assigned_to === userId
+                    const cfg = STATUS_CFG[p.status] ?? STATUS_CFG.pending
                     return (
                       <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 5px", borderRadius: 4, marginBottom: 2, background: `${platformColor(p.platform)}18`, border: isMine ? `1px solid ${platformColor(p.platform)}40` : "none" }}>
-                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: platformColor(p.platform), flexShrink: 0 }} />
+                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
                         <span style={{ fontSize: 9, fontWeight: 600, color: platformColor(p.platform), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</span>
                         {isMine && <span style={{ fontSize: 7, fontWeight: 800, color: platformColor(p.platform), marginLeft: "auto", flexShrink: 0 }}>YOU</span>}
                       </div>
@@ -278,8 +304,6 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               )
             })}
           </div>
-
-          {/* Legend */}
           <div style={{ padding: "12px 24px", borderTop: "1px solid #F3F4F6", display: "flex", gap: 16, flexWrap: "wrap" }}>
             <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600 }}>Legend:</span>
             <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 600 }}>📷 Shoot</span>
@@ -290,7 +314,6 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           </div>
         </div>
       ) : (
-        /* ── List view ── */
         <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
           <div style={{ padding: "18px 24px", borderBottom: "1px solid #F3F4F6" }}>
             <h2 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: 0 }}>
@@ -301,52 +324,38 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             <div style={{ padding: "60px 24px", textAlign: "center" }}>
               <p style={{ fontSize: 32, margin: "0 0 12px" }}>📭</p>
               <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: "0 0 6px" }}>No content scheduled</p>
-              <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>
-                {filter === "mine" ? "No content assigned to you this month." : "Nothing scheduled for this month yet."}
-              </p>
+              <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>{filter === "mine" ? "No content assigned to you this month." : "Nothing scheduled for this month yet."}</p>
             </div>
           ) : (
             <div>
               {filteredPosts.map((p, i) => {
                 const cfg    = STATUS_CFG[p.status] ?? STATUS_CFG.pending
+                const priCfg = PRIORITY_CFG[p.priority ?? "medium"] ?? PRIORITY_CFG.medium
                 const isMine = p.assigned_to === userId
                 return (
-                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 24px", borderBottom: i < filteredPosts.length - 1 ? "1px solid #F9FAFB" : "none", background: isMine ? "rgba(222,26,26,0.02)" : "transparent" }}>
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 24px", borderBottom: i < filteredPosts.length - 1 ? "1px solid #F9FAFB" : "none", background: isMine ? "rgba(222,26,26,0.02)" : "transparent", flexWrap: "wrap" }}>
                     <div style={{ width: 40, height: 40, borderRadius: 12, background: `${platformColor(p.platform)}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 20 }}>
                       {platformEmoji(p.platform)}
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 100 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                         <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                        {isMine && (
-                          <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", flexShrink: 0 }}>MINE</span>
-                        )}
+                        {isMine && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", flexShrink: 0 }}>MINE</span>}
                       </div>
                       <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>
                         {platformLabel(p.platform)} · {p.client_name}
-                        {p.assignee?.name ? ` · ${p.assignee.name}` : ""}
+                        {p.content_pillar && <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 8, background: "rgba(99,102,241,0.1)", color: "#6366F1", fontWeight: 700, fontSize: 10 }}>{p.content_pillar}</span>}
                       </p>
                     </div>
                     <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap", flexShrink: 0 }}>{p.scheduled_date}</span>
-
-                    {/* Drive link */}
-                    {p.drive_link && (
-                      <a href={p.drive_link} target="_blank" rel="noopener noreferrer"
-                        style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", textDecoration: "none", flexShrink: 0 }}>
-                        🔗 Drive
-                      </a>
-                    )}
-
-                    {/* Status: dropdown only for my posts, badge for others */}
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{priCfg.label}</span>
                     {isMine ? (
                       <select value={p.status} onChange={e => handleStatusChange(p.id, e.target.value)}
                         style={{ fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${cfg.color}`, background: cfg.bg, color: cfg.color, cursor: "pointer", outline: "none", flexShrink: 0 }}>
                         {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                       </select>
                     ) : (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 8, background: cfg.bg, color: cfg.color, flexShrink: 0 }}>
-                        {cfg.label}
-                      </span>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 8, background: cfg.bg, color: cfg.color, flexShrink: 0 }}>{cfg.label}</span>
                     )}
                   </div>
                 )
@@ -356,46 +365,38 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
         </div>
       )}
 
-      {/* ── My Upcoming ── */}
-      {myPosts.filter(p => p.status !== "posted" && p.status !== "cancelled").length > 0 && (
+      {/* ── My Pending Content ── */}
+      {myPosts.filter(p => p.status !== "posted" && p.status !== "cancelled" && p.status !== "missed").length > 0 && (
         <div style={{ marginTop: 20, background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
           <div style={{ padding: "16px 24px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", gap: 8 }}>
             <CheckCircle2 size={16} style={{ color: "#DE1A1A" }} />
             <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>My Pending Content</h3>
           </div>
           <div>
-            {myPosts
-              .filter(p => p.status !== "posted" && p.status !== "cancelled")
-              .map((p, i, arr) => {
-                const cfg = STATUS_CFG[p.status] ?? STATUS_CFG.pending
-                const isOverdue = p.scheduled_date < today
-                return (
-                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 24px", borderBottom: i < arr.length - 1 ? "1px solid #F9FAFB" : "none", background: isOverdue ? "rgba(239,68,68,0.03)" : "transparent" }}>
-                    <span style={{ fontSize: 20, flexShrink: 0 }}>{platformEmoji(p.platform)}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                      <p style={{ fontSize: 11, color: isOverdue ? "#EF4444" : "#6B7280", margin: "2px 0 0", fontWeight: isOverdue ? 700 : 400 }}>
-                        {isOverdue ? "⚠ Overdue · " : ""}{p.scheduled_date} · {platformLabel(p.platform)}
-                      </p>
-                    </div>
-                    {p.drive_link && (
-                      <a href={p.drive_link} target="_blank" rel="noopener noreferrer"
-                        style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", textDecoration: "none", flexShrink: 0 }}>
-                        🔗 Drive
-                      </a>
-                    )}
-                    <select value={p.status} onChange={e => handleStatusChange(p.id, e.target.value)}
-                      style={{ fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${cfg.color}`, background: cfg.bg, color: cfg.color, cursor: "pointer", outline: "none", flexShrink: 0 }}>
-                      {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                    </select>
+            {myPosts.filter(p => p.status !== "posted" && p.status !== "cancelled" && p.status !== "missed").map((p, i, arr) => {
+              const cfg = STATUS_CFG[p.status] ?? STATUS_CFG.pending
+              const isOverdue = p.scheduled_date < today
+              return (
+                <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 24px", borderBottom: i < arr.length - 1 ? "1px solid #F9FAFB" : "none", background: isOverdue ? "rgba(239,68,68,0.03)" : "transparent" }}>
+                  <span style={{ fontSize: 20, flexShrink: 0 }}>{platformEmoji(p.platform)}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
+                    <p style={{ fontSize: 11, color: isOverdue ? "#EF4444" : "#6B7280", margin: "2px 0 0", fontWeight: isOverdue ? 700 : 400 }}>
+                      {isOverdue ? "⚠ Overdue · " : ""}{p.scheduled_date} · {platformLabel(p.platform)}
+                    </p>
                   </div>
-                )
-              })}
+                  <select value={p.status} onChange={e => handleStatusChange(p.id, e.target.value)}
+                    style={{ fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${cfg.color}`, background: cfg.bg, color: cfg.color, cursor: "pointer", outline: "none", flexShrink: 0 }}>
+                    {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  </select>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
 
-      {/* ── Posted — Add Post Link Modal ── */}
+      {/* ── Post Link Modal ── */}
       {postLinkModal && (
         <div style={{ position: "fixed", inset: 0, zIndex: 110, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }} onClick={() => setPostLinkModal(null)} />
@@ -403,31 +404,15 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             <div style={{ textAlign: "center", marginBottom: 20 }}>
               <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
               <h3 style={{ fontSize: 18, fontWeight: 900, color: "#111827", margin: "0 0 6px" }}>Content Posted!</h3>
-              <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}>
-                <strong>{postLinkModal.title}</strong> — add the live post link so the team can see it.
-              </p>
+              <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}><strong>{postLinkModal.title}</strong> — add the live post link.</p>
             </div>
-
             <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6, display: "block" }}>
-                Live Post Link (optional)
-              </label>
-              <input
-                type="url"
-                value={postLink}
-                onChange={e => setPostLink(e.target.value)}
-                placeholder="https://instagram.com/p/…"
-                autoFocus
-                style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", boxSizing: "border-box" }}
-              />
+              <label style={L}>Live Post Link (optional)</label>
+              <input type="url" value={postLink} onChange={e => setPostLink(e.target.value)} placeholder="https://instagram.com/p/…" autoFocus style={F} />
               <p style={{ fontSize: 11, color: "#9CA3AF", margin: "5px 0 0" }}>Instagram, YouTube, Facebook post URL etc.</p>
             </div>
-
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setPostLinkModal(null)}
-                style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#FAFAFA", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#6B7280" }}>
-                Cancel
-              </button>
+              <button onClick={() => setPostLinkModal(null)} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#FAFAFA", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#6B7280" }}>Cancel</button>
               <button onClick={confirmPosted} disabled={savingPostLink}
                 style={{ flex: 2, padding: "12px", borderRadius: 10, border: "none", background: savingPostLink ? "#9CA3AF" : "#10B981", color: "#FFFFFF", fontSize: 13, fontWeight: 800, cursor: savingPostLink ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 {savingPostLink ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : "✓ Mark as Posted"}
@@ -441,28 +426,23 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
       {showAdd && (
         <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }} onClick={() => setShowAdd(false)} />
-          <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 20, padding: 28, width: "100%", maxWidth: 520, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+          <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 20, padding: 28, width: "100%", maxWidth: 540, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <div>
                 <h3 style={{ fontSize: 17, fontWeight: 800, color: "#111827", margin: 0 }}>Schedule Content</h3>
                 <p style={{ fontSize: 12, color: "#6B7280", margin: "2px 0 0" }}>Will be assigned to you</p>
               </div>
-              <button onClick={() => setShowAdd(false)} style={{ background: "none", border: "none", cursor: "pointer" }}>
-                <X size={18} color="#6B7280" />
-              </button>
+              <button onClick={() => setShowAdd(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color="#6B7280" /></button>
             </div>
 
             <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {/* Title */}
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Title *</label>
-                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Diwali Sale Reel" required
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", boxSizing: "border-box" }} />
+                <label style={L}>Title *</label>
+                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Diwali Sale Reel" required style={F} />
               </div>
 
-              {/* Platform */}
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Platform</label>
+                <label style={L}>Platform</label>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {PLATFORMS.map(p => (
                     <button key={p.id} type="button" onClick={() => setPlatform(p.id)}
@@ -473,9 +453,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </div>
               </div>
 
-              {/* Content type */}
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Content Type</label>
+                <label style={L}>Content Type</label>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   {CONTENT_TYPES.map(ct => (
                     <button key={ct} type="button" onClick={() => setContentType(ct)}
@@ -486,25 +465,44 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </div>
               </div>
 
-              {/* Date + Client */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Date *</label>
-                  <input type="date" value={schedDate} onChange={e => setSchedDate(e.target.value)} required
-                    style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", boxSizing: "border-box" }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Client</label>
-                  <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client or brand name"
-                    style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", boxSizing: "border-box" }} />
+              <div>
+                <label style={L}>Content Pillar</label>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {CONTENT_PILLARS.map(cp => (
+                    <button key={cp} type="button" onClick={() => setContentPillar(contentPillar === cp ? "" : cp)}
+                      style={{ padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${contentPillar === cp ? "#6366F1" : "#E2E8F0"}`, background: contentPillar === cp ? "rgba(99,102,241,0.1)" : "#FAFAFA", color: contentPillar === cp ? "#6366F1" : "#718096", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                      {cp}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Assign To */}
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Assign To</label>
-                <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)}
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", boxSizing: "border-box" }}>
+                <label style={L}>Priority</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {Object.entries(PRIORITY_CFG).map(([k, v]) => (
+                    <button key={k} type="button" onClick={() => setPriority(k)}
+                      style={{ padding: "6px 14px", borderRadius: 8, border: `1.5px solid ${priority === k ? v.color : "#E2E8F0"}`, background: priority === k ? v.bg : "#FAFAFA", color: priority === k ? v.color : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={L}>Date *</label>
+                  <input type="date" value={schedDate} onChange={e => setSchedDate(e.target.value)} required style={F} />
+                </div>
+                <div>
+                  <label style={L}>Client</label>
+                  <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client or brand name" style={F} />
+                </div>
+              </div>
+
+              <div>
+                <label style={L}>Assign To</label>
+                <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={F}>
                   <option value="">— Myself —</option>
                   {members.filter(m => m.id !== userId).map(m => (
                     <option key={m.id} value={m.id}>{m.name}</option>
@@ -512,26 +510,17 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </select>
               </div>
 
-              {/* Caption */}
               <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Caption (optional)</label>
-                <textarea value={caption} onChange={e => setCaption(e.target.value)} rows={2} placeholder="Post caption or script brief…"
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", resize: "vertical", lineHeight: 1.5, boxSizing: "border-box" }} />
-              </div>
-
-              {/* Drive link */}
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block" }}>Drive Link (optional)</label>
-                <input type="url" value={driveLink} onChange={e => setDriveLink(e.target.value)} placeholder="https://drive.google.com/…"
-                  style={{ width: "100%", padding: "10px 14px", borderRadius: 10, border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA", color: "#1A202C", outline: "none", boxSizing: "border-box" }} />
+                <label style={L}>Instructions / Keep Remember Points <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
+                <textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={2}
+                  placeholder="Content guidelines, reminders, or notes…"
+                  style={{ ...F, resize: "vertical", lineHeight: 1.5 }} />
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(37,211,102,0.07)", borderRadius: 8, border: "1px solid rgba(37,211,102,0.2)" }}>
                 <Send size={13} color="#25D366" />
                 <span style={{ fontSize: 12, color: "#25D366", fontWeight: 600 }}>
-                  {assignedTo
-                    ? `WhatsApp notification will be sent to ${members.find(m => m.id === assignedTo)?.name ?? "assignee"}`
-                    : "This post will be assigned to you"}
+                  {assignedTo ? `WhatsApp notification will be sent to ${members.find(m => m.id === assignedTo)?.name ?? "assignee"}` : "This post will be assigned to you"}
                 </span>
               </div>
 
@@ -549,9 +538,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </button>
                 <button type="submit" disabled={isPending}
                   style={{ flex: 2, padding: "12px", borderRadius: 10, border: "none", background: isPending ? "#718096" : "#DE1A1A", color: "#FFFFFF", fontSize: 13, fontWeight: 700, cursor: isPending ? "not-allowed" : "pointer" }}>
-                  {isPending
-                    ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Loader2 size={14} className="animate-spin" />Saving…</span>
-                    : "Schedule Content"}
+                  {isPending ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Loader2 size={14} className="animate-spin" />Saving…</span> : "Schedule Content"}
                 </button>
               </div>
             </form>

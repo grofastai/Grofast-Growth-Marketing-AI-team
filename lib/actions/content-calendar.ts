@@ -25,6 +25,8 @@ export interface ContentPostInput {
   drive_link?: string
   caption?: string
   notes?: string
+  content_pillar?: string | null
+  priority?: string | null
 }
 
 export async function createContentPost(input: ContentPostInput) {
@@ -53,7 +55,9 @@ export async function createContentPost(input: ContentPostInput) {
     drive_link:     input.drive_link || null,
     caption:        input.caption || null,
     notes:          input.notes || null,
-    scheduled_time: input.scheduled_time || null,
+    scheduled_time:  input.scheduled_time || null,
+    content_pillar:  input.content_pillar || null,
+    priority:        input.priority || 'medium',
   }).select('id').single()
 
   if (error) return { success: false, error: error.message }
@@ -118,6 +122,39 @@ export async function updatePostLink(postId: string, link: string) {
   const { error } = await admin.from('content_posts')
     .update({ drive_link: link, post_link: link })
     .eq('id', postId)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/admin/content-calendar')
+  revalidatePath('/member/content-calendar')
+  return { success: true }
+}
+
+export async function updateContentPost(
+  postId: string,
+  input: Partial<ContentPostInput>
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: profile } = await admin
+    .from('users').select('company_id, role').eq('id', user.id).single()
+  if (!profile || profile.role !== 'ADMIN') return { success: false, error: 'Admin only' }
+
+  const { error } = await admin.from('content_posts').update({
+    ...(input.title          !== undefined && { title: input.title }),
+    ...(input.platform       !== undefined && { platform: input.platform }),
+    ...(input.content_type   !== undefined && { content_type: input.content_type, post_type: input.content_type }),
+    ...(input.client_id      !== undefined && { client_id: input.client_id }),
+    ...(input.client_name    !== undefined && { client_name: input.client_name }),
+    ...(input.scheduled_date !== undefined && { scheduled_date: input.scheduled_date, date: input.scheduled_date }),
+    ...(input.scheduled_time !== undefined && { scheduled_time: input.scheduled_time || null }),
+    ...(input.assigned_to    !== undefined && { assigned_to: input.assigned_to || null }),
+    ...(input.notes          !== undefined && { notes: input.notes || null }),
+    ...(input.content_pillar !== undefined && { content_pillar: input.content_pillar || null }),
+    ...(input.priority       !== undefined && { priority: input.priority || 'medium' }),
+  }).eq('id', postId).eq('company_id', profile.company_id)
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/content-calendar')

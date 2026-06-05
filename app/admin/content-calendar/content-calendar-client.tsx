@@ -1,23 +1,25 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
-  ChevronLeft, ChevronRight, Plus, X, Camera, Scissors,
+  ChevronLeft, ChevronRight, Plus, X, Camera,
   Loader2, CheckCircle2, Clock,
-  PlayCircle, Image, Film, Layers, Send, Trash2,
+  PlayCircle, Image, Film, Layers, Send, Trash2, Pencil,
 } from "lucide-react"
-import { createContentPost, updateContentPostStatus, deleteContentPost } from "@/lib/actions/content-calendar"
+import { createContentPost, updateContentPost, updateContentPostStatus, deleteContentPost } from "@/lib/actions/content-calendar"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Post {
   id: string; title: string; platform: string; content_type: string
   client_name: string; scheduled_date: string; status: string
   assigned_to: string | null; drive_link: string | null
+  content_pillar?: string | null; priority?: string | null
+  notes?: string | null; scheduled_time?: string | null
   assignee?: { name: string } | null
 }
-interface Shoot { id: string; title: string; start_time: string; client: string; status: string }
-interface Task  { id: string; title: string; due_date: string; status: string }
+interface Shoot  { id: string; title: string; start_time: string; client: string; status: string }
+interface Task   { id: string; title: string; due_date: string; status: string }
 interface Member { id: string; name: string; employee_id: string }
 interface Client { id: string; name: string }
 
@@ -38,15 +40,25 @@ const PLATFORMS = [
   { id: "other",     label: "Other",     color: "#6B7280" },
 ]
 const CONTENT_TYPES = [
-  { id: "post",      label: "Post",      icon: Image    },
-  { id: "reel",      label: "Reel",      icon: Film     },
+  { id: "post",      label: "Post",      icon: Image     },
+  { id: "reel",      label: "Reel",      icon: Film      },
   { id: "video",     label: "Video",     icon: PlayCircle },
-  { id: "story",     label: "Story",     icon: Layers   },
-  { id: "carousel",  label: "Carousel",  icon: Layers   },
-  { id: "other",     label: "Other",     icon: Layers   },
+  { id: "story",     label: "Story",     icon: Layers    },
+  { id: "carousel",  label: "Carousel",  icon: Layers    },
+  { id: "other",     label: "Other",     icon: Layers    },
 ]
+const CONTENT_PILLARS = [
+  "Branding", "Cinematic", "Educational", "Offer", "Testimonial",
+  "Behind The Scenes", "Trending", "Festival", "Engagement",
+]
+const PRIORITY_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  low:    { label: "Low",    color: "#6B7280", bg: "rgba(107,114,128,0.1)" },
+  medium: { label: "Medium", color: "#F59E0B", bg: "rgba(245,158,11,0.1)" },
+  high:   { label: "High",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"  },
+  urgent: { label: "Urgent", color: "#7C3AED", bg: "rgba(124,58,237,0.1)" },
+}
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  pending:     { label: "Pending",     color: "#F59E0B", bg: "rgba(245,158,11,0.1)"  },
+  pending:     { label: "Scheduled",   color: "#F59E0B", bg: "rgba(245,158,11,0.1)"  },
   in_progress: { label: "In Progress", color: "#3B82F6", bg: "rgba(59,130,246,0.1)"  },
   ready:       { label: "Ready",       color: "#8B5CF6", bg: "rgba(139,92,246,0.1)"  },
   posted:      { label: "Posted ✓",    color: "#10B981", bg: "rgba(16,185,129,0.1)"  },
@@ -72,22 +84,29 @@ const LABEL: React.CSSProperties = {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function ContentCalendarClient({ posts: initial, shoots, tasks, members, clients, initialYear, initialMonth }: Props) {
   const router = useRouter()
-  const [posts, setPosts]       = useState(initial)
-  const [year, setYear]         = useState(initialYear)
-  const [month, setMonth]       = useState(initialMonth)
-  const [showAdd, setShowAdd]   = useState(false)
-  const [selectedDate, setSelectedDate] = useState("")
-  const [isPending, start]      = useTransition()
-  const [view, setView]         = useState<"calendar" | "list">("calendar")
+  const [posts, setPosts] = useState(initial)
+  const [year, setYear]   = useState(initialYear)
+  const [month, setMonth] = useState(initialMonth)
+  const [view, setView]   = useState<"calendar" | "list">("calendar")
+  const [isPending, start] = useTransition()
+
+  // Filters
+  const [clientFilter, setClientFilter] = useState<string>("all")
+
+  // Modal mode: "add" | "edit" | null
+  const [modalMode, setModalMode] = useState<"add" | "edit" | null>(null)
+  const [editingPost, setEditingPost] = useState<Post | null>(null)
 
   // Form state
-  const [title, setTitle]           = useState("")
-  const [platform, setPlatform]     = useState("instagram")
-  const [contentType, setContentType] = useState("post")
-  const [clientId, setClientId]     = useState("")
-  const [clientName, setClientName] = useState("")
-  const [assignedTo, setAssignedTo] = useState("")
+  const [title, setTitle]               = useState("")
+  const [platform, setPlatform]         = useState("instagram")
+  const [contentType, setContentType]   = useState("post")
+  const [clientId, setClientId]         = useState("")
+  const [clientName, setClientName]     = useState("")
+  const [assignedTo, setAssignedTo]     = useState("")
   const [instructions, setInstructions] = useState("")
+  const [contentPillar, setContentPillar] = useState("")
+  const [priority, setPriority]         = useState("medium")
   const [schedDates, setSchedDates]     = useState<string[]>([])
   const [schedDateInput, setSchedDateInput] = useState("")
   const [schedTime, setSchedTime]       = useState("")
@@ -97,39 +116,60 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   // Calendar grid
   const firstDay  = new Date(year, month, 1).getDay()
   const daysCount = new Date(year, month + 1, 0).getDate()
-  const cells     = Array.from({ length: firstDay + daysCount }, (_, i) =>
-    i < firstDay ? null : i - firstDay + 1
-  )
+  const cells     = Array.from({ length: firstDay + daysCount }, (_, i) => i < firstDay ? null : i - firstDay + 1)
   while (cells.length % 7 !== 0) cells.push(null)
 
   function prevMonth() { if (month === 0) { setYear(y => y - 1); setMonth(11) } else setMonth(m => m - 1) }
   function nextMonth() { if (month === 11) { setYear(y => y + 1); setMonth(0) } else setMonth(m => m + 1) }
+  function dateStr(d: number) { return `${year}-${String(month + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}` }
 
-  function dateStr(d: number) {
-    return `${year}-${String(month + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}`
-  }
+  // Unique clients from posts for filter bar
+  const clientOptions = useMemo(() => {
+    const names = [...new Set(posts.map(p => p.client_name).filter(Boolean))]
+    return names.sort()
+  }, [posts])
 
-  function postsOnDay(d: number) {
-    const ds = dateStr(d)
-    return posts.filter(p => p.scheduled_date === ds)
-  }
-  function shootsOnDay(d: number) {
-    const ds = dateStr(d)
-    return shoots.filter(s => s.start_time.split("T")[0] === ds)
-  }
-  function tasksOnDay(d: number) {
-    const ds = dateStr(d)
-    return tasks.filter(t => t.due_date === ds)
+  const filteredPosts = useMemo(() =>
+    clientFilter === "all" ? posts : posts.filter(p => p.client_name === clientFilter),
+    [posts, clientFilter]
+  )
+
+  function postsOnDay(d: number)  { const ds = dateStr(d); return filteredPosts.filter(p => p.scheduled_date === ds) }
+  function shootsOnDay(d: number) { const ds = dateStr(d); return shoots.filter(s => s.start_time.split("T")[0] === ds) }
+  function tasksOnDay(d: number)  { const ds = dateStr(d); return tasks.filter(t => t.due_date === ds) }
+
+  function resetForm() {
+    setTitle(""); setPlatform("instagram"); setContentType("post")
+    setClientId(""); setClientName(""); setAssignedTo("")
+    setInstructions(""); setContentPillar(""); setPriority("medium")
+    setSchedTime(""); setSchedDates([]); setSchedDateInput("")
+    setFormError(""); setFormSuccess(false)
   }
 
   function openAdd(d: number) {
+    resetForm()
     const ds = dateStr(d)
-    setSelectedDate(ds)
-    setShowAdd(true)
+    setSchedDates([ds])
+    setModalMode("add")
+  }
+
+  function openEdit(post: Post) {
+    setEditingPost(post)
+    setTitle(post.title)
+    setPlatform(post.platform)
+    setContentType(post.content_type)
+    const cl = clients.find(c => c.name === post.client_name)
+    setClientId(cl?.id ?? "")
+    setClientName(post.client_name)
+    setAssignedTo(post.assigned_to ?? "")
+    setInstructions(post.notes ?? "")
+    setContentPillar(post.content_pillar ?? "")
+    setPriority(post.priority ?? "medium")
+    setSchedDates([post.scheduled_date])
+    setSchedDateInput("")
+    setSchedTime(post.scheduled_time ?? "")
     setFormError(""); setFormSuccess(false)
-    setTitle(""); setPlatform("instagram"); setContentType("post")
-    setClientId(""); setClientName(""); setAssignedTo(""); setInstructions(""); setSchedTime("")
-    setSchedDates([ds]); setSchedDateInput("")
+    setModalMode("edit")
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -147,20 +187,50 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           scheduled_date: date, scheduled_time: schedTime || null,
           assigned_to: assignedTo || null,
           notes: instructions || undefined,
+          content_pillar: contentPillar || null,
+          priority: priority || "medium",
         })
       ))
       const failed = results.find(r => !r.success)
-      if (failed) {
-        setFormError(failed.error ?? "Something went wrong")
-      } else {
+      if (failed) { setFormError(failed.error ?? "Something went wrong") }
+      else { setFormSuccess(true); router.refresh(); setTimeout(() => { setModalMode(null); setFormSuccess(false) }, 1200) }
+    })
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editingPost) return
+    if (!title.trim()) { setFormError("Title is required"); return }
+    if (schedDates.length === 0) { setFormError("Select at least one date"); return }
+    setFormError("")
+    start(async () => {
+      const selectedClient = clients.find(c => c.id === clientId)
+      const resolvedName = clientName || selectedClient?.name || ""
+      const res = await updateContentPost(editingPost.id, {
+        title, platform, content_type: contentType,
+        client_id: clientId || null, client_name: resolvedName,
+        scheduled_date: schedDates[0], scheduled_time: schedTime || null,
+        assigned_to: assignedTo || null,
+        notes: instructions || undefined,
+        content_pillar: contentPillar || null,
+        priority: priority || "medium",
+      })
+      if (!res.success) { setFormError(res.error ?? "Something went wrong") }
+      else {
+        setPosts(prev => prev.map(p => p.id === editingPost.id ? {
+          ...p, title, platform, content_type: contentType,
+          client_name: resolvedName, scheduled_date: schedDates[0],
+          assigned_to: assignedTo || null, notes: instructions || null,
+          content_pillar: contentPillar || null, priority,
+        } : p))
         setFormSuccess(true)
         router.refresh()
-        setTimeout(() => { setShowAdd(false); setFormSuccess(false) }, 1200)
+        setTimeout(() => { setModalMode(null); setFormSuccess(false) }, 1000)
       }
     })
   }
 
-  function handleStatusChange(postId: string, status: Post["status"]) {
+  function handleStatusChange(postId: string, status: string) {
     start(async () => {
       await updateContentPostStatus(postId, status as "posted")
       setPosts(prev => prev.map(p => p.id === postId ? { ...p, status } : p))
@@ -174,10 +244,14 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     })
   }
 
-  const today = new Date().toISOString().split("T")[0]
-  const totalPosts   = posts.length
-  const postedCount  = posts.filter(p => p.status === "posted").length
-  const pendingCount = posts.filter(p => p.status === "pending").length
+  const today         = new Date().toISOString().split("T")[0]
+  const totalContent  = filteredPosts.length
+  const readyCount    = filteredPosts.filter(p => p.status === "ready").length
+  const inProgCount   = filteredPosts.filter(p => p.status === "in_progress").length
+  const postedCount   = filteredPosts.filter(p => p.status === "posted").length
+
+  const showModal = modalMode !== null
+  const isEdit    = modalMode === "edit"
 
   return (
     <div className="p-4 md:p-6 xl:p-8" style={{ background: "#F5F6FA", minHeight: "100vh" }}>
@@ -189,8 +263,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             <h1 className="text-[26px] font-black text-white">Content Calendar</h1>
             <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 2 }}>Schedule posts, reels, videos & shoots in one view</p>
           </div>
-          <div className="ml-auto flex items-center gap-3">
-            {/* View toggle */}
+          <div className="ml-auto flex items-center gap-3 flex-wrap">
             <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
               {(["calendar","list"] as const).map(v => (
                 <button key={v} onClick={() => setView(v)}
@@ -199,7 +272,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 </button>
               ))}
             </div>
-            <button onClick={() => openAdd(new Date().getDate())}
+            <button onClick={() => { resetForm(); setSchedDates([today]); setModalMode("add") }}
               style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "#FFFFFF", color: "#DE1A1A", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800 }}>
               <Plus size={14} /> Add Content
             </button>
@@ -208,23 +281,36 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
       </div>
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         {[
-          { label: "Scheduled This Month", value: totalPosts,  color: "#3B82F6", bg: "rgba(59,130,246,0.08)"  },
-          { label: "Posted",               value: postedCount, color: "#10B981", bg: "rgba(16,185,129,0.08)"  },
-          { label: "Pending",              value: pendingCount,color: "#F59E0B", bg: "rgba(245,158,11,0.08)"  },
+          { label: "Total Content",   value: totalContent, color: "#3B82F6" },
+          { label: "Ready To Post",   value: readyCount,   color: "#8B5CF6" },
+          { label: "In Progress",     value: inProgCount,  color: "#F59E0B" },
+          { label: "Posted",          value: postedCount,  color: "#10B981" },
         ].map(s => (
           <div key={s.label} style={{ background: "#FFFFFF", borderRadius: 16, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
-            <p style={{ fontSize: 32, fontWeight: 900, color: s.color, margin: 0 }}>{s.value}</p>
+            <p style={{ fontSize: 30, fontWeight: 900, color: s.color, margin: 0 }}>{s.value}</p>
             <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0", fontWeight: 600 }}>{s.label}</p>
           </div>
         ))}
       </div>
 
-      {/* ── Calendar / List toggle ── */}
+      {/* ── Client Filter ── */}
+      {clientOptions.length > 0 && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", alignSelf: "center", textTransform: "uppercase", letterSpacing: "0.06em" }}>Filter:</span>
+          {["all", ...clientOptions].map(c => (
+            <button key={c} onClick={() => setClientFilter(c)}
+              style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: "pointer", border: `1.5px solid ${clientFilter === c ? "#DE1A1A" : "#E5E7EB"}`, background: clientFilter === c ? "rgba(222,26,26,0.08)" : "#FFFFFF", color: clientFilter === c ? "#DE1A1A" : "#6B7280" }}>
+              {c === "all" ? "All Clients" : c}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── Calendar / List ── */}
       {view === "calendar" ? (
         <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
-          {/* Month nav */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px", borderBottom: "1px solid #F3F4F6" }}>
             <button onClick={prevMonth} style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <ChevronLeft size={16} color="#6B7280" />
@@ -234,71 +320,52 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               <ChevronRight size={16} color="#6B7280" />
             </button>
           </div>
-
-          {/* Day headers */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid #F3F4F6" }}>
             {DAYS.map(d => (
               <div key={d} style={{ padding: "10px 0", textAlign: "center", fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em" }}>{d}</div>
             ))}
           </div>
-
-          {/* Cells */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
             {cells.map((day, i) => {
-              if (!day) return <div key={i} style={{ minHeight: 100, borderRight: i % 7 !== 6 ? "1px solid #F9FAFB" : "none", borderBottom: "1px solid #F9FAFB" }} />
+              if (!day) return <div key={i} style={{ minHeight: 100, borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6" }} />
               const ds = dateStr(day)
               const dayPosts  = postsOnDay(day)
               const dayShoots = shootsOnDay(day)
               const dayTasks  = tasksOnDay(day)
               const isToday   = ds === today
               return (
-                <div key={i} style={{
-                  minHeight: 100, padding: "8px 6px", borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none",
-                  borderBottom: "1px solid #F3F4F6",
-                  background: isToday ? "rgba(222,26,26,0.03)" : "transparent",
-                }}>
+                <div key={i} style={{ minHeight: 100, padding: "8px 6px", borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6", background: isToday ? "rgba(222,26,26,0.03)" : "transparent" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                    <span style={{
-                      fontSize: 13, fontWeight: isToday ? 900 : 500, lineHeight: 1,
-                      width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center",
-                      borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent",
-                      color: isToday ? "#FFFFFF" : "#374151",
-                    }}>{day}</span>
-                    <button onClick={() => openAdd(day)}
-                      style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.6 }}>
+                    <span style={{ fontSize: 13, fontWeight: isToday ? 900 : 500, width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent", color: isToday ? "#FFFFFF" : "#374151" }}>{day}</span>
+                    <button onClick={() => openAdd(day)} style={{ width: 18, height: 18, borderRadius: 5, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.6 }}>
                       <Plus size={10} color="#6B7280" />
                     </button>
                   </div>
-
-                  {/* Shoots */}
                   {dayShoots.map(s => (
                     <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", borderRadius: 5, background: "rgba(59,130,246,0.1)", marginBottom: 2 }}>
                       <Camera size={9} color="#3B82F6" />
                       <span style={{ fontSize: 10, fontWeight: 600, color: "#3B82F6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title || s.client}</span>
                     </div>
                   ))}
-
-                  {/* Tasks with due dates */}
                   {dayTasks.map(t => (
                     <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", borderRadius: 5, background: "rgba(245,158,11,0.1)", marginBottom: 2 }}>
                       <Clock size={9} color="#F59E0B" />
                       <span style={{ fontSize: 10, fontWeight: 600, color: "#F59E0B", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
                     </div>
                   ))}
-
-                  {/* Content posts */}
-                  {dayPosts.map(p => (
-                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", borderRadius: 5, marginBottom: 2, background: `${platformColor(p.platform)}18` }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: platformColor(p.platform), flexShrink: 0 }} />
-                      <span style={{ fontSize: 10, fontWeight: 600, color: platformColor(p.platform), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</span>
-                    </div>
-                  ))}
+                  {dayPosts.map(p => {
+                    const cfg = STATUS_CFG[p.status] ?? STATUS_CFG.pending
+                    return (
+                      <div key={p.id} onClick={() => openEdit(p)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", borderRadius: 5, marginBottom: 2, background: `${platformColor(p.platform)}18`, cursor: "pointer" }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
+                        <span style={{ fontSize: 10, fontWeight: 600, color: platformColor(p.platform), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{p.title}</span>
+                      </div>
+                    )
+                  })}
                 </div>
               )
             })}
           </div>
-
-          {/* Legend */}
           <div style={{ padding: "12px 24px", borderTop: "1px solid #F3F4F6", display: "flex", gap: 16, flexWrap: "wrap" }}>
             <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600 }}>Legend:</span>
             <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 600 }}>🎥 Shoot</span>
@@ -309,36 +376,41 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           </div>
         </div>
       ) : (
-        /* List view */
         <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
           <div style={{ padding: "18px 24px", borderBottom: "1px solid #F3F4F6" }}>
             <h2 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: 0 }}>All Scheduled Content — {MONTHS[month]} {year}</h2>
           </div>
-          {posts.length === 0 ? (
+          {filteredPosts.length === 0 ? (
             <div style={{ padding: "60px 24px", textAlign: "center", color: "#9CA3AF" }}>No content scheduled this month.</div>
           ) : (
             <div>
-              {posts.map((p, i) => {
-                const cfg = STATUS_CFG[p.status] ?? STATUS_CFG.pending
+              {filteredPosts.map((p, i) => {
+                const cfg   = STATUS_CFG[p.status] ?? STATUS_CFG.pending
+                const priCfg = PRIORITY_CFG[p.priority ?? "medium"] ?? PRIORITY_CFG.medium
                 return (
-                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 24px", borderBottom: i < posts.length - 1 ? "1px solid #F9FAFB" : "none" }}>
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 24px", borderBottom: i < filteredPosts.length - 1 ? "1px solid #F9FAFB" : "none", flexWrap: "wrap" }}>
                     <div style={{ width: 36, height: 36, borderRadius: 10, background: `${platformColor(p.platform)}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       <span style={{ fontSize: 16 }}>
                         {p.platform === "instagram" ? "📸" : p.platform === "youtube" ? "▶️" : p.platform === "facebook" ? "👥" : "📱"}
                       </span>
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 120 }}>
                       <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
                       <p style={{ fontSize: 11, color: "#6B7280", margin: "2px 0 0" }}>
-                        {platformLabel(p.platform)} · {p.client_name} · {p.assignee?.name ?? "Unassigned"}
+                        {platformLabel(p.platform)} · {p.client_name || "—"} · {p.assignee?.name ?? "Unassigned"}
+                        {p.content_pillar && <span style={{ marginLeft: 6, padding: "1px 7px", borderRadius: 10, background: "rgba(99,102,241,0.1)", color: "#6366F1", fontWeight: 600 }}>{p.content_pillar}</span>}
                       </p>
                     </div>
                     <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap" }}>{p.scheduled_date}</span>
-                    <select value={p.status} onChange={e => handleStatusChange(p.id, e.target.value as Post["status"])}
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap" }}>{priCfg.label}</span>
+                    <select value={p.status} onChange={e => handleStatusChange(p.id, e.target.value)}
                       style={{ fontSize: 11, fontWeight: 700, padding: "4px 8px", borderRadius: 8, border: `1.5px solid ${cfg.color}`, background: cfg.bg, color: cfg.color, cursor: "pointer", outline: "none" }}>
                       {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                     </select>
-                    <button onClick={() => handleDelete(p.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
+                    <button onClick={() => openEdit(p)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Edit">
+                      <Pencil size={14} color="#6366F1" />
+                    </button>
+                    <button onClick={() => handleDelete(p.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Delete">
                       <Trash2 size={14} color="#EF4444" />
                     </button>
                   </div>
@@ -349,22 +421,21 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         </div>
       )}
 
-      {/* ── Add Content Modal ── */}
-      {showAdd && (
+      {/* ── Add / Edit Modal ── */}
+      {showModal && (
         <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }} onClick={() => setShowAdd(false)} />
-          <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 20, padding: 28, width: "100%", maxWidth: 560, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }} onClick={() => setModalMode(null)} />
+          <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 20, padding: 28, width: "100%", maxWidth: 580, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-              <div>
-                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#111827", margin: 0 }}>Schedule Content</h3>
-                {selectedDate && <p style={{ fontSize: 12, color: "#6B7280", margin: "2px 0 0" }}>{selectedDate}</p>}
-              </div>
-              <button onClick={() => setShowAdd(false)} style={{ background: "none", border: "none", cursor: "pointer" }}>
+              <h3 style={{ fontSize: 17, fontWeight: 800, color: "#111827", margin: 0 }}>
+                {isEdit ? "Edit Content" : "Schedule Content"}
+              </h3>
+              <button onClick={() => setModalMode(null)} style={{ background: "none", border: "none", cursor: "pointer" }}>
                 <X size={18} color="#6B7280" />
               </button>
             </div>
 
-            <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <form onSubmit={isEdit ? handleEdit : handleCreate} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
               {/* Title */}
               <div>
@@ -398,14 +469,40 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 </div>
               </div>
 
-              {/* Dates (multi-select) */}
+              {/* Content Pillar */}
               <div>
-                <label style={LABEL}>Dates * <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>— select one or more</span></label>
+                <label style={LABEL}>Content Pillar</label>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {CONTENT_PILLARS.map(cp => (
+                    <button key={cp} type="button" onClick={() => setContentPillar(contentPillar === cp ? "" : cp)}
+                      style={{ padding: "5px 12px", borderRadius: 8, border: `1.5px solid ${contentPillar === cp ? "#6366F1" : "#E2E8F0"}`, background: contentPillar === cp ? "rgba(99,102,241,0.1)" : "#FAFAFA", color: contentPillar === cp ? "#6366F1" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      {cp}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Priority */}
+              <div>
+                <label style={LABEL}>Priority</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {Object.entries(PRIORITY_CFG).map(([k, v]) => (
+                    <button key={k} type="button" onClick={() => setPriority(k)}
+                      style={{ padding: "6px 14px", borderRadius: 8, border: `1.5px solid ${priority === k ? v.color : "#E2E8F0"}`, background: priority === k ? v.bg : "#FAFAFA", color: priority === k ? v.color : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div>
+                <label style={LABEL}>Date{!isEdit ? "s" : ""} * {!isEdit && <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>— select one or more</span>}</label>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <input type="date" value={schedDateInput}
                     onChange={e => {
                       const d = e.target.value
-                      if (d && !schedDates.includes(d)) setSchedDates(p => [...p, d].sort())
+                      if (d && !schedDates.includes(d)) setSchedDates(p => isEdit ? [d] : [...p, d].sort())
                       setSchedDateInput("")
                     }}
                     style={{ ...FIELD, width: "auto", flex: "0 0 auto" }} />
@@ -441,15 +538,15 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 </div>
               </div>
 
-              {/* Instructions / Keep Remember Points */}
+              {/* Instructions */}
               <div>
                 <label style={LABEL}>Instructions / Keep Remember Points <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
                 <textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={3}
-                  placeholder="Content guidelines, reminders, or instructions to follow while creating or posting…"
+                  placeholder="Content guidelines, reminders, or instructions…"
                   style={{ ...FIELD, resize: "vertical", lineHeight: 1.5 }} />
               </div>
 
-              {assignedTo && (
+              {!isEdit && assignedTo && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(37,211,102,0.07)", borderRadius: 8, border: "1px solid rgba(37,211,102,0.2)" }}>
                   <Send size={13} color="#25D366" />
                   <span style={{ fontSize: 12, color: "#25D366", fontWeight: 600 }}>WhatsApp notification will be sent to assigned member</span>
@@ -460,18 +557,20 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               {formSuccess && (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(16,185,129,0.08)", borderRadius: 8 }}>
                   <CheckCircle2 size={14} color="#10B981" />
-                  <span style={{ fontSize: 12, color: "#10B981", fontWeight: 600 }}>Content scheduled!</span>
+                  <span style={{ fontSize: 12, color: "#10B981", fontWeight: 600 }}>{isEdit ? "Updated!" : "Content scheduled!"}</span>
                 </div>
               )}
 
               <div style={{ display: "flex", gap: 10 }}>
-                <button type="button" onClick={() => setShowAdd(false)}
+                <button type="button" onClick={() => setModalMode(null)}
                   style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#FAFAFA", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#6B7280" }}>
                   Cancel
                 </button>
                 <button type="submit" disabled={isPending}
                   style={{ flex: 2, padding: "12px", borderRadius: 10, border: "none", background: isPending ? "#718096" : "#DE1A1A", color: "#FFFFFF", fontSize: 13, fontWeight: 700, cursor: isPending ? "not-allowed" : "pointer" }}>
-                  {isPending ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Loader2 size={14} className="animate-spin" />Saving…</span> : "Schedule Content"}
+                  {isPending
+                    ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Loader2 size={14} className="animate-spin" />Saving…</span>
+                    : isEdit ? "Save Changes" : "Schedule Content"}
                 </button>
               </div>
             </form>

@@ -126,15 +126,15 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
       endTime: e.end_time ?? '10:00',
       durationHours: e.duration_hours ?? 1,
       description: e.title ?? '',
-      projectName: e.is_multi_client ? '' : (e.client_name === 'Internal' ? '' : (e.client_name ?? '')),
+      projectName: '',
       brand: '', customClient: '',
       status: (() => {
         const rawStatus = e.notes?.replace(/^\[/, '').replace(/\]$/, '') ?? ''
         const VALID = ['completed', 'in_progress', 'not_started'] as const
         return (VALID.includes(rawStatus as TimeBlock['status']) ? rawStatus : 'not_started') as TimeBlock['status']
       })(),
-      isMultiClient: e.is_multi_client ?? false,
-      clientNames: e.client_names ?? [],
+      isMultiClient: (e.client_names?.length ?? 0) > 1,
+      clientNames: e.is_multi_client ? (e.client_names ?? []) : (e.client_name && e.client_name !== 'Internal' ? [e.client_name] : []),
     }))
 }
 
@@ -346,12 +346,13 @@ export default function DailyUpdateForm({
       const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")
         : t.projectName === "__custom__" ? (t.customClient || "Internal")
         : (t.projectName || "Internal")
+      const isMulti = t.clientNames.length > 1
       return {
       id: t.id,
-      client_id: projects.find(p => p.business_name === effClient)?.id ?? null,
-      client_name: t.isMultiClient ? (t.clientNames[0] || "Internal") : effClient,
-      client_names: t.isMultiClient ? t.clientNames : (effClient !== "Internal" ? [effClient] : []),
-      is_multi_client: t.isMultiClient,
+      client_id: projects.find(p => p.business_name === (t.clientNames[0] || effClient))?.id ?? null,
+      client_name: t.clientNames.length > 0 ? t.clientNames[0] : effClient,
+      client_names: t.clientNames.length > 0 ? t.clientNames : (effClient !== "Internal" ? [effClient] : []),
+      is_multi_client: isMulti,
       task_type: "other" as const,
       title: t.description, start_time: t.startTime, end_time: t.endTime,
       duration_hours: t.durationHours, notes: `[${t.status}]`,
@@ -796,40 +797,6 @@ export default function DailyUpdateForm({
                           <input value={block.description} onChange={e => patchBlock(block.id, { description: e.target.value })}
                             placeholder="What did you work on?"
                             style={{ flex:1, minWidth:140, background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", fontSize:12, color:"#111827", outline:"none" }} />
-                          <div style={{ display:"flex", flexDirection:"column", gap:4, flex:1, minWidth:120 }}>
-                            <div style={{ position:"relative" }}>
-                              <select
-                                value={block.projectName}
-                                onChange={e => patchBlock(block.id, { projectName: e.target.value, brand: "", customClient: "" })}
-                                style={{ width:"100%", fontSize:11, fontWeight:700, color: block.projectName ? "#DE1A1A" : "#9CA3AF", background: block.projectName ? "rgba(222,26,26,0.06)" : "#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 28px 7px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                                <option value="">Client / Project</option>
-                                <option value="Promotion">📣 Our Brand (Promotion)</option>
-                                <option value="__custom__">✏️ Other (type manually)</option>
-                                <optgroup label="── Clients ──">
-                                  {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                </optgroup>
-                              </select>
-                              <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                            </div>
-                            {block.projectName === "Promotion" && (
-                              <div style={{ position:"relative" }}>
-                                <select value={block.brand} onChange={e => patchBlock(block.id, { brand: e.target.value })}
-                                  style={{ width:"100%", fontSize:11, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.3)", borderRadius:8, padding:"7px 28px 7px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                                  <option value="">📣 Select brand…</option>
-                                  {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-                                </select>
-                                <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#D97706", pointerEvents:"none" }} />
-                              </div>
-                            )}
-                            {block.projectName === "__custom__" && (
-                              <input
-                                value={block.customClient}
-                                onChange={e => patchBlock(block.id, { customClient: e.target.value })}
-                                placeholder="Type client name…"
-                                style={{ width:"100%", fontSize:11, fontWeight:600, color:"#111827", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", outline:"none", boxSizing:"border-box" }}
-                              />
-                            )}
-                          </div>
                           <select value={block.status} onChange={e => patchBlock(block.id, { status: e.target.value as TimeBlock["status"] })}
                             style={{ fontSize:11, fontWeight:700, color:statusCfg.color, background:statusCfg.bg, border:`1.5px solid ${statusCfg.border}`, borderRadius:8, padding:"7px 10px", cursor:"pointer", outline:"none" }}>
                             <option value="not_started">Not Started</option>
@@ -837,32 +804,64 @@ export default function DailyUpdateForm({
                             <option value="completed">Completed ✓</option>
                           </select>
                         </div>
-                        <div>
-                          <label style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", fontSize:11, fontWeight:600, color:"#374151" }}>
-                            <input type="checkbox" checked={block.isMultiClient}
-                              onChange={e => patchBlock(block.id, { isMultiClient: e.target.checked, clientNames: [] })}
-                              style={{ accentColor:"#de1a1a" }} />
-                            Split cost across multiple clients
-                          </label>
-                          {block.isMultiClient && (
-                            <div style={{ marginTop:8 }}>
-                              <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Select clients (cost split equally)</p>
-                              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                                {allClientOptions.map(name => {
-                                  const selected = block.clientNames.includes(name)
-                                  return (
-                                    <button key={name} type="button"
-                                      onClick={() => { const next = selected ? block.clientNames.filter(n => n !== name) : [...block.clientNames, name]; patchBlock(block.id, { clientNames: next }) }}
-                                      style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${selected ? "#de1a1a" : "#EBEDF2"}`, background: selected ? "rgba(222,26,26,0.08)" : "#F9FAFB", color: selected ? "#de1a1a" : "#6B7280" }}>
-                                      {name}
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                              {block.clientNames.length > 1 && (
-                                <p style={{ fontSize:10, color:"#9CA3AF", marginTop:5 }}>{block.durationHours}h ÷ {block.clientNames.length} clients = {(block.durationHours / block.clientNames.length).toFixed(2)}h each</p>
-                              )}
+                        {/* Client multi-select chips */}
+                        <div style={{ marginTop:4 }}>
+                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project</p>
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                            {/* Special: Our Brand */}
+                            {(() => { const sel = block.projectName === "Promotion"; return (
+                              <button key="__promo__" type="button"
+                                onClick={() => patchBlock(block.id, { projectName: sel ? "" : "Promotion", clientNames: [], brand: "", customClient: "" })}
+                                style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${sel ? "#D97706" : "#EBEDF2"}`, background: sel ? "rgba(217,119,6,0.08)" : "#F9FAFB", color: sel ? "#D97706" : "#6B7280" }}>
+                                📣 Our Brand
+                              </button>
+                            )})()}
+                            {/* Regular client chips (multi-select) */}
+                            {allClientOptions.map(name => {
+                              const sel = block.clientNames.includes(name)
+                              return (
+                                <button key={name} type="button"
+                                  onClick={() => {
+                                    const next = sel ? block.clientNames.filter(n => n !== name) : [...block.clientNames, name]
+                                    patchBlock(block.id, { clientNames: next, isMultiClient: next.length > 1, projectName: "", brand: "", customClient: "" })
+                                  }}
+                                  style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${sel ? "#de1a1a" : "#EBEDF2"}`, background: sel ? "rgba(222,26,26,0.08)" : "#F9FAFB", color: sel ? "#de1a1a" : "#6B7280" }}>
+                                  {name}
+                                </button>
+                              )
+                            })}
+                            {/* Special: Other (custom) */}
+                            {(() => { const sel = block.projectName === "__custom__"; return (
+                              <button key="__custom__" type="button"
+                                onClick={() => patchBlock(block.id, { projectName: sel ? "" : "__custom__", clientNames: [], brand: "", customClient: "" })}
+                                style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${sel ? "#6366F1" : "#EBEDF2"}`, background: sel ? "rgba(99,102,241,0.08)" : "#F9FAFB", color: sel ? "#6366F1" : "#6B7280" }}>
+                                ✏️ Other
+                              </button>
+                            )})()}
+                          </div>
+                          {/* Our Brand → brand picker */}
+                          {block.projectName === "Promotion" && (
+                            <div style={{ position:"relative", marginTop:6 }}>
+                              <select value={block.brand} onChange={e => patchBlock(block.id, { brand: e.target.value })}
+                                style={{ width:"100%", fontSize:11, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.3)", borderRadius:8, padding:"7px 28px 7px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                                <option value="">📣 Select brand…</option>
+                                {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                              </select>
+                              <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#D97706", pointerEvents:"none" }} />
                             </div>
+                          )}
+                          {/* Other → custom text */}
+                          {block.projectName === "__custom__" && (
+                            <input
+                              value={block.customClient}
+                              onChange={e => patchBlock(block.id, { customClient: e.target.value })}
+                              placeholder="Type client name…"
+                              style={{ width:"100%", fontSize:11, fontWeight:600, color:"#111827", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", outline:"none", boxSizing:"border-box", marginTop:6 }}
+                            />
+                          )}
+                          {/* Split info */}
+                          {block.clientNames.length > 1 && (
+                            <p style={{ fontSize:10, color:"#9CA3AF", marginTop:5 }}>{block.durationHours}h ÷ {block.clientNames.length} clients = {(block.durationHours / block.clientNames.length).toFixed(2)}h each</p>
                           )}
                         </div>
                       </div>

@@ -20,6 +20,7 @@ export interface ContentPostInput {
   client_id?: string | null
   client_name: string
   scheduled_date: string
+  scheduled_time?: string | null
   assigned_to?: string | null
   drive_link?: string
   caption?: string
@@ -52,6 +53,7 @@ export async function createContentPost(input: ContentPostInput) {
     drive_link:     input.drive_link || null,
     caption:        input.caption || null,
     notes:          input.notes || null,
+    scheduled_time: input.scheduled_time || null,
   }).select('id').single()
 
   if (error) return { success: false, error: error.message }

@@ -39,6 +39,14 @@
     {
       "path": "/api/cron/salary-reminder",
       "schedule": "30 4 4 * *"
+    },
+    {
+      "path": "/api/cron/content-reminder",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/content-missed",
+      "schedule": "30 17 * * *"
     }
   ]
 }

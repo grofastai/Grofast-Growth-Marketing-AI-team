@@ -46,11 +46,12 @@ const CONTENT_TYPES = [
   { id: "other",     label: "Other",     icon: Layers   },
 ]
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  pending:     { label: "Pending",     color: "#F59E0B", bg: "rgba(245,158,11,0.1)" },
-  in_progress: { label: "In Progress", color: "#3B82F6", bg: "rgba(59,130,246,0.1)" },
-  ready:       { label: "Ready",       color: "#8B5CF6", bg: "rgba(139,92,246,0.1)" },
-  posted:      { label: "Posted ✓",    color: "#10B981", bg: "rgba(16,185,129,0.1)" },
-  cancelled:   { label: "Cancelled",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"  },
+  pending:     { label: "Pending",     color: "#F59E0B", bg: "rgba(245,158,11,0.1)"  },
+  in_progress: { label: "In Progress", color: "#3B82F6", bg: "rgba(59,130,246,0.1)"  },
+  ready:       { label: "Ready",       color: "#8B5CF6", bg: "rgba(139,92,246,0.1)"  },
+  posted:      { label: "Posted ✓",    color: "#10B981", bg: "rgba(16,185,129,0.1)"  },
+  cancelled:   { label: "Cancelled",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"   },
+  missed:      { label: "Missed",      color: "#EF4444", bg: "rgba(239,68,68,0.08)"  },
 }
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"]
 const DAYS   = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
@@ -89,6 +90,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   const [driveLink, setDriveLink]   = useState("")
   const [caption, setCaption]       = useState("")
   const [schedDate, setSchedDate]   = useState("")
+  const [schedTime, setSchedTime]   = useState("")
   const [formError, setFormError]   = useState("")
   const [formSuccess, setFormSuccess] = useState(false)
 
@@ -126,7 +128,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     setShowAdd(true)
     setFormError(""); setFormSuccess(false)
     setTitle(""); setPlatform("instagram"); setContentType("post")
-    setClientId(""); setClientName(""); setAssignedTo(""); setDriveLink(""); setCaption("")
+    setClientId(""); setClientName(""); setAssignedTo(""); setDriveLink(""); setCaption(""); setSchedTime("")
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -140,7 +142,8 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
       const res = await createContentPost({
         title, platform, content_type: contentType,
         client_id: clientId || null, client_name: resolvedName,
-        scheduled_date: schedDate, assigned_to: assignedTo || null,
+        scheduled_date: schedDate, scheduled_time: schedTime || null,
+        assigned_to: assignedTo || null,
         drive_link: driveLink || undefined, caption: caption || undefined,
       })
       if (res.success) {
@@ -391,11 +394,15 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 </div>
               </div>
 
-              {/* Date + Client + Assigned */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              {/* Date + Time + Client + Assigned */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={LABEL}>Date *</label>
                   <input type="date" value={schedDate} onChange={e => setSchedDate(e.target.value)} required style={FIELD} />
+                </div>
+                <div>
+                  <label style={LABEL}>Post Time <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
+                  <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={FIELD} />
                 </div>
                 <div>
                   <label style={LABEL}>Client</label>

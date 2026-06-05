@@ -37,8 +37,8 @@ export const workEntrySchema = z.object({
   video_link:      z.string().optional(),
   editing_videos:  z.array(editingVideoSchema).optional().default([]),
   // Multi-client split
-  is_multi_client: z.boolean().optional().default(false),
-  client_names:    z.array(z.string()).optional().default([]),
+  is_multi_client: z.boolean().optional(),
+  client_names:    z.array(z.string()).optional(),
 })
 
 // ── Main schema ────────────────────────────────────────────────

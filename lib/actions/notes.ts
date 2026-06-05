@@ -12,35 +12,49 @@ function adminSupabase() {
   )
 }
 
+export interface ChecklistItem {
+  id:      string
+  text:    string
+  checked: boolean
+}
+
 export interface NoteRow {
-  id: string
-  title: string | null
-  content: string
-  color: string
-  pinned: boolean
+  id:          string
+  title:       string | null
+  content:     string
+  color:       string
+  pinned:      boolean
   reminder_at: string | null
-  reminded: boolean
-  created_at: string
-  updated_at: string
+  reminded:    boolean
+  note_type:   'text' | 'checklist'
+  items:       ChecklistItem[]
+  labels:      string[]
+  archived:    boolean
+  created_at:  string
+  updated_at:  string
 }
 
 export interface NoteInput {
-  title?: string
-  content: string
-  color?: string
-  pinned?: boolean
+  title?:       string
+  content:      string
+  color?:       string
+  pinned?:      boolean
   reminder_at?: string | null
+  note_type:    'text' | 'checklist'
+  items:        ChecklistItem[]
+  labels:       string[]
 }
 
-export async function getNotes(): Promise<NoteRow[]> {
+export async function getNotes(archived = false): Promise<NoteRow[]> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return []
 
   const { data } = await supabase
     .from('notes')
-    .select('id, title, content, color, pinned, reminder_at, reminded, created_at, updated_at')
+    .select('id, title, content, color, pinned, reminder_at, reminded, note_type, items, labels, archived, created_at, updated_at')
     .eq('user_id', user.id)
+    .eq('archived', archived)
     .order('pinned', { ascending: false })
     .order('created_at', { ascending: false })
 
@@ -50,7 +64,7 @@ export async function getNotes(): Promise<NoteRow[]> {
 export async function createNote(
   input: NoteInput
 ): Promise<{ success: boolean; id?: string; error?: string }> {
-  if (!input.content?.trim()) return { success: false, error: 'Note content is required' }
+  if (!input.content?.trim() && input.note_type === 'text') return { success: false, error: 'Note content is required' }
 
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -72,6 +86,10 @@ export async function createNote(
     color:       input.color ?? '#FFFFFF',
     pinned:      input.pinned ?? false,
     reminder_at: input.reminder_at ?? null,
+    note_type:   input.note_type ?? 'text',
+    items:       input.items ?? [],
+    labels:      input.labels ?? [],
+    archived:    false,
   }).select('id').single()
 
   if (error) return { success: false, error: error.message }
@@ -84,8 +102,6 @@ export async function updateNote(
   id: string,
   input: NoteInput
 ): Promise<{ success: boolean; error?: string }> {
-  if (!input.content?.trim()) return { success: false, error: 'Note content is required' }
-
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
@@ -97,7 +113,10 @@ export async function updateNote(
     color:       input.color ?? '#FFFFFF',
     pinned:      input.pinned ?? false,
     reminder_at: input.reminder_at ?? null,
-    reminded:    input.reminder_at ? false : false,
+    reminded:    false,
+    note_type:   input.note_type ?? 'text',
+    items:       input.items ?? [],
+    labels:      input.labels ?? [],
     updated_at:  new Date().toISOString(),
   }).eq('id', id).eq('user_id', user.id)
 
@@ -130,11 +149,71 @@ export async function togglePin(
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
-  const { error } = await admin.from('notes').update({ pinned, updated_at: new Date().toISOString() })
+  const { error } = await admin.from('notes')
+    .update({ pinned, updated_at: new Date().toISOString() })
     .eq('id', id).eq('user_id', user.id)
 
   if (error) return { success: false, error: error.message }
 
   revalidatePath('/member/notes')
+  return { success: true }
+}
+
+export async function archiveNote(
+  id: string,
+  archived: boolean
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { error } = await admin.from('notes')
+    .update({ archived, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/notes')
+  return { success: true }
+}
+
+export async function convertNoteToTask(
+  noteId: string,
+  taskTitle: string,
+  dueDate?: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: profile } = await admin
+    .from('users')
+    .select('company_id')
+    .eq('id', user.id)
+    .single()
+  if (!profile?.company_id) return { success: false, error: 'Profile not found' }
+
+  const { data: note } = await admin
+    .from('notes')
+    .select('content')
+    .eq('id', noteId)
+    .eq('user_id', user.id)
+    .single()
+
+  const { error } = await admin.from('tasks').insert({
+    company_id:  profile.company_id,
+    assigned_to: user.id,
+    created_by:  user.id,
+    title:       taskTitle.trim(),
+    description: note?.content ?? '',
+    status:      'todo',
+    priority:    'medium',
+    due_date:    dueDate || null,
+  })
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/tasks')
   return { success: true }
 }

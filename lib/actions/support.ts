@@ -34,7 +34,7 @@ export async function createTicket(input: {
   category: string
   description: string
   priority: string
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; ticketId?: string }> {
   const profile = await getProfile()
   if (!profile) return { success: false, error: 'Not authenticated' }
 
@@ -44,14 +44,14 @@ export async function createTicket(input: {
   }
 
   const admin = adminSupabase()
-  const { error } = await admin.from('support_tickets').insert({
+  const { data: ticket, error } = await admin.from('support_tickets').insert({
     company_id:  profile.company_id,
     user_id:     profile.id,
     title:       input.title.trim(),
     category:    input.category,
     description: input.description.trim(),
     priority:    input.priority,
-  })
+  }).select('id').single()
 
   if (error) return { success: false, error: error.message }
 
@@ -72,7 +72,7 @@ export async function createTicket(input: {
 
   revalidatePath('/member/support')
   revalidatePath('/admin/support')
-  return { success: true }
+  return { success: true, ticketId: ticket?.id }
 }
 
 export async function addResponse(input: {

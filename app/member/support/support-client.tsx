@@ -113,17 +113,43 @@ function RaiseTicketModal({ onClose, onSuccess }: { onClose: () => void; onSucce
   const [problem, setProblem] = useState<string | null>(null)
   const [customText, setCustomText] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState('')
+  const newTicketFileRef = useRef<HTMLInputElement>(null)
+  const supabase = createBrowserClient()
 
   const catDef = CATEGORIES.find(c => c.key === category)
   const problems = category ? PROBLEM_MAP[category] ?? [] : []
   const submitDisabled = isPending || !problem || (problem === 'Other' && !customText.trim())
+
+  function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { setUploadError('Max file size is 5 MB'); return }
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowed.includes(file.type)) { setUploadError('Only JPG, PNG, and WEBP images are supported'); return }
+    setUploadError('')
+    setPendingFile(file)
+    setPreviewUrl(URL.createObjectURL(file))
+  }
 
   function submit() {
     if (!category || !problem) return
     if (problem === 'Other' && !customText.trim()) return
     const title = problem === 'Other' ? customText.trim() : problem
     startTransition(async () => {
-      await createTicket({ title, category, description: title, priority: 'normal' })
+      const res = await createTicket({ title, category, description: title, priority: 'normal' })
+      if (!res.success || !res.ticketId) { setUploadError(res.error ?? 'Failed to create ticket'); return }
+      if (pendingFile && res.ticketId) {
+        const ext = pendingFile.name.split('.').pop() ?? 'jpg'
+        const path = `${res.ticketId}/${Date.now()}.${ext}`
+        const { data, error: upErr } = await supabase.storage.from('support-attachments').upload(path, pendingFile)
+        if (!upErr && data) {
+          const { data: { publicUrl } } = supabase.storage.from('support-attachments').getPublicUrl(data.path)
+          await addResponse({ ticket_id: res.ticketId, message: `[img]${publicUrl}` })
+        }
+      }
       onSuccess()
     })
   }
@@ -179,6 +205,26 @@ function RaiseTicketModal({ onClose, onSuccess }: { onClose: () => void; onSucce
                     <p style={{ fontSize: 11, color: '#9CA3AF', margin: '3px 0 0', textAlign: 'right' }}>{customText.length}/300</p>
                   </div>
                 )}
+                {/* Image attachment */}
+                <div style={{ marginTop: 4 }}>
+                  <input ref={newTicketFileRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp" style={{ display: 'none' }} onChange={handleImageSelect} />
+                  {previewUrl ? (
+                    <div style={{ position: 'relative', display: 'inline-block', marginBottom: 6 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={previewUrl} alt="attachment preview" style={{ maxHeight: 120, maxWidth: '100%', borderRadius: 10, border: '1px solid #E5E7EB', objectFit: 'cover' }} />
+                      <button type="button" onClick={() => { setPendingFile(null); setPreviewUrl(null); if (newTicketFileRef.current) newTicketFileRef.current.value = '' }}
+                        style={{ position: 'absolute', top: 4, right: 4, width: 20, height: 20, borderRadius: '50%', background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <X size={11} color="#fff" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => newTicketFileRef.current?.click()}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', borderRadius: 10, border: '1.5px dashed #E5E7EB', background: '#F9FAFB', cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#6B7280' }}>
+                      <Paperclip size={13} /> Attach image (optional)
+                    </button>
+                  )}
+                  {uploadError && <p style={{ fontSize: 11, color: '#EF4444', margin: '4px 0 0' }}>{uploadError}</p>}
+                </div>
                 <button onClick={submit} disabled={submitDisabled}
                   style={{ marginTop: 8, width: '100%', padding: '13px', borderRadius: 14, border: 'none', background: submitDisabled ? '#F3F4F6' : '#DE1A1A', color: submitDisabled ? '#9CA3AF' : '#fff', fontSize: 14, fontWeight: 700, cursor: submitDisabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                   {isPending && <Loader2 size={15} className="animate-spin" />}
@@ -263,12 +309,14 @@ export default function MemberSupportClient({
     const file = e.target.files?.[0]
     if (!file || !selectedTicket) return
     if (file.size > 5 * 1024 * 1024) { alert('Max file size is 5 MB'); return }
+    const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    if (!allowed.includes(file.type)) { alert('Only JPG, PNG, and WEBP images are supported'); return }
     setIsUploading(true)
     try {
       const ext = file.name.split('.').pop() ?? 'jpg'
       const path = `${selectedTicket.id}/${Date.now()}.${ext}`
       const { data, error } = await supabase.storage.from('support-attachments').upload(path, file)
-      if (error || !data) { console.error(error); return }
+      if (error || !data) { alert('Upload failed: ' + (error?.message ?? 'Unknown error')); return }
       const { data: { publicUrl } } = supabase.storage.from('support-attachments').getPublicUrl(data.path)
       await addResponse({ ticket_id: selectedTicket.id, message: `[img]${publicUrl}` })
     } finally {

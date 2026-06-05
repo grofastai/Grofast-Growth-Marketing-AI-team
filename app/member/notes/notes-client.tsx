@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useTransition, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
 import {
   Pin, PinOff, Trash2, Plus, X, Bell,
   Archive, ArchiveRestore, CheckSquare, AlignLeft,

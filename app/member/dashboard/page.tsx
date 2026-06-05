@@ -157,7 +157,7 @@ export default async function MemberDashboardPage() {
         {([
           { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: workingDays || 0,   label: "Present Days"  },
           { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : `${todayHours > 0 ? `${todayHours}h` : "—"}`, label: "Total Hours"  },
-          { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: pendingLeaves,      label: "Pending Leave" },
+          { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: Math.max(0, 5 - leaveDays), label: "Leave Left" },
           { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks"  },
         ] as const).map((s) => {
           const Icon = s.icon
@@ -317,8 +317,8 @@ export default async function MemberDashboardPage() {
               <CalendarOff size={16} style={{ color: "#de1a1a" }} />
             </div>
             <div className="flex-1">
-              <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>{pendingLeaves}</p>
-              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Pending Leaves</p>
+              <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>{Math.max(0, 5 - leaveDays)}</p>
+              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Leave Left</p>
             </div>
             <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
           </Link>

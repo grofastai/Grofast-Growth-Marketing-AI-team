@@ -46,7 +46,7 @@ export default async function HistoryPage() {
 
   const admin = adminSupabase()
 
-  const [updatesResult, profileResult] = await Promise.all([
+  const [updatesResult, profileResult, projectsResult] = await Promise.all([
     supabase
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, shoot_count, editing_count, work_entries, created_at")
@@ -58,10 +58,15 @@ export default async function HistoryPage() {
       .select("name")
       .eq("id", user.id)
       .single(),
+    supabase
+      .from("projects")
+      .select("business_name")
+      .order("business_name", { ascending: true }),
   ])
 
   const updates = (updatesResult.data ?? []) as unknown as UpdateRow[]
   const name = (profileResult.data?.name ?? "").split(" ")[0] || "there"
+  const clients = (projectsResult.data ?? []).map((p: { business_name: string }) => p.business_name).filter(Boolean)
 
-  return <HistoryClient updates={updates} userName={name} />
+  return <HistoryClient updates={updates} userName={name} clients={clients} />
 }

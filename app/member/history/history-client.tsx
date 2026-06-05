@@ -141,7 +141,7 @@ function ProductivityRing({ pct }: { pct: number }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function HistoryClient({ updates, userName }: { updates: UpdateRow[]; userName: string }) {
+export default function HistoryClient({ updates, userName, clients = [] }: { updates: UpdateRow[]; userName: string; clients?: string[] }) {
 
   const months = useMemo(() => {
     const seen = new Set<string>(), result: string[] = []
@@ -195,6 +195,8 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
       end_time: entry.end_time ?? "",
       video_link: entry.video_link ?? "",
       project_name: entry.project_name ?? "",
+      is_multi_client: entry.is_multi_client ?? false,
+      client_names: entry.client_names ?? [],
     })
   }
 
@@ -700,13 +702,50 @@ export default function HistoryClient({ updates, userName }: { updates: UpdateRo
                                     </div>
                                     <div>
                                       <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
-                                      <input
-                                        value={editDraft.client_name ?? ""}
-                                        onChange={ev => setEditDraft(d => ({ ...d, client_name: ev.target.value }))}
-                                        style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                      />
+                                      {editDraft.task_type === "other" && editDraft.is_multi_client
+                                        ? <p style={{ fontSize:11, fontWeight:700, color:"#374151", padding:"7px 0" }}>{(editDraft.client_names ?? []).join(" · ") || "—"}</p>
+                                        : <input
+                                            value={editDraft.client_name ?? ""}
+                                            onChange={ev => setEditDraft(d => ({ ...d, client_name: ev.target.value }))}
+                                            style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
+                                          />
+                                      }
                                     </div>
                                   </div>
+
+                                  {/* Multi-client toggle + selector (working entries only) */}
+                                  {editDraft.task_type === "other" && (
+                                    <div>
+                                      <label style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", fontSize:11, fontWeight:600, color:"#374151", marginBottom:6 }}>
+                                        <input
+                                          type="checkbox"
+                                          checked={editDraft.is_multi_client ?? false}
+                                          onChange={ev => setEditDraft(d => ({ ...d, is_multi_client: ev.target.checked, client_names: [] }))}
+                                          style={{ accentColor:"#de1a1a" }}
+                                        />
+                                        Split cost across multiple clients
+                                      </label>
+                                      {editDraft.is_multi_client && clients.length > 0 && (
+                                        <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                                          {clients.map(name => {
+                                            const selected = (editDraft.client_names ?? []).includes(name)
+                                            return (
+                                              <button key={name} type="button"
+                                                onClick={() => {
+                                                  const next = selected
+                                                    ? (editDraft.client_names ?? []).filter(n => n !== name)
+                                                    : [...(editDraft.client_names ?? []), name]
+                                                  setEditDraft(d => ({ ...d, client_names: next, client_name: next[0] || d.client_name }))
+                                                }}
+                                                style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${selected ? "#de1a1a" : "#EBEDF2"}`, background: selected ? "rgba(222,26,26,0.08)" : "#F9FAFB", color: selected ? "#de1a1a" : "#6B7280" }}>
+                                                {name}
+                                              </button>
+                                            )
+                                          })}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
 
                                   {/* Shoot & Other: start/end time */}
                                   {(editDraft.task_type === "shoot" || editDraft.task_type === "other") && (

@@ -101,7 +101,8 @@ export async function submitLeaveRequest(
   if (insertError) return { error: insertError.message }
 
   if (profile && inserted?.id) {
-    const { data: adminUsers } = await supabase
+    const adminClient = createAdminClient()
+    const { data: adminUsers } = await adminClient
       .from('users')
       .select('id, phone')
       .eq('company_id', company_id)

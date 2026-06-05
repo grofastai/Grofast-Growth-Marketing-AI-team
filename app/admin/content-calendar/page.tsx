@@ -57,11 +57,10 @@ export default async function ContentCalendarPage() {
       .eq("role", "MEMBER")
       .eq("status", "active")
       .order("name"),
-    admin.from("projects")
-      .select("id, business_name, client_name")
+    admin.from("clients")
+      .select("id, name")
       .eq("company_id", cid)
-      .eq("status", "active")
-      .order("client_name"),
+      .order("name"),
   ])
 
   return (

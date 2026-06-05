@@ -19,7 +19,7 @@ interface Post {
 interface Shoot { id: string; title: string; start_time: string; client: string; status: string }
 interface Task  { id: string; title: string; due_date: string; status: string }
 interface Member { id: string; name: string; employee_id: string }
-interface Client { id: string; business_name: string; client_name: string }
+interface Client { id: string; name: string }
 
 interface Props {
   posts: Post[]; shoots: Shoot[]; tasks: Task[]
@@ -87,12 +87,12 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   const [clientId, setClientId]     = useState("")
   const [clientName, setClientName] = useState("")
   const [assignedTo, setAssignedTo] = useState("")
-  const [driveLink, setDriveLink]   = useState("")
-  const [caption, setCaption]       = useState("")
-  const [schedDate, setSchedDate]   = useState("")
-  const [schedTime, setSchedTime]   = useState("")
-  const [formError, setFormError]   = useState("")
-  const [formSuccess, setFormSuccess] = useState(false)
+  const [instructions, setInstructions] = useState("")
+  const [schedDates, setSchedDates]     = useState<string[]>([])
+  const [schedDateInput, setSchedDateInput] = useState("")
+  const [schedTime, setSchedTime]       = useState("")
+  const [formError, setFormError]       = useState("")
+  const [formSuccess, setFormSuccess]   = useState(false)
 
   // Calendar grid
   const firstDay  = new Date(year, month, 1).getDay()
@@ -123,35 +123,39 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   }
 
   function openAdd(d: number) {
-    setSchedDate(dateStr(d))
-    setSelectedDate(dateStr(d))
+    const ds = dateStr(d)
+    setSelectedDate(ds)
     setShowAdd(true)
     setFormError(""); setFormSuccess(false)
     setTitle(""); setPlatform("instagram"); setContentType("post")
-    setClientId(""); setClientName(""); setAssignedTo(""); setDriveLink(""); setCaption(""); setSchedTime("")
+    setClientId(""); setClientName(""); setAssignedTo(""); setInstructions(""); setSchedTime("")
+    setSchedDates([ds]); setSchedDateInput("")
   }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim()) { setFormError("Title is required"); return }
-    if (!schedDate) { setFormError("Date is required"); return }
+    if (schedDates.length === 0) { setFormError("Select at least one date"); return }
     setFormError("")
     start(async () => {
       const selectedClient = clients.find(c => c.id === clientId)
-      const resolvedName = clientName || selectedClient?.client_name || selectedClient?.business_name || ""
-      const res = await createContentPost({
-        title, platform, content_type: contentType,
-        client_id: clientId || null, client_name: resolvedName,
-        scheduled_date: schedDate, scheduled_time: schedTime || null,
-        assigned_to: assignedTo || null,
-        drive_link: driveLink || undefined, caption: caption || undefined,
-      })
-      if (res.success) {
+      const resolvedName = clientName || selectedClient?.name || ""
+      const results = await Promise.all(schedDates.map(date =>
+        createContentPost({
+          title, platform, content_type: contentType,
+          client_id: clientId || null, client_name: resolvedName,
+          scheduled_date: date, scheduled_time: schedTime || null,
+          assigned_to: assignedTo || null,
+          notes: instructions || undefined,
+        })
+      ))
+      const failed = results.find(r => !r.success)
+      if (failed) {
+        setFormError(failed.error ?? "Something went wrong")
+      } else {
         setFormSuccess(true)
         router.refresh()
         setTimeout(() => { setShowAdd(false); setFormSuccess(false) }, 1200)
-      } else {
-        setFormError(res.error ?? "Something went wrong")
       }
     })
   }
@@ -394,12 +398,29 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 </div>
               </div>
 
-              {/* Date + Time + Client + Assigned */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={LABEL}>Date *</label>
-                  <input type="date" value={schedDate} onChange={e => setSchedDate(e.target.value)} required style={FIELD} />
+              {/* Dates (multi-select) */}
+              <div>
+                <label style={LABEL}>Dates * <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>— select one or more</span></label>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <input type="date" value={schedDateInput}
+                    onChange={e => {
+                      const d = e.target.value
+                      if (d && !schedDates.includes(d)) setSchedDates(p => [...p, d].sort())
+                      setSchedDateInput("")
+                    }}
+                    style={{ ...FIELD, width: "auto", flex: "0 0 auto" }} />
+                  {schedDates.map(d => (
+                    <span key={d} style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 20, background: "rgba(222,26,26,0.08)", border: "1.5px solid rgba(222,26,26,0.25)", fontSize: 12, fontWeight: 600, color: "#de1a1a" }}>
+                      {d}
+                      <button type="button" onClick={() => setSchedDates(p => p.filter(x => x !== d))}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "#de1a1a", fontSize: 14, fontWeight: 700 }}>×</button>
+                    </span>
+                  ))}
                 </div>
+              </div>
+
+              {/* Time + Client + Assigned */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={LABEL}>Post Time <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
                   <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={FIELD} />
@@ -408,7 +429,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                   <label style={LABEL}>Client</label>
                   <select value={clientId} onChange={e => { setClientId(e.target.value); setClientName("") }} style={{ ...FIELD, appearance: "none" }}>
                     <option value="">— Select —</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.client_name || c.business_name}</option>)}
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
                 <div>
@@ -420,16 +441,12 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 </div>
               </div>
 
-              {/* Caption */}
+              {/* Instructions / Keep Remember Points */}
               <div>
-                <label style={LABEL}>Caption (optional)</label>
-                <textarea value={caption} onChange={e => setCaption(e.target.value)} rows={2} placeholder="Post caption or script brief…" style={{ ...FIELD, resize: "vertical", lineHeight: 1.5 }} />
-              </div>
-
-              {/* Drive link */}
-              <div>
-                <label style={LABEL}>Drive Link (optional)</label>
-                <input type="url" value={driveLink} onChange={e => setDriveLink(e.target.value)} placeholder="https://drive.google.com/…" style={FIELD} />
+                <label style={LABEL}>Instructions / Keep Remember Points <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
+                <textarea value={instructions} onChange={e => setInstructions(e.target.value)} rows={3}
+                  placeholder="Content guidelines, reminders, or instructions to follow while creating or posting…"
+                  style={{ ...FIELD, resize: "vertical", lineHeight: 1.5 }} />
               </div>
 
               {assignedTo && (

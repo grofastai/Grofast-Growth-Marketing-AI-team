@@ -83,6 +83,12 @@ type Expense = {
   users: { name: string; employee_id: string } | null
 }
 
+type ContentPostRow = {
+  client_name: string
+  content_type: string
+  scheduled_date: string
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtDate(s: string | null | undefined) {
@@ -334,13 +340,14 @@ function DonutChart({ segments, total }: {
 const OWN_BRANDS = ["Masala Unlimit", "Kutty Karthi Vlog", "GroFast Digital", "A2Z Automobile", "Kaka Mutta"]
 
 export default function ExpensesClient({
-  updates, users, expenses, pricingRates, costOverrides,
+  updates, users, expenses, pricingRates, costOverrides, contentPosts,
 }: {
   updates: UpdateRow[]
   users: MemberUser[]
   expenses: Expense[]
   pricingRates: PricingRate[]
   costOverrides: CostOverride[]
+  contentPosts: ContentPostRow[]
 }) {
   const [tab, setTab] = useState<"claims" | "team">("claims")
 
@@ -357,6 +364,37 @@ export default function ExpensesClient({
   const [reviewNote, setNote]     = useState("")
   const [isPending, start]        = useTransition()
   const router                    = useRouter()
+
+  const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+  const [contentMonth, setContentMonth] = useState(new Date().getMonth())
+
+  const contentCounts = useMemo(() => {
+    const TYPE_MAP: Record<string, string> = {
+      video: 'Videos', reel: 'Reels', post: 'Posters', story: 'Stories',
+    }
+    const filtered = contentPosts.filter(p => {
+      const m = new Date(p.scheduled_date + 'T12:00:00').getMonth()
+      return m === contentMonth
+    })
+    const map: Record<string, Record<string, number>> = {}
+    for (const p of filtered) {
+      const client = p.client_name || 'Unknown'
+      const type   = TYPE_MAP[p.content_type] ?? 'Other'
+      if (!map[client]) map[client] = {}
+      map[client][type] = (map[client][type] ?? 0) + 1
+    }
+    return Object.entries(map)
+      .map(([client, counts]) => ({
+        client,
+        videos:  counts['Videos']  ?? 0,
+        reels:   counts['Reels']   ?? 0,
+        posters: counts['Posters'] ?? 0,
+        stories: counts['Stories'] ?? 0,
+        other:   counts['Other']   ?? 0,
+        total:   Object.values(counts).reduce((a, b) => a + b, 0),
+      }))
+      .sort((a, b) => b.total - a.total)
+  }, [contentPosts, contentMonth])
 
   // ── Derived maps ──────────────────────────────────────────────────────────
   const userMap = useMemo(() => {
@@ -434,6 +472,49 @@ export default function ExpensesClient({
   return (
     <div className="min-h-screen" style={{ background: "#F8F9FB" }}>
       <div className="p-4 md:p-6 xl:p-8 max-w-[1400px] mx-auto space-y-6">
+
+        {/* ── Content Posted This Month ───────────────────────────────────── */}
+        <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 8px rgba(0,0,0,0.04)" }}>
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+            <h2 className="text-[15px] font-black" style={{ color: "#111111", margin: 0 }}>Content Posted</h2>
+            <div className="flex flex-wrap gap-1.5">
+              {MONTHS_SHORT.map((m, i) => (
+                <button key={m} onClick={() => setContentMonth(i)}
+                  style={{ padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 700, cursor: "pointer", border: `1.5px solid ${contentMonth === i ? "#de1a1a" : "#E5E7EB"}`, background: contentMonth === i ? "rgba(222,26,26,0.08)" : "#F9FAFB", color: contentMonth === i ? "#de1a1a" : "#6B7280" }}>
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+          {contentCounts.length === 0 ? (
+            <p className="text-[13px] text-center py-6" style={{ color: "#9CA3AF" }}>
+              No posts marked as posted for {MONTHS_SHORT[contentMonth]}.
+            </p>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#F9FAFB" }}>
+                    {["Client", "Videos", "Reels", "Posters", "Stories", "Other", "Total"].map(h => (
+                      <th key={h} style={{ padding: "8px 12px", textAlign: h === "Client" ? "left" : "center", fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "1px solid #E5E7EB" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {contentCounts.map((row, i) => (
+                    <tr key={row.client} style={{ background: i % 2 === 0 ? "#FFFFFF" : "#FAFAFA" }}>
+                      <td style={{ padding: "10px 12px", fontWeight: 600, color: "#111111", borderBottom: "1px solid #F3F4F6" }}>{row.client}</td>
+                      {[row.videos, row.reels, row.posters, row.stories, row.other].map((v, j) => (
+                        <td key={j} style={{ padding: "10px 12px", textAlign: "center", color: v > 0 ? "#111111" : "#D1D5DB", fontWeight: v > 0 ? 700 : 400, borderBottom: "1px solid #F3F4F6" }}>{v > 0 ? v : "—"}</td>
+                      ))}
+                      <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: 800, color: "#de1a1a", borderBottom: "1px solid #F3F4F6" }}>{row.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-4 flex-wrap" style={{

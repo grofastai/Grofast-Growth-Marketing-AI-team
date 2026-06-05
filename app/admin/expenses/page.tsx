@@ -29,12 +29,17 @@ export default async function AdminExpensesPage() {
 
   const cid = profile.company_id
 
+  const now = new Date()
+  const yearStart = `${now.getFullYear()}-01-01`
+  const yearEnd   = `${now.getFullYear()}-12-31`
+
   const [
     { data: updatesRaw },
     { data: usersRaw },
     { data: expensesRaw },
     { data: pricingRaw },
     { data: overridesRaw },
+    { data: contentPostsRaw },
   ] = await Promise.all([
     admin
       .from("daily_updates")
@@ -59,6 +64,13 @@ export default async function AdminExpensesPage() {
       .from("video_cost_overrides")
       .select("video_uid, manual_cost")
       .eq("company_id", cid),
+    admin
+      .from("content_posts")
+      .select("client_name, content_type, scheduled_date")
+      .eq("company_id", cid)
+      .eq("status", "posted")
+      .gte("scheduled_date", yearStart)
+      .lte("scheduled_date", yearEnd),
   ])
 
   return (
@@ -68,6 +80,7 @@ export default async function AdminExpensesPage() {
       expenses={expensesRaw ?? []}
       pricingRates={pricingRaw ?? []}
       costOverrides={overridesRaw ?? []}
+      contentPosts={contentPostsRaw ?? []}
     />
   )
 }

@@ -18,10 +18,18 @@ CREATE INDEX IF NOT EXISTS daily_updates_participant_ids_idx
   ON daily_updates USING GIN(participant_ids);
 
 -- RLS: participants can read work_logs they appear in
--- (existing tenant_isolation policy already covers company-level reads for admins)
--- Members can also read logs they are tagged in
-CREATE POLICY IF NOT EXISTS "participant_read" ON work_logs
-  FOR SELECT USING (
-    company_id = (auth.jwt() ->> 'company_id')::uuid
-    AND auth.uid() = ANY(participant_ids)
-  );
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'work_logs' AND policyname = 'participant_read'
+  ) THEN
+    EXECUTE $policy$
+      CREATE POLICY "participant_read" ON work_logs
+        FOR SELECT USING (
+          company_id = (auth.jwt() ->> 'company_id')::uuid
+          AND auth.uid() = ANY(participant_ids)
+        )
+    $policy$;
+  END IF;
+END$$;

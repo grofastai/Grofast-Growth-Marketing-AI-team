@@ -42,7 +42,7 @@
     },
     {
       "path": "/api/cron/content-reminder",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 4 * * *"
     },
     {
       "path": "/api/cron/content-missed",

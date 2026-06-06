@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, Clock, Target,
   CalendarOff, Megaphone, Briefcase, LogOut, BarChart2,
   Receipt, IndianRupee, FolderOpen, LifeBuoy,
-  MoreHorizontal, X, Bell, UserCircle2, ClipboardList, Activity, TrendingUp, CalendarDays,
+  MoreHorizontal, X, Bell, UserCircle2, ClipboardList, Activity, TrendingUp, CalendarDays, Clapperboard,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
@@ -27,6 +27,7 @@ const navItems = [
   { label: "Announcements", href: "/admin/announcements",    icon: Megaphone },
   { label: "Expenses",      href: "/admin/expenses",         icon: Receipt },
   { label: "Payroll",       href: "/admin/payroll",          icon: IndianRupee },
+  { label: "Freelancers",   href: "/admin/freelancers",      icon: Clapperboard },
   { label: "Documents",     href: "/admin/documents",        icon: FolderOpen },
   { label: "Support",       href: "/admin/support",          icon: LifeBuoy },
   { label: "Profile",       href: "/admin/profile",          icon: UserCircle2 },
@@ -48,6 +49,7 @@ const moreNavItems = [
   { label: "Announcements", href: "/admin/announcements",    icon: Megaphone },
   { label: "Expenses",      href: "/admin/expenses",         icon: Receipt },
   { label: "Payroll",       href: "/admin/payroll",          icon: IndianRupee },
+  { label: "Freelancers",   href: "/admin/freelancers",      icon: Clapperboard },
   { label: "Documents",     href: "/admin/documents",        icon: FolderOpen },
   { label: "Support",       href: "/admin/support",          icon: LifeBuoy },
 ]

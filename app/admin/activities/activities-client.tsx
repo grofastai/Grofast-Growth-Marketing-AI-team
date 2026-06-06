@@ -23,6 +23,7 @@ interface Update {
   notes: string | null
   task_id: string | null
   work_entries: WorkEntry[] | null
+  participant_ids: string[] | null
   users: { id: string; name: string; employee_id: string; role: string } | null
   tasks: { title: string } | null
   tasks_list: TaskItem[]
@@ -297,6 +298,28 @@ export default function ActivitiesClient({
                           </span>
                         )}
                       </div>
+
+                      {/* Participants */}
+                      {(u.participant_ids ?? []).length > 0 && (() => {
+                        const participants = (u.participant_ids ?? [])
+                          .map(pid => members.find(m => m.id === pid))
+                          .filter(Boolean)
+                        if (participants.length === 0) return null
+                        return (
+                          <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>👥 With</span>
+                            {participants.map(p => (
+                              <span key={p!.id} className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                                style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", color: "#6366F1" }}>
+                                <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#6366F1", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 900, color: "#fff" }}>
+                                  {p!.name.split(" ").map((n: string) => n[0]).join("").slice(0,2)}
+                                </span>
+                                {p!.name.split(" ")[0]}
+                              </span>
+                            ))}
+                          </div>
+                        )
+                      })()}
                     </div>
 
                     {/* View Details button */}

@@ -11,6 +11,7 @@ import {
 import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
 
 interface Project { id: string; business_name: string }
+interface TeamMember { id: string; name: string; employee_id: string; role: string }
 
 const OWN_BRANDS = ["Masala Unlimit", "Kutty Karthi Vlog", "GroFast Digital", "A2Z Automobile", "Kaka Mutta"]
 
@@ -192,10 +193,11 @@ type PastUpdate = {
 }
 
 export default function DailyUpdateForm({
-  projects, sheetClientNames = [], userName, team, existingUpdate, pastUpdates = [],
+  projects, sheetClientNames = [], userName, team, existingUpdate, pastUpdates = [], teamMembers = [],
 }: {
   projects: Project[]; sheetClientNames?: string[]; userName: string; team?: string | null
   existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
+  teamMembers?: TeamMember[]
 }) {
   const router = useRouter()
   const existingUpdateRef = useRef(existingUpdate)
@@ -321,6 +323,20 @@ export default function DailyUpdateForm({
   const [savingEdit,    setSavingEdit]    = useState(false)
   const [editError,     setEditError]     = useState<string | null>(null)
 
+  // ── Participants (Worked With) ────────────────────────────────────────────────
+  const [participantIds,    setParticipantIds]    = useState<string[]>(
+    (existingUpdate?.participant_ids as string[]) ?? []
+  )
+  const [participantSearch, setParticipantSearch] = useState("")
+
+  function toggleParticipant(id: string) {
+    setParticipantIds(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id])
+  }
+
+  const filteredMembers = participantSearch.trim()
+    ? teamMembers.filter(m => m.name.toLowerCase().includes(participantSearch.toLowerCase()) || m.employee_id.toLowerCase().includes(participantSearch.toLowerCase()))
+    : teamMembers
+
   // Autosave time blocks
   useEffect(() => {
     if (workingDone || existingUpdate) return
@@ -363,6 +379,7 @@ export default function DailyUpdateForm({
         active_tab: "working", date: selectedDate, work_entries, links: [],
         shoot_count: 0, editing_count: 0,
         shoot_time_hours: 0, editing_time_hours: 0, learning_hours: 0,
+        participant_ids: participantIds,
       })
       if (!res.success) setWorkingError(res.error ?? "Submission failed.")
       else { try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }; setWorkingDone(true); router.refresh() }
@@ -402,6 +419,7 @@ export default function DailyUpdateForm({
         shoot_count: shoots.length, editing_count: edits.length,
         shoot_time_hours: totalShootHours, editing_time_hours: totalEditHours,
         learning_hours: 0,
+        participant_ids: participantIds,
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
       else { setSubmitted(true); router.refresh() }
@@ -443,6 +461,7 @@ export default function DailyUpdateForm({
         shoot_count: shoots.length, editing_count: edits.length,
         shoot_time_hours: totalShootHours, editing_time_hours: totalEditHours,
         learning_hours: 0,
+        participant_ids: participantIds,
       })
       if (!res.success) setError(res.error ?? "Save failed.")
       else setSavedIds(prev => new Set([...prev, entryId]))
@@ -461,6 +480,7 @@ export default function DailyUpdateForm({
         learning_hours: learningHours,
         learning_topic: learningTopic,
         learning_notes: learningNotes,
+        participant_ids: participantIds,
       })
       if (!res.success) setLearningError(res.error ?? "Submission failed.")
       else { setLearningDone(true); router.refresh() }
@@ -1508,6 +1528,82 @@ export default function DailyUpdateForm({
                     </div>
                   )
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* ══ WORKED WITH / PARTICIPANTS ════════════════════════════════════════ */}
+          {teamMembers.length > 0 && (
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1.5px solid rgba(99,102,241,0.2)", padding:"18px 20px", boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+                <div style={{ width:34, height:34, borderRadius:10, background:"rgba(99,102,241,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  <span style={{ fontSize:16 }}>👥</span>
+                </div>
+                <div>
+                  <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Worked With</p>
+                  <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Tag teammates who participated — they get auto-tracked</p>
+                </div>
+                {participantIds.length > 0 && (
+                  <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>
+                    {participantIds.length} selected
+                  </span>
+                )}
+              </div>
+
+              {/* Selected chips */}
+              {participantIds.length > 0 && (
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
+                  {participantIds.map(pid => {
+                    const m = teamMembers.find(t => t.id === pid)
+                    if (!m) return null
+                    const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                    return (
+                      <button key={pid} onClick={() => toggleParticipant(pid)}
+                        style={{ display:"flex", alignItems:"center", gap:6, padding:"5px 10px 5px 6px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
+                        <div style={{ width:22, height:22, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:800, color:"#fff", flexShrink:0 }}>
+                          {initials}
+                        </div>
+                        <span style={{ fontSize:12, fontWeight:700, color:"#4338CA" }}>{m.name.split(" ")[0]}</span>
+                        <span style={{ fontSize:10, color:"#818CF8", lineHeight:1 }}>✕</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* Search input */}
+              <input
+                value={participantSearch}
+                onChange={e => setParticipantSearch(e.target.value)}
+                placeholder="Search team members…"
+                style={{ width:"100%", boxSizing:"border-box", fontSize:12, padding:"8px 12px", borderRadius:10, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none", marginBottom:10 }}
+              />
+
+              {/* Member chips */}
+              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                {filteredMembers.slice(0,20).map(m => {
+                  const selected = participantIds.includes(m.id)
+                  const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                  return (
+                    <button key={m.id} onClick={() => toggleParticipant(m.id)}
+                      style={{ display:"flex", alignItems:"center", gap:6, padding:"5px 12px 5px 6px", borderRadius:99, cursor:"pointer", transition:"all 0.15s",
+                        background: selected ? "rgba(99,102,241,0.1)" : "#F9FAFB",
+                        border: `1.5px solid ${selected ? "rgba(99,102,241,0.4)" : "#EBEDF2"}`,
+                      }}>
+                      <div style={{ width:22, height:22, borderRadius:"50%", background: selected ? "#6366F1" : "#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:800, color: selected ? "#fff" : "#9CA3AF", flexShrink:0 }}>
+                        {initials}
+                      </div>
+                      <div style={{ textAlign:"left" }}>
+                        <p style={{ fontSize:11, fontWeight:700, color: selected ? "#4338CA" : "#374151", margin:0 }}>{m.name.split(" ")[0]}</p>
+                        <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>{m.employee_id}</p>
+                      </div>
+                      {selected && <span style={{ fontSize:10, color:"#6366F1", flexShrink:0 }}>✓</span>}
+                    </button>
+                  )
+                })}
+                {filteredMembers.length === 0 && (
+                  <p style={{ fontSize:12, color:"#9CA3AF", margin:"4px 0" }}>No members found</p>
+                )}
               </div>
             </div>
           )}

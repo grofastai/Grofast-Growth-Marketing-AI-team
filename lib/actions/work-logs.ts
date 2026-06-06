@@ -43,6 +43,7 @@ export async function submitWorkLogs(
   date: string,
   logs: WorkLogInput[],
   posts: ContentPostInput[],
+  participantIds: string[] = [],
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -80,7 +81,8 @@ export async function submitWorkLogs(
         unit_count:  l.unit_count,
         item_titles: l.item_titles.filter(t => t.trim() !== ''),
         notes:       l.notes || null,
-        cost:        Math.round(hourlyRate * l.hours * 100) / 100,
+        cost:           Math.round(hourlyRate * l.hours * 100) / 100,
+        participant_ids: participantIds.length > 0 ? participantIds : [],
       }))
     if (rows.length > 0) {
       const { error } = await admin.from('work_logs').insert(rows)

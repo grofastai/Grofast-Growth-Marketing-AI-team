@@ -58,6 +58,8 @@ export const dailyUpdateSchema = z
     learning_hours: z.number().min(0).max(24).default(0),
     learning_notes: z.string().optional(),
 
+    participant_ids: z.array(z.string().uuid()).optional().default([]),
+
   })
   .superRefine((val, ctx) => {
     if ((val.active_tab === 'working' || val.active_tab === 'media') && val.work_entries.length === 0) {

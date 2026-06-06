@@ -72,11 +72,14 @@ export async function submitDailyUpdate(
     ]
     const newWorkHours = Math.round(((existingRecord.working_hours || 0) + (d.active_tab !== 'learning' ? roundedHours : 0)) * 10) / 10
 
+    const existingParticipants = (existingRecord as Record<string, unknown>).participant_ids as string[] ?? []
+    const mergedParticipants = Array.from(new Set([...existingParticipants, ...(d.participant_ids ?? [])]))
     const updatePayload: Record<string, unknown> = {
       work_entries:    combinedEntries,
       working_hours:   newWorkHours || null,
       shoot_count:     (existingRecord.shoot_count   || 0) + d.shoot_count,
       editing_count:   (existingRecord.editing_count || 0) + d.editing_count,
+      participant_ids: mergedParticipants,
       ...(workType ? { work_type: workType } : {}),
     }
     if (d.learning_topic) {
@@ -112,6 +115,7 @@ export async function submitDailyUpdate(
         editing_count:       d.editing_count,
         shoot_time_hours:    d.shoot_time_hours ?? null,
         editing_time_hours:  d.editing_time_hours ?? null,
+        participant_ids:     d.participant_ids ?? [],
       })
 
     if (insertError) return { success: false, error: insertError.message }

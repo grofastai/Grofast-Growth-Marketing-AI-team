@@ -66,9 +66,11 @@ function itemNoun(activity: Activity): string {
   return 'Item'
 }
 
+interface TeamMemberAF { id: string; name: string; employee_id: string }
+
 export default function ActivityUpdateForm({
   activities, clientNames, today, userName, hourlyRate,
-  existingLogs, existingPosts,
+  existingLogs, existingPosts, teamMembers = [],
 }: {
   activities: Activity[]
   clientNames: string[]
@@ -77,12 +79,23 @@ export default function ActivityUpdateForm({
   hourlyRate: number
   existingLogs: Array<{ activity_id: string; client_name: string | null; hours: number; unit_count: number; item_titles: string[]; notes: string | null }>
   existingPosts: Array<{ title: string | null; client_name: string | null; platform: string; post_type: string; post_link: string | null; notes: string | null }>
+  teamMembers?: TeamMemberAF[]
 }) {
   const router = useRouter()
   const [isPending, start] = useTransition()
   const [submitted, setSubmitted] = useState(existingLogs.length > 0 || existingPosts.length > 0)
   const [error, setError] = useState<string | null>(null)
   const [showPicker, setShowPicker] = useState(false)
+  const [participantIds, setParticipantIds] = useState<string[]>([])
+  const [participantSearch, setParticipantSearch] = useState("")
+
+  function toggleParticipantAF(id: string) {
+    setParticipantIds(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id])
+  }
+
+  const filteredMembersAF = participantSearch.trim()
+    ? teamMembers.filter(m => m.name.toLowerCase().includes(participantSearch.toLowerCase()) || m.employee_id.toLowerCase().includes(participantSearch.toLowerCase()))
+    : teamMembers
 
   const [blocks, setBlocks] = useState<LogBlock[]>(() =>
     existingLogs.map(l => ({
@@ -159,7 +172,7 @@ export default function ActivityUpdateForm({
       .map(p => ({ title: p.title, client_name: p.client_name, platform: p.platform, post_type: p.post_type, post_link: p.post_link, notes: p.notes }))
 
     start(async () => {
-      const res = await submitWorkLogs(today, logInputs, postInputs)
+      const res = await submitWorkLogs(today, logInputs, postInputs, participantIds)
       if (!res.success) { setError(res.error ?? 'Submission failed.'); return }
       setSubmitted(true)
       router.refresh()
@@ -436,6 +449,66 @@ export default function ActivityUpdateForm({
           </div>
         )}
       </div>
+
+      {/* Worked With */}
+      {teamMembers.length > 0 && (
+        <div style={{ background: '#FFFFFF', borderRadius: 14, border: '1.5px solid rgba(99,102,241,0.2)', padding: '16px', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <span style={{ fontSize: 18 }}>👥</span>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: 13, fontWeight: 800, color: '#111827', margin: 0 }}>Worked With</p>
+              <p style={{ fontSize: 10, color: '#9CA3AF', margin: 0 }}>Tag teammates — they get auto-tracked</p>
+            </div>
+            {participantIds.length > 0 && (
+              <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: 'rgba(99,102,241,0.1)', color: '#6366F1' }}>
+                {participantIds.length}
+              </span>
+            )}
+          </div>
+          {participantIds.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 10 }}>
+              {participantIds.map(pid => {
+                const m = teamMembers.find(t => t.id === pid)
+                if (!m) return null
+                return (
+                  <button key={pid} onClick={() => toggleParticipantAF(pid)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px 4px 6px', borderRadius: 99, background: 'rgba(99,102,241,0.1)', border: '1.5px solid rgba(99,102,241,0.3)', cursor: 'pointer' }}>
+                    <span style={{ fontSize: 9, fontWeight: 900, color: '#fff', background: '#6366F1', borderRadius: '50%', width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {m.name.split(' ').map((n: string) => n[0]).join('').slice(0,2)}
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#4338CA' }}>{m.name.split(' ')[0]}</span>
+                    <span style={{ fontSize: 9, color: '#818CF8' }}>✕</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          <input
+            value={participantSearch}
+            onChange={e => setParticipantSearch(e.target.value)}
+            placeholder="Search teammates…"
+            style={{ width: '100%', boxSizing: 'border-box', fontSize: 12, padding: '7px 11px', borderRadius: 9, border: '1.5px solid #E5E7EB', background: '#F9FAFB', color: '#111827', outline: 'none', marginBottom: 8 }}
+          />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+            {filteredMembersAF.slice(0,20).map(m => {
+              const selected = participantIds.includes(m.id)
+              return (
+                <button key={m.id} onClick={() => toggleParticipantAF(m.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px 4px 6px', borderRadius: 99, cursor: 'pointer',
+                    background: selected ? 'rgba(99,102,241,0.1)' : '#F9FAFB',
+                    border: `1.5px solid ${selected ? 'rgba(99,102,241,0.4)' : '#E5E7EB'}`,
+                  }}>
+                  <span style={{ fontSize: 9, fontWeight: 900, color: selected ? '#fff' : '#9CA3AF', background: selected ? '#6366F1' : '#E5E7EB', borderRadius: '50%', width: 18, height: 18, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {m.name.split(' ').map((n: string) => n[0]).join('').slice(0,2)}
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: selected ? '#4338CA' : '#374151' }}>{m.name.split(' ')[0]}</span>
+                  {selected && <span style={{ fontSize: 9, color: '#6366F1' }}>✓</span>}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Error */}
       {error && (

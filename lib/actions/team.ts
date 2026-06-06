@@ -110,8 +110,9 @@ export async function createMember(input: {
   joined_at?: string | null
   gender?: 'male' | 'female'
 }): Promise<{ success: boolean; error?: string; whatsappSent?: boolean; whatsappSkipped?: boolean; whatsappError?: string }> {
-  if (!input.name || !input.employee_id || !input.email || !input.password) {
-    return { success: false, error: 'Name, Employee ID, Email and Password are required' }
+  const isAdmin = input.role === 'ADMIN'
+  if (!input.name || (!isAdmin && !input.employee_id) || !input.email || !input.password) {
+    return { success: false, error: isAdmin ? 'Name, Gmail and Password are required' : 'Name, Employee ID, Email and Password are required' }
   }
   if (input.password.length < 6) {
     return { success: false, error: 'Password must be at least 6 characters' }
@@ -130,6 +131,21 @@ export async function createMember(input: {
     .single()
   if (!adminProfile?.company_id) return { success: false, error: 'Admin profile not found — contact support' }
   const company_id = adminProfile.company_id
+
+  // Auto-generate employee ID for ADMIN accounts (ADM001, ADM002, …)
+  let finalEmployeeId = input.employee_id
+  if (!finalEmployeeId && isAdmin) {
+    const { data: existingAdmins } = await admin
+      .from('users')
+      .select('employee_id')
+      .eq('company_id', company_id)
+      .eq('role', 'ADMIN')
+    const nums = (existingAdmins ?? [])
+      .map((a: { employee_id: string }) => { const m = a.employee_id.match(/^ADM(\d+)$/i); return m ? parseInt(m[1]) : 0 })
+      .filter((n: number) => n > 0)
+    const maxN = nums.length > 0 ? Math.max(...nums) : 0
+    finalEmployeeId = `ADM${String(maxN + 1).padStart(3, '0')}`
+  }
 
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email: input.email,
@@ -190,7 +206,7 @@ export async function createMember(input: {
   const { error: insertError } = await admin.from('users').insert({
     id: authUserId,
     company_id,
-    employee_id: input.employee_id,
+    employee_id: finalEmployeeId,
     role: input.role,
     name: input.name,
     phone: input.phone || null,
@@ -198,7 +214,7 @@ export async function createMember(input: {
     team: input.team || null,
     position: input.position ?? null,
     status: 'active',
-    must_change_password: true,
+    must_change_password: isAdmin ? false : true,
     employment_type: input.employment_type ?? 'regular',
     monthly_salary: input.monthly_salary ?? null,
     hourly_rate: input.hourly_rate ?? null,
@@ -225,8 +241,8 @@ export async function createMember(input: {
     : 0
   const recentlySent = Date.now() - lastNotified < 60_000
 
-  // Part-time and freelancer members don't get onboarding WhatsApp notifications
-  const skipNotification = input.employment_type === 'part_time' || input.employment_type === 'freelancer'
+  // Admins, part-time and freelancer members don't get onboarding WhatsApp notifications
+  const skipNotification = isAdmin || input.employment_type === 'part_time' || input.employment_type === 'freelancer'
 
   let whatsappSent = false
   let whatsappError: string | undefined

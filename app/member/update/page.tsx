@@ -34,7 +34,7 @@ export default async function UpdatePage() {
 
   const companyId = profile?.company_id ?? ""
 
-  const [{ data: projectsRaw }, { data: supabaseClientsRaw }, { data: existingUpdate }, { data: pastUpdates }] = await Promise.all([
+  const [{ data: projectsRaw }, { data: supabaseClientsRaw }, { data: existingUpdate }, { data: pastUpdates }, { data: teamMembersRaw }] = await Promise.all([
     admin
       .from("projects")
       .select("id, business_name")
@@ -60,10 +60,19 @@ export default async function UpdatePage() {
       .neq("date", today)
       .order("date", { ascending: false })
       .limit(30),
+    admin
+      .from("users")
+      .select("id, name, employee_id, role")
+      .eq("company_id", companyId)
+      .eq("status", "active")
+      .neq("id", user.id)
+      .order("name"),
   ])
 
+  type TeamMember = { id: string; name: string; employee_id: string; role: string }
   const projects = (projectsRaw ?? []) as unknown as Project[]
   const supabaseClientNames = (supabaseClientsRaw ?? []).map((c: { name: string }) => c.name)
+  const teamMembers = (teamMembersRaw ?? []) as TeamMember[]
 
   let sheetClientNames: string[] = []
   if (supabaseClientNames.length === 0) {
@@ -90,6 +99,7 @@ export default async function UpdatePage() {
         userName={(profile as { name?: string } | null)?.name ?? ""}
         existingUpdate={existingUpdate ?? null}
         pastUpdates={pastUpdates ?? []}
+        teamMembers={teamMembers}
       />
     </Suspense>
   )

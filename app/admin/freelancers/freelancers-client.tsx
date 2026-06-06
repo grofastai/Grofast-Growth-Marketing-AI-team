@@ -177,17 +177,37 @@ function FreelancerSheet({
     if (editing) {
       const res = await updateFreelancer(editing.id, payload)
       if (!res.success) { setErr(res.error ?? "Failed"); setSaving(false); return }
-      onUpdated({ ...editing, ...payload, rating: payload.rating, status: payload.status ?? "active" })
+      onUpdated({
+        ...editing,
+        name: payload.name, type: payload.type,
+        phone: payload.phone ?? null, availability_notes: payload.availability_notes ?? null,
+        rating: payload.rating ?? 0, status: payload.status ?? "active",
+        language: payload.language ?? null, voice_type: payload.voice_type ?? null,
+        cost_per_minute: payload.cost_per_minute ?? null,
+        editing_software: payload.editing_software ?? [],
+        video_types_offered: payload.video_types_offered ?? [],
+        cost_per_video: payload.cost_per_video ?? null,
+        availability_schedule: payload.availability_schedule ?? null,
+        cost_per_hour: payload.cost_per_hour ?? null,
+      })
     } else {
       const res = await createFreelancer(payload)
       if (!res.success) { setErr(res.error ?? "Failed"); setSaving(false); return }
       // optimistic: create fake entry — server will revalidate
       const fake: Freelancer = {
-        id: `new-${Date.now()}`, company_id: "", ...payload,
+        id: `new-${Date.now()}`, company_id: "",
+        name: payload.name, type: payload.type,
+        phone: payload.phone ?? null, availability_notes: payload.availability_notes ?? null,
+        rating: payload.rating ?? 0, status: "active",
+        language: payload.language ?? null, voice_type: payload.voice_type ?? null,
+        cost_per_minute: payload.cost_per_minute ?? null,
         editing_software: payload.editing_software ?? [],
         video_types_offered: payload.video_types_offered ?? [],
-        status: "active", created_at: new Date().toISOString(),
-      } as Freelancer
+        cost_per_video: payload.cost_per_video ?? null,
+        availability_schedule: payload.availability_schedule ?? null,
+        cost_per_hour: payload.cost_per_hour ?? null,
+        created_at: new Date().toISOString(),
+      }
       onCreated(fake)
     }
     close()

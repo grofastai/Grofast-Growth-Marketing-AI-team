@@ -31,6 +31,17 @@ type UpdateRow = {
   created_at: string
 }
 
+type ParticipatedUpdate = {
+  id: string
+  date: string
+  user_id: string
+  attendance_status: string
+  working_hours: number | null
+  work_entries: WorkEntry[] | null
+}
+
+type MemberInfo = { id: string; name: string }
+
 function adminSupabase() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -46,27 +57,58 @@ export default async function HistoryPage() {
 
   const admin = adminSupabase()
 
-  const [updatesResult, profileResult, projectsResult] = await Promise.all([
+  // Profile first — needed for company_id to query participated updates
+  const profileResult = await admin
+    .from("users")
+    .select("name, company_id")
+    .eq("id", user.id)
+    .single()
+
+  const companyId = profileResult.data?.company_id ?? ""
+
+  const [updatesResult, projectsResult, participatedResult, membersResult] = await Promise.all([
     supabase
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, shoot_count, editing_count, work_entries, created_at")
       .eq("user_id", user.id)
       .order("date", { ascending: false })
       .limit(90),
-    admin
-      .from("users")
-      .select("name")
-      .eq("id", user.id)
-      .single(),
     supabase
       .from("projects")
       .select("business_name")
       .order("business_name", { ascending: true }),
+    companyId
+      ? admin
+          .from("daily_updates")
+          .select("id, date, user_id, attendance_status, working_hours, work_entries")
+          .eq("company_id", companyId)
+          .contains("participant_ids", [user.id])
+          .neq("user_id", user.id)
+          .order("date", { ascending: false })
+          .limit(60)
+      : Promise.resolve({ data: [] as ParticipatedUpdate[] }),
+    companyId
+      ? admin
+          .from("users")
+          .select("id, name")
+          .eq("company_id", companyId)
+          .eq("status", "active")
+      : Promise.resolve({ data: [] as MemberInfo[] }),
   ])
 
   const updates = (updatesResult.data ?? []) as unknown as UpdateRow[]
   const name = (profileResult.data?.name ?? "").split(" ")[0] || "there"
   const clients = (projectsResult.data ?? []).map((p: { business_name: string }) => p.business_name).filter(Boolean)
+  const participatedUpdates = (participatedResult.data ?? []) as unknown as ParticipatedUpdate[]
+  const members = (membersResult.data ?? []) as MemberInfo[]
 
-  return <HistoryClient updates={updates} userName={name} clients={clients} />
+  return (
+    <HistoryClient
+      updates={updates}
+      userName={name}
+      clients={clients}
+      participatedUpdates={participatedUpdates}
+      members={members}
+    />
+  )
 }

@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import DailyUpdateForm from "./daily-update-form"
+import ActivityUpdateForm from "./activity-update-form"
 import { Loader2 } from "lucide-react"
 import { fetchSheetClients, stripFinancialFields } from "@/lib/google/sheets"
 
@@ -28,13 +29,22 @@ export default async function UpdatePage() {
 
   const { data: profile } = await admin
     .from("users")
-    .select("company_id, team, name")
+    .select("company_id, team, name, hourly_rate, monthly_salary")
     .eq("id", user.id)
     .single()
 
   const companyId = profile?.company_id ?? ""
 
-  const [{ data: projectsRaw }, { data: supabaseClientsRaw }, { data: existingUpdate }, { data: pastUpdates }, { data: teamMembersRaw }] = await Promise.all([
+  const [
+    { data: projectsRaw },
+    { data: supabaseClientsRaw },
+    { data: existingUpdate },
+    { data: pastUpdates },
+    { data: teamMembersRaw },
+    { data: activitiesRaw },
+    { data: existingWorkLogsRaw },
+    { data: existingWorkPostsRaw },
+  ] = await Promise.all([
     admin
       .from("projects")
       .select("id, business_name")
@@ -67,6 +77,23 @@ export default async function UpdatePage() {
       .eq("status", "active")
       .neq("id", user.id)
       .order("name"),
+    admin
+      .from("activities")
+      .select("id, name, team_category, unit_type, emoji, sort_order")
+      .eq("company_id", companyId)
+      .order("sort_order"),
+    admin
+      .from("work_logs")
+      .select("activity_id, client_name, hours, unit_count, item_titles, notes")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .eq("company_id", companyId),
+    admin
+      .from("content_posts")
+      .select("title, client_name, platform, post_type, post_link, notes")
+      .eq("user_id", user.id)
+      .eq("date", today)
+      .eq("company_id", companyId),
   ])
 
   type TeamMember = { id: string; name: string; employee_id: string; role: string }
@@ -86,19 +113,50 @@ export default async function UpdatePage() {
       .filter(Boolean)
   }
 
+  const clientNames = supabaseClientNames.length > 0 ? supabaseClientNames : sheetClientNames
+  const userName = (profile as { name?: string } | null)?.name ?? ""
+
+  // Media teams use the shoot/edit daily update form; all others use the activity work log form
+  const isMediaTeam = !profile?.team ||
+    profile.team === "Media Team" ||
+    profile.team === "Media & Technology Team"
+
+  const hourlyRate = profile?.monthly_salary && (profile.monthly_salary as number) > 0
+    ? (profile.monthly_salary as number) / 25 / 9
+    : ((profile?.hourly_rate as number) ?? 0)
+
+  const fallback = (
+    <div className="flex items-center justify-center py-16">
+      <Loader2 size={20} className="animate-spin" style={{ color: "#de1a1a" }} />
+    </div>
+  )
+
+  if (isMediaTeam) {
+    return (
+      <Suspense fallback={fallback}>
+        <DailyUpdateForm
+          projects={projects}
+          sheetClientNames={clientNames}
+          team={profile?.team ?? null}
+          userName={userName}
+          existingUpdate={existingUpdate ?? null}
+          pastUpdates={pastUpdates ?? []}
+          teamMembers={teamMembers}
+        />
+      </Suspense>
+    )
+  }
+
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center py-16">
-        <Loader2 size={20} className="animate-spin" style={{ color: "#de1a1a" }} />
-      </div>
-    }>
-      <DailyUpdateForm
-        projects={projects}
-        sheetClientNames={supabaseClientNames.length > 0 ? supabaseClientNames : sheetClientNames}
-        team={profile?.team ?? null}
-        userName={(profile as { name?: string } | null)?.name ?? ""}
-        existingUpdate={existingUpdate ?? null}
-        pastUpdates={pastUpdates ?? []}
+    <Suspense fallback={fallback}>
+      <ActivityUpdateForm
+        activities={(activitiesRaw ?? []) as Parameters<typeof ActivityUpdateForm>[0]["activities"]}
+        clientNames={clientNames}
+        today={today}
+        userName={userName}
+        hourlyRate={hourlyRate}
+        existingLogs={(existingWorkLogsRaw ?? []) as Parameters<typeof ActivityUpdateForm>[0]["existingLogs"]}
+        existingPosts={(existingWorkPostsRaw ?? []) as Parameters<typeof ActivityUpdateForm>[0]["existingPosts"]}
         teamMembers={teamMembers}
       />
     </Suspense>

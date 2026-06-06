@@ -5,7 +5,7 @@ import { cacheGet, cacheSet } from "@/lib/cache"
 import {
   Users, FolderOpen, Target, CalendarOff, Clock, CheckCircle2,
   Plus, Megaphone, Bell, UserX,
-  ArrowRight, ListTodo, CalendarDays, BarChart3,
+  ArrowRight, ListTodo, CalendarDays, BarChart3, Handshake,
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -107,6 +107,7 @@ export default async function DashboardPage() {
     { data: recentUpdatesRaw },
     { data: monthLeavesRaw },
     alerts,
+    { data: collabRaw },
   ] = await Promise.all([
     admin.from("leaves")
       .select("id, from_date, to_date, reason, users(name, employee_id)")
@@ -121,6 +122,11 @@ export default async function DashboardPage() {
       .eq("company_id", cid).eq("status", "approved")
       .lte("from_date", monthEnd).gte("to_date", monthStart),
     cid ? getAlerts(cid) : Promise.resolve({ notUpdatedCount: 0, notUpdatedNames: [], overdueTaskCount: 0, overdueProjectCount: 0, total: 0 }),
+    admin.from("daily_updates")
+      .select("date, participant_ids")
+      .eq("company_id", cid)
+      .gte("date", monthStart)
+      .lte("date", today),
   ])
 
   // Build leave calendar map
@@ -137,6 +143,11 @@ export default async function DashboardPage() {
       curr.setDate(curr.getDate() + 1)
     }
   }
+
+  const collabRows = collabRaw ?? []
+  const collabToday = collabRows.filter(u => u.date === today && Array.isArray(u.participant_ids) && (u.participant_ids as string[]).length > 0).length
+  const collabMonth = collabRows.filter(u => Array.isArray(u.participant_ids) && (u.participant_ids as string[]).length > 0).length
+  const totalTagsMonth = collabRows.reduce((acc, u) => acc + ((u.participant_ids as string[])?.length ?? 0), 0)
 
   const pendingLeavesList = ((pendingLeavesRaw ?? []) as unknown as LeaveRow[]).map(l => ({
     ...l,
@@ -327,8 +338,8 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Bottom Row: Pending | Not Updated | Quick Actions ── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* ── Bottom Row: Pending | Not Updated | Quick Actions | Collaboration ── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 
         {/* Pending Approvals */}
         <PendingApprovalsCard leaves={pendingLeavesList} />
@@ -387,6 +398,37 @@ export default async function DashboardPage() {
                 </Link>
               )
             })}
+          </div>
+        </div>
+
+        {/* Team Collaboration */}
+        <div style={{ ...CARD, padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(99,102,241,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Handshake size={14} style={{ color: "#6366F1" }} />
+            </div>
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Collaboration</h3>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ padding: "14px 16px", borderRadius: 12, background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)" }}>
+              <p style={{ fontSize: 28, fontWeight: 900, color: "#4F46E5", margin: 0, lineHeight: 1 }}>{collabToday}</p>
+              <p style={{ fontSize: 11, color: "#6B7280", margin: "4px 0 0", fontWeight: 600 }}>Collaborative sessions today</p>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                <p style={{ fontSize: 18, fontWeight: 900, color: "#111827", margin: 0 }}>{collabMonth}</p>
+                <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", fontWeight: 600 }}>This month</p>
+              </div>
+              <div style={{ flex: 1, padding: "10px 12px", borderRadius: 10, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                <p style={{ fontSize: 18, fontWeight: 900, color: "#111827", margin: 0 }}>{totalTagsMonth}</p>
+                <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", fontWeight: 600 }}>Member tags</p>
+              </div>
+            </div>
+            <Link href="/admin/activities"
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", borderRadius: 10, background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", textDecoration: "none" }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#6366F1" }}>View Activities</span>
+              <ArrowRight size={12} style={{ color: "#6366F1" }} />
+            </Link>
           </div>
         </div>
       </div>

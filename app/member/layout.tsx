@@ -23,8 +23,10 @@ export default async function MemberLayout({ children }: { children: React.React
     getNotificationCount(),
   ])
 
+  // FOUNDER and CEO get dual access — they can use both admin and member panels
   if (profile?.role === "ADMIN")          redirect("/admin/dashboard")
   if (profile?.role === "FREELANCER_MGR") redirect("/freelancer/dashboard")
+  // FOUNDER/CEO fall through and access member panel normally
   if (profile?.must_change_password) redirect("/change-password")
 
   return (

@@ -23,7 +23,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     admin.from("notifications").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("read", false),
   ])
 
-  if (profile?.role !== "ADMIN") redirect(profile?.role === "FREELANCER_MGR" ? "/freelancer/dashboard" : "/member/dashboard")
+  const isAdminLevel = ["ADMIN", "FOUNDER", "CEO"].includes(profile?.role ?? "")
+  if (!isAdminLevel) redirect(profile?.role === "FREELANCER_MGR" ? "/freelancer/dashboard" : "/member/dashboard")
   if (profile?.must_change_password) redirect("/change-password")
 
   return (

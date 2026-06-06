@@ -47,6 +47,10 @@
     {
       "path": "/api/cron/content-missed",
       "schedule": "30 17 * * *"
+    },
+    {
+      "path": "/api/cron/auto-absent",
+      "schedule": "30 18 * * *"
     }
   ]
 }

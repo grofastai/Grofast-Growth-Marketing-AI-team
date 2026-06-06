@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Activity, Clock, Camera, BookOpen, Filter, AlertTriangle, UserX, Target, Edit2, MapPin, ChevronDown, ChevronUp } from "lucide-react"
+import { Activity, Clock, Camera, BookOpen, Filter, AlertTriangle, UserX, Target, Edit2, MapPin, ChevronDown, ChevronUp, Calendar } from "lucide-react"
 
 type WorkEntry = Record<string, unknown>
 
@@ -86,19 +86,46 @@ function clientLabel(entry: WorkEntry): string {
 export default function ActivitiesClient({
   updates,
   members,
-  dateFilter,
+  from,
+  to,
   memberFilter,
   onLeaveIds,
 }: {
   updates: Update[]
   members: Member[]
-  dateFilter: string
+  from: string
+  to: string
   memberFilter: string
   onLeaveIds: Set<string>
 }) {
   const router = useRouter()
   const pathname = usePathname()
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [customFrom, setCustomFrom] = useState(from)
+  const [customTo, setCustomTo] = useState(to)
+  const [showCustom, setShowCustom] = useState(false)
+
+  const isSingleDay = from === to
+
+  // Date preset helpers
+  const todayDate = new Date()
+  const todayStr = todayDate.toISOString().split("T")[0]
+  const yesterdayStr = new Date(todayDate.getTime() - 86400000).toISOString().split("T")[0]
+  const weekStartDate = new Date(todayDate)
+  weekStartDate.setDate(todayDate.getDate() - (todayDate.getDay() || 7) + 1)
+  const weekStartStr = weekStartDate.toISOString().split("T")[0]
+  const monthStartStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-01`
+  const prevMonthDate = new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1)
+  const prevMonthStartStr = prevMonthDate.toISOString().split("T")[0]
+  const prevMonthEndStr = new Date(todayDate.getFullYear(), todayDate.getMonth(), 0).toISOString().split("T")[0]
+
+  const DATE_PRESETS = [
+    { label: "Today",      from: todayStr,         to: todayStr },
+    { label: "Yesterday",  from: yesterdayStr,     to: yesterdayStr },
+    { label: "This Week",  from: weekStartStr,     to: todayStr },
+    { label: "This Month", from: monthStartStr,    to: todayStr },
+    { label: "Last Month", from: prevMonthStartStr, to: prevMonthEndStr },
+  ]
 
   function toggleExpand(id: string) {
     setExpandedIds(prev => {
@@ -108,18 +135,35 @@ export default function ActivitiesClient({
     })
   }
 
-  function navigate(date: string, member: string) {
+  function navigate(f: string, t: string, member: string) {
     const params = new URLSearchParams()
-    if (date) params.set("date", date)
+    if (f === t) params.set("date", f)
+    else { params.set("from", f); params.set("to", t) }
     if (member) params.set("member", member)
     router.push(`${pathname}?${params.toString()}`)
   }
+
+  // Per-member summary for multi-day range view
+  const memberSummary = useMemo(() => {
+    if (isSingleDay) return []
+    const map: Record<string, { id: string; name: string; employee_id: string; days: number; present: number; absent: number; totalHours: number }> = {}
+    for (const u of updates) {
+      const user = Array.isArray(u.users) ? u.users[0] : u.users
+      if (!user) continue
+      if (!map[user.id]) map[user.id] = { id: user.id, name: user.name, employee_id: user.employee_id, days: 0, present: 0, absent: 0, totalHours: 0 }
+      map[user.id].days++
+      if (u.attendance_status === "present") map[user.id].present++
+      else if (u.attendance_status === "absent") map[user.id].absent++
+      map[user.id].totalHours = Math.round((map[user.id].totalHours + (u.working_hours ?? 0)) * 10) / 10
+    }
+    return Object.values(map).sort((a, b) => b.totalHours - a.totalHours)
+  }, [updates, isSingleDay])
 
   const submittedIds = new Set(updates.map((u) => {
     const user = Array.isArray(u.users) ? u.users[0] : u.users
     return user?.id
   }))
-  const notUpdated = memberFilter ? [] : members.filter((m) => !submittedIds.has(m.id) && !onLeaveIds.has(m.id))
+  const notUpdated = (memberFilter || !isSingleDay) ? [] : members.filter((m) => !submittedIds.has(m.id) && !onLeaveIds.has(m.id))
 
   const presentCount = updates.filter((u) => u.attendance_status === "present").length
   const absentCount  = updates.filter((u) => u.attendance_status === "absent").length
@@ -160,25 +204,140 @@ export default function ActivitiesClient({
         )}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-6">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg flex-shrink-0"
-          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
-          <Filter size={12} style={{ color: "#6B7280" }} />
-          <input type="date" value={dateFilter}
-            onChange={(e) => navigate(e.target.value, memberFilter)}
-            className="bg-transparent text-[13px] outline-none"
-            style={{ color: "#111111", colorScheme: "light" }} />
+      {/* Date range filters */}
+      <div className="flex flex-col gap-3 mb-6">
+        {/* Preset buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          {DATE_PRESETS.map(preset => {
+            const isActive = from === preset.from && to === preset.to
+            return (
+              <button key={preset.label}
+                onClick={() => { setShowCustom(false); navigate(preset.from, preset.to, memberFilter) }}
+                className="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all flex-shrink-0"
+                style={isActive
+                  ? { background: "#111111", color: "#FFFFFF" }
+                  : { background: "#FFFFFF", color: "#6B7280", border: "1px solid #E5E7EB" }
+                }>
+                {preset.label}
+              </button>
+            )
+          })}
+          <button
+            onClick={() => setShowCustom(s => !s)}
+            className="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all flex-shrink-0 flex items-center gap-1.5"
+            style={showCustom
+              ? { background: "#111111", color: "#FFFFFF" }
+              : { background: "#FFFFFF", color: "#6B7280", border: "1px solid #E5E7EB" }
+            }>
+            <Filter size={11} /> Custom
+          </button>
         </div>
-        <select value={memberFilter} onChange={(e) => navigate(dateFilter, e.target.value)}
-          className="px-3 py-2 rounded-lg text-[13px] outline-none flex-1 min-w-[160px]"
-          style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#111111", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
-          <option value="">All Members</option>
-          {members.map((m) => (
-            <option key={m.id} value={m.id}>{m.name} ({m.employee_id})</option>
-          ))}
-        </select>
+
+        {/* Custom range picker */}
+        {showCustom && (
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3 rounded-xl"
+            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+            <span className="text-[12px] font-semibold text-gray-500">From</span>
+            <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+              className="text-[13px] outline-none border border-gray-200 rounded-lg px-2.5 py-1.5"
+              style={{ colorScheme: "light" }} />
+            <span className="text-[12px] font-semibold text-gray-500">To</span>
+            <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+              className="text-[13px] outline-none border border-gray-200 rounded-lg px-2.5 py-1.5"
+              style={{ colorScheme: "light" }} />
+            <button onClick={() => navigate(customFrom, customTo, memberFilter)}
+              className="px-3 py-1.5 rounded-lg text-[12px] font-bold text-white"
+              style={{ background: "#DE1A1A" }}>
+              Apply
+            </button>
+          </div>
+        )}
+
+        {/* Member + date display */}
+        <div className="flex flex-wrap gap-2">
+          <select value={memberFilter} onChange={(e) => navigate(from, to, e.target.value)}
+            className="px-3 py-2 rounded-lg text-[13px] outline-none flex-1 min-w-[160px]"
+            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#111111" }}>
+            <option value="">All Members</option>
+            {members.map((m) => (
+              <option key={m.id} value={m.id}>{m.name} ({m.employee_id})</option>
+            ))}
+          </select>
+          {!isSingleDay && (
+            <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium text-gray-500"
+              style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+              <Calendar size={12} />
+              {from} → {to}
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Multi-day summary table */}
+      {!isSingleDay && memberSummary.length > 0 && (
+        <div className="rounded-xl overflow-hidden mb-6" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+          <div className="px-5 py-3 flex items-center gap-2" style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
+            <Activity size={13} style={{ color: "#6B7280" }} />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Member Summary — {from} to {to}</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr style={{ borderBottom: "1px solid #F3F4F6" }}>
+                  {["Member", "Days Updated", "Present", "Absent", "Total Hours", "Avg / Day", ""].map(h => (
+                    <th key={h} className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {memberSummary.map((m, i) => {
+                  const avg = m.days > 0 ? Math.round(m.totalHours / m.days * 10) / 10 : 0
+                  const lowAvg = avg < 6 && m.present > 0
+                  return (
+                    <tr key={m.id} style={{ borderBottom: i < memberSummary.length - 1 ? "1px solid #F9FAFB" : "none" }}
+                      className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold"
+                            style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
+                            {getInitials(m.name)}
+                          </div>
+                          <div>
+                            <p className="text-[13px] font-semibold text-gray-800">{m.name}</p>
+                            <p className="text-[10px] text-gray-400">#{m.employee_id}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-[13px] font-semibold text-gray-700">{m.days}</td>
+                      <td className="px-4 py-3">
+                        <span className="text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.08)", color: "#16a34a" }}>{m.present}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {m.absent > 0
+                          ? <span className="text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(239,68,68,0.08)", color: "#dc2626" }}>{m.absent}</span>
+                          : <span className="text-[12px] text-gray-300">—</span>
+                        }
+                      </td>
+                      <td className="px-4 py-3 text-[13px] font-bold text-gray-800">{m.totalHours}h</td>
+                      <td className="px-4 py-3">
+                        <span className="text-[12px] font-semibold" style={{ color: lowAvg ? "#f59e0b" : "#374151" }}>
+                          {avg}h {lowAvg ? "⚠" : ""}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button onClick={() => navigate(from, to, m.id)}
+                          className="text-[11px] font-semibold text-gray-400 hover:text-gray-700 transition-colors">
+                          Filter →
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Not updated members */}
       {notUpdated.length > 0 && (

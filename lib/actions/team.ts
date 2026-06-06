@@ -98,7 +98,7 @@ export async function createMember(input: {
   employee_id: string
   email: string
   phone: string
-  role: 'ADMIN' | 'MEMBER' | 'FREELANCER_MGR'
+  role: 'ADMIN' | 'MEMBER' | 'FREELANCER_MGR' | 'FOUNDER' | 'CEO'
   team: string
   position?: string | null
   password: string
@@ -110,7 +110,8 @@ export async function createMember(input: {
   joined_at?: string | null
   gender?: 'male' | 'female'
 }): Promise<{ success: boolean; error?: string; whatsappSent?: boolean; whatsappSkipped?: boolean; whatsappError?: string }> {
-  const isAdmin = input.role === 'ADMIN'
+  // Admin-level roles use real email login (not employee_id-based internal email)
+  const isAdmin = input.role === 'ADMIN' || input.role === 'FOUNDER' || input.role === 'CEO'
   if (!input.name || (!isAdmin && !input.employee_id) || !input.email || !input.password) {
     return { success: false, error: isAdmin ? 'Name, Gmail and Password are required' : 'Name, Employee ID, Email and Password are required' }
   }
@@ -132,19 +133,21 @@ export async function createMember(input: {
   if (!adminProfile?.company_id) return { success: false, error: 'Admin profile not found — contact support' }
   const company_id = adminProfile.company_id
 
-  // Auto-generate employee ID for ADMIN accounts (ADM001, ADM002, …)
+  // Auto-generate employee ID for admin-level accounts
   let finalEmployeeId = input.employee_id
   if (!finalEmployeeId && isAdmin) {
+    const prefix = input.role === 'FOUNDER' ? 'FND' : input.role === 'CEO' ? 'CEO' : 'ADM'
     const { data: existingAdmins } = await admin
       .from('users')
       .select('employee_id')
       .eq('company_id', company_id)
-      .eq('role', 'ADMIN')
+      .in('role', ['ADMIN', 'FOUNDER', 'CEO'])
+    const pattern = new RegExp(`^${prefix}(\\d+)$`, 'i')
     const nums = (existingAdmins ?? [])
-      .map((a: { employee_id: string }) => { const m = a.employee_id.match(/^ADM(\d+)$/i); return m ? parseInt(m[1]) : 0 })
+      .map((a: { employee_id: string }) => { const m = a.employee_id.match(pattern); return m ? parseInt(m[1]) : 0 })
       .filter((n: number) => n > 0)
     const maxN = nums.length > 0 ? Math.max(...nums) : 0
-    finalEmployeeId = `ADM${String(maxN + 1).padStart(3, '0')}`
+    finalEmployeeId = `${prefix}${String(maxN + 1).padStart(3, '0')}`
   }
 
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
@@ -278,7 +281,7 @@ export async function updateMember(input: {
   name: string
   email: string
   phone: string
-  role: 'ADMIN' | 'MEMBER' | 'FREELANCER_MGR'
+  role: 'ADMIN' | 'MEMBER' | 'FREELANCER_MGR' | 'FOUNDER' | 'CEO'
   team: string
   position?: string | null
   employment_type?: 'regular' | 'part_time' | 'freelancer'
@@ -332,7 +335,7 @@ export async function uploadPassportPhoto(
   const admin = adminSupabase()
   const { data: requester } = await admin
     .from('users').select('company_id, role').eq('id', user.id).single()
-  if (!requester || requester.role !== 'ADMIN') return { success: false, error: 'Forbidden' }
+  if (!requester || !['ADMIN','FOUNDER','CEO'].includes(requester.role)) return { success: false, error: 'Forbidden' }
 
   const file = formData.get('file') as File | null
   if (!file) return { success: false, error: 'No file provided' }

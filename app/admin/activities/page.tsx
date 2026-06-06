@@ -16,7 +16,7 @@ function adminSupabase() {
 export default async function ActivitiesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; member?: string }>
+  searchParams: Promise<{ date?: string; from?: string; to?: string; member?: string }>
 }) {
   const params = await searchParams
   const supabase = await createServerClient()
@@ -25,9 +25,11 @@ export default async function ActivitiesPage({
 
   const admin = adminSupabase()
   const today = new Date().toISOString().split("T")[0]
-  const dateFilter = params.date ?? today
 
-  // Get company_id for this admin
+  // Support both legacy ?date= and new ?from=&to= params
+  const from = params.from ?? params.date ?? today
+  const to   = params.to   ?? params.from ?? params.date ?? today
+
   const { data: profile } = await admin
     .from("users")
     .select("company_id")
@@ -39,7 +41,7 @@ export default async function ActivitiesPage({
   const [{ data: members }, updatesResult, { data: allTasks }, { data: approvedLeaves }] = await Promise.all([
     admin
       .from("users")
-      .select("id, name, employee_id, role")
+      .select("id, name, employee_id, role, team")
       .eq("company_id", companyId)
       .order("name"),
     (async () => {
@@ -47,7 +49,9 @@ export default async function ActivitiesPage({
         .from("daily_updates")
         .select("*")
         .eq("company_id", companyId)
-        .eq("date", dateFilter)
+        .gte("date", from)
+        .lte("date", to)
+        .order("date", { ascending: false })
         .order("created_at", { ascending: false })
       if (params.member) q = q.eq("user_id", params.member)
       return q
@@ -63,13 +67,9 @@ export default async function ActivitiesPage({
       .select("user_id")
       .eq("company_id", companyId)
       .eq("status", "approved")
-      .lte("from_date", dateFilter)
-      .gte("to_date", dateFilter),
+      .lte("from_date", to)
+      .gte("to_date", from),
   ])
-
-  if (updatesResult.error) {
-    console.error("[activities] daily_updates query error:", updatesResult.error)
-  }
 
   // Group tasks by user
   const tasksByUser: Record<string, { id: string; title: string; status: string; priority: string | null }[]> = {}
@@ -79,7 +79,6 @@ export default async function ActivitiesPage({
     tasksByUser[t.assigned_to].push({ id: t.id, title: t.title, status: t.status, priority: t.priority })
   }
 
-  // Attach user info and tasks list
   const membersMap = Object.fromEntries((members ?? []).map(m => [m.id, m]))
   const updates = (updatesResult.data ?? []).map(u => ({
     ...u,
@@ -92,5 +91,14 @@ export default async function ActivitiesPage({
 
   const onLeaveIds = new Set((approvedLeaves ?? []).map((l: { user_id: string }) => l.user_id))
 
-  return <ActivitiesClient updates={updates} members={members ?? []} dateFilter={dateFilter} memberFilter={params.member ?? ""} onLeaveIds={onLeaveIds} />
+  return (
+    <ActivitiesClient
+      updates={updates}
+      members={members ?? []}
+      from={from}
+      to={to}
+      memberFilter={params.member ?? ""}
+      onLeaveIds={onLeaveIds}
+    />
+  )
 }

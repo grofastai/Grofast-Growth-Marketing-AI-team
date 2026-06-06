@@ -22,7 +22,7 @@ interface Member {
   id: string
   name: string
   employee_id: string
-  role: "ADMIN" | "MEMBER" | "FREELANCER_MGR"
+  role: "ADMIN" | "MEMBER" | "FREELANCER_MGR" | "FOUNDER" | "CEO"
   email: string | null
   phone: string | null
   status: "active" | "inactive"
@@ -113,11 +113,29 @@ const ACCOUNT_TYPES = [
   {
     role: "ADMIN" as const,
     label: "Admin",
-    desc: "Full access — manages team & reports",
+    desc: "Full admin access — manages team & reports",
     icon: Shield,
     color: "#7C3AED",
     bg: "rgba(124,58,237,0.06)",
     border: "rgba(124,58,237,0.2)",
+  },
+  {
+    role: "FOUNDER" as const,
+    label: "Founder",
+    desc: "Admin panel + own member updates — dual access",
+    icon: Shield,
+    color: "#0f766e",
+    bg: "rgba(15,118,110,0.06)",
+    border: "rgba(15,118,110,0.2)",
+  },
+  {
+    role: "CEO" as const,
+    label: "CEO",
+    desc: "Admin panel + own member updates — dual access",
+    icon: Shield,
+    color: "#b45309",
+    bg: "rgba(180,83,9,0.06)",
+    border: "rgba(180,83,9,0.2)",
   },
   {
     role: "FREELANCER_MGR" as const,
@@ -138,7 +156,7 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
     employee_id: member?.employee_id ?? nextId ?? "",
     email: member?.email ?? "",
     phone: member?.phone ?? "",
-    role: (member?.role ?? "MEMBER") as "ADMIN" | "MEMBER" | "FREELANCER_MGR",
+    role: (member?.role ?? "MEMBER") as "ADMIN" | "MEMBER" | "FREELANCER_MGR" | "FOUNDER" | "CEO",
     team: member?.team ?? "",
     position: member?.position ?? "",
     password: "",
@@ -216,7 +234,7 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
 
   const selectedType = ACCOUNT_TYPES.find(t => t.role === form.role)!
   const isFreelancerMgr = form.role === "FREELANCER_MGR"
-  const isAdmin = form.role === "ADMIN"
+  const isAdmin = form.role === "ADMIN" || form.role === "FOUNDER" || form.role === "CEO"
 
   return (
     <>
@@ -693,7 +711,7 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
   const stats = {
     total: members.length,
     active: members.filter((m) => m.status === "active").length,
-    admins: members.filter((m) => m.role === "ADMIN" || m.role === "FREELANCER_MGR").length,
+    admins: members.filter((m) => ["ADMIN","FOUNDER","CEO","FREELANCER_MGR"].includes(m.role)).length,
     onLeave: 0,
   }
 
@@ -885,14 +903,22 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
                       <td className="px-5 py-3.5">
                         <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
                           style={
-                            member.role === "ADMIN"
+                            member.role === "FOUNDER"
+                              ? { background: "rgba(15,118,110,0.1)", color: "#0f766e", border: "1px solid rgba(15,118,110,0.2)" }
+                              : member.role === "CEO"
+                              ? { background: "rgba(180,83,9,0.1)", color: "#b45309", border: "1px solid rgba(180,83,9,0.2)" }
+                              : member.role === "ADMIN"
                               ? { background: "rgba(139,92,246,0.1)", color: "#7C3AED", border: "1px solid rgba(139,92,246,0.2)" }
                               : member.role === "FREELANCER_MGR"
                               ? { background: "rgba(45,106,79,0.1)", color: "#2D6A4F", border: "1px solid rgba(45,106,79,0.2)" }
                               : { background: "rgba(0,0,0,0.04)", color: "#6B7280", border: "1px solid #E5E7EB" }
                           }>
-                          {member.role === "ADMIN" ? <Shield size={9} /> : <User size={9} />}
-                          {member.role === "ADMIN" ? "Admin" : member.role === "FREELANCER_MGR" ? "Freelancer Mgr" : "Member"}
+                          <Shield size={9} />
+                          {member.role === "FOUNDER" ? "Founder"
+                            : member.role === "CEO" ? "CEO"
+                            : member.role === "ADMIN" ? "Admin"
+                            : member.role === "FREELANCER_MGR" ? "Freelancer Mgr"
+                            : "Member"}
                         </span>
                       </td>
 

@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
     try {
       role = JSON.parse(atob(session!.access_token.split('.')[1])).role ?? null
     } catch { /* ignore malformed token */ }
-    const dest = role === 'ADMIN' ? '/admin/dashboard'
+    const dest = (role === 'ADMIN' || role === 'FOUNDER' || role === 'CEO') ? '/admin/dashboard'
       : role === 'FREELANCER_MGR' ? '/freelancer/dashboard'
       : '/member/dashboard'
     return NextResponse.redirect(new URL(dest, request.url))

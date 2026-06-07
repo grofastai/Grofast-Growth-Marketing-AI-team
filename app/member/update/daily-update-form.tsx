@@ -36,6 +36,7 @@ interface TimeBlock {
   projectName: string; brand: string; customClient: string
   status: "completed" | "in_progress" | "not_started"
   isMultiClient: boolean; clientNames: string[]
+  participantIds: string[]
 }
 
 function fmt12(t: string) {
@@ -136,6 +137,7 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
       })(),
       isMultiClient: (e.client_names?.length ?? 0) > 1,
       clientNames: e.is_multi_client ? (e.client_names ?? []) : (e.client_name && e.client_name !== 'Internal' ? [e.client_name] : []),
+      participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
     }))
 }
 
@@ -287,7 +289,7 @@ export default function DailyUpdateForm({
   const addTimeBlock = () => setTimeBlocks(p => [...p, {
     id: crypto.randomUUID(), startTime: "09:00", endTime: "10:00",
     durationHours: 1, description: "", projectName: "", brand: "", customClient: "",
-    status: "not_started" as const, isMultiClient: false, clientNames: [],
+    status: "not_started" as const, isMultiClient: false, clientNames: [], participantIds: [],
   }])
   const patchBlock = (id: string, patch: Partial<TimeBlock>) =>
     setTimeBlocks(p => p.map(b => {
@@ -374,12 +376,13 @@ export default function DailyUpdateForm({
       duration_hours: t.durationHours, notes: `[${t.status}]`,
       video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
     }})
+    const allParticipantIds = [...new Set(filledBlocks.flatMap(b => b.participantIds))]
     startTransition(async () => {
       const res = await submitDailyUpdate({
         active_tab: "working", date: selectedDate, work_entries, links: [],
         shoot_count: 0, editing_count: 0,
         shoot_time_hours: 0, editing_time_hours: 0, learning_hours: 0,
-        participant_ids: participantIds,
+        participant_ids: allParticipantIds,
       })
       if (!res.success) setWorkingError(res.error ?? "Submission failed.")
       else { try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }; setWorkingDone(true); router.refresh() }
@@ -883,72 +886,55 @@ export default function DailyUpdateForm({
                           {block.clientNames.length > 1 && (
                             <p style={{ fontSize:10, color:"#9CA3AF", marginTop:5 }}>{block.durationHours}h ÷ {block.clientNames.length} clients = {(block.durationHours / block.clientNames.length).toFixed(2)}h each</p>
                           )}
+
+                          {/* Worked With — per block */}
+                          {teamMembers.length > 0 && (
+                            <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #EBEDF2" }}>
+                              <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                              {/* Selected chips */}
+                              {block.participantIds.length > 0 && (
+                                <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
+                                  {block.participantIds.map(pid => {
+                                    const m = teamMembers.find(t => t.id === pid)
+                                    if (!m) return null
+                                    const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                    return (
+                                      <button key={pid}
+                                        onClick={() => patchBlock(block.id, { participantIds: block.participantIds.filter(p => p !== pid) })}
+                                        style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
+                                        <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                        <span style={{ fontSize:10, fontWeight:700, color:"#4338CA" }}>{m.name.split(" ")[0]}</span>
+                                        <span style={{ fontSize:8, color:"#818CF8" }}>✕</span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                              {/* Teammate chips to toggle */}
+                              <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                                {teamMembers.slice(0, 20).map(m => {
+                                  const selected = block.participantIds.includes(m.id)
+                                  const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                  return (
+                                    <button key={m.id}
+                                      onClick={() => patchBlock(block.id, { participantIds: selected ? block.participantIds.filter(p => p !== m.id) : [...block.participantIds, m.id] })}
+                                      style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, cursor:"pointer",
+                                        background: selected ? "rgba(99,102,241,0.1)" : "#F9FAFB",
+                                        border: `1.5px solid ${selected ? "rgba(99,102,241,0.4)" : "#EBEDF2"}`,
+                                      }}>
+                                      <div style={{ width:16, height:16, borderRadius:"50%", background: selected ? "#6366F1" : "#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color: selected ? "#fff" : "#9CA3AF" }}>{initials}</div>
+                                      <span style={{ fontSize:10, fontWeight:700, color: selected ? "#4338CA" : "#374151" }}>{m.name.split(" ")[0]}</span>
+                                      {selected && <span style={{ fontSize:8, color:"#6366F1" }}>✓</span>}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )
                   })}
-                </div>
-              )}
-
-              {/* Worked With — non-media team, shown inline before submit */}
-              {!isMediaTeam && teamMembers.length > 0 && (
-                <div style={{ marginTop:16, background:"#F9FAFB", borderRadius:14, border:"1.5px solid rgba(99,102,241,0.18)", padding:"14px 16px" }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-                    <span style={{ fontSize:16 }}>👥</span>
-                    <div style={{ flex:1 }}>
-                      <p style={{ fontSize:13, fontWeight:800, color:"#111827", margin:0 }}>Worked With</p>
-                      <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Tag teammates you collaborated with</p>
-                    </div>
-                    {participantIds.length > 0 && (
-                      <span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>
-                        {participantIds.length} selected
-                      </span>
-                    )}
-                  </div>
-                  {participantIds.length > 0 && (
-                    <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginBottom:8 }}>
-                      {participantIds.map(pid => {
-                        const m = teamMembers.find(t => t.id === pid)
-                        if (!m) return null
-                        const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
-                        return (
-                          <button key={pid} onClick={() => toggleParticipant(pid)}
-                            style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 10px 4px 6px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
-                            <div style={{ width:20, height:20, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:8, fontWeight:900, color:"#fff" }}>
-                              {initials}
-                            </div>
-                            <span style={{ fontSize:11, fontWeight:700, color:"#4338CA" }}>{m.name.split(" ")[0]}</span>
-                            <span style={{ fontSize:9, color:"#818CF8" }}>✕</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  )}
-                  <input
-                    value={participantSearch}
-                    onChange={e => setParticipantSearch(e.target.value)}
-                    placeholder="Search teammates…"
-                    style={{ width:"100%", boxSizing:"border-box", fontSize:12, padding:"7px 11px", borderRadius:9, border:"1.5px solid #E5E7EB", background:"#FFFFFF", color:"#111827", outline:"none", marginBottom:8 }}
-                  />
-                  <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                    {filteredMembers.slice(0,20).map(m => {
-                      const selected = participantIds.includes(m.id)
-                      const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
-                      return (
-                        <button key={m.id} onClick={() => toggleParticipant(m.id)}
-                          style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 10px 4px 6px", borderRadius:99, cursor:"pointer",
-                            background: selected ? "rgba(99,102,241,0.1)" : "#FFFFFF",
-                            border: `1.5px solid ${selected ? "rgba(99,102,241,0.4)" : "#E5E7EB"}`,
-                          }}>
-                          <div style={{ width:20, height:20, borderRadius:"50%", background: selected ? "#6366F1" : "#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:8, fontWeight:900, color: selected ? "#fff" : "#9CA3AF" }}>
-                            {initials}
-                          </div>
-                          <span style={{ fontSize:11, fontWeight:700, color: selected ? "#4338CA" : "#374151" }}>{m.name.split(" ")[0]}</span>
-                          {selected && <span style={{ fontSize:9, color:"#6366F1" }}>✓</span>}
-                        </button>
-                      )
-                    })}
-                  </div>
                 </div>
               )}
 

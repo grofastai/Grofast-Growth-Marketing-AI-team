@@ -97,23 +97,24 @@ export default function AdminsClient({
   // ── Create ────────────────────────────────────────────────────────────────
   function handleCreate() {
     setError(null)
-    if (!form.name.trim() || !form.email.trim() || !form.password) {
-      setError("Name, email and password are required.")
+    if (!form.email.trim() || !form.password) {
+      setError("Email and password are required.")
       return
     }
+    const derivedName = form.email.trim().split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase())
     start(async () => {
       const res = await createMember({
-        name: form.name.trim(),
+        name: derivedName,
         email: form.email.trim(),
         password: form.password,
-        role: form.role,
+        role: "ADMIN",
         employee_id: "",
         phone: "",
         team: "",
       })
       if (!res.success) { setError(res.error ?? "Failed to create admin."); return }
       closeSheet()
-      showSuccess(`${form.name} added as ${ROLE_CFG[form.role].label}`)
+      showSuccess(`${derivedName} added as Admin`)
       router.refresh()
     })
   }
@@ -293,8 +294,26 @@ export default function AdminsClient({
               </div>
             )}
 
-            {/* Create / Edit form */}
-            {(sheet === "create" || sheet === "edit") && (
+            {/* Create form — Email + Password only */}
+            {sheet === "create" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Email *</label>
+                  <input type="email" placeholder="admin@gmail.com" value={form.email} onChange={e => patch("email", e.target.value)} style={INP} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Password *</label>
+                  <input type="password" placeholder="Min. 6 characters" value={form.password} onChange={e => patch("password", e.target.value)} style={INP} />
+                </div>
+                <button onClick={handleCreate} disabled={isPending}
+                  style={{ marginTop: 6, width: "100%", padding: "13px 0", borderRadius: 12, border: "none", background: isPending ? "#9CA3AF" : "#DE1A1A", color: "#fff", fontSize: 14, fontWeight: 800, cursor: isPending ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "var(--font-jakarta)" }}>
+                  {isPending ? <><Loader2 size={15} className="animate-spin" /> Creating…</> : "Create Admin"}
+                </button>
+              </div>
+            )}
+
+            {/* Edit form — Name, Email, Role */}
+            {sheet === "edit" && (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Full Name *</label>
@@ -304,12 +323,6 @@ export default function AdminsClient({
                   <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Email *</label>
                   <input type="email" placeholder="admin@gmail.com" value={form.email} onChange={e => patch("email", e.target.value)} style={INP} />
                 </div>
-                {sheet === "create" && (
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Password *</label>
-                    <input type="password" placeholder="Min. 6 characters" value={form.password} onChange={e => patch("password", e.target.value)} style={INP} />
-                  </div>
-                )}
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Role</label>
                   <div style={{ display: "flex", gap: 8 }}>
@@ -328,9 +341,9 @@ export default function AdminsClient({
                     })}
                   </div>
                 </div>
-                <button onClick={sheet === "create" ? handleCreate : handleEdit} disabled={isPending}
+                <button onClick={handleEdit} disabled={isPending}
                   style={{ marginTop: 6, width: "100%", padding: "13px 0", borderRadius: 12, border: "none", background: isPending ? "#9CA3AF" : "#DE1A1A", color: "#fff", fontSize: 14, fontWeight: 800, cursor: isPending ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "var(--font-jakarta)" }}>
-                  {isPending ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : sheet === "create" ? "Create Admin" : "Save Changes"}
+                  {isPending ? <><Loader2 size={15} className="animate-spin" /> Saving…</> : "Save Changes"}
                 </button>
               </div>
             )}

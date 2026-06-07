@@ -22,14 +22,12 @@ export default async function UpdatePage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  type Project = { id: string; business_name: string }
-
   const admin = adminSupabase()
   const today = new Date().toISOString().split("T")[0]
 
   const { data: profile } = await admin
     .from("users")
-    .select("company_id, team, name, hourly_rate, monthly_salary")
+    .select("company_id, team, name")
     .eq("id", user.id)
     .single()
 
@@ -41,9 +39,6 @@ export default async function UpdatePage() {
     { data: existingUpdate },
     { data: pastUpdates },
     { data: teamMembersRaw },
-    { data: activitiesRaw },
-    { data: existingWorkLogsRaw },
-    { data: existingWorkPostsRaw },
   ] = await Promise.all([
     admin
       .from("projects")
@@ -77,25 +72,9 @@ export default async function UpdatePage() {
       .eq("status", "active")
       .neq("id", user.id)
       .order("name"),
-    admin
-      .from("activities")
-      .select("id, name, team_category, unit_type, emoji, sort_order")
-      .eq("company_id", companyId)
-      .order("sort_order"),
-    admin
-      .from("work_logs")
-      .select("activity_id, client_name, hours, unit_count, item_titles, notes")
-      .eq("user_id", user.id)
-      .eq("date", today)
-      .eq("company_id", companyId),
-    admin
-      .from("content_posts")
-      .select("title, client_name, platform, post_type, post_link, notes")
-      .eq("user_id", user.id)
-      .eq("date", today)
-      .eq("company_id", companyId),
   ])
 
+  type Project = { id: string; business_name: string }
   type TeamMember = { id: string; name: string; employee_id: string; role: string }
   const projects = (projectsRaw ?? []) as unknown as Project[]
   const supabaseClientNames = (supabaseClientsRaw ?? []).map((c: { name: string }) => c.name)
@@ -119,10 +98,6 @@ export default async function UpdatePage() {
   // Only exact "Media Team" gets the shoot/edit daily update form — null, empty, or any other team gets ActivityUpdateForm
   const isMediaTeam = profile?.team === "Media Team"
 
-  const hourlyRate = profile?.monthly_salary && (profile.monthly_salary as number) > 0
-    ? (profile.monthly_salary as number) / 25 / 9
-    : ((profile?.hourly_rate as number) ?? 0)
-
   const fallback = (
     <div className="flex items-center justify-center py-16">
       <Loader2 size={20} className="animate-spin" style={{ color: "#de1a1a" }} />
@@ -145,16 +120,21 @@ export default async function UpdatePage() {
     )
   }
 
+  type SimpleWorkEntry = { task_type?: string; title?: string; clients?: string[]; client?: string; progress?: number; notes?: string }
+  const existingEntries = (Array.isArray(existingUpdate?.work_entries)
+    ? (existingUpdate!.work_entries as unknown[]).filter((e): e is SimpleWorkEntry =>
+        typeof e === 'object' && e !== null &&
+        (e as SimpleWorkEntry).task_type !== 'shoot' &&
+        (e as SimpleWorkEntry).task_type !== 'edit')
+    : []) as SimpleWorkEntry[]
+
   return (
     <Suspense fallback={fallback}>
       <ActivityUpdateForm
-        activities={(activitiesRaw ?? []) as Parameters<typeof ActivityUpdateForm>[0]["activities"]}
         clientNames={clientNames}
         today={today}
         userName={userName}
-        hourlyRate={hourlyRate}
-        existingLogs={(existingWorkLogsRaw ?? []) as Parameters<typeof ActivityUpdateForm>[0]["existingLogs"]}
-        existingPosts={(existingWorkPostsRaw ?? []) as Parameters<typeof ActivityUpdateForm>[0]["existingPosts"]}
+        existingEntries={existingEntries}
         teamMembers={teamMembers}
       />
     </Suspense>

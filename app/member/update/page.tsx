@@ -5,7 +5,6 @@ import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import DailyUpdateForm from "./daily-update-form"
-import ActivityUpdateForm from "./activity-update-form"
 import { Loader2 } from "lucide-react"
 import { fetchSheetClients, stripFinancialFields } from "@/lib/google/sheets"
 
@@ -95,46 +94,22 @@ export default async function UpdatePage() {
   const clientNames = supabaseClientNames.length > 0 ? supabaseClientNames : sheetClientNames
   const userName = (profile as { name?: string } | null)?.name ?? ""
 
-  // Only exact "Media Team" gets the shoot/edit daily update form — null, empty, or any other team gets ActivityUpdateForm
-  const isMediaTeam = profile?.team === "Media Team"
-
   const fallback = (
     <div className="flex items-center justify-center py-16">
       <Loader2 size={20} className="animate-spin" style={{ color: "#de1a1a" }} />
     </div>
   )
 
-  if (isMediaTeam) {
-    return (
-      <Suspense fallback={fallback}>
-        <DailyUpdateForm
-          projects={projects}
-          sheetClientNames={clientNames}
-          team={profile?.team ?? null}
-          userName={userName}
-          existingUpdate={existingUpdate ?? null}
-          pastUpdates={pastUpdates ?? []}
-          teamMembers={teamMembers}
-        />
-      </Suspense>
-    )
-  }
-
-  type SimpleWorkEntry = { task_type?: string; title?: string; clients?: string[]; client?: string; progress?: number; notes?: string }
-  const existingEntries = (Array.isArray(existingUpdate?.work_entries)
-    ? (existingUpdate!.work_entries as unknown[]).filter((e): e is SimpleWorkEntry =>
-        typeof e === 'object' && e !== null &&
-        (e as SimpleWorkEntry).task_type !== 'shoot' &&
-        (e as SimpleWorkEntry).task_type !== 'edit')
-    : []) as SimpleWorkEntry[]
-
+  // DailyUpdateForm handles all teams: Media Team gets shoot/edit tabs, everyone else gets working+learning
   return (
     <Suspense fallback={fallback}>
-      <ActivityUpdateForm
-        clientNames={clientNames}
-        today={today}
+      <DailyUpdateForm
+        projects={projects}
+        sheetClientNames={clientNames}
+        team={profile?.team ?? null}
         userName={userName}
-        existingEntries={existingEntries}
+        existingUpdate={existingUpdate ?? null}
+        pastUpdates={pastUpdates ?? []}
         teamMembers={teamMembers}
       />
     </Suspense>

@@ -116,10 +116,8 @@ export default async function UpdatePage() {
   const clientNames = supabaseClientNames.length > 0 ? supabaseClientNames : sheetClientNames
   const userName = (profile as { name?: string } | null)?.name ?? ""
 
-  // Media teams use the shoot/edit daily update form; all others use the activity work log form
-  const isMediaTeam = !profile?.team ||
-    profile.team === "Media Team" ||
-    profile.team === "Media & Technology Team"
+  // Only "Media Team" uses the shoot/edit daily update form; all other teams use the activity work log form
+  const isMediaTeam = !profile?.team || profile.team === "Media Team"
 
   const hourlyRate = profile?.monthly_salary && (profile.monthly_salary as number) > 0
     ? (profile.monthly_salary as number) / 25 / 9

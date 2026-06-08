@@ -77,10 +77,26 @@ const F: React.CSSProperties = {
 }
 
 function DurationPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const steps = [1,1.5,2,2.5,3,3.5,4,4.5,5,6,7,8]
+  const steps: { val: number; label: string }[] = [
+    { val: 0.25, label: "15 min" },
+    { val: 0.5,  label: "30 min" },
+    { val: 0.75, label: "45 min" },
+    { val: 1,    label: "1h" },
+    { val: 1.5,  label: "1.5h" },
+    { val: 2,    label: "2h" },
+    { val: 2.5,  label: "2.5h" },
+    { val: 3,    label: "3h" },
+    { val: 3.5,  label: "3.5h" },
+    { val: 4,    label: "4h" },
+    { val: 4.5,  label: "4.5h" },
+    { val: 5,    label: "5h" },
+    { val: 6,    label: "6h" },
+    { val: 7,    label: "7h" },
+    { val: 8,    label: "8h" },
+  ]
   return (
-    <select value={value} onChange={e => onChange(Number(e.target.value))} style={{ ...F, width:"auto", minWidth:80 }}>
-      {steps.map(s => <option key={s} value={s}>{s}h</option>)}
+    <select value={value} onChange={e => onChange(Number(e.target.value))} style={{ ...F, width:"auto", minWidth:90 }}>
+      {steps.map(s => <option key={s.val} value={s.val}>{s.label}</option>)}
     </select>
   )
 }

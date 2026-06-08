@@ -387,3 +387,69 @@ export async function resumeAttendance(date: string): Promise<{ success: boolean
   revalidatePath('/admin/attendance')
   return { success: true }
 }
+
+export async function getAttendanceRange(startDate: string, endDate: string): Promise<{
+  success: boolean
+  logs: Array<{ id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; work_type: string | null; status: string }>
+  error?: string
+}> {
+  const ctxResult = await getUserContext()
+  if ('error' in ctxResult) return { success: false, logs: [], error: ctxResult.error }
+  const ctx = ctxResult
+
+  const admin = adminSupabase()
+  const { data, error } = await admin
+    .from('attendance_logs')
+    .select('id, date, clock_in, clock_out, break_total_mins, work_type, status')
+    .eq('company_id', ctx.companyId)
+    .eq('user_id', ctx.userId)
+    .gte('date', startDate)
+    .lte('date', endDate)
+    .order('date', { ascending: false })
+
+  if (error) return { success: false, logs: [], error: error.message }
+  return { success: true, logs: (data ?? []) as Array<{ id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; work_type: string | null; status: string }> }
+}
+
+export async function editAttendanceTimes(date: string, clockIn: string, clockOut: string): Promise<{ success: boolean; error?: string }> {
+  const ctxResult = await getUserContext()
+  if ('error' in ctxResult) return { success: false, error: ctxResult.error }
+  const ctx = ctxResult
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, error: 'Invalid date.' }
+  if (!/^\d{2}:\d{2}$/.test(clockIn))     return { success: false, error: 'Invalid login time (HH:MM).' }
+  if (clockOut && !/^\d{2}:\d{2}$/.test(clockOut)) return { success: false, error: 'Invalid logout time (HH:MM).' }
+
+  const admin = adminSupabase()
+  const { data: log } = await admin
+    .from('attendance_logs')
+    .select('id')
+    .eq('company_id', ctx.companyId)
+    .eq('user_id', ctx.userId)
+    .eq('date', date)
+    .eq('status', 'present')
+    .maybeSingle()
+
+  if (!log) return { success: false, error: 'No attendance record found for this date.' }
+
+  const [yy, mo, dd] = date.split('-').map(Number)
+  const toISO = (t: string) => {
+    const [hh, mm] = t.split(':').map(Number)
+    return new Date(Date.UTC(yy, mo - 1, dd, hh, mm) - 5.5 * 60 * 60 * 1000).toISOString()
+  }
+  const clockInISO  = toISO(clockIn)
+  const clockOutISO = clockOut ? toISO(clockOut) : null
+
+  if (clockOutISO && new Date(clockOutISO) <= new Date(clockInISO)) {
+    return { success: false, error: 'Logout time must be after login time.' }
+  }
+
+  const updates: Record<string, string | null> = { clock_in: clockInISO }
+  if (clockOut) updates.clock_out = clockOutISO
+
+  const { error } = await admin.from('attendance_logs').update(updates).eq('id', log.id)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/attendance')
+  revalidatePath('/admin/attendance')
+  return { success: true }
+}

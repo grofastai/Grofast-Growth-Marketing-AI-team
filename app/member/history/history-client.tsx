@@ -736,11 +736,19 @@ export default function HistoryClient({
                                       <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
                                       {editDraft.task_type === "other" && editDraft.is_multi_client
                                         ? <p style={{ fontSize:11, fontWeight:700, color:"#374151", padding:"7px 0" }}>{(editDraft.client_names ?? []).join(" · ") || "—"}</p>
-                                        : <input
-                                            value={editDraft.client_name ?? ""}
-                                            onChange={ev => setEditDraft(d => ({ ...d, client_name: ev.target.value }))}
-                                            style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                          />
+                                        : clients.length > 0
+                                          ? <select
+                                              value={editDraft.client_name ?? ""}
+                                              onChange={ev => setEditDraft(d => ({ ...d, client_name: ev.target.value }))}
+                                              style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                              <option value="">— Select client —</option>
+                                              {clients.map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                          : <input
+                                              value={editDraft.client_name ?? ""}
+                                              onChange={ev => setEditDraft(d => ({ ...d, client_name: ev.target.value }))}
+                                              style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
+                                            />
                                       }
                                     </div>
                                   </div>
@@ -807,12 +815,13 @@ export default function HistoryClient({
                                   {editDraft.task_type === "edit" && (
                                     <div>
                                       <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Editing Hours</label>
-                                      <input
-                                        type="number" min="0" step="0.5"
-                                        value={editDraft.duration_hours ?? ""}
-                                        onChange={ev => setEditDraft(d => ({ ...d, duration_hours: parseFloat(ev.target.value) || 0 }))}
-                                        style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                      />
+                                      <select
+                                        value={editDraft.duration_hours ?? 1}
+                                        onChange={ev => setEditDraft(d => ({ ...d, duration_hours: parseFloat(ev.target.value) }))}
+                                        style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                        {[{v:0.25,l:"15 min"},{v:0.5,l:"30 min"},{v:0.75,l:"45 min"},{v:1,l:"1h"},{v:1.5,l:"1.5h"},{v:2,l:"2h"},{v:2.5,l:"2.5h"},{v:3,l:"3h"},{v:3.5,l:"3.5h"},{v:4,l:"4h"},{v:4.5,l:"4.5h"},{v:5,l:"5h"},{v:6,l:"6h"},{v:7,l:"7h"},{v:8,l:"8h"}]
+                                          .map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
+                                      </select>
                                     </div>
                                   )}
 

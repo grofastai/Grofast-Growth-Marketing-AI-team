@@ -656,6 +656,7 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
   const nextId = useMemo(() => computeNextEmployeeId(members), [members])
   const [search, setSearch] = useState(initialSearch)
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER" | "FREELANCER_MGR">("ALL")
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
@@ -674,7 +675,11 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
     return members.filter((m) => {
       const matchSearch = !q || m.name.toLowerCase().includes(q) || m.employee_id.toLowerCase().includes(q) || (m.team ?? "").toLowerCase().includes(q)
       const matchStatus = tabFilter === "ALL" || m.status === tabFilter
-      return matchSearch && matchStatus
+      const matchRole = roleFilter === "ALL"
+        || (roleFilter === "ADMIN" && ["ADMIN","FOUNDER","CEO"].includes(m.role))
+        || (roleFilter === "MEMBER" && m.role === "MEMBER")
+        || (roleFilter === "FREELANCER_MGR" && m.role === "FREELANCER_MGR")
+      return matchSearch && matchStatus && matchRole
     })
   }, [search, tabFilter, members])
 
@@ -718,11 +723,11 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
     })
   }
 
-  const STAT_CARDS = [
-    { label: "Total Members", value: stats.total, sub: "All accounts", img: "/brand/team-total-members.png", bg: "linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%)", border: "rgba(236,72,153,0.15)", num: "#EC4899" },
-    { label: "Admin Accounts", value: stats.admins, sub: "Admin access", img: "/brand/team-admins.png", bg: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "rgba(139,92,246,0.15)", num: "#7C3AED" },
-    { label: "Team Members", value: stats.teamMembers, sub: "Member accounts", img: "/brand/team-active-members.png", bg: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "rgba(34,197,94,0.15)", num: "#16A34A" },
-    { label: "Freelancer Accounts", value: stats.freelancers, sub: "Freelancer managers", img: "/brand/team-on-leave.png", bg: "linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)", border: "rgba(245,158,11,0.15)", num: "#D97706" },
+  const STAT_CARDS: Array<{ label: string; value: number; sub: string; img: string; bg: string; border: string; num: string; role: "ALL" | "ADMIN" | "MEMBER" | "FREELANCER_MGR" }> = [
+    { label: "Total Members", value: stats.total, sub: "All accounts", img: "/brand/team-total-members.png", bg: "linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%)", border: "rgba(236,72,153,0.15)", num: "#EC4899", role: "ALL" },
+    { label: "Admin Accounts", value: stats.admins, sub: "Admin access", img: "/brand/team-admins.png", bg: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "rgba(139,92,246,0.15)", num: "#7C3AED", role: "ADMIN" },
+    { label: "Team Members", value: stats.teamMembers, sub: "Member accounts", img: "/brand/team-active-members.png", bg: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "rgba(34,197,94,0.15)", num: "#16A34A", role: "MEMBER" },
+    { label: "Freelancer Accounts", value: stats.freelancers, sub: "Freelancer managers", img: "/brand/team-on-leave.png", bg: "linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)", border: "rgba(245,158,11,0.15)", num: "#D97706", role: "FREELANCER_MGR" },
   ]
 
   return (
@@ -765,23 +770,36 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
 
       {/* ── 4 Stat Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {STAT_CARDS.map((s) => (
-          <div key={s.label} style={{
-            background: s.bg, border: `1px solid ${s.border}`, borderRadius: 18,
-            padding: "20px 18px 0 22px", overflow: "hidden", position: "relative", minHeight: 148,
-          }}>
-            {/* Illustration — responsive size */}
-            <div className="absolute right-0 bottom-0 w-24 h-24 sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
-              <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
+        {STAT_CARDS.map((s) => {
+          const isActive = roleFilter === s.role
+          return (
+            <div key={s.label}
+              onClick={() => { setRoleFilter(isActive ? "ALL" : s.role); setSearch("") }}
+              style={{
+                background: s.bg, border: `2px solid ${isActive ? s.num : s.border}`, borderRadius: 18,
+                padding: "20px 18px 0 22px", overflow: "hidden", position: "relative", minHeight: 148,
+                cursor: "pointer", transition: "all 0.15s",
+                boxShadow: isActive ? `0 4px 20px ${s.num}33` : "none",
+              }}>
+              {/* Active indicator */}
+              {isActive && (
+                <div style={{ position: "absolute", top: 10, right: 10, zIndex: 2, background: s.num, color: "#fff", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 6, letterSpacing: "0.05em" }}>
+                  FILTERED
+                </div>
+              )}
+              {/* Illustration */}
+              <div className="absolute right-0 bottom-0 w-24 h-24 sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
+                <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
+              </div>
+              {/* Text */}
+              <div style={{ position: "relative", zIndex: 1 }} className="max-w-[70%] sm:max-w-[60%] lg:max-w-[55%]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: s.num, opacity: 0.85 }}>{s.label}</p>
+                <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: s.num }}>{s.value}</p>
+                <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#6B7280" }}>{s.sub}</p>
+              </div>
             </div>
-            {/* Text */}
-            <div style={{ position: "relative", zIndex: 1 }} className="max-w-[70%] sm:max-w-[60%] lg:max-w-[55%]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: s.num, opacity: 0.85 }}>{s.label}</p>
-              <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: s.num }}>{s.value}</p>
-              <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#6B7280" }}>{s.sub}</p>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* ── Main 2-column ── */}

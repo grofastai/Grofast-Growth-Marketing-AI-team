@@ -22,6 +22,7 @@ interface Member { id: string; name: string }
 interface Props {
   posts: Post[]; shoots: Shoot[]; tasks: Task[]
   members: Member[]
+  clientNames: string[]
   userId: string; initialYear: number; initialMonth: number
 }
 
@@ -67,7 +68,7 @@ const L: React.CSSProperties = {
   textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block",
 }
 
-export default function MemberContentCalendarClient({ posts: initial, shoots, tasks, members, userId, initialYear, initialMonth }: Props) {
+export default function MemberContentCalendarClient({ posts: initial, shoots, tasks, members, clientNames, userId, initialYear, initialMonth }: Props) {
   const router = useRouter()
   const [posts, setPosts] = useState(initial)
   const [year, setYear]   = useState(initialYear)
@@ -108,7 +109,10 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   function nextMonth() { if (month === 11) { setYear(y => y + 1); setMonth(0) } else setMonth(m => m + 1) }
   function dateStr(d: number) { return `${year}-${String(month + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}` }
 
-  const clientOptions = useMemo(() => [...new Set(posts.map(p => p.client_name).filter(Boolean))].sort(), [posts])
+  const clientOptions = useMemo(() => {
+    const fromPosts = posts.map(p => p.client_name).filter(Boolean) as string[]
+    return [...new Set([...clientNames, ...fromPosts])].sort()
+  }, [posts, clientNames])
 
   const filteredPosts = useMemo(() => {
     let p = filter === "mine" ? posts.filter(p => p.assigned_to === userId) : posts
@@ -496,7 +500,10 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </div>
                 <div>
                   <label style={L}>Client</label>
-                  <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client or brand name" style={F} />
+                  <input list="client-options" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client or brand name" style={F} />
+                  <datalist id="client-options">
+                    {clientOptions.map(c => <option key={c} value={c} />)}
+                  </datalist>
                 </div>
               </div>
 

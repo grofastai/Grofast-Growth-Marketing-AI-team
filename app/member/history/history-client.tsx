@@ -52,6 +52,14 @@ function fmtH(h: number) {
   return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
 }
 
+function calcDurationFromTimes(start?: string | null, end?: string | null): number | null {
+  if (!start || !end) return null
+  const [sh, sm] = start.split(":").map(Number)
+  const [eh, em] = end.split(":").map(Number)
+  const diff = (eh * 60 + em) - (sh * 60 + sm)
+  return diff > 0 ? Math.round((diff / 60) * 10) / 10 : null
+}
+
 // ── Sparkline ──────────────────────────────────────────────────────────────────
 function Sparkline({ data, color }: { data: number[]; color: string }) {
   const pts = data.length > 1 ? data : [1,2,3,2,4,3,5,4,3,5]
@@ -670,11 +678,14 @@ export default function HistoryClient({
                                   <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{e.notes || e.description}</p>
                                 )}
                                 <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:4, flexWrap:"wrap" }}>
-                                  {(e.duration_hours ?? 0) > 0 && (
-                                    <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:3 }}>
-                                      <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(e.duration_hours)}
-                                    </span>
-                                  )}
+                                  {(() => {
+                                    const d = calcDurationFromTimes(e.start_time, e.end_time) ?? (e.duration_hours ?? 0)
+                                    return d > 0 ? (
+                                      <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:3 }}>
+                                        <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(d)}
+                                      </span>
+                                    ) : null
+                                  })()}
                                   {e.start_time && e.end_time && (
                                     <span style={{ fontSize:10, color:"#9CA3AF" }}>{fmt12(e.start_time)} – {fmt12(e.end_time)}</span>
                                   )}

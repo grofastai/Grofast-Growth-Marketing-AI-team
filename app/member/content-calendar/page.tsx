@@ -1,5 +1,6 @@
 export const revalidate = 0
 
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
@@ -17,10 +18,13 @@ export default async function MemberContentCalendarPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
+  const cookieStore = await cookies()
+  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminSupabase()
   const { data: profile } = await admin
-    .from("users").select("company_id, name").eq("id", user.id).single()
+    .from("users").select("company_id, name").eq("id", effectiveUserId).single()
   if (!profile) redirect("/login")
 
   const cid = profile.company_id
@@ -48,7 +52,7 @@ export default async function MemberContentCalendarPage() {
       .lte("start_time", monthEnd + "T23:59:59"),
     admin.from("tasks")
       .select("id, title, due_date, status")
-      .eq("assigned_to", user.id)
+      .eq("assigned_to", effectiveUserId)
       .not("due_date", "is", null)
       .gte("due_date", monthStart)
       .lte("due_date", monthEnd)
@@ -71,7 +75,7 @@ export default async function MemberContentCalendarPage() {
       tasks={tasks ?? []}
       members={members ?? []}
       clientNames={(projects ?? []).map(p => p.business_name).filter(Boolean) as string[]}
-      userId={user.id}
+      userId={effectiveUserId}
       initialYear={now.getFullYear()}
       initialMonth={now.getMonth()}
     />

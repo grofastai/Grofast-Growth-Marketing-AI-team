@@ -2,6 +2,7 @@ export const revalidate = 0
 
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import DailyUpdateForm from "./daily-update-form"
@@ -20,6 +21,9 @@ export default async function UpdatePage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
+  const cookieStore = await cookies()
+  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminSupabase()
   const today = new Date().toISOString().split("T")[0]
@@ -27,7 +31,7 @@ export default async function UpdatePage() {
   const { data: profile } = await admin
     .from("users")
     .select("company_id, team, name")
-    .eq("id", user.id)
+    .eq("id", effectiveUserId)
     .single()
 
   const companyId = profile?.company_id ?? ""
@@ -54,13 +58,13 @@ export default async function UpdatePage() {
     admin
       .from("daily_updates")
       .select("id, date, working_hours, shoot_count, editing_count, learning_hours, active_tab, work_entries, learning_topic, learning_notes")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .eq("date", today)
       .maybeSingle(),
     admin
       .from("daily_updates")
       .select("id, date, working_hours, learning_hours, shoot_count, editing_count, work_entries, active_tab, learning_topic")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .neq("date", today)
       .order("date", { ascending: false })
       .limit(30),
@@ -69,7 +73,7 @@ export default async function UpdatePage() {
       .select("id, name, employee_id, role")
       .eq("company_id", companyId)
       .eq("status", "active")
-      .neq("id", user.id)
+      .neq("id", effectiveUserId)
       .order("name"),
   ])
 

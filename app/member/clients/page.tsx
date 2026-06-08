@@ -1,5 +1,6 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { fetchSheetClients, stripFinancialFields, type SheetClient } from "@/lib/google/sheets"
 
@@ -31,9 +32,12 @@ export default async function MemberClientsPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
+  const cookieStore = await cookies()
+  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminSupabase()
-  const { data: profile } = await admin.from("users").select("company_id").eq("id", user.id).single()
+  const { data: profile } = await admin.from("users").select("company_id").eq("id", effectiveUserId).single()
 
   // Primary source: Supabase clients (synced from Google Sheets by admin page)
   const { data: dbClients } = await admin

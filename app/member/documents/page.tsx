@@ -1,6 +1,7 @@
 ﻿export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { FileText, Download, FolderOpen } from "lucide-react"
 
@@ -38,11 +39,14 @@ export default async function MemberDocumentsPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
+  const cookieStore = await cookies()
+  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const effectiveUserId = impersonateId ?? user.id
 
   const { data: raw } = await supabase
     .from("documents")
     .select("id, name, file_url, file_type, file_size, doc_type, created_at")
-    .eq("user_id", user.id)
+    .eq("user_id", effectiveUserId)
     .order("created_at", { ascending: false })
     .limit(50)
 

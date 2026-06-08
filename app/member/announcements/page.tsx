@@ -2,6 +2,7 @@ export const revalidate = 0
 
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import AnnouncementsClient from "./announcements-client"
 
@@ -27,12 +28,15 @@ export default async function MemberAnnouncementsPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
+  const cookieStore = await cookies()
+  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminClient()
   const { data: profile } = await admin
     .from("users")
     .select("company_id")
-    .eq("id", user.id)
+    .eq("id", effectiveUserId)
     .single()
 
   if (!profile) redirect("/login")

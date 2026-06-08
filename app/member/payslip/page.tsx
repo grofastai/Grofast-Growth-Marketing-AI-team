@@ -1,5 +1,6 @@
 export const revalidate = 0
 
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
@@ -17,13 +18,16 @@ export default async function MemberPayslipPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
+  const cookieStore = await cookies()
+  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminSupabase()
 
   const { data: profile } = await admin
     .from("users")
     .select("name, employee_id, monthly_salary, employment_type, team, company_id")
-    .eq("id", user.id)
+    .eq("id", effectiveUserId)
     .single()
   if (!profile) redirect("/login")
 
@@ -39,7 +43,7 @@ export default async function MemberPayslipPage() {
   const { data: runs } = await admin
     .from("payroll_runs")
     .select("month, is_paid, paid_at, bonus, advance, incentive")
-    .eq("user_id", user.id)
+    .eq("user_id", effectiveUserId)
     .in("month", months)
 
   const runsMap = new Map((runs ?? []).map(r => [r.month, r]))
@@ -61,7 +65,7 @@ export default async function MemberPayslipPage() {
 
   return (
     <PayslipClient
-      userId={user.id}
+      userId={effectiveUserId}
       months={monthData}
       profile={{
         name:            profile.name,

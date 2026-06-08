@@ -2,6 +2,7 @@ export const revalidate = 30
 
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import MemberLeavesClient from "./leaves-client"
 
@@ -17,6 +18,9 @@ export default async function MemberLeavesPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
+  const cookieStore = await cookies()
+  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminSupabase()
 
@@ -26,18 +30,18 @@ export default async function MemberLeavesPage() {
     supabase
       .from("leaves")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .order("created_at", { ascending: false })
       .limit(50),
     admin
       .from("users")
       .select("name, paid_leave_days")
-      .eq("id", user.id)
+      .eq("id", effectiveUserId)
       .single(),
     admin
       .from("leaves")
       .select("from_date, to_date, leave_type")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .eq("status", "approved")
       .gte("from_date", yearStart),
   ])

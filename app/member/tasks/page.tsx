@@ -2,6 +2,7 @@ export const revalidate = 30
 
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import MemberTasksClient from "./tasks-client"
 
@@ -17,6 +18,9 @@ export default async function MemberTasksPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
+  const cookieStore = await cookies()
+  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const effectiveUserId = impersonateId ?? user.id
 
   const today = new Date().toISOString().split("T")[0]
 
@@ -28,7 +32,7 @@ export default async function MemberTasksPage() {
   const { data: currentUserProfile } = await admin
     .from('users')
     .select('company_id')
-    .eq('id', user.id)
+    .eq("id", effectiveUserId)
     .single()
   const companyId = currentUserProfile?.company_id
 
@@ -42,13 +46,13 @@ export default async function MemberTasksPage() {
     supabase
       .from("attendance_logs")
       .select("clock_in, clock_out")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .eq("date", today)
       .maybeSingle(),
     supabase
       .from("daily_updates")
       .select("working_hours")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .eq("date", today)
       .maybeSingle(),
     companyId
@@ -106,7 +110,7 @@ export default async function MemberTasksPage() {
       tasks={tasks}
       todayHours={todayHours}
       teamMembers={teamMembers}
-      currentUserId={user.id}
+      currentUserId={effectiveUserId}
       projects={projects}
     />
   )

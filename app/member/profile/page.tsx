@@ -1,6 +1,7 @@
 export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import ProfileClient from "./profile-client"
 import { getMyPayslipHistory } from "@/lib/actions/profile"
@@ -9,6 +10,9 @@ export default async function ProfilePage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
+  const cookieStore = await cookies()
+  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const effectiveUserId = impersonateId ?? user.id
 
   // ── Date helpers ─────────────────────────────────────────────
   const todayDt  = new Date()
@@ -59,27 +63,27 @@ export default async function ProfilePage() {
     supabase
       .from("users")
       .select("name, employee_id, role, email, phone, status, created_at, photo_url, passport_photo_url, position, blood_group, address, emergency_contact_name, emergency_contact_phone")
-      .eq("id", user.id)
+      .eq("id", effectiveUserId)
       .single(),
     supabase
       .from("daily_updates")
       .select("date, working_hours, shoot_count")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .gte("date", sevenDaysAgo)
       .order("date", { ascending: true }),
     supabase
       .from("tasks")
       .select("*", { count: "exact", head: true })
-      .eq("assigned_to", user.id)
+      .eq("assigned_to", effectiveUserId)
       .eq("status", "completed"),
     supabase
       .from("leaves")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id),
+      .eq("user_id", effectiveUserId),
     supabase
       .from("member_kyc")
       .select("bank_name, bank_account, bank_ifsc, aadhaar_number, pan_number, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .maybeSingle(),
   ])
 
@@ -127,7 +131,7 @@ export default async function ProfilePage() {
   return (
     <ProfileClient
       profile={profile ? {
-        id:          user.id,
+        id: effectiveUserId,
         name:        profile.name,
         employee_id: profile.employee_id,
         role:        profile.role,

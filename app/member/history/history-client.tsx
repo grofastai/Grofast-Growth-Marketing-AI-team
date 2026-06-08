@@ -28,10 +28,10 @@ interface UpdateRow {
 }
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  present: { label:"Present",  color:"#16A34A", bg:"rgba(22,163,74,0.12)",  dot:"#22C55E" },
-  absent:  { label:"Absent",   color:"#DE1A1A", bg:"rgba(222,26,26,0.1)",   dot:"#EF4444" },
-  holiday: { label:"Holiday",  color:"#6B7280", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
-  wfh:     { label:"WFH",      color:"#6366F1", bg:"rgba(99,102,241,0.1)",  dot:"#6366F1" },
+  present: { label:"Present",       color:"#16A34A", bg:"rgba(22,163,74,0.12)",  dot:"#22C55E" },
+  absent:  { label:"Didn't update", color:"#9CA3AF", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
+  holiday: { label:"Holiday",       color:"#6B7280", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
+  wfh:     { label:"WFH",           color:"#6366F1", bg:"rgba(99,102,241,0.1)",  dot:"#6366F1" },
 }
 const TASK_CFG = {
   shoot: { Icon: Camera,   color:"#EF4444", bg:"rgba(239,68,68,0.1)",   label:"Shoot"   },
@@ -627,7 +627,9 @@ export default function HistoryClient({
                       </div>
                     </div>
                   ) : entries.length === 0 ? (
-                    <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>No work entries logged</p>
+                    <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>
+                      {u.attendance_status === "absent" ? "You didn't submit an update for this day." : "No work entries logged"}
+                    </p>
                   ) : (
                     <div>
                       {u.learning_topic && (

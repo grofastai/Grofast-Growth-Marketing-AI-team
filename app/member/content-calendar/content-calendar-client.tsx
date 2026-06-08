@@ -500,10 +500,10 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </div>
                 <div>
                   <label style={L}>Client</label>
-                  <input list="client-options" value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client or brand name" style={F} />
-                  <datalist id="client-options">
-                    {clientOptions.map(c => <option key={c} value={c} />)}
-                  </datalist>
+                  <select value={clientName} onChange={e => setClientName(e.target.value)} style={F}>
+                    <option value="">— Select client —</option>
+                    {clientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
                 </div>
               </div>
 

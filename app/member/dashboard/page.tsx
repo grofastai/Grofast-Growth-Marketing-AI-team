@@ -78,7 +78,7 @@ export default async function MemberDashboardPage() {
   const officeDays     = presentAttLogs.filter(l => l.work_type === "office").length
   const wfhDays        = presentAttLogs.filter(l => l.work_type === "wfh").length
   const holidayDays    = monthlyUpdates.filter(u => u.attendance_status === "holiday").length
-  const totalMonthHrs  = presentRows.reduce((s, u) => s + (u.working_hours ?? 0), 0)
+  const totalMonthHrs  = Math.round(presentRows.reduce((s, u) => s + (u.working_hours ?? 0), 0) * 10) / 10
   const avgHoursPerDay = workingDays > 0 ? Math.round((totalMonthHrs / workingDays) * 10) / 10 : 0
   const overtimeDays   = presentRows.filter(u => (u.working_hours ?? 0) > 9).length
   const overtimeHrs    = Math.round(presentRows.reduce((sum, u) => {
@@ -156,7 +156,7 @@ export default async function MemberDashboardPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         {([
           { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: workingDays || 0,   label: "Present Days"  },
-          { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : `${todayHours > 0 ? `${todayHours}h` : "—"}`, label: "Total Hours"  },
+          { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Total Hours"  },
           { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: Math.max(0, 5 - leaveDays), label: "Leave Left" },
           { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks"  },
         ] as const).map((s) => {

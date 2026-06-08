@@ -872,8 +872,11 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
 
                       {/* ID */}
                       <td className="px-5 py-3.5">
-                        <span className="text-[11px] font-mono font-semibold px-2.5 py-1 rounded-lg"
-                          style={{ background: "#F3F4F6", color: "#374151" }}>{member.employee_id}</span>
+                        {["ADMIN","FOUNDER","CEO"].includes(member.role) ? (
+                          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-lg" style={{ background: "rgba(124,58,237,0.08)", color: "#7C3AED" }}>Admin</span>
+                        ) : (
+                          <span className="text-[11px] font-mono font-semibold px-2.5 py-1 rounded-lg" style={{ background: "#F3F4F6", color: "#374151" }}>{member.employee_id}</span>
+                        )}
                       </td>
 
                       {/* Department */}

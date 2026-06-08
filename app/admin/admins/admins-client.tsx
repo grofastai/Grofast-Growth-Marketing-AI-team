@@ -235,7 +235,7 @@ export default function AdminsClient({
                       {!isActive && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "rgba(239,68,68,0.08)", color: "#EF4444" }}>Disabled</span>}
                     </div>
                     <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}>{a.email ?? "—"}</p>
-                    <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>ID: {a.employee_id} · Joined {new Date(a.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+                    <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>Joined {new Date(a.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
                   </div>
 
                   {/* Actions */}

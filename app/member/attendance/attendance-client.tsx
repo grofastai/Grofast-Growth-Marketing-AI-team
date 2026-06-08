@@ -119,6 +119,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [rangeMode, setRangeMode]       = useState<RangeMode>("date")
   const [rangeLogs, setRangeLogs]       = useState<RangeLog[] | null>(null)
   const [rangeLoading, setRangeLoading] = useState(false)
+  const [customFrom, setCustomFrom]     = useState("")
+  const [customTo, setCustomTo]         = useState("")
   // Login/logout edit
   const [editingDate, setEditingDate]   = useState<string | null>(null)
   const [editCIn, setEditCIn]           = useState("")
@@ -219,9 +221,17 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     return `${mon.getFullYear()}-${String(mon.getMonth()+1).padStart(2,"0")}-${String(mon.getDate()).padStart(2,"0")}`
   }
 
+  async function handleCustomRange(from: string, to: string) {
+    if (!from || !to || from > to) return
+    setRangeLoading(true)
+    const res = await getAttendanceRange(from, to)
+    if (res.success) setRangeLogs(res.logs)
+    setRangeLoading(false)
+  }
+
   async function handleRangeFilter(mode: RangeMode) {
     setRangeMode(mode); setHistoryDate(""); setHistoryLog(null)
-    if (mode === "date") { setRangeLogs(null); return }
+    if (mode === "date") { setRangeLogs(null); setCustomFrom(""); setCustomTo(""); return }
     setRangeLoading(true)
     const now = new Date(), todayStr = now.toISOString().split("T")[0]
     let start = "", end = todayStr
@@ -808,14 +818,14 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
           </div>
           <div>
             <h3 className="text-[15px] font-bold" style={{ color: "#111111" }}>View Past Attendance</h3>
-            <p className="text-[11px]" style={{ color: "#9CA3AF" }}>Filter by range or pick a specific date</p>
+            <p className="text-[11px]" style={{ color: "#9CA3AF" }}>Filter by range or pick a custom date range</p>
           </div>
         </div>
 
         {/* Quick filter pills */}
         <div className="flex flex-wrap gap-2 mb-4">
           {([
-            { mode: "date" as RangeMode,      label: "📅 Pick Date" },
+            { mode: "date" as RangeMode,      label: "📅 Custom Range" },
             { mode: "last7" as RangeMode,     label: "Last 7 Days" },
             { mode: "thisMonth" as RangeMode, label: "This Month" },
             { mode: "lastMonth" as RangeMode, label: "Last Month" },
@@ -832,100 +842,142 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
           ))}
         </div>
 
-        {/* ── Single date mode ── */}
+        {/* ── Custom date range mode ── */}
         {rangeMode === "date" && (
           <>
-            <input type="date" max={today} value={historyDate}
-              onChange={e => handleHistoryDate(e.target.value)}
-              className="rounded-xl px-3 py-2 text-[13px] font-semibold mb-4 block"
-              style={{ border: "1.5px solid #EBEDF2", outline: "none", color: "#111111", background: "#F9FAFB" }}
-            />
-            {historyLog === "loading" && <p className="text-[13px]" style={{ color: "#9CA3AF" }}>Loading…</p>}
-            {historyLog === "empty"   && <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No attendance record found for this date.</p>}
-            {historyLog && historyLog !== "loading" && historyLog !== "empty" && (
-              <>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    { label: "Status",    value: historyLog.status === "present" ? "Present" : "Absent", color: historyLog.status === "present" ? "#22C55E" : "#EF4444" },
-                    { label: "Work Mode", value: historyLog.work_type === "wfh" ? "WFH" : historyLog.work_type === "shoot" ? "Shoot" : historyLog.work_type === "office" ? "Office" : "—", color: "#111111" },
-                    { label: "Log In",    value: fmtTime(historyLog.clock_in), color: "#111111" },
-                    { label: "Log Out",   value: historyLog.clock_out ? fmtTime(historyLog.clock_out) : "—", color: historyLog.clock_out ? "#111111" : "#EF4444" },
-                  ].map(r => (
-                    <div key={r.label} className="rounded-2xl p-3" style={{ background: "#F9FAFB", border: "1px solid #EBEDF2" }}>
-                      <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#9CA3AF" }}>{r.label}</p>
-                      <p className="text-[14px] font-bold" style={{ color: r.color }}>{r.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Edit login/logout times */}
-                {historyLog.status === "present" && editingDate === historyDate ? (
-                  <div className="mt-4 rounded-2xl p-4" style={{ background: "rgba(99,102,241,0.05)", border: "1.5px solid rgba(99,102,241,0.2)" }}>
-                    <p className="text-[13px] font-bold mb-3" style={{ color: "#6366F1" }}>Edit Login / Logout Times</p>
-                    <div className="flex flex-wrap gap-3 items-end">
-                      <div>
-                        <label className="block text-[10px] font-bold mb-1" style={{ color: "#6B7280" }}>LOGIN</label>
-                        <input type="time" value={editCIn} onChange={e => setEditCIn(e.target.value)}
-                          className="rounded-xl px-3 py-2 text-[13px]"
-                          style={{ border:"1.5px solid #EBEDF2", outline:"none", color:"#111111" }}/>
+            <div className="flex flex-wrap items-end gap-3 mb-4">
+              <div>
+                <label className="block text-[10px] font-bold mb-1.5" style={{ color: "#6B7280" }}>FROM DATE</label>
+                <input type="date" max={today} value={customFrom}
+                  onChange={e => { setCustomFrom(e.target.value); setRangeLogs(null) }}
+                  className="rounded-xl px-3 py-2 text-[13px] font-semibold"
+                  style={{ border: "1.5px solid #EBEDF2", outline: "none", color: "#111111", background: "#F9FAFB" }}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold mb-1.5" style={{ color: "#6B7280" }}>TO DATE</label>
+                <input type="date" min={customFrom || undefined} max={today} value={customTo}
+                  onChange={e => { setCustomTo(e.target.value); setRangeLogs(null) }}
+                  className="rounded-xl px-3 py-2 text-[13px] font-semibold"
+                  style={{ border: "1.5px solid #EBEDF2", outline: "none", color: "#111111", background: "#F9FAFB" }}
+                />
+              </div>
+              <button
+                onClick={() => handleCustomRange(customFrom, customTo)}
+                disabled={!customFrom || !customTo || customFrom > customTo || rangeLoading}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl text-[13px] font-bold disabled:opacity-40"
+                style={{ background: "#6366F1", color: "#FFFFFF" }}>
+                {rangeLoading ? <Loader2 size={13} className="animate-spin" /> : <CalendarSearch size={13} />}
+                Search
+              </button>
+              {customFrom && customTo && customFrom > customTo && (
+                <p className="text-[12px] font-semibold" style={{ color: "#EF4444" }}>From date must be before To date</p>
+              )}
+            </div>
+            {rangeLoading && <p className="text-[13px]" style={{ color: "#9CA3AF" }}>Loading…</p>}
+            {!rangeLoading && rangeLogs !== null && (() => {
+              const pLogs = rangeLogs.filter(l => l.status === "present" && l.clock_in)
+              const totalH = pLogs.reduce((s, l) => s + Math.max(0, calcHours(l.clock_in!, l.clock_out) - (l.break_total_mins ?? 0)/60), 0)
+              const avgH = pLogs.length > 0 ? Math.round((totalH / pLogs.length) * 10) / 10 : 0
+              return (
+                <>
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    {[
+                      { label:"Present Days", value: String(pLogs.length),                                    color:"#22C55E", bg:"rgba(34,197,94,0.08)" },
+                      { label:"Absent Days",  value: String(rangeLogs.filter(l=>l.status==="absent").length), color:"#EF4444", bg:"rgba(239,68,68,0.08)" },
+                      { label:"Total Hours",  value: fmtHoursShort(Math.round(totalH*10)/10),                 color:"#6366F1", bg:"rgba(99,102,241,0.08)" },
+                      { label:"Avg / Day",    value: avgH > 0 ? fmtHoursShort(avgH) : "—",                   color:"#F59E0B", bg:"rgba(245,158,11,0.08)" },
+                    ].map(s => (
+                      <div key={s.label} className="rounded-2xl px-4 py-2.5" style={{ background:s.bg }}>
+                        <p className="text-[10px] font-bold uppercase tracking-wide mb-0.5" style={{ color:s.color }}>{s.label}</p>
+                        <p className="text-[18px] font-black leading-none" style={{ color:s.color, fontFamily:"var(--font-jakarta)" }}>{s.value}</p>
                       </div>
-                      <div>
-                        <label className="block text-[10px] font-bold mb-1" style={{ color: "#6B7280" }}>LOGOUT</label>
-                        <input type="time" value={editCOut} onChange={e => setEditCOut(e.target.value)}
-                          className="rounded-xl px-3 py-2 text-[13px]"
-                          style={{ border:"1.5px solid #EBEDF2", outline:"none", color:"#111111" }}/>
+                    ))}
+                  </div>
+                  {rangeLogs.length === 0
+                    ? <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No attendance records found for this range.</p>
+                    : (
+                      <div style={{ overflowX:"auto" }}>
+                        <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
+                          <thead>
+                            <tr style={{ background:"#F5F6FA" }}>
+                              {["Date","Day","Status","Mode","Login","Logout","Worked",""].map(h => (
+                                <th key={h} style={{ padding:"8px 10px", textAlign:"left", fontWeight:700, color:"#6B7280", fontSize:10, textTransform:"uppercase", letterSpacing:"0.06em", whiteSpace:"nowrap" }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rangeLogs.map(l => {
+                              const h = l.clock_in ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins??0)/60) : 0
+                              const dayLabel  = new Date(l.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"})
+                              const dateLabel = new Date(l.date+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"})
+                              const isEditing = editingDate === l.date
+                              return (
+                                <Fragment key={l.date}>
+                                  <tr style={{ borderBottom:"1px solid #F5F6FA", background: l.date===today ? "rgba(222,26,26,0.03)" : "transparent" }}>
+                                    <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111", whiteSpace:"nowrap" }}>{dateLabel}</td>
+                                    <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
+                                    <td style={{ padding:"9px 10px" }}>
+                                      <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background: l.status==="present" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: l.status==="present" ? "#16A34A" : "#EF4444" }}>
+                                        {l.status === "present" ? "Present" : "Absent"}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding:"9px 10px", color:"#6B7280", textTransform:"capitalize" }}>{l.work_type ?? "—"}</td>
+                                    <td style={{ padding:"9px 10px", color:"#111111", whiteSpace:"nowrap" }}>{fmtTime(l.clock_in)}</td>
+                                    <td style={{ padding:"9px 10px", color: l.clock_out ? "#111111" : "#EF4444", whiteSpace:"nowrap" }}>{l.clock_out ? fmtTime(l.clock_out) : "—"}</td>
+                                    <td style={{ padding:"9px 10px", fontWeight:700, color:"#374151" }}>{h > 0 ? fmtHoursShort(Math.round(h*10)/10) : "—"}</td>
+                                    <td style={{ padding:"9px 10px" }}>
+                                      {l.status === "present" && (
+                                        <button onClick={() => isEditing ? setEditingDate(null) : openEditTimes(l.date, l.clock_in, l.clock_out)}
+                                          style={{ fontSize:10, fontWeight:700, padding:"3px 10px", borderRadius:8, background: isEditing ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)", border:"1px solid rgba(99,102,241,0.2)", color:"#6366F1", cursor:"pointer" }}>
+                                          ✏️ Edit
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                  {isEditing && (
+                                    <tr style={{ background:"rgba(99,102,241,0.03)" }}>
+                                      <td colSpan={8} style={{ padding:"12px 10px" }}>
+                                        <div style={{ display:"flex", flexWrap:"wrap", gap:10, alignItems:"flex-end" }}>
+                                          <div>
+                                            <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6B7280", marginBottom:3 }}>LOGIN</label>
+                                            <input type="time" value={editCIn} onChange={e => setEditCIn(e.target.value)}
+                                              style={{ padding:"6px 10px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none" }}/>
+                                          </div>
+                                          <div>
+                                            <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6B7280", marginBottom:3 }}>LOGOUT</label>
+                                            <input type="time" value={editCOut} onChange={e => setEditCOut(e.target.value)}
+                                              style={{ padding:"6px 10px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none" }}/>
+                                          </div>
+                                          <button onClick={handleEditTimes} disabled={editSaving || !editCIn}
+                                            style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:8, background:"#6366F1", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:editSaving?0.6:1 }}>
+                                            {editSaving ? <Loader2 size={12} className="animate-spin"/> : <CheckCircle2 size={12}/>} Save
+                                          </button>
+                                          <button onClick={() => setEditingDate(null)} style={{ padding:"7px 12px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
+                                          {editError && <span style={{ fontSize:11, color:"#EF4444", fontWeight:600 }}>{editError}</span>}
+                                          {editSaved  && <span style={{ fontSize:11, color:"#16A34A", fontWeight:600 }}>✓ Saved</span>}
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  )}
+                                </Fragment>
+                              )
+                            })}
+                          </tbody>
+                        </table>
                       </div>
-                      <button onClick={handleEditTimes} disabled={editSaving || !editCIn}
-                        className="flex items-center gap-2 px-5 py-2 rounded-xl text-[13px] font-bold disabled:opacity-50"
-                        style={{ background:"#6366F1", color:"#fff" }}>
-                        {editSaving ? <Loader2 size={13} className="animate-spin"/> : <CheckCircle2 size={13}/>} Save
-                      </button>
-                      <button onClick={() => setEditingDate(null)} className="px-4 py-2 rounded-xl text-[12px] font-bold" style={{ background:"#F3F4F6", color:"#6B7280" }}>Cancel</button>
-                    </div>
-                    {editError && <p className="text-[12px] mt-2 font-medium" style={{ color: "#EF4444" }}>{editError}</p>}
-                    {editSaved  && <p className="text-[12px] mt-2 font-medium" style={{ color: "#16A34A" }}>✓ Saved!</p>}
-                  </div>
-                ) : historyLog.status === "present" && (
-                  <button onClick={() => openEditTimes(historyDate, historyLog.clock_in ?? null, (historyLog as { clock_out?: string | null }).clock_out ?? null)}
-                    className="mt-3 flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-bold"
-                    style={{ background:"rgba(99,102,241,0.08)", border:"1px solid rgba(99,102,241,0.2)", color:"#6366F1" }}>
-                    ✏️ Edit Login / Logout Times
-                  </button>
-                )}
-
-                {historyLog.status === "present" && historyLog.clock_in && !historyLog.clock_out && !manualSaved && !editingDate && (
-                  <div className="mt-4 rounded-2xl p-4" style={{ background: "rgba(245,158,11,0.06)", border: "1.5px solid rgba(245,158,11,0.25)" }}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <AlertTriangle size={14} style={{ color: "#D97706" }} />
-                      <p className="text-[13px] font-bold" style={{ color: "#D97706" }}>No logout recorded</p>
-                    </div>
-                    <p className="text-[12px] mb-3" style={{ color: "#9CA3AF" }}>You forgot to log out. Use Edit above or enter the time below.</p>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <input type="time" value={manualTime} onChange={e => setManualTime(e.target.value)}
-                        className="rounded-xl px-3 py-2 text-[13px] font-semibold"
-                        style={{ border:"1.5px solid #EBEDF2", outline:"none", color:"#111111", background:"#FFFFFF" }}/>
-                      <button onClick={handleManualClockOut} disabled={isPending || !manualTime}
-                        className="flex items-center gap-2 px-5 py-2 rounded-xl text-[13px] font-bold disabled:opacity-50"
-                        style={{ background:"#D97706", color:"#FFFFFF" }}>
-                        {isPending ? <Loader2 size={13} className="animate-spin"/> : <LogOut size={13}/>} Save Logout
-                      </button>
-                    </div>
-                    {manualError && <p className="text-[12px] mt-2 font-medium" style={{ color:"#EF4444" }}>{manualError}</p>}
-                  </div>
-                )}
-                {manualSaved && (
-                  <div className="mt-4 flex items-center gap-2 rounded-2xl px-4 py-3"
-                    style={{ background:"rgba(34,197,94,0.08)", border:"1.5px solid rgba(34,197,94,0.2)" }}>
-                    <CheckCircle2 size={15} style={{ color:"#22C55E" }}/>
-                    <p className="text-[13px] font-bold" style={{ color:"#16A34A" }}>Logout time saved successfully.</p>
-                  </div>
-                )}
-              </>
+                    )
+                  }
+                </>
+              )
+            })()}
+            {!rangeLoading && rangeLogs === null && customFrom === "" && (
+              <p className="text-[13px]" style={{ color: "#9CA3AF" }}>Select a From and To date, then click Search.</p>
             )}
           </>
         )}
 
-        {/* ── Range mode ── */}
+        {/* ── Range mode (Last 7 / This Month / Last Month) ── */}
         {rangeMode !== "date" && (
           <>
             {rangeLoading && <p className="text-[13px]" style={{ color: "#9CA3AF" }}>Loading…</p>}

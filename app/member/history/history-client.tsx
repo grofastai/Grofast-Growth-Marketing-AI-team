@@ -18,6 +18,7 @@ interface WorkEntry {
   screenshot_url?: string | null; video_link?: string | null
   description?: string | null; project_name?: string | null
   is_multi_client?: boolean; client_names?: string[]
+  video_type?: string | null; video_duration?: string | null; revisions?: number | null
 }
 interface UpdateRow {
   id: string; date: string; attendance_status: string
@@ -224,6 +225,9 @@ export default function HistoryClient({
       project_name: entry.project_name ?? "",
       is_multi_client: entry.is_multi_client ?? false,
       client_names: entry.client_names ?? [],
+      video_type: entry.video_type ?? "",
+      video_duration: entry.video_duration ?? "",
+      revisions: entry.revisions ?? 0,
     })
   }
 
@@ -805,6 +809,41 @@ export default function HistoryClient({
                                           type="time"
                                           value={editDraft.end_time ?? ""}
                                           onChange={ev => setEditDraft(d => ({ ...d, end_time: ev.target.value }))}
+                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Shoot: video type, duration, revisions */}
+                                  {editDraft.task_type === "shoot" && (
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 90px", gap:8 }}>
+                                      <div>
+                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Video Type</label>
+                                        <select
+                                          value={editDraft.video_type ?? ""}
+                                          onChange={ev => setEditDraft(d => ({ ...d, video_type: ev.target.value }))}
+                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                          <option value="">Select type…</option>
+                                          {["Instagram Reels","Personal Branding","Ads and Hooks","Long Videos","Cinematic","YouTube Shorts"].map(t => <option key={t} value={t}>{t}</option>)}
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Duration (mins)</label>
+                                        <select
+                                          value={editDraft.video_duration ?? ""}
+                                          onChange={ev => setEditDraft(d => ({ ...d, video_duration: ev.target.value }))}
+                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                          <option value="">Select…</option>
+                                          {[1,1.5,2,2.5,3,3.5,4,4.5,5,6,7,8].map(m => <option key={m} value={`${m} min`}>{m} min</option>)}
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Revisions</label>
+                                        <input
+                                          type="number" min="0" max="99"
+                                          value={editDraft.revisions ?? 0}
+                                          onChange={ev => setEditDraft(d => ({ ...d, revisions: parseInt(ev.target.value) || 0 }))}
                                           style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
                                         />
                                       </div>

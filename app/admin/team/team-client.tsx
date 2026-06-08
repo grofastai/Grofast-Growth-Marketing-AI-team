@@ -196,8 +196,8 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
         if (result.success) { router.refresh(); onClose() }
         else setError(result.error ?? "Something went wrong")
       } else {
-        const isAdminCreate = form.role === "ADMIN" || form.role === "FOUNDER" || form.role === "CEO"
-        const nameForCreate = form.name.trim() || (isAdminCreate ? form.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "")
+        const isAdminCreate = form.role === "ADMIN" || form.role === "FOUNDER" || form.role === "CEO" || form.role === "FREELANCER_MGR"
+        const nameForCreate = form.name.trim() || (isAdminCreate ? form.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) : "")
         const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, ...salaryFields, ...dateFields })
         if (result.success) {
           if (form.phone && result.whatsappSent === false && !result.whatsappSkipped) {
@@ -312,46 +312,30 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
                 </div>
               )}
 
-              {/* Freelancer Mgr — simplified fields */}
-              {isFreelancerMgr ? (
+              {/* Freelancer Mgr or Admin create — Email + Password only */}
+              {(isFreelancerMgr && !isEdit) || (isAdmin && !isEdit) ? (
                 <>
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Account Handler Name *</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Email Address *</label>
+                    <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. manager@gmail.com" style={FIELD} />
+                    <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Logs in with this email + password directly.</p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Password *</label>
+                    <input type="text" className="sheet-input" value={form.password} onChange={set("password")} placeholder="Min 6 characters" style={FIELD} />
+                  </div>
+                </>
+              ) : isFreelancerMgr && isEdit ? (
+                /* Freelancer Mgr edit — name + email */
+                <>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Name *</label>
                     <input className="sheet-input" value={form.name} onChange={set("name")} placeholder="e.g. Karthik R" style={FIELD} />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Email Address *</label>
                     <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. karthik@gmail.com" style={FIELD} />
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>WhatsApp Number</label>
-                    <input className="sheet-input" value={form.phone} onChange={set("phone")} placeholder="e.g. 9876543210" style={FIELD} />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Team *</label>
-                    <div className="relative">
-                      <select className="sheet-input" value={form.team} onChange={set("team")} style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}>
-                        <option value="">Select a team…</option>
-                        {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                      <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#6B7280" }} />
-                    </div>
-                  </div>
-                  {!isEdit && (
-                    <>
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
-                          Employee ID * <span style={{ color: "#22C55E", fontWeight: 700, textTransform: "none", letterSpacing: 0 }}>· Auto-generated</span>
-                        </label>
-                        <input className="sheet-input" value={form.employee_id} onChange={set("employee_id")} placeholder="e.g. GF001" style={{ ...FIELD, fontFamily: "monospace", fontWeight: 700 }} />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Temporary Password *</label>
-                        <input type="text" className="sheet-input" value={form.password} onChange={set("password")} placeholder="Min 6 characters" style={FIELD} />
-                        <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Will be sent via WhatsApp.</p>
-                      </div>
-                    </>
-                  )}
                 </>
               ) : isAdmin && !isEdit ? (
                 /* Admin create — Email + Password only */

@@ -298,12 +298,13 @@ export default function HistoryClient({
 
   // Stats always use the full month (not search-filtered)
   const stats = useMemo(() => {
-    let totalHours = 0, totalOT = 0, totalTasks = 0, presentDays = 0
+    let totalHours = 0, totalOT = 0, totalTasks = 0, presentDays = 0, totalLearning = 0
     let shootH = 0, editH = 0, otherH = 0
     const hoursPerDay: number[] = []
     for (const u of monthFiltered) {
       const h = u.working_hours ?? 0
       totalHours += h; if (h > 9) totalOT += Math.round((h - 9) * 10) / 10
+      totalLearning += u.learning_hours ?? 0
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
@@ -317,7 +318,7 @@ export default function HistoryClient({
     const productivity = filtered.length > 0
       ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9)) * 40) : 0)))
       : 0
-    return { totalHours, totalOT, totalTasks, presentDays, shootH, editH, otherH, hoursPerDay, productivity }
+    return { totalHours, totalOT, totalTasks, presentDays, totalLearning, shootH, editH, otherH, hoursPerDay, productivity }
   }, [filtered])
 
   // Streak calculation
@@ -591,7 +592,7 @@ export default function HistoryClient({
                           <Clock size={11} style={{ color:"#9CA3AF" }}/> {fmtH(u.working_hours ?? 0)}
                         </span>
                       )}
-                      {!(u.working_hours) && (u.learning_hours ?? 0) > 0 && (
+                      {(u.learning_hours ?? 0) > 0 && (
                         <span style={{ fontSize:11, fontWeight:700, color:"#F59E0B", display:"flex", alignItems:"center", gap:4 }}>
                           <BookOpen size={11} style={{ color:"#F59E0B" }}/> {fmtH(u.learning_hours!)}
                         </span>
@@ -966,6 +967,7 @@ export default function HistoryClient({
                 {[
                   { label:"Regular Hours",   value: fmtH(stats.totalHours - stats.totalOT), color:"#22C55E" },
                   { label:"Overtime",        value: fmtH(stats.totalOT),                   color:"#F59E0B" },
+                  { label:"Learning Hours",  value: fmtH(stats.totalLearning),             color:"#F59E0B" },
                   { label:"Tasks Completed", value: String(stats.totalTasks),               color:"#6366F1" },
                   { label:"Present Days",    value: String(stats.presentDays),              color:"#EF4444" },
                 ].map(r => (

@@ -22,6 +22,7 @@ interface ShootEntry {
   brand: string; shopName: string
   location: string; driveLink: string
   notes: string; videoUploaded: boolean
+  participantIds: string[]
 }
 interface EditEntry {
   id: string; clientName: string; brand: string; customClient: string; title: string
@@ -29,6 +30,7 @@ interface EditEntry {
   dateGiven: string; dateFinished: string
   timeTaken: number; driveUpdated: boolean
   revisions: number; videoLink: string; notes: string
+  participantIds: string[]
 }
 interface TimeBlock {
   id: string; startTime: string; endTime: string
@@ -161,6 +163,7 @@ function parseExistingShoots(existingUpdate: Record<string, unknown>): ShootEntr
       driveLink: e.video_link ?? "",
       notes: "",
       videoUploaded: e.video_uploaded ?? false,
+      participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
     }))
 }
 
@@ -184,6 +187,7 @@ function parseExistingEdits(existingUpdate: Record<string, unknown>): EditEntry[
       revisions: e.revisions ?? 0,
       videoLink: e.video_link ?? "",
       notes: e.notes ?? "",
+      participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
     }))
 }
 
@@ -268,7 +272,7 @@ export default function DailyUpdateForm({
 
   // ── Shoots (media) ───────────────────────────────────────────────────────
   const [shoots, setShoots] = useState<ShootEntry[]>(() => existingUpdate ? parseExistingShoots(existingUpdate) : [])
-  const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, travelHours:0, brand:"", shopName:"", location:"", driveLink:"", notes:"", videoUploaded:false }])
+  const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, travelHours:0, brand:"", shopName:"", location:"", driveLink:"", notes:"", videoUploaded:false, participantIds:[] }])
   const patchShoot  = (id: string, patch: Partial<ShootEntry>) => setShoots(p => p.map(s => s.id === id ? { ...s, ...patch } : s))
   const removeShoot = (id: string) => setShoots(p => p.filter(s => s.id !== id))
 
@@ -277,7 +281,7 @@ export default function DailyUpdateForm({
   const addEdit    = () => setEdits(p => [...p, {
     id: crypto.randomUUID(), clientName: "", brand: "", customClient: "", title: "", videoType: "", videoDuration: "",
     dateGiven: todayStr, dateFinished: todayStr, timeTaken: 2,
-    driveUpdated: false, revisions: 0, videoLink: "", notes: "",
+    driveUpdated: false, revisions: 0, videoLink: "", notes: "", participantIds: [],
   }])
   const patchEdit  = (id: string, patch: Partial<EditEntry>) => setEdits(p => p.map(e => e.id === id ? { ...e, ...patch } : e))
   const removeEdit = (id: string) => setEdits(p => p.filter(e => e.id !== id))
@@ -402,6 +406,7 @@ export default function DailyUpdateForm({
         duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
         _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours,
+        participant_ids: s.participantIds,
       })),
       ...edits.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
@@ -414,6 +419,7 @@ export default function DailyUpdateForm({
         date_given: e.dateGiven, date_finished: e.dateFinished,
         drive_updated: e.driveUpdated, revisions: e.revisions,
         _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient,
+        participant_ids: e.participantIds,
       })),
     ]
     startTransition(async () => {
@@ -444,6 +450,7 @@ export default function DailyUpdateForm({
         duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
         _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours,
+        participant_ids: s.participantIds,
       })),
       ...edits.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
@@ -456,6 +463,7 @@ export default function DailyUpdateForm({
         date_given: e.dateGiven, date_finished: e.dateFinished,
         drive_updated: e.driveUpdated, revisions: e.revisions,
         _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient,
+        participant_ids: e.participantIds,
       })),
     ]
     startTransition(async () => {
@@ -1129,6 +1137,43 @@ export default function DailyUpdateForm({
                           </button>
                         </div>
                       </div>
+                      {/* Partner picker per shoot */}
+                      {teamMembers.length > 0 && (
+                        <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #F0F1F5" }}>
+                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Shot With</p>
+                          {s.participantIds.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
+                              {s.participantIds.map(pid => {
+                                const m = teamMembers.find(t => t.id === pid)
+                                if (!m) return null
+                                const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                return (
+                                  <button key={pid} onClick={() => patchShoot(s.id, { participantIds: s.participantIds.filter(p => p !== pid) })}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(239,68,68,0.1)", border:"1.5px solid rgba(239,68,68,0.3)", cursor:"pointer" }}>
+                                    <div style={{ width:16, height:16, borderRadius:"50%", background:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#B91C1C" }}>{m.name.split(" ")[0]}</span>
+                                    <span style={{ fontSize:8, color:"#EF4444" }}>✕</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                            {teamMembers.slice(0, 20).map(m => {
+                              const selected = s.participantIds.includes(m.id)
+                              const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                              return (
+                                <button key={m.id} onClick={() => patchShoot(s.id, { participantIds: selected ? s.participantIds.filter(p => p !== m.id) : [...s.participantIds, m.id] })}
+                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, cursor:"pointer", background: selected ? "rgba(239,68,68,0.1)" : "#F9FAFB", border:`1.5px solid ${selected ? "rgba(239,68,68,0.4)" : "#EBEDF2"}` }}>
+                                  <div style={{ width:16, height:16, borderRadius:"50%", background: selected ? "#EF4444" : "#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color: selected ? "#fff" : "#9CA3AF" }}>{initials}</div>
+                                  <span style={{ fontSize:10, fontWeight:700, color: selected ? "#B91C1C" : "#374151" }}>{m.name.split(" ")[0]}</span>
+                                  {selected && <span style={{ fontSize:8, color:"#EF4444" }}>✓</span>}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                       <div style={{ borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:12, display:"flex", justifyContent:"flex-end", alignItems:"center", gap:10 }}>
                         {savedIds.has(s.id) && <span style={{ fontSize:11, fontWeight:700, color:"#16A34A", display:"flex", alignItems:"center", gap:4 }}><CheckCircle2 size={12} /> Saved ✓</span>}
                         <button onClick={() => handleSaveEntry(s.id)} disabled={isPending}
@@ -1257,6 +1302,43 @@ export default function DailyUpdateForm({
                           <input value={e.videoLink} onChange={ev => patchEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/… (required)" style={{ ...F, borderColor: !e.videoLink.trim() ? "rgba(222,26,26,0.4)" : "#EBEDF2" }} />
                         </div>
                       </div>
+                      {/* Partner picker per edit */}
+                      {teamMembers.length > 0 && (
+                        <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #F0F1F5" }}>
+                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Edited With</p>
+                          {e.participantIds.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
+                              {e.participantIds.map(pid => {
+                                const tm = teamMembers.find(t => t.id === pid)
+                                if (!tm) return null
+                                const initials = tm.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                return (
+                                  <button key={pid} onClick={() => patchEdit(e.id, { participantIds: e.participantIds.filter(p => p !== pid) })}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
+                                    <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#4338CA" }}>{tm.name.split(" ")[0]}</span>
+                                    <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                            {teamMembers.slice(0, 20).map(tm => {
+                              const selected = e.participantIds.includes(tm.id)
+                              const initials = tm.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                              return (
+                                <button key={tm.id} onClick={() => patchEdit(e.id, { participantIds: selected ? e.participantIds.filter(p => p !== tm.id) : [...e.participantIds, tm.id] })}
+                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, cursor:"pointer", background: selected ? "rgba(99,102,241,0.1)" : "#F9FAFB", border:`1.5px solid ${selected ? "rgba(99,102,241,0.4)" : "#EBEDF2"}` }}>
+                                  <div style={{ width:16, height:16, borderRadius:"50%", background: selected ? "#6366F1" : "#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color: selected ? "#fff" : "#9CA3AF" }}>{initials}</div>
+                                  <span style={{ fontSize:10, fontWeight:700, color: selected ? "#4338CA" : "#374151" }}>{tm.name.split(" ")[0]}</span>
+                                  {selected && <span style={{ fontSize:8, color:"#6366F1" }}>✓</span>}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                       <div style={{ borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:12, display:"flex", justifyContent:"flex-end", alignItems:"center", gap:10 }}>
                         {savedIds.has(e.id) && <span style={{ fontSize:11, fontWeight:700, color:"#16A34A", display:"flex", alignItems:"center", gap:4 }}><CheckCircle2 size={12} /> Saved ✓</span>}
                         <button onClick={() => handleSaveEntry(e.id)} disabled={isPending}

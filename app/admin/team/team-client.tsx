@@ -7,9 +7,10 @@ import {
   Search, Plus, Shield, UserCheck,
   MoreVertical, Phone, CalendarDays, X, Pencil,
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
-  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera,
+  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn,
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto } from "@/lib/actions/team"
+import { startImpersonation } from "@/lib/actions/impersonate"
 
 const TEAMS = [
   "Media & Technology Team",
@@ -961,6 +962,19 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
                           {openDropdown === member.id && (
                             <div className="absolute right-0 top-9 w-44 rounded-xl shadow-2xl z-50 overflow-hidden py-1"
                               style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+                              {member.status === "active" && member.role === "MEMBER" && (
+                                <>
+                                  <button
+                                    onClick={() => { setOpenDropdown(null); startImpersonation(member.id) }}
+                                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                    style={{ color: "#6366F1" }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                    <LogIn size={12} /> Login as {member.name.split(" ")[0]}
+                                  </button>
+                                  <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
+                                </>
+                              )}
                               <button onClick={() => handleToggleStatus(member)} disabled={isPending}
                                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
                                 style={{ color: member.status === "active" ? "#F59E0B" : "#22C55E" }}

@@ -2,6 +2,7 @@ export const revalidate = 0
 
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import HistoryClient from "./history-client"
 
@@ -55,6 +56,10 @@ export default async function HistoryPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
+  const cookieStore = await cookies()
+  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const effectiveUserId = impersonateId ?? user.id
+
   const admin = adminSupabase()
 
   // Profile first — needed for company_id to query participated updates
@@ -70,7 +75,7 @@ export default async function HistoryPage() {
     supabase
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, shoot_count, editing_count, work_entries, created_at")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .order("date", { ascending: false })
       .limit(90),
     companyId
@@ -81,8 +86,8 @@ export default async function HistoryPage() {
           .from("daily_updates")
           .select("id, date, user_id, attendance_status, working_hours, work_entries")
           .eq("company_id", companyId)
-          .contains("participant_ids", [user.id])
-          .neq("user_id", user.id)
+          .contains("participant_ids", [effectiveUserId])
+          .neq("user_id", effectiveUserId)
           .order("date", { ascending: false })
           .limit(60)
       : Promise.resolve({ data: [] as ParticipatedUpdate[] }),

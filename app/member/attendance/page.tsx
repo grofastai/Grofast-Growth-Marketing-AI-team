@@ -1,4 +1,5 @@
 import { createServerClient } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import AttendanceClient from "./attendance-client"
 
@@ -6,6 +7,10 @@ export default async function AttendancePage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
+
+  const cookieStore = await cookies()
+  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const effectiveUserId = impersonateId ?? user.id
 
   const today = new Date().toISOString().split("T")[0]
 
@@ -38,16 +43,16 @@ export default async function AttendancePage() {
   const [{ data: todayLogRaw }, { data: weekLogsRaw }, { data: todayUpdateRaw }, { data: weekPermissions }] = await Promise.all([
     supabase.from("attendance_logs")
       .select("id, date, clock_in, clock_out, break_in, break_out, break_total_mins, break_sessions, work_type, status, paused_seconds")
-      .eq("user_id", user.id).eq("date", today).maybeSingle(),
+      .eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
     supabase.from("attendance_logs")
       .select("id, date, clock_in, clock_out, break_in, break_out, break_total_mins, break_sessions, work_type, status, paused_seconds")
-      .eq("user_id", user.id).gte("date", weekStart).lte("date", weekEnd),
+      .eq("user_id", effectiveUserId).gte("date", weekStart).lte("date", weekEnd),
     supabase.from("daily_updates")
       .select("working_hours, learning_hours, shoot_count")
-      .eq("user_id", user.id).eq("date", today).maybeSingle(),
+      .eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
     supabase.from("leaves")
       .select("from_date, permission_hours")
-      .eq("user_id", user.id)
+      .eq("user_id", effectiveUserId)
       .eq("leave_type", "permission")
       .eq("status", "approved")
       .gte("from_date", weekStart)

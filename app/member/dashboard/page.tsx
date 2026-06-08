@@ -1,6 +1,7 @@
 export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
+import { cookies } from "next/headers"
 import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -11,6 +12,10 @@ export default async function MemberDashboardPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
+
+  const cookieStore = await cookies()
+  const impersonateId = cookieStore.get("gf_impersonate")?.value
+  const effectiveUserId = impersonateId ?? user.id
 
   const now        = new Date()
   const today      = now.toISOString().split("T")[0]
@@ -37,16 +42,16 @@ export default async function MemberDashboardPage() {
     { data: approvedLeavesRaw },
     { data: monthlyAttLogsRaw },
   ] = await Promise.all([
-    supabase.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name").eq("id", user.id).single(),
-    supabase.from("daily_updates").select("working_hours, shoot_count").eq("user_id", user.id).eq("date", today).maybeSingle(),
-    supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", user.id).neq("status", "completed"),
-    supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", user.id).eq("status", "completed"),
-    supabase.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("status", "pending"),
-    supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", user.id).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
-    supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", user.id).eq("date", today).maybeSingle(),
-    supabase.from("daily_updates").select("working_hours, attendance_status").eq("user_id", user.id).gte("date", monthStart).lte("date", today),
-    supabase.from("leaves").select("from_date, to_date").eq("user_id", user.id).eq("status", "approved").gte("from_date", monthStart),
-    supabase.from("attendance_logs").select("work_type, status").eq("user_id", user.id).gte("date", monthStart).lte("date", today),
+    supabase.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name").eq("id", effectiveUserId).single(),
+    supabase.from("daily_updates").select("working_hours, shoot_count").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
+    supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).neq("status", "completed"),
+    supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).eq("status", "completed"),
+    supabase.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", effectiveUserId).eq("status", "pending"),
+    supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", effectiveUserId).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
+    supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
+    supabase.from("daily_updates").select("working_hours, attendance_status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", today),
+    supabase.from("leaves").select("from_date, to_date").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart),
+    supabase.from("attendance_logs").select("work_type, status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", today),
   ])
 
   const profile        = profileRaw as unknown as ProfileRow | null

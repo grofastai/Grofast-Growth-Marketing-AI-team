@@ -73,10 +73,9 @@ export default async function HistoryPage() {
       .eq("user_id", user.id)
       .order("date", { ascending: false })
       .limit(90),
-    supabase
-      .from("projects")
-      .select("business_name")
-      .order("business_name", { ascending: true }),
+    companyId
+      ? admin.from("projects").select("business_name").eq("company_id", companyId).order("business_name", { ascending: true })
+      : Promise.resolve({ data: [] as { business_name: string }[] }),
     companyId
       ? admin
           .from("daily_updates")

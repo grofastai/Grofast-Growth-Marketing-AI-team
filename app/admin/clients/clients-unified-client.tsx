@@ -422,7 +422,7 @@ export default function ClientsUnifiedClient({
 
             {/* ── Shoots ───────────────────────────────────────────────── */}
             {deliverables && deliverables.shoots.length > 0 && (
-              <Section title="Shoot Sessions" emoji="📸" count={deliverables.shoots.length} totalCost={deliverables.shoots.reduce((s, e) => s + e.cost, 0)}>
+              <Section title="Shooting" emoji="📸" count={deliverables.shoots.length} totalCost={deliverables.shoots.reduce((s, e) => s + e.cost, 0)}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead><tr style={{ background: '#F9FAFB' }}>
                     {['Date', 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
@@ -444,7 +444,7 @@ export default function ClientsUnifiedClient({
 
             {/* ── Edited videos by type ────────────────────────────────── */}
             {deliverables && deliverables.videoTypeGroups.length > 0 && (
-              <Section title="Edited Deliverables" emoji="🎬" count={deliverables.totalVideos} totalCost={deliverables.videoTypeGroups.reduce((s, g) => s + g.totalCost, 0)}>
+              <Section title="Editing" emoji="🎬" count={deliverables.totalVideos} totalCost={deliverables.videoTypeGroups.reduce((s, g) => s + g.totalCost, 0)}>
                 {deliverables.videoTypeGroups.map((group, gi) => {
                   const cfg = getTypeCfg(group.videoType)
                   return (
@@ -481,7 +481,7 @@ export default function ClientsUnifiedClient({
 
             {/* ── Other work ───────────────────────────────────────────── */}
             {deliverables && deliverables.otherWork.length > 0 && (
-              <Section title="Other Work" emoji="💼" count={deliverables.otherWork.length} totalCost={deliverables.otherWork.reduce((s, e) => s + e.cost, 0)}>
+              <Section title="Other (Technical Team)" emoji="💼" count={deliverables.otherWork.length} totalCost={deliverables.otherWork.reduce((s, e) => s + e.cost, 0)}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead><tr style={{ background: '#F9FAFB' }}>
                     {['Date', 'Member', 'Task', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
@@ -501,62 +501,6 @@ export default function ClientsUnifiedClient({
               </Section>
             )}
 
-            {/* ── Team contributions ───────────────────────────────────── */}
-            {deliverables && deliverables.teamContributions.length > 0 && (
-              <Section title="Team Contribution" emoji="👥" count={deliverables.teamContributions.length} totalCost={deliverables.totalCost}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead><tr style={{ background: '#F9FAFB' }}>
-                    {['Member', 'Videos', 'Shoot Hrs', 'Total Hrs', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
-                  </tr></thead>
-                  <tbody>
-                    {deliverables.teamContributions.map(m => (
-                      <tr key={m.userId} style={{ borderBottom: '1px solid #F9FAFB' }}>
-                        <td style={{ padding: '10px 14px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(222,26,26,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              <span style={{ fontSize: 9, fontWeight: 800, color: '#DE1A1A' }}>{ini(m.name)}</span>
-                            </div>
-                            <div>
-                              <p style={{ fontSize: 12, fontWeight: 600, color: '#111827', margin: 0 }}>{m.name}</p>
-                              <p style={{ fontSize: 10, color: '#9CA3AF', margin: 0 }}>#{m.employeeId}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#E53935' }}>{m.videoCount}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#6B7280' }}>{m.shootHours.toFixed(1)}h</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151' }}>{m.totalHours.toFixed(1)}h</td>
-                        <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 800, color: '#111827', fontFamily: 'var(--font-jakarta)' }}>{fmtRupee(m.cost)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Section>
-            )}
-
-            {/* ── Day log ──────────────────────────────────────────────── */}
-            {deliverables && deliverables.dayLog.length > 0 && (
-              <Section title="Day-by-Day Log" emoji="📅" count={deliverables.dayLog.length}>
-                {deliverables.dayLog.map((entry, i) => {
-                  const taskColor = entry.taskType === 'shoot' ? '#F97316' : entry.taskType === 'edit' ? '#E53935' : '#6B7280'
-                  const taskBg    = entry.taskType === 'shoot' ? 'rgba(249,115,22,0.08)' : entry.taskType === 'edit' ? 'rgba(229,57,53,0.08)' : 'rgba(107,114,128,0.08)'
-                  return (
-                    <div key={i} style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '10px 14px', borderBottom: '1px solid #F9FAFB',
-                    }}>
-                      <span style={{ fontSize: 11, color: '#9CA3AF', minWidth: 85, flexShrink: 0 }}>{fmtDate(entry.date)}</span>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: '#374151', flex: 1 }}>{entry.memberName}</span>
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 5, background: taskBg, color: taskColor, flexShrink: 0 }}>
-                        {entry.taskType.toUpperCase()}
-                      </span>
-                      {entry.itemCount > 0 && <span style={{ fontSize: 11, color: '#6B7280', flexShrink: 0 }}>{entry.itemCount} items</span>}
-                      {entry.hours > 0 && <span style={{ fontSize: 11, color: '#3B82F6', flexShrink: 0 }}>{entry.hours.toFixed(1)}h</span>}
-                      <span style={{ fontSize: 12, fontWeight: 700, color: '#111827', minWidth: 64, textAlign: 'right', flexShrink: 0 }}>{fmtRupee(entry.cost)}</span>
-                    </div>
-                  )
-                })}
-              </Section>
-            )}
 
           </div>
         )}

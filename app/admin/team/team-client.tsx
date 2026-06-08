@@ -214,7 +214,9 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
         if (result.success) { router.refresh(); onClose() }
         else setError(result.error ?? "Something went wrong")
       } else {
-        const result = await createMember({ name: form.name, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, ...salaryFields, ...dateFields })
+        const isAdminCreate = form.role === "ADMIN" || form.role === "FOUNDER" || form.role === "CEO"
+        const nameForCreate = form.name.trim() || (isAdminCreate ? form.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : "")
+        const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, ...salaryFields, ...dateFields })
         if (result.success) {
           if (form.phone && result.whatsappSent === false && !result.whatsappSkipped) {
             setWhatsappWarning(result.whatsappError ?? "Member created, but WhatsApp notification failed. Check the phone number or Meta template status.")
@@ -369,8 +371,21 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
                     </>
                   )}
                 </>
+              ) : isAdmin && !isEdit ? (
+                /* Admin create — Email + Password only */
+                <>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Gmail Address *</label>
+                    <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. admin@gmail.com" style={FIELD} />
+                    <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Admin logs in with this Gmail + password directly.</p>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Password *</label>
+                    <input type="text" className="sheet-input" value={form.password} onChange={set("password")} placeholder="Min 6 characters" style={FIELD} />
+                  </div>
+                </>
               ) : (
-                /* Member / Admin — full fields */
+                /* Member / Admin edit — full fields */
                 <>
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Full Name *</label>
@@ -393,7 +408,7 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
                     </div>
                   </div>
 
-                  {!isEdit && !isAdmin && (
+                  {!isEdit && (
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
                         Employee ID * <span style={{ color: "#22C55E", fontWeight: 700, textTransform: "none", letterSpacing: 0 }}>· Auto-generated</span>
@@ -402,28 +417,17 @@ function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
                       <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Auto-filled — you can change it. Cannot be edited after creation.</p>
                     </div>
                   )}
-                  {!isEdit && isAdmin && (
-                    <div className="rounded-xl px-4 py-3" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.2)" }}>
-                      <p className="text-[12px] font-semibold" style={{ color: "#4F46E5" }}>Admin ID auto-generated</p>
-                      <p className="text-[11px] mt-0.5" style={{ color: "#6B7280" }}>An ID like ADM001 will be assigned automatically — no Employee ID required.</p>
-                    </div>
-                  )}
 
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
-                      {isAdmin ? "Gmail Address *" : "Email Address *"}
-                    </label>
-                    <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder={isAdmin ? "e.g. admin@gmail.com" : "e.g. priya@gmail.com"} style={FIELD} />
-                    {isAdmin && <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Admin logs in with this Gmail + password directly.</p>}
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Email Address *</label>
+                    <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com" style={FIELD} />
                   </div>
 
-                  {!isAdmin && (
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>WhatsApp Number</label>
-                      <input className="sheet-input" value={form.phone} onChange={set("phone")} placeholder="e.g. 919876543210" style={FIELD} />
-                      <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Credentials will be sent here after account creation.</p>
-                    </div>
-                  )}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>WhatsApp Number</label>
+                    <input className="sheet-input" value={form.phone} onChange={set("phone")} placeholder="e.g. 919876543210" style={FIELD} />
+                    <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Credentials will be sent here after account creation.</p>
+                  </div>
 
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Team *</label>

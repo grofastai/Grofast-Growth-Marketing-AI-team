@@ -120,24 +120,6 @@ const ACCOUNT_TYPES = [
     border: "rgba(124,58,237,0.2)",
   },
   {
-    role: "FOUNDER" as const,
-    label: "Founder",
-    desc: "Admin panel + own member updates — dual access",
-    icon: Shield,
-    color: "#0f766e",
-    bg: "rgba(15,118,110,0.06)",
-    border: "rgba(15,118,110,0.2)",
-  },
-  {
-    role: "CEO" as const,
-    label: "CEO",
-    desc: "Admin panel + own member updates — dual access",
-    icon: Shield,
-    color: "#b45309",
-    bg: "rgba(180,83,9,0.06)",
-    border: "rgba(180,83,9,0.2)",
-  },
-  {
     role: "FREELANCER_MGR" as const,
     label: "Freelancer Manager",
     desc: "Manages freelancer portal & work logs",
@@ -907,20 +889,14 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
                       <td className="px-5 py-3.5">
                         <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full"
                           style={
-                            member.role === "FOUNDER"
-                              ? { background: "rgba(15,118,110,0.1)", color: "#0f766e", border: "1px solid rgba(15,118,110,0.2)" }
-                              : member.role === "CEO"
-                              ? { background: "rgba(180,83,9,0.1)", color: "#b45309", border: "1px solid rgba(180,83,9,0.2)" }
-                              : member.role === "ADMIN"
+                            ["ADMIN","FOUNDER","CEO"].includes(member.role)
                               ? { background: "rgba(139,92,246,0.1)", color: "#7C3AED", border: "1px solid rgba(139,92,246,0.2)" }
                               : member.role === "FREELANCER_MGR"
                               ? { background: "rgba(45,106,79,0.1)", color: "#2D6A4F", border: "1px solid rgba(45,106,79,0.2)" }
                               : { background: "rgba(0,0,0,0.04)", color: "#6B7280", border: "1px solid #E5E7EB" }
                           }>
                           <Shield size={9} />
-                          {member.role === "FOUNDER" ? "Founder"
-                            : member.role === "CEO" ? "CEO"
-                            : member.role === "ADMIN" ? "Admin"
+                          {["ADMIN","FOUNDER","CEO"].includes(member.role) ? "Admin"
                             : member.role === "FREELANCER_MGR" ? "Freelancer Mgr"
                             : "Member"}
                         </span>

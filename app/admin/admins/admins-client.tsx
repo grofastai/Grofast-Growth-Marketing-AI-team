@@ -16,11 +16,7 @@ type Admin = {
   passport_photo_url: string | null
 }
 
-const ROLE_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  FOUNDER: { label: "Founder", color: "#0F766E", bg: "rgba(15,118,110,0.1)" },
-  CEO:     { label: "CEO",     color: "#B45309", bg: "rgba(180,83,9,0.1)"  },
-  ADMIN:   { label: "Admin",   color: "#DE1A1A", bg: "rgba(222,26,26,0.1)" },
-}
+const ADMIN_CFG = { label: "Admin", color: "#7C3AED", bg: "rgba(124,58,237,0.1)" }
 
 const INP: React.CSSProperties = {
   width: "100%", boxSizing: "border-box" as const,
@@ -37,11 +33,10 @@ type FormState = {
   name: string
   email: string
   password: string
-  role: "ADMIN" | "FOUNDER" | "CEO"
 }
 
 function emptyForm(): FormState {
-  return { name: "", email: "", password: "", role: "ADMIN" }
+  return { name: "", email: "", password: "" }
 }
 
 export default function AdminsClient({
@@ -74,7 +69,7 @@ export default function AdminsClient({
   }
 
   function openEdit(a: Admin) {
-    setForm({ name: a.name, email: a.email ?? "", password: "", role: a.role as FormState["role"] })
+    setForm({ name: a.name, email: a.email ?? "", password: "" })
     setEditing(a)
     setError(null)
     setSheet("edit")
@@ -133,11 +128,11 @@ export default function AdminsClient({
         name: form.name.trim(),
         email: form.email.trim(),
         phone: "",
-        role: form.role,
+        role: "ADMIN" as const,
         team: "",
       })
       if (!res.success) { setError(res.error ?? "Failed to update."); return }
-      setAdmins(prev => prev.map(a => a.id === editing.id ? { ...a, name: form.name.trim(), email: form.email.trim(), role: form.role } : a))
+      setAdmins(prev => prev.map(a => a.id === editing.id ? { ...a, name: form.name.trim(), email: form.email.trim() } : a))
       closeSheet()
       showSuccess("Admin updated")
     })
@@ -217,18 +212,17 @@ export default function AdminsClient({
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {admins.map(a => {
-              const cfg = ROLE_CFG[a.role] ?? ROLE_CFG.ADMIN
               const isMe = a.id === currentUserId
               const isActive = a.status === "active"
               return (
                 <div key={a.id} style={{ background: "#FFFFFF", borderRadius: 16, border: "1px solid #E5E7EB", padding: "16px 20px", display: "flex", alignItems: "center", gap: 16, opacity: isActive ? 1 : 0.6, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
 
                   {/* Avatar */}
-                  <div style={{ width: 48, height: 48, borderRadius: 14, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: `1.5px solid ${cfg.color}22` }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 14, background: ADMIN_CFG.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: `1.5px solid ${ADMIN_CFG.color}22` }}>
                     {a.passport_photo_url ? (
                       <img src={a.passport_photo_url} alt={a.name} style={{ width: "100%", height: "100%", borderRadius: 14, objectFit: "cover" }} />
                     ) : (
-                      <span style={{ fontSize: 16, fontWeight: 900, color: cfg.color }}>{initials(a.name)}</span>
+                      <span style={{ fontSize: 16, fontWeight: 900, color: ADMIN_CFG.color }}>{initials(a.name)}</span>
                     )}
                   </div>
 
@@ -237,7 +231,7 @@ export default function AdminsClient({
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                       <span style={{ fontSize: 15, fontWeight: 800, color: "#111827" }}>{a.name}</span>
                       {isMe && <span style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", background: "#F3F4F6", padding: "2px 7px", borderRadius: 4 }}>You</span>}
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: ADMIN_CFG.bg, color: ADMIN_CFG.color }}>Admin</span>
                       {!isActive && <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: "rgba(239,68,68,0.08)", color: "#EF4444" }}>Disabled</span>}
                     </div>
                     <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}>{a.email ?? "—"}</p>
@@ -322,24 +316,6 @@ export default function AdminsClient({
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Email *</label>
                   <input type="email" placeholder="admin@gmail.com" value={form.email} onChange={e => patch("email", e.target.value)} style={INP} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.07em", display: "block", marginBottom: 6 }}>Role</label>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    {(["ADMIN", "FOUNDER", "CEO"] as const).map(r => {
-                      const c = ROLE_CFG[r]
-                      return (
-                        <button key={r} onClick={() => patch("role", r)}
-                          style={{ flex: 1, padding: "9px 0", borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: "pointer",
-                            border: `1.5px solid ${form.role === r ? c.color : "#E5E7EB"}`,
-                            background: form.role === r ? c.bg : "#F9FAFB",
-                            color: form.role === r ? c.color : "#9CA3AF",
-                          }}>
-                          {c.label}
-                        </button>
-                      )
-                    })}
-                  </div>
                 </div>
                 <button onClick={handleEdit} disabled={isPending}
                   style={{ marginTop: 6, width: "100%", padding: "13px 0", borderRadius: 12, border: "none", background: isPending ? "#9CA3AF" : "#DE1A1A", color: "#fff", fontSize: 14, fontWeight: 800, cursor: isPending ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, fontFamily: "var(--font-jakarta)" }}>

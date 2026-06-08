@@ -681,7 +681,7 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
         || (roleFilter === "FREELANCER_MGR" && m.role === "FREELANCER_MGR")
       return matchSearch && matchStatus && matchRole
     })
-  }, [search, tabFilter, members])
+  }, [search, tabFilter, roleFilter, members])
 
   const stats = {
     total: members.length,

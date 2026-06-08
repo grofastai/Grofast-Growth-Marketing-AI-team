@@ -672,6 +672,7 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
+    const idNum = (id: string) => { const m = id.match(/\d+/); return m ? parseInt(m[0]) : 99999 }
     return members.filter((m) => {
       const matchSearch = !q || m.name.toLowerCase().includes(q) || m.employee_id.toLowerCase().includes(q) || (m.team ?? "").toLowerCase().includes(q)
       const matchStatus = tabFilter === "ALL" || m.status === tabFilter
@@ -680,7 +681,7 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
         || (roleFilter === "MEMBER" && m.role === "MEMBER")
         || (roleFilter === "FREELANCER_MGR" && m.role === "FREELANCER_MGR")
       return matchSearch && matchStatus && matchRole
-    })
+    }).sort((a, b) => idNum(a.employee_id) - idNum(b.employee_id))
   }, [search, tabFilter, roleFilter, members])
 
   const stats = {

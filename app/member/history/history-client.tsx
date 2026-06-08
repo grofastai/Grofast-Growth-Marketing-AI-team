@@ -302,9 +302,11 @@ export default function HistoryClient({
     let shootH = 0, editH = 0, otherH = 0
     const hoursPerDay: number[] = []
     for (const u of monthFiltered) {
-      const h = u.working_hours ?? 0
+      const workH = u.working_hours ?? 0
+      const learnH = u.learning_hours ?? 0
+      const h = workH + learnH
       totalHours += h; if (h > 9) totalOT += Math.round((h - 9) * 10) / 10
-      totalLearning += u.learning_hours ?? 0
+      totalLearning += learnH
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
@@ -359,7 +361,7 @@ export default function HistoryClient({
   const fn = userName.split(" ")[0] || "there"
 
   // Latest day stats
-  const latestH  = latest?.working_hours ?? 0
+  const latestH  = (latest?.working_hours ?? 0) + (latest?.learning_hours ?? 0)
   const latestOT = latestH > 9 ? Math.round((latestH - 9) * 10) / 10 : 0
   const latestTasks = latest ? (Array.isArray(latest.work_entries) ? latest.work_entries : []).length : 0
   const latestSt = latest ? (STATUS_STYLE[latest.attendance_status] ?? STATUS_STYLE.present) : STATUS_STYLE.present
@@ -587,14 +589,18 @@ export default function HistoryClient({
                       </div>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      {(u.working_hours ?? 0) > 0 && (
+                      {((u.working_hours ?? 0) + (u.learning_hours ?? 0)) > 0 && (
                         <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
-                          <Clock size={11} style={{ color:"#9CA3AF" }}/> {fmtH(u.working_hours ?? 0)}
-                        </span>
-                      )}
-                      {(u.learning_hours ?? 0) > 0 && (
-                        <span style={{ fontSize:11, fontWeight:700, color:"#F59E0B", display:"flex", alignItems:"center", gap:4 }}>
-                          <BookOpen size={11} style={{ color:"#F59E0B" }}/> {fmtH(u.learning_hours!)}
+                          <Clock size={11} style={{ color:"#9CA3AF" }}/>
+                          {fmtH((u.working_hours ?? 0) + (u.learning_hours ?? 0))}
+                          {(u.learning_hours ?? 0) > 0 && (u.working_hours ?? 0) > 0 && (
+                            <span style={{ fontSize:10, color:"#F59E0B", fontWeight:600 }}>
+                              (+{fmtH(u.learning_hours!)} learning)
+                            </span>
+                          )}
+                          {(u.learning_hours ?? 0) > 0 && !(u.working_hours ?? 0) && (
+                            <span style={{ fontSize:10, color:"#F59E0B", fontWeight:600 }}>learning</span>
+                          )}
                         </span>
                       )}
                       <span style={{ fontSize:11, fontWeight:700, color:st.color, background:st.bg, padding:"3px 10px", borderRadius:99 }}>

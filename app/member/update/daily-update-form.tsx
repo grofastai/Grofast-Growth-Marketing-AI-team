@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useMemo, useEffect, useRef } from "react"
+import { useState, useTransition, useMemo, useEffect, useRef, type CSSProperties } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
@@ -1515,8 +1515,24 @@ export default function DailyUpdateForm({
                               const type = e.task_type as string
                               const icon = type === "shoot" ? "📷" : type === "edit" ? "🎞️" : "🕐"
                               const patch = (field: string, val: unknown) => {
-                                setEditEntries(prev => prev.map((en, i) => i === idx ? { ...en, [field]: val } : en))
+                                setEditEntries(prev => prev.map((en, i) => {
+                                  if (i !== idx) return en
+                                  const updated = { ...en, [field]: val }
+                                  if (field === "start_time" || field === "end_time") {
+                                    const st = field === "start_time" ? val as string : en.start_time as string
+                                    const et = field === "end_time" ? val as string : en.end_time as string
+                                    const dur = calcDuration(st ?? "", et ?? "")
+                                    if (dur > 0) updated.duration_hours = dur
+                                  }
+                                  return updated
+                                }))
                               }
+                              // Parse status from notes for "other" type
+                              const rawNotes = (e.notes as string) ?? ""
+                              const statusMatch = type === "other" ? rawNotes.match(/^\[(completed|in_progress|not_started)\]$/) : null
+                              const entryStatus = statusMatch ? statusMatch[1] : "not_started"
+                              const LBL: CSSProperties = { display:"block", fontSize:9, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:3 }
+                              const INP: CSSProperties = { width:"100%", fontSize:12, padding:"6px 8px", borderRadius:7, border:"1.5px solid #E5E7EB", outline:"none", background:"#F9FAFB", boxSizing:"border-box" }
                               return (
                                 <div key={idx} style={{ background:"#FFFFFF", borderRadius:10, border:"1px solid #E5E7EB", padding:"10px 12px" }}>
                                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
@@ -1526,31 +1542,70 @@ export default function DailyUpdateForm({
                                       <Trash2 size={10} /> Remove
                                     </button>
                                   </div>
+                                  {/* Title + Client — all types */}
                                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:6 }}>
                                     <div>
-                                      <label style={{ display:"block", fontSize:9, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:3 }}>Title</label>
-                                      <input value={(e.title as string) ?? ""} onChange={ev => patch("title", ev.target.value)}
-                                        style={{ width:"100%", fontSize:12, padding:"6px 8px", borderRadius:7, border:"1.5px solid #E5E7EB", outline:"none", background:"#F9FAFB", boxSizing:"border-box" }} />
+                                      <label style={LBL}>Title</label>
+                                      <input value={(e.title as string) ?? ""} onChange={ev => patch("title", ev.target.value)} style={INP} />
                                     </div>
                                     <div>
-                                      <label style={{ display:"block", fontSize:9, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:3 }}>Client</label>
-                                      <input value={(e.client_name as string) ?? ""} onChange={ev => patch("client_name", ev.target.value)}
-                                        style={{ width:"100%", fontSize:12, padding:"6px 8px", borderRadius:7, border:"1.5px solid #E5E7EB", outline:"none", background:"#F9FAFB", boxSizing:"border-box" }} />
+                                      <label style={LBL}>Client</label>
+                                      <input value={(e.client_name as string) ?? ""} onChange={ev => patch("client_name", ev.target.value)} style={INP} />
                                     </div>
                                   </div>
-                                  <div style={{ display:"grid", gridTemplateColumns:"80px 1fr", gap:8 }}>
-                                    <div>
-                                      <label style={{ display:"block", fontSize:9, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:3 }}>Hours</label>
+                                  {/* Shoot + Other: start/end time */}
+                                  {(type === "shoot" || type === "other") && (
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:6 }}>
+                                      <div>
+                                        <label style={LBL}>Start Time</label>
+                                        <input type="time" value={(e.start_time as string) ?? ""} onChange={ev => patch("start_time", ev.target.value)} style={INP} />
+                                      </div>
+                                      <div>
+                                        <label style={LBL}>End Time</label>
+                                        <input type="time" value={(e.end_time as string) ?? ""} onChange={ev => patch("end_time", ev.target.value)} style={INP} />
+                                      </div>
+                                    </div>
+                                  )}
+                                  {/* Edit: hours */}
+                                  {type === "edit" && (
+                                    <div style={{ marginBottom:6 }}>
+                                      <label style={LBL}>Editing Hours</label>
                                       <input type="number" min={0} max={24} step={0.5} value={(e.duration_hours as number) ?? 0}
-                                        onChange={ev => patch("duration_hours", parseFloat(ev.target.value) || 0)}
-                                        style={{ width:"100%", fontSize:12, padding:"6px 8px", borderRadius:7, border:"1.5px solid #E5E7EB", outline:"none", background:"#F9FAFB", boxSizing:"border-box" }} />
+                                        onChange={ev => patch("duration_hours", parseFloat(ev.target.value) || 0)} style={{ ...INP, width:90 }} />
                                     </div>
+                                  )}
+                                  {/* Shoot + Edit: drive link */}
+                                  {(type === "shoot" || type === "edit") && (
+                                    <div style={{ marginBottom:6 }}>
+                                      <label style={LBL}>Drive Link</label>
+                                      <input type="url" value={(e.video_link as string) ?? ""} onChange={ev => patch("video_link", ev.target.value)}
+                                        placeholder="https://drive.google.com/…" style={INP} />
+                                    </div>
+                                  )}
+                                  {/* Other: project name + status */}
+                                  {type === "other" && (
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:6 }}>
+                                      <div>
+                                        <label style={LBL}>Project / Task</label>
+                                        <input value={(e.project_name as string) ?? ""} onChange={ev => patch("project_name", ev.target.value)} style={INP} />
+                                      </div>
+                                      <div>
+                                        <label style={LBL}>Status</label>
+                                        <select value={entryStatus} onChange={ev => patch("notes", `[${ev.target.value}]`)} style={INP}>
+                                          <option value="not_started">Not Started</option>
+                                          <option value="in_progress">In Progress</option>
+                                          <option value="completed">Completed ✓</option>
+                                        </select>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {/* Notes for shoot + edit */}
+                                  {type !== "other" && (
                                     <div>
-                                      <label style={{ display:"block", fontSize:9, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:3 }}>Notes</label>
-                                      <input value={(e.notes as string) ?? ""} onChange={ev => patch("notes", ev.target.value)}
-                                        style={{ width:"100%", fontSize:12, padding:"6px 8px", borderRadius:7, border:"1.5px solid #E5E7EB", outline:"none", background:"#F9FAFB", boxSizing:"border-box" }} />
+                                      <label style={LBL}>Notes</label>
+                                      <input value={rawNotes} onChange={ev => patch("notes", ev.target.value)} style={INP} />
                                     </div>
-                                  </div>
+                                  )}
                                 </div>
                               )
                             })}

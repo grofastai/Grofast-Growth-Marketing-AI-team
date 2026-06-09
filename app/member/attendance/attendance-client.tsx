@@ -1028,7 +1028,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                     <thead>
                       <tr style={{ background:"#F5F6FA" }}>
-                        {["Date","Day","Status","Mode","Login","Logout","Office Hrs","Learning","Total",""].map(h => (
+                        {["Date","Day","Status","Mode","Login","Logout","Office Hrs","Total",""].map(h => (
                           <th key={h} style={{ padding:"8px 10px", textAlign:"left", fontWeight:700, color:"#6B7280", fontSize:10, textTransform:"uppercase", letterSpacing:"0.06em", whiteSpace:"nowrap" }}>{h}</th>
                         ))}
                       </tr>
@@ -1055,7 +1055,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               <td style={{ padding:"9px 10px", color:"#111111", whiteSpace:"nowrap" }}>{fmtTime(l.clock_in)}</td>
                               <td style={{ padding:"9px 10px", color: l.clock_out ? "#111111" : "#EF4444", whiteSpace:"nowrap" }}>{l.clock_out ? fmtTime(l.clock_out) : "—"}</td>
                               <td style={{ padding:"9px 10px", fontWeight:700, color:"#374151" }}>{officeH > 0 ? fmtHoursShort(Math.round(officeH*10)/10) : "—"}</td>
-                              <td style={{ padding:"9px 10px", color:"#6366F1" }}>{learnH > 0 ? fmtHoursShort(Math.round(learnH*10)/10) : "—"}</td>
                               <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111" }}>{totalHrs > 0 ? fmtHoursShort(Math.round(totalHrs*10)/10) : "—"}</td>
                               <td style={{ padding:"9px 10px" }}>
                                 {l.status === "present" && (
@@ -1068,7 +1067,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                             </tr>
                             {isEditing && (
                               <tr style={{ background:"rgba(99,102,241,0.03)" }}>
-                                <td colSpan={10} style={{ padding:"12px 10px" }}>
+                                <td colSpan={9} style={{ padding:"12px 10px" }}>
                                   <div style={{ display:"flex", flexWrap:"wrap", gap:10, alignItems:"flex-end" }}>
                                     <div>
                                       <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6B7280", marginBottom:3 }}>LOGIN</label>

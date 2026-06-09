@@ -624,14 +624,6 @@ export default function HistoryClient({
                         <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
                           <Clock size={11} style={{ color:"#9CA3AF" }}/>
                           {fmtH((u.working_hours ?? 0) + (u.learning_hours ?? 0))}
-                          {(u.learning_hours ?? 0) > 0 && (u.working_hours ?? 0) > 0 && (
-                            <span style={{ fontSize:10, color:"#F59E0B", fontWeight:600 }}>
-                              (+{fmtH(u.learning_hours!)} learning)
-                            </span>
-                          )}
-                          {(u.learning_hours ?? 0) > 0 && !(u.working_hours ?? 0) && (
-                            <span style={{ fontSize:10, color:"#F59E0B", fontWeight:600 }}>learning</span>
-                          )}
                         </span>
                       )}
                       <span style={{ fontSize:11, fontWeight:700, color:st.color, background:st.bg, padding:"3px 10px", borderRadius:99 }}>

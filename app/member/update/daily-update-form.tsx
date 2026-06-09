@@ -851,40 +851,27 @@ export default function DailyUpdateForm({
                             <option value="completed">Completed ✓</option>
                           </select>
                         </div>
-                        {/* Client multi-select chips */}
+                        {/* Client / Project dropdown */}
                         <div style={{ marginTop:4 }}>
                           <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project</p>
-                          <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                            {/* Special: Our Brand */}
-                            {(() => { const sel = block.projectName === "Promotion"; return (
-                              <button key="__promo__" type="button"
-                                onClick={() => patchBlock(block.id, { projectName: sel ? "" : "Promotion", clientNames: [], brand: "", customClient: "" })}
-                                style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${sel ? "#D97706" : "#EBEDF2"}`, background: sel ? "rgba(217,119,6,0.08)" : "#F9FAFB", color: sel ? "#D97706" : "#6B7280" }}>
-                                📣 Our Brand
-                              </button>
-                            )})()}
-                            {/* Regular client chips (multi-select) */}
-                            {allClientOptions.map(name => {
-                              const sel = block.clientNames.includes(name)
-                              return (
-                                <button key={name} type="button"
-                                  onClick={() => {
-                                    const next = sel ? block.clientNames.filter(n => n !== name) : [...block.clientNames, name]
-                                    patchBlock(block.id, { clientNames: next, isMultiClient: next.length > 1, projectName: "", brand: "", customClient: "" })
-                                  }}
-                                  style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${sel ? "#de1a1a" : "#EBEDF2"}`, background: sel ? "rgba(222,26,26,0.08)" : "#F9FAFB", color: sel ? "#de1a1a" : "#6B7280" }}>
-                                  {name}
-                                </button>
-                              )
-                            })}
-                            {/* Special: Other (custom) */}
-                            {(() => { const sel = block.projectName === "__custom__"; return (
-                              <button key="__custom__" type="button"
-                                onClick={() => patchBlock(block.id, { projectName: sel ? "" : "__custom__", clientNames: [], brand: "", customClient: "" })}
-                                style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${sel ? "#6366F1" : "#EBEDF2"}`, background: sel ? "rgba(99,102,241,0.08)" : "#F9FAFB", color: sel ? "#6366F1" : "#6B7280" }}>
-                                ✏️ Other
-                              </button>
-                            )})()}
+                          <div style={{ position:"relative" }}>
+                            <select
+                              value={block.projectName || (block.clientNames.length === 1 ? block.clientNames[0] : "")}
+                              onChange={e => {
+                                const v = e.target.value
+                                if (v === "Promotion" || v === "__custom__") {
+                                  patchBlock(block.id, { projectName: v, clientNames: [], brand: "", customClient: "" })
+                                } else {
+                                  patchBlock(block.id, { clientNames: v ? [v] : [], isMultiClient: false, projectName: "", brand: "", customClient: "" })
+                                }
+                              }}
+                              style={{ width:"100%", fontSize:12, fontWeight:600, color:"#111827", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                              <option value="">Select client / project…</option>
+                              <option value="Promotion">📣 Our Brand</option>
+                              {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                              <option value="__custom__">✏️ Other (type manually)</option>
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                           </div>
                           {/* Our Brand → brand picker */}
                           {block.projectName === "Promotion" && (
@@ -905,10 +892,6 @@ export default function DailyUpdateForm({
                               placeholder="Type client name…"
                               style={{ width:"100%", fontSize:11, fontWeight:600, color:"#111827", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", outline:"none", boxSizing:"border-box", marginTop:6 }}
                             />
-                          )}
-                          {/* Split info */}
-                          {block.clientNames.length > 1 && (
-                            <p style={{ fontSize:10, color:"#9CA3AF", marginTop:5 }}>{block.durationHours}h ÷ {block.clientNames.length} clients = {(block.durationHours / block.clientNames.length).toFixed(2)}h each</p>
                           )}
 
                           {/* Worked With — per block */}

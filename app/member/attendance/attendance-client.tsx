@@ -26,9 +26,15 @@ type DailyUpdate = { working_hours: number | null; learning_hours: number | null
 type RangeLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; break_in: string | null; break_out: string | null; work_type: string | null; status: string; learning_hours: number; worked_hours: number }
 type RangeMode = "date" | "last7" | "thisMonth" | "lastMonth"
 
+interface MonthlyPerf {
+  presentDays: number; absentDays: number; officeDays: number; wfhDays: number
+  leaveDays: number; pendingLeaves: number; totalHours: number; avgHours: number
+}
+
 interface Props {
   todayLog: AttLog | null; weekLogs: AttLog[]; todayUpdate: DailyUpdate | null; today: string; weekStart: string
   todayPermissionHours?: number; permHoursByDate?: Record<string, number>
+  monthlyPerf?: MonthlyPerf
 }
 
 const SHIFT_HOURS = 9.5
@@ -102,7 +108,7 @@ function SegmentBar({ hoursWorked }: { hoursWorked: number }) {
   )
 }
 
-export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {} }: Props) {
+export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, monthlyPerf }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">("office")
@@ -712,44 +718,48 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         {/* THIRD COL — Week Performance + Tips (xl only) */}
         <div className="hidden xl:block space-y-4">
 
-          {/* Week Performance */}
+          {/* Monthly Performance */}
           <div className="rounded-3xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
                 <Target size={16} style={{ color: "#6366F1" }} />
               </div>
-              <h3 className="text-[15px] font-bold" style={{ color: "#111111" }}>Week Performance</h3>
+              <div>
+                <h3 className="text-[15px] font-bold leading-none" style={{ color: "#111111" }}>Monthly Performance</h3>
+                <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>{new Date().toLocaleString("en-US", { month: "long", year: "numeric" })}</p>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 mb-4">
+            {/* 2×3 grid: Present, Absent, Office, WFH, Leave, Pending */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
               {[
-                { label: "Present", value: presentCount, color: "#22C55E", bg: "rgba(34,197,94,0.08)" },
-                { label: "Absent",  value: absentCount,  color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
-                { label: "Office",  value: officeCount,  color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
-                { label: "WFH",     value: wfhCount,     color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+                { label: "Present",  value: monthlyPerf?.presentDays  ?? 0, color: "#22C55E", bg: "rgba(34,197,94,0.08)" },
+                { label: "Absent",   value: monthlyPerf?.absentDays   ?? 0, color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
+                { label: "Office",   value: monthlyPerf?.officeDays   ?? 0, color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
+                { label: "WFH",      value: monthlyPerf?.wfhDays      ?? 0, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+                { label: "Leave",    value: monthlyPerf?.leaveDays    ?? 0, color: "#D97706", bg: "rgba(217,119,6,0.08)" },
+                { label: "Pending",  value: monthlyPerf?.pendingLeaves ?? 0, color: "#9CA3AF", bg: "rgba(0,0,0,0.04)" },
               ].map(stat => (
                 <div key={stat.label} className="rounded-2xl p-3 text-center" style={{ background: stat.bg }}>
-                  <p className="text-[24px] font-black leading-none mb-1" style={{ color: stat.color, fontFamily: "var(--font-jakarta)" }}>
+                  <p className="text-[22px] font-black leading-none mb-1" style={{ color: stat.color, fontFamily: "var(--font-jakarta)" }}>
                     {stat.value}
-                    <span className="text-[11px] font-semibold opacity-60">/7</span>
                   </p>
-                  <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: stat.color }}>{stat.label}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: stat.color }}>{stat.label}</p>
                 </div>
               ))}
             </div>
 
-            <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Total Hours This Week</p>
+            <div className="rounded-2xl px-4 py-3 mb-2" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Total Hours This Month</p>
               <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-                {totalWeekHours > 0 ? fmtHoursShort(totalWeekHours) : "0h"}
+                {monthlyPerf && monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
               </p>
             </div>
-            {/* Average hours */}
-            {presentCount > 0 && (
+            {monthlyPerf && monthlyPerf.presentDays > 0 && (
               <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
                 <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Avg Hours / Day</p>
                 <p className="text-[22px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                  {fmtHoursShort(Math.round((totalWeekHours / presentCount) * 10) / 10)}
+                  {fmtHoursShort(monthlyPerf.avgHours)}
                 </p>
               </div>
             )}

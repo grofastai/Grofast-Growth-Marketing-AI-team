@@ -10,7 +10,7 @@ import {
 } from "lucide-react"
 import {
   createFreelancer, updateFreelancer, deleteFreelancer,
-  createWorkEntry, markWorkEntryPaid, deleteWorkEntry,
+  createWorkEntry, updateWorkEntry, markWorkEntryPaid, deleteWorkEntry,
   updateWorkEntryStatus,
 } from "@/lib/actions/freelancers"
 import { assignFreelancerManager } from "@/lib/actions/freelancer-manager"
@@ -691,6 +691,7 @@ function WorkSheet({
               {myEntries.map((entry, idx) => (
                 <EntryRow key={entry.id} entry={entry} idx={idx}
                   freelancerType={freelancer.type}
+                  clientNames={clientNames}
                   onPaidToggle={async (paid) => {
                     const res = await markWorkEntryPaid(entry.id, paid)
                     if (res.success) onEntryUpdated(entry.id, { payment_status: paid ? "paid" : "unpaid", paid_at: paid ? new Date().toISOString() : null })
@@ -703,6 +704,7 @@ function WorkSheet({
                     const res = await deleteWorkEntry(entry.id)
                     if (res.success) onEntryDeleted(entry.id)
                   }}
+                  onUpdated={patch => onEntryUpdated(entry.id, patch)}
                 />
               ))}
             </div>
@@ -715,13 +717,65 @@ function WorkSheet({
 
 // ── Entry Row ─────────────────────────────────────────────────────────────────
 
-function EntryRow({ entry, idx, freelancerType, onPaidToggle, onStatusChange, onDelete }: {
-  entry: WorkEntry; idx: number; freelancerType: FreelancerType
+function entryToEState(e: WorkEntry): EState {
+  return {
+    client_name: e.client_name ?? "", title: e.title ?? "",
+    date: e.date, status: e.status, payment_status: e.payment_status ?? "unpaid", notes: e.notes ?? "",
+    audio_duration_minutes: e.audio_duration_minutes?.toString() ?? "",
+    date_given: e.date_given ?? "", date_finished: e.date_finished ?? "",
+    video_type: e.video_type ?? "", video_duration: e.video_duration ?? "",
+    time_taken_hours: e.time_taken_hours?.toString() ?? "",
+    drive_updated: e.drive_updated ?? false, revision_count: e.revision_count?.toString() ?? "0",
+    start_time: e.start_time?.slice(0,5) ?? "", end_time: e.end_time?.slice(0,5) ?? "",
+    travel_hours: e.travel_hours?.toString() ?? "0",
+  }
+}
+
+function EntryRow({ entry, idx, freelancerType, clientNames, onPaidToggle, onStatusChange, onDelete, onUpdated }: {
+  entry: WorkEntry; idx: number; freelancerType: FreelancerType; clientNames: string[]
   onPaidToggle: (paid: boolean) => Promise<void>
   onStatusChange: (status: string) => Promise<void>
   onDelete: () => Promise<void>
+  onUpdated: (patch: Partial<WorkEntry>) => void
 }) {
   const [loading, setLoading] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState<EState>(entryToEState(entry))
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState("")
+
+  function setF(k: keyof EState, v: EState[keyof EState]) { setForm(p => ({ ...p, [k]: v })) }
+
+  function openEdit() { setForm(entryToEState(entry)); setErr(""); setEditing(true) }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true); setErr("")
+    const patch: Partial<WorkEntry> & { amount?: number | null } = {
+      client_name: form.client_name || null,
+      title: form.title || null,
+      date: form.date,
+      status: form.status,
+      payment_status: form.payment_status,
+      paid_at: form.payment_status === "paid" ? (entry.paid_at ?? new Date().toISOString()) : null,
+      notes: form.notes || null,
+      audio_duration_minutes: form.audio_duration_minutes ? parseFloat(form.audio_duration_minutes) : null,
+      date_given: form.date_given || null,
+      date_finished: form.date_finished || null,
+      video_type: form.video_type || null,
+      video_duration: form.video_duration || null,
+      time_taken_hours: form.time_taken_hours ? parseFloat(form.time_taken_hours) : null,
+      drive_updated: form.drive_updated,
+      revision_count: parseInt(form.revision_count) || 0,
+      start_time: form.start_time || null,
+      end_time: form.end_time || null,
+      travel_hours: form.travel_hours ? parseFloat(form.travel_hours) : null,
+    }
+    const res = await updateWorkEntry(entry.id, patch as Parameters<typeof updateWorkEntry>[1])
+    if (!res.success) { setErr(res.error ?? "Failed to save"); setSaving(false); return }
+    onUpdated(patch)
+    setEditing(false); setSaving(false)
+  }
 
   const statusColors: Record<string, { bg: string; color: string }> = {
     pending:     { bg: "#fef3c7", color: "#d97706" },
@@ -732,73 +786,173 @@ function EntryRow({ entry, idx, freelancerType, onPaidToggle, onStatusChange, on
   const sc = statusColors[entry.status] ?? statusColors.pending
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-4 hover:border-gray-200 transition-all">
-      <div className="flex items-start gap-3">
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-[12px] font-bold text-gray-500 bg-gray-100">
-          {idx + 1}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 flex-wrap">
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {entry.title && <p className="text-[13px] font-bold text-gray-900">{entry.title}</p>}
-                {entry.client_name && <span className="text-[11px] text-gray-500">· {entry.client_name}</span>}
+    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden hover:border-gray-200 transition-all">
+      {/* View row */}
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-[12px] font-bold text-gray-500 bg-gray-100">
+            {idx + 1}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2 flex-wrap">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {entry.title && <p className="text-[13px] font-bold text-gray-900">{entry.title}</p>}
+                  {entry.client_name && <span className="text-[11px] text-gray-500">· {entry.client_name}</span>}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-0.5">{new Date(entry.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
               </div>
-              <p className="text-[11px] text-gray-400 mt-0.5">{new Date(entry.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {entry.amount != null && (
+                  <span className="text-[13px] font-bold text-gray-800">{fmt(entry.amount)}</span>
+                )}
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={sc}>{entry.status.replace("_", " ")}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {entry.amount != null && (
-                <span className="text-[13px] font-bold text-gray-800">{fmt(entry.amount)}</span>
+
+            <div className="flex items-center gap-4 mt-2 text-[11px] text-gray-500 flex-wrap">
+              {freelancerType === "voice_over" && entry.audio_duration_minutes && (
+                <span className="flex items-center gap-1"><Mic size={10} />{entry.audio_duration_minutes} min</span>
               )}
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={sc}>{entry.status.replace("_", " ")}</span>
+              {freelancerType === "video_editor" && (<>
+                {entry.video_type && <span>{entry.video_type}</span>}
+                {entry.video_duration && <span>{entry.video_duration}</span>}
+                {entry.revision_count > 0 && <span className="flex items-center gap-1"><RotateCcw size={10} />{entry.revision_count} rev.</span>}
+                {entry.drive_updated && <span className="flex items-center gap-1 text-emerald-600"><HardDrive size={10} />Drive</span>}
+              </>)}
+              {freelancerType === "video_shooter" && (<>
+                {entry.working_hours && <span className="flex items-center gap-1"><Clock size={10} />{entry.working_hours.toFixed(1)} hrs</span>}
+                {entry.start_time && entry.end_time && <span>{entry.start_time.slice(0, 5)} – {entry.end_time.slice(0, 5)}</span>}
+                {entry.travel_hours && entry.travel_hours > 0 && <span>+ {entry.travel_hours}h travel</span>}
+                {entry.drive_updated && <span className="flex items-center gap-1 text-emerald-600"><HardDrive size={10} />Drive</span>}
+              </>)}
             </div>
-          </div>
 
-          {/* Type-specific details */}
-          <div className="flex items-center gap-4 mt-2 text-[11px] text-gray-500 flex-wrap">
-            {freelancerType === "voice_over" && entry.audio_duration_minutes && (
-              <span className="flex items-center gap-1"><Mic size={10} />{entry.audio_duration_minutes} min</span>
-            )}
-            {freelancerType === "video_editor" && (<>
-              {entry.video_type && <span>{entry.video_type}</span>}
-              {entry.video_duration && <span>{entry.video_duration}</span>}
-              {entry.revision_count > 0 && <span className="flex items-center gap-1"><RotateCcw size={10} />{entry.revision_count} rev.</span>}
-              {entry.drive_updated && <span className="flex items-center gap-1 text-emerald-600"><HardDrive size={10} />Drive</span>}
-            </>)}
-            {freelancerType === "video_shooter" && (<>
-              {entry.working_hours && <span className="flex items-center gap-1"><Clock size={10} />{entry.working_hours.toFixed(1)} hrs</span>}
-              {entry.start_time && entry.end_time && <span>{entry.start_time.slice(0, 5)} – {entry.end_time.slice(0, 5)}</span>}
-              {entry.travel_hours && entry.travel_hours > 0 && <span>+ {entry.travel_hours}h travel</span>}
-              {entry.drive_updated && <span className="flex items-center gap-1 text-emerald-600"><HardDrive size={10} />Drive</span>}
-            </>)}
-          </div>
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
+              <select value={entry.status} className="text-[11px] border border-gray-200 rounded-lg px-2 py-1 text-gray-600 bg-white focus:outline-none cursor-pointer"
+                onChange={async e => { setLoading(true); await onStatusChange(e.target.value); setLoading(false) }}>
+                {WK_STATUSES.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
+              </select>
 
-          {/* Actions row */}
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <select value={entry.status} className="text-[11px] border border-gray-200 rounded-lg px-2 py-1 text-gray-600 bg-white focus:outline-none cursor-pointer"
-              onChange={async e => { setLoading(true); await onStatusChange(e.target.value); setLoading(false) }}>
-              {WK_STATUSES.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
-            </select>
+              {entry.payment_status === "unpaid" ? (
+                <button disabled={loading} onClick={async () => { setLoading(true); await onPaidToggle(true); setLoading(false) }}
+                  className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all border"
+                  style={{ background: "#f0fdf4", color: "#16a34a", borderColor: "#bbf7d0" }}>
+                  <CreditCard size={11} />{loading ? "…" : "Mark Paid"}
+                </button>
+              ) : (
+                <span className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg" style={{ background: "#f0fdf4", color: "#16a34a" }}>
+                  <Check size={11} />Paid
+                </span>
+              )}
 
-            {entry.payment_status === "unpaid" ? (
-              <button disabled={loading} onClick={async () => { setLoading(true); await onPaidToggle(true); setLoading(false) }}
-                className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all border"
-                style={{ background: "#f0fdf4", color: "#16a34a", borderColor: "#bbf7d0" }}>
-                <CreditCard size={11} />{loading ? "…" : "Mark Paid"}
+              <button onClick={openEdit}
+                className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg text-indigo-500 hover:bg-indigo-50 transition-all">
+                <Edit2 size={11} />Edit
               </button>
-            ) : (
-              <span className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg" style={{ background: "#f0fdf4", color: "#16a34a" }}>
-                <Check size={11} />Paid
-              </span>
-            )}
 
-            <button disabled={loading} onClick={async () => { if (confirm("Delete this entry?")) { setLoading(true); await onDelete(); setLoading(false) } }}
-              className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
-              <Trash2 size={11} />Delete
-            </button>
+              <button disabled={loading} onClick={async () => { if (confirm("Delete this entry?")) { setLoading(true); await onDelete(); setLoading(false) } }}
+                className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all">
+                <Trash2 size={11} />Delete
+              </button>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Inline edit form */}
+      {editing && (
+        <form onSubmit={handleSave} className="border-t border-indigo-100 bg-indigo-50/40 p-4 flex flex-col gap-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">Edit Entry</p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Client Name">
+              <input list={`cl-${entry.id}`} className={inputCls} value={form.client_name} onChange={e => setF("client_name", e.target.value)} />
+              <datalist id={`cl-${entry.id}`}>{clientNames.map(n => <option key={n} value={n} />)}</datalist>
+            </Field>
+            <Field label="Date">
+              <input type="date" className={inputCls} value={form.date} onChange={e => setF("date", e.target.value)} />
+            </Field>
+          </div>
+          <Field label="Title">
+            <input className={inputCls} value={form.title} onChange={e => setF("title", e.target.value)} />
+          </Field>
+
+          {freelancerType === "voice_over" && (
+            <Field label="Audio Duration (min)">
+              <input type="number" min="0" step="0.5" className={inputCls} value={form.audio_duration_minutes} onChange={e => setF("audio_duration_minutes", e.target.value)} />
+            </Field>
+          )}
+          {freelancerType === "video_editor" && (
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Video Type">
+                <select className={selectCls} value={form.video_type} onChange={e => setF("video_type", e.target.value)}>
+                  <option value="">Select</option>
+                  {VIDEO_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </Field>
+              <Field label="Duration">
+                <input className={inputCls} value={form.video_duration} onChange={e => setF("video_duration", e.target.value)} />
+              </Field>
+              <Field label="Revisions">
+                <input type="number" min="0" className={inputCls} value={form.revision_count} onChange={e => setF("revision_count", e.target.value)} />
+              </Field>
+            </div>
+          )}
+          {freelancerType === "video_shooter" && (
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Start Time">
+                <input type="time" className={inputCls} value={form.start_time} onChange={e => setF("start_time", e.target.value)} />
+              </Field>
+              <Field label="End Time">
+                <input type="time" className={inputCls} value={form.end_time} onChange={e => setF("end_time", e.target.value)} />
+              </Field>
+              <Field label="Travel Hours">
+                <input type="number" min="0" step="0.5" className={inputCls} value={form.travel_hours} onChange={e => setF("travel_hours", e.target.value)} />
+              </Field>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Status">
+              <select className={selectCls} value={form.status} onChange={e => setF("status", e.target.value)}>
+                {WK_STATUSES.map(s => <option key={s} value={s}>{s.replace("_", " ")}</option>)}
+              </select>
+            </Field>
+            <Field label="Payment">
+              <div className="flex gap-2 mt-1">
+                <button type="button" onClick={() => setF("payment_status", "unpaid")}
+                  className="flex-1 py-1.5 rounded-lg text-[12px] font-bold transition-all"
+                  style={form.payment_status === "unpaid" ? { background: "#fee2e2", color: "#991b1b" } : { background: "#f3f4f6", color: "#6b7280" }}>
+                  Unpaid
+                </button>
+                <button type="button" onClick={() => setF("payment_status", "paid")}
+                  className="flex-1 py-1.5 rounded-lg text-[12px] font-bold transition-all"
+                  style={form.payment_status === "paid" ? { background: "#d1fae5", color: "#065f46" } : { background: "#f3f4f6", color: "#6b7280" }}>
+                  Paid
+                </button>
+              </div>
+            </Field>
+          </div>
+
+          <Field label="Notes">
+            <input className={inputCls} placeholder="Optional notes…" value={form.notes} onChange={e => setF("notes", e.target.value)} />
+          </Field>
+
+          {err && <p className="text-[11px] text-red-600">{err}</p>}
+
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => setEditing(false)}
+              className="px-4 py-2 rounded-xl text-[12px] font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold text-white transition-all"
+              style={{ background: saving ? "#f87171" : "#6366F1" }}>
+              <Check size={12} />{saving ? "Saving…" : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   )
 }

@@ -231,6 +231,43 @@ export async function markWorkEntryPaid(id: string, paid: boolean): Promise<{ su
   return { success: true }
 }
 
+export async function updateWorkEntry(id: string, input: Partial<WorkEntryInput> & { amount?: number | null }): Promise<{ success: boolean; error?: string }> {
+  const companyId = await getCompanyId()
+  if (!companyId) return { success: false, error: "Not authenticated" }
+
+  const admin = adminClient()
+
+  const updates: Record<string, unknown> = {}
+  if (input.client_name !== undefined) updates.client_name = input.client_name || null
+  if (input.title       !== undefined) updates.title       = input.title || null
+  if (input.date        !== undefined) updates.date        = input.date
+  if (input.status      !== undefined) updates.status      = input.status
+  if (input.payment_status !== undefined) {
+    updates.payment_status = input.payment_status
+    updates.paid_at = input.payment_status === "paid" ? new Date().toISOString() : null
+  }
+  if (input.notes       !== undefined) updates.notes       = input.notes || null
+  if (input.audio_duration_minutes !== undefined) updates.audio_duration_minutes = input.audio_duration_minutes
+  if (input.date_given  !== undefined) updates.date_given  = input.date_given || null
+  if (input.date_finished !== undefined) updates.date_finished = input.date_finished || null
+  if (input.video_type  !== undefined) updates.video_type  = input.video_type || null
+  if (input.video_duration !== undefined) updates.video_duration = input.video_duration || null
+  if (input.time_taken_hours !== undefined) updates.time_taken_hours = input.time_taken_hours
+  if (input.drive_updated !== undefined) updates.drive_updated = input.drive_updated
+  if (input.revision_count !== undefined) updates.revision_count = input.revision_count
+  if (input.start_time  !== undefined) updates.start_time  = input.start_time || null
+  if (input.end_time    !== undefined) updates.end_time    = input.end_time || null
+  if (input.travel_hours !== undefined) updates.travel_hours = input.travel_hours
+  if (input.amount      !== undefined) updates.amount      = input.amount
+
+  const { error } = await admin.from("freelancer_work_entries")
+    .update(updates).eq("id", id).eq("company_id", companyId)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath("/admin/freelancers")
+  return { success: true }
+}
+
 export async function deleteWorkEntry(id: string): Promise<{ success: boolean; error?: string }> {
   const companyId = await getCompanyId()
   if (!companyId) return { success: false, error: "Not authenticated" }

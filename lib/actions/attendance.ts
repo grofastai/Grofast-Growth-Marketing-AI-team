@@ -390,7 +390,7 @@ export async function resumeAttendance(date: string): Promise<{ success: boolean
 
 export async function getAttendanceRange(startDate: string, endDate: string): Promise<{
   success: boolean
-  logs: Array<{ id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; work_type: string | null; status: string }>
+  logs: Array<{ id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; break_in: string | null; break_out: string | null; work_type: string | null; status: string; learning_hours: number }>
   error?: string
 }> {
   const ctxResult = await getUserContext()
@@ -398,20 +398,44 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
   const ctx = ctxResult
 
   const admin = adminSupabase()
-  const { data, error } = await admin
-    .from('attendance_logs')
-    .select('id, date, clock_in, clock_out, break_total_mins, work_type, status')
-    .eq('company_id', ctx.companyId)
-    .eq('user_id', ctx.userId)
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .order('date', { ascending: false })
+  const [attResult, learnResult] = await Promise.all([
+    admin
+      .from('attendance_logs')
+      .select('id, date, clock_in, clock_out, break_total_mins, break_in, break_out, work_type, status')
+      .eq('company_id', ctx.companyId)
+      .eq('user_id', ctx.userId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: false }),
+    admin
+      .from('daily_updates')
+      .select('date, learning_hours')
+      .eq('company_id', ctx.companyId)
+      .eq('user_id', ctx.userId)
+      .gte('date', startDate)
+      .lte('date', endDate),
+  ])
 
-  if (error) return { success: false, logs: [], error: error.message }
-  return { success: true, logs: (data ?? []) as Array<{ id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; work_type: string | null; status: string }> }
+  if (attResult.error) return { success: false, logs: [], error: attResult.error.message }
+
+  const learnByDate: Record<string, number> = {}
+  for (const r of (learnResult.data ?? [])) {
+    learnByDate[r.date] = (learnByDate[r.date] ?? 0) + (r.learning_hours ?? 0)
+  }
+
+  const logs = (attResult.data ?? []).map(l => ({
+    ...l,
+    break_in: l.break_in ?? null,
+    break_out: l.break_out ?? null,
+    learning_hours: learnByDate[l.date] ?? 0,
+  }))
+  return { success: true, logs }
 }
 
-export async function editAttendanceTimes(date: string, clockIn: string, clockOut: string): Promise<{ success: boolean; error?: string }> {
+export async function editAttendanceTimes(
+  date: string, clockIn: string, clockOut: string,
+  breakIn?: string, breakOut?: string
+): Promise<{ success: boolean; error?: string }> {
   const ctxResult = await getUserContext()
   if ('error' in ctxResult) return { success: false, error: ctxResult.error }
   const ctx = ctxResult
@@ -419,6 +443,8 @@ export async function editAttendanceTimes(date: string, clockIn: string, clockOu
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { success: false, error: 'Invalid date.' }
   if (!/^\d{2}:\d{2}$/.test(clockIn))     return { success: false, error: 'Invalid login time (HH:MM).' }
   if (clockOut && !/^\d{2}:\d{2}$/.test(clockOut)) return { success: false, error: 'Invalid logout time (HH:MM).' }
+  if (breakIn  && !/^\d{2}:\d{2}$/.test(breakIn))  return { success: false, error: 'Invalid break-in time (HH:MM).' }
+  if (breakOut && !/^\d{2}:\d{2}$/.test(breakOut)) return { success: false, error: 'Invalid break-out time (HH:MM).' }
 
   const admin = adminSupabase()
   const { data: log } = await admin
@@ -444,8 +470,17 @@ export async function editAttendanceTimes(date: string, clockIn: string, clockOu
     return { success: false, error: 'Logout time must be after login time.' }
   }
 
-  const updates: Record<string, string | null> = { clock_in: clockInISO }
+  const updates: Record<string, string | null | number> = { clock_in: clockInISO }
   if (clockOut) updates.clock_out = clockOutISO
+  if (breakIn)  updates.break_in  = toISO(breakIn)
+  if (breakOut) updates.break_out = toISO(breakOut)
+  // Recalculate break_total_mins if both provided
+  if (breakIn && breakOut) {
+    const [bih, bim] = breakIn.split(':').map(Number)
+    const [boh, bom] = breakOut.split(':').map(Number)
+    const mins = (boh * 60 + bom) - (bih * 60 + bim)
+    if (mins > 0) updates.break_total_mins = mins
+  }
 
   const { error } = await admin.from('attendance_logs').update(updates).eq('id', log.id)
   if (error) return { success: false, error: error.message }

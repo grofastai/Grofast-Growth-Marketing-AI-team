@@ -9,7 +9,7 @@ import {
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
   ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn,
 } from "lucide-react"
-import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto } from "@/lib/actions/team"
+import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
 
 const TEAMS = [
@@ -669,6 +669,8 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
   const [resetError, setResetError] = useState("")
   const [resetSuccess, setResetSuccess] = useState(false)
   const [assignTarget, setAssignTarget] = useState<Member | null>(null)
+  const [resendingWA, setResendingWA] = useState<string | null>(null)
+  const [resendWAResult, setResendWAResult] = useState<{ id: string; ok: boolean; msg: string } | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const filtered = useMemo(() => {
@@ -697,6 +699,16 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
     [...members].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 6),
     [members]
   )
+
+  async function handleResendWhatsApp(member: Member) {
+    setOpenDropdown(null)
+    setResendingWA(member.id)
+    setResendWAResult(null)
+    const res = await resendOnboardingWhatsApp(member.id)
+    setResendingWA(null)
+    setResendWAResult({ id: member.id, ok: res.success, msg: res.success ? "WhatsApp sent!" : (res.error ?? "Failed to send") })
+    setTimeout(() => setResendWAResult(null), 4000)
+  }
 
   function handleToggleStatus(member: Member) {
     setOpenDropdown(null)
@@ -933,6 +945,12 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
 
                       {/* Action */}
                       <td className="px-4 py-3.5">
+                        {resendWAResult?.id === member.id && (
+                          <div className="absolute right-16 z-50 text-[11px] font-bold px-3 py-1.5 rounded-lg shadow"
+                            style={{ background: resendWAResult.ok ? "rgba(34,197,94,0.12)" : "rgba(239,68,68,0.1)", color: resendWAResult.ok ? "#16A34A" : "#EF4444", border: `1px solid ${resendWAResult.ok ? "rgba(34,197,94,0.25)" : "rgba(239,68,68,0.25)"}`, whiteSpace: "nowrap", position: "fixed", bottom: 24, right: 24 }}>
+                            {resendWAResult.msg}
+                          </div>
+                        )}
                         <div className="relative flex items-center gap-1">
                           <button onClick={() => { setEditMember(member); setSheetOpen(true) }}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all"
@@ -989,7 +1007,19 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
                                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                                 <KeyRound size={12} /> Reset Password
                               </button>
-                              <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
+                              {member.phone && (
+                                <>
+                                  <button onClick={() => handleResendWhatsApp(member)} disabled={resendingWA === member.id}
+                                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all disabled:opacity-50"
+                                    style={{ color: "#22C55E" }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(34,197,94,0.06)"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                    {resendingWA === member.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                    {resendingWA === member.id ? "Sending…" : "Resend WhatsApp"}
+                                  </button>
+                                  <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
+                                </>
+                              )}
                               <button onClick={() => { setConfirmDelete(member); setOpenDropdown(null) }}
                                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
                                 style={{ color: "#EF4444" }}

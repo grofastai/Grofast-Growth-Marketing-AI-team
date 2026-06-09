@@ -123,7 +123,6 @@ export default async function AttendancePage() {
   const monthOfficeDays  = presentLogs.filter(l => l.work_type === "office").length
   const monthWfhDays     = presentLogs.filter(l => l.work_type === "wfh").length
   const monthPresentDays = presentLogs.length
-  const monthAbsentDays  = monthAttLogs.filter(l => l.status === "absent").length
 
   const monthTotalHrs = Math.round(
     monthUpdates.reduce((s, u) => s + (u.working_hours ?? 0) + (u.learning_hours ?? 0), 0) * 10
@@ -136,6 +135,13 @@ export default async function AttendancePage() {
   const monthLeaveDays = approvedLeaves.reduce((sum, l) => {
     return sum + Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
   }, 0)
+
+  // Elapsed calendar days this month (1st to today, inclusive)
+  const monthStartDate = new Date(monthStart)
+  const todayDate      = new Date(today)
+  const elapsedDays    = Math.floor((todayDate.getTime() - monthStartDate.getTime()) / 86400000) + 1
+  // Absent = elapsed days not accounted for by present or leave
+  const monthAbsentDays = Math.max(0, elapsedDays - monthPresentDays - monthLeaveDays)
 
   const monthlyPerf = {
     presentDays:  monthPresentDays,

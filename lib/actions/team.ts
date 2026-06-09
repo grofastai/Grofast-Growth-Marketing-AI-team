@@ -276,6 +276,42 @@ export async function createMember(input: {
   return { success: true, whatsappSent, whatsappSkipped: skipNotification, whatsappError }
 }
 
+export async function resendOnboardingWhatsApp(userId: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: member } = await admin
+    .from('users')
+    .select('id, name, email, employee_id, phone, team, company_id')
+    .eq('id', userId)
+    .single()
+
+  if (!member) return { success: false, error: 'Member not found' }
+  if (!member.phone) return { success: false, error: 'Member has no phone number on file' }
+
+  let cleanPhone = member.phone.replace(/\D/g, '')
+  if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone
+  else if (cleanPhone.startsWith('0') && cleanPhone.length === 11) cleanPhone = '91' + cleanPhone.slice(1)
+
+  const result = await notifyWhatsApp(
+    {
+      name: member.name,
+      email: member.email ?? '',
+      employee_id: member.employee_id ?? '',
+      phone: cleanPhone,
+      loginLink: 'https://grofastteam.vercel.app/',
+      password: '(use your password)',
+      team: member.team || 'Team',
+    },
+    { companyId: member.company_id, userId: member.id }
+  ).catch((err) => ({ sent: false, errorDetail: String(err) }))
+
+  if (!result.sent) return { success: false, error: result.errorDetail ?? 'Failed to send WhatsApp' }
+  return { success: true }
+}
+
 export async function updateMember(input: {
   id: string
   name: string

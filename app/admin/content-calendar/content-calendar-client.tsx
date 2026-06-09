@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
-  ChevronLeft, ChevronRight, Plus, X, Camera,
+  ChevronLeft, ChevronRight, ChevronDown, Plus, X, Camera,
   Loader2, CheckCircle2, Clock,
   PlayCircle, Image, Film, Layers, Send, Trash2, Pencil,
 } from "lucide-react"
@@ -295,16 +295,18 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         ))}
       </div>
 
-      {/* ── Client Filter ── */}
+      {/* ── Client Filter dropdown ── */}
       {clientOptions.length > 0 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", alignSelf: "center", textTransform: "uppercase", letterSpacing: "0.06em" }}>Filter:</span>
-          {["all", ...clientOptions].map(c => (
-            <button key={c} onClick={() => setClientFilter(c)}
-              style={{ padding: "5px 14px", borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: "pointer", border: `1.5px solid ${clientFilter === c ? "#DE1A1A" : "#E5E7EB"}`, background: clientFilter === c ? "rgba(222,26,26,0.08)" : "#FFFFFF", color: clientFilter === c ? "#DE1A1A" : "#6B7280" }}>
-              {c === "all" ? "All Clients" : c}
-            </button>
-          ))}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>Filter:</span>
+          <div style={{ position: "relative", width: 220 }}>
+            <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
+              style={{ width: "100%", fontSize: 12, fontWeight: 600, color: clientFilter === "all" ? "#6B7280" : "#DE1A1A", background: clientFilter === "all" ? "#FAFAFA" : "rgba(222,26,26,0.05)", border: `1.5px solid ${clientFilter === "all" ? "#E5E7EB" : "rgba(222,26,26,0.3)"}`, borderRadius: 10, padding: "7px 28px 7px 10px", cursor: "pointer", outline: "none", appearance: "none" }}>
+              <option value="all">All Clients</option>
+              {clientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <ChevronDown size={12} style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+          </div>
         </div>
       )}
 

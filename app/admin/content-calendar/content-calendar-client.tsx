@@ -111,6 +111,9 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   const [schedDates, setSchedDates]     = useState<string[]>([])
   const [schedDateInput, setSchedDateInput] = useState("")
   const [schedTime, setSchedTime]       = useState("")
+  const [shootFrom, setShootFrom]       = useState("")
+  const [shootTo,   setShootTo]         = useState("")
+  const [shootLocation, setShootLocation] = useState("")
   const [formError, setFormError]       = useState("")
   const [formSuccess, setFormSuccess]   = useState(false)
 
@@ -145,6 +148,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     setInstructions(""); setContentPillar(""); setPriority("medium")
     setSchedTime(""); setSchedDates([]); setSchedDateInput("")
     setFormError(""); setFormSuccess(false); setSchedType("")
+    setShootFrom(""); setShootTo(""); setShootLocation("")
   }
 
   function openAdd(d: number) {
@@ -181,13 +185,16 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     start(async () => {
       const selectedClient = clients.find(c => c.id === clientId)
       const resolvedName = clientName || selectedClient?.name || ""
+      const shootMeta = schedType === "shoot" && (shootFrom || shootTo || shootLocation)
+        ? `\nTime: ${shootFrom || "—"} → ${shootTo || "—"}${shootLocation ? `\nLocation: ${shootLocation}` : ""}`
+        : ""
       const results = await Promise.all(schedDates.map(date =>
         createContentPost({
           title, platform, content_type: contentType,
           client_id: clientId || null, client_name: resolvedName,
           scheduled_date: date, scheduled_time: schedTime || null,
           assigned_to: assignedTo || null,
-          notes: instructions || undefined,
+          notes: (instructions + shootMeta).trim() || undefined,
           content_pillar: contentPillar || null,
           priority: priority || "medium",
         })
@@ -571,6 +578,26 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                   </select>
                 </div>
               </div>
+
+              {/* Shoot timing + location */}
+              {(isEdit ? contentType === "shoot" : schedType === "shoot") && (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div>
+                      <label style={LABEL}>Shoot From</label>
+                      <input type="time" value={shootFrom} onChange={e => setShootFrom(e.target.value)} style={FIELD} />
+                    </div>
+                    <div>
+                      <label style={LABEL}>Shoot To</label>
+                      <input type="time" value={shootTo} onChange={e => setShootTo(e.target.value)} style={FIELD} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={LABEL}>Location</label>
+                    <input value={shootLocation} onChange={e => setShootLocation(e.target.value)} placeholder="e.g. Studio A, Client Office, Outdoor — MG Road…" style={FIELD} />
+                  </div>
+                </>
+              )}
 
               {/* Instructions */}
               <div>

@@ -85,6 +85,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [showAdd, setShowAdd]         = useState(false)
   const [schedType, setSchedType]     = useState<"" | "shoot" | "post">("")
   const [schedDate, setSchedDate]     = useState("")
+  const [shootFrom, setShootFrom]     = useState("")
+  const [shootTo,   setShootTo]       = useState("")
+  const [shootLocation, setShootLocation] = useState("")
   const [title, setTitle]             = useState("")
   const [platform, setPlatform]       = useState("instagram")
   const [contentType, setContentType] = useState("post")
@@ -156,7 +159,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
     setClientName(""); setAssignedTo(""); setInstructions("")
     setContentPillar(""); setPriority("medium")
     setFormError(""); setFormSuccess(false)
-    setSchedType("")
+    setSchedType(""); setShootFrom(""); setShootTo(""); setShootLocation("")
     setShowAdd(true)
   }
 
@@ -166,12 +169,15 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
     if (!schedDate)    { setFormError("Date is required");  return }
     setFormError("")
     startCreate(async () => {
+      const shootMeta = schedType === "shoot" && (shootFrom || shootTo || shootLocation)
+        ? `\nTime: ${shootFrom || "—"} → ${shootTo || "—"}${shootLocation ? `\nLocation: ${shootLocation}` : ""}`
+        : ""
       const res = await createContentPost({
         title, platform, content_type: contentType,
         client_name: clientName || "Internal",
         scheduled_date: schedDate,
         assigned_to: assignedTo || userId,
-        notes: instructions || undefined,
+        notes: (instructions + shootMeta).trim() || undefined,
         content_pillar: contentPillar || null,
         priority: priority || "medium",
       })
@@ -541,6 +547,25 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   </select>
                 </div>
               </div>
+
+              {schedType === "shoot" && (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div>
+                      <label style={L}>Shoot From</label>
+                      <input type="time" value={shootFrom} onChange={e => setShootFrom(e.target.value)} style={F} />
+                    </div>
+                    <div>
+                      <label style={L}>Shoot To</label>
+                      <input type="time" value={shootTo} onChange={e => setShootTo(e.target.value)} style={F} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={L}>Location</label>
+                    <input value={shootLocation} onChange={e => setShootLocation(e.target.value)} placeholder="e.g. Studio A, Client Office, Outdoor — MG Road…" style={F} />
+                  </div>
+                </>
+              )}
 
               <div>
                 <label style={L}>Assign To</label>

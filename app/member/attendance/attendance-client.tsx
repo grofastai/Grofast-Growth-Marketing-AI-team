@@ -731,23 +731,47 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             </div>
 
             {/* 2×3 grid: Present, Absent, Office, WFH, Leave, Pending */}
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              {[
-                { label: "Present",  value: monthlyPerf?.presentDays  ?? 0, color: "#22C55E", bg: "rgba(34,197,94,0.08)" },
-                { label: "Absent",   value: monthlyPerf?.absentDays   ?? 0, color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
-                { label: "Office",   value: monthlyPerf?.officeDays   ?? 0, color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
-                { label: "WFH",      value: monthlyPerf?.wfhDays      ?? 0, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
-                { label: "Leave",    value: monthlyPerf?.leaveDays    ?? 0, color: "#D97706", bg: "rgba(217,119,6,0.08)" },
-                { label: "Pending",  value: monthlyPerf?.pendingLeaves ?? 0, color: "#9CA3AF", bg: "rgba(0,0,0,0.04)" },
-              ].map(stat => (
-                <div key={stat.label} className="rounded-2xl p-3 text-center" style={{ background: stat.bg }}>
-                  <p className="text-[22px] font-black leading-none mb-1" style={{ color: stat.color, fontFamily: "var(--font-jakarta)" }}>
-                    {stat.value}
-                  </p>
-                  <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: stat.color }}>{stat.label}</p>
-                </div>
-              ))}
-            </div>
+            {(() => {
+              const d = new Date(today)
+              const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+              const workingDaysInMonth = daysInMonth - 5  // 5 fixed offs per month
+              const presentDays = monthlyPerf?.presentDays ?? 0
+              const remainingDays = Math.max(0, workingDaysInMonth - presentDays - (monthlyPerf?.leaveDays ?? 0))
+              return (
+                <>
+                  {/* Present fraction bar */}
+                  <div className="rounded-2xl p-3 mb-2" style={{ background: "rgba(34,197,94,0.08)" }}>
+                    <div className="flex items-end justify-between mb-1.5">
+                      <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#16A34A" }}>Days Present</p>
+                      <p className="text-[10px] font-bold" style={{ color: "#9CA3AF" }}>{remainingDays} remaining</p>
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-[28px] font-black leading-none" style={{ color: "#22C55E", fontFamily: "var(--font-jakarta)" }}>{presentDays}</span>
+                      <span className="text-[16px] font-black" style={{ color: "#9CA3AF" }}>/{workingDaysInMonth}</span>
+                    </div>
+                    <div className="mt-2 rounded-full overflow-hidden" style={{ height: 4, background: "rgba(0,0,0,0.06)" }}>
+                      <div style={{ height: "100%", width: `${Math.min(100, Math.round((presentDays / workingDaysInMonth) * 100))}%`, background: "#22C55E", borderRadius: 99 }} />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    {[
+                      { label: "Office",  value: monthlyPerf?.officeDays   ?? 0, color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
+                      { label: "WFH",     value: monthlyPerf?.wfhDays      ?? 0, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+                      { label: "Absent",  value: monthlyPerf?.absentDays   ?? 0, color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
+                      { label: "Leave",   value: monthlyPerf?.leaveDays    ?? 0, color: "#D97706", bg: "rgba(217,119,6,0.08)" },
+                    ].map(stat => (
+                      <div key={stat.label} className="rounded-2xl p-3 text-center" style={{ background: stat.bg }}>
+                        <p className="text-[22px] font-black leading-none mb-1" style={{ color: stat.color, fontFamily: "var(--font-jakarta)" }}>
+                          {stat.value}
+                        </p>
+                        <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: stat.color }}>{stat.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )
+            })()}
 
             <div className="rounded-2xl px-4 py-3 mb-2" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
               <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Total Hours This Month</p>

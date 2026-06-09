@@ -8,6 +8,7 @@ import {
   PlayCircle, Image, Film, Layers, Send, Trash2, Pencil,
 } from "lucide-react"
 import { createContentPost, updateContentPost, updateContentPostStatus, deleteContentPost } from "@/lib/actions/content-calendar"
+import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Post {
@@ -104,6 +105,8 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   const [contentType, setContentType]   = useState("post")
   const [clientId, setClientId]         = useState("")
   const [clientName, setClientName]     = useState("")
+  const [clientBrand, setClientBrand]   = useState("")
+  const [clientCustom, setClientCustom] = useState("")
   const [assignedTo, setAssignedTo]     = useState("")
   const [instructions, setInstructions] = useState("")
   const [contentPillar, setContentPillar] = useState("")
@@ -149,6 +152,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     setSchedTime(""); setSchedDates([]); setSchedDateInput("")
     setFormError(""); setFormSuccess(false); setSchedType("")
     setShootFrom(""); setShootTo(""); setShootLocation("")
+    setClientBrand(""); setClientCustom("")
   }
 
   function openAdd(d: number) {
@@ -184,7 +188,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     setFormError("")
     start(async () => {
       const selectedClient = clients.find(c => c.id === clientId)
-      const resolvedName = clientName || selectedClient?.name || ""
+      const resolvedName = resolveClientName(clientName, clientBrand, clientCustom) || selectedClient?.name || ""
       const shootMeta = schedType === "shoot" && (shootFrom || shootTo || shootLocation)
         ? `\nTime: ${shootFrom || "—"} → ${shootTo || "—"}${shootLocation ? `\nLocation: ${shootLocation}` : ""}`
         : ""
@@ -557,18 +561,11 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 </div>
               </div>
 
-              {/* Time + Client + Assigned */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              {/* Time + Assigned */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={LABEL}>Post Time <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
                   <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={FIELD} />
-                </div>
-                <div>
-                  <label style={LABEL}>Client</label>
-                  <select value={clientId} onChange={e => { setClientId(e.target.value); setClientName("") }} style={{ ...FIELD, appearance: "none" }}>
-                    <option value="">— Select —</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
                 </div>
                 <div>
                   <label style={LABEL}>Assign To</label>
@@ -578,6 +575,16 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                   </select>
                 </div>
               </div>
+
+              {/* Client selector */}
+              <ClientSelector
+                clientOptions={clients.map(c => c.name)}
+                value={clientName} brand={clientBrand} customClient={clientCustom}
+                onValueChange={v => { setClientName(v); setClientId(clients.find(c => c.name === v)?.id ?? "") }}
+                onBrandChange={setClientBrand} onCustomChange={setClientCustom}
+                label="Client"
+                fieldStyle={{ ...FIELD, appearance: "none" as const }}
+              />
 
               {/* Shoot timing + location */}
               {(isEdit ? contentType === "shoot" : schedType === "shoot") && (

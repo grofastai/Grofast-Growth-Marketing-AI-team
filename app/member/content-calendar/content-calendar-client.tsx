@@ -7,6 +7,7 @@ import {
   CheckCircle2, Plus, X, Loader2, Send,
 } from "lucide-react"
 import { updateContentPostStatus, createContentPost } from "@/lib/actions/content-calendar"
+import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
 
 interface Post {
   id: string; title: string; platform: string; content_type: string
@@ -92,6 +93,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [platform, setPlatform]       = useState("instagram")
   const [contentType, setContentType] = useState("post")
   const [clientName, setClientName]   = useState("")
+  const [clientBrand, setClientBrand] = useState("")
+  const [clientCustom, setClientCustom] = useState("")
   const [assignedTo, setAssignedTo]   = useState("")
   const [instructions, setInstructions] = useState("")
   const [contentPillar, setContentPillar] = useState("")
@@ -160,6 +163,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
     setContentPillar(""); setPriority("medium")
     setFormError(""); setFormSuccess(false)
     setSchedType(""); setShootFrom(""); setShootTo(""); setShootLocation("")
+    setClientName(""); setClientBrand(""); setClientCustom("")
     setShowAdd(true)
   }
 
@@ -174,7 +178,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
         : ""
       const res = await createContentPost({
         title, platform, content_type: contentType,
-        client_name: clientName || "Internal",
+        client_name: resolveClientName(clientName, clientBrand, clientCustom) || "Internal",
         scheduled_date: schedDate,
         assigned_to: assignedTo || userId,
         notes: (instructions + shootMeta).trim() || undefined,
@@ -540,11 +544,13 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   <input type="date" value={schedDate} onChange={e => setSchedDate(e.target.value)} required style={F} />
                 </div>
                 <div>
-                  <label style={L}>Client</label>
-                  <select value={clientName} onChange={e => setClientName(e.target.value)} style={F}>
-                    <option value="">— Select client —</option>
-                    {clientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  <ClientSelector
+                    clientOptions={clientOptions}
+                    value={clientName} brand={clientBrand} customClient={clientCustom}
+                    onValueChange={setClientName} onBrandChange={setClientBrand} onCustomChange={setClientCustom}
+                    label="Client"
+                    fieldStyle={F}
+                  />
                 </div>
               </div>
 

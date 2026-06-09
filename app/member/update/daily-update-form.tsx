@@ -1058,9 +1058,9 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             <select value={s.clientName} onChange={e => patchShoot(s.id, { clientName: e.target.value, brand:"", shopName:"", customClient:"" })} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select client…</option>
-                              <option value="Promotion">📣 Our Brand (Promotion)</option>
-                              <option value="__custom__">✏️ Other (type manually)</option>
+                              <option value="Promotion">📣 Our Brand</option>
                               {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                              <option value="__custom__">✏️ Other (type manually)</option>
                             </select>
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                           </div>
@@ -1267,9 +1267,9 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             <select value={e.clientName} onChange={ev => patchEdit(e.id, { clientName: ev.target.value, brand:"", customClient:"" })} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select client…</option>
-                              <option value="Promotion">📣 Our Brand (Promotion)</option>
-                              <option value="__custom__">✏️ Other (type manually)</option>
+                              <option value="Promotion">📣 Our Brand</option>
                               {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                              <option value="__custom__">✏️ Other (type manually)</option>
                             </select>
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                           </div>

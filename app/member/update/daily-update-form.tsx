@@ -260,7 +260,7 @@ export default function DailyUpdateForm({
     setEdits(found ? parseExistingEdits(found) : [])
     setTimeBlocks(found ? parseExistingBlocks(found) : [])
     setLearningTopic((found?.learning_topic as string) ?? "")
-    setLearningHours((found?.learning_hours as number) ?? 1)
+    setLearningFrom(""); setLearningTo("")
     setLearningNotes((found?.learning_notes as string) ?? "")
     setWorkingDone(!!(found && (found as Record<string, unknown>).working_hours))
     setLearningDone(!!(found && (found as Record<string, unknown>).learning_hours))
@@ -323,9 +323,15 @@ export default function DailyUpdateForm({
   const [learningTopic, setLearningTopic] = useState(
     (existingUpdate?.learning_topic as string) ?? ""
   )
-  const [learningHours, setLearningHours] = useState(
-    (existingUpdate?.learning_hours as number) ?? 1
-  )
+  const [learningFrom, setLearningFrom] = useState("")
+  const [learningTo,   setLearningTo]   = useState("")
+  const learningHours = (() => {
+    if (!learningFrom || !learningTo) return 0
+    const [fh, fm] = learningFrom.split(":").map(Number)
+    const [th, tm] = learningTo.split(":").map(Number)
+    const diff = (th * 60 + tm) - (fh * 60 + fm)
+    return diff > 0 ? Math.round(diff / 60 * 100) / 100 : 0
+  })()
   const [learningNotes, setLearningNotes] = useState(
     (existingUpdate?.learning_notes as string) ?? ""
   )
@@ -499,6 +505,8 @@ export default function DailyUpdateForm({
   function handleLearningSubmit() {
     setLearningError(null)
     if (!learningTopic.trim()) { setLearningError("Enter what you learned today."); return }
+    if (!learningFrom || !learningTo) { setLearningError("Set the From and To time."); return }
+    if (learningHours <= 0) { setLearningError("To time must be after From time."); return }
     startTransition(async () => {
       const res = await submitDailyUpdate({
         active_tab: "learning", date: selectedDate, work_entries: [], links: [],
@@ -1397,15 +1405,25 @@ export default function DailyUpdateForm({
                   <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Topic / Course *</label>
                   <input value={learningTopic} onChange={e => setLearningTopic(e.target.value)} placeholder="e.g. DaVinci Resolve color grading, Adobe Premiere…" style={F} />
                 </div>
-                <div style={{ display:"grid", gridTemplateColumns:"160px 1fr", gap:14 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
                   <div>
-                    <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Hours Spent *</label>
-                    <DurationPicker value={learningHours} onChange={setLearningHours} />
+                    <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>From *</label>
+                    <input type="time" value={learningFrom} onChange={e => setLearningFrom(e.target.value)} style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
                   </div>
                   <div>
-                    <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Notes</label>
-                    <input value={learningNotes} onChange={e => setLearningNotes(e.target.value)} placeholder="Key takeaways, resources used…" style={F} />
+                    <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>To *</label>
+                    <input type="time" value={learningTo} onChange={e => setLearningTo(e.target.value)} style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
                   </div>
+                  <div>
+                    <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Duration</label>
+                    <div style={{ ...F, background:"#F9FAFB", color: learningHours > 0 ? "#111827" : "#9CA3AF", fontWeight:700, display:"flex", alignItems:"center" }}>
+                      {learningHours > 0 ? `${learningHours}h` : "—"}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Notes</label>
+                  <input value={learningNotes} onChange={e => setLearningNotes(e.target.value)} placeholder="Key takeaways, resources used…" style={F} />
                 </div>
               </div>
 

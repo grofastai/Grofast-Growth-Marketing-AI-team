@@ -1157,7 +1157,7 @@ export default function FreelancersClient({
         freelancer={selectedFreelancer}
         entries={entries}
         clientNames={clientNames}
-        onEntryAdded={e => setEntries(prev => [e, ...prev])}
+        onEntryAdded={e => { setEntries(prev => [e, ...prev]); startTransition(() => router.refresh()) }}
         onEntryUpdated={(id, patch) => setEntries(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e))}
         onEntryDeleted={id => setEntries(prev => prev.filter(e => e.id !== id))}
       />

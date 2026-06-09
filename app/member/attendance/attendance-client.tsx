@@ -31,7 +31,7 @@ interface Props {
   todayPermissionHours?: number; permHoursByDate?: Record<string, number>
 }
 
-const SHIFT_HOURS = 9
+const SHIFT_HOURS = 9.5
 const WEEK_DAYS   = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 function fmtTime(iso: string | null) {
@@ -447,7 +447,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     />
                     <SegmentBar hoursWorked={hoursWorked} />
                     <p className="text-[12px] mb-1" style={{ color: "#9CA3AF" }}>
-                      {fmtHoursShort(hoursWorked)} / {SHIFT_HOURS}h
+                      {fmtHoursShort(hoursWorked)} / {fmtHoursShort(SHIFT_HOURS)}
                     </p>
                     {todayPermissionHours > 0 && (
                       <p className="text-[11px] mb-3 font-semibold" style={{ color: "#7C3AED" }}>
@@ -632,7 +632,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     </div>
                     {/* Target bar */}
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 11, color: "#9CA3AF" }}>Target: {SHIFT_HOURS}h shift</span>
+                      <span style={{ fontSize: 11, color: "#9CA3AF" }}>Target: {fmtHoursShort(SHIFT_HOURS)} shift</span>
                       <span style={{ fontSize: 11, fontWeight: 700, color: hoursWorked >= SHIFT_HOURS ? "#16A34A" : "#de1a1a" }}>
                         {hoursWorked >= SHIFT_HOURS ? "Target reached ✓" : `${fmtHoursShort(Math.max(0, SHIFT_HOURS - hoursWorked))} remaining`}
                       </span>
@@ -646,7 +646,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)" }}>
                 <AlertTriangle size={13} style={{ color: "#F59E0B" }} />
                 <p className="text-[12px] font-semibold" style={{ color: "#D97706" }}>
-                  You are below expected {SHIFT_HOURS} hours
+                  You are below expected {fmtHoursShort(SHIFT_HOURS)}
                 </p>
               </div>
             )}
@@ -815,7 +815,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
               <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Expected</p>
               <p className="text-[22px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>
-                {SHIFT_HOURS}h 00m
+                {fmtHoursShort(SHIFT_HOURS)}
               </p>
             </div>
             <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>

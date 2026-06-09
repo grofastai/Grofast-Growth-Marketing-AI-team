@@ -6,14 +6,14 @@ import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertManyNotifications } from './notifications'
 
-// 10:00 AM IST = 04:30 UTC. Returns true if clock-in is after 10:00 AM IST.
+// 9:30 AM IST = 04:00 UTC. Returns true if clock-in is after 9:30 AM IST.
 function isLateArrival(isoUtc: string): boolean {
   const d = new Date(isoUtc)
   const istMs = d.getTime() + 5.5 * 60 * 60 * 1000
   const ist = new Date(istMs)
   const h = ist.getUTCHours()
   const m = ist.getUTCMinutes()
-  return h > 10 || (h === 10 && m > 0)
+  return h > 9 || (h === 9 && m >= 30)
 }
 
 function formatISTTime(isoUtc: string): string {

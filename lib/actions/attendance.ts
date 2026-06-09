@@ -392,7 +392,7 @@ export async function resumeAttendance(date: string): Promise<{ success: boolean
 
 export async function getAttendanceRange(startDate: string, endDate: string): Promise<{
   success: boolean
-  logs: Array<{ id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; break_in: string | null; break_out: string | null; work_type: string | null; status: string; learning_hours: number }>
+  logs: Array<{ id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; break_in: string | null; break_out: string | null; work_type: string | null; status: string; learning_hours: number; worked_hours: number }>
   error?: string
 }> {
   const ctxResult = await getUserContext()
@@ -400,7 +400,7 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
   const ctx = ctxResult
 
   const admin = adminSupabase()
-  const [attResult, learnResult] = await Promise.all([
+  const [attResult, updatesResult] = await Promise.all([
     admin
       .from('attendance_logs')
       .select('id, date, clock_in, clock_out, break_total_mins, break_in, break_out, work_type, status')
@@ -411,7 +411,7 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
       .order('date', { ascending: false }),
     admin
       .from('daily_updates')
-      .select('date, learning_hours')
+      .select('date, working_hours, learning_hours')
       .eq('company_id', ctx.companyId)
       .eq('user_id', ctx.userId)
       .gte('date', startDate)
@@ -420,9 +420,11 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
 
   if (attResult.error) return { success: false, logs: [], error: attResult.error.message }
 
+  const workedByDate: Record<string, number> = {}
   const learnByDate: Record<string, number> = {}
-  for (const r of (learnResult.data ?? [])) {
-    learnByDate[r.date] = (learnByDate[r.date] ?? 0) + (r.learning_hours ?? 0)
+  for (const r of (updatesResult.data ?? [])) {
+    workedByDate[r.date] = (workedByDate[r.date] ?? 0) + (r.working_hours ?? 0)
+    learnByDate[r.date]  = (learnByDate[r.date]  ?? 0) + (r.learning_hours ?? 0)
   }
 
   const logs = (attResult.data ?? []).map(l => ({
@@ -430,6 +432,7 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
     break_in: l.break_in ?? null,
     break_out: l.break_out ?? null,
     learning_hours: learnByDate[l.date] ?? 0,
+    worked_hours: (workedByDate[l.date] ?? 0) + (learnByDate[l.date] ?? 0),
   }))
   return { success: true, logs }
 }

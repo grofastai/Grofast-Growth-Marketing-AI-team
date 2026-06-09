@@ -23,7 +23,7 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
 type BreakSession = { in: string; out: string | null; mins: number | null }
 type AttLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_in: string | null; break_out: string | null; break_total_mins: number; break_sessions: BreakSession[] | null; work_type: string | null; status: string; paused_seconds: number }
 type DailyUpdate = { working_hours: number | null; learning_hours: number | null; shoot_count: number | null }
-type RangeLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; break_in: string | null; break_out: string | null; work_type: string | null; status: string; learning_hours: number }
+type RangeLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; break_in: string | null; break_out: string | null; work_type: string | null; status: string; learning_hours: number; worked_hours: number }
 type RangeMode = "date" | "last7" | "thisMonth" | "lastMonth"
 
 interface Props {
@@ -926,7 +926,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                           </thead>
                           <tbody>
                             {rangeLogs.map(l => {
-                              const h = l.clock_in ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins??0)/60) : 0
+                              const workedH = l.worked_hours ?? 0
                               const dayLabel  = new Date(l.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"})
                               const dateLabel = new Date(l.date+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"})
                               const isEditing = editingDate === l.date
@@ -943,7 +943,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                                     <td style={{ padding:"9px 10px", color:"#6B7280", textTransform:"capitalize" }}>{l.work_type ?? "—"}</td>
                                     <td style={{ padding:"9px 10px", color:"#111111", whiteSpace:"nowrap" }}>{fmtTime(l.clock_in)}</td>
                                     <td style={{ padding:"9px 10px", color: l.clock_out ? "#111111" : "#EF4444", whiteSpace:"nowrap" }}>{l.clock_out ? fmtTime(l.clock_out) : "—"}</td>
-                                    <td style={{ padding:"9px 10px", fontWeight:700, color:"#374151" }}>{h > 0 ? fmtHoursShort(Math.round(h*10)/10) : "—"}</td>
+                                    <td style={{ padding:"9px 10px", fontWeight:700, color:"#374151" }}>{workedH > 0 ? fmtHoursShort(Math.round(workedH*10)/10) : "—"}</td>
                                     <td style={{ padding:"9px 10px" }}>
                                       {l.status === "present" && (
                                         <button onClick={() => isEditing ? setEditingDate(null) : openEditTimes(l.date, l.clock_in, l.clock_out)}
@@ -1028,16 +1028,15 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                     <thead>
                       <tr style={{ background:"#F5F6FA" }}>
-                        {["Date","Day","Status","Mode","Login","Logout","Office Hrs","Total",""].map(h => (
+                        {["Date","Day","Status","Mode","Login","Logout","Office Hrs","Worked",""].map(h => (
                           <th key={h} style={{ padding:"8px 10px", textAlign:"left", fontWeight:700, color:"#6B7280", fontSize:10, textTransform:"uppercase", letterSpacing:"0.06em", whiteSpace:"nowrap" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {rangeLogs.map(l => {
-                        const officeH = (l.clock_in && l.clock_out) ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins??0)/60) : 0
-                        const learnH  = l.learning_hours ?? 0
-                        const totalHrs = officeH + learnH
+                        const officeH  = (l.clock_in && l.clock_out) ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins??0)/60) : 0
+                        const workedH  = l.worked_hours ?? 0
                         const dayLabel  = new Date(l.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"})
                         const dateLabel = new Date(l.date+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"})
                         const isEditing = editingDate === l.date
@@ -1055,7 +1054,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               <td style={{ padding:"9px 10px", color:"#111111", whiteSpace:"nowrap" }}>{fmtTime(l.clock_in)}</td>
                               <td style={{ padding:"9px 10px", color: l.clock_out ? "#111111" : "#EF4444", whiteSpace:"nowrap" }}>{l.clock_out ? fmtTime(l.clock_out) : "—"}</td>
                               <td style={{ padding:"9px 10px", fontWeight:700, color:"#374151" }}>{officeH > 0 ? fmtHoursShort(Math.round(officeH*10)/10) : "—"}</td>
-                              <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111" }}>{totalHrs > 0 ? fmtHoursShort(Math.round(totalHrs*10)/10) : "—"}</td>
+                              <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111" }}>{workedH > 0 ? fmtHoursShort(Math.round(workedH*10)/10) : "—"}</td>
                               <td style={{ padding:"9px 10px" }}>
                                 {l.status === "present" && (
                                   <button onClick={() => isEditing ? setEditingDate(null) : openEditTimes(l.date, l.clock_in, l.clock_out, l.break_in, l.break_out)}

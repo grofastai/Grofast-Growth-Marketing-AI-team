@@ -1,4 +1,4 @@
-export const revalidate = 60
+export const revalidate = 0
 
 import { createServerClient } from "@/lib/supabase/server"
 import { cookies } from "next/headers"
@@ -8,7 +8,7 @@ import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
 
 
-export default async function MemberDashboardPage() {
+export default async function MemberDashboardPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
@@ -17,10 +17,26 @@ export default async function MemberDashboardPage() {
   const impersonateId = cookieStore.get("gf_impersonate")?.value
   const effectiveUserId = impersonateId ?? user.id
 
-  const now        = new Date()
-  const today      = now.toISOString().split("T")[0]
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
-  const monthName  = now.toLocaleString("en-US", { month: "long", year: "numeric" })
+  const params = await searchParams
+  const showLastMonth = params.month === "last"
+
+  const now   = new Date()
+  const today = now.toISOString().split("T")[0]
+
+  // Month range based on toggle
+  let monthStart: string, monthEnd: string, monthName: string
+  if (showLastMonth) {
+    const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
+    const m = now.getMonth() === 0 ? 12 : now.getMonth()
+    monthStart = `${y}-${String(m).padStart(2, "0")}-01`
+    const lastDay = new Date(now.getFullYear(), now.getMonth(), 0)
+    monthEnd  = lastDay.toISOString().split("T")[0]
+    monthName = new Date(y, m - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" })
+  } else {
+    monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+    monthEnd   = today
+    monthName  = now.toLocaleString("en-US", { month: "long", year: "numeric" })
+  }
 
   type ProfileRow    = { name: string; employee_id: string; phone: string | null; photo_url: string | null; blood_group: string | null; emergency_contact_name: string | null }
   type UpdateRow     = { working_hours: number | null; shoot_count: number | null }
@@ -49,9 +65,9 @@ export default async function MemberDashboardPage() {
     supabase.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", effectiveUserId).eq("status", "pending"),
     supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", effectiveUserId).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
     supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
-    supabase.from("daily_updates").select("working_hours, attendance_status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", today),
-    supabase.from("leaves").select("from_date, to_date").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart),
-    supabase.from("attendance_logs").select("work_type, status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", today),
+    supabase.from("daily_updates").select("working_hours, attendance_status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
+    supabase.from("leaves").select("from_date, to_date").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
+    supabase.from("attendance_logs").select("work_type, status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
   ])
 
   const profile        = profileRaw as unknown as ProfileRow | null
@@ -61,6 +77,7 @@ export default async function MemberDashboardPage() {
   const monthlyUpdates = (monthlyUpdatesRaw ?? []) as unknown as MonthlyUpdate[]
   const approvedLeaves = (approvedLeavesRaw ?? []) as unknown as LeaveRow[]
   const monthlyAttLogs = (monthlyAttLogsRaw ?? []) as unknown as MonthlyAttLog[]
+
   // Today hours
   let todayHours = 0
   if (clockLog?.clock_in) {
@@ -76,13 +93,14 @@ export default async function MemberDashboardPage() {
   const pendingLeaves  = pendingLeavesCount ?? 0
   const todayOverdue   = myTasks.filter(t => t.due_date && t.due_date < today)
 
-  // Monthly calculations — work_type comes from attendance_logs (set at clock-in)
-  const presentRows    = monthlyUpdates.filter(u => u.attendance_status === "present")
-  const workingDays    = presentRows.length
+  // Monthly calculations — use attendance_logs as source of truth for presence
   const presentAttLogs = monthlyAttLogs.filter(l => l.status === "present")
   const officeDays     = presentAttLogs.filter(l => l.work_type === "office").length
   const wfhDays        = presentAttLogs.filter(l => l.work_type === "wfh").length
+  const workingDays    = officeDays + wfhDays   // total present days from attendance
   const holidayDays    = monthlyUpdates.filter(u => u.attendance_status === "holiday").length
+
+  const presentRows    = monthlyUpdates.filter(u => u.attendance_status === "present")
   const totalMonthHrs  = Math.round(presentRows.reduce((s, u) => s + (u.working_hours ?? 0), 0) * 10) / 10
   const avgHoursPerDay = workingDays > 0 ? Math.round((totalMonthHrs / workingDays) * 10) / 10 : 0
   const overtimeDays   = presentRows.filter(u => (u.working_hours ?? 0) > 9).length
@@ -128,15 +146,15 @@ export default async function MemberDashboardPage() {
     completed:   { color: "#16A34A", bg: "rgba(22,163,74,0.12)",  label: "DONE"        },
   }
 
-  // Monthly stats grid config
+  // Monthly stats grid
   const avgColor = avgHoursPerDay >= 9 ? "#16A34A" : avgHoursPerDay >= 7 ? "#D97706" : avgHoursPerDay > 0 ? "#de1a1a" : "#D1D5DB"
   const monthlyStats = [
-    { label: "Avg Hours / Day", value: avgHoursPerDay > 0 ? `${avgHoursPerDay}h` : "—",   color: avgColor,   sub: avgHoursPerDay > 0 ? (avgHoursPerDay >= 9 ? "On target ✓" : `${(9 - avgHoursPerDay).toFixed(1)}h below`) : undefined },
-    { label: "Working Days",    value: workingDays,                                          color: "#111111",  sub: undefined },
-    { label: "Leave Days",      value: leaveDays,                                            color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: undefined },
-    { label: "Office Days",     value: officeDays,                                           color: "#de1a1a",  sub: undefined },
-    { label: "WFH Days",        value: wfhDays,                                              color: "#6366F1",  sub: undefined },
-    { label: "Overtime Hrs",    value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",           color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeDays > 0 ? `${overtimeDays} day${overtimeDays !== 1 ? "s" : ""}` : undefined },
+    { label: "Avg Hours / Day", value: avgHoursPerDay > 0 ? `${avgHoursPerDay}h` : "—",  color: avgColor,   sub: avgHoursPerDay > 0 ? (avgHoursPerDay >= 9 ? "On target ✓" : `${(9 - avgHoursPerDay).toFixed(1)}h below`) : undefined },
+    { label: "Working Days",    value: workingDays,                                         color: "#111111",  sub: undefined },
+    { label: "Office Days",     value: officeDays,                                          color: "#de1a1a",  sub: undefined },
+    { label: "WFH Days",        value: wfhDays,                                             color: "#6366F1",  sub: undefined },
+    { label: "Leave Days",      value: leaveDays,                                           color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: pendingLeaves > 0 ? `${pendingLeaves} pending` : undefined },
+    { label: "Overtime Hrs",    value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",          color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeDays > 0 ? `${overtimeDays} day${overtimeDays !== 1 ? "s" : ""}` : undefined },
   ]
 
   return (
@@ -189,6 +207,71 @@ export default async function MemberDashboardPage() {
         })}
       </div>
 
+      {/* ── This Month ────────────────────────────────────────── */}
+      <div className="rounded-2xl p-5 mb-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: "rgba(222,26,26,0.08)" }}>
+            <Calendar size={14} style={{ color: "#de1a1a" }} />
+          </div>
+          <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>{showLastMonth ? "Last Month" : "This Month"}</h3>
+          <span className="text-[11px]" style={{ color: "#6B7280" }}>{monthName}</span>
+
+          {/* Month toggle */}
+          <div className="flex items-center gap-1 ml-2 rounded-xl overflow-hidden" style={{ border: "1px solid #E8E9EF" }}>
+            <Link href="/member/dashboard"
+              className="text-[10px] font-bold px-3 py-1.5 transition-colors"
+              style={{ background: !showLastMonth ? "#de1a1a" : "transparent", color: !showLastMonth ? "#fff" : "#6B7280" }}>
+              This Month
+            </Link>
+            <Link href="/member/dashboard?month=last"
+              className="text-[10px] font-bold px-3 py-1.5 transition-colors"
+              style={{ background: showLastMonth ? "#de1a1a" : "transparent", color: showLastMonth ? "#fff" : "#6B7280" }}>
+              Last Month
+            </Link>
+          </div>
+
+          {avgHoursPerDay > 0 && avgHoursPerDay < 9 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto"
+              style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
+              ⚠ {(9 - avgHoursPerDay).toFixed(1)}h below daily target
+            </span>
+          )}
+          {avgHoursPerDay >= 9 && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto"
+              style={{ background: "rgba(22,163,74,0.1)", color: "#16A34A" }}>
+              ✓ On target
+            </span>
+          )}
+          {holidayDays > 0 && (
+            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+              style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>
+              {holidayDays} holiday{holidayDays !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+          {monthlyStats.map((stat) => (
+            <div key={stat.label} className="rounded-xl p-3.5 text-center"
+              style={{ background: "#F9FAFB", border: "1px solid #E8E9EF" }}>
+              <p className="text-[22px] font-black leading-none mb-1"
+                style={{ fontFamily: "var(--font-jakarta)", color: stat.color }}>
+                {stat.value}
+              </p>
+              <p className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: "#6B7280" }}>
+                {stat.label}
+              </p>
+              {stat.sub && (
+                <p className="text-[9px] mt-1 font-semibold"
+                  style={{ color: stat.label === "Leave Days" ? "#D97706" : avgHoursPerDay >= 9 ? "#16A34A" : "#de1a1a" }}>
+                  {stat.sub}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* ── Daily Update Alert ────────────────────────────────── */}
       <div className="rounded-2xl p-4 md:p-5 mb-5 flex items-start md:items-center gap-3 md:gap-4 flex-wrap"
         style={{ background: "#FFFFFF", border: todayUpdate ? "1px solid rgba(22,163,74,0.25)" : "1px solid #E8E9EF" }}>
@@ -218,7 +301,7 @@ export default async function MemberDashboardPage() {
       </div>
 
       {/* ── Main 2-col grid ───────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] lg:grid-cols-[1fr_300px] gap-5 mb-5">
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] lg:grid-cols-[1fr_300px] gap-5">
 
         {/* LEFT — My Tasks */}
         <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>
@@ -323,7 +406,7 @@ export default async function MemberDashboardPage() {
             </div>
             <div className="flex-1">
               <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>{Math.max(0, 5 - leaveDays)}</p>
-              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Leave Left</p>
+              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Leave Left{pendingLeaves > 0 ? ` · ${pendingLeaves} pending` : ""}</p>
             </div>
             <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
           </Link>
@@ -417,57 +500,6 @@ export default async function MemberDashboardPage() {
               )}
             </div>
           </div>
-        </div>
-      </div>
-
-
-      {/* ── This Month ────────────────────────────────────────── */}
-      <div className="rounded-2xl p-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
-            style={{ background: "rgba(222,26,26,0.08)" }}>
-            <Calendar size={14} style={{ color: "#de1a1a" }} />
-          </div>
-          <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>This Month</h3>
-          <span className="text-[11px]" style={{ color: "#6B7280" }}>{monthName}</span>
-          {avgHoursPerDay > 0 && avgHoursPerDay < 9 && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto"
-              style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
-              ⚠ {(9 - avgHoursPerDay).toFixed(1)}h below daily target
-            </span>
-          )}
-          {avgHoursPerDay >= 9 && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto"
-              style={{ background: "rgba(22,163,74,0.1)", color: "#16A34A" }}>
-              ✓ On target
-            </span>
-          )}
-          {holidayDays > 0 && (
-            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-              style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>
-              {holidayDays} holiday{holidayDays !== 1 ? "s" : ""}
-            </span>
-          )}
-        </div>
-        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-          {monthlyStats.map((stat) => (
-            <div key={stat.label} className="rounded-xl p-3.5 text-center"
-              style={{ background: "#F9FAFB", border: "1px solid #E8E9EF" }}>
-              <p className="text-[22px] font-black leading-none mb-1"
-                style={{ fontFamily: "var(--font-jakarta)", color: stat.color }}>
-                {stat.value}
-              </p>
-              <p className="text-[9px] uppercase tracking-wide font-semibold" style={{ color: "#6B7280" }}>
-                {stat.label}
-              </p>
-              {stat.sub && (
-                <p className="text-[9px] mt-1 font-semibold"
-                  style={{ color: avgHoursPerDay >= 9 ? "#16A34A" : "#de1a1a" }}>
-                  {stat.sub}
-                </p>
-              )}
-            </div>
-          ))}
         </div>
       </div>
 

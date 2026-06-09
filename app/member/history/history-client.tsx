@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
+import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning } from "@/lib/actions/daily-updates"
 import Image from "next/image"
 import {
   Camera, Film, Clock, CalendarDays,
@@ -188,6 +188,11 @@ export default function HistoryClient({
   const [savingKey, setSavingKey]     = useState<string | null>(null)
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
 
+  // Learning edit state
+  const [editingLearningId, setEditingLearningId] = useState<string | null>(null)
+  const [learningDraft, setLearningDraft] = useState<{ topic: string; notes: string; hours: string }>({ topic: "", notes: "", hours: "" })
+  const [savingLearning, setSavingLearning] = useState(false)
+
   const [selectedMonth, setSelectedMonth] = useState("")
   const [search, setSearch]               = useState("")
   const [selectedDate, setSelectedDate]   = useState("")
@@ -263,6 +268,32 @@ export default function HistoryClient({
       alert("Failed to delete entry: " + result.error)
     }
     setDeletingKey(null)
+  }
+
+  function startEditLearning(u: UpdateRow) {
+    setEditingLearningId(u.id)
+    setLearningDraft({
+      topic: u.learning_topic ?? "",
+      notes: u.learning_notes ?? "",
+      hours: u.learning_hours != null ? String(u.learning_hours) : "",
+    })
+  }
+
+  async function saveLearning(id: string) {
+    setSavingLearning(true)
+    const hrs = parseFloat(learningDraft.hours) || null
+    const result = await updateDailyUpdateLearning(id, {
+      learning_hours: hrs,
+      learning_topic: learningDraft.topic || null,
+      learning_notes: learningDraft.notes || null,
+    })
+    if (result.success) {
+      setEditingLearningId(null)
+      router.refresh()
+    } else {
+      alert("Failed to save: " + result.error)
+    }
+    setSavingLearning(false)
   }
 
   // All updates in selected month (empty string = all months)
@@ -618,24 +649,69 @@ export default function HistoryClient({
 
                   {/* Work entries */}
                   {entries.length === 0 && u.learning_topic ? (
-                    <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
-                      <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                        <BookOpen size={15} style={{ color:"#F59E0B" }}/>
-                      </div>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
-                          <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
-                          <span style={{ fontSize:10, fontWeight:700, color:"#F59E0B", background:"rgba(245,158,11,0.1)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
+                    <div>
+                      <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
+                        <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <BookOpen size={15} style={{ color:"#F59E0B" }}/>
                         </div>
-                        {u.learning_notes && (
-                          <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>
-                        )}
-                        {(u.learning_hours ?? 0) > 0 && (
-                          <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:3, marginTop:4 }}>
-                            <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(u.learning_hours!)}
-                          </span>
-                        )}
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
+                            <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
+                            <span style={{ fontSize:10, fontWeight:700, color:"#F59E0B", background:"rgba(245,158,11,0.1)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
+                          </div>
+                          {u.learning_notes && (
+                            <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>
+                          )}
+                          {(u.learning_hours ?? 0) > 0 && (
+                            <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:3, marginTop:4 }}>
+                              <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(u.learning_hours!)}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => editingLearningId === u.id ? setEditingLearningId(null) : startEditLearning(u)}
+                          title="Edit learning"
+                          style={{ width:26, height:26, borderRadius:7, background: editingLearningId === u.id ? "rgba(245,158,11,0.2)" : "rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.35)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}>
+                          <Pencil size={11} style={{ color:"#D97706" }}/>
+                        </button>
                       </div>
+                      {editingLearningId === u.id && (
+                        <div style={{ margin:"0 18px 14px", padding:"14px", borderRadius:12, background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.25)" }}>
+                          <p style={{ fontSize:11, fontWeight:700, color:"#D97706", margin:"0 0 10px" }}>Edit Learning</p>
+                          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", gap:8 }}>
+                              <div>
+                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic</label>
+                                <input value={learningDraft.topic} onChange={e => setLearningDraft(d => ({ ...d, topic: e.target.value }))}
+                                  placeholder="What did you learn?"
+                                  style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
+                              </div>
+                              <div>
+                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Hours</label>
+                                <input type="number" min="0" step="0.25" value={learningDraft.hours} onChange={e => setLearningDraft(d => ({ ...d, hours: e.target.value }))}
+                                  placeholder="e.g. 1.5"
+                                  style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
+                              </div>
+                            </div>
+                            <div>
+                              <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
+                              <textarea rows={2} value={learningDraft.notes} onChange={e => setLearningDraft(d => ({ ...d, notes: e.target.value }))}
+                                placeholder="Any notes or details…"
+                                style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }}/>
+                            </div>
+                            <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                              <button onClick={() => setEditingLearningId(null)}
+                                style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>
+                                Cancel
+                              </button>
+                              <button onClick={() => saveLearning(u.id)} disabled={savingLearning}
+                                style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:8, background:"#F59E0B", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity: savingLearning ? 0.6 : 1 }}>
+                                <Check size={12}/> {savingLearning ? "Saving…" : "Save"}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : entries.length === 0 ? (
                     <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>
@@ -644,24 +720,69 @@ export default function HistoryClient({
                   ) : (
                     <div>
                       {u.learning_topic && (
-                        <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start", borderBottom:"1px solid #F5F6FA", background:"rgba(245,158,11,0.03)" }}>
-                          <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                            <BookOpen size={15} style={{ color:"#F59E0B" }}/>
-                          </div>
-                          <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
-                              <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
-                              <span style={{ fontSize:10, fontWeight:700, color:"#F59E0B", background:"rgba(245,158,11,0.1)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
+                        <div style={{ borderBottom:"1px solid #F5F6FA", background:"rgba(245,158,11,0.03)" }}>
+                          <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
+                            <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                              <BookOpen size={15} style={{ color:"#F59E0B" }}/>
                             </div>
-                            {u.learning_notes && (
-                              <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>
-                            )}
-                            {(u.learning_hours ?? 0) > 0 && (
-                              <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:3, marginTop:4 }}>
-                                <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(u.learning_hours!)}
-                              </span>
-                            )}
+                            <div style={{ flex:1, minWidth:0 }}>
+                              <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
+                                <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
+                                <span style={{ fontSize:10, fontWeight:700, color:"#F59E0B", background:"rgba(245,158,11,0.1)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
+                              </div>
+                              {u.learning_notes && (
+                                <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>
+                              )}
+                              {(u.learning_hours ?? 0) > 0 && (
+                                <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:3, marginTop:4 }}>
+                                  <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(u.learning_hours!)}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => editingLearningId === u.id ? setEditingLearningId(null) : startEditLearning(u)}
+                              title="Edit learning"
+                              style={{ width:26, height:26, borderRadius:7, background: editingLearningId === u.id ? "rgba(245,158,11,0.2)" : "rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.35)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}>
+                              <Pencil size={11} style={{ color:"#D97706" }}/>
+                            </button>
                           </div>
+                          {editingLearningId === u.id && (
+                            <div style={{ margin:"0 18px 14px", padding:"14px", borderRadius:12, background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.25)" }}>
+                              <p style={{ fontSize:11, fontWeight:700, color:"#D97706", margin:"0 0 10px" }}>Edit Learning</p>
+                              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                                <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", gap:8 }}>
+                                  <div>
+                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic</label>
+                                    <input value={learningDraft.topic} onChange={e => setLearningDraft(d => ({ ...d, topic: e.target.value }))}
+                                      placeholder="What did you learn?"
+                                      style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
+                                  </div>
+                                  <div>
+                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Hours</label>
+                                    <input type="number" min="0" step="0.25" value={learningDraft.hours} onChange={e => setLearningDraft(d => ({ ...d, hours: e.target.value }))}
+                                      placeholder="e.g. 1.5"
+                                      style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
+                                  </div>
+                                </div>
+                                <div>
+                                  <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
+                                  <textarea rows={2} value={learningDraft.notes} onChange={e => setLearningDraft(d => ({ ...d, notes: e.target.value }))}
+                                    placeholder="Any notes or details…"
+                                    style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }}/>
+                                </div>
+                                <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                                  <button onClick={() => setEditingLearningId(null)}
+                                    style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>
+                                    Cancel
+                                  </button>
+                                  <button onClick={() => saveLearning(u.id)} disabled={savingLearning}
+                                    style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:8, background:"#F59E0B", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity: savingLearning ? 0.6 : 1 }}>
+                                    <Check size={12}/> {savingLearning ? "Saving…" : "Save"}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                       {entries.map((e, ei) => {

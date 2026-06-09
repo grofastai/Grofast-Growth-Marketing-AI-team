@@ -222,6 +222,32 @@ export async function updatePastDailyUpdate(
   return { success: true }
 }
 
+export async function updateDailyUpdateLearning(
+  id: string,
+  data: { learning_hours: number | null; learning_topic: string | null; learning_notes: string | null }
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { error } = await admin
+    .from('daily_updates')
+    .update({
+      learning_hours: data.learning_hours,
+      learning_topic: data.learning_topic || null,
+      learning_notes: data.learning_notes || null,
+    })
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/member/history')
+  revalidatePath('/admin/activities')
+  return { success: true }
+}
+
 export async function getTodayUpdate() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()

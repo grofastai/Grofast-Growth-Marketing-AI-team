@@ -43,11 +43,11 @@ function calcHours(inIso: string, outIso: string | null): number {
 }
 function calcHoursNet(inIso: string, outIso: string | null, breakTotalMins: number, currentBreakInIso: string | null, pausedSeconds = 0): number {
   const raw = calcHours(inIso, outIso)
-  // Subtract completed breaks (accumulated) + any in-progress break + app-logout pause time
   const currentBreakHrs = currentBreakInIso
     ? (Date.now() - new Date(currentBreakInIso).getTime()) / 3600000
     : 0
-  return Math.max(0, raw - breakTotalMins / 60 - currentBreakHrs - pausedSeconds / 3600)
+  const safePaused = Math.max(0, pausedSeconds ?? 0)
+  return Math.max(0, raw - breakTotalMins / 60 - currentBreakHrs - safePaused / 3600)
 }
 function fmtDuration(s: number) {
   return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
@@ -73,7 +73,8 @@ function LiveTimer({ clockInIso, pausedSeconds, breakTotalMins = 0, currentBreak
     const raw       = (Date.now() - new Date(clockInIso).getTime()) / 1000
     const completed = breakTotalMins * 60
     const ongoing   = currentBreakInIso ? (Date.now() - new Date(currentBreakInIso).getTime()) / 1000 : 0
-    return Math.max(0, Math.floor(raw - pausedSeconds - completed - ongoing))
+    const safePaused = Math.max(0, pausedSeconds ?? 0)
+    return Math.max(0, Math.floor(raw - safePaused - completed - ongoing))
   }
   const [secs, setSecs] = useState(netSecs)
   useEffect(() => {
@@ -317,11 +318,11 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const totalWeekHours  = activeWeekLogs.filter(l => l.clock_in && l.status === "present").reduce((sum, l) => {
     const raw = l.clock_out ? calcHours(l.clock_in!, l.clock_out) : (l.date === today ? calcHours(l.clock_in!, null) : 0)
     const perm = permHoursByDate[l.date] ?? 0
-    // For today's active session, also deduct any ongoing break
     const activeBreakHrs = (l.date === today && !l.clock_out && l.break_in && !l.break_out)
       ? (Date.now() - new Date(l.break_in).getTime()) / 3600000
       : 0
-    return sum + Math.max(0, raw - (l.break_total_mins ?? 0) / 60 - activeBreakHrs - perm)
+    const safePaused = Math.max(0, (l.paused_seconds ?? 0)) / 3600
+    return sum + Math.max(0, raw - (l.break_total_mins ?? 0) / 60 - activeBreakHrs - safePaused - perm)
   }, 0)
 
   return (

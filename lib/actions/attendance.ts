@@ -374,8 +374,9 @@ export async function resumeAttendance(date: string): Promise<{ success: boolean
 
   // Add the gap between clock_out and now to paused_seconds so the live timer
   // doesn't count the idle window between logout and the overtime resume click.
-  const gapSeconds = Math.floor((Date.now() - new Date(log.clock_out).getTime()) / 1000)
-  const newPausedSeconds = ((log.paused_seconds as number) ?? 0) + gapSeconds
+  // Clamp to 0 to guard against edited clock_out timestamps that are in the future.
+  const gapSeconds = Math.max(0, Math.floor((Date.now() - new Date(log.clock_out).getTime()) / 1000))
+  const newPausedSeconds = Math.max(0, ((log.paused_seconds as number) ?? 0) + gapSeconds)
 
   const { error } = await admin
     .from('attendance_logs')

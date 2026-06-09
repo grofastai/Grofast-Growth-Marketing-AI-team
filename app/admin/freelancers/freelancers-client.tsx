@@ -691,6 +691,7 @@ function WorkSheet({
               {myEntries.map((entry, idx) => (
                 <EntryRow key={entry.id} entry={entry} idx={idx}
                   freelancerType={freelancer.type}
+                  freelancer={freelancer}
                   clientNames={clientNames}
                   onPaidToggle={async (paid) => {
                     const res = await markWorkEntryPaid(entry.id, paid)
@@ -731,8 +732,8 @@ function entryToEState(e: WorkEntry): EState {
   }
 }
 
-function EntryRow({ entry, idx, freelancerType, clientNames, onPaidToggle, onStatusChange, onDelete, onUpdated }: {
-  entry: WorkEntry; idx: number; freelancerType: FreelancerType; clientNames: string[]
+function EntryRow({ entry, idx, freelancerType, freelancer, clientNames, onPaidToggle, onStatusChange, onDelete, onUpdated }: {
+  entry: WorkEntry; idx: number; freelancerType: FreelancerType; freelancer: Freelancer; clientNames: string[]
   onPaidToggle: (paid: boolean) => Promise<void>
   onStatusChange: (status: string) => Promise<void>
   onDelete: () => Promise<void>
@@ -751,6 +752,23 @@ function EntryRow({ entry, idx, freelancerType, clientNames, onPaidToggle, onSta
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true); setErr("")
+    const audioDur = form.audio_duration_minutes ? parseFloat(form.audio_duration_minutes) : null
+    const startT   = form.start_time || null
+    const endT     = form.end_time   || null
+
+    // Compute optimistic amount from current freelancer rate
+    let optimisticAmount: number | null = null
+    if (entry.entry_type === "voice_over" && audioDur && freelancer.cost_per_minute) {
+      optimisticAmount = Math.round(audioDur * (freelancer.cost_per_minute as number) * 100) / 100
+    } else if (entry.entry_type === "video_edit" && freelancer.cost_per_video) {
+      optimisticAmount = freelancer.cost_per_video as number
+    } else if (entry.entry_type === "video_shoot" && startT && endT && freelancer.cost_per_hour) {
+      const [sh, sm] = startT.split(":").map(Number)
+      const [eh, em] = endT.split(":").map(Number)
+      const hrs = Math.round(((eh * 60 + em) - (sh * 60 + sm)) / 60 * 100) / 100
+      optimisticAmount = Math.round(hrs * (freelancer.cost_per_hour as number) * 100) / 100
+    }
+
     const patch: Partial<WorkEntry> & { amount?: number | null } = {
       client_name: form.client_name || null,
       title: form.title || null,
@@ -759,7 +777,7 @@ function EntryRow({ entry, idx, freelancerType, clientNames, onPaidToggle, onSta
       payment_status: form.payment_status,
       paid_at: form.payment_status === "paid" ? (entry.paid_at ?? new Date().toISOString()) : null,
       notes: form.notes || null,
-      audio_duration_minutes: form.audio_duration_minutes ? parseFloat(form.audio_duration_minutes) : null,
+      audio_duration_minutes: audioDur,
       date_given: form.date_given || null,
       date_finished: form.date_finished || null,
       video_type: form.video_type || null,
@@ -767,9 +785,10 @@ function EntryRow({ entry, idx, freelancerType, clientNames, onPaidToggle, onSta
       time_taken_hours: form.time_taken_hours ? parseFloat(form.time_taken_hours) : null,
       drive_updated: form.drive_updated,
       revision_count: parseInt(form.revision_count) || 0,
-      start_time: form.start_time || null,
-      end_time: form.end_time || null,
+      start_time: startT,
+      end_time: endT,
       travel_hours: form.travel_hours ? parseFloat(form.travel_hours) : null,
+      amount: optimisticAmount,
     }
     const res = await updateWorkEntry(entry.id, patch as Parameters<typeof updateWorkEntry>[1])
     if (!res.success) { setErr(res.error ?? "Failed to save"); setSaving(false); return }

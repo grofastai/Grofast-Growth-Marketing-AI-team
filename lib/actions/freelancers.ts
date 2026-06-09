@@ -237,6 +237,37 @@ export async function updateWorkEntry(id: string, input: Partial<WorkEntryInput>
 
   const admin = adminClient()
 
+  // Fetch existing entry + freelancer current rates to recalculate amount
+  const { data: existing } = await admin
+    .from("freelancer_work_entries")
+    .select("freelancer_id, entry_type, audio_duration_minutes, start_time, end_time")
+    .eq("id", id).eq("company_id", companyId).single()
+
+  const { data: freelancer } = existing
+    ? await admin.from("freelancers").select("cost_per_minute, cost_per_video, cost_per_hour").eq("id", existing.freelancer_id).single()
+    : { data: null }
+
+  // Resolve effective values (prefer incoming input, fall back to existing)
+  const entryType = existing?.entry_type as string | undefined
+  const audioDur  = input.audio_duration_minutes !== undefined ? input.audio_duration_minutes : (existing?.audio_duration_minutes ?? null)
+  const startTime = input.start_time !== undefined ? input.start_time : (existing?.start_time ?? null)
+  const endTime   = input.end_time   !== undefined ? input.end_time   : (existing?.end_time   ?? null)
+
+  // Recalculate amount from current freelancer rate (unless caller explicitly passed amount)
+  let amount: number | null | undefined = input.amount
+  if (amount === undefined && freelancer) {
+    if (entryType === "voice_over" && audioDur && freelancer.cost_per_minute) {
+      amount = Math.round((audioDur as number) * (freelancer.cost_per_minute as number) * 100) / 100
+    } else if (entryType === "video_edit" && freelancer.cost_per_video) {
+      amount = freelancer.cost_per_video as number
+    } else if (entryType === "video_shoot" && startTime && endTime && freelancer.cost_per_hour) {
+      const [sh, sm] = (startTime as string).split(":").map(Number)
+      const [eh, em] = (endTime   as string).split(":").map(Number)
+      const hrs = Math.round(((eh * 60 + em) - (sh * 60 + sm)) / 60 * 100) / 100
+      amount = Math.round(hrs * (freelancer.cost_per_hour as number) * 100) / 100
+    }
+  }
+
   const updates: Record<string, unknown> = {}
   if (input.client_name !== undefined) updates.client_name = input.client_name || null
   if (input.title       !== undefined) updates.title       = input.title || null
@@ -258,7 +289,7 @@ export async function updateWorkEntry(id: string, input: Partial<WorkEntryInput>
   if (input.start_time  !== undefined) updates.start_time  = input.start_time || null
   if (input.end_time    !== undefined) updates.end_time    = input.end_time || null
   if (input.travel_hours !== undefined) updates.travel_hours = input.travel_hours
-  if (input.amount      !== undefined) updates.amount      = input.amount
+  if (amount !== undefined) updates.amount = amount
 
   const { error } = await admin.from("freelancer_work_entries")
     .update(updates).eq("id", id).eq("company_id", companyId)

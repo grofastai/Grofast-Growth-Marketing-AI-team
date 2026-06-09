@@ -83,6 +83,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
 
   // Create form
   const [showAdd, setShowAdd]         = useState(false)
+  const [schedType, setSchedType]     = useState<"" | "shoot" | "post">("")
   const [schedDate, setSchedDate]     = useState("")
   const [title, setTitle]             = useState("")
   const [platform, setPlatform]       = useState("instagram")
@@ -155,6 +156,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
     setClientName(""); setAssignedTo(""); setInstructions("")
     setContentPillar(""); setPriority("medium")
     setFormError(""); setFormSuccess(false)
+    setSchedType("")
     setShowAdd(true)
   }
 
@@ -436,52 +438,83 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <div>
                 <h3 style={{ fontSize: 17, fontWeight: 800, color: "#111827", margin: 0 }}>Schedule Content</h3>
-                <p style={{ fontSize: 12, color: "#6B7280", margin: "2px 0 0" }}>Will be assigned to you</p>
+                <p style={{ fontSize: 12, color: "#6B7280", margin: "2px 0 0" }}>
+                  {schedType === "shoot" ? "📹 Video Shoot Schedule" : schedType === "post" ? "📱 Post (Videos & Poster)" : "Choose what to schedule"}
+                </p>
               </div>
               <button onClick={() => setShowAdd(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color="#6B7280" /></button>
             </div>
 
-            <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* ── Type picker ── */}
+            {!schedType && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 4 }}>
+                {[
+                  { key: "shoot", emoji: "📹", label: "Video Shoot", sub: "Schedule a shoot session", color: "#6366F1", bg: "rgba(99,102,241,0.06)", border: "rgba(99,102,241,0.25)" },
+                  { key: "post",  emoji: "📱", label: "Post",        sub: "Videos, Reels & Posters",  color: "#DE1A1A", bg: "rgba(222,26,26,0.06)",   border: "rgba(222,26,26,0.25)" },
+                ].map(opt => (
+                  <button key={opt.key} type="button"
+                    onClick={() => { setSchedType(opt.key as "shoot" | "post"); setContentType(opt.key === "shoot" ? "shoot" : "post"); setPlatform(opt.key === "shoot" ? "offline" : "instagram") }}
+                    style={{ padding: "22px 16px", borderRadius: 16, border: `2px solid ${opt.border}`, background: opt.bg, cursor: "pointer", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "all 0.15s" }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = "none"}>
+                    <span style={{ fontSize: 32 }}>{opt.emoji}</span>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: opt.color }}>{opt.label}</span>
+                    <span style={{ fontSize: 11, color: "#6B7280" }}>{opt.sub}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {schedType && <button type="button" onClick={() => setSchedType("")}
+              style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", padding: "0 0 10px", textAlign: "left" }}>
+              ← Change type
+            </button>}
+
+            <form onSubmit={handleCreate} style={{ display: schedType ? "flex" : "none", flexDirection: "column", gap: 14 }}>
               <div>
                 <label style={L}>Title *</label>
                 <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Diwali Sale Reel" required style={F} />
               </div>
 
-              <div>
-                <label style={L}>Platform</label>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {PLATFORMS.map(p => (
-                    <button key={p.id} type="button" onClick={() => setPlatform(p.id)}
-                      style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${platform === p.id ? p.color : "#E2E8F0"}`, background: platform === p.id ? `${p.color}18` : "#FAFAFA", color: platform === p.id ? p.color : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {schedType === "post" && (
+                <>
+                  <div>
+                    <label style={L}>Platform</label>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {PLATFORMS.map(p => (
+                        <button key={p.id} type="button" onClick={() => setPlatform(p.id)}
+                          style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${platform === p.id ? p.color : "#E2E8F0"}`, background: platform === p.id ? `${p.color}18` : "#FAFAFA", color: platform === p.id ? p.color : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div>
-                <label style={L}>Content Type</label>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {CONTENT_TYPES.map(ct => (
-                    <button key={ct} type="button" onClick={() => setContentType(ct)}
-                      style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${contentType === ct ? "#DE1A1A" : "#E2E8F0"}`, background: contentType === ct ? "rgba(222,26,26,0.08)" : "#FAFAFA", color: contentType === ct ? "#DE1A1A" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                      {ct.charAt(0).toUpperCase() + ct.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  <div>
+                    <label style={L}>Content Type</label>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {CONTENT_TYPES.map(ct => (
+                        <button key={ct} type="button" onClick={() => setContentType(ct)}
+                          style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${contentType === ct ? "#DE1A1A" : "#E2E8F0"}`, background: contentType === ct ? "rgba(222,26,26,0.08)" : "#FAFAFA", color: contentType === ct ? "#DE1A1A" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                          {ct.charAt(0).toUpperCase() + ct.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div>
-                <label style={L}>Content Pillar</label>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {CONTENT_PILLARS.map(cp => (
-                    <button key={cp} type="button" onClick={() => setContentPillar(contentPillar === cp ? "" : cp)}
-                      style={{ padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${contentPillar === cp ? "#6366F1" : "#E2E8F0"}`, background: contentPillar === cp ? "rgba(99,102,241,0.1)" : "#FAFAFA", color: contentPillar === cp ? "#6366F1" : "#718096", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                      {cp}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  <div>
+                    <label style={L}>Content Pillar</label>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {CONTENT_PILLARS.map(cp => (
+                        <button key={cp} type="button" onClick={() => setContentPillar(contentPillar === cp ? "" : cp)}
+                          style={{ padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${contentPillar === cp ? "#6366F1" : "#E2E8F0"}`, background: contentPillar === cp ? "rgba(99,102,241,0.1)" : "#FAFAFA", color: contentPillar === cp ? "#6366F1" : "#718096", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                          {cp}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label style={L}>Priority</label>

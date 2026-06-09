@@ -96,6 +96,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   // Modal mode: "add" | "edit" | null
   const [modalMode, setModalMode] = useState<"add" | "edit" | null>(null)
   const [editingPost, setEditingPost] = useState<Post | null>(null)
+  const [schedType, setSchedType] = useState<"" | "shoot" | "post">("")
 
   // Form state
   const [title, setTitle]               = useState("")
@@ -143,7 +144,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     setClientId(""); setClientName(""); setAssignedTo("")
     setInstructions(""); setContentPillar(""); setPriority("medium")
     setSchedTime(""); setSchedDates([]); setSchedDateInput("")
-    setFormError(""); setFormSuccess(false)
+    setFormError(""); setFormSuccess(false); setSchedType("")
   }
 
   function openAdd(d: number) {
@@ -429,15 +430,44 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }} onClick={() => setModalMode(null)} />
           <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 20, padding: 28, width: "100%", maxWidth: 580, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
-              <h3 style={{ fontSize: 17, fontWeight: 800, color: "#111827", margin: 0 }}>
-                {isEdit ? "Edit Content" : "Schedule Content"}
-              </h3>
+              <div>
+                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#111827", margin: 0 }}>
+                  {isEdit ? "Edit Content" : "Schedule Content"}
+                </h3>
+                {!isEdit && <p style={{ fontSize: 12, color: "#6B7280", margin: "2px 0 0" }}>
+                  {schedType === "shoot" ? "📹 Video Shoot Schedule" : schedType === "post" ? "📱 Post (Videos & Poster)" : "Choose what to schedule"}
+                </p>}
+              </div>
               <button onClick={() => setModalMode(null)} style={{ background: "none", border: "none", cursor: "pointer" }}>
                 <X size={18} color="#6B7280" />
               </button>
             </div>
 
-            <form onSubmit={isEdit ? handleEdit : handleCreate} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* ── Type picker (add mode only) ── */}
+            {!isEdit && !schedType && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 4 }}>
+                {[
+                  { key: "shoot", emoji: "📹", label: "Video Shoot", sub: "Schedule a shoot session", color: "#6366F1", bg: "rgba(99,102,241,0.06)", border: "rgba(99,102,241,0.25)" },
+                  { key: "post",  emoji: "📱", label: "Post",        sub: "Videos, Reels & Posters",  color: "#DE1A1A", bg: "rgba(222,26,26,0.06)",   border: "rgba(222,26,26,0.25)" },
+                ].map(opt => (
+                  <button key={opt.key} type="button"
+                    onClick={() => { setSchedType(opt.key as "shoot" | "post"); setContentType(opt.key === "shoot" ? "shoot" : "post"); setPlatform(opt.key === "shoot" ? "offline" : "instagram") }}
+                    style={{ padding: "22px 16px", borderRadius: 16, border: `2px solid ${opt.border}`, background: opt.bg, cursor: "pointer", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 32 }}>{opt.emoji}</span>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: opt.color }}>{opt.label}</span>
+                    <span style={{ fontSize: 11, color: "#6B7280" }}>{opt.sub}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {!isEdit && schedType && (
+              <button type="button" onClick={() => setSchedType("")}
+                style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", padding: "0 0 6px", textAlign: "left" }}>
+                ← Change type
+              </button>
+            )}
+
+            <form onSubmit={isEdit ? handleEdit : handleCreate} style={{ display: isEdit || schedType ? "flex" : "none", flexDirection: "column", gap: 16 }}>
 
               {/* Title */}
               <div>
@@ -445,44 +475,46 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Diwali Sale Reel" required style={FIELD} />
               </div>
 
-              {/* Platform */}
-              <div>
-                <label style={LABEL}>Platform</label>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {PLATFORMS.map(p => (
-                    <button key={p.id} type="button" onClick={() => setPlatform(p.id)}
-                      style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${platform === p.id ? p.color : "#E2E8F0"}`, background: platform === p.id ? `${p.color}18` : "#FAFAFA", color: platform === p.id ? p.color : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Platform / Content Type / Pillar — post only */}
+              {(isEdit || schedType === "post") && (
+                <>
+                  <div>
+                    <label style={LABEL}>Platform</label>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {PLATFORMS.map(p => (
+                        <button key={p.id} type="button" onClick={() => setPlatform(p.id)}
+                          style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${platform === p.id ? p.color : "#E2E8F0"}`, background: platform === p.id ? `${p.color}18` : "#FAFAFA", color: platform === p.id ? p.color : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              {/* Content type */}
-              <div>
-                <label style={LABEL}>Content Type</label>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {CONTENT_TYPES.map(ct => (
-                    <button key={ct.id} type="button" onClick={() => setContentType(ct.id)}
-                      style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${contentType === ct.id ? "#DE1A1A" : "#E2E8F0"}`, background: contentType === ct.id ? "rgba(222,26,26,0.08)" : "#FAFAFA", color: contentType === ct.id ? "#DE1A1A" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                      {ct.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  <div>
+                    <label style={LABEL}>Content Type</label>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {CONTENT_TYPES.map(ct => (
+                        <button key={ct.id} type="button" onClick={() => setContentType(ct.id)}
+                          style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${contentType === ct.id ? "#DE1A1A" : "#E2E8F0"}`, background: contentType === ct.id ? "rgba(222,26,26,0.08)" : "#FAFAFA", color: contentType === ct.id ? "#DE1A1A" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                          {ct.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              {/* Content Pillar */}
-              <div>
-                <label style={LABEL}>Content Pillar</label>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {CONTENT_PILLARS.map(cp => (
-                    <button key={cp} type="button" onClick={() => setContentPillar(contentPillar === cp ? "" : cp)}
-                      style={{ padding: "5px 12px", borderRadius: 8, border: `1.5px solid ${contentPillar === cp ? "#6366F1" : "#E2E8F0"}`, background: contentPillar === cp ? "rgba(99,102,241,0.1)" : "#FAFAFA", color: contentPillar === cp ? "#6366F1" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                      {cp}
-                    </button>
-                  ))}
-                </div>
-              </div>
+                  <div>
+                    <label style={LABEL}>Content Pillar</label>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {CONTENT_PILLARS.map(cp => (
+                        <button key={cp} type="button" onClick={() => setContentPillar(contentPillar === cp ? "" : cp)}
+                          style={{ padding: "5px 12px", borderRadius: 8, border: `1.5px solid ${contentPillar === cp ? "#6366F1" : "#E2E8F0"}`, background: contentPillar === cp ? "rgba(99,102,241,0.1)" : "#FAFAFA", color: contentPillar === cp ? "#6366F1" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                          {cp}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
 
               {/* Priority */}
               <div>

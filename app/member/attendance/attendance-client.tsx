@@ -23,7 +23,7 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
 type BreakSession = { in: string; out: string | null; mins: number | null }
 type AttLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_in: string | null; break_out: string | null; break_total_mins: number; break_sessions: BreakSession[] | null; work_type: string | null; status: string; paused_seconds: number }
 type DailyUpdate = { working_hours: number | null; learning_hours: number | null; shoot_count: number | null }
-type RangeLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; work_type: string | null; status: string }
+type RangeLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; break_in: string | null; break_out: string | null; work_type: string | null; status: string; learning_hours: number }
 type RangeMode = "date" | "last7" | "thisMonth" | "lastMonth"
 
 interface Props {
@@ -125,6 +125,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [editingDate, setEditingDate]   = useState<string | null>(null)
   const [editCIn, setEditCIn]           = useState("")
   const [editCOut, setEditCOut]         = useState("")
+  const [editBrkIn, setEditBrkIn]       = useState("")
+  const [editBrkOut, setEditBrkOut]     = useState("")
   const [editSaving, setEditSaving]     = useState(false)
   const [editError, setEditError]       = useState<string | null>(null)
   const [editSaved, setEditSaved]       = useState(false)
@@ -261,7 +263,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   async function handleEditTimes() {
     if (!editingDate || !editCIn) return
     setEditSaving(true); setEditError(null); setEditSaved(false)
-    const res = await editAttendanceTimes(editingDate, editCIn, editCOut)
+    const res = await editAttendanceTimes(editingDate, editCIn, editCOut, editBrkIn || undefined, editBrkOut || undefined)
     if (res.success) {
       setEditSaved(true)
       if (rangeMode !== "date") await handleRangeFilter(rangeMode)
@@ -271,13 +273,14 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     setEditSaving(false)
   }
 
-  function openEditTimes(date: string, clockIn: string | null, clockOut: string | null) {
+  function openEditTimes(date: string, clockIn: string | null, clockOut: string | null, breakIn?: string | null, breakOut?: string | null) {
     setEditingDate(date); setEditError(null); setEditSaved(false)
-    const toHHMM = (iso: string | null) => {
+    const toHHMM = (iso: string | null | undefined) => {
       if (!iso) return ""
       return new Date(iso).toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit", hour12:false, timeZone:"Asia/Kolkata" })
     }
     setEditCIn(toHHMM(clockIn)); setEditCOut(toHHMM(clockOut))
+    setEditBrkIn(toHHMM(breakIn)); setEditBrkOut(toHHMM(breakOut))
   }
 
   const isAbsent  = todayLog?.status === "absent"
@@ -877,7 +880,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             {rangeLoading && <p className="text-[13px]" style={{ color: "#9CA3AF" }}>Loading…</p>}
             {!rangeLoading && rangeLogs !== null && (() => {
               const pLogs = rangeLogs.filter(l => l.status === "present" && l.clock_in)
-              const totalH = pLogs.reduce((s, l) => s + Math.max(0, calcHours(l.clock_in!, l.clock_out) - (l.break_total_mins ?? 0)/60), 0)
+              const totalH = pLogs.reduce((s, l) => s + (l.clock_in && l.clock_out ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins ?? 0)/60) : 0), 0)
               const avgH = pLogs.length > 0 ? Math.round((totalH / pLogs.length) * 10) / 10 : 0
               return (
                 <>
@@ -986,7 +989,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 {/* Summary bar */}
                 {(() => {
                   const pLogs = rangeLogs.filter(l => l.status === "present" && l.clock_in)
-                  const totalH = pLogs.reduce((s, l) => s + Math.max(0, calcHours(l.clock_in!, l.clock_out) - (l.break_total_mins ?? 0)/60), 0)
+                  const totalH = pLogs.reduce((s, l) => s + (l.clock_in && l.clock_out ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins ?? 0)/60) : 0), 0)
                   const avgH = pLogs.length > 0 ? Math.round((totalH / pLogs.length) * 10) / 10 : 0
                   return (
                     <div className="flex flex-wrap gap-3 mb-4">
@@ -1010,14 +1013,16 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                     <thead>
                       <tr style={{ background:"#F5F6FA" }}>
-                        {["Date","Day","Status","Mode","Login","Logout","Worked",""].map(h => (
+                        {["Date","Day","Status","Mode","Login","Logout","Office Hrs","Learning","Total",""].map(h => (
                           <th key={h} style={{ padding:"8px 10px", textAlign:"left", fontWeight:700, color:"#6B7280", fontSize:10, textTransform:"uppercase", letterSpacing:"0.06em", whiteSpace:"nowrap" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {rangeLogs.map(l => {
-                        const h = l.clock_in ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins??0)/60) : 0
+                        const officeH = (l.clock_in && l.clock_out) ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins??0)/60) : 0
+                        const learnH  = l.learning_hours ?? 0
+                        const totalHrs = officeH + learnH
                         const dayLabel  = new Date(l.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"})
                         const dateLabel = new Date(l.date+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"})
                         const isEditing = editingDate === l.date
@@ -1034,10 +1039,12 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               <td style={{ padding:"9px 10px", color:"#6B7280", textTransform:"capitalize" }}>{l.work_type ?? "—"}</td>
                               <td style={{ padding:"9px 10px", color:"#111111", whiteSpace:"nowrap" }}>{fmtTime(l.clock_in)}</td>
                               <td style={{ padding:"9px 10px", color: l.clock_out ? "#111111" : "#EF4444", whiteSpace:"nowrap" }}>{l.clock_out ? fmtTime(l.clock_out) : "—"}</td>
-                              <td style={{ padding:"9px 10px", fontWeight:700, color:"#374151" }}>{h > 0 ? fmtHoursShort(Math.round(h*10)/10) : "—"}</td>
+                              <td style={{ padding:"9px 10px", fontWeight:700, color:"#374151" }}>{officeH > 0 ? fmtHoursShort(Math.round(officeH*10)/10) : "—"}</td>
+                              <td style={{ padding:"9px 10px", color:"#6366F1" }}>{learnH > 0 ? fmtHoursShort(Math.round(learnH*10)/10) : "—"}</td>
+                              <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111" }}>{totalHrs > 0 ? fmtHoursShort(Math.round(totalHrs*10)/10) : "—"}</td>
                               <td style={{ padding:"9px 10px" }}>
                                 {l.status === "present" && (
-                                  <button onClick={() => isEditing ? setEditingDate(null) : openEditTimes(l.date, l.clock_in, l.clock_out)}
+                                  <button onClick={() => isEditing ? setEditingDate(null) : openEditTimes(l.date, l.clock_in, l.clock_out, l.break_in, l.break_out)}
                                     style={{ fontSize:10, fontWeight:700, padding:"3px 10px", borderRadius:8, background: isEditing ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)", border:"1px solid rgba(99,102,241,0.2)", color:"#6366F1", cursor:"pointer" }}>
                                     ✏️ Edit
                                   </button>
@@ -1046,7 +1053,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                             </tr>
                             {isEditing && (
                               <tr style={{ background:"rgba(99,102,241,0.03)" }}>
-                                <td colSpan={8} style={{ padding:"12px 10px" }}>
+                                <td colSpan={10} style={{ padding:"12px 10px" }}>
                                   <div style={{ display:"flex", flexWrap:"wrap", gap:10, alignItems:"flex-end" }}>
                                     <div>
                                       <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6B7280", marginBottom:3 }}>LOGIN</label>
@@ -1057,6 +1064,16 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                                       <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6B7280", marginBottom:3 }}>LOGOUT</label>
                                       <input type="time" value={editCOut} onChange={e => setEditCOut(e.target.value)}
                                         style={{ padding:"6px 10px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none" }}/>
+                                    </div>
+                                    <div>
+                                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#F59E0B", marginBottom:3 }}>BREAK IN</label>
+                                      <input type="time" value={editBrkIn} onChange={e => setEditBrkIn(e.target.value)}
+                                        style={{ padding:"6px 10px", borderRadius:8, border:"1.5px solid #FDE68A", fontSize:12, color:"#111111", outline:"none" }}/>
+                                    </div>
+                                    <div>
+                                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#F59E0B", marginBottom:3 }}>BREAK OUT</label>
+                                      <input type="time" value={editBrkOut} onChange={e => setEditBrkOut(e.target.value)}
+                                        style={{ padding:"6px 10px", borderRadius:8, border:"1.5px solid #FDE68A", fontSize:12, color:"#111111", outline:"none" }}/>
                                     </div>
                                     <button onClick={handleEditTimes} disabled={editSaving || !editCIn}
                                       style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:8, background:"#6366F1", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:editSaving?0.6:1 }}>

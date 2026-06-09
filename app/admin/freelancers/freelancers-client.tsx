@@ -370,7 +370,7 @@ function FreelancerSheet({
 // ── Work Entry Sheet ──────────────────────────────────────────────────────────
 
 type EState = {
-  client_name: string; title: string; date: string; status: string; notes: string
+  client_name: string; title: string; date: string; status: string; payment_status: string; notes: string
   // VO
   audio_duration_minutes: string
   // Edit
@@ -381,7 +381,7 @@ type EState = {
 }
 
 const BLANK_E: EState = {
-  client_name: "", title: "", date: new Date().toISOString().split("T")[0], status: "pending", notes: "",
+  client_name: "", title: "", date: new Date().toISOString().split("T")[0], status: "pending", payment_status: "unpaid", notes: "",
   audio_duration_minutes: "",
   date_given: "", date_finished: "", video_type: "", video_duration: "",
   time_taken_hours: "", drive_updated: false, revision_count: "0",
@@ -441,7 +441,7 @@ function WorkSheet({
       freelancer_id: freelancer.id,
       entry_type: entryType as "voice_over" | "video_edit" | "video_shoot",
       client_name: form.client_name || undefined, title: form.title || undefined,
-      date: form.date, status: form.status, notes: form.notes || undefined,
+      date: form.date, status: form.status, payment_status: form.payment_status, notes: form.notes || undefined,
       audio_duration_minutes: form.audio_duration_minutes ? parseFloat(form.audio_duration_minutes) : null,
       date_given: form.date_given || undefined, date_finished: form.date_finished || undefined,
       video_type: form.video_type || undefined, video_duration: form.video_duration || undefined,
@@ -455,7 +455,7 @@ function WorkSheet({
       id: `new-${Date.now()}`, company_id: "", freelancer_id: freelancer.id,
       entry_type: entryType as "voice_over" | "video_edit" | "video_shoot",
       client_name: form.client_name || null, title: form.title || null,
-      date: form.date, status: form.status, payment_status: "unpaid", paid_at: null,
+      date: form.date, status: form.status, payment_status: form.payment_status, paid_at: form.payment_status === "paid" ? new Date().toISOString() : null,
       amount: calcAmount ?? null, notes: form.notes || null,
       audio_duration_minutes: form.audio_duration_minutes ? parseFloat(form.audio_duration_minutes) : null,
       cost_per_minute_snapshot: freelancer.cost_per_minute,
@@ -637,6 +637,23 @@ function WorkSheet({
                   </select>
                 </Field>
               )}
+
+              {/* Payment status */}
+              <div className="flex items-center gap-3">
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Payment</span>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => setF("payment_status", "unpaid")}
+                    className="px-3 py-1.5 rounded-xl text-[12px] font-bold transition-all"
+                    style={form.payment_status === "unpaid" ? { background: "#fee2e2", color: "#991b1b" } : { background: "#f3f4f6", color: "#6b7280" }}>
+                    Unpaid
+                  </button>
+                  <button type="button" onClick={() => setF("payment_status", "paid")}
+                    className="px-3 py-1.5 rounded-xl text-[12px] font-bold transition-all"
+                    style={form.payment_status === "paid" ? { background: "#d1fae5", color: "#065f46" } : { background: "#f3f4f6", color: "#6b7280" }}>
+                    Paid
+                  </button>
+                </div>
+              </div>
 
               <Field label="Notes">
                 <input className={inputCls} placeholder="Optional notes…" value={form.notes} onChange={e => setF("notes", e.target.value)} />

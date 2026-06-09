@@ -173,6 +173,38 @@ export async function markAbsent(): Promise<{ success: boolean; error?: string }
   return { success: true }
 }
 
+export async function markPastAbsent(date: string): Promise<{ success: boolean; error?: string }> {
+  const ctxResult = await getUserContext()
+  if ('error' in ctxResult) return { success: false, error: ctxResult.error }
+  const ctx = ctxResult
+
+  const today = new Date().toISOString().split('T')[0]
+  if (date > today) return { success: false, error: 'Cannot mark future dates as absent' }
+
+  const admin = adminSupabase()
+  const { data: existing } = await admin
+    .from('attendance_logs')
+    .select('id')
+    .eq('company_id', ctx.companyId)
+    .eq('user_id', ctx.userId)
+    .eq('date', date)
+    .maybeSingle()
+
+  if (existing) return { success: false, error: 'Attendance already logged for this date' }
+
+  const { error } = await admin.from('attendance_logs').insert({
+    company_id: ctx.companyId,
+    user_id: ctx.userId,
+    date,
+    status: 'absent',
+  })
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/attendance')
+  revalidatePath('/admin/attendance')
+  return { success: true }
+}
+
 export async function clockOut(): Promise<{ success: boolean; error?: string }> {
   const ctxResult = await getUserContext()
   if ('error' in ctxResult) return { success: false, error: ctxResult.error }

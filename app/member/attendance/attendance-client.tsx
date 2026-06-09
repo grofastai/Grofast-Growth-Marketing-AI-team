@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useCallback, Fragment } from "react"
 import Image from "next/image"
 import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch } from "lucide-react"
-import { clockIn, clockOut, markAbsent, breakIn, breakOut, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes } from "@/lib/actions/attendance"
+import { clockIn, clockOut, markAbsent, markPastAbsent, breakIn, breakOut, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes } from "@/lib/actions/attendance"
 import { useRouter } from "next/navigation"
 
 const OFFICE_LAT     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LAT     ?? "12.415145713024462")
@@ -71,6 +71,14 @@ function addDays(dateStr: string, n: number) {
   const dt = new Date(y, m - 1, d + n)
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`
 }
+// Generate every date from `from` to `to` (inclusive, descending, capped at today)
+function allDatesInRange(from: string, to: string, today: string): string[] {
+  const cap = to > today ? today : to
+  const dates: string[] = []
+  let cur = cap
+  while (cur >= from) { dates.push(cur); cur = addDays(cur, -1) }
+  return dates
+}
 
 function LiveTimer({ clockInIso, pausedSeconds, breakTotalMins = 0, currentBreakInIso = null }: {
   clockInIso: string; pausedSeconds: number; breakTotalMins?: number; currentBreakInIso?: string | null
@@ -128,6 +136,9 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [rangeLoading, setRangeLoading] = useState(false)
   const [customFrom, setCustomFrom]     = useState("")
   const [customTo, setCustomTo]         = useState("")
+  const [rangeFrom, setRangeFrom]       = useState("")
+  const [rangeTo, setRangeTo]           = useState("")
+  const [markingAbsent, setMarkingAbsent] = useState<string | null>(null)
   // Login/logout edit
   const [editingDate, setEditingDate]   = useState<string | null>(null)
   const [editCIn, setEditCIn]           = useState("")
@@ -233,6 +244,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   async function handleCustomRange(from: string, to: string) {
     if (!from || !to || from > to) return
     setRangeLoading(true)
+    setRangeFrom(from); setRangeTo(to)
     const res = await getAttendanceRange(from, to)
     if (res.success) setRangeLogs(res.logs)
     setRangeLoading(false)
@@ -240,7 +252,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
   async function handleRangeFilter(mode: RangeMode) {
     setRangeMode(mode); setHistoryDate(""); setHistoryLog(null)
-    if (mode === "date") { setRangeLogs(null); setCustomFrom(""); setCustomTo(""); return }
+    if (mode === "date") { setRangeLogs(null); setCustomFrom(""); setCustomTo(""); setRangeFrom(""); setRangeTo(""); return }
     setRangeLoading(true)
     const now = new Date(), todayStr = now.toISOString().split("T")[0]
     let start = "", end = todayStr
@@ -252,9 +264,20 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
       const last = new Date(now.getFullYear(), now.getMonth(), 0).getDate()
       start = `${y}-${String(m).padStart(2,"0")}-01`; end = `${y}-${String(m).padStart(2,"0")}-${String(last).padStart(2,"0")}`
     }
+    setRangeFrom(start); setRangeTo(end)
     const res = await getAttendanceRange(start, end)
     if (res.success) setRangeLogs(res.logs)
     setRangeLoading(false)
+  }
+
+  async function handleMarkPastAbsent(date: string) {
+    setMarkingAbsent(date)
+    const res = await markPastAbsent(date)
+    if (res.success && rangeFrom && rangeTo) {
+      const refresh = await getAttendanceRange(rangeFrom, rangeTo)
+      if (refresh.success) setRangeLogs(refresh.logs)
+    }
+    setMarkingAbsent(null)
   }
 
   async function handleWeekNav(offset: number) {
@@ -959,10 +982,29 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                             </tr>
                           </thead>
                           <tbody>
-                            {rangeLogs.map(l => {
+                            {(rangeFrom ? allDatesInRange(rangeFrom, rangeTo, today) : rangeLogs.map(l=>l.date)).map(date => {
+                              const l = rangeLogs.find(r => r.date === date)
+                              const dayLabel  = new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"})
+                              const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"})
+                              // Gap row — no attendance record exists
+                              if (!l) return (
+                                <tr key={date} style={{ borderBottom:"1px solid #F5F6FA" }}>
+                                  <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111", whiteSpace:"nowrap" }}>{dateLabel}</td>
+                                  <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
+                                  <td style={{ padding:"9px 10px" }}><span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(0,0,0,0.04)", color:"#9CA3AF" }}>No Record</span></td>
+                                  <td colSpan={3} style={{ padding:"9px 10px", color:"#D1D5DB" }}>—</td>
+                                  <td style={{ padding:"9px 10px" }} />
+                                  <td style={{ padding:"9px 10px" }}>
+                                    {date < today && (
+                                      <button onClick={() => handleMarkPastAbsent(date)} disabled={markingAbsent === date}
+                                        style={{ fontSize:10, fontWeight:700, padding:"3px 10px", borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", color:"#EF4444", cursor:"pointer", opacity: markingAbsent === date ? 0.6 : 1 }}>
+                                        {markingAbsent === date ? "..." : "Mark Absent"}
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              )
                               const workedH = l.worked_hours ?? 0
-                              const dayLabel  = new Date(l.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"})
-                              const dateLabel = new Date(l.date+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"})
                               const isEditing = editingDate === l.date
                               return (
                                 <Fragment key={l.date}>
@@ -1068,11 +1110,29 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       </tr>
                     </thead>
                     <tbody>
-                      {rangeLogs.map(l => {
+                      {(rangeFrom ? allDatesInRange(rangeFrom, rangeTo, today) : rangeLogs.map(l=>l.date)).map(date => {
+                        const l = rangeLogs.find(r => r.date === date)
+                        const dayLabel  = new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"})
+                        const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"})
+                        if (!l) return (
+                          <tr key={date} style={{ borderBottom:"1px solid #F5F6FA" }}>
+                            <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111", whiteSpace:"nowrap" }}>{dateLabel}</td>
+                            <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
+                            <td style={{ padding:"9px 10px" }}><span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(0,0,0,0.04)", color:"#9CA3AF" }}>No Record</span></td>
+                            <td colSpan={4} style={{ padding:"9px 10px", color:"#D1D5DB" }}>—</td>
+                            <td style={{ padding:"9px 10px" }} />
+                            <td style={{ padding:"9px 10px" }}>
+                              {date < today && (
+                                <button onClick={() => handleMarkPastAbsent(date)} disabled={markingAbsent === date}
+                                  style={{ fontSize:10, fontWeight:700, padding:"3px 10px", borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", color:"#EF4444", cursor:"pointer", opacity: markingAbsent === date ? 0.6 : 1 }}>
+                                  {markingAbsent === date ? "..." : "Mark Absent"}
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        )
                         const officeH  = (l.clock_in && l.clock_out) ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins??0)/60) : 0
                         const workedH  = l.worked_hours ?? 0
-                        const dayLabel  = new Date(l.date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"})
-                        const dateLabel = new Date(l.date+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"})
                         const isEditing = editingDate === l.date
                         return (
                           <Fragment key={l.date}>

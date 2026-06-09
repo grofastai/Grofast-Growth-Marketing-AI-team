@@ -851,28 +851,60 @@ export default function DailyUpdateForm({
                             <option value="completed">Completed ✓</option>
                           </select>
                         </div>
-                        {/* Client / Project dropdown */}
+                        {/* Client / Project multi-select */}
                         <div style={{ marginTop:4 }}>
                           <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project</p>
+                          {/* Dropdown to add a client */}
                           <div style={{ position:"relative" }}>
                             <select
-                              value={block.projectName || (block.clientNames.length === 1 ? block.clientNames[0] : "")}
+                              value=""
                               onChange={e => {
                                 const v = e.target.value
+                                if (!v) return
                                 if (v === "Promotion" || v === "__custom__") {
                                   patchBlock(block.id, { projectName: v, clientNames: [], brand: "", customClient: "" })
                                 } else {
-                                  patchBlock(block.id, { clientNames: v ? [v] : [], isMultiClient: false, projectName: "", brand: "", customClient: "" })
+                                  if (!block.clientNames.includes(v))
+                                    patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" })
                                 }
                               }}
-                              style={{ width:"100%", fontSize:12, fontWeight:600, color:"#111827", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                              <option value="">Select client / project…</option>
-                              <option value="Promotion">📣 Our Brand</option>
-                              {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                              <option value="__custom__">✏️ Other (type manually)</option>
+                              style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                              <option value="">Add client / project…</option>
+                              {!block.projectName && <option value="Promotion">📣 Our Brand</option>}
+                              {allClientOptions.filter(n => !block.clientNames.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
+                              {!block.projectName && <option value="__custom__">✏️ Other (type manually)</option>}
                             </select>
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                           </div>
+                          {/* Selected clients as removable pills */}
+                          {(block.clientNames.length > 0 || block.projectName) && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                              {block.clientNames.map(name => (
+                                <button key={name} type="button"
+                                  onClick={() => patchBlock(block.id, { clientNames: block.clientNames.filter(n => n !== name), isMultiClient: block.clientNames.length > 2 })}
+                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(222,26,26,0.08)", border:"1.5px solid rgba(222,26,26,0.25)", cursor:"pointer" }}>
+                                  <span style={{ fontSize:10, fontWeight:700, color:"#de1a1a" }}>{name}</span>
+                                  <span style={{ fontSize:8, color:"#de1a1a" }}>✕</span>
+                                </button>
+                              ))}
+                              {block.projectName === "Promotion" && (
+                                <button type="button"
+                                  onClick={() => patchBlock(block.id, { projectName: "", brand: "", customClient: "" })}
+                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(217,119,6,0.08)", border:"1.5px solid rgba(217,119,6,0.3)", cursor:"pointer" }}>
+                                  <span style={{ fontSize:10, fontWeight:700, color:"#D97706" }}>📣 Our Brand</span>
+                                  <span style={{ fontSize:8, color:"#D97706" }}>✕</span>
+                                </button>
+                              )}
+                              {block.projectName === "__custom__" && (
+                                <button type="button"
+                                  onClick={() => patchBlock(block.id, { projectName: "", brand: "", customClient: "" })}
+                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.08)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
+                                  <span style={{ fontSize:10, fontWeight:700, color:"#6366F1" }}>✏️ Other</span>
+                                  <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
                           {/* Our Brand → brand picker */}
                           {block.projectName === "Promotion" && (
                             <div style={{ position:"relative", marginTop:6 }}>

@@ -898,15 +898,32 @@ export default function DailyUpdateForm({
                           {teamMembers.length > 0 && (
                             <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #EBEDF2" }}>
                               <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
-                              {/* Selected chips */}
+                              {/* Dropdown to add teammate */}
+                              <div style={{ position:"relative" }}>
+                                <select
+                                  value=""
+                                  onChange={e => {
+                                    const id = e.target.value
+                                    if (id && !block.participantIds.includes(id))
+                                      patchBlock(block.id, { participantIds: [...block.participantIds, id] })
+                                  }}
+                                  style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                                  <option value="">Add teammate…</option>
+                                  {teamMembers.filter(m => !block.participantIds.includes(m.id)).map(m => (
+                                    <option key={m.id} value={m.id}>{m.name}</option>
+                                  ))}
+                                </select>
+                                <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                              </div>
+                              {/* Selected list */}
                               {block.participantIds.length > 0 && (
-                                <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
+                                <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
                                   {block.participantIds.map(pid => {
                                     const m = teamMembers.find(t => t.id === pid)
                                     if (!m) return null
                                     const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
                                     return (
-                                      <button key={pid}
+                                      <button key={pid} type="button"
                                         onClick={() => patchBlock(block.id, { participantIds: block.participantIds.filter(p => p !== pid) })}
                                         style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
                                         <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
@@ -917,25 +934,6 @@ export default function DailyUpdateForm({
                                   })}
                                 </div>
                               )}
-                              {/* Teammate chips to toggle */}
-                              <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
-                                {teamMembers.slice(0, 20).map(m => {
-                                  const selected = block.participantIds.includes(m.id)
-                                  const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
-                                  return (
-                                    <button key={m.id}
-                                      onClick={() => patchBlock(block.id, { participantIds: selected ? block.participantIds.filter(p => p !== m.id) : [...block.participantIds, m.id] })}
-                                      style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, cursor:"pointer",
-                                        background: selected ? "rgba(99,102,241,0.1)" : "#F9FAFB",
-                                        border: `1.5px solid ${selected ? "rgba(99,102,241,0.4)" : "#EBEDF2"}`,
-                                      }}>
-                                      <div style={{ width:16, height:16, borderRadius:"50%", background: selected ? "#6366F1" : "#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color: selected ? "#fff" : "#9CA3AF" }}>{initials}</div>
-                                      <span style={{ fontSize:10, fontWeight:700, color: selected ? "#4338CA" : "#374151" }}>{m.name.split(" ")[0]}</span>
-                                      {selected && <span style={{ fontSize:8, color:"#6366F1" }}>✓</span>}
-                                    </button>
-                                  )
-                                })}
-                              </div>
                             </div>
                           )}
                         </div>

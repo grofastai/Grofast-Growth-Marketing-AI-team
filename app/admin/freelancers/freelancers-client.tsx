@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useTransition } from "react"
+import { useState, useMemo, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   Plus, X, Star, Mic, Scissors, Camera, UserCog, Phone, Calendar,
@@ -146,6 +146,15 @@ function FreelancerSheet({
   const [form, setForm] = useState<FState>(editing ? freelancerToState(editing) : BLANK_F)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
+
+  // Sync form state when editing changes or sheet opens
+  useEffect(() => {
+    if (open) {
+      setStep(editing ? "details" : "type")
+      setForm(editing ? freelancerToState(editing) : BLANK_F)
+      setErr("")
+    }
+  }, [open, editing])
 
   function reset() {
     setStep(editing ? "details" : "type")

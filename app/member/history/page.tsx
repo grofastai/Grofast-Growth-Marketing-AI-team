@@ -71,7 +71,7 @@ export default async function HistoryPage() {
 
   const companyId = profileResult.data?.company_id ?? ""
 
-  const [updatesResult, projectsResult, participatedResult, membersResult] = await Promise.all([
+  const [updatesResult, projectsResult, participatedResult, membersResult, attLogsResult] = await Promise.all([
     supabase
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, shoot_count, editing_count, work_entries, created_at")
@@ -98,9 +98,27 @@ export default async function HistoryPage() {
           .eq("company_id", companyId)
           .eq("status", "active")
       : Promise.resolve({ data: [] as MemberInfo[] }),
+    // Fetch attendance_logs to verify actual clock-in presence
+    admin
+      .from("attendance_logs")
+      .select("date")
+      .eq("user_id", effectiveUserId)
+      .not("clock_in", "is", null)
+      .order("date", { ascending: false })
+      .limit(90),
   ])
 
-  const updates = (updatesResult.data ?? []) as unknown as UpdateRow[]
+  // Build a set of dates where the member actually clocked in
+  const clockedInDates = new Set(
+    ((attLogsResult.data ?? []) as { date: string }[]).map(r => r.date)
+  )
+
+  // Override attendance_status to 'present' for any day with a clock-in
+  const rawUpdates = (updatesResult.data ?? []) as unknown as UpdateRow[]
+  const updates = rawUpdates.map(u => ({
+    ...u,
+    attendance_status: clockedInDates.has(u.date) ? "present" : u.attendance_status,
+  }))
   const name = (profileResult.data?.name ?? "").split(" ")[0] || "there"
   const clients = (projectsResult.data ?? []).map((p: { business_name: string }) => p.business_name).filter(Boolean)
   const participatedUpdates = (participatedResult.data ?? []) as unknown as ParticipatedUpdate[]

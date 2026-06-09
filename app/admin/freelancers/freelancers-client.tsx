@@ -664,7 +664,7 @@ function WorkSheet({
               <button type="submit" disabled={saving}
                 className="self-end px-5 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all flex items-center gap-2"
                 style={{ background: saving ? "#f87171" : "#DE1A1A" }}>
-                {saving ? "Saving…" : <><Plus size={14} />Add Entry</>}
+                {saving ? "Saving…" : <><Check size={14} />Save Entry</>}
               </button>
             </form>
           </div>

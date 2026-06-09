@@ -734,7 +734,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             {(() => {
               const d = new Date(today)
               const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
-              const workingDaysInMonth = daysInMonth - 5  // 5 fixed offs per month
+              const workingDaysInMonth = daysInMonth  // full calendar days in month
               const presentDays = monthlyPerf?.presentDays ?? 0
               const remainingDays = Math.max(0, workingDaysInMonth - presentDays - (monthlyPerf?.leaveDays ?? 0))
               return (

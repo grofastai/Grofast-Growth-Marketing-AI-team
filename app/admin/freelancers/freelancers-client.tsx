@@ -6,13 +6,14 @@ import {
   Plus, X, Star, Mic, Scissors, Camera, UserCog, Phone, Calendar,
   Clock, DollarSign, CheckCircle, Trash2, CreditCard, ChevronDown,
   ChevronUp, Edit2, Search, IndianRupee, HardDrive, RotateCcw,
-  Check, AlertCircle,
+  Check, AlertCircle, UserCheck, Users,
 } from "lucide-react"
 import {
   createFreelancer, updateFreelancer, deleteFreelancer,
   createWorkEntry, markWorkEntryPaid, deleteWorkEntry,
   updateWorkEntryStatus,
 } from "@/lib/actions/freelancers"
+import { assignFreelancerManager } from "@/lib/actions/freelancer-manager"
 import type { Freelancer, WorkEntry, FreelancerStats, FreelancerType } from "./page"
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -896,11 +897,15 @@ export default function FreelancersClient({
   workEntries: initEntries,
   clientNames,
   stats: initStats,
+  teamMembers = [],
+  currentManagerId = null,
 }: {
   freelancers: Freelancer[]
   workEntries: WorkEntry[]
   clientNames: string[]
   stats: FreelancerStats
+  teamMembers?: { id: string; name: string; employee_id: string; can_manage_freelancers: boolean }[]
+  currentManagerId?: string | null
 }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -917,6 +922,22 @@ export default function FreelancersClient({
   // Filters
   const [filter, setFilter] = useState<FreelancerType | "all">("all")
   const [search, setSearch] = useState("")
+
+  // Manager assignment
+  const [managerModalOpen, setManagerModalOpen] = useState(false)
+  const [managerId, setManagerId] = useState<string | null>(currentManagerId)
+  const [managerSaving, setManagerSaving] = useState(false)
+
+  async function handleAssignManager(userId: string | null) {
+    setManagerSaving(true)
+    const res = await assignFreelancerManager(userId)
+    if (res.success) {
+      setManagerId(userId)
+      setManagerModalOpen(false)
+      startTransition(() => router.refresh())
+    }
+    setManagerSaving(false)
+  }
 
   // Computed stats
   const stats = useMemo<FreelancerStats>(() => ({
@@ -978,13 +999,68 @@ export default function FreelancersClient({
             <h1 className="text-[22px] font-black text-gray-900">Freelancers</h1>
             <p className="text-[13px] text-gray-400 mt-0.5">{stats.total} freelancer{stats.total !== 1 ? "s" : ""} · {stats.totalWorks} work entries</p>
           </div>
-          <button onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all hover:opacity-90 shadow-sm"
-            style={{ background: "#DE1A1A" }}>
-            <Plus size={15} />Add Freelancer
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Assign Manager button */}
+            <button onClick={() => setManagerModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-90 shadow-sm"
+              style={{ background: managerId ? "rgba(34,197,94,0.1)" : "rgba(99,102,241,0.1)", color: managerId ? "#16A34A" : "#6366F1", border: `1.5px solid ${managerId ? "rgba(34,197,94,0.3)" : "rgba(99,102,241,0.3)"}` }}>
+              {managerId ? <UserCheck size={15} /> : <Users size={15} />}
+              {managerId ? `Manager: ${teamMembers.find(m => m.id === managerId)?.name.split(" ")[0] ?? "Assigned"}` : "Assign Manager"}
+            </button>
+            <button onClick={openAdd}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all hover:opacity-90 shadow-sm"
+              style={{ background: "#DE1A1A" }}>
+              <Plus size={15} />Add Freelancer
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Assign Manager Modal */}
+      {managerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setManagerModalOpen(false)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6" style={{ border: "1px solid rgba(0,0,0,0.08)" }}>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="text-[16px] font-black text-gray-900">Assign Freelancer Manager</h3>
+                <p className="text-[12px] text-gray-400 mt-0.5">One member manages all freelancers</p>
+              </div>
+              <button onClick={() => setManagerModalOpen(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "#F5F5F5" }}>
+                <X size={14} style={{ color: "#6B7280" }} />
+              </button>
+            </div>
+            <div className="flex flex-col gap-2 mb-5 max-h-64 overflow-y-auto">
+              {teamMembers.length === 0 && (
+                <p className="text-[13px] text-gray-400 text-center py-6">No active members found</p>
+              )}
+              {teamMembers.map(m => {
+                const isCurrentManager = managerId === m.id
+                return (
+                  <button key={m.id} onClick={() => !managerSaving && handleAssignManager(isCurrentManager ? null : m.id)}
+                    className="flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all"
+                    style={{ background: isCurrentManager ? "rgba(34,197,94,0.08)" : "#F9FAFB", border: `1.5px solid ${isCurrentManager ? "rgba(34,197,94,0.3)" : "transparent"}` }}>
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-[12px] font-black"
+                      style={{ background: isCurrentManager ? "#22C55E" : "#E5E7EB", color: isCurrentManager ? "#fff" : "#374151" }}>
+                      {m.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-bold text-gray-900 truncate">{m.name}</p>
+                      <p className="text-[11px] text-gray-400">#{m.employee_id}</p>
+                    </div>
+                    {isCurrentManager && (
+                      <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{ background: "rgba(34,197,94,0.15)", color: "#16A34A" }}>
+                        {managerSaving ? "Saving…" : "Manager · Click to remove"}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="text-[11px] text-gray-400 text-center">Click a member to assign · Click current manager to remove</p>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6">
         {/* Stats grid */}

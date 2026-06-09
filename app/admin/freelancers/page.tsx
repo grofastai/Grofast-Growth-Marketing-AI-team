@@ -29,15 +29,18 @@ export default async function FreelancersPage() {
   if (!profile?.company_id) redirect("/login")
   const cid = profile.company_id
 
-  const [freelancersResult, workEntriesResult, clientsResult] = await Promise.all([
+  const [freelancersResult, workEntriesResult, clientsResult, teamResult] = await Promise.all([
     admin.from("freelancers").select("*").eq("company_id", cid).order("name"),
     admin.from("freelancer_work_entries").select("*").eq("company_id", cid).order("date", { ascending: false }),
     admin.from("clients").select("name").eq("company_id", cid).order("name"),
+    admin.from("users").select("id, name, employee_id, can_manage_freelancers").eq("company_id", cid).eq("role", "MEMBER").eq("status", "active").order("name"),
   ])
 
   const freelancers = (freelancersResult.data ?? []) as Freelancer[]
   const workEntries = (workEntriesResult.data ?? []) as WorkEntry[]
   const clientNames = (clientsResult.data ?? []).map((c: { name: string }) => c.name).filter(Boolean)
+  const teamMembers = (teamResult.data ?? []) as { id: string; name: string; employee_id: string; can_manage_freelancers: boolean }[]
+  const currentManagerId = teamMembers.find(m => m.can_manage_freelancers)?.id ?? null
 
   const stats: FreelancerStats = {
     total: freelancers.length,
@@ -60,6 +63,8 @@ export default async function FreelancersPage() {
       workEntries={workEntries}
       clientNames={clientNames}
       stats={stats}
+      teamMembers={teamMembers}
+      currentManagerId={currentManagerId}
     />
   )
 }

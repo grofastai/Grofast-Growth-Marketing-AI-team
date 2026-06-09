@@ -24,7 +24,7 @@ export default async function MemberLayout({ children }: { children: React.React
   const impersonateId = cookieStore.get("gf_impersonate")?.value
 
   const [{ data: profile }, unreadCount] = await Promise.all([
-    admin.from("users").select("name, employee_id, role, must_change_password, photo_url, company_id").eq("id", user.id).single(),
+    admin.from("users").select("name, employee_id, role, must_change_password, photo_url, company_id, can_manage_freelancers").eq("id", user.id).single(),
     getNotificationCount(),
   ])
 
@@ -43,6 +43,13 @@ export default async function MemberLayout({ children }: { children: React.React
       redirect("/admin/team")
     }
 
+    // Check if impersonated user can manage freelancers
+    const { data: impUserProfile } = await admin
+      .from("users")
+      .select("can_manage_freelancers")
+      .eq("id", impersonateId)
+      .single()
+
     return (
       <div className="flex min-h-screen" style={{ background: "#EDEEF2" }}>
         <ImpersonationBanner memberName={impProfile.name} />
@@ -51,6 +58,7 @@ export default async function MemberLayout({ children }: { children: React.React
           employeeId={impProfile.employee_id ?? ""}
           unreadCount={unreadCount}
           photoUrl={impProfile.photo_url ?? null}
+          canManageFreelancers={impUserProfile?.can_manage_freelancers ?? false}
         />
         <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0" style={{ marginTop: 38 }}>
           {children}
@@ -72,6 +80,7 @@ export default async function MemberLayout({ children }: { children: React.React
         employeeId={profile?.employee_id ?? ""}
         unreadCount={unreadCount}
         photoUrl={profile?.photo_url ?? null}
+        canManageFreelancers={profile?.can_manage_freelancers ?? false}
       />
       <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0">
         {children}

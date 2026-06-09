@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, ClipboardList, Target, CalendarOff,
   Megaphone, User, LogOut, Clock, History, LifeBuoy, ChevronRight,
-  MoreHorizontal, X, Bell, ArrowRight, StickyNote, CalendarDays, Receipt,
+  MoreHorizontal, X, Bell, ArrowRight, StickyNote, CalendarDays, Receipt, Users2,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 import { getUnreadNotifications, markAllRead, type NotificationRow } from "@/lib/actions/notifications"
@@ -66,10 +66,18 @@ const moreNavItems = [
 const DIVIDER = "rgba(255,255,255,0.08)"
 const MOBILE_BG = "linear-gradient(90deg, #0a0a0a 0%, #1a0000 60%, #de1a1a 100%)"
 
-export default function MemberSidebar({ name, employeeId, unreadCount = 0, photoUrl = null }: { name: string; employeeId: string; unreadCount?: number; photoUrl?: string | null }) {
+export default function MemberSidebar({ name, employeeId, unreadCount = 0, photoUrl = null, canManageFreelancers = false }: { name: string; employeeId: string; unreadCount?: number; photoUrl?: string | null; canManageFreelancers?: boolean }) {
   const pathname = usePathname()
   const initials = name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
   const [showMore, setShowMore] = useState(false)
+
+  const activeNavItems = canManageFreelancers
+    ? [...navItems.slice(0, 6), { label: "Freelancers", href: "/member/freelancers", icon: Users2 }, ...navItems.slice(6)]
+    : navItems
+
+  const activeMoreNavItems = canManageFreelancers
+    ? [{ label: "Freelancers", href: "/member/freelancers", icon: Users2 }, ...moreNavItems]
+    : moreNavItems
   const [bellOpen, setBellOpen] = useState(false)
   const [panelNotifs, setPanelNotifs] = useState<NotificationRow[]>([])
   const [localUnread, setLocalUnread] = useState(unreadCount)
@@ -90,7 +98,7 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
     return pathname === href || (href !== "/member/dashboard" && pathname.startsWith(href))
   }
 
-  const isMoreActive = moreNavItems.some(item => isActive(item.href))
+  const isMoreActive = activeMoreNavItems.some(item => isActive(item.href))
 
   return (
     <>
@@ -159,7 +167,7 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
         {/* ── Nav ── */}
         <nav className="relative z-10 flex-1 px-3 pt-4 pb-2 overflow-y-auto">
           <div className="space-y-0.5">
-            {navItems.map(({ label, href, icon: Icon }) => {
+            {activeNavItems.map(({ label, href, icon: Icon }) => {
               const active = isActive(href)
               return (
                 <Link
@@ -302,7 +310,7 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
         </div>
 
         <nav className="relative z-10 flex-1 flex flex-col items-center pt-3 pb-2 gap-0.5 overflow-y-auto">
-          {navItems.map(({ label, href, icon: Icon }) => {
+          {activeNavItems.map(({ label, href, icon: Icon }) => {
             const active = isActive(href)
             return (
               <Link
@@ -448,7 +456,7 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
               </button>
             </div>
             <div className="grid grid-cols-3 gap-2 p-4 pb-8">
-              {moreNavItems.map(({ label, href, icon: Icon }) => {
+              {activeMoreNavItems.map(({ label, href, icon: Icon }) => {
                 const active = isActive(href)
                 return (
                   <Link

@@ -288,6 +288,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const isIn      = !!todayLog?.clock_in && !todayLog?.clock_out && todayLog?.status === "present"
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
   const notLogged = !todayLog
+  const isOvertime = isIn && (todayLog?.paused_seconds ?? 0) > 0
 
   const isOnBreak       = !!todayLog?.break_in && !todayLog?.break_out
   const breakTotalMins  = todayLog?.break_total_mins ?? 0
@@ -423,13 +424,21 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               {isIn && todayLog?.clock_in && (
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                       <p className="text-[13px] font-bold" style={{ color: "#111111" }}>
                         Logged in at {fmtTime(todayLog.clock_in)}
                       </p>
                       <CheckCircle2 size={15} style={{ color: "#22C55E" }} />
+                      {isOvertime && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide"
+                          style={{ background: "rgba(245,158,11,0.15)", color: "#D97706", border: "1px solid rgba(245,158,11,0.35)" }}>
+                          ⚡ Overtime
+                        </span>
+                      )}
                     </div>
-                    <p className="text-[12px] mb-1.5" style={{ color: "#9CA3AF" }}>Working for</p>
+                    <p className="text-[12px] mb-1.5" style={{ color: "#9CA3AF" }}>
+                      {isOvertime ? "Overtime working for" : "Working for"}
+                    </p>
                     <LiveTimer
                       clockInIso={todayLog.clock_in}
                       pausedSeconds={todayLog.paused_seconds}
@@ -507,38 +516,43 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
               {/* DONE */}
               {isDone && todayLog?.clock_in && todayLog?.clock_out && (
-                <div>
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
+                <div className="flex items-start gap-4">
+                  {/* Left: completion info */}
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 mt-0.5"
                       style={{ background: "rgba(34,197,94,0.1)" }}>
-                      <CheckCircle2 size={24} style={{ color: "#22C55E" }} />
+                      <CheckCircle2 size={22} style={{ color: "#22C55E" }} />
                     </div>
                     <div>
-                      <p className="text-[15px] font-bold mb-2" style={{ color: "#111111" }}>Completed for today ✓</p>
-                      <div className="flex gap-5 flex-wrap">
+                      <p className="text-[14px] font-bold mb-2" style={{ color: "#111111" }}>Day complete ✓</p>
+                      <div className="flex gap-4 flex-wrap">
                         {[
-                          { label: "Log In",  value: fmtTime(todayLog.clock_in),  color: "#111111" },
-                          { label: "Log Out", value: fmtTime(todayLog.clock_out), color: "#111111" },
-                          { label: "Span",    value: fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out)), color: "#6366F1" },
-                          { label: "Break",   value: breakTotalMins > 0 ? fmtHoursShort(breakTotalMins / 60) : "—", color: "#F59E0B" },
-                          { label: "Worked",  value: fmtHoursShort(hoursWorked), color: "#22C55E" },
+                          { label: "In",     value: fmtTime(todayLog.clock_in),  color: "#111111" },
+                          { label: "Out",    value: fmtTime(todayLog.clock_out), color: "#111111" },
+                          { label: "Span",   value: fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out)), color: "#6366F1" },
+                          { label: "Break",  value: breakTotalMins > 0 ? fmtHoursShort(breakTotalMins / 60) : "—", color: "#F59E0B" },
+                          { label: "Worked", value: fmtHoursShort(hoursWorked), color: "#22C55E" },
                         ].map(r => (
                           <div key={r.label}>
                             <p className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>{r.label}</p>
-                            <p className="text-[14px] font-bold" style={{ color: r.color }}>{r.value}</p>
+                            <p className="text-[13px] font-bold" style={{ color: r.color }}>{r.value}</p>
                           </div>
                         ))}
                       </div>
+                      {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
                     </div>
                   </div>
-                  {/* Overtime resume */}
+                  {/* Right: Overtime button */}
                   <button
                     onClick={() => handle(() => resumeAttendance(today))}
                     disabled={isPending}
-                    className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-2xl text-[13px] font-bold transition-all"
-                    style={{ background: "rgba(222,26,26,0.08)", border: "1.5px dashed rgba(222,26,26,0.3)", color: "#de1a1a", cursor: "pointer" }}>
-                    {isPending ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <TrendingUp size={14} />}
-                    Continue Working (Overtime)
+                    className="flex-shrink-0 flex flex-col items-center justify-center gap-1.5 rounded-2xl transition-all"
+                    style={{ background: "rgba(245,158,11,0.1)", border: "1.5px solid rgba(245,158,11,0.35)", color: "#D97706", padding: "12px 16px", minWidth: 72 }}>
+                    {isPending
+                      ? <Loader2 size={18} className="animate-spin" />
+                      : <TrendingUp size={18} />
+                    }
+                    <span className="text-[11px] font-bold leading-none">Overtime</span>
                   </button>
                 </div>
               )}

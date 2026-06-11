@@ -463,7 +463,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   { key: "post",  emoji: "📱", label: "Post",        sub: "Videos, Reels & Posters",  color: "#DE1A1A", bg: "rgba(222,26,26,0.06)",   border: "rgba(222,26,26,0.25)" },
                 ].map(opt => (
                   <button key={opt.key} type="button"
-                    onClick={() => { setSchedType(opt.key as "shoot" | "post"); setContentType(opt.key === "shoot" ? "shoot" : "post"); setPlatform(opt.key === "shoot" ? "offline" : "instagram") }}
+                    onClick={() => { setSchedType(opt.key as "shoot" | "post"); setContentType(opt.key === "shoot" ? "shoot" : "post"); setPlatform(opt.key === "shoot" ? "other" : "instagram") }}
                     style={{ padding: "22px 16px", borderRadius: 16, border: `2px solid ${opt.border}`, background: opt.bg, cursor: "pointer", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "all 0.15s" }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = "none"}>

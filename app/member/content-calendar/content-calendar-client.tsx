@@ -395,9 +395,11 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                       const priCfg = PRIORITY_CFG[p.priority ?? "medium"] ?? PRIORITY_CFG.medium
                       const isMine = p.assigned_to === userId
                       const pColor = platformColor(p.platform)
+                      const isPosted = p.status === "posted"
                       return (
-                        <div key={p.id} style={{ padding: "12px 14px", borderRadius: 12, background: "#FFF", border: `1.5px solid ${pColor}30`, marginBottom: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                        <div key={p.id} style={{ padding: "12px 14px", borderRadius: 12, background: "#FFF", border: `1.5px solid ${isPosted ? "#10B98140" : pColor + "30"}`, marginBottom: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                          {/* Top row — platform + title + status badge */}
+                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                               <span style={{ fontSize: 20 }}>{platformEmoji(p.platform)}</span>
                               <div>
@@ -405,23 +407,39 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                                 <p style={{ margin: 0, fontSize: 11, color: pColor, fontWeight: 600 }}>{platformLabel(p.platform)}</p>
                               </div>
                             </div>
-                            {isMine ? (
-                              <select value={p.status} onChange={e => handleStatusChange(p.id, e.target.value)}
-                                style={{ fontSize: 10, fontWeight: 700, padding: "4px 8px", borderRadius: 8, border: `1.5px solid ${cfg.color}`, background: cfg.bg, color: cfg.color, cursor: "pointer", outline: "none", flexShrink: 0 }}>
-                                {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                              </select>
-                            ) : (
-                              <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 8px", borderRadius: 8, background: cfg.bg, color: cfg.color, flexShrink: 0 }}>{cfg.label}</span>
-                            )}
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 8px", borderRadius: 8, background: cfg.bg, color: cfg.color, flexShrink: 0, whiteSpace: "nowrap" }}>{cfg.label}</span>
                           </div>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11 }}>
+                          {/* Meta tags */}
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11, marginBottom: isMine ? 10 : 0 }}>
                             <span style={{ padding: "2px 8px", borderRadius: 6, background: "#F3F4F6", color: "#374151", fontWeight: 600 }}>👤 {p.assignee?.name ?? "Unassigned"}</span>
                             <span style={{ padding: "2px 8px", borderRadius: 6, background: "#F3F4F6", color: "#374151", fontWeight: 600 }}>🏢 {p.client_name || "—"}</span>
                             <span style={{ padding: "2px 8px", borderRadius: 6, background: "#F3F4F6", color: "#374151", fontWeight: 600 }}>📂 {p.content_type || "—"}</span>
                             <span style={{ padding: "2px 8px", borderRadius: 6, background: priCfg.bg, color: priCfg.color, fontWeight: 700 }}>{priCfg.label}</span>
                             {p.content_pillar && <span style={{ padding: "2px 8px", borderRadius: 6, background: "rgba(99,102,241,0.1)", color: "#6366F1", fontWeight: 700 }}>{p.content_pillar}</span>}
-                            {isMine && <span style={{ padding: "2px 8px", borderRadius: 6, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", fontWeight: 700 }}>MINE</span>}
                           </div>
+                          {/* Done / Not Done buttons — only for assigned user */}
+                          {isMine && (
+                            <div style={{ display: "flex", gap: 8 }}>
+                              {!isPosted ? (
+                                <button
+                                  onClick={() => handleStatusChange(p.id, "posted")}
+                                  style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#10B981,#059669)", color: "#FFF", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                  <CheckCircle2 size={14} /> Done — Mark as Posted
+                                </button>
+                              ) : (
+                                <>
+                                  <div style={{ flex: 1, padding: "9px 0", borderRadius: 10, background: "rgba(16,185,129,0.1)", border: "1.5px solid rgba(16,185,129,0.3)", color: "#10B981", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                    <CheckCircle2 size={14} /> Posted ✓
+                                  </div>
+                                  <button
+                                    onClick={() => handleStatusChange(p.id, "pending")}
+                                    style={{ padding: "9px 14px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                                    Undo
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
@@ -468,10 +486,22 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                     <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap", flexShrink: 0 }}>{p.scheduled_date}</span>
                     <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{priCfg.label}</span>
                     {isMine ? (
-                      <select value={p.status} onChange={e => handleStatusChange(p.id, e.target.value)}
-                        style={{ fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${cfg.color}`, background: cfg.bg, color: cfg.color, cursor: "pointer", outline: "none", flexShrink: 0 }}>
-                        {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                      </select>
+                      p.status === "posted" ? (
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                          <span style={{ fontSize: 11, fontWeight: 800, padding: "5px 10px", borderRadius: 8, background: "rgba(16,185,129,0.1)", color: "#10B981", display: "flex", alignItems: "center", gap: 4 }}>
+                            <CheckCircle2 size={12} /> Posted ✓
+                          </span>
+                          <button onClick={() => handleStatusChange(p.id, "pending")}
+                            style={{ fontSize: 10, fontWeight: 700, padding: "5px 8px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: "pointer" }}>
+                            Undo
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => handleStatusChange(p.id, "posted")}
+                          style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#10B981,#059669)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                          <CheckCircle2 size={13} /> Mark as Posted
+                        </button>
+                      )
                     ) : (
                       <span style={{ fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 8, background: cfg.bg, color: cfg.color, flexShrink: 0 }}>{cfg.label}</span>
                     )}

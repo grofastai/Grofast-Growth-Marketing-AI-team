@@ -8,6 +8,7 @@ import {
   TrendingUp, CheckSquare, Clock, BarChart3, Sparkles, Archive, ChevronDown, ChevronUp,
 } from "lucide-react"
 import { createTask, updateTaskStatus, deleteTask } from "@/lib/actions/tasks"
+import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
 
 interface Task {
   id: string
@@ -194,7 +195,6 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
   )
 }
 
-const OWN_BRANDS = ["Masala Unlimit", "Kutty Karthi Vlog", "GroFast Digital", "A2Z Automobile", "Kaka Mutta"]
 
 // ── Main Component ───────────────────────────────────────────────────────────
 export default function GoalsClient({ tasks: initialTasks, members, projects, clients = [] }: {
@@ -706,33 +706,25 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                 )}
               </div>
               {/* Media team client field */}
-              {selectedMembers.some(id => members.find(m => m.id === id)?.team === "Media Team") && (() => {
-                const effectiveClient = mediaClientType === "__custom__" ? (mediaCustomClient || "") : mediaClientType === "Promotion" ? (mediaBrand || "") : mediaClientType
-                return (
-                  <div style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(222,26,26,0.04)", border: "1.5px solid rgba(222,26,26,0.15)" }}>
-                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#DE1A1A", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 8 }}>🎬 Client / Brand (Media)</label>
-                    <input type="hidden" name="client_name" value={effectiveClient} />
-                    <select value={mediaClientType} onChange={e => { setMediaClientType(e.target.value); setMediaBrand(""); setMediaCustomClient("") }} className="ti" style={{ marginBottom: mediaClientType ? 8 : 0 }}>
-                      <option value="">Select client…</option>
-                      <option value="Promotion">📣 Our Brand (Promotion)</option>
-                      <option value="__custom__">✏️ Other (type manually)</option>
-                      {[
-                        ...projects.map(p => p.business_name),
-                        ...clients.map(c => c.name).filter(n => !projects.some(p => p.business_name === n)),
-                      ].sort().map(name => <option key={name} value={name}>{name}</option>)}
-                    </select>
-                    {mediaClientType === "Promotion" && (
-                      <select value={mediaBrand} onChange={e => setMediaBrand(e.target.value)} className="ti">
-                        <option value="">📣 Select brand…</option>
-                        {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-                      </select>
-                    )}
-                    {mediaClientType === "__custom__" && (
-                      <input value={mediaCustomClient} onChange={e => setMediaCustomClient(e.target.value)} placeholder="Type client name…" className="ti" />
-                    )}
-                  </div>
-                )
-              })()}
+              {selectedMembers.some(id => members.find(m => m.id === id)?.team === "Media Team") && (
+                <div style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(222,26,26,0.04)", border: "1.5px solid rgba(222,26,26,0.15)" }}>
+                  <input type="hidden" name="client_name" value={resolveClientName(mediaClientType, mediaBrand, mediaCustomClient)} />
+                  <ClientSelector
+                    label="🎬 Client / Brand (Media)"
+                    clientOptions={[
+                      ...projects.map(p => p.business_name),
+                      ...clients.map(c => c.name).filter(n => !projects.some(p => p.business_name === n)),
+                    ].sort()}
+                    value={mediaClientType}
+                    brand={mediaBrand}
+                    customClient={mediaCustomClient}
+                    onValueChange={v => { setMediaClientType(v); setMediaBrand(""); setMediaCustomClient("") }}
+                    onBrandChange={setMediaBrand}
+                    onCustomChange={setMediaCustomClient}
+                    required
+                  />
+                </div>
+              )}
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>

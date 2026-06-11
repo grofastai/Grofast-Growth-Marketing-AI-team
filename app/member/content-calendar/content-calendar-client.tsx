@@ -76,7 +76,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [year, setYear]   = useState(initialYear)
   const [month, setMonth] = useState(initialMonth)
   const [view, setView]   = useState<"calendar" | "list">("calendar")
-  const [filter, setFilter] = useState<"all" | "mine">("all")
+  const [filter] = useState<"all" | "mine">("mine")
   const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [, start]           = useTransition()
   const [isPending, startCreate] = useTransition()
@@ -135,7 +135,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
 
   function handleStatusChange(postId: string, status: string) {
     const post = posts.find(p => p.id === postId)
-    if (!post || post.assigned_to !== userId) return
+    if (!post) return
     if (status === "posted") { setPostLink(""); setPostLinkModal({ postId, title: post.title }); return }
     start(async () => {
       await updateContentPostStatus(postId, status as "posted")
@@ -219,14 +219,6 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "#FFFFFF", color: "#DE1A1A", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800 }}>
               <Plus size={14} /> Add Content
             </button>
-            <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
-              {(["all", "mine"] as const).map(f => (
-                <button key={f} onClick={() => setFilter(f)}
-                  style={{ padding: "8px 16px", fontSize: 12, fontWeight: 700, background: filter === f ? "rgba(255,255,255,0.2)" : "transparent", color: "#FFFFFF", border: "none", cursor: "pointer" }}>
-                  {f === "all" ? "All Content" : "My Tasks"}
-                </button>
-              ))}
-            </div>
             <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
               {(["calendar","list"] as const).map(v => (
                 <button key={v} onClick={() => setView(v)}
@@ -453,14 +445,14 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
         <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
           <div style={{ padding: "18px 24px", borderBottom: "1px solid #F3F4F6" }}>
             <h2 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: 0 }}>
-              {filter === "mine" ? "My Content Tasks" : "All Scheduled Content"} — {MONTHS[month]} {year}
+              My Content — {MONTHS[month]} {year}
             </h2>
           </div>
           {filteredPosts.length === 0 ? (
             <div style={{ padding: "60px 24px", textAlign: "center" }}>
               <p style={{ fontSize: 32, margin: "0 0 12px" }}>📭</p>
               <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: "0 0 6px" }}>No content scheduled</p>
-              <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>{filter === "mine" ? "No content assigned to you this month." : "Nothing scheduled for this month yet."}</p>
+              <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>No content assigned to you this month.</p>
             </div>
           ) : (
             <div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useMemo } from "react"
+import { useState, useTransition, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   ChevronLeft, ChevronRight, ChevronDown, Plus, X, Camera,
@@ -86,6 +86,7 @@ const LABEL: React.CSSProperties = {
 export default function ContentCalendarClient({ posts: initial, shoots, tasks, members, clients, initialYear, initialMonth }: Props) {
   const router = useRouter()
   const [posts, setPosts] = useState(initial)
+  useEffect(() => { setPosts(initial) }, [initial])
   const [year, setYear]   = useState(initialYear)
   const [month, setMonth] = useState(initialMonth)
   const [view, setView]   = useState<"calendar" | "list">("calendar")

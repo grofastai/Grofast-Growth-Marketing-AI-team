@@ -7,7 +7,7 @@ import {
   CheckCircle2, Plus, X, Loader2, Send,
 } from "lucide-react"
 import { updateContentPostStatus, createContentPost } from "@/lib/actions/content-calendar"
-import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
+import ClientSelector, { resolveClientName, OWN_BRANDS } from "@/components/ui/ClientSelector"
 
 interface Post {
   id: string; title: string; platform: string; content_type: string
@@ -120,7 +120,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
 
   const clientOptions = useMemo(() => {
     const fromPosts = posts.map(p => p.client_name).filter(Boolean) as string[]
-    return [...new Set([...clientNames, ...fromPosts])].sort()
+    return [...new Set([...OWN_BRANDS, ...clientNames, ...fromPosts])].sort()
   }, [posts, clientNames])
 
   const filteredPosts = useMemo(() => {

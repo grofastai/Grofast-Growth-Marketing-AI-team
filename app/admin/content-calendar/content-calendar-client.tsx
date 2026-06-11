@@ -462,7 +462,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                   { key: "post",  emoji: "📱", label: "Post",        sub: "Videos, Reels & Posters",  color: "#DE1A1A", bg: "rgba(222,26,26,0.06)",   border: "rgba(222,26,26,0.25)" },
                 ].map(opt => (
                   <button key={opt.key} type="button"
-                    onClick={() => { setSchedType(opt.key as "shoot" | "post"); setContentType(opt.key === "shoot" ? "shoot" : "post"); setPlatform(opt.key === "shoot" ? "other" : "instagram") }}
+                    onClick={() => { setSchedType(opt.key as "shoot" | "post"); setContentType(opt.key === "shoot" ? "video" : "post"); setPlatform(opt.key === "shoot" ? "other" : "instagram") }}
                     style={{ padding: "22px 16px", borderRadius: 16, border: `2px solid ${opt.border}`, background: opt.bg, cursor: "pointer", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 32 }}>{opt.emoji}</span>
                     <span style={{ fontSize: 14, fontWeight: 800, color: opt.color }}>{opt.label}</span>

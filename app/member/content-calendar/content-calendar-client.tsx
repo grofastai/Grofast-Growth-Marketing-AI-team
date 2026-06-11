@@ -69,6 +69,54 @@ const L: React.CSSProperties = {
   textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5, display: "block",
 }
 
+function formatTime(t: string | null | undefined): string | null {
+  if (!t) return null
+  const [h, m] = t.split(":").map(Number)
+  const period = h >= 12 ? "PM" : "AM"
+  const hr = h % 12 || 12
+  return `${hr}:${String(m).padStart(2, "0")} ${period}`
+}
+
+function DonutChart({ total, posted, inProgress, ready, pending }: {
+  total: number; posted: number; inProgress: number; ready: number; pending: number
+}) {
+  const r = 42, cx = 65, cy = 65, circ = 2 * Math.PI * r
+  if (total === 0) return (
+    <svg width="130" height="130">
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#E5E7EB" strokeWidth="15" />
+      <text x={cx} y={cy - 4} textAnchor="middle" fontSize="20" fontWeight="900" fill="#111827">0</text>
+      <text x={cx} y={cy + 13} textAnchor="middle" fontSize="9" fill="#9CA3AF">Total Content</text>
+    </svg>
+  )
+  const segs = [
+    { val: ready,      color: "#3B82F6" },
+    { val: inProgress, color: "#F59E0B" },
+    { val: posted,     color: "#10B981" },
+    { val: pending,    color: "#8B5CF6" },
+  ]
+  let cum = 0
+  return (
+    <svg width="130" height="130">
+      {segs.map((s, i) => {
+        if (!s.val) return null
+        const pct  = s.val / total
+        const dash = pct * circ
+        const rot  = cum * 360 - 90
+        cum += pct
+        return (
+          <circle key={i} cx={cx} cy={cy} r={r}
+            fill="none" stroke={s.color} strokeWidth="15"
+            strokeDasharray={`${dash} ${circ}`}
+            transform={`rotate(${rot} ${cx} ${cy})`}
+          />
+        )
+      })}
+      <text x={cx} y={cy - 4} textAnchor="middle" fontSize="20" fontWeight="900" fill="#111827">{total}</text>
+      <text x={cx} y={cy + 13} textAnchor="middle" fontSize="9" fill="#9CA3AF">Total Content</text>
+    </svg>
+  )
+}
+
 export default function MemberContentCalendarClient({ posts: initial, shoots, tasks, members, clientNames, userId, initialYear, initialMonth }: Props) {
   const router = useRouter()
   const [posts, setPosts] = useState(initial)
@@ -203,6 +251,15 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const readyCount   = filteredPosts.filter(p => p.status === "ready").length
   const inProgCount  = filteredPosts.filter(p => p.status === "in_progress").length
   const postedCount  = filteredPosts.filter(p => p.status === "posted").length
+  const pendingCount = filteredPosts.filter(p => p.status === "pending").length
+
+  const upcomingPosts = useMemo(() =>
+    [...filteredPosts]
+      .filter(p => p.scheduled_date >= today && p.status !== "posted" && p.status !== "cancelled")
+      .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date))
+      .slice(0, 5),
+    [filteredPosts, today]
+  )
 
   return (
     <div className="p-4 md:p-6 xl:p-8" style={{ background: "#F5F6FA", minHeight: "100vh" }}>
@@ -310,33 +367,46 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
         ))}
       </div>
 
-      {/* ── Client Filter dropdown ── */}
-      {clientOptions.length > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", whiteSpace: "nowrap" }}>Filter:</span>
-          <div style={{ position: "relative", width: 220 }}>
-            <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
-              style={{ width: "100%", fontSize: 12, fontWeight: 600, color: clientFilter === "all" ? "#6B7280" : "#DE1A1A", background: clientFilter === "all" ? "#FAFAFA" : "rgba(222,26,26,0.05)", border: `1.5px solid ${clientFilter === "all" ? "#E5E7EB" : "rgba(222,26,26,0.3)"}`, borderRadius: 10, padding: "7px 28px 7px 10px", cursor: "pointer", outline: "none", appearance: "none" }}>
-              <option value="all">All Clients</option>
-              {clientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <ChevronDown size={12} style={{ position: "absolute", right: 9, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
-          </div>
-        </div>
-      )}
+      {/* ── Two-Column Layout ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 308px", gap: 20, alignItems: "start" }}>
 
-      {/* ── Calendar / List ── */}
-      {view === "calendar" ? (
+        {/* ── LEFT: Calendar + Quick Actions ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+        {/* ── Calendar / List ── */}
         <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 24px", borderBottom: "1px solid #F3F4F6" }}>
-            <button onClick={prevMonth} style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <ChevronLeft size={16} color="#6B7280" />
-            </button>
-            <h2 style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>{MONTHS[month]} {year}</h2>
-            <button onClick={nextMonth} style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <ChevronRight size={16} color="#6B7280" />
-            </button>
+
+          {/* Calendar toolbar */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #F3F4F6", flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={prevMonth} style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <ChevronLeft size={15} color="#6B7280" />
+              </button>
+              <button onClick={() => { setYear(initialYear); setMonth(initialMonth) }}
+                style={{ padding: "7px 16px", fontSize: 12, fontWeight: 700, color: "#374151", background: "#F3F4F6", borderRadius: 9, border: "none", cursor: "pointer" }}>
+                Today
+              </button>
+              <button onClick={nextMonth} style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <ChevronRight size={15} color="#6B7280" />
+              </button>
+            </div>
+            <h2 style={{ fontSize: 17, fontWeight: 800, color: "#111827", margin: 0 }}>{MONTHS[month]} {year}</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {clientOptions.length > 0 && (
+                <div style={{ position: "relative" }}>
+                  <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
+                    style={{ fontSize: 11, fontWeight: 600, color: clientFilter === "all" ? "#6B7280" : "#DE1A1A", background: clientFilter === "all" ? "#F9FAFB" : "rgba(222,26,26,0.05)", border: `1.5px solid ${clientFilter === "all" ? "#E5E7EB" : "rgba(222,26,26,0.3)"}`, borderRadius: 9, padding: "6px 26px 6px 10px", cursor: "pointer", outline: "none", appearance: "none" }}>
+                    <option value="all">All Clients</option>
+                    {clientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <ChevronDown size={11} style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                </div>
+              )}
+            </div>
           </div>
+
+          {view === "calendar" ? (
+          <>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid #F3F4F6" }}>
             {DAYS.map(d => (
               <div key={d} style={{ padding: "10px 0", textAlign: "center", fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em" }}>{d}</div>
@@ -504,9 +574,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               </div>
             )
           })()}
-        </div>
+          </>
       ) : (
-        <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+        <div>
           <div style={{ padding: "18px 24px", borderBottom: "1px solid #F3F4F6" }}>
             <h2 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: 0 }}>
               My Content — {MONTHS[month]} {year}
@@ -564,6 +634,106 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           )}
         </div>
       )}
+          </div>
+
+          {/* ── Quick Actions ── */}
+          <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: "0 0 14px" }}>Quick Actions</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+              {[
+                { icon: "✏️", label: "Create Post",   sub: "Design & plan",   color: "#DE1A1A", bg: "rgba(222,26,26,0.07)",   action: () => openAdd() },
+                { icon: "☁️", label: "Upload Media",  sub: "Images / Videos", color: "#3B82F6", bg: "rgba(59,130,246,0.07)",  action: () => setView("list") },
+                { icon: "📋", label: "View Posts",    sub: "All scheduled",   color: "#6366F1", bg: "rgba(99,102,241,0.07)",  action: () => setView("list") },
+                { icon: "✅", label: "Mark Posted",   sub: "Update status",   color: "#10B981", bg: "rgba(16,185,129,0.07)",  action: () => setView("list") },
+              ].map(a => (
+                <button key={a.label} onClick={a.action}
+                  style={{ padding: "14px 12px", borderRadius: 14, background: a.bg, border: `1.5px solid ${a.color}22`, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 22, flexShrink: 0 }}>{a.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 12, fontWeight: 800, color: a.color, margin: 0 }}>{a.label}</p>
+                    <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.sub}</p>
+                  </div>
+                  <span style={{ color: a.color, fontSize: 16, fontWeight: 700, flexShrink: 0 }}>›</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── RIGHT: Sidebar ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Upcoming Posts */}
+          <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Upcoming Posts</h3>
+              <button onClick={() => setView("list")} style={{ fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>View All</button>
+            </div>
+            {upcomingPosts.length === 0 ? (
+              <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "16px 0", margin: 0 }}>No upcoming posts</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                {upcomingPosts.map(p => {
+                  const pColor = platformColor(p.platform)
+                  return (
+                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${pColor}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
+                        {platformEmoji(p.platform)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
+                        <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap" }}>{p.scheduled_date}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Content Overview */}
+          <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: "0 0 14px" }}>Content Overview</h3>
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <DonutChart total={totalContent} posted={postedCount} inProgress={inProgCount} ready={readyCount} pending={pendingCount} />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
+              {[
+                { label: "Ready to Post", count: readyCount,   color: "#3B82F6" },
+                { label: "In Progress",   count: inProgCount,  color: "#F59E0B" },
+                { label: "Posted",        count: postedCount,  color: "#10B981" },
+                { label: "Planned",       count: pendingCount, color: "#8B5CF6" },
+              ].map(row => (
+                <div key={row.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 3, background: row.color, flexShrink: 0, display: "inline-block" }} />
+                    <span style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>{row.label}</span>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#6B7280" }}>
+                    {row.count} ({totalContent ? Math.round(row.count / totalContent * 100) : 0}%)
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Motivational card */}
+          <div style={{ background: "linear-gradient(135deg, #FFF5F5 0%, #FFF0FC 100%)", borderRadius: 18, padding: "18px 16px 0", border: "1px solid #FCE7E7", position: "relative", overflow: "hidden", minHeight: 120 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/content-cal-analytics-girl.png" alt=""
+              style={{ position: "absolute", right: -8, bottom: 0, height: 118, objectFit: "contain" }} />
+            <div style={{ paddingRight: 90, paddingBottom: 18 }}>
+              <p style={{ fontSize: 13, fontWeight: 900, color: "#111827", margin: "0 0 6px", lineHeight: 1.35 }}>
+                Great content builds great connections! 🚀
+              </p>
+              <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0, lineHeight: 1.5 }}>
+                Stay consistent &amp; keep growing.
+              </p>
+            </div>
+          </div>
+
+        </div>
+      </div>
 
       {/* ── My Pending Content ── */}
       {myPosts.filter(p => p.status !== "posted" && p.status !== "cancelled" && p.status !== "missed").length > 0 && (

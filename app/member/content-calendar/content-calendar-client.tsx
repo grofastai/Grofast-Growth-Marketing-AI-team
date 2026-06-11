@@ -417,8 +417,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                             <span style={{ padding: "2px 8px", borderRadius: 6, background: priCfg.bg, color: priCfg.color, fontWeight: 700 }}>{priCfg.label}</span>
                             {p.content_pillar && <span style={{ padding: "2px 8px", borderRadius: 6, background: "rgba(99,102,241,0.1)", color: "#6366F1", fontWeight: 700 }}>{p.content_pillar}</span>}
                           </div>
-                          {/* Done / Not Done buttons — only for assigned user */}
-                          {isMine && (
+                          {/* Done / Not Done buttons */}
+                          {(
                             <div style={{ display: "flex", gap: 8 }}>
                               {!isPosted ? (
                                 <button
@@ -485,25 +485,21 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                     </div>
                     <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap", flexShrink: 0 }}>{p.scheduled_date}</span>
                     <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{priCfg.label}</span>
-                    {isMine ? (
-                      p.status === "posted" ? (
-                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                          <span style={{ fontSize: 11, fontWeight: 800, padding: "5px 10px", borderRadius: 8, background: "rgba(16,185,129,0.1)", color: "#10B981", display: "flex", alignItems: "center", gap: 4 }}>
-                            <CheckCircle2 size={12} /> Posted ✓
-                          </span>
-                          <button onClick={() => handleStatusChange(p.id, "pending")}
-                            style={{ fontSize: 10, fontWeight: 700, padding: "5px 8px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: "pointer" }}>
-                            Undo
-                          </button>
-                        </div>
-                      ) : (
-                        <button onClick={() => handleStatusChange(p.id, "posted")}
-                          style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#10B981,#059669)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-                          <CheckCircle2 size={13} /> Mark as Posted
+                    {p.status === "posted" ? (
+                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, padding: "5px 10px", borderRadius: 8, background: "rgba(16,185,129,0.1)", color: "#10B981", display: "flex", alignItems: "center", gap: 4 }}>
+                          <CheckCircle2 size={12} /> Posted ✓
+                        </span>
+                        <button onClick={() => handleStatusChange(p.id, "pending")}
+                          style={{ fontSize: 10, fontWeight: 700, padding: "5px 8px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: "pointer" }}>
+                          Undo
                         </button>
-                      )
+                      </div>
                     ) : (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 8, background: cfg.bg, color: cfg.color, flexShrink: 0 }}>{cfg.label}</span>
+                      <button onClick={() => handleStatusChange(p.id, "posted")}
+                        style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#10B981,#059669)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                        <CheckCircle2 size={13} /> Mark as Posted
+                      </button>
                     )}
                   </div>
                 )

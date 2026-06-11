@@ -84,19 +84,23 @@ function formatTime(t: string | null | undefined): string | null {
 // ── Sub-components ────────────────────────────────────────────────────────────
 function Sparkline({ color }: { color: string }) {
   return (
-    <svg width="108" height="40" style={{ overflow: "visible", flexShrink: 0 }}>
+    <svg viewBox="0 0 120 40" preserveAspectRatio="none" style={{ width: "100%", height: 44, display: "block" }}>
       <defs>
         <linearGradient id={`sg-${color.replace("#","")}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.15" />
+          <stop offset="0%" stopColor={color} stopOpacity="0.18" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polyline
-        points="4,32 18,25 30,28 44,18 56,22 70,12 84,16 104,6"
-        fill="none" stroke={color} strokeWidth="2.5"
-        strokeLinecap="round" strokeLinejoin="round" opacity={0.9}
+      <polygon
+        points="0,40 0,34 14,28 28,31 44,20 56,24 72,13 86,18 104,7 120,9 120,40"
+        fill={`url(#sg-${color.replace("#","")})`}
       />
-      <circle cx="104" cy="6" r="3.5" fill={color} />
+      <polyline
+        points="0,34 14,28 28,31 44,20 56,24 72,13 86,18 104,7 120,9"
+        fill="none" stroke={color} strokeWidth="2.5"
+        strokeLinecap="round" strokeLinejoin="round"
+      />
+      <circle cx="120" cy="9" r="3.5" fill={color} />
     </svg>
   )
 }
@@ -332,45 +336,69 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
       {/* ── Hero Header ── */}
       <div style={{
-        background: "linear-gradient(120deg, #FFFFFF 0%, #F5F0FF 60%, #EBF0FF 100%)",
+        background: "linear-gradient(120deg, #FFFFFF 0%, #F5F0FF 55%, #EBF0FF 100%)",
         borderRadius: 24, marginBottom: 24, position: "relative", overflow: "hidden",
-        display: "flex", alignItems: "center",
-        padding: "28px 32px",
+        padding: "24px 32px 0 32px",
         boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
-        minHeight: 152,
+        minHeight: 180,
       }}>
-        {/* Text — left */}
-        <div style={{ position: "relative", zIndex: 2, maxWidth: 500 }}>
-          <h1 style={{ fontSize: 36, fontWeight: 900, color: "#111827", margin: "0 0 6px", lineHeight: 1.1 }}>
-            Content Calendar <span style={{ fontSize: 32 }}>📅</span>
-          </h1>
-          <p style={{ color: "#6B7280", fontSize: 13, margin: "0 0 20px" }}>
-            Plan, schedule &amp; track your content in one place 🚀
-          </p>
-          <button onClick={() => { resetForm(); setSchedDates([today]); setModalMode("add") }}
-            style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 22px", background: "#DE1A1A", color: "#FFF", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, boxShadow: "0 4px 14px rgba(222,26,26,0.35)" }}>
-            <Plus size={15} /> Add Content
-          </button>
+        {/* Top row: title left, controls right */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", position: "relative", zIndex: 3 }}>
+          {/* Left: title + subtitle */}
+          <div style={{ maxWidth: 420 }}>
+            <h1 style={{ fontSize: 34, fontWeight: 900, color: "#111827", margin: "0 0 6px", lineHeight: 1.1 }}>
+              Content Calendar <span style={{ fontSize: 30 }}>📅</span>
+            </h1>
+            <p style={{ color: "#6B7280", fontSize: 13, margin: 0 }}>
+              Plan, schedule &amp; track your content in one place 🚀
+            </p>
+          </div>
+          {/* Right: Add + Toggle */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            {/* Calendar / List toggle */}
+            <div style={{ display: "flex", background: "rgba(255,255,255,0.85)", borderRadius: 12, padding: 3, border: "1.5px solid rgba(0,0,0,0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+              {(["calendar", "list"] as const).map(v => (
+                <button key={v} onClick={() => setView(v)} style={{
+                  padding: "7px 16px", borderRadius: 9, border: "none", cursor: "pointer",
+                  fontSize: 12, fontWeight: 700, transition: "all 0.15s",
+                  background: view === v ? "#6366F1" : "transparent",
+                  color: view === v ? "#fff" : "#6B7280",
+                }}>
+                  {v === "calendar" ? "Calendar" : "List"}
+                </button>
+              ))}
+            </div>
+            {/* Add Content button */}
+            <button onClick={() => { resetForm(); setSchedDates([today]); setModalMode("add") }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 20px", background: "linear-gradient(135deg, #DE1A1A 0%, #FF4B4B 100%)", color: "#FFF", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, boxShadow: "0 4px 14px rgba(222,26,26,0.35)", whiteSpace: "nowrap" }}>
+              <Plus size={15} /> Add Content
+            </button>
+          </div>
         </div>
 
-        {/* Floating icons — right side only */}
+        {/* Floating platform icon boxes — bottom right area above character */}
         {[
-          { e: "📸", top: 18,  right: 340, size: 30 },
-          { e: "▶️", top: 55,  right: 295, size: 28 },
-          { e: "📅", bottom: 20, right: 355, size: 25 },
-          { e: "🔔", top: 22,  right: 230, size: 22 },
+          { label: "IG",  bg: "linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)", top: 24,  right: 330, size: 38 },
+          { label: "YT",  bg: "#FF0000",                                           top: 72,  right: 290, size: 34 },
+          { label: "FB",  bg: "#1877F2",                                           top: 16,  right: 240, size: 32 },
+          { label: "📅",  bg: "linear-gradient(135deg,#6366F1,#8B5CF6)",           bottom: 26, right: 340, size: 32 },
         ].map((ic, i) => (
-          <span key={i} style={{
-            position: "absolute", top: ic.top, bottom: ic.bottom, right: ic.right,
-            fontSize: ic.size, zIndex: 1,
-            filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.12))",
-          }}>{ic.e}</span>
+          <div key={i} style={{
+            position: "absolute", top: ic.top, bottom: ic.bottom, right: ic.right, zIndex: 2,
+            width: ic.size, height: ic.size, borderRadius: 10,
+            background: ic.bg,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
+            color: "#FFF", fontSize: ic.label.length <= 2 ? 13 : 16, fontWeight: 900,
+          }}>
+            {ic.label}
+          </div>
         ))}
 
-        {/* Character — right side only */}
+        {/* Character — right side */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/content-cal-hero-boy.png" alt=""
-          style={{ position: "absolute", right: 24, bottom: 0, height: 166, objectFit: "contain", zIndex: 1 }} />
+          style={{ position: "absolute", right: 16, bottom: 0, height: 196, objectFit: "contain", zIndex: 1 }} />
       </div>
 
       {/* ── Stats Row ── */}
@@ -382,19 +410,23 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           { label: "Posted",         value: postedCount,  sub: "Completed",   color: "#10B981", bg: "rgba(16,185,129,0.12)",  icon: "✅" },
         ].map(s => (
           <div key={s.label} style={{
-            background: "#FFFFFF", borderRadius: 18, padding: "20px 22px",
+            background: "#FFFFFF", borderRadius: 18, overflow: "hidden",
             border: "1px solid #E5E7EB", boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
-            display: "flex", alignItems: "center", justifyContent: "space-between",
+            display: "flex", flexDirection: "column",
           }}>
-            <div>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 10 }}>
+            {/* Card body */}
+            <div style={{ padding: "20px 22px 14px" }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, marginBottom: 12 }}>
                 {s.icon}
               </div>
-              <p style={{ fontSize: 34, fontWeight: 900, color: "#111827", margin: "0 0 2px", lineHeight: 1 }}>{s.value}</p>
+              <p style={{ fontSize: 36, fontWeight: 900, color: "#111827", margin: "0 0 3px", lineHeight: 1 }}>{s.value}</p>
               <p style={{ fontSize: 12, fontWeight: 700, color: "#111827", margin: "0 0 2px" }}>{s.label}</p>
               <p style={{ fontSize: 11, color: s.color, fontWeight: 600, margin: 0 }}>{s.sub}</p>
             </div>
-            <Sparkline color={s.color} />
+            {/* Full-width sparkline at bottom */}
+            <div style={{ padding: "0 0 0 0", marginTop: "auto" }}>
+              <Sparkline color={s.color} />
+            </div>
           </div>
         ))}
       </div>
@@ -439,14 +471,6 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     <ChevronDown size={11} style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
                   </div>
                 )}
-                <div style={{ display: "flex", borderRadius: 10, overflow: "hidden", border: "1.5px solid #E5E7EB" }}>
-                  {([{ k: "calendar" as const, l: "Month" }, { k: "list" as const, l: "List" }]).map(v => (
-                    <button key={v.k} onClick={() => setView(v.k)}
-                      style={{ padding: "7px 16px", fontSize: 12, fontWeight: 700, background: view === v.k ? "#DE1A1A" : "transparent", color: view === v.k ? "#FFF" : "#6B7280", border: "none", cursor: "pointer" }}>
-                      {v.l}
-                    </button>
-                  ))}
-                </div>
               </div>
             </div>
 

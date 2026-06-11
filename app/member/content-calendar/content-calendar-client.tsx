@@ -77,6 +77,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [month, setMonth] = useState(initialMonth)
   const [view, setView]   = useState<"calendar" | "list">("calendar")
   const [filter, setFilter] = useState<"all" | "mine">("all")
+  const [selectedDay, setSelectedDay] = useState<string | null>(null)
   const [, start]           = useTransition()
   const [isPending, startCreate] = useTransition()
 
@@ -293,8 +294,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               const dayShoots = shootsOnDay(day)
               const dayTasks  = tasksOnDay(day)
               const isToday   = ds === today
+              const isSelected = ds === selectedDay
               return (
-                <div key={i} style={{ minHeight: 90, padding: "7px 5px", borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6", background: isToday ? "rgba(222,26,26,0.03)" : "transparent" }}>
+                <div key={i} onClick={() => setSelectedDay(ds === selectedDay ? null : ds)} style={{ minHeight: 90, padding: "7px 5px", borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6", background: isSelected ? "rgba(222,26,26,0.06)" : isToday ? "rgba(222,26,26,0.03)" : "transparent", cursor: "pointer", transition: "background 0.15s", outline: isSelected ? "2px solid rgba(222,26,26,0.3)" : "none", outlineOffset: -2 }}>
                   <span style={{ fontSize: 13, fontWeight: isToday ? 900 : 500, width: 24, height: 24, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent", color: isToday ? "#FFFFFF" : "#374151", marginBottom: 4 }}>{day}</span>
                   {dayShoots.map(s => (
                     <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 5px", borderRadius: 4, background: "rgba(59,130,246,0.1)", marginBottom: 2 }}>
@@ -331,6 +333,103 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               <span key={p.id} style={{ fontSize: 11, fontWeight: 600, color: p.color }}>● {p.label}</span>
             ))}
           </div>
+
+          {/* ── Day Detail Panel ── */}
+          {selectedDay && (() => {
+            const selDate = new Date(selectedDay + "T00:00:00")
+            const label = selDate.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+            const dayNum = selDate.getDate()
+            const dp = postsOnDay(dayNum)
+            const ds2 = shootsOnDay(dayNum)
+            const dt = tasksOnDay(dayNum)
+            const total = dp.length + ds2.length + dt.length
+            return (
+              <div style={{ margin: "0 0 0 0", borderTop: "2px solid rgba(222,26,26,0.15)", background: "#FAFBFF" }}>
+                {/* Header */}
+                <div style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "linear-gradient(135deg, rgba(222,26,26,0.07), rgba(222,26,26,0.02))" }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#111827" }}>{label}</p>
+                    <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>{total} item{total !== 1 ? "s" : ""} scheduled</p>
+                  </div>
+                  <button onClick={() => setSelectedDay(null)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <X size={13} color="#6B7280" />
+                  </button>
+                </div>
+
+                {total === 0 && (
+                  <p style={{ padding: "24px 20px", fontSize: 13, color: "#9CA3AF", textAlign: "center", margin: 0 }}>Nothing scheduled on this day.</p>
+                )}
+
+                {/* Shoots */}
+                {ds2.length > 0 && (
+                  <div style={{ padding: "12px 20px", borderBottom: "1px solid #F3F4F6" }}>
+                    <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 800, color: "#3B82F6", textTransform: "uppercase", letterSpacing: "0.1em" }}>📷 Video Shoots</p>
+                    {ds2.map(s => (
+                      <div key={s.id} style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)", marginBottom: 6 }}>
+                        <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 700, color: "#1E40AF" }}>{s.title || s.client}</p>
+                        <p style={{ margin: 0, fontSize: 11, color: "#3B82F6" }}>Client: {s.client} · Status: {s.status}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Tasks */}
+                {dt.length > 0 && (
+                  <div style={{ padding: "12px 20px", borderBottom: "1px solid #F3F4F6" }}>
+                    <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 800, color: "#F59E0B", textTransform: "uppercase", letterSpacing: "0.1em" }}>⏰ Tasks Due</p>
+                    {dt.map(t => (
+                      <div key={t.id} style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", marginBottom: 6 }}>
+                        <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 700, color: "#92400E" }}>{t.title}</p>
+                        <p style={{ margin: 0, fontSize: 11, color: "#D97706" }}>Status: {t.status}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Content Posts */}
+                {dp.length > 0 && (
+                  <div style={{ padding: "12px 20px" }}>
+                    <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 800, color: "#374151", textTransform: "uppercase", letterSpacing: "0.1em" }}>📱 Content Posts</p>
+                    {dp.map(p => {
+                      const cfg = STATUS_CFG[p.status] ?? STATUS_CFG.pending
+                      const priCfg = PRIORITY_CFG[p.priority ?? "medium"] ?? PRIORITY_CFG.medium
+                      const isMine = p.assigned_to === userId
+                      const pColor = platformColor(p.platform)
+                      return (
+                        <div key={p.id} style={{ padding: "12px 14px", borderRadius: 12, background: "#FFF", border: `1.5px solid ${pColor}30`, marginBottom: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 6 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <span style={{ fontSize: 20 }}>{platformEmoji(p.platform)}</span>
+                              <div>
+                                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>{p.title}</p>
+                                <p style={{ margin: 0, fontSize: 11, color: pColor, fontWeight: 600 }}>{platformLabel(p.platform)}</p>
+                              </div>
+                            </div>
+                            {isMine ? (
+                              <select value={p.status} onChange={e => handleStatusChange(p.id, e.target.value)}
+                                style={{ fontSize: 10, fontWeight: 700, padding: "4px 8px", borderRadius: 8, border: `1.5px solid ${cfg.color}`, background: cfg.bg, color: cfg.color, cursor: "pointer", outline: "none", flexShrink: 0 }}>
+                                {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                              </select>
+                            ) : (
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 8px", borderRadius: 8, background: cfg.bg, color: cfg.color, flexShrink: 0 }}>{cfg.label}</span>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11 }}>
+                            <span style={{ padding: "2px 8px", borderRadius: 6, background: "#F3F4F6", color: "#374151", fontWeight: 600 }}>👤 {p.assignee?.name ?? "Unassigned"}</span>
+                            <span style={{ padding: "2px 8px", borderRadius: 6, background: "#F3F4F6", color: "#374151", fontWeight: 600 }}>🏢 {p.client_name || "—"}</span>
+                            <span style={{ padding: "2px 8px", borderRadius: 6, background: "#F3F4F6", color: "#374151", fontWeight: 600 }}>📂 {p.content_type || "—"}</span>
+                            <span style={{ padding: "2px 8px", borderRadius: 6, background: priCfg.bg, color: priCfg.color, fontWeight: 700 }}>{priCfg.label}</span>
+                            {p.content_pillar && <span style={{ padding: "2px 8px", borderRadius: 6, background: "rgba(99,102,241,0.1)", color: "#6366F1", fontWeight: 700 }}>{p.content_pillar}</span>}
+                            {isMine && <span style={{ padding: "2px 8px", borderRadius: 6, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", fontWeight: 700 }}>MINE</span>}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       ) : (
         <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>

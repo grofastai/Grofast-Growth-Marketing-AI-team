@@ -37,16 +37,16 @@ const PLATFORMS = [
   { id: "other",     label: "Other",     color: "#6B7280", emoji: "📱" },
 ]
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  pending:     { label: "Scheduled",   color: "#F59E0B", bg: "rgba(245,158,11,0.1)"  },
-  in_progress: { label: "In Progress", color: "#3B82F6", bg: "rgba(59,130,246,0.1)"  },
-  ready:       { label: "Ready",       color: "#8B5CF6", bg: "rgba(139,92,246,0.1)"  },
-  posted:      { label: "Posted ✓",    color: "#10B981", bg: "rgba(16,185,129,0.1)"  },
+  pending:     { label: "Scheduled",   color: "#FFA53A", bg: "rgba(255,165,58,0.1)"  },
+  in_progress: { label: "In Progress", color: "#4D8CFF", bg: "rgba(77,140,255,0.1)"  },
+  ready:       { label: "Ready",       color: "#9B6BFF", bg: "rgba(155,107,255,0.1)"  },
+  posted:      { label: "Posted ✓",    color: "#32D27A", bg: "rgba(50,210,122,0.1)"  },
   cancelled:   { label: "Cancelled",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"   },
   missed:      { label: "Missed",      color: "#EF4444", bg: "rgba(239,68,68,0.08)"  },
 }
 const PRIORITY_CFG: Record<string, { label: string; color: string; bg: string }> = {
   low:    { label: "Low",    color: "#6B7280", bg: "rgba(107,114,128,0.1)" },
-  medium: { label: "Medium", color: "#F59E0B", bg: "rgba(245,158,11,0.1)" },
+  medium: { label: "Medium", color: "#FFA53A", bg: "rgba(255,165,58,0.1)" },
   high:   { label: "High",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"  },
   urgent: { label: "Urgent", color: "#7C3AED", bg: "rgba(124,58,237,0.1)" },
 }
@@ -89,10 +89,10 @@ function DonutChart({ total, posted, inProgress, ready, pending }: {
     </svg>
   )
   const segs = [
-    { val: ready,      color: "#3B82F6" },
-    { val: inProgress, color: "#F59E0B" },
-    { val: posted,     color: "#10B981" },
-    { val: pending,    color: "#8B5CF6" },
+    { val: ready,      color: "#4D8CFF" },
+    { val: inProgress, color: "#FFA53A" },
+    { val: posted,     color: "#32D27A" },
+    { val: pending,    color: "#9B6BFF" },
   ]
   let cum = 0
   return (
@@ -262,7 +262,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   )
 
   return (
-    <div className="p-4 md:p-6 xl:p-8" style={{ background: "#F5F6FA", minHeight: "100vh" }}>
+    <div className="p-4 md:p-6 xl:p-8" style={{ background: "#F8F7FF", minHeight: "100vh" }}>
 
       {/* ── Hero Header ── */}
       <div style={{
@@ -289,7 +289,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 <button key={v} onClick={() => setView(v)} style={{
                   padding: "7px 16px", borderRadius: 9, border: "none", cursor: "pointer",
                   fontSize: 12, fontWeight: 700, transition: "all 0.15s",
-                  background: view === v ? "#6366F1" : "transparent",
+                  background: view === v ? "#9B6BFF" : "transparent",
                   color: view === v ? "#fff" : "#6B7280",
                   textTransform: "capitalize",
                 }}>
@@ -313,10 +313,10 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
       {/* ── Stats ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
         {[
-          { label: "Total Content",  value: totalContent, sub: "All time",    color: "#6366F1", bg: "rgba(99,102,241,0.12)",  icon: "📄" },
-          { label: "Ready To Post",  value: readyCount,   sub: "Waiting",     color: "#3B82F6", bg: "rgba(59,130,246,0.12)",  icon: "📤" },
-          { label: "In Progress",    value: inProgCount,  sub: "In progress", color: "#F59E0B", bg: "rgba(245,158,11,0.12)",  icon: "⏳" },
-          { label: "Posted",         value: postedCount,  sub: "Completed",   color: "#10B981", bg: "rgba(16,185,129,0.12)",  icon: "✅" },
+          { label: "Total Content",  value: totalContent, sub: "All time",    color: "#9B6BFF", bg: "rgba(155,107,255,0.12)",  icon: "📄" },
+          { label: "Ready To Post",  value: readyCount,   sub: "Waiting",     color: "#4D8CFF", bg: "rgba(77,140,255,0.12)",  icon: "📤" },
+          { label: "In Progress",    value: inProgCount,  sub: "In progress", color: "#FFA53A", bg: "rgba(255,165,58,0.12)",  icon: "⏳" },
+          { label: "Posted",         value: postedCount,  sub: "Completed",   color: "#32D27A", bg: "rgba(50,210,122,0.12)",  icon: "✅" },
         ].map(s => (
           <div key={s.label} style={{
             background: "#FFFFFF", borderRadius: 18, overflow: "hidden",
@@ -408,15 +408,15 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 <div key={i} onClick={() => setSelectedDay(ds === selectedDay ? null : ds)} style={{ minHeight: 90, padding: "7px 5px", borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6", background: isSelected ? "rgba(222,26,26,0.06)" : isToday ? "rgba(222,26,26,0.03)" : "transparent", cursor: "pointer", transition: "background 0.15s", outline: isSelected ? "2px solid rgba(222,26,26,0.3)" : "none", outlineOffset: -2 }}>
                   <span style={{ fontSize: 13, fontWeight: isToday ? 900 : 500, width: 24, height: 24, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent", color: isToday ? "#FFFFFF" : "#374151", marginBottom: 4 }}>{day}</span>
                   {dayShoots.map(s => (
-                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 5px", borderRadius: 4, background: "rgba(59,130,246,0.1)", marginBottom: 2 }}>
-                      <Camera size={8} color="#3B82F6" />
-                      <span style={{ fontSize: 9, fontWeight: 600, color: "#3B82F6", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title || s.client}</span>
+                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 5px", borderRadius: 4, background: "rgba(77,140,255,0.1)", marginBottom: 2 }}>
+                      <Camera size={8} color="#4D8CFF" />
+                      <span style={{ fontSize: 9, fontWeight: 600, color: "#4D8CFF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title || s.client}</span>
                     </div>
                   ))}
                   {dayTasks.map(t => (
-                    <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 5px", borderRadius: 4, background: "rgba(245,158,11,0.1)", marginBottom: 2 }}>
-                      <Clock size={8} color="#F59E0B" />
-                      <span style={{ fontSize: 9, fontWeight: 600, color: "#F59E0B", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
+                    <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 5px", borderRadius: 4, background: "rgba(255,165,58,0.1)", marginBottom: 2 }}>
+                      <Clock size={8} color="#FFA53A" />
+                      <span style={{ fontSize: 9, fontWeight: 600, color: "#FFA53A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
                     </div>
                   ))}
                   {dayPosts.map(p => {
@@ -436,8 +436,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           </div>
           <div style={{ padding: "12px 24px", borderTop: "1px solid #F3F4F6", display: "flex", gap: 16, flexWrap: "wrap" }}>
             <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600 }}>Legend:</span>
-            <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 600 }}>📷 Shoot</span>
-            <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>⏰ My Task</span>
+            <span style={{ fontSize: 11, color: "#4D8CFF", fontWeight: 600 }}>📷 Shoot</span>
+            <span style={{ fontSize: 11, color: "#FFA53A", fontWeight: 600 }}>⏰ My Task</span>
             {PLATFORMS.slice(0, 4).map(p => (
               <span key={p.id} style={{ fontSize: 11, fontWeight: 600, color: p.color }}>● {p.label}</span>
             ))}
@@ -472,11 +472,11 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 {/* Shoots */}
                 {ds2.length > 0 && (
                   <div style={{ padding: "12px 20px", borderBottom: "1px solid #F3F4F6" }}>
-                    <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 800, color: "#3B82F6", textTransform: "uppercase", letterSpacing: "0.1em" }}>📷 Video Shoots</p>
+                    <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 800, color: "#4D8CFF", textTransform: "uppercase", letterSpacing: "0.1em" }}>📷 Video Shoots</p>
                     {ds2.map(s => (
-                      <div key={s.id} style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)", marginBottom: 6 }}>
+                      <div key={s.id} style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(77,140,255,0.06)", border: "1px solid rgba(77,140,255,0.15)", marginBottom: 6 }}>
                         <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 700, color: "#1E40AF" }}>{s.title || s.client}</p>
-                        <p style={{ margin: 0, fontSize: 11, color: "#3B82F6" }}>Client: {s.client} · Status: {s.status}</p>
+                        <p style={{ margin: 0, fontSize: 11, color: "#4D8CFF" }}>Client: {s.client} · Status: {s.status}</p>
                       </div>
                     ))}
                   </div>
@@ -485,9 +485,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 {/* Tasks */}
                 {dt.length > 0 && (
                   <div style={{ padding: "12px 20px", borderBottom: "1px solid #F3F4F6" }}>
-                    <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 800, color: "#F59E0B", textTransform: "uppercase", letterSpacing: "0.1em" }}>⏰ Tasks Due</p>
+                    <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 800, color: "#FFA53A", textTransform: "uppercase", letterSpacing: "0.1em" }}>⏰ Tasks Due</p>
                     {dt.map(t => (
-                      <div key={t.id} style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", marginBottom: 6 }}>
+                      <div key={t.id} style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(255,165,58,0.06)", border: "1px solid rgba(255,165,58,0.2)", marginBottom: 6 }}>
                         <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 700, color: "#92400E" }}>{t.title}</p>
                         <p style={{ margin: 0, fontSize: 11, color: "#D97706" }}>Status: {t.status}</p>
                       </div>
@@ -506,7 +506,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                       const pColor = platformColor(p.platform)
                       const isPosted = p.status === "posted"
                       return (
-                        <div key={p.id} style={{ padding: "12px 14px", borderRadius: 12, background: "#FFF", border: `1.5px solid ${isPosted ? "#10B98140" : pColor + "30"}`, marginBottom: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+                        <div key={p.id} style={{ padding: "12px 14px", borderRadius: 12, background: "#FFF", border: `1.5px solid ${isPosted ? "#32D27A40" : pColor + "30"}`, marginBottom: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
                           {/* Top row — platform + title + status badge */}
                           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -524,7 +524,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                             <span style={{ padding: "2px 8px", borderRadius: 6, background: "#F3F4F6", color: "#374151", fontWeight: 600 }}>🏢 {p.client_name || "—"}</span>
                             <span style={{ padding: "2px 8px", borderRadius: 6, background: "#F3F4F6", color: "#374151", fontWeight: 600 }}>📂 {p.content_type || "—"}</span>
                             <span style={{ padding: "2px 8px", borderRadius: 6, background: priCfg.bg, color: priCfg.color, fontWeight: 700 }}>{priCfg.label}</span>
-                            {p.content_pillar && <span style={{ padding: "2px 8px", borderRadius: 6, background: "rgba(99,102,241,0.1)", color: "#6366F1", fontWeight: 700 }}>{p.content_pillar}</span>}
+                            {p.content_pillar && <span style={{ padding: "2px 8px", borderRadius: 6, background: "rgba(155,107,255,0.1)", color: "#9B6BFF", fontWeight: 700 }}>{p.content_pillar}</span>}
                           </div>
                           {/* Done / Not Done buttons */}
                           {(
@@ -532,12 +532,12 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                               {!isPosted ? (
                                 <button
                                   onClick={() => handleStatusChange(p.id, "posted")}
-                                  style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#10B981,#059669)", color: "#FFF", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                  style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                                   <CheckCircle2 size={14} /> Done — Mark as Posted
                                 </button>
                               ) : (
                                 <>
-                                  <div style={{ flex: 1, padding: "9px 0", borderRadius: 10, background: "rgba(16,185,129,0.1)", border: "1.5px solid rgba(16,185,129,0.3)", color: "#10B981", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                  <div style={{ flex: 1, padding: "9px 0", borderRadius: 10, background: "rgba(50,210,122,0.1)", border: "1.5px solid rgba(50,210,122,0.3)", color: "#32D27A", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                                     <CheckCircle2 size={14} /> Posted ✓
                                   </div>
                                   <button
@@ -589,14 +589,14 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                       </div>
                       <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>
                         {platformLabel(p.platform)} · {p.client_name}
-                        {p.content_pillar && <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 8, background: "rgba(99,102,241,0.1)", color: "#6366F1", fontWeight: 700, fontSize: 10 }}>{p.content_pillar}</span>}
+                        {p.content_pillar && <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 8, background: "rgba(155,107,255,0.1)", color: "#9B6BFF", fontWeight: 700, fontSize: 10 }}>{p.content_pillar}</span>}
                       </p>
                     </div>
                     <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap", flexShrink: 0 }}>{p.scheduled_date}</span>
                     <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{priCfg.label}</span>
                     {p.status === "posted" ? (
                       <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, padding: "5px 10px", borderRadius: 8, background: "rgba(16,185,129,0.1)", color: "#10B981", display: "flex", alignItems: "center", gap: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 800, padding: "5px 10px", borderRadius: 8, background: "rgba(50,210,122,0.1)", color: "#32D27A", display: "flex", alignItems: "center", gap: 4 }}>
                           <CheckCircle2 size={12} /> Posted ✓
                         </span>
                         <button onClick={() => handleStatusChange(p.id, "pending")}
@@ -606,7 +606,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                       </div>
                     ) : (
                       <button onClick={() => handleStatusChange(p.id, "posted")}
-                        style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#10B981,#059669)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                        style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
                         <CheckCircle2 size={13} /> Mark as Posted
                       </button>
                     )}
@@ -625,9 +625,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
               {[
                 { icon: "✏️", label: "Create Post",   sub: "Design & plan",   color: "#DE1A1A", bg: "rgba(222,26,26,0.07)",   action: () => openAdd() },
-                { icon: "☁️", label: "Upload Media",  sub: "Images / Videos", color: "#3B82F6", bg: "rgba(59,130,246,0.07)",  action: () => setView("list") },
-                { icon: "📋", label: "View Posts",    sub: "All scheduled",   color: "#6366F1", bg: "rgba(99,102,241,0.07)",  action: () => setView("list") },
-                { icon: "✅", label: "Mark Posted",   sub: "Update status",   color: "#10B981", bg: "rgba(16,185,129,0.07)",  action: () => setView("list") },
+                { icon: "☁️", label: "Upload Media",  sub: "Images / Videos", color: "#4D8CFF", bg: "rgba(77,140,255,0.07)",  action: () => setView("list") },
+                { icon: "📋", label: "View Posts",    sub: "All scheduled",   color: "#9B6BFF", bg: "rgba(155,107,255,0.07)",  action: () => setView("list") },
+                { icon: "✅", label: "Mark Posted",   sub: "Update status",   color: "#32D27A", bg: "rgba(50,210,122,0.07)",  action: () => setView("list") },
               ].map(a => (
                 <button key={a.label} onClick={a.action}
                   style={{ padding: "14px 12px", borderRadius: 14, background: a.bg, border: `1.5px solid ${a.color}22`, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 10 }}>
@@ -682,10 +682,10 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
               {[
-                { label: "Ready to Post", count: readyCount,   color: "#3B82F6" },
-                { label: "In Progress",   count: inProgCount,  color: "#F59E0B" },
-                { label: "Posted",        count: postedCount,  color: "#10B981" },
-                { label: "Planned",       count: pendingCount, color: "#8B5CF6" },
+                { label: "Ready to Post", count: readyCount,   color: "#4D8CFF" },
+                { label: "In Progress",   count: inProgCount,  color: "#FFA53A" },
+                { label: "Posted",        count: postedCount,  color: "#32D27A" },
+                { label: "Planned",       count: pendingCount, color: "#9B6BFF" },
               ].map(row => (
                 <div key={row.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -739,7 +739,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                     </p>
                   </div>
                   <button onClick={() => handleStatusChange(p.id, "posted")}
-                    style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#10B981,#059669)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                    style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
                     <CheckCircle2 size={13} /> Mark as Posted
                   </button>
                 </div>
@@ -767,7 +767,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={() => setPostLinkModal(null)} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#FAFAFA", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#6B7280" }}>Cancel</button>
               <button onClick={confirmPosted} disabled={savingPostLink}
-                style={{ flex: 2, padding: "12px", borderRadius: 10, border: "none", background: savingPostLink ? "#9CA3AF" : "#10B981", color: "#FFFFFF", fontSize: 13, fontWeight: 800, cursor: savingPostLink ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                style={{ flex: 2, padding: "12px", borderRadius: 10, border: "none", background: savingPostLink ? "#9CA3AF" : "#32D27A", color: "#FFFFFF", fontSize: 13, fontWeight: 800, cursor: savingPostLink ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 {savingPostLink ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : "✓ Mark as Posted"}
               </button>
             </div>
@@ -794,7 +794,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             {!schedType && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 4 }}>
                 {[
-                  { key: "shoot", emoji: "📹", label: "Video Shoot", sub: "Schedule a shoot session", color: "#6366F1", bg: "rgba(99,102,241,0.06)", border: "rgba(99,102,241,0.25)" },
+                  { key: "shoot", emoji: "📹", label: "Video Shoot", sub: "Schedule a shoot session", color: "#9B6BFF", bg: "rgba(155,107,255,0.06)", border: "rgba(155,107,255,0.25)" },
                   { key: "post",  emoji: "📱", label: "Post",        sub: "Videos, Reels & Posters",  color: "#DE1A1A", bg: "rgba(222,26,26,0.06)",   border: "rgba(222,26,26,0.25)" },
                 ].map(opt => (
                   <button key={opt.key} type="button"
@@ -852,7 +852,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       {CONTENT_PILLARS.map(cp => (
                         <button key={cp} type="button" onClick={() => setContentPillar(contentPillar === cp ? "" : cp)}
-                          style={{ padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${contentPillar === cp ? "#6366F1" : "#E2E8F0"}`, background: contentPillar === cp ? "rgba(99,102,241,0.1)" : "#FAFAFA", color: contentPillar === cp ? "#6366F1" : "#718096", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                          style={{ padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${contentPillar === cp ? "#9B6BFF" : "#E2E8F0"}`, background: contentPillar === cp ? "rgba(155,107,255,0.1)" : "#FAFAFA", color: contentPillar === cp ? "#9B6BFF" : "#718096", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
                           {cp}
                         </button>
                       ))}
@@ -934,8 +934,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
 
               {formError && <p style={{ fontSize: 12, color: "#EF4444", background: "rgba(239,68,68,0.07)", padding: "10px 14px", borderRadius: 8, margin: 0 }}>{formError}</p>}
               {formSuccess && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(16,185,129,0.08)", borderRadius: 8 }}>
-                  <span style={{ fontSize: 12, color: "#10B981", fontWeight: 600 }}>✓ Content scheduled!</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(50,210,122,0.08)", borderRadius: 8 }}>
+                  <span style={{ fontSize: 12, color: "#32D27A", fontWeight: 600 }}>✓ Content scheduled!</span>
                 </div>
               )}
 

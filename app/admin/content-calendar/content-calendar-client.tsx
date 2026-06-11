@@ -54,15 +54,15 @@ const CONTENT_PILLARS = [
 ]
 const PRIORITY_CFG: Record<string, { label: string; color: string; bg: string }> = {
   low:    { label: "Low",    color: "#6B7280", bg: "rgba(107,114,128,0.1)" },
-  medium: { label: "Medium", color: "#F59E0B", bg: "rgba(245,158,11,0.1)" },
+  medium: { label: "Medium", color: "#FFA53A", bg: "rgba(255,165,58,0.1)" },
   high:   { label: "High",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"  },
   urgent: { label: "Urgent", color: "#7C3AED", bg: "rgba(124,58,237,0.1)" },
 }
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  pending:     { label: "Scheduled",   color: "#F59E0B", bg: "rgba(245,158,11,0.1)"  },
-  in_progress: { label: "In Progress", color: "#3B82F6", bg: "rgba(59,130,246,0.1)"  },
-  ready:       { label: "Ready",       color: "#8B5CF6", bg: "rgba(139,92,246,0.1)"  },
-  posted:      { label: "Posted ✓",    color: "#10B981", bg: "rgba(16,185,129,0.1)"  },
+  pending:     { label: "Scheduled",   color: "#FFA53A", bg: "rgba(255,165,58,0.1)"  },
+  in_progress: { label: "In Progress", color: "#4D8CFF", bg: "rgba(77,140,255,0.1)"  },
+  ready:       { label: "Ready",       color: "#9B6BFF", bg: "rgba(155,107,255,0.1)"  },
+  posted:      { label: "Posted ✓",    color: "#32D27A", bg: "rgba(50,210,122,0.1)"  },
   cancelled:   { label: "Cancelled",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"   },
   missed:      { label: "Missed",      color: "#EF4444", bg: "rgba(239,68,68,0.08)"  },
 }
@@ -119,10 +119,10 @@ function DonutChart({ total, posted, inProgress, ready, pending }: {
     </svg>
   )
   const segs = [
-    { val: ready,      color: "#3B82F6" },
-    { val: inProgress, color: "#F59E0B" },
-    { val: posted,     color: "#10B981" },
-    { val: pending,    color: "#8B5CF6" },
+    { val: ready,      color: "#4D8CFF" },
+    { val: inProgress, color: "#FFA53A" },
+    { val: posted,     color: "#32D27A" },
+    { val: pending,    color: "#9B6BFF" },
   ]
   let cum = 0
   return (
@@ -334,7 +334,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div style={{ background: "#F0F3FA", minHeight: "100vh", padding: 24 }}>
+    <div style={{ background: "#F8F7FF", minHeight: "100vh", padding: 24 }}>
 
       {/* ── Hero Header ── */}
       <div style={{
@@ -363,7 +363,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 <button key={v} onClick={() => setView(v)} style={{
                   padding: "7px 16px", borderRadius: 9, border: "none", cursor: "pointer",
                   fontSize: 12, fontWeight: 700, transition: "all 0.15s",
-                  background: view === v ? "#6366F1" : "transparent",
+                  background: view === v ? "#9B6BFF" : "transparent",
                   color: view === v ? "#fff" : "#6B7280",
                 }}>
                   {v === "calendar" ? "Calendar" : "List"}
@@ -387,10 +387,10 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
       {/* ── Stats Row ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
         {[
-          { label: "Total Content",  value: totalContent, sub: "All time",    color: "#6366F1", bg: "rgba(99,102,241,0.12)",  icon: "📄" },
-          { label: "Ready To Post",  value: readyCount,   sub: "Waiting",     color: "#3B82F6", bg: "rgba(59,130,246,0.12)",  icon: "📤" },
-          { label: "In Progress",    value: inProgCount,  sub: "In progress", color: "#F59E0B", bg: "rgba(245,158,11,0.12)",  icon: "⏳" },
-          { label: "Posted",         value: postedCount,  sub: "Completed",   color: "#10B981", bg: "rgba(16,185,129,0.12)",  icon: "✅" },
+          { label: "Total Content",  value: totalContent, sub: "All time",    color: "#9B6BFF", bg: "rgba(155,107,255,0.12)",  icon: "📄" },
+          { label: "Ready To Post",  value: readyCount,   sub: "Waiting",     color: "#4D8CFF", bg: "rgba(77,140,255,0.12)",  icon: "📤" },
+          { label: "In Progress",    value: inProgCount,  sub: "In progress", color: "#FFA53A", bg: "rgba(255,165,58,0.12)",  icon: "⏳" },
+          { label: "Posted",         value: postedCount,  sub: "Completed",   color: "#32D27A", bg: "rgba(50,210,122,0.12)",  icon: "✅" },
         ].map(s => (
           <div key={s.label} style={{
             background: "#FFFFFF", borderRadius: 18, overflow: "hidden",
@@ -487,14 +487,14 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                           </button>
                         </div>
                         {dayShoots.map(s => (
-                          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", borderRadius: 6, background: "rgba(99,102,241,0.1)", marginBottom: 3, border: "1px solid rgba(99,102,241,0.2)" }}>
-                            <Camera size={9} color="#6366F1" />
-                            <span style={{ fontSize: 10, fontWeight: 600, color: "#6366F1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{s.title || s.client}</span>
+                          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", borderRadius: 6, background: "rgba(155,107,255,0.1)", marginBottom: 3, border: "1px solid rgba(155,107,255,0.2)" }}>
+                            <Camera size={9} color="#9B6BFF" />
+                            <span style={{ fontSize: 10, fontWeight: 600, color: "#9B6BFF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{s.title || s.client}</span>
                           </div>
                         ))}
                         {dayTasks.map(t => (
-                          <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", borderRadius: 6, background: "rgba(245,158,11,0.1)", marginBottom: 3 }}>
-                            <Clock size={9} color="#F59E0B" />
+                          <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px", borderRadius: 6, background: "rgba(255,165,58,0.1)", marginBottom: 3 }}>
+                            <Clock size={9} color="#FFA53A" />
                             <span style={{ fontSize: 10, fontWeight: 600, color: "#D97706", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{t.title}</span>
                           </div>
                         ))}
@@ -506,15 +506,15 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                             <div key={p.id} onClick={() => openEdit(p)} style={{
                               display: "flex", alignItems: "flex-start", gap: 5,
                               padding: "4px 6px", borderRadius: 7, marginBottom: 3,
-                              background: isPosted ? "rgba(16,185,129,0.1)" : `${pColor}16`,
-                              border: `1px solid ${isPosted ? "rgba(16,185,129,0.25)" : pColor + "35"}`,
+                              background: isPosted ? "rgba(50,210,122,0.1)" : `${pColor}16`,
+                              border: `1px solid ${isPosted ? "rgba(50,210,122,0.25)" : pColor + "35"}`,
                               cursor: "pointer",
                             }}>
                               <span style={{ width: 16, height: 16, borderRadius: 5, background: pColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, flexShrink: 0, marginTop: 1 }}>
                                 {platformEmoji(p.platform)}
                               </span>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <span style={{ fontSize: 10, fontWeight: 700, color: isPosted ? "#10B981" : pColor, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{p.title}</span>
+                                <span style={{ fontSize: 10, fontWeight: 700, color: isPosted ? "#32D27A" : pColor, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{p.title}</span>
                                 {time && <span style={{ fontSize: 9, color: "#9CA3AF", display: "block" }}>{time}</span>}
                               </div>
                             </div>
@@ -527,7 +527,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 {/* Legend */}
                 <div style={{ padding: "12px 20px", borderTop: "1px solid #F3F4F6", display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
                   <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 600 }}>Legend:</span>
-                  <span style={{ fontSize: 11, color: "#6366F1", fontWeight: 600 }}>🎥 Shoot</span>
+                  <span style={{ fontSize: 11, color: "#9B6BFF", fontWeight: 600 }}>🎥 Shoot</span>
                   <span style={{ fontSize: 11, color: "#D97706", fontWeight: 600 }}>⏰ Task</span>
                   {PLATFORMS.slice(0, 4).map(p => (
                     <span key={p.id} style={{ fontSize: 11, fontWeight: 600, color: p.color }}>● {p.label}</span>
@@ -555,7 +555,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                             <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
                             <p style={{ fontSize: 11, color: "#6B7280", margin: "2px 0 0" }}>
                               {platformLabel(p.platform)} · {p.client_name || "—"} · {p.assignee?.name ?? "Unassigned"}
-                              {p.content_pillar && <span style={{ marginLeft: 6, padding: "1px 7px", borderRadius: 10, background: "rgba(99,102,241,0.1)", color: "#6366F1", fontWeight: 600 }}>{p.content_pillar}</span>}
+                              {p.content_pillar && <span style={{ marginLeft: 6, padding: "1px 7px", borderRadius: 10, background: "rgba(155,107,255,0.1)", color: "#9B6BFF", fontWeight: 600 }}>{p.content_pillar}</span>}
                             </p>
                           </div>
                           <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap" }}>{p.scheduled_date}{formatTime(p.scheduled_time) ? ` · ${formatTime(p.scheduled_time)}` : ""}</span>
@@ -565,7 +565,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                             {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                           </select>
                           <button onClick={() => openEdit(p)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Edit">
-                            <Pencil size={14} color="#6366F1" />
+                            <Pencil size={14} color="#9B6BFF" />
                           </button>
                           <button onClick={() => handleDelete(p.id)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }} title="Delete">
                             <Trash2 size={14} color="#EF4444" />
@@ -585,9 +585,9 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
               {[
                 { icon: "✏️", label: "Create Post",    sub: "Design & plan",    color: "#DE1A1A", bg: "rgba(222,26,26,0.07)",   action: () => { resetForm(); setSchedDates([today]); setModalMode("add") } },
-                { icon: "☁️", label: "Upload Media",   sub: "Images / Videos",  color: "#3B82F6", bg: "rgba(59,130,246,0.07)",  action: () => setView("list") },
-                { icon: "📋", label: "View Posts",     sub: "All scheduled",    color: "#6366F1", bg: "rgba(99,102,241,0.07)",  action: () => setView("list") },
-                { icon: "💡", label: "Content Ideas",  sub: "AI Suggestions",   color: "#F59E0B", bg: "rgba(245,158,11,0.07)",  action: () => {} },
+                { icon: "☁️", label: "Upload Media",   sub: "Images / Videos",  color: "#4D8CFF", bg: "rgba(77,140,255,0.07)",  action: () => setView("list") },
+                { icon: "📋", label: "View Posts",     sub: "All scheduled",    color: "#9B6BFF", bg: "rgba(155,107,255,0.07)",  action: () => setView("list") },
+                { icon: "💡", label: "Content Ideas",  sub: "AI Suggestions",   color: "#FFA53A", bg: "rgba(255,165,58,0.07)",  action: () => {} },
               ].map(a => (
                 <button key={a.label} onClick={a.action}
                   style={{ padding: "14px 12px", borderRadius: 14, background: a.bg, border: `1.5px solid ${a.color}22`, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 10 }}>
@@ -645,10 +645,10 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
               {[
-                { label: "Ready to Post", count: readyCount,   color: "#3B82F6" },
-                { label: "In Progress",   count: inProgCount,  color: "#F59E0B" },
-                { label: "Posted",        count: postedCount,  color: "#10B981" },
-                { label: "Planned",       count: pendingCount, color: "#8B5CF6" },
+                { label: "Ready to Post", count: readyCount,   color: "#4D8CFF" },
+                { label: "In Progress",   count: inProgCount,  color: "#FFA53A" },
+                { label: "Posted",        count: postedCount,  color: "#32D27A" },
+                { label: "Planned",       count: pendingCount, color: "#9B6BFF" },
               ].map(row => (
                 <div key={row.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
@@ -703,7 +703,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             {!isEdit && !schedType && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 4 }}>
                 {[
-                  { key: "shoot", emoji: "📹", label: "Video Shoot", sub: "Schedule a shoot session", color: "#6366F1", bg: "rgba(99,102,241,0.06)", border: "rgba(99,102,241,0.25)" },
+                  { key: "shoot", emoji: "📹", label: "Video Shoot", sub: "Schedule a shoot session", color: "#9B6BFF", bg: "rgba(155,107,255,0.06)", border: "rgba(155,107,255,0.25)" },
                   { key: "post",  emoji: "📱", label: "Post",        sub: "Videos, Reels & Posters",  color: "#DE1A1A", bg: "rgba(222,26,26,0.06)",   border: "rgba(222,26,26,0.25)" },
                 ].map(opt => (
                   <button key={opt.key} type="button"
@@ -758,7 +758,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       {CONTENT_PILLARS.map(cp => (
                         <button key={cp} type="button" onClick={() => setContentPillar(contentPillar === cp ? "" : cp)}
-                          style={{ padding: "5px 12px", borderRadius: 8, border: `1.5px solid ${contentPillar === cp ? "#6366F1" : "#E2E8F0"}`, background: contentPillar === cp ? "rgba(99,102,241,0.1)" : "#FAFAFA", color: contentPillar === cp ? "#6366F1" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                          style={{ padding: "5px 12px", borderRadius: 8, border: `1.5px solid ${contentPillar === cp ? "#9B6BFF" : "#E2E8F0"}`, background: contentPillar === cp ? "rgba(155,107,255,0.1)" : "#FAFAFA", color: contentPillar === cp ? "#9B6BFF" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                           {cp}
                         </button>
                       ))}
@@ -857,9 +857,9 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
               {formError && <p style={{ fontSize: 12, color: "#EF4444", background: "rgba(239,68,68,0.07)", padding: "10px 14px", borderRadius: 8, margin: 0 }}>{formError}</p>}
               {formSuccess && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(16,185,129,0.08)", borderRadius: 8 }}>
-                  <CheckCircle2 size={14} color="#10B981" />
-                  <span style={{ fontSize: 12, color: "#10B981", fontWeight: 600 }}>{isEdit ? "Updated!" : "Content scheduled!"}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(50,210,122,0.08)", borderRadius: 8 }}>
+                  <CheckCircle2 size={14} color="#32D27A" />
+                  <span style={{ fontSize: 12, color: "#32D27A", fontWeight: 600 }}>{isEdit ? "Updated!" : "Content scheduled!"}</span>
                 </div>
               )}
 

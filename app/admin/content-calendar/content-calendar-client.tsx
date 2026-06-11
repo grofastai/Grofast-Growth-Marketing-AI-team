@@ -332,21 +332,21 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
       {/* ── Hero Header ── */}
       <div style={{
-        background: "linear-gradient(120deg, #FFFFFF 0%, #F7F0FF 55%, #EBF0FF 100%)",
-        borderRadius: 24, marginBottom: 24, position: "relative", overflow: "hidden",
-        display: "flex", alignItems: "center",
-        padding: "28px 220px 28px 32px",
+        background: "#FFFFFF",
+        borderRadius: 24, marginBottom: 24,
+        display: "flex", alignItems: "stretch",
         boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
-        minHeight: 152,
+        overflow: "hidden", minHeight: 152,
       }}>
-        <div style={{ position: "relative", zIndex: 2 }}>
+        {/* Left — plain white, text only */}
+        <div style={{ flex: 1, padding: "28px 32px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
           <h1 style={{ fontSize: 36, fontWeight: 900, color: "#111827", margin: "0 0 6px", lineHeight: 1.1 }}>
             Content Calendar <span style={{ fontSize: 32 }}>📅</span>
           </h1>
-          <p style={{ color: "#6B7280", fontSize: 13, margin: "0 0 18px" }}>
+          <p style={{ color: "#6B7280", fontSize: 13, margin: "0 0 20px" }}>
             Plan, schedule &amp; track your content in one place 🚀
           </p>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div>
             <button onClick={() => { resetForm(); setSchedDates([today]); setModalMode("add") }}
               style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 22px", background: "#DE1A1A", color: "#FFF", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, boxShadow: "0 4px 14px rgba(222,26,26,0.35)" }}>
               <Plus size={15} /> Add Content
@@ -354,24 +354,26 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           </div>
         </div>
 
-        {/* Floating platform emojis */}
-        {[
-          { e: "📸", top: 16,  right: 370, size: 30 },
-          { e: "▶️", top: 55,  right: 330, size: 28 },
-          { e: "📅", top: 16,  right: 250, size: 26 },
-          { e: "🔔", bottom: 22, right: 360, size: 24 },
-        ].map((ic, i) => (
-          <span key={i} style={{
-            position: "absolute", top: ic.top, bottom: ic.bottom, right: ic.right,
-            fontSize: ic.size, zIndex: 1,
-            filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.12))",
-          }}>{ic.e}</span>
-        ))}
-
-        {/* Character image */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/content-cal-hero-boy.png" alt=""
-          style={{ position: "absolute", right: 16, bottom: 0, height: 168, objectFit: "contain", zIndex: 1 }} />
+        {/* Right — gradient bg + character + floating icons */}
+        <div style={{ width: 420, position: "relative", overflow: "hidden", background: "linear-gradient(135deg, #C084FC 0%, #818CF8 40%, #60A5FA 100%)", flexShrink: 0 }}>
+          {/* Floating platform emojis */}
+          {[
+            { e: "📸", top: 14,  left: 30,  size: 30 },
+            { e: "▶️", top: 50,  left: 80,  size: 26 },
+            { e: "📅", bottom: 18, left: 50, size: 26 },
+            { e: "🔔", top: 20,  left: 140, size: 22 },
+          ].map((ic, i) => (
+            <span key={i} style={{
+              position: "absolute", top: ic.top, bottom: ic.bottom, left: ic.left,
+              fontSize: ic.size, zIndex: 1,
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.18))",
+            }}>{ic.e}</span>
+          ))}
+          {/* Character */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/content-cal-hero-boy.png" alt=""
+            style={{ position: "absolute", right: 0, bottom: 0, height: 168, objectFit: "contain", zIndex: 2 }} />
+        </div>
       </div>
 
       {/* ── Stats Row ── */}

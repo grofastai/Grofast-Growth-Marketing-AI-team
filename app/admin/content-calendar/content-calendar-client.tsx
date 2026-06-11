@@ -100,7 +100,9 @@ function Sparkline({ color }: { color: string }) {
         fill="none" stroke={color} strokeWidth="2.5"
         strokeLinecap="round" strokeLinejoin="round"
       />
-      <circle cx="120" cy="9" r="3.5" fill={color} />
+      {[[14,28],[28,31],[44,20],[56,24],[72,13],[86,18],[104,7],[120,9]].map(([cx,cy],i) => (
+        <circle key={i} cx={cx} cy={cy} r="2.6" fill="#FFFFFF" stroke={color} strokeWidth="1.6" />
+      ))}
     </svg>
   )
 }
@@ -338,9 +340,9 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
       <div style={{
         background: "linear-gradient(120deg, #FFFFFF 0%, #F5F0FF 55%, #EBF0FF 100%)",
         borderRadius: 24, marginBottom: 24, position: "relative", overflow: "hidden",
-        padding: "24px 32px 0 32px",
+        padding: "26px 32px 24px 32px",
         boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
-        minHeight: 180,
+        minHeight: 200,
       }}>
         {/* Top row: title left, controls right */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", position: "relative", zIndex: 3 }}>
@@ -376,29 +378,10 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           </div>
         </div>
 
-        {/* Floating platform icon boxes — bottom right area above character */}
-        {[
-          { label: "IG",  bg: "linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)", top: 24,  right: 330, size: 38 },
-          { label: "YT",  bg: "#FF0000",                                           top: 72,  right: 290, size: 34 },
-          { label: "FB",  bg: "#1877F2",                                           top: 16,  right: 240, size: 32 },
-          { label: "📅",  bg: "linear-gradient(135deg,#6366F1,#8B5CF6)",           bottom: 26, right: 340, size: 32 },
-        ].map((ic, i) => (
-          <div key={i} style={{
-            position: "absolute", top: ic.top, bottom: ic.bottom, right: ic.right, zIndex: 2,
-            width: ic.size, height: ic.size, borderRadius: 10,
-            background: ic.bg,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
-            color: "#FFF", fontSize: ic.label.length <= 2 ? 13 : 16, fontWeight: 900,
-          }}>
-            {ic.label}
-          </div>
-        ))}
-
-        {/* Character — right side */}
+        {/* Character scene — image already contains platform logos, lamp & plant */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/content-cal-hero-boy.png" alt=""
-          style={{ position: "absolute", right: 16, bottom: 0, height: 196, objectFit: "contain", zIndex: 1 }} />
+          style={{ position: "absolute", right: 0, bottom: 0, height: "108%", maxHeight: 230, width: "auto", objectFit: "contain", objectPosition: "right bottom", zIndex: 1, pointerEvents: "none" }} />
       </div>
 
       {/* ── Stats Row ── */}

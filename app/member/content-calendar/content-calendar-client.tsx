@@ -207,41 +207,105 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   return (
     <div className="p-4 md:p-6 xl:p-8" style={{ background: "#F5F6FA", minHeight: "100vh" }}>
 
-      {/* ── Header ── */}
-      <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #9B1C1C 60%, #450A0A 100%)", borderRadius: 20, padding: "22px 28px", marginBottom: 24, boxShadow: "0 8px 32px rgba(222,26,26,0.25)" }}>
-        <div className="flex items-center gap-4 flex-wrap">
-          <div>
-            <h1 className="text-[26px] font-black text-white">Content Calendar</h1>
-            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 2 }}>Your scheduled posts, reels & shoots</p>
+      {/* ── Hero Header ── */}
+      <div style={{
+        background: "linear-gradient(120deg, #FFFFFF 0%, #F5F0FF 55%, #EBF0FF 100%)",
+        borderRadius: 24, marginBottom: 24, position: "relative", overflow: "hidden",
+        padding: "24px 32px 0 32px",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
+        minHeight: 180,
+      }}>
+        {/* Top row: title left, controls right */}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", position: "relative", zIndex: 3 }}>
+          <div style={{ maxWidth: 420 }}>
+            <h1 style={{ fontSize: 34, fontWeight: 900, color: "#111827", margin: "0 0 6px", lineHeight: 1.1 }}>
+              My Content <span style={{ fontSize: 30 }}>📅</span>
+            </h1>
+            <p style={{ color: "#6B7280", fontSize: 13, margin: 0 }}>
+              Your scheduled posts, reels &amp; shoots 🚀
+            </p>
           </div>
-          <div className="ml-auto flex items-center gap-3 flex-wrap">
-            <button onClick={() => openAdd()}
-              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "#FFFFFF", color: "#DE1A1A", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800 }}>
-              <Plus size={14} /> Add Content
-            </button>
-            <div className="flex rounded-xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.2)" }}>
-              {(["calendar","list"] as const).map(v => (
-                <button key={v} onClick={() => setView(v)}
-                  style={{ padding: "8px 16px", fontSize: 12, fontWeight: 700, background: view === v ? "rgba(255,255,255,0.2)" : "transparent", color: "#FFFFFF", border: "none", cursor: "pointer", textTransform: "capitalize" }}>
-                  {v}
+          {/* Right: Add + Toggle */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            <div style={{ display: "flex", background: "rgba(255,255,255,0.85)", borderRadius: 12, padding: 3, border: "1.5px solid rgba(0,0,0,0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+              {(["calendar", "list"] as const).map(v => (
+                <button key={v} onClick={() => setView(v)} style={{
+                  padding: "7px 16px", borderRadius: 9, border: "none", cursor: "pointer",
+                  fontSize: 12, fontWeight: 700, transition: "all 0.15s",
+                  background: view === v ? "#6366F1" : "transparent",
+                  color: view === v ? "#fff" : "#6B7280",
+                  textTransform: "capitalize",
+                }}>
+                  {v === "calendar" ? "Calendar" : "List"}
                 </button>
               ))}
             </div>
+            <button onClick={() => openAdd()}
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "10px 20px", background: "linear-gradient(135deg, #DE1A1A 0%, #FF4B4B 100%)", color: "#FFF", borderRadius: 12, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, boxShadow: "0 4px 14px rgba(222,26,26,0.35)", whiteSpace: "nowrap" }}>
+              <Plus size={15} /> Add Content
+            </button>
           </div>
         </div>
+
+        {/* Floating platform icon boxes */}
+        {[
+          { label: "IG",  bg: "linear-gradient(135deg,#F58529,#DD2A7B,#8134AF)", top: 24,  right: 330, size: 38 },
+          { label: "YT",  bg: "#FF0000",                                           top: 72,  right: 290, size: 34 },
+          { label: "FB",  bg: "#1877F2",                                           top: 16,  right: 240, size: 32 },
+          { label: "📅",  bg: "linear-gradient(135deg,#6366F1,#8B5CF6)",           bottom: 26, right: 340, size: 32 },
+        ].map((ic, i) => (
+          <div key={i} style={{
+            position: "absolute", top: ic.top, bottom: ic.bottom, right: ic.right, zIndex: 2,
+            width: ic.size, height: ic.size, borderRadius: 10,
+            background: ic.bg,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.18)",
+            color: "#FFF", fontSize: ic.label.length <= 2 ? 13 : 16, fontWeight: 900,
+          }}>
+            {ic.label}
+          </div>
+        ))}
+
+        {/* Character */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/content-cal-hero-boy.png" alt=""
+          style={{ position: "absolute", right: 16, bottom: 0, height: 196, objectFit: "contain", zIndex: 1 }} />
       </div>
 
       {/* ── Stats ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
         {[
-          { label: "Total Content",  value: totalContent, color: "#3B82F6" },
-          { label: "Ready To Post",  value: readyCount,   color: "#8B5CF6" },
-          { label: "In Progress",    value: inProgCount,  color: "#F59E0B" },
-          { label: "Posted",         value: postedCount,  color: "#10B981" },
+          { label: "Total Content",  value: totalContent, sub: "All time",    color: "#6366F1", bg: "rgba(99,102,241,0.12)",  icon: "📄" },
+          { label: "Ready To Post",  value: readyCount,   sub: "Waiting",     color: "#3B82F6", bg: "rgba(59,130,246,0.12)",  icon: "📤" },
+          { label: "In Progress",    value: inProgCount,  sub: "In progress", color: "#F59E0B", bg: "rgba(245,158,11,0.12)",  icon: "⏳" },
+          { label: "Posted",         value: postedCount,  sub: "Completed",   color: "#10B981", bg: "rgba(16,185,129,0.12)",  icon: "✅" },
         ].map(s => (
-          <div key={s.label} style={{ background: "#FFFFFF", borderRadius: 16, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
-            <p style={{ fontSize: 30, fontWeight: 900, color: s.color, margin: 0 }}>{s.value}</p>
-            <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0", fontWeight: 600 }}>{s.label}</p>
+          <div key={s.label} style={{
+            background: "#FFFFFF", borderRadius: 18, overflow: "hidden",
+            border: "1px solid #E5E7EB", boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+            display: "flex", flexDirection: "column",
+          }}>
+            <div style={{ padding: "20px 22px 14px" }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, marginBottom: 12 }}>
+                {s.icon}
+              </div>
+              <p style={{ fontSize: 36, fontWeight: 900, color: "#111827", margin: "0 0 3px", lineHeight: 1 }}>{s.value}</p>
+              <p style={{ fontSize: 12, fontWeight: 700, color: "#111827", margin: "0 0 2px" }}>{s.label}</p>
+              <p style={{ fontSize: 11, color: s.color, fontWeight: 600, margin: 0 }}>{s.sub}</p>
+            </div>
+            <div style={{ marginTop: "auto" }}>
+              <svg viewBox="0 0 120 40" preserveAspectRatio="none" style={{ width: "100%", height: 44, display: "block" }}>
+                <defs>
+                  <linearGradient id={`msg-${s.color.replace("#","")}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={s.color} stopOpacity="0.18" />
+                    <stop offset="100%" stopColor={s.color} stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <polygon points="0,40 0,34 14,28 28,31 44,20 56,24 72,13 86,18 104,7 120,9 120,40" fill={`url(#msg-${s.color.replace("#","")})`} />
+                <polyline points="0,34 14,28 28,31 44,20 56,24 72,13 86,18 104,7 120,9" fill="none" stroke={s.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="120" cy="9" r="3.5" fill={s.color} />
+              </svg>
+            </div>
           </div>
         ))}
       </div>

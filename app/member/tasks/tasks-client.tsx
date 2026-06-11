@@ -15,6 +15,7 @@ import {
 } from "lucide-react"
 import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject, updateTask } from "@/lib/actions/tasks"
 import { getTaskComments, addTaskComment, type TaskComment } from "@/lib/actions/comments"
+import { OWN_BRANDS } from "@/components/ui/ClientSelector"
 
 interface Task {
   id: string
@@ -445,8 +446,7 @@ export default function MemberTasksClient({
   useEffect(() => {
     if (assignState && 'success' in assignState) {
       setShowAssign(false)
-      setPromotionMode(false)
-      setPromoName("")
+      setAssignClientType(""); setAssignBrand(""); setAssignCustom("")
       router.refresh()
     }
   }, [assignState, router])
@@ -482,9 +482,9 @@ export default function MemberTasksClient({
   const [groupByProject, setGroupByProject] = useState(false)
   const [filterProject, setFilterProject]   = useState("")
   const [showProjectFilter, setShowProjectFilter] = useState(false)
-  const [promotionMode, setPromotionMode]   = useState(false)
-  const [promoName, setPromoName]           = useState("")
-  const [shopName, setShopName]             = useState("")
+  const [assignClientType, setAssignClientType] = useState("")
+  const [assignBrand, setAssignBrand]           = useState("")
+  const [assignCustom, setAssignCustom]         = useState("")
   const [deletedProjectIds, setDeletedProjectIds] = useState<Set<string>>(new Set())
   const [activeMobileCol, setActiveMobileCol] = useState<"todo" | "in_progress" | "completed">("todo")
   const [dragId, setDragId]         = useState<string | null>(null)
@@ -1439,74 +1439,49 @@ export default function MemberTasksClient({
                 </select>
               </div>
               <div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider" style={{ color: "#6B7280" }}>Client / Project</label>
-                  <button type="button" onClick={() => { setPromotionMode(v => !v); setPromoName(""); setShopName("") }}
-                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 99, fontSize: 10, fontWeight: 700, cursor: "pointer", border: "1.5px solid", transition: "all 0.15s",
-                      background: promotionMode ? "rgba(245,158,11,0.10)" : "#F5F6FA",
-                      borderColor: promotionMode ? "rgba(245,158,11,0.4)" : "#E5E7EB",
-                      color: promotionMode ? "#D97706" : "#6B7280" }}>
-                    🎯 Promotion
-                  </button>
+                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Client / Project</label>
+                {/* Hidden fields consumed by createMemberTask */}
+                <input type="hidden" name="project_id"
+                  value={assignClientType && assignClientType !== "Promotion" && assignClientType !== "__custom__" ? assignClientType : ""} />
+                <input type="hidden" name="promotion_name"
+                  value={assignClientType === "Promotion" ? (assignBrand || "") : assignClientType === "__custom__" ? assignCustom : ""} />
+                <input type="hidden" name="shop_name" value="" />
+                {/* Main dropdown — same style as daily update */}
+                <div style={{ position: "relative" }}>
+                  <select
+                    value={assignClientType}
+                    onChange={e => { setAssignClientType(e.target.value); setAssignBrand(""); setAssignCustom("") }}
+                    className="w-full px-3 py-2 rounded-xl text-[13px]"
+                    style={{ border: "1.5px solid #EBEDF2", outline: "none", appearance: "none", paddingRight: 28 }}>
+                    <option value="">Add client / project…</option>
+                    <option value="Promotion">📣 Our Brand</option>
+                    {projects
+                      .filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id))
+                      .map(p => <option key={p.id} value={p.id}>{p.business_name}</option>)}
+                    <option value="__custom__">✏️ Other (type manually)</option>
+                  </select>
+                  <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
                 </div>
-
-                {promotionMode ? (
-                  <>
-                    <input type="hidden" name="project_id" value="" />
-                    <input name="promotion_name" required={promotionMode} value={promoName}
-                      onChange={e => setPromoName(e.target.value)}
-                      placeholder="Promotion name — e.g. Kutty Karthi Vlog, Masala Unlimit…"
+                {/* Our Brand → brand picker */}
+                {assignClientType === "Promotion" && (
+                  <div style={{ position: "relative", marginTop: 6 }}>
+                    <select value={assignBrand} onChange={e => setAssignBrand(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl text-[13px]"
-                      style={{ border: "1.5px solid rgba(245,158,11,0.4)", outline: "none", background: "rgba(245,158,11,0.03)" }} />
-                    <input name="shop_name" value={shopName}
-                      onChange={e => setShopName(e.target.value)}
-                      placeholder="Shop name — e.g. Saravana Stores, Raj Bakery…"
-                      className="w-full px-3 py-2 rounded-xl text-[13px] mt-2"
-                      style={{ border: "1.5px solid rgba(245,158,11,0.3)", outline: "none", background: "rgba(245,158,11,0.02)" }} />
-                    <p style={{ fontSize: 10, color: "#9CA3AF", marginTop: 4 }}>A project will be created as &quot;{promoName || "Promotion"}{shopName ? ` — ${shopName}` : ""}&quot;.</p>
-                  </>
-                ) : (
-                  <>
-                    <input type="hidden" name="promotion_name" value="" />
-                    {/* Admin projects */}
-                    <select name="project_id" className="w-full px-3 py-2 rounded-xl text-[13px]"
-                      style={{ border: "1.5px solid #EBEDF2", outline: "none" }}>
-                      <option value="">— No project —</option>
-                      {projects
-                        .filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id))
-                        .map(p => (
-                          <option key={p.id} value={p.id}>
-                            {p.business_name}{p.client_name ? ` · ${p.client_name}` : ""}
-                          </option>
-                        ))}
-                      {projects.filter(p => p.client_name === "__member_quick__" && !deletedProjectIds.has(p.id)).length > 0 && (
-                        <>
-                          <option disabled>──── My Promotions ────</option>
-                          {projects
-                            .filter(p => p.client_name === "__member_quick__" && !deletedProjectIds.has(p.id))
-                            .map(p => (
-                              <option key={p.id} value={p.id}>🎯 {p.business_name}</option>
-                            ))}
-                        </>
-                      )}
+                      style={{ border: "1.5px solid rgba(245,158,11,0.3)", outline: "none", appearance: "none", paddingRight: 28, color: "#D97706", background: "rgba(245,158,11,0.04)" }}>
+                      <option value="">📣 Select brand…</option>
+                      {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
-                    {/* Deletable promotion chips */}
-                    {projects.filter(p => p.client_name === "__member_quick__" && !deletedProjectIds.has(p.id)).length > 0 && (
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 6 }}>
-                        {projects
-                          .filter(p => p.client_name === "__member_quick__" && !deletedProjectIds.has(p.id))
-                          .map(p => (
-                            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "3px 6px 3px 9px", borderRadius: 99, background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: "#D97706" }}>🎯 {p.business_name}</span>
-                              <button type="button" onClick={() => handleDeleteQuickProject(p.id)}
-                                style={{ background: "none", border: "none", cursor: "pointer", padding: "1px 2px", display: "flex", borderRadius: 99, color: "#D97706" }}>
-                                <X size={10} />
-                              </button>
-                            </div>
-                          ))}
-                      </div>
-                    )}
-                  </>
+                    <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#D97706", pointerEvents: "none" }} />
+                  </div>
+                )}
+                {/* Other → custom text */}
+                {assignClientType === "__custom__" && (
+                  <input
+                    value={assignCustom}
+                    onChange={e => setAssignCustom(e.target.value)}
+                    placeholder="Type client name…"
+                    className="w-full px-3 py-2 rounded-xl text-[13px] mt-1.5"
+                    style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
                 )}
               </div>
               {assignState && "error" in assignState && (

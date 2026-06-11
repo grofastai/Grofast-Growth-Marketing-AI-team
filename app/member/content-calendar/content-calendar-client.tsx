@@ -533,10 +533,10 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                       {isOverdue ? "⚠ Overdue · " : ""}{p.scheduled_date} · {platformLabel(p.platform)}
                     </p>
                   </div>
-                  <select value={p.status} onChange={e => handleStatusChange(p.id, e.target.value)}
-                    style={{ fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 8, border: `1.5px solid ${cfg.color}`, background: cfg.bg, color: cfg.color, cursor: "pointer", outline: "none", flexShrink: 0 }}>
-                    {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
-                  </select>
+                  <button onClick={() => handleStatusChange(p.id, "posted")}
+                    style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#10B981,#059669)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                    <CheckCircle2 size={13} /> Mark as Posted
+                  </button>
                 </div>
               )
             })}

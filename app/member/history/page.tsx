@@ -4,7 +4,6 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import { fetchSheetClients } from "@/lib/google/sheets"
 import HistoryClient from "./history-client"
 
 type WorkEntry = {
@@ -72,18 +71,15 @@ export default async function HistoryPage() {
 
   const companyId = profileResult.data?.company_id ?? ""
 
-  const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
-  const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
-
-  const [updatesResult, sheetClients, participatedResult, membersResult, attLogsResult] = await Promise.all([
+  const [updatesResult, clientsResult, participatedResult, membersResult, attLogsResult] = await Promise.all([
     supabase
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, shoot_count, editing_count, work_entries, created_at")
       .eq("user_id", effectiveUserId)
       .order("date", { ascending: false })
       .limit(90),
-    // Always read from the Active Clients sheet tab — never stale Supabase cache
-    sheetId ? fetchSheetClients(sheetId, sheetGid).catch(() => []) : Promise.resolve([]),
+    // Read active clients from Supabase (synced daily from Google Sheets by cron)
+    admin.from("clients").select("name").eq("company_id", companyId).eq("status", "active").order("name"),
     companyId
       ? admin
           .from("daily_updates")
@@ -123,12 +119,7 @@ export default async function HistoryPage() {
     attendance_status: clockedInDates.has(u.date) ? "present" : u.attendance_status,
   }))
   const name = (profileResult.data?.name ?? "").split(" ")[0] || "there"
-  // Only show rows explicitly marked "CURRENT CLIENT" (or no status, i.e. Active Clients tab with blank status col)
-  const clients = (sheetClients as Awaited<ReturnType<typeof fetchSheetClients>>)
-    .filter(c => /current/i.test(c.client_status) || !c.client_status.trim())
-    .map(c => (c.company_name || c.customer_name).trim())
-    .filter(Boolean)
-    .sort()
+  const clients = ((clientsResult.data ?? []) as { name: string }[]).map(c => c.name)
   const participatedUpdates = (participatedResult.data ?? []) as unknown as ParticipatedUpdate[]
   const members = (membersResult.data ?? []) as MemberInfo[]
 

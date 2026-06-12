@@ -7,7 +7,6 @@ import { redirect } from "next/navigation"
 import { Suspense } from "react"
 import DailyUpdateForm from "./daily-update-form"
 import { Loader2 } from "lucide-react"
-import { fetchSheetClients, stripFinancialFields } from "@/lib/google/sheets"
 
 function adminSupabase() {
   return createClient(
@@ -83,18 +82,7 @@ export default async function UpdatePage() {
   const supabaseClientNames = (supabaseClientsRaw ?? []).map((c: { name: string }) => c.name)
   const teamMembers = (teamMembersRaw ?? []) as TeamMember[]
 
-  // Always use Google Sheets (Active Clients tab) as source of truth — Supabase clients table is stale
-  const sheetId  = process.env.GOOGLE_CLIENTS_SHEET_ID
-  const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
-  const sheetClients = sheetId
-    ? await fetchSheetClients(sheetId, sheetGid).catch(() => [])
-    : []
-  const sheetClientNames = stripFinancialFields(sheetClients)
-    .filter(c => /current/i.test(c.client_status) || !c.client_status.trim())
-    .map(c => (c.company_name || c.customer_name).trim())
-    .filter(Boolean)
-
-  const clientNames = sheetClientNames.length > 0 ? sheetClientNames : supabaseClientNames
+  const clientNames = supabaseClientNames
   const userName = (profile as { name?: string } | null)?.name ?? ""
 
   const fallback = (

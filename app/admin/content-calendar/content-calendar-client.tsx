@@ -467,23 +467,23 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div style={{ background: "#F5F3FF", minHeight: "100vh", padding: 24 }}>
+    <div style={{ background: "#FFF5F5", minHeight: "100vh", padding: 24 }}>
 
       {/* ── Hero Header ── */}
       <div style={{
-        background: "linear-gradient(120deg, #FFFFFF 0%, #F5EEFF 45%, #EBE4FF 100%)",
+        background: "linear-gradient(120deg, #FFFFFF 0%, #FFF0F0 45%, #FFE4E4 100%)",
         borderRadius: 28, marginBottom: 24, position: "relative", overflow: "hidden",
         padding: "32px 36px 0 36px",
-        boxShadow: "0 8px 40px rgba(139,92,246,0.12)",
+        boxShadow: "0 8px 40px rgba(183,28,28,0.12)",
         minHeight: 240,
-        border: "1px solid rgba(139,92,246,0.08)",
+        border: "1px solid rgba(222,26,26,0.08)",
       }}>
         {/* Top row: title left, controls right */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", position: "relative", zIndex: 3, marginBottom: 20 }}>
           {/* Left: title + subtitle */}
           <div style={{ maxWidth: 440 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg,#DE1A1A,#FF4B4B)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: "0 4px 14px rgba(222,26,26,0.35)" }}>📅</div>
+              <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg,#8B0000,#DE1A1A)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: "0 4px 14px rgba(139,0,0,0.4)" }}>📅</div>
               <h1 style={{ fontSize: 38, fontWeight: 900, color: "#0F172A", margin: 0, lineHeight: 1.1 }}>
                 Content Calendar
               </h1>
@@ -494,10 +494,10 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             {/* Controls row */}
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <button onClick={() => { resetForm(); setSchedDates([today]); setModalMode("add") }}
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 22px", background: "linear-gradient(135deg, #DE1A1A 0%, #FF4B4B 100%)", color: "#FFF", borderRadius: 14, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, boxShadow: "0 6px 20px rgba(222,26,26,0.35)", whiteSpace: "nowrap", letterSpacing: "0.01em" }}>
+                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 22px", background: "linear-gradient(135deg, #8B0000 0%, #DE1A1A 100%)", color: "#FFF", borderRadius: 14, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, boxShadow: "0 6px 20px rgba(139,0,0,0.4)", whiteSpace: "nowrap", letterSpacing: "0.01em" }}>
                 <Plus size={15} strokeWidth={3} /> Add Content
               </button>
-              <div style={{ display: "flex", background: "rgba(255,255,255,0.85)", borderRadius: 12, padding: 4, border: "1.5px solid rgba(139,92,246,0.15)", boxShadow: "0 2px 10px rgba(0,0,0,0.06)", gap: 2 }}>
+              <div style={{ display: "flex", background: "rgba(255,255,255,0.9)", borderRadius: 12, padding: 4, border: "1.5px solid rgba(222,26,26,0.2)", boxShadow: "0 2px 10px rgba(0,0,0,0.06)", gap: 2 }}>
                 {([
                   { v: "calendar" as const, label: "📅 Calendar" },
                   { v: "list"     as const, label: "☰ List" },
@@ -507,12 +507,12 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     padding: "7px 14px", borderRadius: 9, border: "none", cursor: "pointer",
                     fontSize: 12, fontWeight: 700, transition: "all 0.15s",
                     background: view === v
-                      ? v === "calendar" ? "linear-gradient(135deg,#7C3AED,#8B5CF6)"
-                      : v === "pipeline" ? "linear-gradient(135deg,#DE1A1A,#FF4B4B)"
-                      : "#374151"
+                      ? v === "calendar" ? "linear-gradient(135deg,#8B0000,#C41230)"
+                      : v === "pipeline" ? "linear-gradient(135deg,#C41230,#DE1A1A)"
+                      : "#1A0000"
                       : "transparent",
                     color: view === v ? "#fff" : "#6B7280",
-                    boxShadow: view === v ? "0 2px 8px rgba(0,0,0,0.2)" : "none",
+                    boxShadow: view === v ? "0 2px 10px rgba(139,0,0,0.35)" : "none",
                   }}>{label}</button>
                 ))}
               </div>
@@ -523,20 +523,20 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         {/* Hero girl character — analytics + calendar context */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/content-cal-hero-girl.png" alt=""
-          style={{ position: "absolute", right: 40, bottom: 0, height: 250, width: "auto", objectFit: "contain", objectPosition: "right bottom", zIndex: 1, pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(139,92,246,0.2))" }} />
+          style={{ position: "absolute", right: 40, bottom: 0, height: 250, width: "auto", objectFit: "contain", objectPosition: "right bottom", zIndex: 1, pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(183,28,28,0.25))" }} />
 
         {/* Decorative blobs */}
-        <div style={{ position: "absolute", top: -40, right: 320, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
-        <div style={{ position: "absolute", bottom: -20, left: "40%", width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, rgba(222,26,26,0.06) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
+        <div style={{ position: "absolute", top: -40, right: 320, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(222,26,26,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
+        <div style={{ position: "absolute", bottom: -20, left: "40%", width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,0,0,0.06) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
       </div>
 
       {/* ── Stats Row ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
         {[
-          { label: "Total Content",  value: totalContent, sub: "All time",    color: "#7C3AED", accent: "#8B5CF6", bg: "linear-gradient(135deg, #EDE9FE 0%, #C4B5FD 100%)", icon: "📄", shadow: "rgba(124,58,237,0.28)",  cardBg: "linear-gradient(160deg, #FFFFFF 0%, #F5F0FF 100%)" },
-          { label: "Ready To Post",  value: readyCount,   sub: "Scheduled",   color: "#2563EB", accent: "#3B82F6", bg: "linear-gradient(135deg, #DBEAFE 0%, #93C5FD 100%)", icon: "📤", shadow: "rgba(37,99,235,0.25)",   cardBg: "linear-gradient(160deg, #FFFFFF 0%, #EFF6FF 100%)" },
-          { label: "In Progress",    value: inProgCount,  sub: "Creating",    color: "#D97706", accent: "#F59E0B", bg: "linear-gradient(135deg, #FEF3C7 0%, #FCD34D 100%)", icon: "⏳", shadow: "rgba(217,119,6,0.25)",   cardBg: "linear-gradient(160deg, #FFFFFF 0%, #FFFBEB 100%)" },
-          { label: "Posted",         value: postedCount,  sub: "Published",   color: "#16A34A", accent: "#22C55E", bg: "linear-gradient(135deg, #DCFCE7 0%, #86EFAC 100%)", icon: "✅", shadow: "rgba(22,163,74,0.25)",   cardBg: "linear-gradient(160deg, #FFFFFF 0%, #F0FDF4 100%)" },
+          { label: "Total Content",  value: totalContent, sub: "All time",    color: "#7B0000", accent: "#8B0000", bg: "linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%)", icon: "📄", shadow: "rgba(123,0,0,0.22)",    cardBg: "linear-gradient(160deg, #FFFFFF 0%, #FFF5F5 100%)" },
+          { label: "Ready To Post",  value: readyCount,   sub: "Scheduled",   color: "#B71C1C", accent: "#C41230", bg: "linear-gradient(135deg, #FFCDD2 0%, #EF9A9A 100%)", icon: "📤", shadow: "rgba(183,28,28,0.22)",   cardBg: "linear-gradient(160deg, #FFFFFF 0%, #FFEBEE 100%)" },
+          { label: "In Progress",    value: inProgCount,  sub: "Creating",    color: "#C41230", accent: "#DE1A1A", bg: "linear-gradient(135deg, #FFEBEE 0%, #FF8A80 100%)", icon: "⏳", shadow: "rgba(196,18,48,0.22)",   cardBg: "linear-gradient(160deg, #FFFFFF 0%, #FFF0F0 100%)" },
+          { label: "Posted",         value: postedCount,  sub: "Published",   color: "#DE1A1A", accent: "#FF4B4B", bg: "linear-gradient(135deg, #FF8A80 0%, #FF6659 100%)", icon: "✅", shadow: "rgba(222,26,26,0.22)",   cardBg: "linear-gradient(160deg, #FFFFFF 0%, #FFE8E8 100%)" },
         ].map(s => (
           <div key={s.label} style={{
             background: s.cardBg, borderRadius: 24, overflow: "hidden",
@@ -1071,10 +1071,10 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           </div>
 
           {/* Motivational card — boy with social media icons */}
-          <div style={{ background: "linear-gradient(135deg, #1A0533 0%, #2D0A5B 50%, #3D1A78 100%)", borderRadius: 20, padding: "22px 18px 0", position: "relative", overflow: "hidden", minHeight: 170, border: "1px solid rgba(155,107,255,0.3)", boxShadow: "0 8px 32px rgba(45,10,91,0.35)" }}>
+          <div style={{ background: "linear-gradient(135deg, #1A0000 0%, #5B0000 50%, #8B0000 100%)", borderRadius: 20, padding: "22px 18px 0", position: "relative", overflow: "hidden", minHeight: 170, border: "1px solid rgba(222,26,26,0.3)", boxShadow: "0 8px 32px rgba(90,0,0,0.45)" }}>
             {/* Glow orbs */}
-            <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, rgba(155,107,255,0.3) 0%, transparent 70%)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", bottom: -20, left: -20, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, rgba(222,26,26,0.25) 0%, transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,75,75,0.3) 0%, transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", bottom: -20, left: -20, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, rgba(222,26,26,0.35) 0%, transparent 70%)", pointerEvents: "none" }} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/content-cal-boy-sidebar.png" alt=""
               style={{ position: "absolute", right: -4, bottom: 0, height: 155, objectFit: "contain", objectPosition: "right bottom", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))" }} />

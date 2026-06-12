@@ -127,7 +127,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [month, setMonth] = useState(initialMonth)
   const [view, setView]   = useState<"calendar" | "list">("calendar")
   const [filter] = useState<"all" | "mine">("mine")
-  const [selectedDay, setSelectedDay] = useState<string | null>(null)
+  const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().split("T")[0])
   const [, start]           = useTransition()
   const [isPending, startCreate] = useTransition()
 
@@ -387,203 +387,151 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
       </div>
 
       {/* ── Calendar / List Layout ── */}
-      <div style={{ display: "grid", gridTemplateColumns: view === "list" ? "1fr 308px" : "1fr", gap: 20, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: view === "calendar" ? "1fr 360px" : "1fr", gap: 20, alignItems: "start" }}>
 
-        {/* ── LEFT: Calendar + Quick Actions ── */}
+        {/* ── LEFT: Calendar OR full list ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-        {/* ── Calendar / List ── */}
-        <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+          {/* Calendar / List card */}
+          <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
 
-          {/* Calendar toolbar */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #F3F4F6", flexWrap: "wrap", gap: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <button onClick={prevMonth} style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <ChevronLeft size={15} color="#6B7280" />
-              </button>
-              <button onClick={() => { setYear(initialYear); setMonth(initialMonth) }}
-                style={{ padding: "7px 16px", fontSize: 12, fontWeight: 700, color: "#374151", background: "#F3F4F6", borderRadius: 9, border: "none", cursor: "pointer" }}>
-                Today
-              </button>
-              <button onClick={nextMonth} style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <ChevronRight size={15} color="#6B7280" />
-              </button>
-            </div>
-            <h2 style={{ fontSize: 17, fontWeight: 800, color: "#111827", margin: 0 }}>{MONTHS[month]} {year}</h2>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              {clientOptions.length > 0 && (
-                <div style={{ position: "relative" }}>
-                  <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
-                    style={{ fontSize: 11, fontWeight: 600, color: clientFilter === "all" ? "#6B7280" : "#DE1A1A", background: clientFilter === "all" ? "#F9FAFB" : "rgba(222,26,26,0.05)", border: `1.5px solid ${clientFilter === "all" ? "#E5E7EB" : "rgba(222,26,26,0.3)"}`, borderRadius: 9, padding: "6px 26px 6px 10px", cursor: "pointer", outline: "none", appearance: "none" }}>
-                    <option value="all">All Clients</option>
-                    {clientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <ChevronDown size={11} style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+            {/* Toolbar */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", borderBottom: "1px solid #F3F4F6", flexWrap: "wrap", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <button onClick={prevMonth} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <ChevronLeft size={13} color="#6B7280" />
+                </button>
+                <button onClick={() => { setYear(initialYear); setMonth(initialMonth); setSelectedDay(today) }}
+                  style={{ padding: "6px 13px", fontSize: 11, fontWeight: 700, color: "#374151", background: "#F3F4F6", borderRadius: 8, border: "none", cursor: "pointer" }}>
+                  Today
+                </button>
+                <button onClick={nextMonth} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <ChevronRight size={13} color="#6B7280" />
+                </button>
+              </div>
+              <h2 style={{ fontSize: 15, fontWeight: 800, color: "#111827", margin: 0 }}>{MONTHS[month]} {year}</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {clientOptions.length > 0 && (
+                  <div style={{ position: "relative" }}>
+                    <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
+                      style={{ fontSize: 11, fontWeight: 600, color: clientFilter === "all" ? "#6B7280" : "#DE1A1A", background: clientFilter === "all" ? "#F9FAFB" : "rgba(222,26,26,0.05)", border: `1.5px solid ${clientFilter === "all" ? "#E5E7EB" : "rgba(222,26,26,0.3)"}`, borderRadius: 8, padding: "5px 22px 5px 9px", cursor: "pointer", outline: "none", appearance: "none" }}>
+                      <option value="all">All Clients</option>
+                      {clientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <ChevronDown size={10} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                  </div>
+                )}
+                <div style={{ display: "flex", background: "#F3F4F6", borderRadius: 9, padding: 2, gap: 1 }}>
+                  {([{ v: "calendar" as const, label: "📅 Calendar" }, { v: "list" as const, label: "☰ List" }]).map(({ v, label }) => (
+                    <button key={v} onClick={() => setView(v)} style={{
+                      padding: "5px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700,
+                      background: view === v ? "linear-gradient(135deg,#FF4D4D,#DE1A1A)" : "transparent",
+                      color: view === v ? "#FFF" : "#6B7280",
+                      boxShadow: view === v ? "0 2px 8px rgba(222,26,26,0.3)" : "none",
+                    }}>{label}</button>
+                  ))}
                 </div>
-              )}
+              </div>
             </div>
-          </div>
 
-          {view === "calendar" ? (
-          <>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid #F3F4F6" }}>
-            {DAYS.map(d => (
-              <div key={d} style={{ padding: "10px 0", textAlign: "center", fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em" }}>{d}</div>
-            ))}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
-            {cells.map((day, i) => {
-              if (!day) return <div key={i} style={{ minHeight: 90, borderRight: i % 7 !== 6 ? "1px solid #F9FAFB" : "none", borderBottom: "1px solid #F9FAFB" }} />
-              const ds        = dateStr(day)
-              const dayPosts  = postsOnDay(day)
-              const dayShoots = shootsOnDay(day)
-              const dayTasks  = tasksOnDay(day)
-              const isToday   = ds === today
-              const isSelected = ds === selectedDay
-              return (
-                <div key={i} onClick={() => setSelectedDay(ds === selectedDay ? null : ds)} style={{ minHeight: 90, padding: "7px 5px", borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6", background: isSelected ? "rgba(222,26,26,0.06)" : isToday ? "rgba(222,26,26,0.03)" : "transparent", cursor: "pointer", transition: "background 0.15s", outline: isSelected ? "2px solid rgba(222,26,26,0.3)" : "none", outlineOffset: -2 }}>
-                  <span style={{ fontSize: 13, fontWeight: isToday ? 900 : 500, width: 24, height: 24, display: "inline-flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent", color: isToday ? "#FFFFFF" : "#374151", marginBottom: 4 }}>{day}</span>
-                  {dayShoots.map(s => (
-                    <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 5px", borderRadius: 4, background: "rgba(77,140,255,0.1)", marginBottom: 2 }}>
-                      <Camera size={8} color="#4D8CFF" />
-                      <span style={{ fontSize: 9, fontWeight: 600, color: "#4D8CFF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title || s.client}</span>
-                    </div>
+            {view === "calendar" ? (
+              <>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+                  {DAYS.map(d => (
+                    <div key={d} style={{ padding: "8px 0", textAlign: "center", fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em", borderBottom: "1px solid #F3F4F6" }}>{d}</div>
                   ))}
-                  {dayTasks.map(t => (
-                    <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 5px", borderRadius: 4, background: "rgba(255,165,58,0.1)", marginBottom: 2 }}>
-                      <Clock size={8} color="#FFA53A" />
-                      <span style={{ fontSize: 9, fontWeight: 600, color: "#FFA53A", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.title}</span>
-                    </div>
-                  ))}
-                  {dayPosts.map(p => {
-                    const isMine = p.assigned_to === userId
-                    const cfg = STATUS_CFG[p.status] ?? STATUS_CFG.pending
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+                  {cells.map((day, i) => {
+                    if (!day) return <div key={i} style={{ minHeight: 95, borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }} />
+                    const ds         = dateStr(day)
+                    const dayPosts   = postsOnDay(day)
+                    const dayShoots  = shootsOnDay(day)
+                    const dayTasks   = tasksOnDay(day)
+                    const isToday    = ds === today
+                    const isSelected = ds === selectedDay
+                    const total      = dayPosts.length + dayShoots.length + dayTasks.length
+                    const visible    = [...dayShoots.map(s => ({ id: s.id, color: "#4D8CFF", label: s.title || s.client })), ...dayTasks.map(t => ({ id: t.id, color: "#FFA53A", label: t.title })), ...dayPosts.map(p => ({ id: p.id, color: platformColor(p.platform), label: p.title }))]
+                    const shown      = visible.slice(0, 2)
+                    const more       = total - shown.length
                     return (
-                      <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 5px", borderRadius: 4, marginBottom: 2, background: `${platformColor(p.platform)}18`, border: isMine ? `1px solid ${platformColor(p.platform)}40` : "none" }}>
-                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: 9, fontWeight: 600, color: platformColor(p.platform), overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</span>
-                        {isMine && <span style={{ fontSize: 7, fontWeight: 800, color: platformColor(p.platform), marginLeft: "auto", flexShrink: 0 }}>YOU</span>}
+                      <div key={i} onClick={() => setSelectedDay(ds)} style={{
+                        minHeight: 95, padding: "7px 6px", cursor: "pointer",
+                        borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none",
+                        borderBottom: "1px solid #F3F4F6",
+                        background: isSelected ? "rgba(222,26,26,0.06)" : isToday ? "rgba(222,26,26,0.025)" : "transparent",
+                        outline: isSelected ? "2px solid rgba(222,26,26,0.25)" : "none",
+                        outlineOffset: -1, transition: "background 0.12s",
+                      }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                          <span style={{ fontSize: 12, fontWeight: isToday ? 900 : 500, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent", color: isToday ? "#FFF" : isSelected ? "#DE1A1A" : "#374151" }}>
+                            {day}
+                          </span>
+                          {total > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: "#DE1A1A", background: "rgba(222,26,26,0.1)", borderRadius: 5, padding: "1px 5px" }}>{total}</span>}
+                        </div>
+                        {shown.map(item => (
+                          <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 5px", borderRadius: 5, marginBottom: 2, background: `${item.color}14`, border: `1px solid ${item.color}28` }}>
+                            <span style={{ width: 5, height: 5, borderRadius: "50%", background: item.color, flexShrink: 0 }} />
+                            <span style={{ fontSize: 9, fontWeight: 600, color: item.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
+                          </div>
+                        ))}
+                        {more > 0 && <span style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", paddingLeft: 5 }}>+{more} more</span>}
                       </div>
                     )
                   })}
                 </div>
-              )
-            })}
-          </div>
-          <div style={{ padding: "12px 24px", borderTop: "1px solid #F3F4F6", display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600 }}>Legend:</span>
-            <span style={{ fontSize: 11, color: "#4D8CFF", fontWeight: 600 }}>📷 Shoot</span>
-            <span style={{ fontSize: 11, color: "#FFA53A", fontWeight: 600 }}>⏰ My Task</span>
-            {PLATFORMS.slice(0, 4).map(p => (
-              <span key={p.id} style={{ fontSize: 11, fontWeight: 600, color: p.color }}>● {p.label}</span>
-            ))}
-          </div>
-
-          {/* ── Day Detail Panel ── */}
-          {selectedDay && (() => {
-            const selDate = new Date(selectedDay + "T00:00:00")
-            const label = selDate.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
-            const dayNum = selDate.getDate()
-            const dp = postsOnDay(dayNum)
-            const ds2 = shootsOnDay(dayNum)
-            const dt = tasksOnDay(dayNum)
-            const total = dp.length + ds2.length + dt.length
-            return (
-              <div style={{ margin: "0 0 0 0", borderTop: "2px solid rgba(222,26,26,0.15)", background: "#FAFBFF" }}>
-                {/* Header */}
-                <div style={{ padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "linear-gradient(135deg, rgba(222,26,26,0.07), rgba(222,26,26,0.02))" }}>
-                  <div>
-                    <p style={{ margin: 0, fontSize: 15, fontWeight: 800, color: "#111827" }}>{label}</p>
-                    <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>{total} item{total !== 1 ? "s" : ""} scheduled</p>
-                  </div>
-                  <button onClick={() => setSelectedDay(null)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <X size={13} color="#6B7280" />
-                  </button>
+                <div style={{ padding: "10px 18px", borderTop: "1px solid #F3F4F6", display: "flex", gap: 14, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 10, color: "#6B7280", fontWeight: 600 }}>Legend:</span>
+                  <span style={{ fontSize: 10, color: "#4D8CFF", fontWeight: 600 }}>📷 Shoot</span>
+                  <span style={{ fontSize: 10, color: "#FFA53A", fontWeight: 600 }}>⏰ My Task</span>
+                  {PLATFORMS.slice(0, 4).map(p => (
+                    <span key={p.id} style={{ fontSize: 10, fontWeight: 600, color: p.color }}>● {p.label}</span>
+                  ))}
                 </div>
-
-                {total === 0 && (
-                  <p style={{ padding: "24px 20px", fontSize: 13, color: "#9CA3AF", textAlign: "center", margin: 0 }}>Nothing scheduled on this day.</p>
-                )}
-
-                {/* Shoots */}
-                {ds2.length > 0 && (
-                  <div style={{ padding: "12px 20px", borderBottom: "1px solid #F3F4F6" }}>
-                    <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 800, color: "#4D8CFF", textTransform: "uppercase", letterSpacing: "0.1em" }}>📷 Video Shoots</p>
-                    {ds2.map(s => (
-                      <div key={s.id} style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(77,140,255,0.06)", border: "1px solid rgba(77,140,255,0.15)", marginBottom: 6 }}>
-                        <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 700, color: "#1E40AF" }}>{s.title || s.client}</p>
-                        <p style={{ margin: 0, fontSize: 11, color: "#4D8CFF" }}>Client: {s.client} · Status: {s.status}</p>
-                      </div>
-                    ))}
+              </>
+            ) : (
+              <div>
+                <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6" }}>
+                  <h2 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>My Content — {MONTHS[month]} {year}</h2>
+                </div>
+                {filteredPosts.length === 0 ? (
+                  <div style={{ padding: "60px 24px", textAlign: "center" }}>
+                    <p style={{ fontSize: 32, margin: "0 0 12px" }}>📭</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: "0 0 6px" }}>No content scheduled</p>
+                    <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>No content assigned to you this month.</p>
                   </div>
-                )}
-
-                {/* Tasks */}
-                {dt.length > 0 && (
-                  <div style={{ padding: "12px 20px", borderBottom: "1px solid #F3F4F6" }}>
-                    <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 800, color: "#FFA53A", textTransform: "uppercase", letterSpacing: "0.1em" }}>⏰ Tasks Due</p>
-                    {dt.map(t => (
-                      <div key={t.id} style={{ padding: "10px 12px", borderRadius: 10, background: "rgba(255,165,58,0.06)", border: "1px solid rgba(255,165,58,0.2)", marginBottom: 6 }}>
-                        <p style={{ margin: "0 0 4px", fontSize: 13, fontWeight: 700, color: "#92400E" }}>{t.title}</p>
-                        <p style={{ margin: 0, fontSize: 11, color: "#D97706" }}>Status: {t.status}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Content Posts */}
-                {dp.length > 0 && (
-                  <div style={{ padding: "12px 20px" }}>
-                    <p style={{ margin: "0 0 8px", fontSize: 10, fontWeight: 800, color: "#374151", textTransform: "uppercase", letterSpacing: "0.1em" }}>📱 Content Posts</p>
-                    {dp.map(p => {
-                      const cfg = STATUS_CFG[p.status] ?? STATUS_CFG.pending
+                ) : (
+                  <div>
+                    {filteredPosts.map((p, i) => {
+                      const cfg    = STATUS_CFG[p.status] ?? STATUS_CFG.pending
                       const priCfg = PRIORITY_CFG[p.priority ?? "medium"] ?? PRIORITY_CFG.medium
                       const isMine = p.assigned_to === userId
-                      const pColor = platformColor(p.platform)
-                      const isPosted = p.status === "posted"
                       return (
-                        <div key={p.id} style={{ padding: "12px 14px", borderRadius: 12, background: "#FFF", border: `1.5px solid ${isPosted ? "#32D27A40" : pColor + "30"}`, marginBottom: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-                          {/* Top row — platform + title + status badge */}
-                          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                              <span style={{ fontSize: 20 }}>{platformEmoji(p.platform)}</span>
-                              <div>
-                                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#111827" }}>{p.title}</p>
-                                <p style={{ margin: 0, fontSize: 11, color: pColor, fontWeight: 600 }}>{platformLabel(p.platform)}</p>
-                              </div>
-                            </div>
-                            <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 8px", borderRadius: 8, background: cfg.bg, color: cfg.color, flexShrink: 0, whiteSpace: "nowrap" }}>{cfg.label}</span>
+                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: i < filteredPosts.length - 1 ? "1px solid #F9FAFB" : "none", background: isMine ? "rgba(222,26,26,0.02)" : "transparent", flexWrap: "wrap" }}>
+                          <div style={{ width: 38, height: 38, borderRadius: 11, background: `${platformColor(p.platform)}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 19 }}>
+                            {platformEmoji(p.platform)}
                           </div>
-                          {/* Meta tags */}
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, fontSize: 11, marginBottom: isMine ? 10 : 0 }}>
-                            <span style={{ padding: "2px 8px", borderRadius: 6, background: "#F3F4F6", color: "#374151", fontWeight: 600 }}>👤 {p.assignee?.name ?? "Unassigned"}</span>
-                            <span style={{ padding: "2px 8px", borderRadius: 6, background: "#F3F4F6", color: "#374151", fontWeight: 600 }}>🏢 {p.client_name || "—"}</span>
-                            <span style={{ padding: "2px 8px", borderRadius: 6, background: "#F3F4F6", color: "#374151", fontWeight: 600 }}>📂 {p.content_type || "—"}</span>
-                            <span style={{ padding: "2px 8px", borderRadius: 6, background: priCfg.bg, color: priCfg.color, fontWeight: 700 }}>{priCfg.label}</span>
-                            {p.content_pillar && <span style={{ padding: "2px 8px", borderRadius: 6, background: "rgba(155,107,255,0.1)", color: "#9B6BFF", fontWeight: 700 }}>{p.content_pillar}</span>}
-                          </div>
-                          {/* Done / Not Done buttons */}
-                          {(
-                            <div style={{ display: "flex", gap: 8 }}>
-                              {!isPosted ? (
-                                <button
-                                  onClick={() => handleStatusChange(p.id, "posted")}
-                                  style={{ flex: 1, padding: "9px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                                  <CheckCircle2 size={14} /> Done — Mark as Posted
-                                </button>
-                              ) : (
-                                <>
-                                  <div style={{ flex: 1, padding: "9px 0", borderRadius: 10, background: "rgba(50,210,122,0.1)", border: "1.5px solid rgba(50,210,122,0.3)", color: "#32D27A", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                                    <CheckCircle2 size={14} /> Posted ✓
-                                  </div>
-                                  <button
-                                    onClick={() => handleStatusChange(p.id, "pending")}
-                                    style={{ padding: "9px 14px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                                    Undo
-                                  </button>
-                                </>
-                              )}
+                          <div style={{ flex: 1, minWidth: 100 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                              <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
+                              {isMine && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", flexShrink: 0 }}>MINE</span>}
                             </div>
+                            <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>{platformLabel(p.platform)} · {p.client_name}</p>
+                          </div>
+                          <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap", flexShrink: 0 }}>{p.scheduled_date}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{priCfg.label}</span>
+                          {p.status === "posted" ? (
+                            <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                              <span style={{ fontSize: 11, fontWeight: 800, padding: "5px 10px", borderRadius: 8, background: "rgba(50,210,122,0.1)", color: "#32D27A", display: "flex", alignItems: "center", gap: 4 }}>
+                                <CheckCircle2 size={12} /> Posted ✓
+                              </span>
+                              <button onClick={() => handleStatusChange(p.id, "pending")} style={{ fontSize: 10, fontWeight: 700, padding: "5px 8px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: "pointer" }}>Undo</button>
+                            </div>
+                          ) : (
+                            <button onClick={() => handleStatusChange(p.id, "posted")}
+                              style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
+                              <CheckCircle2 size={13} /> Mark as Posted
+                            </button>
                           )}
                         </div>
                       )
@@ -591,147 +539,173 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   </div>
                 )}
               </div>
-            )
-          })()}
-          </>
-      ) : (
-        <div>
-          <div style={{ padding: "18px 24px", borderBottom: "1px solid #F3F4F6" }}>
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: 0 }}>
-              My Content — {MONTHS[month]} {year}
-            </h2>
-          </div>
-          {filteredPosts.length === 0 ? (
-            <div style={{ padding: "60px 24px", textAlign: "center" }}>
-              <p style={{ fontSize: 32, margin: "0 0 12px" }}>📭</p>
-              <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: "0 0 6px" }}>No content scheduled</p>
-              <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>No content assigned to you this month.</p>
-            </div>
-          ) : (
-            <div>
-              {filteredPosts.map((p, i) => {
-                const cfg    = STATUS_CFG[p.status] ?? STATUS_CFG.pending
-                const priCfg = PRIORITY_CFG[p.priority ?? "medium"] ?? PRIORITY_CFG.medium
-                const isMine = p.assigned_to === userId
-                return (
-                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 24px", borderBottom: i < filteredPosts.length - 1 ? "1px solid #F9FAFB" : "none", background: isMine ? "rgba(222,26,26,0.02)" : "transparent", flexWrap: "wrap" }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, background: `${platformColor(p.platform)}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 20 }}>
-                      {platformEmoji(p.platform)}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 100 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                        {isMine && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", flexShrink: 0 }}>MINE</span>}
-                      </div>
-                      <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>
-                        {platformLabel(p.platform)} · {p.client_name}
-                        {p.content_pillar && <span style={{ marginLeft: 6, padding: "1px 6px", borderRadius: 8, background: "rgba(155,107,255,0.1)", color: "#9B6BFF", fontWeight: 700, fontSize: 10 }}>{p.content_pillar}</span>}
-                      </p>
-                    </div>
-                    <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap", flexShrink: 0 }}>{p.scheduled_date}</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{priCfg.label}</span>
-                    {p.status === "posted" ? (
-                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                        <span style={{ fontSize: 11, fontWeight: 800, padding: "5px 10px", borderRadius: 8, background: "rgba(50,210,122,0.1)", color: "#32D27A", display: "flex", alignItems: "center", gap: 4 }}>
-                          <CheckCircle2 size={12} /> Posted ✓
-                        </span>
-                        <button onClick={() => handleStatusChange(p.id, "pending")}
-                          style={{ fontSize: 10, fontWeight: 700, padding: "5px 8px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: "pointer" }}>
-                          Undo
-                        </button>
-                      </div>
-                    ) : (
-                      <button onClick={() => handleStatusChange(p.id, "posted")}
-                        style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-                        <CheckCircle2 size={13} /> Mark as Posted
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
+            )}
           </div>
 
-          {/* ── Quick Actions ── */}
-          <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: "0 0 14px" }}>Quick Actions</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+          {/* Quick Actions */}
+          <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "16px 18px", border: "1px solid #E5E7EB" }}>
+            <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 12px" }}>Quick Actions</h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
               {[
-                { icon: "✏️", label: "Create Post",   sub: "Design & plan",   color: "#DE1A1A", bg: "rgba(222,26,26,0.07)",   action: () => openAdd() },
-                { icon: "☁️", label: "Upload Media",  sub: "Images / Videos", color: "#4D8CFF", bg: "rgba(77,140,255,0.07)",  action: () => setView("list") },
-                { icon: "📋", label: "View Posts",    sub: "All scheduled",   color: "#9B6BFF", bg: "rgba(155,107,255,0.07)",  action: () => setView("list") },
-                { icon: "✅", label: "Mark Posted",   sub: "Update status",   color: "#32D27A", bg: "rgba(50,210,122,0.07)",  action: () => setView("list") },
+                { icon: "✏️", label: "Create Post",  sub: "Design & plan",   color: "#DE1A1A", bg: "rgba(222,26,26,0.07)",  action: () => openAdd(selectedDay) },
+                { icon: "☁️", label: "Upload Media", sub: "Images / Videos", color: "#4D8CFF", bg: "rgba(77,140,255,0.07)",  action: () => setView("list") },
+                { icon: "📋", label: "View Posts",   sub: "All scheduled",   color: "#9B6BFF", bg: "rgba(155,107,255,0.07)", action: () => setView("list") },
+                { icon: "✅", label: "Mark Posted",  sub: "Update status",   color: "#32D27A", bg: "rgba(50,210,122,0.07)",  action: () => setView("list") },
               ].map(a => (
                 <button key={a.label} onClick={a.action}
-                  style={{ padding: "14px 12px", borderRadius: 14, background: a.bg, border: `1.5px solid ${a.color}22`, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 22, flexShrink: 0 }}>{a.icon}</span>
+                  style={{ padding: "12px 10px", borderRadius: 14, background: a.bg, border: `1.5px solid ${a.color}22`, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{a.icon}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 12, fontWeight: 800, color: a.color, margin: 0 }}>{a.label}</p>
+                    <p style={{ fontSize: 11, fontWeight: 800, color: a.color, margin: 0 }}>{a.label}</p>
                     <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.sub}</p>
                   </div>
-                  <span style={{ color: a.color, fontSize: 16, fontWeight: 700, flexShrink: 0 }}>›</span>
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* ── RIGHT: Sidebar (list view only) ── */}
-        {view === "list" && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* ── RIGHT: Day Detail Panel (calendar view) ── */}
+        {view === "calendar" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 24 }}>
 
-          {/* Upcoming Posts */}
-          <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Upcoming Posts</h3>
-              <button onClick={() => setView("list")} style={{ fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>View All</button>
-            </div>
-            {upcomingPosts.length === 0 ? (
-              <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "16px 0", margin: 0 }}>No upcoming posts</p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {upcomingPosts.map(p => {
-                  const pColor = platformColor(p.platform)
-                  return (
-                    <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${pColor}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
-                        {platformEmoji(p.platform)}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 12, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                        <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap" }}>{p.scheduled_date}</p>
-                      </div>
-                    </div>
-                  )
-                })}
+            {/* Day header + posts */}
+            <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+              <div style={{ background: "linear-gradient(135deg, #8B0000 0%, #C41230 55%, #DE1A1A 100%)", padding: "18px 20px", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: -24, right: -24, width: 90, height: 90, borderRadius: "50%", background: "rgba(255,255,255,0.1)", pointerEvents: "none" }} />
+                <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.65)", margin: "0 0 2px", letterSpacing: "0.12em" }}>
+                  {selectedDay === today ? "TODAY" : "SELECTED DATE"}
+                </p>
+                <h3 style={{ fontSize: 17, fontWeight: 900, color: "#FFFFFF", margin: "0 0 14px", lineHeight: 1.2 }}>
+                  {new Date(selectedDay + "T12:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+                </h3>
+                <button onClick={() => openAdd(selectedDay)}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "rgba(255,255,255,0.18)", backdropFilter: "blur(6px)", color: "#FFF", borderRadius: 10, border: "1px solid rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
+                  <Plus size={12} strokeWidth={3} /> Add Post
+                </button>
               </div>
-            )}
-          </div>
 
+              {(() => {
+                const selectedDateNum = new Date(selectedDay + "T12:00:00").getDate()
+                const isInCurrentMonth = selectedDay.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`)
+                const dayPosts   = isInCurrentMonth ? postsOnDay(selectedDateNum) : filteredPosts.filter(p => p.scheduled_date === selectedDay)
+                const dayShoots  = shoots.filter(s => s.start_time.split("T")[0] === selectedDay)
+                const dayTasks   = tasks.filter(t => t.due_date === selectedDay)
+                const total      = dayPosts.length + dayShoots.length + dayTasks.length
 
-          {/* Motivational card */}
-          <div style={{ background: "linear-gradient(135deg, #1A0000 0%, #5B0000 50%, #8B0000 100%)", borderRadius: 20, padding: "22px 18px 0", position: "relative", overflow: "hidden", minHeight: 170, border: "1px solid rgba(222,26,26,0.3)", boxShadow: "0 8px 32px rgba(90,0,0,0.45)" }}>
-            <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,75,75,0.3) 0%, transparent 70%)", pointerEvents: "none" }} />
-            <div style={{ position: "absolute", bottom: -20, left: -20, width: 100, height: 100, borderRadius: "50%", background: "radial-gradient(circle, rgba(222,26,26,0.35) 0%, transparent 70%)", pointerEvents: "none" }} />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/content-cal-boy-sidebar.png" alt=""
-              style={{ position: "absolute", right: -4, bottom: 0, height: 155, objectFit: "contain", objectPosition: "right bottom", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))" }} />
-            <div style={{ paddingRight: 100, paddingBottom: 22, position: "relative", zIndex: 1 }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(222,26,26,0.85)", borderRadius: 20, padding: "3px 10px", marginBottom: 10 }}>
-                <span style={{ fontSize: 10, fontWeight: 800, color: "#FFF", letterSpacing: "0.05em" }}>🔥 PRO TIP</span>
+                if (total === 0) return (
+                  <div style={{ padding: "28px 20px", textAlign: "center" }}>
+                    <div style={{ fontSize: 30, marginBottom: 8 }}>📭</div>
+                    <p style={{ fontSize: 13, color: "#9CA3AF", margin: "0 0 4px", fontWeight: 600 }}>No content scheduled</p>
+                    <p style={{ fontSize: 11, color: "#D1D5DB", margin: 0 }}>Click Add Post to schedule something</p>
+                  </div>
+                )
+                return (
+                  <div style={{ maxHeight: 380, overflowY: "auto" }}>
+                    {dayShoots.map(s => (
+                      <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: "1px solid #F9FAFB" }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(77,140,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Camera size={16} color="#4D8CFF" />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0 }}>{s.title || s.client}</p>
+                          <p style={{ fontSize: 11, color: "#4D8CFF", margin: "2px 0 0", fontWeight: 600 }}>📹 Video Shoot</p>
+                        </div>
+                      </div>
+                    ))}
+                    {dayTasks.map(t => (
+                      <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: "1px solid #F9FAFB" }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,165,58,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Clock size={16} color="#FFA53A" />
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0 }}>{t.title}</p>
+                          <p style={{ fontSize: 11, color: "#D97706", margin: "2px 0 0", fontWeight: 600 }}>⏰ Task due</p>
+                        </div>
+                      </div>
+                    ))}
+                    {dayPosts.map(p => {
+                      const pColor   = platformColor(p.platform)
+                      const cfg      = STATUS_CFG[p.status] ?? STATUS_CFG.pending
+                      const isPosted = p.status === "posted"
+                      return (
+                        <div key={p.id} style={{ padding: "12px 20px", borderBottom: "1px solid #F9FAFB" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: 10, background: `${pColor}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
+                              {platformEmoji(p.platform)}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
+                              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{platformLabel(p.platform)}{p.client_name ? ` · ${p.client_name}` : ""}</p>
+                            </div>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap" }}>{cfg.label}</span>
+                          </div>
+                          {!isPosted ? (
+                            <button onClick={() => handleStatusChange(p.id, "posted")}
+                              style={{ width: "100%", padding: "8px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                              <CheckCircle2 size={13} /> Mark as Posted
+                            </button>
+                          ) : (
+                            <div style={{ display: "flex", gap: 8 }}>
+                              <div style={{ flex: 1, padding: "8px 0", borderRadius: 10, background: "rgba(50,210,122,0.1)", border: "1.5px solid rgba(50,210,122,0.3)", color: "#32D27A", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                                <CheckCircle2 size={13} /> Posted ✓
+                              </div>
+                              <button onClick={() => handleStatusChange(p.id, "pending")} style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Undo</button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* Upcoming posts */}
+            <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+              <div style={{ padding: "13px 18px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: 0 }}>Upcoming Posts</h3>
+                <button onClick={() => setView("list")} style={{ fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>View All →</button>
               </div>
-              <p style={{ fontSize: 13, fontWeight: 900, color: "#FFFFFF", margin: "0 0 6px", lineHeight: 1.4 }}>
-                Consistent content = consistent growth!
-              </p>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, lineHeight: 1.5 }}>
-                Post daily across all platforms 🚀
-              </p>
+              {upcomingPosts.length === 0 ? (
+                <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "16px", margin: 0 }}>No upcoming posts</p>
+              ) : (
+                <div>
+                  {upcomingPosts.slice(0, 5).map(p => {
+                    const pColor = platformColor(p.platform)
+                    return (
+                      <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", borderBottom: "1px solid #F9FAFB" }}>
+                        <div style={{ width: 30, height: 30, borderRadius: 8, background: `${pColor}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
+                          {platformEmoji(p.platform)}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 12, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
+                          <p style={{ fontSize: 10, color: "#9CA3AF", margin: "1px 0 0" }}>{p.scheduled_date === today ? "Today" : p.scheduled_date.slice(5)}</p>
+                        </div>
+                        <span style={{ width: 7, height: 7, borderRadius: "50%", background: pColor, flexShrink: 0 }} />
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Motivational card */}
+            <div style={{ background: "linear-gradient(135deg, #1A0000 0%, #5B0000 50%, #8B0000 100%)", borderRadius: 20, padding: "20px 18px 0", position: "relative", overflow: "hidden", minHeight: 155, border: "1px solid rgba(222,26,26,0.3)", boxShadow: "0 8px 32px rgba(90,0,0,0.4)" }}>
+              <div style={{ position: "absolute", top: -30, right: -30, width: 110, height: 110, borderRadius: "50%", background: "radial-gradient(circle,rgba(255,75,75,0.3) 0%,transparent 70%)", pointerEvents: "none" }} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/content-cal-boy-sidebar.png" alt=""
+                style={{ position: "absolute", right: -4, bottom: 0, height: 140, objectFit: "contain", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))" }} />
+              <div style={{ paddingRight: 95, paddingBottom: 20, position: "relative", zIndex: 1 }}>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(222,26,26,0.85)", borderRadius: 20, padding: "3px 10px", marginBottom: 10 }}>
+                  <span style={{ fontSize: 10, fontWeight: 800, color: "#FFF", letterSpacing: "0.05em" }}>🔥 PRO TIP</span>
+                </div>
+                <p style={{ fontSize: 13, fontWeight: 900, color: "#FFFFFF", margin: "0 0 5px", lineHeight: 1.4 }}>Consistent content = consistent growth!</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Post daily across all platforms 🚀</p>
+              </div>
             </div>
           </div>
-
-        </div>}
+        )}
       </div>
 
       {/* ── My Pending Content ── */}

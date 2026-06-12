@@ -489,27 +489,12 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               <p style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)", margin: 0 }}>{s.label}</p>
             </div>
             {/* White body */}
-            <div style={{ padding: "18px 22px 10px" }}>
-              <p style={{ fontSize: 44, fontWeight: 900, color: "#0F172A", margin: "0 0 4px", lineHeight: 1, letterSpacing: "-0.03em" }}>{s.value}</p>
+            <div style={{ padding: "18px 22px 22px" }}>
+              <p style={{ fontSize: 44, fontWeight: 900, color: "#0F172A", margin: "0 0 6px", lineHeight: 1, letterSpacing: "-0.03em" }}>{s.value}</p>
               <p style={{ fontSize: 11, color: s.accent, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.accent, display: "inline-block", flexShrink: 0 }} />
                 {s.sub}
               </p>
-            </div>
-            <div style={{ marginTop: "auto" }}>
-              <svg viewBox="0 0 120 40" preserveAspectRatio="none" style={{ width: "100%", height: 44, display: "block" }}>
-                <defs>
-                  <linearGradient id={`msg-${s.accent.replace("#","")}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={s.accent} stopOpacity="0.18" />
-                    <stop offset="100%" stopColor={s.accent} stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                <polygon points="0,40 0,34 14,28 28,31 44,20 56,24 72,13 86,18 104,7 120,9 120,40" fill={`url(#msg-${s.accent.replace("#","")})`} />
-                <polyline points="0,34 14,28 28,31 44,20 56,24 72,13 86,18 104,7 120,9" fill="none" stroke={s.accent} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                {[[14,28],[28,31],[44,20],[56,24],[72,13],[86,18],[104,7],[120,9]].map(([cx,cy],di) => (
-                  <circle key={di} cx={cx} cy={cy} r="2.6" fill="#FFFFFF" stroke={s.accent} strokeWidth="1.6" />
-                ))}
-              </svg>
             </div>
           </div>
         ))}

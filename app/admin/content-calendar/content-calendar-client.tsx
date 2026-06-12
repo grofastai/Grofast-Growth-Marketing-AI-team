@@ -596,15 +596,12 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               <p style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)", margin: 0 }}>{s.label}</p>
             </div>
             {/* White body */}
-            <div style={{ padding: "18px 22px 10px" }}>
-              <p style={{ fontSize: 44, fontWeight: 900, color: "#0F172A", margin: "0 0 4px", lineHeight: 1, letterSpacing: "-0.03em" }}>{s.value}</p>
+            <div style={{ padding: "18px 22px 22px" }}>
+              <p style={{ fontSize: 44, fontWeight: 900, color: "#0F172A", margin: "0 0 6px", lineHeight: 1, letterSpacing: "-0.03em" }}>{s.value}</p>
               <p style={{ fontSize: 11, color: s.accent, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.accent, display: "inline-block", flexShrink: 0 }} />
                 {s.sub}
               </p>
-            </div>
-            <div style={{ marginTop: "auto" }}>
-              <Sparkline color={s.accent} />
             </div>
           </div>
         ))}

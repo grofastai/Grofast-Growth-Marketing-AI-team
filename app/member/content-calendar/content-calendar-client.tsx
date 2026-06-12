@@ -4,9 +4,9 @@ import { useState, useTransition, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   ChevronLeft, ChevronRight, ChevronDown, Camera, Clock,
-  CheckCircle2, Plus, X, Loader2, Send,
+  CheckCircle2, Plus, X, Loader2, Send, Pencil, Trash2,
 } from "lucide-react"
-import { updateContentPostStatus, createContentPost } from "@/lib/actions/content-calendar"
+import { updateContentPostStatus, createContentPost, updateContentPost, deleteContentPost } from "@/lib/actions/content-calendar"
 import ClientSelector, { resolveClientName, OWN_BRANDS } from "@/components/ui/ClientSelector"
 
 interface Post {
@@ -14,7 +14,7 @@ interface Post {
   client_name: string; scheduled_date: string; status: string
   assigned_to: string | null; drive_link: string | null
   content_pillar?: string | null; priority?: string | null
-  scheduled_time?: string | null
+  scheduled_time?: string | null; notes?: string | null
   assignee?: { name: string } | null
 }
 interface Shoot  { id: string; title: string; start_time: string; client: string; status: string }
@@ -134,8 +134,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   // Client filter
   const [clientFilter, setClientFilter] = useState("all")
 
-  // Create form
+  // Create / Edit form
   const [showAdd, setShowAdd]         = useState(false)
+  const [editingPost, setEditingPost] = useState<Post | null>(null)
   const [schedType, setSchedType]     = useState<"" | "shoot" | "post">("")
   const [schedDate, setSchedDate]     = useState("")
   const [shootFrom, setShootFrom]     = useState("")
@@ -209,14 +210,35 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   }
 
   function openAdd(date?: string) {
+    setEditingPost(null)
     setSchedDate(date ?? new Date().toISOString().split("T")[0])
     setTitle(""); setPlatform("instagram"); setContentType("post")
     setClientName(""); setAssignedTo(""); setInstructions("")
     setContentPillar(""); setPriority("medium")
     setFormError(""); setFormSuccess(false)
     setSchedType(""); setShootFrom(""); setShootTo(""); setShootLocation("")
-    setClientName(""); setClientBrand(""); setClientCustom("")
+    setClientBrand(""); setClientCustom("")
     setShowAdd(true)
+  }
+
+  function openEdit(post: Post) {
+    setEditingPost(post)
+    setSchedDate(post.scheduled_date)
+    setTitle(post.title); setPlatform(post.platform); setContentType(post.content_type)
+    setClientName(post.client_name ?? ""); setAssignedTo(post.assigned_to ?? "")
+    setInstructions(post.notes ?? ""); setContentPillar(post.content_pillar ?? "")
+    setPriority(post.priority ?? "medium")
+    setFormError(""); setFormSuccess(false)
+    setSchedType("post"); setShootFrom(""); setShootTo(""); setShootLocation("")
+    setClientBrand(""); setClientCustom("")
+    setShowAdd(true)
+  }
+
+  function handleDelete(postId: string) {
+    start(async () => {
+      await deleteContentPost(postId)
+      setPosts(prev => prev.filter(p => p.id !== postId))
+    })
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -224,6 +246,32 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
     if (!title.trim()) { setFormError("Title is required"); return }
     if (!schedDate)    { setFormError("Date is required");  return }
     setFormError("")
+
+    if (editingPost) {
+      startCreate(async () => {
+        const res = await updateContentPost(editingPost.id, {
+          title, platform, content_type: contentType,
+          client_name: resolveClientName(clientName, clientBrand, clientCustom) || clientName || "Internal",
+          scheduled_date: schedDate,
+          assigned_to: assignedTo || userId,
+          notes: instructions || undefined,
+          content_pillar: contentPillar || null,
+          priority: priority || "medium",
+        })
+        if (res.success) {
+          setPosts(prev => prev.map(p => p.id === editingPost.id ? {
+            ...p, title, platform, content_type: contentType,
+            client_name: resolveClientName(clientName, clientBrand, clientCustom) || clientName || "Internal",
+            scheduled_date: schedDate, assigned_to: assignedTo || userId,
+            notes: instructions || null, content_pillar: contentPillar || null, priority,
+          } : p))
+          setFormSuccess(true); router.refresh()
+          setTimeout(() => { setShowAdd(false); setFormSuccess(false); setEditingPost(null) }, 1000)
+        } else { setFormError(res.error ?? "Something went wrong") }
+      })
+      return
+    }
+
     startCreate(async () => {
       const shootMeta = schedType === "shoot" && (shootFrom || shootTo || shootLocation)
         ? `\nTime: ${shootFrom || "—"} → ${shootTo || "—"}${shootLocation ? `\nLocation: ${shootLocation}` : ""}`
@@ -629,7 +677,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                       const cfg      = STATUS_CFG[p.status] ?? STATUS_CFG.pending
                       const isPosted = p.status === "posted"
                       return (
-                        <div key={p.id} style={{ padding: "12px 20px", borderBottom: "1px solid #F9FAFB" }}>
+                        <div key={p.id} style={{ padding: "12px 20px", borderBottom: "1px solid #F3F4F6" }}>
+                          {/* Info row */}
                           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                             <div style={{ width: 36, height: 36, borderRadius: 10, background: `${pColor}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
                               {platformEmoji(p.platform)}
@@ -638,8 +687,20 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                               <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
                               <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{platformLabel(p.platform)}{p.client_name ? ` · ${p.client_name}` : ""}</p>
                             </div>
-                            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap" }}>{cfg.label}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{cfg.label}</span>
                           </div>
+                          {/* Action buttons */}
+                          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                            <button onClick={() => openEdit(p)}
+                              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", borderRadius: 9, border: "1.5px solid rgba(155,107,255,0.35)", background: "rgba(155,107,255,0.07)", color: "#9B6BFF", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                              <Pencil size={12} /> Edit
+                            </button>
+                            <button onClick={() => handleDelete(p.id)}
+                              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", borderRadius: 9, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)", color: "#EF4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                              <Trash2 size={12} /> Delete
+                            </button>
+                          </div>
+                          {/* Posted status row */}
                           {!isPosted ? (
                             <button onClick={() => handleStatusChange(p.id, "posted")}
                               style={{ width: "100%", padding: "8px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -772,16 +833,18 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 20, padding: 28, width: "100%", maxWidth: 540, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
               <div>
-                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#111827", margin: 0 }}>Schedule Content</h3>
+                <h3 style={{ fontSize: 17, fontWeight: 800, color: "#111827", margin: 0 }}>
+                  {editingPost ? "Edit Content" : "Schedule Content"}
+                </h3>
                 <p style={{ fontSize: 12, color: "#6B7280", margin: "2px 0 0" }}>
-                  {schedType === "shoot" ? "📹 Video Shoot Schedule" : schedType === "post" ? "📱 Post (Videos & Poster)" : "Choose what to schedule"}
+                  {editingPost ? "Update post details" : schedType === "shoot" ? "📹 Video Shoot Schedule" : schedType === "post" ? "📱 Post (Videos & Poster)" : "Choose what to schedule"}
                 </p>
               </div>
-              <button onClick={() => setShowAdd(false)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color="#6B7280" /></button>
+              <button onClick={() => { setShowAdd(false); setEditingPost(null) }} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} color="#6B7280" /></button>
             </div>
 
-            {/* ── Type picker ── */}
-            {!schedType && (
+            {/* ── Type picker (new posts only) ── */}
+            {!schedType && !editingPost && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 4 }}>
                 {[
                   { key: "shoot", emoji: "📹", label: "Video Shoot", sub: "Schedule a shoot session", color: "#9B6BFF", bg: "rgba(155,107,255,0.06)", border: "rgba(155,107,255,0.25)" },
@@ -800,12 +863,12 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               </div>
             )}
 
-            {schedType && <button type="button" onClick={() => setSchedType("")}
+            {schedType && !editingPost && <button type="button" onClick={() => setSchedType("")}
               style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", padding: "0 0 10px", textAlign: "left" }}>
               ← Change type
             </button>}
 
-            <form onSubmit={handleCreate} style={{ display: schedType ? "flex" : "none", flexDirection: "column", gap: 14 }}>
+            <form onSubmit={handleCreate} style={{ display: (schedType || editingPost) ? "flex" : "none", flexDirection: "column", gap: 14 }}>
               <div>
                 <label style={L}>Title *</label>
                 <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Diwali Sale Reel" required style={F} />

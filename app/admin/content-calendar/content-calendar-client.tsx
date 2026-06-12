@@ -709,26 +709,30 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                       const cfg    = STATUS_CFG[p.status] ?? STATUS_CFG.pending
                       const time   = formatTime(p.scheduled_time)
                       return (
-                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: "1px solid #F9FAFB", cursor: "pointer" }} onClick={() => openEdit(p)}>
-                          <div style={{ width: 36, height: 36, borderRadius: 10, background: `${pColor}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
-                            {platformEmoji(p.platform)}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap" }}>
-                              {platformLabel(p.platform)}{p.client_name ? ` · ${p.client_name}` : ""}{time ? ` · ${time}` : ""}
-                            </p>
-                          </div>
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
-                            <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap" }}>{cfg.label}</span>
-                            <div style={{ display: "flex", gap: 3 }}>
-                              <button onClick={e => { e.stopPropagation(); openEdit(p) }} style={{ padding: "3px 5px", borderRadius: 6, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer" }}>
-                                <Pencil size={10} color="#9B6BFF" />
-                              </button>
-                              <button onClick={e => { e.stopPropagation(); handleDelete(p.id) }} style={{ padding: "3px 5px", borderRadius: 6, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer" }}>
-                                <Trash2 size={10} color="#EF4444" />
-                              </button>
+                        <div key={p.id} style={{ padding: "12px 20px", borderBottom: "1px solid #F3F4F6" }}>
+                          {/* Top: icon + info + status */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: 10, background: `${pColor}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
+                              {platformEmoji(p.platform)}
                             </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
+                              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                {platformLabel(p.platform)}{p.client_name ? ` · ${p.client_name}` : ""}{time ? ` · ${time}` : ""}
+                              </p>
+                            </div>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{cfg.label}</span>
+                          </div>
+                          {/* Action buttons row */}
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <button onClick={() => openEdit(p)}
+                              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px 0", borderRadius: 9, border: "1.5px solid rgba(155,107,255,0.35)", background: "rgba(155,107,255,0.07)", color: "#9B6BFF", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                              <Pencil size={13} /> Edit
+                            </button>
+                            <button onClick={() => handleDelete(p.id)}
+                              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "7px 0", borderRadius: 9, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)", color: "#EF4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                              <Trash2 size={13} /> Delete
+                            </button>
                           </div>
                         </div>
                       )

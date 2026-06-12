@@ -90,6 +90,7 @@ export default function ActivitiesClient({
   to,
   memberFilter,
   onLeaveIds,
+  leaveDays,
 }: {
   updates: Update[]
   members: Member[]
@@ -97,6 +98,7 @@ export default function ActivitiesClient({
   to: string
   memberFilter: string
   onLeaveIds: Set<string>
+  leaveDays?: Set<string>
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -146,18 +148,24 @@ export default function ActivitiesClient({
   // Per-member summary for multi-day range view
   const memberSummary = useMemo(() => {
     if (isSingleDay) return []
-    const map: Record<string, { id: string; name: string; employee_id: string; days: number; present: number; absent: number; totalHours: number }> = {}
+    const map: Record<string, { id: string; name: string; employee_id: string; days: number; present: number; absent: number; onLeave: number; totalHours: number }> = {}
     for (const u of updates) {
       const user = Array.isArray(u.users) ? u.users[0] : u.users
       if (!user) continue
-      if (!map[user.id]) map[user.id] = { id: user.id, name: user.name, employee_id: user.employee_id, days: 0, present: 0, absent: 0, totalHours: 0 }
+      if (!map[user.id]) map[user.id] = { id: user.id, name: user.name, employee_id: user.employee_id, days: 0, present: 0, absent: 0, onLeave: 0, totalHours: 0 }
       map[user.id].days++
-      if (u.attendance_status === "present") map[user.id].present++
-      else if (u.attendance_status === "absent") map[user.id].absent++
+      if (u.attendance_status === "present") {
+        map[user.id].present++
+      } else if (u.attendance_status === "absent") {
+        // If the absent record falls on an approved leave day, count as on-leave not absent
+        const isLeaveDay = leaveDays?.has(`${user.id}:${u.date}`) ?? false
+        if (isLeaveDay) map[user.id].onLeave++
+        else map[user.id].absent++
+      }
       map[user.id].totalHours = Math.round((map[user.id].totalHours + (u.working_hours ?? 0)) * 10) / 10
     }
     return Object.values(map).sort((a, b) => b.totalHours - a.totalHours)
-  }, [updates, isSingleDay])
+  }, [updates, isSingleDay, leaveDays])
 
   const submittedIds = new Set(updates.map((u) => {
     const user = Array.isArray(u.users) ? u.users[0] : u.users
@@ -284,7 +292,7 @@ export default function ActivitiesClient({
             <table className="w-full">
               <thead>
                 <tr style={{ borderBottom: "1px solid #F3F4F6" }}>
-                  {["Member", "Days Updated", "Present", "Absent", "Total Hours", "Avg / Day", ""].map(h => (
+                  {["Member", "Days Updated", "Present", "Absent", "On Leave", "Total Hours", "Avg / Day", ""].map(h => (
                     <th key={h} className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
                   ))}
                 </tr>
@@ -315,6 +323,12 @@ export default function ActivitiesClient({
                       <td className="px-4 py-3">
                         {m.absent > 0
                           ? <span className="text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(239,68,68,0.08)", color: "#dc2626" }}>{m.absent}</span>
+                          : <span className="text-[12px] text-gray-300">—</span>
+                        }
+                      </td>
+                      <td className="px-4 py-3">
+                        {m.onLeave > 0
+                          ? <span className="text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>{m.onLeave}</span>
                           : <span className="text-[12px] text-gray-300">—</span>
                         }
                       </td>

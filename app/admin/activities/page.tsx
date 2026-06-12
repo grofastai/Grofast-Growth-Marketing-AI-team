@@ -64,7 +64,7 @@ export default async function ActivitiesPage({
       .limit(200),
     admin
       .from("leaves")
-      .select("user_id")
+      .select("user_id, from_date, to_date")
       .eq("company_id", companyId)
       .eq("status", "approved")
       .lte("from_date", to)
@@ -91,6 +91,18 @@ export default async function ActivitiesPage({
 
   const onLeaveIds = new Set((approvedLeaves ?? []).map((l: { user_id: string }) => l.user_id))
 
+  // Build a set of "userId:date" for every day covered by an approved leave
+  const leaveDaySet = new Set<string>()
+  for (const leave of (approvedLeaves ?? []) as { user_id: string; from_date: string; to_date: string }[]) {
+    const start = new Date(leave.from_date + "T12:00:00")
+    const end   = new Date(leave.to_date   + "T12:00:00")
+    const cur   = new Date(start)
+    while (cur <= end) {
+      leaveDaySet.add(`${leave.user_id}:${cur.toISOString().split("T")[0]}`)
+      cur.setDate(cur.getDate() + 1)
+    }
+  }
+
   return (
     <ActivitiesClient
       updates={updates}
@@ -99,6 +111,7 @@ export default async function ActivitiesPage({
       to={to}
       memberFilter={params.member ?? ""}
       onLeaveIds={onLeaveIds}
+      leaveDays={leaveDaySet}
     />
   )
 }

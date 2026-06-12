@@ -163,7 +163,7 @@ export default async function DashboardPage() {
   const adminName = profile?.name ?? "Admin"
   const firstName = adminName.split(" ")[0]
   const isSanjay  = adminName.toLowerCase().includes("sanjay")
-  const characterImg   = isSanjay ? "/brand/sanjay-ceo.png" : "/brand/karthikeyan-founder.png"
+  const characterImg   = isSanjay ? "/brand/sanjay-ceo.png" : "/brand/admin-hero.png"
   const characterTitle = isSanjay ? "CEO" : "Founder"
 
   const taskBreakdown = {

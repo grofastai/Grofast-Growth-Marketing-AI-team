@@ -568,33 +568,48 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                       const cfg    = STATUS_CFG[p.status] ?? STATUS_CFG.pending
                       const priCfg = PRIORITY_CFG[p.priority ?? "medium"] ?? PRIORITY_CFG.medium
                       const isMine = p.assigned_to === userId
+                      const pColor = platformColor(p.platform)
                       return (
-                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 18px", borderBottom: i < filteredPosts.length - 1 ? "1px solid #F9FAFB" : "none", background: isMine ? "rgba(222,26,26,0.02)" : "transparent", flexWrap: "wrap" }}>
-                          <div style={{ width: 38, height: 38, borderRadius: 11, background: `${platformColor(p.platform)}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 19 }}>
-                            {platformEmoji(p.platform)}
-                          </div>
-                          <div style={{ flex: 1, minWidth: 100 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                              <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                              {isMine && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", flexShrink: 0 }}>MINE</span>}
+                        <div key={p.id} style={{ padding: "12px 18px", borderBottom: i < filteredPosts.length - 1 ? "1px solid #F9FAFB" : "none", background: isMine ? "rgba(222,26,26,0.02)" : "transparent" }}>
+                          {/* Top row: icon + title + date + priority + status */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                            <div style={{ width: 38, height: 38, borderRadius: 11, background: `${pColor}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 19 }}>
+                              {platformEmoji(p.platform)}
                             </div>
-                            <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>{platformLabel(p.platform)} · {p.client_name}</p>
-                          </div>
-                          <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap", flexShrink: 0 }}>{p.scheduled_date}</span>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{priCfg.label}</span>
-                          {p.status === "posted" ? (
-                            <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                              <span style={{ fontSize: 11, fontWeight: 800, padding: "5px 10px", borderRadius: 8, background: "rgba(50,210,122,0.1)", color: "#32D27A", display: "flex", alignItems: "center", gap: 4 }}>
-                                <CheckCircle2 size={12} /> Posted ✓
-                              </span>
-                              <button onClick={() => handleStatusChange(p.id, "pending")} style={{ fontSize: 10, fontWeight: 700, padding: "5px 8px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: "pointer" }}>Undo</button>
+                            <div style={{ flex: 1, minWidth: 100 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                                <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
+                                {isMine && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", flexShrink: 0 }}>MINE</span>}
+                              </div>
+                              <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>{platformLabel(p.platform)} · {p.client_name} · {p.scheduled_date}</p>
                             </div>
-                          ) : (
-                            <button onClick={() => handleStatusChange(p.id, "posted")}
-                              style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-                              <CheckCircle2 size={13} /> Mark as Posted
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{priCfg.label}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{cfg.label}</span>
+                          </div>
+                          {/* Action row: Edit + Delete + Mark as Posted */}
+                          <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                            <button onClick={() => openEdit(p)}
+                              style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 9, border: "1.5px solid rgba(155,107,255,0.35)", background: "rgba(155,107,255,0.07)", color: "#9B6BFF", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                              <Pencil size={11} /> Edit
                             </button>
-                          )}
+                            <button onClick={() => handleDelete(p.id)}
+                              style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 9, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)", color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                              <Trash2 size={11} /> Delete
+                            </button>
+                            {p.status === "posted" ? (
+                              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                <span style={{ fontSize: 11, fontWeight: 800, padding: "5px 10px", borderRadius: 8, background: "rgba(50,210,122,0.1)", color: "#32D27A", display: "flex", alignItems: "center", gap: 4 }}>
+                                  <CheckCircle2 size={12} /> Posted ✓
+                                </span>
+                                <button onClick={() => handleStatusChange(p.id, "pending")} style={{ fontSize: 10, fontWeight: 700, padding: "5px 8px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: "pointer" }}>Undo</button>
+                              </div>
+                            ) : (
+                              <button onClick={() => handleStatusChange(p.id, "posted")}
+                                style={{ fontSize: 11, fontWeight: 800, padding: "6px 14px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
+                                <CheckCircle2 size={12} /> Mark as Posted
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )
                     })}
@@ -605,21 +620,58 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           </div>
 
           {/* Quick Actions */}
-          <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "16px 18px", border: "1px solid #E5E7EB" }}>
-            <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 12px" }}>Quick Actions</h3>
-            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10 }}>
+          <div style={{
+            background: "linear-gradient(135deg, #0D0D0D 0%, #1A0000 45%, #3D0000 100%)",
+            borderRadius: 20, padding: "18px 20px",
+            border: "1px solid rgba(222,26,26,0.25)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+            position: "relative", overflow: "hidden",
+          }}>
+            {/* Background glow */}
+            <div style={{ position: "absolute", top: -30, right: -30, width: 160, height: 160, borderRadius: "50%", background: "radial-gradient(circle, rgba(222,26,26,0.2) 0%, transparent 70%)", pointerEvents: "none" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, position: "relative", zIndex: 1 }}>
+              <span style={{ fontSize: 14 }}>⚡</span>
+              <h3 style={{ fontSize: 13, fontWeight: 900, color: "#FFFFFF", margin: 0, letterSpacing: "0.03em" }}>Quick Actions</h3>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10, position: "relative", zIndex: 1 }}>
               {[
-                { icon: "✏️", label: "Create Post",  sub: "Design & plan",   color: "#DE1A1A", bg: "rgba(222,26,26,0.07)",  action: () => openAdd(selectedDay) },
-                { icon: "☁️", label: "Upload Media", sub: "Images / Videos", color: "#4D8CFF", bg: "rgba(77,140,255,0.07)",  action: () => setView("list") },
-                { icon: "📋", label: "View Posts",   sub: "All scheduled",   color: "#9B6BFF", bg: "rgba(155,107,255,0.07)", action: () => setView("list") },
-                { icon: "✅", label: "Mark Posted",  sub: "Update status",   color: "#32D27A", bg: "rgba(50,210,122,0.07)",  action: () => setView("list") },
+                {
+                  icon: "✏️", label: "Create Post",  sub: "Schedule now",
+                  gradient: "linear-gradient(135deg, #DE1A1A 0%, #8B0000 100%)",
+                  shadow: "rgba(222,26,26,0.45)",
+                  action: () => openAdd(selectedDay),
+                },
+                {
+                  icon: "📋", label: "View All",     sub: "List view",
+                  gradient: "linear-gradient(135deg, #1E1E2E 0%, #2D2D44 100%)",
+                  shadow: "rgba(0,0,0,0.4)",
+                  action: () => setView("list"),
+                },
+                {
+                  icon: "✅", label: "Mark Posted",  sub: "Update status",
+                  gradient: "linear-gradient(135deg, #16A34A 0%, #22C55E 100%)",
+                  shadow: "rgba(22,163,74,0.4)",
+                  action: () => setView("list"),
+                },
+                {
+                  icon: "📅", label: "Calendar",     sub: "Monthly view",
+                  gradient: "linear-gradient(135deg, #7C3AED 0%, #9B6BFF 100%)",
+                  shadow: "rgba(124,58,237,0.4)",
+                  action: () => setView("calendar"),
+                },
               ].map(a => (
-                <button key={a.label} onClick={a.action}
-                  style={{ padding: "12px 10px", borderRadius: 14, background: a.bg, border: `1.5px solid ${a.color}22`, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 18, flexShrink: 0 }}>{a.icon}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 11, fontWeight: 800, color: a.color, margin: 0 }}>{a.label}</p>
-                    <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.sub}</p>
+                <button key={a.label} onClick={a.action} style={{
+                  padding: isMobile ? "12px 10px" : "14px 12px",
+                  borderRadius: 14, background: a.gradient,
+                  border: "none", cursor: "pointer", textAlign: "left",
+                  display: "flex", flexDirection: "column", gap: 8,
+                  boxShadow: `0 4px 20px ${a.shadow}`,
+                  transition: "opacity 0.15s",
+                }}>
+                  <span style={{ fontSize: isMobile ? 20 : 24 }}>{a.icon}</span>
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 800, color: "#FFFFFF", margin: 0 }}>{a.label}</p>
+                    <p style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", margin: "2px 0 0" }}>{a.sub}</p>
                   </div>
                 </button>
               ))}

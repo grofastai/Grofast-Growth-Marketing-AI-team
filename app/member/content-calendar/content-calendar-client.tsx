@@ -84,12 +84,13 @@ function formatTime(t: string | null | undefined): string | null {
 }
 
 // ── Content Pipeline (Kanban) ─────────────────────────────────────────────────
-const PIPELINE_COLS = [
-  { key: "pending",     label: "Ideas",   color: "#9B6BFF", emoji: "💡" },
-  { key: "ready",       label: "Ready",   color: "#4D8CFF", emoji: "📤" },
-  { key: "in_progress", label: "Editing", color: "#FFA53A", emoji: "✂️" },
-  { key: "posted",      label: "Posted",  color: "#32D27A", emoji: "✅" },
-] as const
+type PipelineCol = { key: string; label: string; color: string; emoji: string; headerBg: string }
+const PIPELINE_COLS: PipelineCol[] = [
+  { key: "pending",     label: "Ideas",   color: "#F59E0B", emoji: "💡", headerBg: "linear-gradient(135deg,#92400E 0%,#D97706 100%)" },
+  { key: "ready",       label: "Ready",   color: "#2563EB", emoji: "📤", headerBg: "linear-gradient(135deg,#1E3A8A 0%,#3B82F6 100%)" },
+  { key: "in_progress", label: "Editing", color: "#EA580C", emoji: "✂️", headerBg: "linear-gradient(135deg,#7C2D12 0%,#F97316 100%)" },
+  { key: "posted",      label: "Posted",  color: "#16A34A", emoji: "✅", headerBg: "linear-gradient(135deg,#14532D 0%,#22C55E 100%)" },
+]
 
 function PipelineCard({ post, onClick }: { post: Post; onClick: () => void }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id, data: { status: post.status } })
@@ -99,42 +100,54 @@ function PipelineCard({ post, onClick }: { post: Post; onClick: () => void }) {
     <div ref={setNodeRef} {...attributes} {...listeners} onClick={onClick}
       style={{
         transform: transform ? `translate3d(${transform.x}px,${transform.y}px,0)` : undefined,
-        opacity: isDragging ? 0.4 : 1,
-        background: "#FFFFFF", borderRadius: 12, padding: "10px 12px",
-        border: "1px solid #EDEFF3", boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-        cursor: "grab", display: "flex", flexDirection: "column", gap: 6, touchAction: "none",
+        opacity: isDragging ? 0.35 : 1,
+        background: "#FFFFFF", borderRadius: 14, padding: "12px 14px",
+        border: `1px solid ${pColor}22`,
+        boxShadow: "0 2px 10px rgba(0,0,0,0.06)",
+        cursor: "grab", display: "flex", flexDirection: "column", gap: 8, touchAction: "none",
       }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-        <span style={{ width: 22, height: 22, borderRadius: 6, background: `${pColor}1A`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>{platformEmoji(post.platform)}</span>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#1A202C", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.title}</span>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+        <span style={{ width: 30, height: 30, borderRadius: 9, background: `${pColor}18`, border: `1px solid ${pColor}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{platformEmoji(post.platform)}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#111827", lineHeight: 1.4, flex: 1 }}>{post.title}</span>
       </div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
-        <span style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.client_name || "—"}</span>
-        <span style={{ fontSize: 10, color: "#9CA3AF", whiteSpace: "nowrap", flexShrink: 0 }}>{post.scheduled_date.slice(5)}{time ? ` · ${time}` : ""}</span>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", padding: "2px 7px", borderRadius: 6, background: "#F3F4F6" }}>{post.client_name || "—"}</span>
+        <span style={{ fontSize: 10, color: "#9CA3AF", whiteSpace: "nowrap" }}>{post.scheduled_date.slice(5)}{time ? ` · ${time}` : ""}</span>
       </div>
     </div>
   )
 }
 
 function PipelineColumn({ col, posts, isOver, onCardClick }: {
-  col: typeof PIPELINE_COLS[number]; posts: Post[]; isOver: boolean; onCardClick: (p: Post) => void
+  col: PipelineCol; posts: Post[]; isOver: boolean; onCardClick: (p: Post) => void
 }) {
   const { setNodeRef } = useDroppable({ id: col.key })
   return (
     <div ref={setNodeRef} style={{
-      background: isOver ? `${col.color}12` : "#F7F8FB",
-      borderRadius: 16, padding: 12, minHeight: 140,
-      border: isOver ? `1.5px dashed ${col.color}` : "1.5px solid transparent",
-      display: "flex", flexDirection: "column", gap: 10, transition: "background 0.15s",
+      background: "#FFFFFF", borderRadius: 20, overflow: "hidden",
+      border: `1px solid ${col.color}20`,
+      boxShadow: isOver ? `0 6px 28px ${col.color}30` : `0 2px 12px ${col.color}12`,
+      transition: "box-shadow 0.2s",
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-        <span style={{ fontSize: 14 }}>{col.emoji}</span>
-        <span style={{ fontSize: 12, fontWeight: 800, color: "#374151", textTransform: "uppercase", letterSpacing: "0.05em" }}>{col.label}</span>
-        <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 800, color: col.color, background: `${col.color}1A`, borderRadius: 8, padding: "2px 8px" }}>{posts.length}</span>
+      {/* Coloured header */}
+      <div style={{ background: col.headerBg, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", top: -24, right: -24, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.12)", pointerEvents: "none" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, zIndex: 1 }}>
+          <span style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(255,255,255,0.22)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>{col.emoji}</span>
+          <span style={{ fontSize: 13, fontWeight: 900, color: "#FFFFFF", textTransform: "uppercase", letterSpacing: "0.07em" }}>{col.label}</span>
+        </div>
+        <span style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 900, color: "#FFF", zIndex: 1 }}>{posts.length}</span>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {posts.map(p => <PipelineCard key={p.id} post={p} onClick={() => onCardClick(p)} />)}
-        {posts.length === 0 && <p style={{ fontSize: 11, color: "#C0C4CC", textAlign: "center", padding: "14px 0", margin: 0 }}>Drop here</p>}
+      {/* Drop zone */}
+      <div style={{ minHeight: 150, padding: "12px", background: isOver ? `${col.color}05` : "transparent", transition: "background 0.15s" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {posts.map(p => <PipelineCard key={p.id} post={p} onClick={() => onCardClick(p)} />)}
+          {posts.length === 0 && (
+            <div style={{ minHeight: 110, display: "flex", alignItems: "center", justifyContent: "center", border: `1.5px dashed ${col.color}35`, borderRadius: 12, background: `${col.color}04` }}>
+              <p style={{ fontSize: 12, color: `${col.color}70`, margin: 0, fontWeight: 600 }}>Drop here</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -458,24 +471,28 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
       {/* ── Stats ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
         {[
-          { label: "Total Content",  value: totalContent, sub: "All time",  color: "#7B0000", accent: "#8B0000", bg: "linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%)", icon: "📄", shadow: "rgba(123,0,0,0.22)",    cardBg: "linear-gradient(160deg, #FFFFFF 0%, #FFF5F5 100%)" },
-          { label: "Ready To Post",  value: readyCount,   sub: "Scheduled", color: "#B71C1C", accent: "#C41230", bg: "linear-gradient(135deg, #FFCDD2 0%, #EF9A9A 100%)", icon: "📤", shadow: "rgba(183,28,28,0.22)",   cardBg: "linear-gradient(160deg, #FFFFFF 0%, #FFEBEE 100%)" },
-          { label: "In Progress",    value: inProgCount,  sub: "Creating",  color: "#C41230", accent: "#DE1A1A", bg: "linear-gradient(135deg, #FFEBEE 0%, #FF8A80 100%)", icon: "⏳", shadow: "rgba(196,18,48,0.22)",   cardBg: "linear-gradient(160deg, #FFFFFF 0%, #FFF0F0 100%)" },
-          { label: "Posted",         value: postedCount,  sub: "Published", color: "#DE1A1A", accent: "#FF4B4B", bg: "linear-gradient(135deg, #FF8A80 0%, #FF6659 100%)", icon: "✅", shadow: "rgba(222,26,26,0.22)",   cardBg: "linear-gradient(160deg, #FFFFFF 0%, #FFE8E8 100%)" },
+          { label: "Total Content", value: totalContent, sub: "All time",  icon: "📄", headerBg: "linear-gradient(135deg,#8B0000 0%,#C41230 100%)", accent: "#DE1A1A", shadow: "rgba(139,0,0,0.22)" },
+          { label: "Ready To Post", value: readyCount,   sub: "Scheduled", icon: "📤", headerBg: "linear-gradient(135deg,#1E3A8A 0%,#3B82F6 100%)", accent: "#3B82F6", shadow: "rgba(37,99,235,0.2)"  },
+          { label: "In Progress",   value: inProgCount,  sub: "Creating",  icon: "⏳", headerBg: "linear-gradient(135deg,#92400E 0%,#F59E0B 100%)", accent: "#F59E0B", shadow: "rgba(146,64,14,0.2)"  },
+          { label: "Posted",        value: postedCount,  sub: "Published", icon: "✅", headerBg: "linear-gradient(135deg,#14532D 0%,#22C55E 100%)", accent: "#22C55E", shadow: "rgba(20,83,45,0.2)"   },
         ].map(s => (
           <div key={s.label} style={{
-            background: s.cardBg, borderRadius: 24, overflow: "hidden",
-            border: `1px solid ${s.color}18`, boxShadow: `0 4px 24px ${s.shadow}, 0 1px 4px rgba(0,0,0,0.04)`,
+            background: "#FFFFFF", borderRadius: 22, overflow: "hidden",
+            boxShadow: `0 4px 24px ${s.shadow}`,
+            border: "1px solid rgba(0,0,0,0.06)",
             display: "flex", flexDirection: "column",
           }}>
-            <div style={{ padding: "22px 24px 14px" }}>
-              <div style={{ width: 54, height: 54, borderRadius: 18, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 14, boxShadow: `0 6px 16px ${s.shadow}` }}>
-                {s.icon}
-              </div>
-              <p style={{ fontSize: 40, fontWeight: 900, color: "#0F172A", margin: "0 0 3px", lineHeight: 1, letterSpacing: "-0.02em" }}>{s.value}</p>
-              <p style={{ fontSize: 13, fontWeight: 800, color: "#1E293B", margin: "0 0 3px" }}>{s.label}</p>
-              <p style={{ fontSize: 11, color: s.color, fontWeight: 600, margin: 0, display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.accent, display: "inline-block" }} />
+            {/* Coloured header strip */}
+            <div style={{ background: s.headerBg, padding: "20px 22px 16px", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.12)", pointerEvents: "none" }} />
+              <span style={{ fontSize: 28, display: "block", marginBottom: 8 }}>{s.icon}</span>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)", margin: 0 }}>{s.label}</p>
+            </div>
+            {/* White body */}
+            <div style={{ padding: "18px 22px 10px" }}>
+              <p style={{ fontSize: 44, fontWeight: 900, color: "#0F172A", margin: "0 0 4px", lineHeight: 1, letterSpacing: "-0.03em" }}>{s.value}</p>
+              <p style={{ fontSize: 11, color: s.accent, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.accent, display: "inline-block", flexShrink: 0 }} />
                 {s.sub}
               </p>
             </div>

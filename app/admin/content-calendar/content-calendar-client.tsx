@@ -833,31 +833,6 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             )}
           </div>
 
-          {/* Content Overview */}
-          <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: "0 0 14px" }}>Content Overview</h3>
-            <div style={{ display: "flex", justifyContent: "center" }}>
-              <DonutChart total={totalContent} posted={postedCount} inProgress={inProgCount} ready={readyCount} pending={pendingCount} />
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 14 }}>
-              {[
-                { label: "Ready to Post", count: readyCount,   color: "#4D8CFF" },
-                { label: "In Progress",   count: inProgCount,  color: "#FFA53A" },
-                { label: "Posted",        count: postedCount,  color: "#32D27A" },
-                { label: "Planned",       count: pendingCount, color: "#9B6BFF" },
-              ].map(row => (
-                <div key={row.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 3, background: row.color, flexShrink: 0, display: "inline-block" }} />
-                    <span style={{ fontSize: 11, fontWeight: 600, color: "#374151" }}>{row.label}</span>
-                  </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#6B7280" }}>
-                    {row.count} ({totalContent ? Math.round(row.count / totalContent * 100) : 0}%)
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
 
           {/* Motivational card — boy with social media icons */}
           <div style={{ background: "linear-gradient(135deg, #1A0000 0%, #5B0000 50%, #8B0000 100%)", borderRadius: 20, padding: "22px 18px 0", position: "relative", overflow: "hidden", minHeight: 170, border: "1px solid rgba(222,26,26,0.3)", boxShadow: "0 8px 32px rgba(90,0,0,0.45)" }}>

@@ -773,7 +773,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/brand/content-cal-boy-sidebar.png" alt=""
                 style={{ position: "absolute", right: -4, bottom: 0, height: 140, objectFit: "contain", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))" }} />
-              <div style={{ paddingRight: 95, paddingBottom: 20, position: "relative", zIndex: 1 }}>
+              <div style={{ paddingRight: 130, paddingBottom: 20, position: "relative", zIndex: 1 }}>
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(222,26,26,0.85)", borderRadius: 20, padding: "3px 10px", marginBottom: 10 }}>
                   <span style={{ fontSize: 10, fontWeight: 800, color: "#FFF", letterSpacing: "0.05em" }}>🔥 PRO TIP</span>
                 </div>

@@ -71,7 +71,7 @@ export default async function HistoryPage() {
 
   const companyId = profileResult.data?.company_id ?? ""
 
-  const [updatesResult, projectsResult, participatedResult, membersResult, attLogsResult] = await Promise.all([
+  const [updatesResult, clientsResult, participatedResult, membersResult, attLogsResult] = await Promise.all([
     supabase
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, shoot_count, editing_count, work_entries, created_at")
@@ -79,8 +79,8 @@ export default async function HistoryPage() {
       .order("date", { ascending: false })
       .limit(90),
     companyId
-      ? admin.from("projects").select("business_name").eq("company_id", companyId).order("business_name", { ascending: true })
-      : Promise.resolve({ data: [] as { business_name: string }[] }),
+      ? admin.from("clients").select("name").eq("company_id", companyId).eq("status", "active").order("name", { ascending: true })
+      : Promise.resolve({ data: [] as { name: string }[] }),
     companyId
       ? admin
           .from("daily_updates")
@@ -120,7 +120,7 @@ export default async function HistoryPage() {
     attendance_status: clockedInDates.has(u.date) ? "present" : u.attendance_status,
   }))
   const name = (profileResult.data?.name ?? "").split(" ")[0] || "there"
-  const clients = (projectsResult.data ?? []).map((p: { business_name: string }) => p.business_name).filter(Boolean)
+  const clients = (clientsResult.data ?? []).map((c: { name: string }) => c.name).filter(Boolean)
   const participatedUpdates = (participatedResult.data ?? []) as unknown as ParticipatedUpdate[]
   const members = (membersResult.data ?? []) as MemberInfo[]
 

@@ -6,7 +6,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard, Users, Clock, Target,
-  CalendarOff, Megaphone, Briefcase, LogOut, BarChart2,
+  CalendarOff, Megaphone, Briefcase, LogOut,
   Receipt, IndianRupee, FolderOpen, LifeBuoy,
   MoreHorizontal, X, Bell, UserCircle2, ClipboardList, Activity, TrendingUp, CalendarDays, Clapperboard, Shield,
 } from "lucide-react"
@@ -19,7 +19,6 @@ const navItems = [
   { label: "Attendance",    href: "/admin/attendance",    icon: Clock },
   { label: "Tasks",         href: "/admin/goals",         icon: Target },
   { label: "Clients",       href: "/admin/clients",       icon: Briefcase },
-  { label: "Reports",       href: "/admin/reports",       icon: BarChart2 },
   { label: "Insights",      href: "/admin/insights",      icon: TrendingUp },
   { label: "Leaves",        href: "/admin/leaves",           icon: CalendarOff },
   { label: "Content Cal",   href: "/admin/content-calendar", icon: CalendarDays },
@@ -38,7 +37,6 @@ const bottomNavItems = [
   { label: "Team",    href: "/admin/team",      icon: Users },
   { label: "Tasks",   href: "/admin/goals",     icon: Target },
   { label: "Leaves",  href: "/admin/leaves",    icon: CalendarOff },
-  { label: "Reports", href: "/admin/reports",   icon: BarChart2 },
 ]
 
 const moreNavItems = [

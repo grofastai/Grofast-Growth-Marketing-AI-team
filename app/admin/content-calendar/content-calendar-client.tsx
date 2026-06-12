@@ -226,7 +226,9 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   useEffect(() => { setPosts(initial) }, [initial])
   const [year,  setYear]      = useState(initialYear)
   const [month, setMonth]     = useState(initialMonth)
-  const [view,  setView]      = useState<"pipeline" | "calendar" | "list">("pipeline")
+  const [view,  setView]      = useState<"pipeline" | "calendar" | "list">("calendar")
+  const [calView, setCalView] = useState<"month" | "week">("month")
+  const [weekOffset, setWeekOffset] = useState(0)
   const [isPending, start]    = useTransition()
   const [clientFilter, setClientFilter] = useState<string>("all")
   const [dragId,  setDragId]  = useState<string | null>(null)
@@ -391,6 +393,17 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   const dragPost = dragId ? posts.find(p => p.id === dragId) ?? null : null
 
   const today        = new Date().toISOString().split("T")[0]
+
+  const weekDates = useMemo(() => {
+    const base = new Date(today)
+    const dow = base.getDay()
+    const startMs = base.getTime() - dow * 86400000 + weekOffset * 7 * 86400000
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(startMs + i * 86400000)
+      return d.toISOString().split("T")[0]
+    })
+  }, [today, weekOffset])
+
   const totalContent = filteredPosts.length
   const readyCount   = filteredPosts.filter(p => p.status === "ready").length
   const inProgCount  = filteredPosts.filter(p => p.status === "in_progress").length
@@ -458,10 +471,10 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
       {/* ── Hero Header ── */}
       <div style={{
-        background: "linear-gradient(120deg, #FFFFFF 0%, #F5F0FF 55%, #EBF0FF 100%)",
+        background: "linear-gradient(120deg, #EDE0FF 0%, #DBBFFF 35%, #C9A0FF 65%, #B890FF 100%)",
         borderRadius: 24, marginBottom: 24, position: "relative", overflow: "hidden",
         padding: "26px 32px 24px 32px",
-        boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
+        boxShadow: "0 8px 32px rgba(155,107,255,0.25)",
         minHeight: 200,
       }}>
         {/* Top row: title left, controls right */}
@@ -732,11 +745,102 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     <ChevronDown size={11} style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
                   </div>
                 )}
+                {/* Month / Week sub-tabs (only in calendar view) */}
+                <div style={{ display: "flex", background: "#F3F4F6", borderRadius: 10, padding: 3 }}>
+                  {(["month", "week"] as const).map(cv => (
+                    <button key={cv} onClick={() => setCalView(cv)} style={{
+                      padding: "5px 14px", borderRadius: 7, border: "none", cursor: "pointer",
+                      fontSize: 12, fontWeight: 700, transition: "all 0.15s",
+                      background: calView === cv ? "#FFFFFF" : "transparent",
+                      color: calView === cv ? "#DE1A1A" : "#6B7280",
+                      boxShadow: calView === cv ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
+                    }}>
+                      {cv === "month" ? "Month" : "Week"}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
             {view === "calendar" ? (
               <>
+                {calView === "week" ? (
+                  /* ── Week View ── */
+                  <>
+                    {/* Week navigation */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 20px", borderBottom: "1px solid #F3F4F6", background: "#FAFBFF" }}>
+                      <button onClick={() => setWeekOffset(w => w - 1)} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <ChevronLeft size={13} color="#6B7280" />
+                      </button>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>
+                        {new Date(weekDates[0] + "T12:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })} — {new Date(weekDates[6] + "T12:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => setWeekOffset(0)} style={{ padding: "5px 12px", fontSize: 11, fontWeight: 700, color: "#374151", background: "#F3F4F6", borderRadius: 7, border: "none", cursor: "pointer" }}>This Week</button>
+                        <button onClick={() => setWeekOffset(w => w + 1)} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <ChevronRight size={13} color="#6B7280" />
+                        </button>
+                      </div>
+                    </div>
+                    {/* 7-column day grid */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid #F3F4F6" }}>
+                      {weekDates.map((ds, i) => {
+                        const d = new Date(ds + "T12:00:00")
+                        const isToday = ds === today
+                        return (
+                          <div key={ds} style={{ padding: "8px 4px", textAlign: "center", borderRight: i < 6 ? "1px solid #F3F4F6" : "none", background: isToday ? "rgba(222,26,26,0.03)" : "transparent" }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 4 }}>
+                              {DAYS[d.getDay()]}
+                            </div>
+                            <div style={{ width: 28, height: 28, borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent", color: isToday ? "#FFF" : "#374151", fontSize: 13, fontWeight: isToday ? 900 : 500, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+                              {d.getDate()}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", minHeight: 200 }}>
+                      {weekDates.map((ds, i) => {
+                        const dayPosts  = filteredPosts.filter(p => p.scheduled_date === ds)
+                        const dayShoots = shoots.filter(s => s.start_time.split("T")[0] === ds)
+                        const isToday   = ds === today
+                        return (
+                          <div key={ds} style={{ padding: "8px 6px", borderRight: i < 6 ? "1px solid #F3F4F6" : "none", background: isToday ? "rgba(222,26,26,0.025)" : "transparent", minHeight: 180 }}>
+                            {dayShoots.map(s => (
+                              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 6px", borderRadius: 7, background: "rgba(155,107,255,0.1)", marginBottom: 4, border: "1px solid rgba(155,107,255,0.2)" }}>
+                                <Camera size={9} color="#9B6BFF" />
+                                <span style={{ fontSize: 10, fontWeight: 600, color: "#9B6BFF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.title || s.client}</span>
+                              </div>
+                            ))}
+                            {dayPosts.map(p => {
+                              const pColor   = platformColor(p.platform)
+                              const isPosted = p.status === "posted"
+                              const time     = formatTime(p.scheduled_time)
+                              return (
+                                <div key={p.id} onClick={() => openEdit(p)} style={{
+                                  padding: "5px 7px", borderRadius: 8, marginBottom: 5,
+                                  background: isPosted ? "rgba(50,210,122,0.1)" : `${pColor}16`,
+                                  border: `1px solid ${isPosted ? "rgba(50,210,122,0.25)" : pColor + "35"}`,
+                                  cursor: "pointer",
+                                }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                                    <span style={{ width: 16, height: 16, borderRadius: 5, background: pColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, flexShrink: 0 }}>{platformEmoji(p.platform)}</span>
+                                    <span style={{ fontSize: 10, fontWeight: 700, color: isPosted ? "#32D27A" : pColor, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</span>
+                                  </div>
+                                  {time && <p style={{ fontSize: 9, color: "#9CA3AF", margin: "2px 0 0 21px" }}>{time}</p>}
+                                </div>
+                              )
+                            })}
+                            {dayPosts.length === 0 && dayShoots.length === 0 && (
+                              <button onClick={() => openAdd(new Date(ds + "T12:00:00").getDate())} style={{ width: "100%", padding: "8px 0", borderRadius: 8, border: "1.5px dashed #E5E7EB", background: "transparent", cursor: "pointer", fontSize: 11, color: "#D1D5DB", marginTop: 4 }}>+</button>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </>
+                ) : (
+                <>
                 {/* Day headers */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
                   {DAYS.map(d => (
@@ -811,6 +915,8 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     <span key={p.id} style={{ fontSize: 11, fontWeight: 600, color: p.color }}>● {p.label}</span>
                   ))}
                 </div>
+                </>
+                )}
               </>
             ) : (
               <div>

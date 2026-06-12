@@ -149,7 +149,7 @@ export async function updateContentPost(
     ...(input.client_id      !== undefined && { client_id: input.client_id }),
     ...(input.client_name    !== undefined && { client_name: input.client_name }),
     ...(input.scheduled_date !== undefined && { scheduled_date: input.scheduled_date, date: input.scheduled_date }),
-    ...(input.scheduled_time !== undefined && { scheduled_time: input.scheduled_time || null }),
+    ...(input.scheduled_time !== undefined && { scheduled_time: input.scheduled_time || null, reminder_sent: false }),
     ...(input.assigned_to    !== undefined && { assigned_to: input.assigned_to || null }),
     ...(input.notes          !== undefined && { notes: input.notes || null }),
     ...(input.content_pillar !== undefined && { content_pillar: input.content_pillar || null }),

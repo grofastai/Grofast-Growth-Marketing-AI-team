@@ -146,6 +146,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [editingPost, setEditingPost] = useState<Post | null>(null)
   const [schedType, setSchedType]     = useState<"" | "shoot" | "post">("")
   const [schedDate, setSchedDate]     = useState("")
+  const [schedTime, setSchedTime]     = useState("")
   const [shootFrom, setShootFrom]     = useState("")
   const [shootTo,   setShootTo]       = useState("")
   const [shootLocation, setShootLocation] = useState("")
@@ -219,6 +220,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   function openAdd(date?: string) {
     setEditingPost(null)
     setSchedDate(date ?? new Date().toISOString().split("T")[0])
+    setSchedTime("")
     setTitle(""); setPlatform("instagram"); setContentType("post")
     setClientName(""); setAssignedTo(""); setInstructions("")
     setContentPillar(""); setPriority("medium")
@@ -231,6 +233,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   function openEdit(post: Post) {
     setEditingPost(post)
     setSchedDate(post.scheduled_date)
+    setSchedTime(post.scheduled_time ?? "")
     setTitle(post.title); setPlatform(post.platform); setContentType(post.content_type)
     setClientName(post.client_name ?? ""); setAssignedTo(post.assigned_to ?? "")
     setInstructions(post.notes ?? ""); setContentPillar(post.content_pillar ?? "")
@@ -260,6 +263,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           title, platform, content_type: contentType,
           client_name: resolveClientName(clientName, clientBrand, clientCustom) || clientName || "Internal",
           scheduled_date: schedDate,
+          scheduled_time: schedTime || null,
           assigned_to: assignedTo || userId,
           notes: instructions || undefined,
           content_pillar: contentPillar || null,
@@ -269,7 +273,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           setPosts(prev => prev.map(p => p.id === editingPost.id ? {
             ...p, title, platform, content_type: contentType,
             client_name: resolveClientName(clientName, clientBrand, clientCustom) || clientName || "Internal",
-            scheduled_date: schedDate, assigned_to: assignedTo || userId,
+            scheduled_date: schedDate, scheduled_time: schedTime || null,
+            assigned_to: assignedTo || userId,
             notes: instructions || null, content_pillar: contentPillar || null, priority,
           } : p))
           setFormSuccess(true); router.refresh()
@@ -287,6 +292,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
         title, platform, content_type: contentType,
         client_name: resolveClientName(clientName, clientBrand, clientCustom) || "Internal",
         scheduled_date: schedDate,
+        scheduled_time: schedTime || null,
         assigned_to: assignedTo || userId,
         notes: (instructions + shootMeta).trim() || undefined,
         content_pillar: contentPillar || null,
@@ -998,14 +1004,18 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   <input type="date" value={schedDate} onChange={e => setSchedDate(e.target.value)} required style={F} />
                 </div>
                 <div>
-                  <ClientSelector
-                    clientOptions={clientOptions}
-                    value={clientName} brand={clientBrand} customClient={clientCustom}
-                    onValueChange={setClientName} onBrandChange={setClientBrand} onCustomChange={setClientCustom}
-                    label="Client"
-                    fieldStyle={F}
-                  />
+                  <label style={L}>Time <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optional)</span></label>
+                  <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={F} />
                 </div>
+              </div>
+              <div>
+                <ClientSelector
+                  clientOptions={clientOptions}
+                  value={clientName} brand={clientBrand} customClient={clientCustom}
+                  onValueChange={setClientName} onBrandChange={setClientBrand} onCustomChange={setClientCustom}
+                  label="Client"
+                  fieldStyle={F}
+                />
               </div>
 
               {schedType === "shoot" && (

@@ -15,8 +15,9 @@ function isAuthorized(req: NextRequest): boolean {
   return !!secret && req.headers.get('authorization') === `Bearer ${secret}`
 }
 
-// Runs every 30 minutes. Finds content posts whose scheduled_time falls in the
-// next 30 minutes and sends a WhatsApp reminder to the assigned employee.
+// Runs every 5 minutes. Finds posts whose scheduled_time is 25–35 min from now
+// (centred on 30 min before posting time) and sends one WhatsApp reminder.
+// reminder_sent flag prevents duplicate sends.
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -28,13 +29,13 @@ export async function GET(req: NextRequest) {
   const now = new Date()
   const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
 
-  // Today's date string in IST
   const today = `${istNow.getFullYear()}-${String(istNow.getMonth() + 1).padStart(2, '0')}-${String(istNow.getDate()).padStart(2, '0')}`
 
-  // Window: now → now+30min (exclusive upper bound to avoid double-send)
-  const windowStart = `${String(istNow.getHours()).padStart(2, '0')}:${String(istNow.getMinutes()).padStart(2, '0')}:00`
-  const plus30 = new Date(istNow.getTime() + 30 * 60 * 1000)
-  const windowEnd = `${String(plus30.getHours()).padStart(2, '0')}:${String(plus30.getMinutes()).padStart(2, '0')}:00`
+  // Window: now+25min → now+35min (10-min slice centred on 30-min-before mark)
+  const plus25 = new Date(istNow.getTime() + 25 * 60 * 1000)
+  const plus35 = new Date(istNow.getTime() + 35 * 60 * 1000)
+  const windowStart = `${String(plus25.getHours()).padStart(2, '0')}:${String(plus25.getMinutes()).padStart(2, '0')}:00`
+  const windowEnd   = `${String(plus35.getHours()).padStart(2, '0')}:${String(plus35.getMinutes()).padStart(2, '0')}:00`
 
   const { data: posts, error } = await admin
     .from('content_posts')
@@ -42,6 +43,7 @@ export async function GET(req: NextRequest) {
     .eq('scheduled_date', today)
     .gte('scheduled_time', windowStart)
     .lt('scheduled_time', windowEnd)
+    .eq('reminder_sent', false)
     .in('status', ['pending', 'in_progress', 'ready'])
     .not('assigned_to', 'is', null)
     .not('scheduled_time', 'is', null)
@@ -66,7 +68,6 @@ export async function GET(req: NextRequest) {
 
     if (!assignee?.phone) return
 
-    // Format time as "5:00 PM"
     const [h, m] = (post.scheduled_time as string).split(':').map(Number)
     const ampm = h >= 12 ? 'PM' : 'AM'
     const hour12 = h % 12 || 12
@@ -78,7 +79,14 @@ export async function GET(req: NextRequest) {
       [assignee.name, post.title, post.client_name, timeLabel]
     ).catch(() => false)
 
-    if (ok) reminded++
+    if (ok) {
+      reminded++
+      // Mark as sent to prevent duplicate reminders
+      await admin
+        .from('content_posts')
+        .update({ reminder_sent: true })
+        .eq('id', post.id)
+    }
   }))
 
   return NextResponse.json({ date: today, window: `${windowStart}–${windowEnd}`, reminded })

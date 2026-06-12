@@ -15,9 +15,10 @@ function isAuthorized(req: NextRequest): boolean {
   return !!secret && req.headers.get('authorization') === `Bearer ${secret}`
 }
 
-// Runs daily at 8:00 AM IST (2:30 AM UTC). Finds all content posts scheduled
-// for today that have not yet been reminded, and sends a WhatsApp morning
-// reminder to each assigned employee.
+// Runs every 30 minutes (via 29 daily cron entries covering 8 AM–10 PM IST).
+// Finds posts whose scheduled_time is 25–35 min from now (10-min window
+// centred on the 30-min-before mark) and sends a WhatsApp reminder once.
+// reminder_sent prevents duplicate sends.
 export async function GET(req: NextRequest) {
   if (!isAuthorized(req)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -25,19 +26,28 @@ export async function GET(req: NextRequest) {
 
   const admin = adminSupabase()
 
-  // Today's date in IST
+  // Current time in IST
   const now = new Date()
   const istNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }))
+
   const today = `${istNow.getFullYear()}-${String(istNow.getMonth() + 1).padStart(2, '0')}-${String(istNow.getDate()).padStart(2, '0')}`
 
-  // All pending/in_progress/ready posts for today that haven't been reminded
+  // Window: now+25min → now+35min (catches posts 30 min out, 10-min safety buffer)
+  const plus25 = new Date(istNow.getTime() + 25 * 60 * 1000)
+  const plus35 = new Date(istNow.getTime() + 35 * 60 * 1000)
+  const windowStart = `${String(plus25.getHours()).padStart(2, '0')}:${String(plus25.getMinutes()).padStart(2, '0')}:00`
+  const windowEnd   = `${String(plus35.getHours()).padStart(2, '0')}:${String(plus35.getMinutes()).padStart(2, '0')}:00`
+
   const { data: posts, error } = await admin
     .from('content_posts')
     .select('id, title, client_name, scheduled_time, assigned_to')
     .eq('scheduled_date', today)
+    .gte('scheduled_time', windowStart)
+    .lt('scheduled_time', windowEnd)
     .eq('reminder_sent', false)
     .in('status', ['pending', 'in_progress', 'ready'])
     .not('assigned_to', 'is', null)
+    .not('scheduled_time', 'is', null)
 
   if (error) {
     console.error('[content-reminder] query error:', error)
@@ -45,7 +55,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (!posts?.length) {
-    return NextResponse.json({ reminded: 0, message: 'No posts scheduled today' })
+    return NextResponse.json({ reminded: 0, message: 'No posts in window' })
   }
 
   let reminded = 0
@@ -59,14 +69,10 @@ export async function GET(req: NextRequest) {
 
     if (!assignee?.phone) return
 
-    // Format scheduled time if set, e.g. "5:00 PM", otherwise "Today"
-    let timeLabel = 'Today'
-    if (post.scheduled_time) {
-      const [h, m] = (post.scheduled_time as string).split(':').map(Number)
-      const ampm = h >= 12 ? 'PM' : 'AM'
-      const hour12 = h % 12 || 12
-      timeLabel = `${hour12}:${String(m).padStart(2, '0')} ${ampm}`
-    }
+    const [h, m] = (post.scheduled_time as string).split(':').map(Number)
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const hour12 = h % 12 || 12
+    const timeLabel = `${hour12}:${String(m).padStart(2, '0')} ${ampm}`
 
     const ok = await sendWhatsAppTemplate(
       formatPhone(assignee.phone),
@@ -83,5 +89,5 @@ export async function GET(req: NextRequest) {
     }
   }))
 
-  return NextResponse.json({ date: today, reminded })
+  return NextResponse.json({ date: today, window: `${windowStart}–${windowEnd}`, reminded })
 }

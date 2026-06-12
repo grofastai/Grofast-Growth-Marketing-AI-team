@@ -471,10 +471,10 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
       {/* ── Hero Header ── */}
       <div style={{
-        background: "linear-gradient(120deg, #EDE0FF 0%, #DBBFFF 35%, #C9A0FF 65%, #B890FF 100%)",
+        background: "linear-gradient(120deg, #FFFFFF 0%, #F7F1FF 55%, #EFF0FF 100%)",
         borderRadius: 24, marginBottom: 24, position: "relative", overflow: "hidden",
         padding: "26px 32px 24px 32px",
-        boxShadow: "0 8px 32px rgba(155,107,255,0.25)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.07)",
         minHeight: 200,
       }}>
         {/* Top row: title left, controls right */}
@@ -491,15 +491,24 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           {/* Right: Add + Toggle */}
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
             {/* Calendar / List toggle */}
-            <div style={{ display: "flex", background: "rgba(255,255,255,0.85)", borderRadius: 12, padding: 3, border: "1.5px solid rgba(0,0,0,0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-              {(["pipeline", "calendar", "list"] as const).map(v => (
+            <div style={{ display: "flex", background: "rgba(255,255,255,0.9)", borderRadius: 12, padding: 3, border: "1.5px solid rgba(0,0,0,0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", gap: 2 }}>
+              {([
+                { v: "calendar" as const, label: "Calendar" },
+                { v: "list"     as const, label: "List" },
+                { v: "pipeline" as const, label: "Pipeline" },
+              ]).map(({ v, label }) => (
                 <button key={v} onClick={() => setView(v)} style={{
                   padding: "7px 15px", borderRadius: 9, border: "none", cursor: "pointer",
                   fontSize: 12, fontWeight: 700, transition: "all 0.15s",
-                  background: view === v ? "#9B6BFF" : "transparent",
+                  background: view === v
+                    ? v === "calendar" ? "linear-gradient(135deg, #DE1A1A, #FF4B4B)"
+                    : v === "pipeline" ? "#9B6BFF"
+                    : "#374151"
+                    : "transparent",
                   color: view === v ? "#fff" : "#6B7280",
+                  boxShadow: view === v && v === "calendar" ? "0 2px 8px rgba(222,26,26,0.3)" : "none",
                 }}>
-                  {v === "pipeline" ? "Pipeline" : v === "calendar" ? "Calendar" : "List"}
+                  {label}
                 </button>
               ))}
             </div>
@@ -520,27 +529,25 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
       {/* ── Stats Row ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
         {[
-          { label: "Total Content",  value: totalContent, sub: "All time",    color: "#9B6BFF", bg: "rgba(155,107,255,0.12)",  icon: "📄" },
-          { label: "Ready To Post",  value: readyCount,   sub: "Waiting",     color: "#4D8CFF", bg: "rgba(77,140,255,0.12)",  icon: "📤" },
-          { label: "In Progress",    value: inProgCount,  sub: "In progress", color: "#FFA53A", bg: "rgba(255,165,58,0.12)",  icon: "⏳" },
-          { label: "Posted",         value: postedCount,  sub: "Completed",   color: "#32D27A", bg: "rgba(50,210,122,0.12)",  icon: "✅" },
+          { label: "Total Content",  value: totalContent, sub: "All time",    color: "#8B5CF6", bg: "linear-gradient(135deg, #EDE9FE, #DDD6FE)",  icon: "📄", shadow: "rgba(139,92,246,0.2)"  },
+          { label: "Ready To Post",  value: readyCount,   sub: "Waiting",     color: "#3B82F6", bg: "linear-gradient(135deg, #DBEAFE, #BFDBFE)",  icon: "📤", shadow: "rgba(59,130,246,0.2)"  },
+          { label: "In Progress",    value: inProgCount,  sub: "In progress", color: "#F59E0B", bg: "linear-gradient(135deg, #FEF3C7, #FDE68A)",  icon: "⏳", shadow: "rgba(245,158,11,0.2)"  },
+          { label: "Posted",         value: postedCount,  sub: "Completed",   color: "#22C55E", bg: "linear-gradient(135deg, #DCFCE7, #BBF7D0)",  icon: "✅", shadow: "rgba(34,197,94,0.2)"   },
         ].map(s => (
           <div key={s.label} style={{
-            background: "#FFFFFF", borderRadius: 18, overflow: "hidden",
-            border: "1px solid #E5E7EB", boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+            background: "#FFFFFF", borderRadius: 24, overflow: "hidden",
+            border: "1px solid #F1F5F9", boxShadow: `0 15px 40px rgba(0,0,0,0.05)`,
             display: "flex", flexDirection: "column",
           }}>
-            {/* Card body */}
-            <div style={{ padding: "20px 22px 14px" }}>
-              <div style={{ width: 48, height: 48, borderRadius: 14, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, marginBottom: 12 }}>
+            <div style={{ padding: "22px 24px 14px" }}>
+              <div style={{ width: 52, height: 52, borderRadius: 16, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, marginBottom: 14, boxShadow: `0 4px 12px ${s.shadow}` }}>
                 {s.icon}
               </div>
-              <p style={{ fontSize: 36, fontWeight: 900, color: "#111827", margin: "0 0 3px", lineHeight: 1 }}>{s.value}</p>
-              <p style={{ fontSize: 12, fontWeight: 700, color: "#111827", margin: "0 0 2px" }}>{s.label}</p>
+              <p style={{ fontSize: 38, fontWeight: 900, color: "#0F172A", margin: "0 0 3px", lineHeight: 1 }}>{s.value}</p>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "#1E293B", margin: "0 0 2px" }}>{s.label}</p>
               <p style={{ fontSize: 11, color: s.color, fontWeight: 600, margin: 0 }}>{s.sub}</p>
             </div>
-            {/* Full-width sparkline at bottom */}
-            <div style={{ padding: "0 0 0 0", marginTop: "auto" }}>
+            <div style={{ marginTop: "auto" }}>
               <Sparkline color={s.color} />
             </div>
           </div>
@@ -706,7 +713,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
       {/* ── Two-Column Layout (Calendar / List) ── */}
       {view !== "pipeline" && (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 308px", gap: 20, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 20, alignItems: "start" }}>
 
         {/* ── LEFT: Calendar + Quick Actions ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -745,19 +752,28 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     <ChevronDown size={11} style={{ position: "absolute", right: 7, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
                   </div>
                 )}
-                {/* Month / Week sub-tabs (only in calendar view) */}
-                <div style={{ display: "flex", background: "#F3F4F6", borderRadius: 10, padding: 3 }}>
-                  {(["month", "week"] as const).map(cv => (
-                    <button key={cv} onClick={() => setCalView(cv)} style={{
-                      padding: "5px 14px", borderRadius: 7, border: "none", cursor: "pointer",
-                      fontSize: 12, fontWeight: 700, transition: "all 0.15s",
-                      background: calView === cv ? "#FFFFFF" : "transparent",
-                      color: calView === cv ? "#DE1A1A" : "#6B7280",
-                      boxShadow: calView === cv ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
-                    }}>
-                      {cv === "month" ? "Month" : "Week"}
-                    </button>
-                  ))}
+                {/* Month / Week / List sub-tabs */}
+                <div style={{ display: "flex", background: "#F3F4F6", borderRadius: 10, padding: 3, gap: 2 }}>
+                  {[
+                    { key: "month", label: "Month" },
+                    { key: "week",  label: "Week"  },
+                    { key: "list",  label: "List"  },
+                  ].map(({ key, label }) => {
+                    const isActive = key === "list" ? view === "list" : calView === key
+                    return (
+                      <button key={key}
+                        onClick={() => key === "list" ? setView("list") : (setView("calendar"), setCalView(key as "month" | "week"))}
+                        style={{
+                          padding: "5px 14px", borderRadius: 7, border: "none", cursor: "pointer",
+                          fontSize: 12, fontWeight: 700, transition: "all 0.15s",
+                          background: isActive ? "linear-gradient(135deg, #FF4D4D, #DE1A1A)" : "transparent",
+                          color: isActive ? "#FFFFFF" : "#6B7280",
+                          boxShadow: isActive ? "0 2px 8px rgba(222,26,26,0.3)" : "none",
+                        }}>
+                        {label}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
             </div>

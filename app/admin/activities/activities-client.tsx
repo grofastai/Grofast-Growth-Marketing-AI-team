@@ -91,6 +91,7 @@ export default function ActivitiesClient({
   memberFilter,
   onLeaveIds,
   leaveDays,
+  clockInDays,
 }: {
   updates: Update[]
   members: Member[]
@@ -99,6 +100,7 @@ export default function ActivitiesClient({
   memberFilter: string
   onLeaveIds: Set<string>
   leaveDays?: Set<string>
+  clockInDays?: Set<string>
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -153,19 +155,28 @@ export default function ActivitiesClient({
       const user = Array.isArray(u.users) ? u.users[0] : u.users
       if (!user) continue
       if (!map[user.id]) map[user.id] = { id: user.id, name: user.name, employee_id: user.employee_id, days: 0, present: 0, absent: 0, onLeave: 0, totalHours: 0 }
-      map[user.id].days++
-      if (u.attendance_status === "present") {
+      const key = `${user.id}:${u.date}`
+      const isLeaveDay  = leaveDays?.has(key)   ?? false
+      const clockedIn   = clockInDays?.has(key) ?? false
+
+      if (u.attendance_status === "present" || clockedIn) {
+        // Count as present if they submitted present OR actually clocked in
         map[user.id].present++
+        map[user.id].days++
       } else if (u.attendance_status === "absent") {
-        // If the absent record falls on an approved leave day, count as on-leave not absent
-        const isLeaveDay = leaveDays?.has(`${user.id}:${u.date}`) ?? false
-        if (isLeaveDay) map[user.id].onLeave++
-        else map[user.id].absent++
+        if (isLeaveDay) {
+          map[user.id].onLeave++
+          map[user.id].days++
+        } else {
+          // Only count as absent if no clock-in and not on approved leave
+          map[user.id].absent++
+          map[user.id].days++
+        }
       }
       map[user.id].totalHours = Math.round((map[user.id].totalHours + (u.working_hours ?? 0)) * 10) / 10
     }
     return Object.values(map).sort((a, b) => b.totalHours - a.totalHours)
-  }, [updates, isSingleDay, leaveDays])
+  }, [updates, isSingleDay, leaveDays, clockInDays])
 
   const submittedIds = new Set(updates.map((u) => {
     const user = Array.isArray(u.users) ? u.users[0] : u.users

@@ -38,7 +38,7 @@ export default async function ActivitiesPage({
 
   const companyId = profile?.company_id ?? ""
 
-  const [{ data: members }, updatesResult, { data: allTasks }, { data: approvedLeaves }] = await Promise.all([
+  const [{ data: members }, updatesResult, { data: allTasks }, { data: approvedLeaves }, { data: clockIns }] = await Promise.all([
     admin
       .from("users")
       .select("id, name, employee_id, role, team")
@@ -69,6 +69,14 @@ export default async function ActivitiesPage({
       .eq("status", "approved")
       .lte("from_date", to)
       .gte("to_date", from),
+    // Actual clock-in records — used to correct auto-absent misclassifications
+    admin
+      .from("attendance_logs")
+      .select("user_id, date")
+      .eq("company_id", companyId)
+      .gte("date", from)
+      .lte("date", to)
+      .not("clock_in", "is", null),
   ])
 
   // Group tasks by user
@@ -103,6 +111,12 @@ export default async function ActivitiesPage({
     }
   }
 
+  // Build a set of "userId:date" for every actual clock-in (source of truth for presence)
+  const clockInDaySet = new Set<string>()
+  for (const log of (clockIns ?? []) as { user_id: string; date: string }[]) {
+    clockInDaySet.add(`${log.user_id}:${log.date}`)
+  }
+
   return (
     <ActivitiesClient
       updates={updates}
@@ -112,6 +126,7 @@ export default async function ActivitiesPage({
       memberFilter={params.member ?? ""}
       onLeaveIds={onLeaveIds}
       leaveDays={leaveDaySet}
+      clockInDays={clockInDaySet}
     />
   )
 }

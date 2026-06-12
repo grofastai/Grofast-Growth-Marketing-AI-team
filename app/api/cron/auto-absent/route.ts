@@ -61,10 +61,20 @@ export async function GET(request: Request) {
 
     const leaveSet = new Set((onLeave ?? []).map((l: { user_id: string }) => l.user_id))
 
-    // Members who haven't submitted and aren't on approved leave → mark absent
+    // Find who clocked in today (attendance_logs) — source of truth for physical presence
+    const { data: clockedIn } = await admin
+      .from("attendance_logs")
+      .select("user_id")
+      .eq("company_id", cid)
+      .eq("date", today)
+      .not("clock_in", "is", null)
+
+    const clockedInSet = new Set((clockedIn ?? []).map((l: { user_id: string }) => l.user_id))
+
+    // Members who haven't submitted, aren't on leave, AND haven't clocked in → mark absent
     const toMarkAbsent = members
       .map((m: { id: string }) => m.id)
-      .filter((id: string) => !submittedSet.has(id) && !leaveSet.has(id))
+      .filter((id: string) => !submittedSet.has(id) && !leaveSet.has(id) && !clockedInSet.has(id))
 
     if (toMarkAbsent.length === 0) continue
 

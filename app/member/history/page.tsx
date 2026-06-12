@@ -123,9 +123,9 @@ export default async function HistoryPage() {
     attendance_status: clockedInDates.has(u.date) ? "present" : u.attendance_status,
   }))
   const name = (profileResult.data?.name ?? "").split(" ")[0] || "there"
-  // Extract company names — exclude rows clearly marked as past/inactive clients
+  // Only show rows explicitly marked "CURRENT CLIENT" (or no status, i.e. Active Clients tab with blank status col)
   const clients = (sheetClients as Awaited<ReturnType<typeof fetchSheetClients>>)
-    .filter(c => !/past.?client|inactive|churned|ex.?client/i.test(c.client_status))
+    .filter(c => /current/i.test(c.client_status) || !c.client_status.trim())
     .map(c => (c.company_name || c.customer_name).trim())
     .filter(Boolean)
     .sort()

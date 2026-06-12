@@ -627,9 +627,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
         </div>
       )}
 
-      {/* ── Two-Column Layout ── */}
+      {/* ── Calendar / List Layout ── */}
       {view !== "pipeline" && (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 308px", gap: 20, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: view === "list" ? "1fr 308px" : "1fr", gap: 20, alignItems: "start" }}>
 
         {/* ── LEFT: Calendar + Quick Actions ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -921,8 +921,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           </div>
         </div>
 
-        {/* ── RIGHT: Sidebar ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* ── RIGHT: Sidebar (list view only) ── */}
+        {view === "list" && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* Upcoming Posts */}
           <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
@@ -998,7 +998,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             </div>
           </div>
 
-        </div>
+        </div>}
       </div>
       )}
 

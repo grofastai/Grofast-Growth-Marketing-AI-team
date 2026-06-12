@@ -718,11 +718,11 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         </div>
       )}
 
-      {/* ── Two-Column Layout (Calendar / List) ── */}
+      {/* ── Calendar / List Layout ── */}
       {view !== "pipeline" && (
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: 20, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: view === "list" ? "1fr 360px" : "1fr", gap: 20, alignItems: "start" }}>
 
-        {/* ── LEFT: Calendar + Quick Actions ── */}
+        {/* ── MAIN: Calendar + Quick Actions ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* Calendar card */}
@@ -874,7 +874,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
                   {cells.map((day, i) => {
                     if (!day) return (
-                      <div key={i} style={{ minHeight: 112, borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }} />
+                      <div key={i} style={{ minHeight: 140, borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }} />
                     )
                     const ds = dateStr(day)
                     const dayPosts  = postsOnDay(day)
@@ -882,7 +882,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     const dayTasks  = tasksOnDay(day)
                     const isToday   = ds === today
                     return (
-                      <div key={i} style={{ minHeight: 112, padding: "8px 6px", borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6", background: isToday ? "rgba(222,26,26,0.025)" : "transparent" }}>
+                      <div key={i} style={{ minHeight: 140, padding: "10px 8px", borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6", background: isToday ? "rgba(222,26,26,0.025)" : "transparent" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
                           <span style={{ fontSize: 13, fontWeight: isToday ? 900 : 500, width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent", color: isToday ? "#FFF" : "#374151" }}>
                             {day}
@@ -986,32 +986,66 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             )}
           </div>
 
-          {/* ── Quick Actions ── */}
-          <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: "0 0 14px" }}>Quick Actions</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
-              {[
-                { icon: "✏️", label: "Create Post",    sub: "Design & plan",    color: "#DE1A1A", bg: "rgba(222,26,26,0.07)",   action: () => { resetForm(); setSchedDates([today]); setModalMode("add") } },
-                { icon: "☁️", label: "Upload Media",   sub: "Images / Videos",  color: "#4D8CFF", bg: "rgba(77,140,255,0.07)",  action: () => setView("list") },
-                { icon: "📋", label: "View Posts",     sub: "All scheduled",    color: "#9B6BFF", bg: "rgba(155,107,255,0.07)",  action: () => setView("list") },
-                { icon: "💡", label: "Content Ideas",  sub: "AI Suggestions",   color: "#FFA53A", bg: "rgba(255,165,58,0.07)",  action: () => {} },
-              ].map(a => (
-                <button key={a.label} onClick={a.action}
-                  style={{ padding: "14px 12px", borderRadius: 14, background: a.bg, border: `1.5px solid ${a.color}22`, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 22, flexShrink: 0 }}>{a.icon}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 12, fontWeight: 800, color: a.color, margin: 0 }}>{a.label}</p>
-                    <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.sub}</p>
-                  </div>
-                  <span style={{ color: a.color, fontSize: 16, fontWeight: 700, flexShrink: 0 }}>›</span>
-                </button>
-              ))}
+          {/* ── Quick Actions + calendar-only info strip ── */}
+          <div style={{ display: "grid", gridTemplateColumns: view === "calendar" ? "1fr 320px" : "1fr", gap: 16 }}>
+
+            {/* Quick Actions */}
+            <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: "0 0 14px" }}>Quick Actions</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+                {[
+                  { icon: "✏️", label: "Create Post",    sub: "Design & plan",  color: "#DE1A1A", bg: "rgba(222,26,26,0.07)",  action: () => { resetForm(); setSchedDates([today]); setModalMode("add") } },
+                  { icon: "☁️", label: "Upload Media",   sub: "Images/Videos",  color: "#C41230", bg: "rgba(196,18,48,0.07)",  action: () => setView("list") },
+                  { icon: "📋", label: "View Posts",     sub: "All scheduled",  color: "#8B0000", bg: "rgba(139,0,0,0.07)",    action: () => setView("list") },
+                  { icon: "💡", label: "Content Ideas",  sub: "AI Suggestions", color: "#B71C1C", bg: "rgba(183,28,28,0.07)", action: () => {} },
+                ].map(a => (
+                  <button key={a.label} onClick={a.action}
+                    style={{ padding: "14px 10px", borderRadius: 14, background: a.bg, border: `1.5px solid ${a.color}22`, cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 20, flexShrink: 0 }}>{a.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 11, fontWeight: 800, color: a.color, margin: 0 }}>{a.label}</p>
+                      <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.sub}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Calendar-only: upcoming posts mini-list */}
+            {view === "calendar" && (
+              <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Upcoming Posts</h3>
+                  <button onClick={() => setView("list")} style={{ fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>View All →</button>
+                </div>
+                {upcomingPosts.length === 0 ? (
+                  <p style={{ fontSize: 12, color: "#9CA3AF", textAlign: "center", padding: "12px 0", margin: 0 }}>No upcoming posts</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {upcomingPosts.slice(0, 4).map(p => {
+                      const pColor = platformColor(p.platform)
+                      return (
+                        <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }} onClick={() => openEdit(p)}>
+                          <div style={{ width: 32, height: 32, borderRadius: 9, background: `${pColor}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>
+                            {platformEmoji(p.platform)}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontSize: 12, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
+                            <p style={{ fontSize: 10, color: "#9CA3AF", margin: "1px 0 0" }}>{p.scheduled_date === today ? "Today" : p.scheduled_date.slice(5)}</p>
+                          </div>
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: pColor, flexShrink: 0 }} />
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* ── RIGHT: Sidebar ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* ── RIGHT: Sidebar (list view only) ── */}
+        {view === "list" && <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* Upcoming Posts */}
           <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "18px 20px", border: "1px solid #E5E7EB" }}>
@@ -1091,7 +1125,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             </div>
           </div>
 
-        </div>
+        </div>}
       </div>
       )}
 

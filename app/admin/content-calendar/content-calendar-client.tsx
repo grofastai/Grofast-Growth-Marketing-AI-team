@@ -167,6 +167,13 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   const [month, setMonth]     = useState(initialMonth)
   const [view,  setView]        = useState<"calendar" | "list">("calendar")
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0])
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
   const [isPending, start]    = useTransition()
   const [clientFilter, setClientFilter] = useState<string>("all")
 
@@ -337,16 +344,16 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div style={{ background: "#F9FAFB", minHeight: "100vh", padding: 24 }}>
+    <div style={{ background: "#F9FAFB", minHeight: "100vh", padding: isMobile ? "12px" : "24px" }}>
 
       {/* ── Hero Header — double-colour banner ── */}
       <div style={{
         background: "linear-gradient(105deg, #E8000A 0%, #C00008 28%, #7B0000 58%, #1A0000 100%)",
         borderRadius: 24, marginBottom: 24, position: "relative", overflow: "hidden",
-        padding: "0 32px",
+        padding: isMobile ? "0 16px" : "0 32px",
         boxShadow: "0 12px 48px rgba(139,0,0,0.55)",
-        minHeight: 160,
-        display: "flex", alignItems: "center",
+        minHeight: isMobile ? 130 : 160,
+        display: "flex", alignItems: "center", flexWrap: "wrap",
       }}>
         {/* Left radial glow (bright side) */}
         <div style={{ position: "absolute", top: "50%", left: -60, transform: "translateY(-50%)", width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,80,80,0.18) 0%, transparent 65%)", pointerEvents: "none" }} />
@@ -359,10 +366,10 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             <span style={{ fontSize: 14 }}>⭐</span>
             <span style={{ fontSize: 11, fontWeight: 800, color: "#FFF", letterSpacing: "0.04em" }}>Content Calendar</span>
           </div>
-          <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", margin: "0 0 4px", lineHeight: 1.1, textShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
+          <h1 style={{ fontSize: isMobile ? 22 : 36, fontWeight: 900, color: "#FFFFFF", margin: "0 0 4px", lineHeight: 1.1, textShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
             Content Calendar
           </h1>
-          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, margin: "0 0 20px", fontWeight: 500 }}>
+          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: isMobile ? 11 : 13, margin: "0 0 20px", fontWeight: 500 }}>
             {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
           {/* Toggle row */}
@@ -392,7 +399,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         </div>
 
         {/* ── CENTER: Character + greeting card ── */}
-        <div style={{ position: "relative", zIndex: 3, display: "flex", alignItems: "flex-end", gap: 16, padding: "0 32px" }}>
+        <div style={{ position: "relative", zIndex: 3, display: isMobile ? "none" : "flex", alignItems: "flex-end", gap: 16, padding: "0 32px" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/content-cal-hero-girl.png" alt=""
             style={{ height: 160, width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
@@ -403,7 +410,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         </div>
 
         {/* ── RIGHT: Date card + Stats glass cards ── */}
-        <div style={{ display: "flex", gap: 12, position: "relative", zIndex: 3, flexShrink: 0 }}>
+        <div style={{ display: isMobile ? "none" : "flex", gap: 12, position: "relative", zIndex: 3, flexShrink: 0 }}>
           {/* Date card */}
           <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 90 }}>
             <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.1em" }}>
@@ -432,7 +439,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
       </div>
 
       {/* ── Stats Row ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 14 : 24 }}>
         {[
           { label: "Total Content", value: totalContent, sub: "All time",   icon: "📄", headerBg: "linear-gradient(135deg,#8B0000 0%,#C41230 100%)", accent: "#DE1A1A", shadow: "rgba(139,0,0,0.22)" },
           { label: "Ready To Post", value: readyCount,   sub: "Scheduled",  icon: "📤", headerBg: "linear-gradient(135deg,#1E3A8A 0%,#3B82F6 100%)", accent: "#3B82F6", shadow: "rgba(37,99,235,0.2)"  },
@@ -446,14 +453,14 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
             display: "flex", flexDirection: "column",
           }}>
             {/* Coloured header strip */}
-            <div style={{ background: s.headerBg, padding: "20px 22px 16px", position: "relative", overflow: "hidden" }}>
+            <div style={{ background: s.headerBg, padding: isMobile ? "12px 14px 10px" : "20px 22px 16px", position: "relative", overflow: "hidden" }}>
               <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.12)", pointerEvents: "none" }} />
-              <span style={{ fontSize: 28, display: "block", marginBottom: 8 }}>{s.icon}</span>
-              <p style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)", margin: 0 }}>{s.label}</p>
+              <span style={{ fontSize: isMobile ? 20 : 28, display: "block", marginBottom: isMobile ? 4 : 8 }}>{s.icon}</span>
+              <p style={{ fontSize: isMobile ? 11 : 13, fontWeight: 700, color: "rgba(255,255,255,0.85)", margin: 0 }}>{s.label}</p>
             </div>
             {/* White body */}
-            <div style={{ padding: "18px 22px 22px" }}>
-              <p style={{ fontSize: 44, fontWeight: 900, color: "#0F172A", margin: "0 0 6px", lineHeight: 1, letterSpacing: "-0.03em" }}>{s.value}</p>
+            <div style={{ padding: isMobile ? "10px 14px 14px" : "18px 22px 22px" }}>
+              <p style={{ fontSize: isMobile ? 30 : 44, fontWeight: 900, color: "#0F172A", margin: "0 0 6px", lineHeight: 1, letterSpacing: "-0.03em" }}>{s.value}</p>
               <p style={{ fontSize: 11, color: s.accent, fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 5 }}>
                 <span style={{ width: 7, height: 7, borderRadius: "50%", background: s.accent, display: "inline-block", flexShrink: 0 }} />
                 {s.sub}
@@ -464,7 +471,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
       </div>
 
       {/* ── Calendar / List Layout ── */}
-      <div style={{ display: "grid", gridTemplateColumns: view === "calendar" ? "1fr 360px" : "1fr", gap: 20, alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: (view === "calendar" && !isMobile) ? "1fr 360px" : "1fr", gap: 20, alignItems: "start" }}>
 
         {/* ── MAIN: Calendar OR full list ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -525,7 +532,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
                   {cells.map((day, i) => {
                     if (!day) return (
-                      <div key={i} style={{ minHeight: 95, borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }} />
+                      <div key={i} style={{ minHeight: isMobile ? 52 : 95, borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none", borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }} />
                     )
                     const ds         = dateStr(day)
                     const dayPosts   = postsOnDay(day)
@@ -539,7 +546,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     const more       = total - shown.length
                     return (
                       <div key={i} onClick={() => setSelectedDate(ds)} style={{
-                        minHeight: 95, padding: "7px 6px", cursor: "pointer",
+                        minHeight: isMobile ? 52 : 95, padding: isMobile ? "5px 4px" : "7px 6px", cursor: "pointer",
                         borderRight: i % 7 !== 6 ? "1px solid #F3F4F6" : "none",
                         borderBottom: "1px solid #F3F4F6",
                         background: isSelected ? "rgba(222,26,26,0.06)" : isToday ? "rgba(222,26,26,0.025)" : "transparent",
@@ -547,21 +554,28 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                         outlineOffset: -1,
                         transition: "background 0.12s",
                       }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                          <span style={{ fontSize: 12, fontWeight: isToday ? 900 : 500, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent", color: isToday ? "#FFF" : isSelected ? "#DE1A1A" : "#374151" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: isMobile ? 3 : 4 }}>
+                          <span style={{ fontSize: isMobile ? 10 : 12, fontWeight: isToday ? 900 : 500, width: isMobile ? 18 : 22, height: isMobile ? 18 : 22, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "50%", background: isToday ? "#DE1A1A" : "transparent", color: isToday ? "#FFF" : isSelected ? "#DE1A1A" : "#374151" }}>
                             {day}
                           </span>
                           {total > 0 && (
-                            <span style={{ fontSize: 9, fontWeight: 700, color: "#DE1A1A", background: "rgba(222,26,26,0.1)", borderRadius: 5, padding: "1px 5px" }}>{total}</span>
+                            <span style={{ fontSize: 9, fontWeight: 700, color: "#DE1A1A", background: "rgba(222,26,26,0.1)", borderRadius: 5, padding: "1px 4px" }}>{total}</span>
                           )}
                         </div>
-                        {shown.map(item => (
+                        {!isMobile && shown.map(item => (
                           <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 5px", borderRadius: 5, marginBottom: 2, background: `${item.color}14`, border: `1px solid ${item.color}28` }}>
                             <span style={{ width: 5, height: 5, borderRadius: "50%", background: item.color, flexShrink: 0 }} />
                             <span style={{ fontSize: 9, fontWeight: 600, color: item.color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
                           </div>
                         ))}
-                        {more > 0 && (
+                        {isMobile && total > 0 && (
+                          <div style={{ display: "flex", gap: 2, flexWrap: "wrap", paddingTop: 2 }}>
+                            {visible.slice(0, 3).map(item => (
+                              <span key={item.id} style={{ width: 5, height: 5, borderRadius: "50%", background: item.color, display: "inline-block" }} />
+                            ))}
+                          </div>
+                        )}
+                        {!isMobile && more > 0 && (
                           <span style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", paddingLeft: 5 }}>+{more} more</span>
                         )}
                       </div>
@@ -626,7 +640,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           {/* Quick Actions */}
           <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "16px 18px", border: "1px solid #E5E7EB" }}>
             <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 12px" }}>Quick Actions</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 10 }}>
               {[
                 { icon: "✏️", label: "Create Post",   sub: "Design & plan", color: "#DE1A1A", bg: "rgba(222,26,26,0.07)",  action: () => { resetForm(); setSchedDates([selectedDate]); setModalMode("add") } },
                 { icon: "☁️", label: "Upload Media",  sub: "Images/Videos", color: "#C41230", bg: "rgba(196,18,48,0.07)",  action: () => setView("list") },
@@ -648,7 +662,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
         {/* ── RIGHT: Day Detail Panel (calendar view) ── */}
         {view === "calendar" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, position: "sticky", top: 24 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, ...(isMobile ? {} : { position: "sticky", top: 24 }) }}>
 
             {/* Day header */}
             <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>

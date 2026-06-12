@@ -643,61 +643,70 @@ export default function MemberTasksClient({
       <div className="flex-1 min-w-0 overflow-auto p-4 md:p-5 xl:p-6">
 
         {/* ── Hero Banner ── */}
-        <div style={{ background: "#FFFFFF", borderRadius: 20, marginBottom: 24, position: "relative", overflow: "hidden", padding: "22px 24px", boxShadow: "0 4px 24px rgba(0,0,0,0.07)", border: "1px solid #EBEDF2" }}>
-          {/* Red radial glow — left */}
-          <div style={{ position: "absolute", top: -60, left: -60, width: 260, height: 260, borderRadius: "50%", background: "radial-gradient(circle, rgba(222,26,26,0.1) 0%, transparent 70%)", pointerEvents: "none" }} />
-          {/* Blue radial glow — right */}
-          <div style={{ position: "absolute", top: -50, right: -50, width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div style={{
+          background: "linear-gradient(110deg, #DE1A1A 0%, #8B0000 28%, #1A0000 58%, #0D0D0D 100%)",
+          borderRadius: 24, marginBottom: 24, position: "relative", overflow: "hidden",
+          padding: "0 28px", minHeight: 148, display: "flex", alignItems: "center",
+          boxShadow: "0 12px 48px rgba(139,0,0,0.55)", flexWrap: "wrap",
+        }}>
+          {/* Glows */}
+          <div style={{ position: "absolute", top: "50%", left: -50, transform: "translateY(-50%)", width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,80,80,0.2) 0%, transparent 65%)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", top: "50%", right: -40, transform: "translateY(-50%)", width: 220, height: 220, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)", pointerEvents: "none" }} />
+          {/* Purple streak accent */}
+          <div style={{ position: "absolute", bottom: -30, left: "38%", width: 180, height: 80, borderRadius: "50%", background: "radial-gradient(circle, rgba(155,107,255,0.22) 0%, transparent 70%)", pointerEvents: "none" }} />
 
-          <div style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
-            <div>
-              {/* Badge — red gradient */}
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)", borderRadius: 20, padding: "5px 14px", marginBottom: 12, boxShadow: "0 4px 14px rgba(222,26,26,0.3)" }}>
-                <span style={{ fontSize: 13 }}>⭐</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#FFFFFF" }}>My Tasks</span>
-              </div>
-              <h1 style={{ fontSize: 30, fontWeight: 900, margin: "0 0 6px", fontFamily: "var(--font-jakarta)", color: "#111111", lineHeight: 1.1 }}>
-                Task{" "}
-                <span style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #6366F1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-                  Board
-                </span>
-              </h1>
-              <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>
-                {activeCount > 0 ? `${activeCount} active · grab the ⠿ handle on a card and drop it into another column to change its status` : "You're all caught up 🎉"}
-              </p>
+          {/* LEFT: badge + title + subtitle */}
+          <div style={{ flex: 1, position: "relative", zIndex: 3, paddingTop: 24, paddingBottom: 24 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", borderRadius: 20, padding: "4px 12px 4px 8px", marginBottom: 10, border: "1px solid rgba(255,255,255,0.25)" }}>
+              <span style={{ fontSize: 13 }}>⭐</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: "#FFF", letterSpacing: "0.04em" }}>My Tasks</span>
             </div>
+            <h1 style={{ fontSize: 30, fontWeight: 900, margin: "0 0 6px", lineHeight: 1.1, display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ color: "#FFFFFF", textShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>Task</span>
+              <span style={{
+                background: "linear-gradient(135deg, #FF6B6B 0%, #FFD93D 35%, #6BCB77 65%, #9B6BFF 100%)",
+                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+              }}>Board</span>
+            </h1>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 500 }}>
+              {activeCount > 0 ? `${activeCount} active · drag cards between columns to update status` : "You're all caught up 🎉"}
+            </p>
+          </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }}>
-              {/* Search + Assign button */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", borderRadius: 12, background: "#F5F6FA", border: "1px solid #EBEDF2" }}>
-                  <Search size={13} style={{ color: "#9CA3AF" }} />
-                  <input value={search} onChange={e => setSearch(e.target.value)}
-                    placeholder="Search tasks..."
-                    style={{ background: "transparent", outline: "none", fontSize: 12, color: "#111111", width: 180, border: "none" }} />
-                </div>
-                <button onClick={() => setShowAssign(true)}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 12, background: "linear-gradient(135deg, #DE1A1A, #7F1D1D)", border: "none", color: "#FFFFFF", fontSize: 12, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
-                  <Plus size={13} /> Assign Task
-                </button>
+          {/* RIGHT: search + assign + stat pills */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end", position: "relative", zIndex: 3, paddingTop: 20, paddingBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 12, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)" }}>
+                <Search size={12} style={{ color: "rgba(255,255,255,0.6)" }} />
+                <input value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder="Search tasks..."
+                  style={{ background: "transparent", outline: "none", fontSize: 12, color: "#FFFFFF", width: 160, border: "none" }}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  onFocus={e => (e.target as any).placeholder = ""}
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  onBlur={e => (e.target as any).placeholder = "Search tasks..."} />
               </div>
-              {/* Mini stat pills */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                {[
-                  { icon: Clock,        color: "#DE1A1A", bg: "rgba(222,26,26,0.08)",  val: todayHours > 0 ? `${todayHours}h` : "—", lbl: "Worked"     },
-                  { icon: Zap,          color: "#22C55E", bg: "rgba(34,197,94,0.08)",  val: String(activeCount),                       lbl: "Active"     },
-                  { icon: CheckCircle2, color: "#6366F1", bg: "rgba(99,102,241,0.08)", val: String(doneTasks.length),                  lbl: "Done"       },
-                  { icon: TrendingUp,   color: "#F59E0B", bg: "rgba(245,158,11,0.08)", val: `${productivity}%`,                        lbl: "Rate"       },
-                ].map(s => (
-                  <div key={s.lbl} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 12, background: s.bg }}>
-                    <s.icon size={12} style={{ color: s.color }} />
-                    <div>
-                      <p style={{ fontSize: 13, fontWeight: 900, color: s.color, margin: 0, lineHeight: 1 }}>{s.val}</p>
-                      <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0 }}>{s.lbl}</p>
-                    </div>
+              <button onClick={() => setShowAssign(true)}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", borderRadius: 12, background: "rgba(255,255,255,0.22)", backdropFilter: "blur(8px)", border: "1.5px solid rgba(255,255,255,0.35)", color: "#FFFFFF", fontSize: 12, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>
+                <Plus size={13} strokeWidth={3} /> Assign Task
+              </button>
+            </div>
+            {/* Multi-color stat pills */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              {[
+                { icon: Clock,        color: "#FF6B6B", bg: "rgba(255,107,107,0.18)", val: todayHours > 0 ? `${todayHours}h` : "—", lbl: "Worked"  },
+                { icon: Zap,          color: "#6BCB77", bg: "rgba(107,203,119,0.18)", val: String(activeCount),                      lbl: "Active"  },
+                { icon: CheckCircle2, color: "#9B6BFF", bg: "rgba(155,107,255,0.18)", val: String(doneTasks.length),                 lbl: "Done"    },
+                { icon: TrendingUp,   color: "#FFD93D", bg: "rgba(255,217,61,0.18)",  val: `${productivity}%`,                       lbl: "Rate"    },
+              ].map(s => (
+                <div key={s.lbl} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 11, background: s.bg, border: `1px solid ${s.color}40` }}>
+                  <s.icon size={12} style={{ color: s.color }} />
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 900, color: s.color, margin: 0, lineHeight: 1 }}>{s.val}</p>
+                    <p style={{ fontSize: 9, color: "rgba(255,255,255,0.5)", margin: 0 }}>{s.lbl}</p>
                   </div>
-                ))}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

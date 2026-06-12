@@ -123,8 +123,9 @@ export default async function HistoryPage() {
     attendance_status: clockedInDates.has(u.date) ? "present" : u.attendance_status,
   }))
   const name = (profileResult.data?.name ?? "").split(" ")[0] || "there"
-  // Extract company names from the Active Clients sheet tab, sorted alphabetically
+  // Extract company names — exclude rows clearly marked as past/inactive clients
   const clients = (sheetClients as Awaited<ReturnType<typeof fetchSheetClients>>)
+    .filter(c => !/past.?client|inactive|churned|ex.?client/i.test(c.client_status))
     .map(c => (c.company_name || c.customer_name).trim())
     .filter(Boolean)
     .sort()

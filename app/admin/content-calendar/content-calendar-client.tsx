@@ -7,6 +7,11 @@ import {
   Loader2, CheckCircle2, Clock,
   PlayCircle, Image, Film, Layers, Send, Trash2, Pencil,
 } from "lucide-react"
+import {
+  DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
+  useDraggable, useDroppable,
+  type DragStartEvent, type DragEndEvent,
+} from "@dnd-kit/core"
 import { createContentPost, updateContentPost, updateContentPostStatus, deleteContentPost } from "@/lib/actions/content-calendar"
 import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
 
@@ -147,6 +152,63 @@ function DonutChart({ total, posted, inProgress, ready, pending }: {
   )
 }
 
+// ── Content Pipeline (Kanban) ─────────────────────────────────────────────────
+const PIPELINE_COLS = [
+  { key: "pending",     label: "Ideas",   color: "#9B6BFF", emoji: "💡" },
+  { key: "ready",       label: "Ready",   color: "#4D8CFF", emoji: "📤" },
+  { key: "in_progress", label: "Editing", color: "#FFA53A", emoji: "✂️" },
+  { key: "posted",      label: "Posted",  color: "#32D27A", emoji: "✅" },
+] as const
+
+function PipelineCard({ post, onClick }: { post: Post; onClick: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id, data: { status: post.status } })
+  const pColor = platformColor(post.platform)
+  const time   = formatTime(post.scheduled_time)
+  return (
+    <div ref={setNodeRef} {...attributes} {...listeners} onClick={onClick}
+      style={{
+        transform: transform ? `translate3d(${transform.x}px,${transform.y}px,0)` : undefined,
+        opacity: isDragging ? 0.4 : 1,
+        background: "#FFFFFF", borderRadius: 12, padding: "10px 12px",
+        border: "1px solid #EDEFF3", boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        cursor: "grab", display: "flex", flexDirection: "column", gap: 6, touchAction: "none",
+      }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+        <span style={{ width: 22, height: 22, borderRadius: 6, background: `${pColor}1A`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>{platformEmoji(post.platform)}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#1A202C", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.title}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6 }}>
+        <span style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{post.client_name || "—"}</span>
+        <span style={{ fontSize: 10, color: "#9CA3AF", whiteSpace: "nowrap", flexShrink: 0 }}>{post.scheduled_date.slice(5)}{time ? ` · ${time}` : ""}</span>
+      </div>
+    </div>
+  )
+}
+
+function PipelineColumn({ col, posts, isOver, onCardClick }: {
+  col: typeof PIPELINE_COLS[number]; posts: Post[]; isOver: boolean; onCardClick: (p: Post) => void
+}) {
+  const { setNodeRef } = useDroppable({ id: col.key })
+  return (
+    <div ref={setNodeRef} style={{
+      background: isOver ? `${col.color}12` : "#F7F8FB",
+      borderRadius: 16, padding: 12, minHeight: 140,
+      border: isOver ? `1.5px dashed ${col.color}` : "1.5px solid transparent",
+      display: "flex", flexDirection: "column", gap: 10, transition: "background 0.15s",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+        <span style={{ fontSize: 14 }}>{col.emoji}</span>
+        <span style={{ fontSize: 12, fontWeight: 800, color: "#374151", textTransform: "uppercase", letterSpacing: "0.05em" }}>{col.label}</span>
+        <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 800, color: col.color, background: `${col.color}1A`, borderRadius: 8, padding: "2px 8px" }}>{posts.length}</span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {posts.map(p => <PipelineCard key={p.id} post={p} onClick={() => onCardClick(p)} />)}
+        {posts.length === 0 && <p style={{ fontSize: 11, color: "#C0C4CC", textAlign: "center", padding: "14px 0", margin: 0 }}>Drop here</p>}
+      </div>
+    </div>
+  )
+}
+
 const FIELD: React.CSSProperties = {
   width: "100%", padding: "10px 14px", borderRadius: 10,
   border: "1.5px solid #E2E8F0", fontSize: 13, background: "#FAFAFA",
@@ -164,9 +226,12 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   useEffect(() => { setPosts(initial) }, [initial])
   const [year,  setYear]      = useState(initialYear)
   const [month, setMonth]     = useState(initialMonth)
-  const [view,  setView]      = useState<"calendar" | "list">("calendar")
+  const [view,  setView]      = useState<"pipeline" | "calendar" | "list">("pipeline")
   const [isPending, start]    = useTransition()
   const [clientFilter, setClientFilter] = useState<string>("all")
+  const [dragId,  setDragId]  = useState<string | null>(null)
+  const [overCol, setOverCol] = useState<string | null>(null)
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
 
   const [modalMode,   setModalMode]   = useState<"add" | "edit" | null>(null)
   const [editingPost, setEditingPost] = useState<Post | null>(null)
@@ -311,6 +376,20 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     })
   }
 
+  // ── Pipeline drag handlers ──
+  function handleDragStart(e: DragStartEvent) { setDragId(String(e.active.id)) }
+  function handleDragOver(e: { over: { id: string } | null }) { setOverCol(e.over?.id ?? null) }
+  function handleDragEnd(e: DragEndEvent) {
+    setDragId(null); setOverCol(null)
+    const overId = e.over?.id as string | undefined
+    const valid = ["pending", "ready", "in_progress", "posted"]
+    if (overId && valid.includes(overId)) {
+      const post = posts.find(p => p.id === e.active.id)
+      if (post && post.status !== overId) handleStatusChange(String(e.active.id), overId)
+    }
+  }
+  const dragPost = dragId ? posts.find(p => p.id === dragId) ?? null : null
+
   const today        = new Date().toISOString().split("T")[0]
   const totalContent = filteredPosts.length
   const readyCount   = filteredPosts.filter(p => p.status === "ready").length
@@ -329,6 +408,47 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         return (a.scheduled_time ?? "").localeCompare(b.scheduled_time ?? "")
       })
       .slice(0, 5),
+    [filteredPosts, today]
+  )
+
+  // ── Pipeline-view derived data ──
+  const todaySchedule = useMemo(() =>
+    filteredPosts.filter(p => p.scheduled_date === today)
+      .sort((a, b) => (a.scheduled_time ?? "99").localeCompare(b.scheduled_time ?? "99")),
+    [filteredPosts, today]
+  )
+
+  const clientCards = useMemo(() => {
+    const map = new Map<string, { name: string; count: number; next: string | null }>()
+    for (const p of filteredPosts) {
+      const name = p.client_name || "Internal"
+      const e = map.get(name) ?? { name, count: 0, next: null }
+      e.count++
+      if (p.scheduled_date >= today && p.status !== "posted" && p.status !== "cancelled") {
+        if (!e.next || p.scheduled_date < e.next) e.next = p.scheduled_date
+      }
+      map.set(name, e)
+    }
+    return [...map.values()].sort((a, b) => b.count - a.count)
+  }, [filteredPosts, today])
+
+  const teamWorkload = useMemo(() => {
+    const rows = members.map(m => ({
+      name: m.name,
+      count: posts.filter(p => p.assigned_to === m.id && p.status !== "posted" && p.status !== "cancelled").length,
+    }))
+    const max = Math.max(1, ...rows.map(r => r.count))
+    return rows.map(r => ({ ...r, pct: Math.round((r.count / max) * 100) })).sort((a, b) => b.count - a.count)
+  }, [members, posts])
+
+  const upcomingTable = useMemo(() =>
+    [...filteredPosts]
+      .filter(p => p.scheduled_date >= today && p.status !== "cancelled")
+      .sort((a, b) => {
+        if (a.scheduled_date !== b.scheduled_date) return a.scheduled_date.localeCompare(b.scheduled_date)
+        return (a.scheduled_time ?? "").localeCompare(b.scheduled_time ?? "")
+      })
+      .slice(0, 10),
     [filteredPosts, today]
   )
 
@@ -359,14 +479,14 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
             {/* Calendar / List toggle */}
             <div style={{ display: "flex", background: "rgba(255,255,255,0.85)", borderRadius: 12, padding: 3, border: "1.5px solid rgba(0,0,0,0.08)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-              {(["calendar", "list"] as const).map(v => (
+              {(["pipeline", "calendar", "list"] as const).map(v => (
                 <button key={v} onClick={() => setView(v)} style={{
-                  padding: "7px 16px", borderRadius: 9, border: "none", cursor: "pointer",
+                  padding: "7px 15px", borderRadius: 9, border: "none", cursor: "pointer",
                   fontSize: 12, fontWeight: 700, transition: "all 0.15s",
                   background: view === v ? "#9B6BFF" : "transparent",
                   color: view === v ? "#fff" : "#6B7280",
                 }}>
-                  {v === "calendar" ? "Calendar" : "List"}
+                  {v === "pipeline" ? "Pipeline" : v === "calendar" ? "Calendar" : "List"}
                 </button>
               ))}
             </div>
@@ -414,7 +534,165 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         ))}
       </div>
 
-      {/* ── Two-Column Layout ── */}
+      {/* ═══════════════ PIPELINE / OPERATIONS VIEW ═══════════════ */}
+      {view === "pipeline" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+          {/* Content Pipeline (Kanban) */}
+          <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", padding: "20px 22px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: 0 }}>Content Pipeline</h3>
+                <p style={{ fontSize: 12, color: "#9CA3AF", margin: "2px 0 0" }}>Drag cards between stages to update status</p>
+              </div>
+            </div>
+            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver as never} onDragEnd={handleDragEnd}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+                {PIPELINE_COLS.map(col => (
+                  <PipelineColumn key={col.key} col={col} isOver={overCol === col.key}
+                    posts={filteredPosts.filter(p => p.status === col.key)}
+                    onCardClick={openEdit} />
+                ))}
+              </div>
+              <DragOverlay>
+                {dragPost ? (
+                  <div style={{ background: "#FFFFFF", borderRadius: 12, padding: "10px 12px", border: "1px solid #EDEFF3", boxShadow: "0 8px 24px rgba(0,0,0,0.18)", display: "flex", alignItems: "center", gap: 7, cursor: "grabbing" }}>
+                    <span style={{ width: 22, height: 22, borderRadius: 6, background: `${platformColor(dragPost.platform)}1A`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>{platformEmoji(dragPost.platform)}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#1A202C" }}>{dragPost.title}</span>
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          </div>
+
+          {/* Today's Schedule + Team Workload */}
+          <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: 20, alignItems: "start" }}>
+
+            {/* Today's Posting Schedule */}
+            <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", padding: "20px 22px" }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: "0 0 16px" }}>Today&apos;s Posting Schedule</h3>
+              {todaySchedule.length === 0 ? (
+                <p style={{ fontSize: 13, color: "#9CA3AF", textAlign: "center", padding: "24px 0", margin: 0 }}>Nothing scheduled for today 🎉</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  {todaySchedule.map((p, i) => {
+                    const pColor = platformColor(p.platform)
+                    const cfg = STATUS_CFG[p.status] ?? STATUS_CFG.pending
+                    return (
+                      <div key={p.id} onClick={() => openEdit(p)} style={{ display: "flex", gap: 14, cursor: "pointer" }}>
+                        <div style={{ width: 64, flexShrink: 0, textAlign: "right", paddingTop: 2 }}>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>{formatTime(p.scheduled_time) ?? "—"}</span>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                          <span style={{ width: 12, height: 12, borderRadius: "50%", background: pColor, border: "2px solid #FFF", boxShadow: `0 0 0 2px ${pColor}40`, marginTop: 4 }} />
+                          {i < todaySchedule.length - 1 && <span style={{ width: 2, flex: 1, background: "#EDEFF3", minHeight: 28 }} />}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0, paddingBottom: 18 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                            <span style={{ fontSize: 14 }}>{platformEmoji(p.platform)}</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</span>
+                            <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 8, background: cfg.bg, color: cfg.color, flexShrink: 0 }}>{cfg.label}</span>
+                          </div>
+                          <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{platformLabel(p.platform)} · {p.client_name || "—"}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Team Workload */}
+            <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", padding: "20px 22px" }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: "0 0 16px" }}>Team Workload</h3>
+              {teamWorkload.length === 0 ? (
+                <p style={{ fontSize: 13, color: "#9CA3AF", textAlign: "center", padding: "24px 0", margin: 0 }}>No team members</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {teamWorkload.map(m => {
+                    const barColor = m.pct >= 80 ? "#DE1A1A" : m.pct >= 50 ? "#FFA53A" : "#32D27A"
+                    return (
+                      <div key={m.name}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{m.name}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF" }}>{m.count} active</span>
+                        </div>
+                        <div style={{ height: 8, borderRadius: 99, background: "#F0F1F5", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${Math.max(m.count > 0 ? 8 : 0, m.pct)}%`, background: barColor, borderRadius: 99, transition: "width 0.3s" }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Clients */}
+          <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", padding: "20px 22px" }}>
+            <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: "0 0 16px" }}>Clients</h3>
+            {clientCards.length === 0 ? (
+              <p style={{ fontSize: 13, color: "#9CA3AF", textAlign: "center", padding: "24px 0", margin: 0 }}>No clients with content yet</p>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 14 }}>
+                {clientCards.map(c => (
+                  <div key={c.name} onClick={() => { setClientFilter(c.name); setView("list") }}
+                    style={{ borderRadius: 16, padding: "16px 18px", border: "1px solid #EDEFF3", background: "linear-gradient(135deg, #FAFBFF, #F4F6FF)", cursor: "pointer", transition: "transform 0.15s, box-shadow 0.15s" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-3px)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 20px rgba(0,0,0,0.08)" }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "none"; (e.currentTarget as HTMLElement).style.boxShadow = "none" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 11, background: "linear-gradient(135deg, #9B6BFF, #4D8CFF)", display: "flex", alignItems: "center", justifyContent: "center", color: "#FFF", fontSize: 16, fontWeight: 900, flexShrink: 0 }}>
+                        {c.name.charAt(0).toUpperCase()}
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.name}</span>
+                    </div>
+                    <p style={{ fontSize: 12, color: "#6B7280", margin: 0, fontWeight: 600 }}>{c.count} {c.count === 1 ? "post" : "posts"}</p>
+                    <p style={{ fontSize: 11, color: c.next ? "#9B6BFF" : "#C0C4CC", margin: "3px 0 0", fontWeight: 700 }}>
+                      {c.next ? `Next: ${c.next === today ? "Today" : c.next.slice(5)}` : "No upcoming"}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Upcoming Content table */}
+          <div style={{ background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+            <div style={{ padding: "18px 22px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: "#111827", margin: 0 }}>Upcoming Content</h3>
+              <button onClick={() => setView("list")} style={{ fontSize: 11, fontWeight: 700, color: "#9B6BFF", background: "none", border: "none", cursor: "pointer" }}>View All</button>
+            </div>
+            {upcomingTable.length === 0 ? (
+              <p style={{ fontSize: 13, color: "#9CA3AF", textAlign: "center", padding: "40px 0", margin: 0 }}>No upcoming content</p>
+            ) : (
+              <div>
+                <div style={{ display: "grid", gridTemplateColumns: "110px 1fr 1.2fr 110px", gap: 12, padding: "10px 22px", borderBottom: "1px solid #F3F4F6", background: "#FAFBFF" }}>
+                  {["Date", "Client", "Content", "Status"].map(h => (
+                    <span key={h} style={{ fontSize: 10, fontWeight: 800, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em" }}>{h}</span>
+                  ))}
+                </div>
+                {upcomingTable.map((p, i) => {
+                  const cfg = STATUS_CFG[p.status] ?? STATUS_CFG.pending
+                  return (
+                    <div key={p.id} onClick={() => openEdit(p)} style={{ display: "grid", gridTemplateColumns: "110px 1fr 1.2fr 110px", gap: 12, padding: "12px 22px", borderTop: i > 0 ? "1px solid #F9FAFB" : "none", cursor: "pointer", alignItems: "center" }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: p.scheduled_date === today ? "#DE1A1A" : "#374151" }}>{p.scheduled_date === today ? "Today" : p.scheduled_date.slice(5)}</span>
+                      <span style={{ fontSize: 12, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.client_name || "—"}</span>
+                      <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                        <span style={{ fontSize: 14, flexShrink: 0 }}>{platformEmoji(p.platform)}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "#111827", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</span>
+                      </span>
+                      <span style={{ fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: 8, background: cfg.bg, color: cfg.color, justifySelf: "start", whiteSpace: "nowrap" }}>{cfg.label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Two-Column Layout (Calendar / List) ── */}
+      {view !== "pipeline" && (
       <div style={{ display: "grid", gridTemplateColumns: "1fr 308px", gap: 20, alignItems: "start" }}>
 
         {/* ── LEFT: Calendar + Quick Actions ── */}
@@ -680,6 +958,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
         </div>
       </div>
+      )}
 
       {/* ── Add / Edit Modal ── */}
       {showModal && (

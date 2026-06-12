@@ -365,63 +365,94 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   }
 
   return (
-    <div className="p-4 md:p-6 xl:p-8" style={{ background: "#FFF5F5", minHeight: "100vh" }}>
+    <div className="p-4 md:p-6 xl:p-8" style={{ background: "#F9FAFB", minHeight: "100vh" }}>
 
-      {/* ── Hero Header ── */}
+      {/* ── Hero Header — double-colour banner ── */}
       <div style={{
-        background: "linear-gradient(120deg, #FFFFFF 0%, #FFF0F0 45%, #FFE4E4 100%)",
-        borderRadius: 28, marginBottom: 24, position: "relative", overflow: "hidden",
-        padding: "32px 36px 0 36px",
-        boxShadow: "0 8px 40px rgba(183,28,28,0.12)",
-        minHeight: 240,
-        border: "1px solid rgba(222,26,26,0.08)",
+        background: "linear-gradient(105deg, #E8000A 0%, #C00008 28%, #7B0000 58%, #1A0000 100%)",
+        borderRadius: 24, marginBottom: 24, position: "relative", overflow: "hidden",
+        padding: "0 32px",
+        boxShadow: "0 12px 48px rgba(139,0,0,0.55)",
+        minHeight: 160,
+        display: "flex", alignItems: "center",
       }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", position: "relative", zIndex: 3, marginBottom: 20 }}>
-          <div style={{ maxWidth: 440 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg,#8B0000,#DE1A1A)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, boxShadow: "0 4px 14px rgba(139,0,0,0.4)" }}>📅</div>
-              <h1 style={{ fontSize: 38, fontWeight: 900, color: "#0F172A", margin: 0, lineHeight: 1.1 }}>
-                My Content
-              </h1>
-            </div>
-            <p style={{ color: "#64748B", fontSize: 14, margin: "0 0 24px", fontWeight: 500, lineHeight: 1.6 }}>
-              Your scheduled posts, reels &amp; shoots 🚀
-            </p>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <button onClick={() => openAdd()}
-                style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 22px", background: "linear-gradient(135deg, #8B0000 0%, #DE1A1A 100%)", color: "#FFF", borderRadius: 14, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, boxShadow: "0 6px 20px rgba(139,0,0,0.4)", whiteSpace: "nowrap", letterSpacing: "0.01em" }}>
-                <Plus size={15} strokeWidth={3} /> Add Content
-              </button>
-              <div style={{ display: "flex", background: "rgba(255,255,255,0.9)", borderRadius: 12, padding: 4, border: "1.5px solid rgba(222,26,26,0.2)", boxShadow: "0 2px 10px rgba(0,0,0,0.06)", gap: 2 }}>
-                {([
-                  { v: "pipeline" as const, label: "⚡ Pipeline" },
-                  { v: "calendar" as const, label: "📅 Calendar" },
-                  { v: "list"     as const, label: "☰ List"     },
-                ]).map(({ v, label }) => (
-                  <button key={v} onClick={() => setView(v)} style={{
-                    padding: "7px 14px", borderRadius: 9, border: "none", cursor: "pointer",
-                    fontSize: 12, fontWeight: 700, transition: "all 0.15s",
-                    background: view === v
-                      ? v === "pipeline" ? "linear-gradient(135deg,#C41230,#DE1A1A)"
-                      : v === "calendar" ? "linear-gradient(135deg,#8B0000,#C41230)"
-                      : "#1A0000"
-                      : "transparent",
-                    color: view === v ? "#fff" : "#6B7280",
-                    boxShadow: view === v ? "0 2px 10px rgba(139,0,0,0.35)" : "none",
-                  }}>{label}</button>
-                ))}
-              </div>
+        {/* Radial glows */}
+        <div style={{ position: "absolute", top: "50%", left: -60, transform: "translateY(-50%)", width: 320, height: 320, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,80,80,0.18) 0%, transparent 65%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: "50%", right: -40, transform: "translateY(-50%)", width: 240, height: 240, borderRadius: "50%", background: "radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+        {/* ── LEFT: badge + title + controls ── */}
+        <div style={{ flex: 1, position: "relative", zIndex: 3, paddingTop: 28, paddingBottom: 28 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", borderRadius: 20, padding: "4px 12px 4px 8px", marginBottom: 10, border: "1px solid rgba(255,255,255,0.25)" }}>
+            <span style={{ fontSize: 14 }}>⭐</span>
+            <span style={{ fontSize: 11, fontWeight: 800, color: "#FFF", letterSpacing: "0.04em" }}>My Content</span>
+          </div>
+          <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", margin: "0 0 4px", lineHeight: 1.1, textShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
+            My Content
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, margin: "0 0 20px", fontWeight: 500 }}>
+            {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button onClick={() => openAdd()}
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 20px", background: "rgba(255,255,255,0.22)", backdropFilter: "blur(8px)", color: "#FFF", borderRadius: 12, border: "1.5px solid rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>
+              <Plus size={14} strokeWidth={3} /> Add Content
+            </button>
+            <div style={{ display: "flex", background: "rgba(0,0,0,0.25)", backdropFilter: "blur(8px)", borderRadius: 10, padding: 3, gap: 2, border: "1px solid rgba(255,255,255,0.12)" }}>
+              {([
+                { v: "pipeline" as const, label: "⚡ Pipeline" },
+                { v: "calendar" as const, label: "📅 Calendar" },
+                { v: "list"     as const, label: "☰ List"     },
+              ]).map(({ v, label }) => (
+                <button key={v} onClick={() => setView(v)} style={{
+                  padding: "6px 13px", borderRadius: 8, border: "none", cursor: "pointer",
+                  fontSize: 11, fontWeight: 700, transition: "all 0.15s",
+                  background: view === v ? "rgba(255,255,255,0.22)" : "transparent",
+                  color: view === v ? "#FFF" : "rgba(255,255,255,0.5)",
+                  boxShadow: view === v ? "0 2px 8px rgba(0,0,0,0.3)" : "none",
+                  outline: "none",
+                  borderWidth: 1, borderStyle: "solid",
+                  borderColor: view === v ? "rgba(255,255,255,0.25)" : "transparent",
+                } as React.CSSProperties}>{label}</button>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Hero girl character */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/content-cal-hero-girl.png" alt=""
-          style={{ position: "absolute", right: 40, bottom: 0, height: 250, width: "auto", objectFit: "contain", objectPosition: "right bottom", zIndex: 1, pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(183,28,28,0.25))" }} />
+        {/* ── CENTER: Character + greeting card ── */}
+        <div style={{ position: "relative", zIndex: 3, display: "flex", alignItems: "flex-end", gap: 16, padding: "0 32px" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/content-cal-hero-girl.png" alt=""
+            style={{ height: 160, width: "auto", objectFit: "contain", objectPosition: "bottom", flexShrink: 0, filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.4))" }} />
+          <div style={{ background: "rgba(255,255,255,0.12)", backdropFilter: "blur(12px)", borderRadius: 16, padding: "14px 18px", border: "1px solid rgba(255,255,255,0.2)", minWidth: 180, marginBottom: 16 }}>
+            <p style={{ fontSize: 15, fontWeight: 800, color: "#FFF", margin: "0 0 4px" }}>Your schedule! 📅</p>
+            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", margin: 0 }}>What are you posting today?</p>
+          </div>
+        </div>
 
-        <div style={{ position: "absolute", top: -40, right: 320, width: 180, height: 180, borderRadius: "50%", background: "radial-gradient(circle, rgba(222,26,26,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
-        <div style={{ position: "absolute", bottom: -20, left: "40%", width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,0,0,0.06) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
+        {/* ── RIGHT: Glass stat cards ── */}
+        <div style={{ display: "flex", gap: 12, position: "relative", zIndex: 3, flexShrink: 0 }}>
+          <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 90 }}>
+            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.1em" }}>
+              {MONTHS[month].slice(0,3).toUpperCase()} {year}
+            </p>
+            <p style={{ fontSize: 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>
+              {new Date().getDate()}
+            </p>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>
+              {new Date().toLocaleDateString("en-US", { weekday: "long" })}
+            </p>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 90 }}>
+            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>TOTAL</p>
+            <p style={{ fontSize: 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{totalContent}</p>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Posts</p>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 90 }}>
+            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>POSTED</p>
+            <p style={{ fontSize: 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{postedCount}</p>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Done ✓</p>
+          </div>
+        </div>
       </div>
 
       {/* ── Stats ── */}

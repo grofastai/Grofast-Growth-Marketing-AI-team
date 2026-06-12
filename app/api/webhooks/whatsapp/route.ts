@@ -37,6 +37,7 @@ interface MetaWebhookBody {
         messages?: Array<{
           from?: string
           type?: string
+          text?: { body?: string }
           interactive?: {
             type?: string
             button_reply?: {
@@ -57,6 +58,11 @@ async function processWebhook(body: unknown) {
   for (const entry of wb.entry ?? []) {
     for (const change of entry.changes ?? []) {
       for (const message of change.value?.messages ?? []) {
+        if (message.type === 'text' && message.text?.body && message.from) {
+          await handleAttendanceTextReply(message.from, message.text.body)
+          continue
+        }
+
         if (message.type !== 'interactive') continue
         if (message.interactive?.type !== 'button_reply') continue
 
@@ -237,6 +243,106 @@ async function handleAttendanceButtonReply(
   console.log(`[whatsapp-webhook] attendance marked for ${user.name} — ${workType}`)
 }
 
+
+async function interpretAttendanceText(
+  reply: string
+): Promise<{ work_type: 'office' | 'wfh' | 'shoot' | 'leave'; present: boolean } | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) return null
+
+  try {
+    const { default: Anthropic } = await import('@anthropic-ai/sdk')
+    const client = new Anthropic({ apiKey })
+    const msg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 60,
+      messages: [{
+        role: 'user',
+        content: `An employee replied to a work attendance check-in: "${reply.replace(/"/g, "'")}"
+Return JSON only, no explanation: {"work_type":"office"|"wfh"|"shoot"|"leave","present":true|false}`,
+      }],
+    })
+    const text = msg.content[0].type === 'text' ? msg.content[0].text : ''
+    const parsed = JSON.parse(text.trim())
+    if (!['office', 'wfh', 'shoot', 'leave'].includes(parsed.work_type)) return null
+    if (typeof parsed.present !== 'boolean') return null
+    return parsed as { work_type: 'office' | 'wfh' | 'shoot' | 'leave'; present: boolean }
+  } catch (err) {
+    console.error('[whatsapp-webhook] AI interpret error:', err)
+    return null
+  }
+}
+
+async function handleAttendanceTextReply(from: string, text: string) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+
+  const last10 = from.replace(/\D/g, '').slice(-10)
+  const { data: user } = await supabase
+    .from('users')
+    .select('id, company_id, name')
+    .like('phone', `%${last10}`)
+    .eq('role', 'MEMBER')
+    .maybeSingle()
+
+  if (!user) return
+
+  const today = new Date().toISOString().split('T')[0]
+  const { data: existingRows } = await supabase
+    .from('attendance_logs')
+    .select('id')
+    .eq('company_id', user.company_id)
+    .eq('user_id', user.id)
+    .eq('date', today)
+
+  if (existingRows && existingRows.length > 0) {
+    await sendWhatsAppReply(from, 'Your attendance is already marked for today ✅')
+    return
+  }
+
+  const interpreted = await interpretAttendanceText(text)
+
+  if (!interpreted) {
+    await sendWhatsAppReply(
+      from,
+      "Sorry, I didn't understand that. Please tap a button to mark your attendance:\n\nType: *office* for In Office\nType: *wfh* for Work from Home\nType: *leave* for On Leave"
+    )
+    return
+  }
+
+  if (!interpreted.present || interpreted.work_type === 'leave') {
+    await supabase.from('attendance_logs').insert({
+      company_id: user.company_id,
+      user_id: user.id,
+      date: today,
+      status: 'absent',
+    })
+    await sendWhatsAppReply(from, 'Got it! Marked as On Leave for today ✅')
+    return
+  }
+
+  const { error } = await supabase.from('attendance_logs').insert({
+    company_id: user.company_id,
+    user_id: user.id,
+    date: today,
+    clock_in: new Date().toISOString(),
+    work_type: interpreted.work_type,
+    status: 'present',
+  })
+
+  if (error) {
+    console.error('[whatsapp-webhook] attendance insert error:', error)
+    return
+  }
+
+  const label = interpreted.work_type === 'office' ? 'In Office'
+    : interpreted.work_type === 'wfh' ? 'Work from Home'
+    : 'Shoot'
+  await sendWhatsAppReply(from, `Got it! Marked as ${label} for today ✅`)
+  console.log(`[whatsapp-webhook] AI-interpreted attendance for ${user.name} — ${interpreted.work_type}`)
+}
 
 async function sendWhatsAppReply(to: string, message: string): Promise<void> {
   const token = process.env.META_WHATSAPP_TOKEN

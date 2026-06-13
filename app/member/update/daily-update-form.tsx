@@ -346,6 +346,11 @@ export default function DailyUpdateForm({
   }
   const allClientOptions = activeClientOptions
 
+  // Tracks which entry IDs are in "past clients" mode
+  const [showPastFor, setShowPastFor] = useState<Set<string>>(new Set())
+  const enterPastMode  = (id: string) => setShowPastFor(p => new Set([...p, id]))
+  const exitPastMode   = (id: string) => setShowPastFor(p => { const n = new Set(p); n.delete(id); return n })
+
   // ── Shoots (media) ───────────────────────────────────────────────────────
   const [shoots, setShoots] = useState<ShootEntry[]>(() => existingUpdate ? parseExistingShoots(existingUpdate) : [])
   const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, cameraHours:0, droneHours:0, travelHours:0, brand:"", shopName:"", location:"", driveLink:"", notes:"", videoUploaded:false, participantIds:[] }])
@@ -1028,29 +1033,21 @@ export default function DailyUpdateForm({
                           <div style={{ marginTop:4 }}>
                             <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project</p>
                             <div style={{ position:"relative" }}>
-                              <select
-                                value=""
-                                onChange={e => {
-                                  const v = e.target.value
-                                  if (!v) return
-                                  if (v === "Promotion" || v === "__custom__") {
-                                    patchBlock(block.id, { projectName: v, clientNames: [], brand: "", customClient: "" })
-                                  } else {
-                                    if (!block.clientNames.includes(v))
-                                      patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" })
-                                  }
-                                }}
+                              {showPastFor.has(`blk-${block.id}`) ? (
+                                <select value="" onChange={e => { const v = e.target.value; if (!v) return; if (!block.clientNames.includes(v)) patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" }); exitPastMode(`blk-${block.id}`) }}
+                                  style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                                  <option value="">← Past Clients</option>
+                                  {pastClientOptions.filter(n => !block.clientNames.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
+                                </select>
+                              ) : (
+                              <select value="" onChange={e => { const v = e.target.value; if (!v) return; if (v === "__past_clients__") { enterPastMode(`blk-${block.id}`) } else if (v === "__custom__") { patchBlock(block.id, { projectName: v, clientNames: [], brand: "", customClient: "" }) } else { if (!block.clientNames.includes(v)) patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" }) } }}
                                 style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
                                 <option value="">Add client / project…</option>
-                                {!block.projectName && <option value="Promotion">📣 Our Brand</option>}
                                 {activeClientOptions.filter(n => !block.clientNames.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
-                                {pastClientOptions.length > 0 && (
-                                  <optgroup label="Past Clients">
-                                    {pastClientOptions.filter(n => !block.clientNames.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
-                                  </optgroup>
-                                )}
+                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
                                 {!block.projectName && <option value="__custom__">✏️ Other (type manually)</option>}
                               </select>
+                              )}
                               <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                             </div>
                             {(block.clientNames.length > 0 || block.projectName) && (
@@ -1063,13 +1060,6 @@ export default function DailyUpdateForm({
                                     <span style={{ fontSize:8, color:"#de1a1a" }}>✕</span>
                                   </button>
                                 ))}
-                                {block.projectName === "Promotion" && (
-                                  <button type="button" onClick={() => patchBlock(block.id, { projectName: "", brand: "", customClient: "" })}
-                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(217,119,6,0.08)", border:"1.5px solid rgba(217,119,6,0.3)", cursor:"pointer" }}>
-                                    <span style={{ fontSize:10, fontWeight:700, color:"#D97706" }}>📣 Our Brand</span>
-                                    <span style={{ fontSize:8, color:"#D97706" }}>✕</span>
-                                  </button>
-                                )}
                                 {block.projectName === "__custom__" && (
                                   <button type="button" onClick={() => patchBlock(block.id, { projectName: "", brand: "", customClient: "" })}
                                     style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.08)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
@@ -1077,16 +1067,6 @@ export default function DailyUpdateForm({
                                     <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
                                   </button>
                                 )}
-                              </div>
-                            )}
-                            {block.projectName === "Promotion" && (
-                              <div style={{ position:"relative", marginTop:6 }}>
-                                <select value={block.brand} onChange={e => patchBlock(block.id, { brand: e.target.value })}
-                                  style={{ width:"100%", fontSize:11, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.3)", borderRadius:8, padding:"7px 28px 7px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                                  <option value="">📣 Select brand…</option>
-                                  {INTERNAL_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-                                </select>
-                                <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#D97706", pointerEvents:"none" }} />
                               </div>
                             )}
                             {block.projectName === "__custom__" && (
@@ -1212,16 +1192,21 @@ export default function DailyUpdateForm({
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project *</label>
                           <div style={{ position:"relative" }}>
-                            <select value={s.clientName} onChange={e => patchShoot(s.id, { clientName: e.target.value, brand:"", shopName:"", customClient:"" })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                            {(showPastFor.has(s.id) || pastClientOptions.includes(s.clientName)) ? (
+                              <select value={s.clientName}
+                                onChange={e => { const v = e.target.value; patchShoot(s.id, { clientName: v, brand:"", shopName:"", customClient:"" }); exitPastMode(s.id) }}
+                                style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                <option value="">← Past Clients</option>
+                                {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                              </select>
+                            ) : (
+                            <select value={s.clientName} onChange={e => { const v = e.target.value; if (v === "__past_clients__") { enterPastMode(s.id) } else { patchShoot(s.id, { clientName: v, brand:"", shopName:"", customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select client…</option>
                               {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                              {pastClientOptions.length > 0 && (
-                                <optgroup label="Past Clients">
-                                  {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                </optgroup>
-                              )}
+                              {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
                               <option value="__custom__">✏️ Other (type manually)</option>
                             </select>
+                            )}
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                           </div>
                         </div>
@@ -1445,16 +1430,21 @@ export default function DailyUpdateForm({
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client Name *</label>
                           <div style={{ position:"relative" }}>
-                            <select value={e.clientName} onChange={ev => patchEdit(e.id, { clientName: ev.target.value, brand:"", customClient:"" })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
+                              <select value={e.clientName}
+                                onChange={ev => { patchEdit(e.id, { clientName: ev.target.value, brand:"", customClient:"" }); exitPastMode(e.id) }}
+                                style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                <option value="">← Past Clients</option>
+                                {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                              </select>
+                            ) : (
+                            <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchEdit(e.id, { clientName: v, brand:"", customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select client…</option>
                               {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                              {pastClientOptions.length > 0 && (
-                                <optgroup label="Past Clients">
-                                  {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                                </optgroup>
-                              )}
+                              {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
                               <option value="__custom__">✏️ Other (type manually)</option>
                             </select>
+                            )}
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                           </div>
                           {e.clientName === "__custom__" && (

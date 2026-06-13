@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useCallback, Fragment } from "react"
 import Image from "next/image"
 import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch } from "lucide-react"
-import { clockIn, clockOut, markAbsent, markPastAbsent, breakIn, breakOut, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes } from "@/lib/actions/attendance"
+import { clockIn, clockOut, markAbsent, markPastAbsent, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes } from "@/lib/actions/attendance"
 import { useRouter } from "next/navigation"
 
 const OFFICE_LAT     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LAT     ?? "12.415145713024462")
@@ -317,14 +317,9 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const isIn      = !!todayLog?.clock_in && !todayLog?.clock_out && todayLog?.status === "present"
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
   const notLogged = !todayLog
-  const isOnBreak       = !!todayLog?.break_in && !todayLog?.break_out
   const breakTotalMins  = todayLog?.break_total_mins ?? 0
-  // Minutes into current active break (if on break right now)
-  const currentBreakMins = isOnBreak && todayLog?.break_in
-    ? Math.round((Date.now() - new Date(todayLog.break_in).getTime()) / 60000)
-    : 0
   const hoursWorked    = todayLog?.clock_in
-    ? Math.max(0, calcHoursNet(todayLog.clock_in, todayLog.clock_out, breakTotalMins, todayLog.break_in ?? null, todayLog.paused_seconds) - todayPermissionHours)
+    ? Math.max(0, calcHoursNet(todayLog.clock_in, todayLog.clock_out, breakTotalMins, null, todayLog.paused_seconds) - todayPermissionHours)
     : 0
   const remainingHours = Math.max(SHIFT_HOURS - hoursWorked, 0)
   const isOvertime     = hoursWorked > SHIFT_HOURS
@@ -471,7 +466,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       clockInIso={todayLog.clock_in}
                       pausedSeconds={todayLog.paused_seconds}
                       breakTotalMins={breakTotalMins}
-                      currentBreakInIso={isOnBreak ? (todayLog.break_in ?? null) : null}
+                      currentBreakInIso={null}
                     />
                     <SegmentBar hoursWorked={hoursWorked} />
                     <p className="text-[12px] mb-1" style={{ color: "#9CA3AF" }}>
@@ -488,51 +483,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       {isPending ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
                       Log Out
                     </button>
-                    {/* Break buttons — multiple breaks allowed */}
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {!isOnBreak && (
-                        <button onClick={() => handle(breakIn)} disabled={isPending}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold disabled:opacity-50"
-                          style={{ border: "1.5px solid #F59E0B", background: "rgba(245,158,11,0.08)", color: "#D97706" }}>
-                          ☕ Break In
-                        </button>
-                      )}
-                      {isOnBreak && (
-                        <button onClick={() => handle(breakOut)} disabled={isPending}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold disabled:opacity-50"
-                          style={{ border: "1.5px solid #22C55E", background: "rgba(34,197,94,0.08)", color: "#16A34A" }}>
-                          ▶ Break Out
-                        </button>
-                      )}
-                      {isOnBreak && (
-                        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold"
-                          style={{ border: "1.5px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.07)", color: "#D97706" }}>
-                          ☕ On break · {currentBreakMins}m
-                        </div>
-                      )}
-                      {breakTotalMins > 0 && (
-                        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold"
-                          style={{ border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280" }}>
-                          Total break: {breakTotalMins}m
-                        </div>
-                      )}
-                    </div>
-                    {/* Break timeline */}
-                    {(todayLog?.break_sessions?.length ?? 0) > 0 && (
-                      <div className="mt-3 space-y-1.5">
-                        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Break History</p>
-                        {(todayLog?.break_sessions ?? []).map((s, i) => (
-                          <div key={i} className="flex items-center gap-2 text-[11px]" style={{ color: "#6B7280" }}>
-                            <span className="font-semibold" style={{ color: "#374151" }}>Break {i + 1}</span>
-                            <span>·</span>
-                            <span>{fmtTimeFromIso(s.in)}</span>
-                            <span>–</span>
-                            <span>{s.out ? fmtTimeFromIso(s.out) : <span style={{ color: "#F59E0B" }}>ongoing</span>}</span>
-                            {s.mins != null && <><span>·</span><span style={{ color: "#16A34A" }}>{s.mins} min</span></>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                     {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
                   </div>
                   {/* Large alarm clock illustration */}
@@ -631,7 +581,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               {/* Time breakdown */}
               {todayLog?.clock_in && (() => {
                 const spanH      = calcHours(todayLog.clock_in, todayLog.clock_out)
-                const totalBreakMins = isOnBreak ? breakTotalMins + currentBreakMins : breakTotalMins
+                const totalBreakMins = breakTotalMins
                 const breakH     = totalBreakMins / 60
                 return (
                   <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12, marginTop: 4 }}>
@@ -644,12 +594,11 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       </div>
                       <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>−</span>
                       {/* Break */}
-                      <div style={{ textAlign: "center", background: isOnBreak ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.06)", borderRadius: 10, padding: "8px 4px", border: `1px solid rgba(245,158,11,${isOnBreak ? "0.35" : "0.15"})` }}>
+                      <div style={{ textAlign: "center", background: "rgba(245,158,11,0.06)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(245,158,11,0.15)" }}>
                         <p style={{ fontSize: 10, fontWeight: 700, color: "#D97706", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px" }}>Break</p>
                         <p style={{ fontSize: 15, fontWeight: 900, color: "#D97706", margin: 0, fontFamily: "var(--font-jakarta)" }}>
                           {totalBreakMins > 0 ? fmtHoursShort(breakH) : "0h"}
                         </p>
-                        {isOnBreak && <p style={{ fontSize: 9, color: "#D97706", margin: 0, fontWeight: 700 }}>ongoing</p>}
                       </div>
                       <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>=</span>
                       {/* Worked */}

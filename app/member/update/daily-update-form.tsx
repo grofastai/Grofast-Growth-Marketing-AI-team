@@ -459,7 +459,7 @@ export default function DailyUpdateForm({
         task_type: "break" as const,
         title: t.breakLabel || "Break",
         start_time: t.startTime, end_time: t.endTime,
-        duration_hours: t.durationHours, notes: null,
+        duration_hours: t.durationHours, notes: undefined,
         video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
       })),
     ]
@@ -508,7 +508,7 @@ export default function DailyUpdateForm({
         id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
         task_type: "break" as const,
         title: b.label || "Break", start_time: b.startTime, end_time: b.endTime,
-        duration_hours: b.durationHours, notes: null,
+        duration_hours: b.durationHours, notes: undefined,
         video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
       })),
     ]

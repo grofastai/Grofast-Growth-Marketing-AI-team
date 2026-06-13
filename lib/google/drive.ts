@@ -139,8 +139,8 @@ export async function initResumableUpload(
 }
 
 /**
- * Uploads a JSON string to <root>/Backups/<year>/<fileName> in the Shared Drive.
- * Creates the folder hierarchy if it doesn't exist.
+ * Uploads a JSON string to GOOGLE_DRIVE_BACKUP_FOLDER_ID/<year>/<fileName>.
+ * Creates the year sub-folder if it doesn't exist.
  * Returns the Drive file ID.
  */
 export async function uploadFileToBackupFolder(
@@ -148,10 +148,10 @@ export async function uploadFileToBackupFolder(
   fileName: string,
   content: string,
 ): Promise<string> {
+  const backupRoot = process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID
+  if (!backupRoot) throw new Error('GOOGLE_DRIVE_BACKUP_FOLDER_ID env var is not set')
   const t = await token()
-  const rootId = await getRootFolder(t)
-  const backupsId = await findOrCreate('Backups', rootId, t)
-  const yearId = await findOrCreate(year, backupsId, t)
+  const yearId = await findOrCreate(year, backupRoot, t)
 
   const metadata = JSON.stringify({ name: fileName, parents: [yearId] })
   const BOUNDARY = 'gf_backup_boundary'

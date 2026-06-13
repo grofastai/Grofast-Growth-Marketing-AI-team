@@ -333,14 +333,14 @@ export default function HistoryClient({
     let shootH = 0, editH = 0, otherH = 0
     const hoursPerDay: number[] = []
     for (const u of monthFiltered) {
-      const workH = u.working_hours ?? 0
+      const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+      const workH = entries.reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const learnH = u.learning_hours ?? 0
       const h = workH + learnH
       totalHours += h; if (h > 9) totalOT += Math.round((h - 9) * 10) / 10
       totalLearning += learnH
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
-      const entries = Array.isArray(u.work_entries) ? u.work_entries : []
       totalTasks += entries.length
       for (const e of entries) {
         if (e.task_type === "shoot") shootH += e.duration_hours ?? 0
@@ -391,8 +391,9 @@ export default function HistoryClient({
   const greeting = now.getHours() < 12 ? "Good Morning" : now.getHours() < 17 ? "Good Afternoon" : "Good Evening"
   const fn = userName.split(" ")[0] || "there"
 
-  // Latest day stats
-  const latestH  = (latest?.working_hours ?? 0) + (latest?.learning_hours ?? 0)
+  // Latest day stats — sum from work_entries only (not attendance-derived working_hours)
+  const latestEntries = Array.isArray(latest?.work_entries) ? latest!.work_entries! : []
+  const latestH  = latestEntries.reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) + (latest?.learning_hours ?? 0)
   const latestOT = latestH > 9 ? Math.round((latestH - 9) * 10) / 10 : 0
   const latestTasks = latest ? (Array.isArray(latest.work_entries) ? latest.work_entries : []).length : 0
   const latestSt = latest ? (STATUS_STYLE[latest.attendance_status] ?? STATUS_STYLE.present) : STATUS_STYLE.present
@@ -620,12 +621,15 @@ export default function HistoryClient({
                       </div>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      {((u.working_hours ?? 0) + (u.learning_hours ?? 0)) > 0 && (
-                        <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
-                          <Clock size={11} style={{ color:"#9CA3AF" }}/>
-                          {fmtH((u.working_hours ?? 0) + (u.learning_hours ?? 0))}
-                        </span>
-                      )}
+                      {(() => {
+                        const dayEntryH = entries.reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) + (u.learning_hours ?? 0)
+                        return dayEntryH > 0 ? (
+                          <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
+                            <Clock size={11} style={{ color:"#9CA3AF" }}/>
+                            {fmtH(dayEntryH)}
+                          </span>
+                        ) : null
+                      })()}
                       <span style={{ fontSize:11, fontWeight:700, color:st.color, background:st.bg, padding:"3px 10px", borderRadius:99 }}>
                         {st.label}
                       </span>

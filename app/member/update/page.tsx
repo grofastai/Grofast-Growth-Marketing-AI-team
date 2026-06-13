@@ -79,6 +79,7 @@ export default async function UpdatePage() {
       .select("id, name, employee_id, role")
       .eq("company_id", companyId)
       .eq("status", "active")
+      .eq("role", "MEMBER")
       .neq("id", effectiveUserId)
       .order("name"),
   ])

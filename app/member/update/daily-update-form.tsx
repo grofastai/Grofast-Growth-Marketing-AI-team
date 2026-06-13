@@ -324,25 +324,19 @@ export default function DailyUpdateForm({
 
   const [tab, setTab] = useState<"working" | "media" | "learning">(isMediaTeam ? "media" : "working")
 
-  // Build active client list: internal brands first, then deduped active clients (case-insensitive)
-  const seenLower = new Set(INTERNAL_BRANDS.map(n => n.toLowerCase()))
+  // Normalize: collapse all whitespace (including non-breaking spaces) to single space, lowercase
+  const norm = (s: string) => s.replace(/[\s ]+/g, " ").trim().toLowerCase()
+  const seenLower = new Set(INTERNAL_BRANDS.map(norm))
   const activeClientOptions: string[] = [...INTERNAL_BRANDS]
-  for (const n of [
-    ...projects.map(p => p.business_name),
-    ...sheetClientNames,
-  ]) {
-    if (n && !seenLower.has(n.toLowerCase())) {
-      seenLower.add(n.toLowerCase())
-      activeClientOptions.push(n)
-    }
+  for (const n of [...projects.map(p => p.business_name), ...sheetClientNames]) {
+    const t = n?.replace(/[\s ]+/g, " ").trim()
+    if (t && !seenLower.has(norm(t))) { seenLower.add(norm(t)); activeClientOptions.push(t) }
   }
   // Past clients — deduped against active list
   const pastClientOptions: string[] = []
   for (const n of pastClientNames) {
-    if (n && !seenLower.has(n.toLowerCase())) {
-      seenLower.add(n.toLowerCase())
-      pastClientOptions.push(n)
-    }
+    const t = n?.replace(/[\s ]+/g, " ").trim()
+    if (t && !seenLower.has(norm(t))) { seenLower.add(norm(t)); pastClientOptions.push(t) }
   }
   const allClientOptions = activeClientOptions
 
@@ -1034,9 +1028,9 @@ export default function DailyUpdateForm({
                             <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project</p>
                             <div style={{ position:"relative" }}>
                               {showPastFor.has(`blk-${block.id}`) ? (
-                                <select value="" onChange={e => { const v = e.target.value; if (!v) return; if (!block.clientNames.includes(v)) patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" }); exitPastMode(`blk-${block.id}`) }}
+                                <select value="" onChange={e => { const v = e.target.value; if (!v) return; if (v === "__back__") { exitPastMode(`blk-${block.id}`); return } if (!block.clientNames.includes(v)) patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" }); exitPastMode(`blk-${block.id}`) }}
                                   style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                                  <option value="">← Past Clients</option>
+                                  <option value="__back__">← Back to Active Clients</option>
                                   {pastClientOptions.filter(n => !block.clientNames.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
                                 </select>
                               ) : (
@@ -1193,12 +1187,21 @@ export default function DailyUpdateForm({
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project *</label>
                           <div style={{ position:"relative" }}>
                             {(showPastFor.has(s.id) || pastClientOptions.includes(s.clientName)) ? (
-                              <select value={s.clientName}
-                                onChange={e => { const v = e.target.value; patchShoot(s.id, { clientName: v, brand:"", shopName:"", customClient:"" }); exitPastMode(s.id) }}
-                                style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">← Past Clients</option>
-                                {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                              </select>
+                              <div>
+                                <button type="button" onClick={() => exitPastMode(s.id)}
+                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
+                                  ← Back to Active Clients
+                                </button>
+                                <div style={{ position:"relative" }}>
+                                  <select value={s.clientName}
+                                    onChange={e => { patchShoot(s.id, { clientName: e.target.value, brand:"", shopName:"", customClient:"" }); exitPastMode(s.id) }}
+                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                    <option value="">Select past client…</option>
+                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                  </select>
+                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                </div>
+                              </div>
                             ) : (
                             <select value={s.clientName} onChange={e => { const v = e.target.value; if (v === "__past_clients__") { enterPastMode(s.id) } else { patchShoot(s.id, { clientName: v, brand:"", shopName:"", customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select client…</option>
@@ -1431,12 +1434,21 @@ export default function DailyUpdateForm({
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client Name *</label>
                           <div style={{ position:"relative" }}>
                             {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
-                              <select value={e.clientName}
-                                onChange={ev => { patchEdit(e.id, { clientName: ev.target.value, brand:"", customClient:"" }); exitPastMode(e.id) }}
-                                style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">← Past Clients</option>
-                                {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-                              </select>
+                              <div>
+                                <button type="button" onClick={() => exitPastMode(e.id)}
+                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
+                                  ← Back to Active Clients
+                                </button>
+                                <div style={{ position:"relative" }}>
+                                  <select value={e.clientName}
+                                    onChange={ev => { patchEdit(e.id, { clientName: ev.target.value, brand:"", customClient:"" }); exitPastMode(e.id) }}
+                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                    <option value="">Select past client…</option>
+                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                  </select>
+                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                </div>
+                              </div>
                             ) : (
                             <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchEdit(e.id, { clientName: v, brand:"", customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select client…</option>

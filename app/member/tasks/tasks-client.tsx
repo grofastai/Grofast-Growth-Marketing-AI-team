@@ -15,7 +15,6 @@ import {
 } from "lucide-react"
 import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject, updateTask } from "@/lib/actions/tasks"
 import { getTaskComments, addTaskComment, type TaskComment } from "@/lib/actions/comments"
-import { OWN_BRANDS } from "@/components/ui/ClientSelector"
 
 interface Task {
   id: string
@@ -1463,7 +1462,6 @@ export default function MemberTasksClient({
                     className="w-full px-3 py-2 rounded-xl text-[13px]"
                     style={{ border: "1.5px solid #EBEDF2", outline: "none", appearance: "none", paddingRight: 28 }}>
                     <option value="">Add client / project…</option>
-                    <option value="Promotion">📣 Our Brand</option>
                     {projects
                       .filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id))
                       .map(p => <option key={p.id} value={p.id}>{p.business_name}</option>)}
@@ -1471,18 +1469,6 @@ export default function MemberTasksClient({
                   </select>
                   <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
                 </div>
-                {/* Our Brand → brand picker */}
-                {assignClientType === "Promotion" && (
-                  <div style={{ position: "relative", marginTop: 6 }}>
-                    <select value={assignBrand} onChange={e => setAssignBrand(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl text-[13px]"
-                      style={{ border: "1.5px solid rgba(245,158,11,0.3)", outline: "none", appearance: "none", paddingRight: 28, color: "#D97706", background: "rgba(245,158,11,0.04)" }}>
-                      <option value="">📣 Select brand…</option>
-                      {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                    <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#D97706", pointerEvents: "none" }} />
-                  </div>
-                )}
                 {/* Other → custom text */}
                 {assignClientType === "__custom__" && (
                   <input

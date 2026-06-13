@@ -324,25 +324,18 @@ export default function DailyUpdateForm({
 
   const [tab, setTab] = useState<"working" | "media" | "learning">(isMediaTeam ? "media" : "working")
 
-  // Build active client list: internal brands first, then deduped active clients (case-insensitive)
-  const seenLower = new Set(INTERNAL_BRANDS.map(n => n.toLowerCase()))
+  // Build active client list: internal brands first, then deduped active clients (case-insensitive + trimmed)
+  const seenLower = new Set(INTERNAL_BRANDS.map(n => n.trim().toLowerCase()))
   const activeClientOptions: string[] = [...INTERNAL_BRANDS]
-  for (const n of [
-    ...projects.map(p => p.business_name),
-    ...sheetClientNames,
-  ]) {
-    if (n && !seenLower.has(n.toLowerCase())) {
-      seenLower.add(n.toLowerCase())
-      activeClientOptions.push(n)
-    }
+  for (const n of [...projects.map(p => p.business_name), ...sheetClientNames]) {
+    const t = n?.trim()
+    if (t && !seenLower.has(t.toLowerCase())) { seenLower.add(t.toLowerCase()); activeClientOptions.push(t) }
   }
   // Past clients — deduped against active list
   const pastClientOptions: string[] = []
   for (const n of pastClientNames) {
-    if (n && !seenLower.has(n.toLowerCase())) {
-      seenLower.add(n.toLowerCase())
-      pastClientOptions.push(n)
-    }
+    const t = n?.trim()
+    if (t && !seenLower.has(t.toLowerCase())) { seenLower.add(t.toLowerCase()); pastClientOptions.push(t) }
   }
   const allClientOptions = activeClientOptions
 
@@ -1034,9 +1027,9 @@ export default function DailyUpdateForm({
                             <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project</p>
                             <div style={{ position:"relative" }}>
                               {showPastFor.has(`blk-${block.id}`) ? (
-                                <select value="" onChange={e => { const v = e.target.value; if (!v) return; if (!block.clientNames.includes(v)) patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" }); exitPastMode(`blk-${block.id}`) }}
+                                <select value="" onChange={e => { const v = e.target.value; if (!v) return; if (v === "__back__") { exitPastMode(`blk-${block.id}`); return } if (!block.clientNames.includes(v)) patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" }); exitPastMode(`blk-${block.id}`) }}
                                   style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                                  <option value="">← Past Clients</option>
+                                  <option value="__back__">← Back to Active Clients</option>
                                   {pastClientOptions.filter(n => !block.clientNames.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
                                 </select>
                               ) : (
@@ -1194,9 +1187,9 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             {(showPastFor.has(s.id) || pastClientOptions.includes(s.clientName)) ? (
                               <select value={s.clientName}
-                                onChange={e => { const v = e.target.value; patchShoot(s.id, { clientName: v, brand:"", shopName:"", customClient:"" }); exitPastMode(s.id) }}
+                                onChange={e => { const v = e.target.value; if (v === "__back__") { exitPastMode(s.id); return } patchShoot(s.id, { clientName: v, brand:"", shopName:"", customClient:"" }); exitPastMode(s.id) }}
                                 style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">← Past Clients</option>
+                                <option value="__back__">← Back to Active Clients</option>
                                 {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
                               </select>
                             ) : (
@@ -1432,9 +1425,9 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
                               <select value={e.clientName}
-                                onChange={ev => { patchEdit(e.id, { clientName: ev.target.value, brand:"", customClient:"" }); exitPastMode(e.id) }}
+                                onChange={ev => { const v = ev.target.value; if (v === "__back__") { exitPastMode(e.id); return } patchEdit(e.id, { clientName: v, brand:"", customClient:"" }); exitPastMode(e.id) }}
                                 style={{ ...F, paddingRight:28, appearance:"none" }}>
-                                <option value="">← Past Clients</option>
+                                <option value="__back__">← Back to Active Clients</option>
                                 {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
                               </select>
                             ) : (

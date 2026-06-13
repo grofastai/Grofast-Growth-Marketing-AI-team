@@ -1104,7 +1104,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                     <thead>
                       <tr style={{ background:"#F5F6FA" }}>
-                        {["Date","Day","Status","Mode","Login","Logout","Office Hrs","Worked",""].map(h => (
+                        {["Date","Day","Status","Mode","Login","Logout","Break","Office Hrs","Worked",""].map(h => (
                           <th key={h} style={{ padding:"8px 10px", textAlign:"left", fontWeight:700, color:"#6B7280", fontSize:10, textTransform:"uppercase", letterSpacing:"0.06em", whiteSpace:"nowrap" }}>{h}</th>
                         ))}
                       </tr>
@@ -1119,7 +1119,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                             <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111", whiteSpace:"nowrap" }}>{dateLabel}</td>
                             <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
                             <td style={{ padding:"9px 10px" }}><span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(0,0,0,0.04)", color:"#9CA3AF" }}>No Record</span></td>
-                            <td colSpan={4} style={{ padding:"9px 10px", color:"#D1D5DB" }}>—</td>
+                            <td colSpan={5} style={{ padding:"9px 10px", color:"#D1D5DB" }}>—</td>
                             <td style={{ padding:"9px 10px" }} />
                             <td style={{ padding:"9px 10px" }}>
                               {date < today && (
@@ -1147,6 +1147,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               <td style={{ padding:"9px 10px", color:"#6B7280", textTransform:"capitalize" }}>{l.work_type ?? "—"}</td>
                               <td style={{ padding:"9px 10px", color:"#111111", whiteSpace:"nowrap" }}>{fmtTime(l.clock_in)}</td>
                               <td style={{ padding:"9px 10px", color: l.clock_out ? "#111111" : "#EF4444", whiteSpace:"nowrap" }}>{l.clock_out ? fmtTime(l.clock_out) : "—"}</td>
+                              <td style={{ padding:"9px 10px", fontWeight:600, color: (l.break_total_mins ?? 0) > 0 ? "#F59E0B" : "#D1D5DB" }}>{(l.break_total_mins ?? 0) > 0 ? fmtHoursShort(Math.round((l.break_total_mins/60)*10)/10) : "—"}</td>
                               <td style={{ padding:"9px 10px", fontWeight:700, color:"#374151" }}>{officeH > 0 ? fmtHoursShort(Math.round(officeH*10)/10) : "—"}</td>
                               <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111" }}>{workedH > 0 ? fmtHoursShort(Math.round(workedH*10)/10) : "—"}</td>
                               <td style={{ padding:"9px 10px" }}>
@@ -1171,16 +1172,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                                       <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6B7280", marginBottom:3 }}>LOGOUT</label>
                                       <input type="time" value={editCOut} onChange={e => setEditCOut(e.target.value)}
                                         style={{ padding:"6px 10px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none" }}/>
-                                    </div>
-                                    <div>
-                                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#F59E0B", marginBottom:3 }}>BREAK IN</label>
-                                      <input type="time" value={editBrkIn} onChange={e => setEditBrkIn(e.target.value)}
-                                        style={{ padding:"6px 10px", borderRadius:8, border:"1.5px solid #FDE68A", fontSize:12, color:"#111111", outline:"none" }}/>
-                                    </div>
-                                    <div>
-                                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#F59E0B", marginBottom:3 }}>BREAK OUT</label>
-                                      <input type="time" value={editBrkOut} onChange={e => setEditBrkOut(e.target.value)}
-                                        style={{ padding:"6px 10px", borderRadius:8, border:"1.5px solid #FDE68A", fontSize:12, color:"#111111", outline:"none" }}/>
                                     </div>
                                     <button onClick={handleEditTimes} disabled={editSaving || !editCIn}
                                       style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:8, background:"#6366F1", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:editSaving?0.6:1 }}>

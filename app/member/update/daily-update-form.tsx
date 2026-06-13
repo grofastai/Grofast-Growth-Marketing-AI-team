@@ -13,7 +13,7 @@ import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/l
 interface Project { id: string; business_name: string }
 interface TeamMember { id: string; name: string; employee_id: string; role: string }
 
-const INTERNAL_BRANDS = ["Grofast Digital", "Karthick Brands"]
+const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 
 interface ShootEntry {
   id: string; clientName: string; customClient: string; title: string
@@ -408,6 +408,7 @@ export default function DailyUpdateForm({
   const removeMediaBreak = (id: string) => setMediaBreaks(p => p.filter(b => b.id !== id))
 
   // ── Learning ─────────────────────────────────────────────────────────────
+  const [learningClient, setLearningClient] = useState("GROFAST DIGITAL")
   const [learningTopic, setLearningTopic] = useState(
     (existingUpdate?.learning_topic as string) ?? ""
   )
@@ -641,7 +642,7 @@ export default function DailyUpdateForm({
         shoot_count: 0, editing_count: 0,
         shoot_time_hours: 0, editing_time_hours: 0,
         learning_hours: learningHours,
-        learning_topic: learningTopic,
+        learning_topic: `[${learningClient}] ${learningTopic}`.trim(),
         learning_notes: learningNotes,
         participant_ids: learningParticipantIds,
       })
@@ -653,6 +654,7 @@ export default function DailyUpdateForm({
   function handleSubmit() {
     if (tab === "working") handleWorkingSubmit()
     else if (tab === "media") handleMediaSubmit()
+    else if (tab === "break") { if (isMediaTeam) handleMediaSubmit(); else handleWorkingSubmit() }
     else handleLearningSubmit()
   }
 
@@ -690,6 +692,7 @@ export default function DailyUpdateForm({
             setTimeBlocks(parseExistingBlocks(cur))
             setShoots(parseExistingShoots(cur))
             setEdits(parseExistingEdits(cur))
+            setMediaBreaks(parseExistingMediaBreaks(cur))
             setEditMode(true)
             setSubmitted(false)
             if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
@@ -1734,6 +1737,20 @@ export default function DailyUpdateForm({
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
               <SectionHead icon={<BookOpen size={16} style={{ color:"#10B981" }} />} label="What did you learn today?" count={0} color="#10B981" />
               <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                <div>
+                  <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>For Client *</label>
+                  <div style={{ display:"flex", gap:8 }}>
+                    {["GROFAST DIGITAL", "GROFAST AI"].map(c => (
+                      <button key={c} type="button" onClick={() => setLearningClient(c)}
+                        style={{ flex:1, padding:"9px 14px", borderRadius:10, fontSize:12, fontWeight:700, cursor:"pointer",
+                          border: learningClient === c ? "2px solid #10B981" : "1.5px solid #EBEDF2",
+                          background: learningClient === c ? "rgba(16,185,129,0.1)" : "#F9FAFB",
+                          color: learningClient === c ? "#059669" : "#6B7280" }}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div>
                   <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Topic / Course *</label>
                   <input value={learningTopic} onChange={e => setLearningTopic(e.target.value)} placeholder="e.g. DaVinci Resolve color grading, Adobe Premiere…" style={F} />

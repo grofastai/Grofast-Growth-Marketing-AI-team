@@ -969,6 +969,15 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
                             <ClipboardList size={14} />
                           </button>
 
+                          <button onClick={() => { setConfirmDelete(member); setOpenDropdown(null) }}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                            title="Delete member"
+                            style={{ color: "#EF4444" }}
+                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.08)"}
+                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                            <Trash2 size={14} />
+                          </button>
+
                           <button onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
                             className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
                             style={{ color: "#9CA3AF" }}

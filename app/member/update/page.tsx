@@ -38,6 +38,7 @@ export default async function UpdatePage() {
   const [
     { data: projectsRaw },
     { data: supabaseClientsRaw },
+    { data: pastClientsRaw },
     { data: existingUpdate },
     { data: pastUpdates },
     { data: teamMembersRaw },
@@ -53,6 +54,12 @@ export default async function UpdatePage() {
       .select("name")
       .eq("company_id", companyId)
       .eq("status", "active")
+      .order("name"),
+    admin
+      .from("clients")
+      .select("name")
+      .eq("company_id", companyId)
+      .eq("status", "past")
       .order("name"),
     admin
       .from("daily_updates")
@@ -83,6 +90,7 @@ export default async function UpdatePage() {
   const teamMembers = (teamMembersRaw ?? []) as TeamMember[]
 
   const clientNames = supabaseClientNames
+  const pastClientNames = (pastClientsRaw ?? []).map((c: { name: string }) => c.name)
   const userName = (profile as { name?: string } | null)?.name ?? ""
 
   const fallback = (
@@ -97,6 +105,7 @@ export default async function UpdatePage() {
       <DailyUpdateForm
         projects={projects}
         sheetClientNames={clientNames}
+        pastClientNames={pastClientNames}
         team={profile?.team ?? null}
         userName={userName}
         existingUpdate={existingUpdate ?? null}

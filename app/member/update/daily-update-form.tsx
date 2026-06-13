@@ -583,7 +583,7 @@ export default function DailyUpdateForm({
   function handleSaveEntry(entryId: string) {
     setError(null)
     const editEntry = edits.find(e => e.id === entryId)
-    if (editEntry && !editEntry.videoLink.trim()) { setError("Drive link is required before saving."); return }
+    // drive link optional — just warn, don't block
     const shootEntry = shoots.find(s => s.id === entryId)
     const work_entries = [
       ...shoots.map(s => ({
@@ -1544,9 +1544,9 @@ export default function DailyUpdateForm({
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>
-                            <Link2 size={9} style={{ display:"inline", marginRight:4 }} />Drive / Video Link <span style={{ color:"#de1a1a" }}>*</span>
+                            <Link2 size={9} style={{ display:"inline", marginRight:4 }} />Drive / Video Link
                           </label>
-                          <input value={e.videoLink} onChange={ev => patchEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/… (required)" style={{ ...F, borderColor: !e.videoLink.trim() ? "rgba(222,26,26,0.4)" : "#EBEDF2" }} />
+                          <input value={e.videoLink} onChange={ev => patchEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/… (optional)" style={F} />
                         </div>
                       </div>
                       {/* Partner picker per edit */}

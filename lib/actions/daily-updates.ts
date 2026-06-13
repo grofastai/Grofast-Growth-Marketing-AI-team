@@ -121,26 +121,24 @@ export async function submitDailyUpdate(
     if (insertError) return { success: false, error: insertError.message }
   }
 
-  // Sync break entries to attendance_logs (today only — cannot modify past attendance)
-  if (!isPastDate) {
-    const breakEntries = d.work_entries.filter(e => e.task_type === 'break')
-    if (breakEntries.length > 0) {
-      const breakSessions = breakEntries
-        .filter(e => e.start_time && e.end_time && e.duration_hours > 0)
-        .map(e => ({
-          start: e.start_time,
-          end: e.end_time,
-          duration_mins: Math.round(e.duration_hours * 60),
-          label: e.title || 'Break',
-        }))
-      const totalBreakMins = breakSessions.reduce((s, b) => s + b.duration_mins, 0)
-      await admin
-        .from('attendance_logs')
-        .update({ break_sessions: breakSessions, break_total_mins: totalBreakMins })
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .eq('company_id', profile.company_id)
-    }
+  // Sync break entries to attendance_logs (works for any date — past or today)
+  const breakEntries = d.work_entries.filter(e => e.task_type === 'break')
+  if (breakEntries.length > 0) {
+    const breakSessions = breakEntries
+      .filter(e => e.start_time && e.end_time && e.duration_hours > 0)
+      .map(e => ({
+        start: e.start_time,
+        end: e.end_time,
+        duration_mins: Math.round(e.duration_hours * 60),
+        label: e.title || 'Break',
+      }))
+    const totalBreakMins = breakSessions.reduce((s, b) => s + b.duration_mins, 0)
+    await admin
+      .from('attendance_logs')
+      .update({ break_sessions: breakSessions, break_total_mins: totalBreakMins })
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .eq('company_id', profile.company_id)
   }
 
   // WhatsApp notification to admin — only on first submission of today's update

@@ -1613,9 +1613,9 @@ export default function DailyUpdateForm({
                     <Coffee size={16} style={{ color:"#D97706" }} />
                   </div>
                   <div>
-                    <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Breaks Today</p>
+                    <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>{isPastDate ? "Breaks" : "Breaks Today"}</p>
                     <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
-                      {mediaBreaks.length} break{mediaBreaks.length !== 1 ? "s" : ""} · {mediaBreaks.reduce((s,b) => s + b.durationHours, 0).toFixed(1)}h total · synced to attendance
+                      {mediaBreaks.length} break{mediaBreaks.length !== 1 ? "s" : ""} · {mediaBreaks.reduce((s,b) => s + b.durationHours, 0).toFixed(1)}h total · {isPastDate ? "synced to past attendance" : "synced to attendance"}
                     </p>
                   </div>
                 </div>

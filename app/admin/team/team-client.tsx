@@ -99,6 +99,7 @@ interface SheetProps {
   onClose: () => void
   member?: Member | null
   nextId?: string
+  initialRole?: "ADMIN" | "MEMBER" | "FREELANCER_MGR"
 }
 
 const ACCOUNT_TYPES = [
@@ -131,15 +132,15 @@ const ACCOUNT_TYPES = [
   },
 ]
 
-function MemberSheet({ open, onClose, member, nextId }: SheetProps) {
+function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps) {
   const isEdit = !!member
-  const [step, setStep] = useState<"type" | "details">(isEdit ? "details" : "type")
+  const [step, setStep] = useState<"type" | "details">(isEdit || initialRole ? "details" : "type")
   const [form, setForm] = useState({
     name: member?.name ?? "",
     employee_id: member?.employee_id ?? nextId ?? "",
     email: member?.email ?? "",
     phone: member?.phone ?? "",
-    role: (member?.role ?? "MEMBER") as "ADMIN" | "MEMBER" | "FREELANCER_MGR" | "FOUNDER" | "CEO",
+    role: (member?.role ?? initialRole ?? "MEMBER") as "ADMIN" | "MEMBER" | "FREELANCER_MGR" | "FOUNDER" | "CEO",
     team: member?.team ?? "",
     position: member?.position ?? "",
     password: "",
@@ -660,6 +661,7 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
   const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER" | "FREELANCER_MGR">("ALL")
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
+  const [freelancerSheetOpen, setFreelancerSheetOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [showPast, setShowPast] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Member | null>(null)
@@ -828,6 +830,15 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
               <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Employee Directory</h3>
               <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{filtered.length} of {members.length} members</p>
             </div>
+            <div className="flex items-center gap-2">
+            {roleFilter === "FREELANCER_MGR" && (
+              <button
+                onClick={() => setFreelancerSheetOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all"
+                style={{ background: "rgba(45,106,79,0.08)", color: "#2D6A4F", border: "1.5px solid rgba(45,106,79,0.25)" }}>
+                <Plus size={13} /> Add Freelancer
+              </button>
+            )}
             {/* Tab filters */}
             <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
               {([
@@ -844,6 +855,7 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
                   {label}
                 </button>
               ))}
+            </div>
             </div>
           </div>
 
@@ -1352,6 +1364,7 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
       {assignTarget && <AssignTaskModal member={assignTarget} onClose={() => setAssignTarget(null)} />}
 
       <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} nextId={nextId} />
+      <MemberSheet key="freelancer-add" open={freelancerSheetOpen} onClose={() => setFreelancerSheetOpen(false)} nextId={nextId} initialRole="FREELANCER_MGR" />
     </div>
   )
 }

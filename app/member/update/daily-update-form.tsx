@@ -526,7 +526,7 @@ export default function DailyUpdateForm({
   // ── Submit: media (shoots + edits + breaks) ──────────────────────────────
   function handleMediaSubmit() {
     setError(null)
-    if (shoots.length === 0 && edits.length === 0) { setError("Add at least one shoot or edit entry."); return }
+    if (tab !== "break" && shoots.length === 0 && edits.length === 0) { setError("Add at least one shoot or edit entry."); return }
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
@@ -1846,13 +1846,16 @@ export default function DailyUpdateForm({
             </div>
           )}
 
-          {/* ── Submit bar (media team only) ───────────────────────────────── */}
-          {isMediaTeam && (
+          {/* ── Submit bar ─────────────────────────────────────────────────── */}
+          {(isMediaTeam || tab === "break") && (
             <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
               <div>
                 {error && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{error}</p>}
                 {!error && tab === "media"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{shoots.length} shoot{shoots.length !== 1 ? "s" : ""} · {edits.length} edit{edits.length !== 1 ? "s" : ""} · {totalMediaHours}h total</p>}
                 {!error && tab === "learning"&& <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningTopic || "not set"} · {learningHours}h</p>}
+                {!error && tab === "break"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>
+                  {isMediaTeam ? `${mediaBreaks.length} break${mediaBreaks.length !== 1 ? "s" : ""} · ${mediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h` : `${breakBlocks.length} break${breakBlocks.length !== 1 ? "s" : ""} · ${breakBlocks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h`}
+                </p>}
               </div>
               <button onClick={handleSubmit} disabled={isPending || submitted}
                 style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor: isPending || submitted ? "not-allowed" : "pointer", transition:"all 0.2s", opacity: isPending ? 0.7 : 1,

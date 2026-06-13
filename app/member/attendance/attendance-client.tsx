@@ -317,8 +317,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const isIn      = !!todayLog?.clock_in && !todayLog?.clock_out && todayLog?.status === "present"
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
   const notLogged = !todayLog
-  const isOvertime = isIn && (todayLog?.paused_seconds ?? 0) > 0
-
   const isOnBreak       = !!todayLog?.break_in && !todayLog?.break_out
   const breakTotalMins  = todayLog?.break_total_mins ?? 0
   // Minutes into current active break (if on break right now)
@@ -329,6 +327,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     ? Math.max(0, calcHoursNet(todayLog.clock_in, todayLog.clock_out, breakTotalMins, todayLog.break_in ?? null, todayLog.paused_seconds) - todayPermissionHours)
     : 0
   const remainingHours = Math.max(SHIFT_HOURS - hoursWorked, 0)
+  const isOvertime     = hoursWorked > SHIFT_HOURS
 
   const dateStr    = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
   const statusLabel = isAbsent ? "Absent" : (isIn || isDone) ? "Present" : "Not Logged"
@@ -571,18 +570,20 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
                     </div>
                   </div>
-                  {/* Right: Overtime button */}
-                  <button
-                    onClick={() => handle(() => resumeAttendance(today))}
-                    disabled={isPending}
-                    className="flex-shrink-0 flex flex-col items-center justify-center gap-1.5 rounded-2xl transition-all"
-                    style={{ background: "rgba(245,158,11,0.1)", border: "1.5px solid rgba(245,158,11,0.35)", color: "#D97706", padding: "12px 16px", minWidth: 72 }}>
-                    {isPending
-                      ? <Loader2 size={18} className="animate-spin" />
-                      : <TrendingUp size={18} />
-                    }
-                    <span className="text-[11px] font-bold leading-none">Overtime</span>
-                  </button>
+                  {/* Right: Overtime button — only when actually worked > 9h 30m */}
+                  {isOvertime && (
+                    <button
+                      onClick={() => handle(() => resumeAttendance(today))}
+                      disabled={isPending}
+                      className="flex-shrink-0 flex flex-col items-center justify-center gap-1.5 rounded-2xl transition-all"
+                      style={{ background: "rgba(245,158,11,0.1)", border: "1.5px solid rgba(245,158,11,0.35)", color: "#D97706", padding: "12px 16px", minWidth: 72 }}>
+                      {isPending
+                        ? <Loader2 size={18} className="animate-spin" />
+                        : <TrendingUp size={18} />
+                      }
+                      <span className="text-[11px] font-bold leading-none">Overtime</span>
+                    </button>
+                  )}
                 </div>
               )}
 

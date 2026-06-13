@@ -21,7 +21,7 @@ export const workEntrySchema = z.object({
   id:              z.string(),
   client_id:       z.string().nullable().optional(),
   client_name:     z.string().min(1, 'Client name required'),
-  task_type:       z.enum(['shoot', 'edit', 'upload', 'other']),
+  task_type:       z.enum(['shoot', 'edit', 'upload', 'other', 'break']),
   title:           z.string().min(1, 'Entry title required'),
   start_time:      z.string().optional().default(''),
   end_time:        z.string().optional().default(''),
@@ -62,7 +62,8 @@ export const dailyUpdateSchema = z
 
   })
   .superRefine((val, ctx) => {
-    if ((val.active_tab === 'working' || val.active_tab === 'media') && val.work_entries.length === 0) {
+    const nonBreakEntries = val.work_entries.filter(e => e.task_type !== 'break')
+    if ((val.active_tab === 'working' || val.active_tab === 'media') && nonBreakEntries.length === 0) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Add at least one work entry', path: ['work_entries'] })
     }
     if (val.active_tab === 'learning') {

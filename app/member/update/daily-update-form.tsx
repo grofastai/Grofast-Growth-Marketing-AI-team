@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
   Camera, Film, Plus, Trash2, CheckCircle2,
-  Loader2, SendHorizonal, Clock, BookOpen,
+  Loader2, SendHorizonal, Clock, BookOpen, Coffee,
   ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal, Calendar,
 } from "lucide-react"
 import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
@@ -33,12 +33,17 @@ interface EditEntry {
   participantIds: string[]
 }
 interface TimeBlock {
-  id: string; startTime: string; endTime: string
+  id: string; isBreak: boolean; breakLabel: string
+  startTime: string; endTime: string
   durationHours: number; description: string
   projectName: string; brand: string; customClient: string
   status: "completed" | "in_progress" | "not_started"
   isMultiClient: boolean; clientNames: string[]
   participantIds: string[]
+}
+interface MediaBreakEntry {
+  id: string; startTime: string; endTime: string
+  durationHours: number; label: string
 }
 
 function fmt12(t: string) {
@@ -139,13 +144,15 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
   const entries = existingUpdate?.work_entries as SavedEntry[] | null
   if (!Array.isArray(entries)) return []
   return entries
-    .filter(e => e.task_type === 'other')
+    .filter(e => e.task_type === 'other' || e.task_type === 'break')
     .map(e => ({
       id: e.id ?? crypto.randomUUID(),
+      isBreak: e.task_type === 'break',
+      breakLabel: e.task_type === 'break' ? (e.title ?? 'Break') : '',
       startTime: e.start_time ?? '09:00',
       endTime: e.end_time ?? '10:00',
       durationHours: e.duration_hours ?? 1,
-      description: e.title ?? '',
+      description: e.task_type === 'break' ? '' : (e.title ?? ''),
       projectName: '',
       brand: '', customClient: '',
       status: (() => {
@@ -154,8 +161,22 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
         return (VALID.includes(rawStatus as TimeBlock['status']) ? rawStatus : 'not_started') as TimeBlock['status']
       })(),
       isMultiClient: (e.client_names?.length ?? 0) > 1,
-      clientNames: e.is_multi_client ? (e.client_names ?? []) : (e.client_name && e.client_name !== 'Internal' ? [e.client_name] : []),
+      clientNames: e.is_multi_client ? (e.client_names ?? []) : (e.client_name && e.client_name !== 'Internal' && e.task_type !== 'break' ? [e.client_name] : []),
       participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+    }))
+}
+
+function parseExistingMediaBreaks(existingUpdate: Record<string, unknown>): MediaBreakEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'break')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      startTime: e.start_time ?? '13:00',
+      endTime: e.end_time ?? '13:30',
+      durationHours: e.duration_hours ?? 0.5,
+      label: e.title ?? 'Lunch',
     }))
 }
 
@@ -259,6 +280,7 @@ export default function DailyUpdateForm({
     setShoots(found ? parseExistingShoots(found) : [])
     setEdits(found ? parseExistingEdits(found) : [])
     setTimeBlocks(found ? parseExistingBlocks(found) : [])
+    setMediaBreaks(found ? parseExistingMediaBreaks(found) : [])
     setLearningTopic((found?.learning_topic as string) ?? "")
     setLearningFrom(""); setLearningTo("")
     setLearningNotes((found?.learning_notes as string) ?? "")
@@ -308,8 +330,15 @@ export default function DailyUpdateForm({
     existingUpdate ? parseExistingBlocks(existingUpdate) : loadDraft()
   )
   const addTimeBlock = () => setTimeBlocks(p => [...p, {
-    id: crypto.randomUUID(), startTime: "09:00", endTime: "10:00",
+    id: crypto.randomUUID(), isBreak: false, breakLabel: "",
+    startTime: "09:00", endTime: "10:00",
     durationHours: 1, description: "", projectName: "", brand: "", customClient: "",
+    status: "not_started" as const, isMultiClient: false, clientNames: [], participantIds: [],
+  }])
+  const addBreakBlock = () => setTimeBlocks(p => [...p, {
+    id: crypto.randomUUID(), isBreak: true, breakLabel: "Lunch",
+    startTime: "13:00", endTime: "13:30",
+    durationHours: 0.5, description: "", projectName: "", brand: "", customClient: "",
     status: "not_started" as const, isMultiClient: false, clientNames: [], participantIds: [],
   }])
   const patchBlock = (id: string, patch: Partial<TimeBlock>) =>
@@ -319,6 +348,18 @@ export default function DailyUpdateForm({
       return b.id === id ? updated : b
     }))
   const removeBlock = (id: string) => setTimeBlocks(p => p.filter(b => b.id !== id))
+
+  // ── Media Breaks ─────────────────────────────────────────────
+  const [mediaBreaks, setMediaBreaks] = useState<MediaBreakEntry[]>(() =>
+    existingUpdate ? parseExistingMediaBreaks(existingUpdate) : []
+  )
+  const addMediaBreak    = () => setMediaBreaks(p => [...p, { id: crypto.randomUUID(), startTime: "13:00", endTime: "13:30", durationHours: 0.5, label: "Lunch" }])
+  const patchMediaBreak  = (id: string, patch: Partial<MediaBreakEntry>) => setMediaBreaks(p => p.map(b => {
+    const updated = { ...b, ...patch }
+    if (patch.startTime || patch.endTime) updated.durationHours = calcDuration(updated.startTime, updated.endTime)
+    return b.id === id ? updated : b
+  }))
+  const removeMediaBreak = (id: string) => setMediaBreaks(p => p.filter(b => b.id !== id))
 
   // ── Learning ─────────────────────────────────────────────────────────────
   const [learningTopic, setLearningTopic] = useState(
@@ -380,7 +421,8 @@ export default function DailyUpdateForm({
   const totalEditHours  = useMemo(() => edits.reduce((s, e) => s + e.timeTaken, 0), [edits])
   const totalMediaHours = totalShootHours + totalEditHours
   const totalLoggedHours = useMemo(() => timeBlocks.reduce((s, b) => s + b.durationHours, 0), [timeBlocks])
-  const filledBlocks     = timeBlocks.filter(b => b.description.trim())
+  const filledBlocks     = timeBlocks.filter(b => !b.isBreak && b.description.trim())
+  const breakBlocks      = timeBlocks.filter(b => b.isBreak && b.durationHours > 0)
   const generalProductivity = useMemo(() => {
     if (filledBlocks.length === 0) return 0
     return Math.round((filledBlocks.filter(b => b.status === "completed").length / filledBlocks.length) * 100)
@@ -390,22 +432,37 @@ export default function DailyUpdateForm({
   function handleWorkingSubmit() {
     setWorkingError(null)
     if (filledBlocks.length === 0) { setWorkingError("Add at least one time block with a description."); return }
-    const work_entries = filledBlocks.map(t => {
-      const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")
-        : t.projectName === "__custom__" ? (t.customClient || "Internal")
-        : (t.projectName || "Internal")
-      const isMulti = t.clientNames.length > 1
-      return {
-      id: t.id,
-      client_id: projects.find(p => p.business_name === (t.clientNames[0] || effClient))?.id ?? null,
-      client_name: t.clientNames.length > 0 ? t.clientNames[0] : effClient,
-      client_names: t.clientNames.length > 0 ? t.clientNames : (effClient !== "Internal" ? [effClient] : []),
-      is_multi_client: isMulti,
-      task_type: "other" as const,
-      title: t.description, start_time: t.startTime, end_time: t.endTime,
-      duration_hours: t.durationHours, notes: `[${t.status}]`,
-      video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
-    }})
+    const work_entries = [
+      ...filledBlocks.map(t => {
+        const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")
+          : t.projectName === "__custom__" ? (t.customClient || "Internal")
+          : (t.projectName || "Internal")
+        const isMulti = t.clientNames.length > 1
+        return {
+          id: t.id,
+          client_id: projects.find(p => p.business_name === (t.clientNames[0] || effClient))?.id ?? null,
+          client_name: t.clientNames.length > 0 ? t.clientNames[0] : effClient,
+          client_names: t.clientNames.length > 0 ? t.clientNames : (effClient !== "Internal" ? [effClient] : []),
+          is_multi_client: isMulti,
+          task_type: "other" as const,
+          title: t.description, start_time: t.startTime, end_time: t.endTime,
+          duration_hours: t.durationHours, notes: `[${t.status}]`,
+          video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
+        }
+      }),
+      ...breakBlocks.map(t => ({
+        id: t.id,
+        client_id: null,
+        client_name: "Break",
+        client_names: [],
+        is_multi_client: false,
+        task_type: "break" as const,
+        title: t.breakLabel || "Break",
+        start_time: t.startTime, end_time: t.endTime,
+        duration_hours: t.durationHours, notes: null,
+        video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
+      })),
+    ]
     const allParticipantIds = [...new Set(filledBlocks.flatMap(b => b.participantIds))]
     startTransition(async () => {
       const res = await submitDailyUpdate({
@@ -419,7 +476,7 @@ export default function DailyUpdateForm({
     })
   }
 
-  // ── Submit: media (shoots + edits) ───────────────────────────────────────
+  // ── Submit: media (shoots + edits + breaks) ──────────────────────────────
   function handleMediaSubmit() {
     setError(null)
     if (shoots.length === 0 && edits.length === 0) { setError("Add at least one shoot or edit entry."); return }
@@ -446,6 +503,13 @@ export default function DailyUpdateForm({
         drive_updated: e.driveUpdated, revisions: e.revisions,
         _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient,
         participant_ids: e.participantIds,
+      })),
+      ...mediaBreaks.filter(b => b.durationHours > 0).map(b => ({
+        id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
+        task_type: "break" as const,
+        title: b.label || "Break", start_time: b.startTime, end_time: b.endTime,
+        duration_hours: b.durationHours, notes: null,
+        video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
       })),
     ]
     startTransition(async () => {
@@ -804,13 +868,19 @@ export default function DailyUpdateForm({
                   </div>
                   <div>
                     <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Today&apos;s Time Log</p>
-                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{filledBlocks.length} {filledBlocks.length === 1 ? "block" : "blocks"} · {totalLoggedHours.toFixed(1)}h logged</p>
+                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{filledBlocks.length} {filledBlocks.length === 1 ? "block" : "blocks"} · {totalLoggedHours.toFixed(1)}h logged · {timeBlocks.filter(b=>b.isBreak).length} break{timeBlocks.filter(b=>b.isBreak).length !== 1 ? "s" : ""}</p>
                   </div>
                 </div>
-                <button onClick={addTimeBlock}
-                  style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 16px", borderRadius:10, border:"none", background:"#DE1A1A", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                  <Plus size={13} /> Add Time Block
-                </button>
+                <div style={{ display:"flex", gap:6 }}>
+                  <button onClick={addTimeBlock}
+                    style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 16px", borderRadius:10, border:"none", background:"#DE1A1A", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                    <Plus size={13} /> Add Time Block
+                  </button>
+                  <button onClick={addBreakBlock}
+                    style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, border:"1.5px solid rgba(245,158,11,0.5)", background:"#FEF3C7", color:"#D97706", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                    <Coffee size={13} /> Break
+                  </button>
+                </div>
               </div>
 
               {timeBlocks.length === 0 ? (
@@ -837,150 +907,168 @@ export default function DailyUpdateForm({
                       ? { bg:"rgba(245,158,11,0.08)", color:"#D97706", border:"rgba(245,158,11,0.25)" }
                       : { bg:"#F9FAFB", color:"#9CA3AF", border:"#E5E7EB" }
                     return (
-                      <div key={block.id} style={{ background:"#F9FAFB", borderRadius:14, border:"1px solid #EBEDF2", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
+                      <div key={block.id} style={{ background: block.isBreak ? "#FFFBEB" : "#F9FAFB", borderRadius:14, border: block.isBreak ? "1.5px solid rgba(245,158,11,0.35)" : "1px solid #EBEDF2", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
+
+                        {/* ── Block header: Work/Break toggle + break label + delete ── */}
                         <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                          <Clock size={13} style={{ color:"#DE1A1A", flexShrink:0 }} />
+                          {/* Toggle */}
+                          <div style={{ display:"flex", alignItems:"center", background:"#F3F4F6", borderRadius:8, padding:"2px 3px", gap:2 }}>
+                            <button type="button" onClick={() => patchBlock(block.id, { isBreak: false })}
+                              style={{ padding:"4px 10px", borderRadius:6, fontSize:11, fontWeight:700, border:"none", cursor:"pointer", background: !block.isBreak ? "#FFFFFF" : "transparent", color: !block.isBreak ? "#111827" : "#9CA3AF", boxShadow: !block.isBreak ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}>
+                              ⏰ Work
+                            </button>
+                            <button type="button" onClick={() => patchBlock(block.id, { isBreak: true, description:"", clientNames:[], projectName:"", status:"not_started" as const })}
+                              style={{ padding:"4px 10px", borderRadius:6, fontSize:11, fontWeight:700, border:"none", cursor:"pointer", background: block.isBreak ? "#FEF3C7" : "transparent", color: block.isBreak ? "#D97706" : "#9CA3AF", boxShadow: block.isBreak ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}>
+                              ☕ Break
+                            </button>
+                          </div>
+                          {/* Break type selector */}
+                          {block.isBreak && (
+                            <select value={block.breakLabel} onChange={e => patchBlock(block.id, { breakLabel: e.target.value })}
+                              style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
+                              <option value="Lunch">🍱 Lunch</option>
+                              <option value="Tea">☕ Tea Break</option>
+                              <option value="Short Break">🚶 Short Break</option>
+                              <option value="Personal">🏠 Personal</option>
+                            </select>
+                          )}
+                          <button onClick={() => removeBlock(block.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
+                            <Trash2 size={13} style={{ color:"#EF4444" }} />
+                          </button>
+                        </div>
+
+                        {/* ── Time row ── */}
+                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                          {block.isBreak
+                            ? <Coffee size={13} style={{ color:"#D97706", flexShrink:0 }} />
+                            : <Clock size={13} style={{ color:"#DE1A1A", flexShrink:0 }} />}
                           <div style={{ display:"flex", alignItems:"center", gap:6, flex:1, minWidth:200 }}>
                             <TimePicker value={block.startTime} onChange={v => patchBlock(block.id, { startTime: v })} />
                             <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
                             <TimePicker value={block.endTime} onChange={v => patchBlock(block.id, { endTime: v })} />
                             {block.durationHours > 0 && (
-                              <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1", flexShrink:0 }}>{fmtTravel(block.durationHours)}</span>
+                              <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background: block.isBreak ? "rgba(245,158,11,0.12)" : "rgba(99,102,241,0.1)", color: block.isBreak ? "#D97706" : "#6366F1", flexShrink:0 }}>{fmtTravel(block.durationHours)}</span>
                             )}
                           </div>
-                          <button onClick={() => removeBlock(block.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
-                            <Trash2 size={13} style={{ color:"#EF4444" }} />
-                          </button>
                         </div>
-                        <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                          <input value={block.description} onChange={e => patchBlock(block.id, { description: e.target.value })}
-                            placeholder="What did you work on?"
-                            style={{ flex:1, minWidth:140, background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", fontSize:12, color:"#111827", outline:"none" }} />
-                          <select value={block.status} onChange={e => patchBlock(block.id, { status: e.target.value as TimeBlock["status"] })}
-                            style={{ fontSize:11, fontWeight:700, color:statusCfg.color, background:statusCfg.bg, border:`1.5px solid ${statusCfg.border}`, borderRadius:8, padding:"7px 10px", cursor:"pointer", outline:"none" }}>
-                            <option value="not_started">Not Started</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="completed">Completed ✓</option>
-                          </select>
-                        </div>
-                        {/* Client / Project multi-select */}
-                        <div style={{ marginTop:4 }}>
-                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project</p>
-                          {/* Dropdown to add a client */}
-                          <div style={{ position:"relative" }}>
-                            <select
-                              value=""
-                              onChange={e => {
-                                const v = e.target.value
-                                if (!v) return
-                                if (v === "Promotion" || v === "__custom__") {
-                                  patchBlock(block.id, { projectName: v, clientNames: [], brand: "", customClient: "" })
-                                } else {
-                                  if (!block.clientNames.includes(v))
-                                    patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" })
-                                }
-                              }}
-                              style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                              <option value="">Add client / project…</option>
-                              {!block.projectName && <option value="Promotion">📣 Our Brand</option>}
-                              {allClientOptions.filter(n => !block.clientNames.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
-                              {!block.projectName && <option value="__custom__">✏️ Other (type manually)</option>}
-                            </select>
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                          {/* Selected clients as removable pills */}
-                          {(block.clientNames.length > 0 || block.projectName) && (
-                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
-                              {block.clientNames.map(name => (
-                                <button key={name} type="button"
-                                  onClick={() => patchBlock(block.id, { clientNames: block.clientNames.filter(n => n !== name), isMultiClient: block.clientNames.length > 2 })}
-                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(222,26,26,0.08)", border:"1.5px solid rgba(222,26,26,0.25)", cursor:"pointer" }}>
-                                  <span style={{ fontSize:10, fontWeight:700, color:"#de1a1a" }}>{name}</span>
-                                  <span style={{ fontSize:8, color:"#de1a1a" }}>✕</span>
-                                </button>
-                              ))}
-                              {block.projectName === "Promotion" && (
-                                <button type="button"
-                                  onClick={() => patchBlock(block.id, { projectName: "", brand: "", customClient: "" })}
-                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(217,119,6,0.08)", border:"1.5px solid rgba(217,119,6,0.3)", cursor:"pointer" }}>
-                                  <span style={{ fontSize:10, fontWeight:700, color:"#D97706" }}>📣 Our Brand</span>
-                                  <span style={{ fontSize:8, color:"#D97706" }}>✕</span>
-                                </button>
-                              )}
-                              {block.projectName === "__custom__" && (
-                                <button type="button"
-                                  onClick={() => patchBlock(block.id, { projectName: "", brand: "", customClient: "" })}
-                                  style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.08)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
-                                  <span style={{ fontSize:10, fontWeight:700, color:"#6366F1" }}>✏️ Other</span>
-                                  <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
-                                </button>
-                              )}
-                            </div>
-                          )}
-                          {/* Our Brand → brand picker */}
-                          {block.projectName === "Promotion" && (
-                            <div style={{ position:"relative", marginTop:6 }}>
-                              <select value={block.brand} onChange={e => patchBlock(block.id, { brand: e.target.value })}
-                                style={{ width:"100%", fontSize:11, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.3)", borderRadius:8, padding:"7px 28px 7px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                                <option value="">📣 Select brand…</option>
-                                {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-                              </select>
-                              <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#D97706", pointerEvents:"none" }} />
-                            </div>
-                          )}
-                          {/* Other → custom text */}
-                          {block.projectName === "__custom__" && (
-                            <input
-                              value={block.customClient}
-                              onChange={e => patchBlock(block.id, { customClient: e.target.value })}
-                              placeholder="Type client name…"
-                              style={{ width:"100%", fontSize:11, fontWeight:600, color:"#111827", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", outline:"none", boxSizing:"border-box", marginTop:6 }}
-                            />
-                          )}
 
-                          {/* Worked With — per block */}
-                          {teamMembers.length > 0 && (
-                            <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #EBEDF2" }}>
-                              <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
-                              {/* Dropdown to add teammate */}
-                              <div style={{ position:"relative" }}>
-                                <select
-                                  value=""
-                                  onChange={e => {
+                        {/* ── Work-only fields ── */}
+                        {!block.isBreak && (<>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                            <input value={block.description} onChange={e => patchBlock(block.id, { description: e.target.value })}
+                              placeholder="What did you work on?"
+                              style={{ flex:1, minWidth:140, background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", fontSize:12, color:"#111827", outline:"none" }} />
+                            <select value={block.status} onChange={e => patchBlock(block.id, { status: e.target.value as TimeBlock["status"] })}
+                              style={{ fontSize:11, fontWeight:700, color:statusCfg.color, background:statusCfg.bg, border:`1.5px solid ${statusCfg.border}`, borderRadius:8, padding:"7px 10px", cursor:"pointer", outline:"none" }}>
+                              <option value="not_started">Not Started</option>
+                              <option value="in_progress">In Progress</option>
+                              <option value="completed">Completed ✓</option>
+                            </select>
+                          </div>
+                          {/* Client / Project multi-select */}
+                          <div style={{ marginTop:4 }}>
+                            <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Client / Project</p>
+                            <div style={{ position:"relative" }}>
+                              <select
+                                value=""
+                                onChange={e => {
+                                  const v = e.target.value
+                                  if (!v) return
+                                  if (v === "Promotion" || v === "__custom__") {
+                                    patchBlock(block.id, { projectName: v, clientNames: [], brand: "", customClient: "" })
+                                  } else {
+                                    if (!block.clientNames.includes(v))
+                                      patchBlock(block.id, { clientNames: [...block.clientNames, v], isMultiClient: block.clientNames.length >= 1, projectName: "", brand: "", customClient: "" })
+                                  }
+                                }}
+                                style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                                <option value="">Add client / project…</option>
+                                {!block.projectName && <option value="Promotion">📣 Our Brand</option>}
+                                {allClientOptions.filter(n => !block.clientNames.includes(n)).map(n => <option key={n} value={n}>{n}</option>)}
+                                {!block.projectName && <option value="__custom__">✏️ Other (type manually)</option>}
+                              </select>
+                              <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                            </div>
+                            {(block.clientNames.length > 0 || block.projectName) && (
+                              <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                {block.clientNames.map(name => (
+                                  <button key={name} type="button"
+                                    onClick={() => patchBlock(block.id, { clientNames: block.clientNames.filter(n => n !== name), isMultiClient: block.clientNames.length > 2 })}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(222,26,26,0.08)", border:"1.5px solid rgba(222,26,26,0.25)", cursor:"pointer" }}>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#de1a1a" }}>{name}</span>
+                                    <span style={{ fontSize:8, color:"#de1a1a" }}>✕</span>
+                                  </button>
+                                ))}
+                                {block.projectName === "Promotion" && (
+                                  <button type="button" onClick={() => patchBlock(block.id, { projectName: "", brand: "", customClient: "" })}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(217,119,6,0.08)", border:"1.5px solid rgba(217,119,6,0.3)", cursor:"pointer" }}>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#D97706" }}>📣 Our Brand</span>
+                                    <span style={{ fontSize:8, color:"#D97706" }}>✕</span>
+                                  </button>
+                                )}
+                                {block.projectName === "__custom__" && (
+                                  <button type="button" onClick={() => patchBlock(block.id, { projectName: "", brand: "", customClient: "" })}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(99,102,241,0.08)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#6366F1" }}>✏️ Other</span>
+                                    <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                            {block.projectName === "Promotion" && (
+                              <div style={{ position:"relative", marginTop:6 }}>
+                                <select value={block.brand} onChange={e => patchBlock(block.id, { brand: e.target.value })}
+                                  style={{ width:"100%", fontSize:11, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.3)", borderRadius:8, padding:"7px 28px 7px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                                  <option value="">📣 Select brand…</option>
+                                  {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                                </select>
+                                <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#D97706", pointerEvents:"none" }} />
+                              </div>
+                            )}
+                            {block.projectName === "__custom__" && (
+                              <input value={block.customClient} onChange={e => patchBlock(block.id, { customClient: e.target.value })}
+                                placeholder="Type client name…"
+                                style={{ width:"100%", fontSize:11, fontWeight:600, color:"#111827", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", outline:"none", boxSizing:"border-box", marginTop:6 }} />
+                            )}
+                            {/* Worked With — per block */}
+                            {teamMembers.length > 0 && (
+                              <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #EBEDF2" }}>
+                                <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                                <div style={{ position:"relative" }}>
+                                  <select value="" onChange={e => {
                                     const id = e.target.value
                                     if (id && !block.participantIds.includes(id))
                                       patchBlock(block.id, { participantIds: [...block.participantIds, id] })
-                                  }}
-                                  style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                                  <option value="">Add teammate…</option>
-                                  {teamMembers.filter(m => !block.participantIds.includes(m.id)).map(m => (
-                                    <option key={m.id} value={m.id}>{m.name}</option>
-                                  ))}
-                                </select>
-                                <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                              </div>
-                              {/* Selected list */}
-                              {block.participantIds.length > 0 && (
-                                <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
-                                  {block.participantIds.map(pid => {
-                                    const m = teamMembers.find(t => t.id === pid)
-                                    if (!m) return null
-                                    const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
-                                    return (
-                                      <button key={pid} type="button"
-                                        onClick={() => patchBlock(block.id, { participantIds: block.participantIds.filter(p => p !== pid) })}
-                                        style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
-                                        <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
-                                        <span style={{ fontSize:10, fontWeight:700, color:"#4338CA" }}>{m.name.split(" ")[0]}</span>
-                                        <span style={{ fontSize:8, color:"#818CF8" }}>✕</span>
-                                      </button>
-                                    )
-                                  })}
+                                  }} style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                                    <option value="">Add teammate…</option>
+                                    {teamMembers.filter(m => !block.participantIds.includes(m.id)).map(m => (
+                                      <option key={m.id} value={m.id}>{m.name}</option>
+                                    ))}
+                                  </select>
+                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                 </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                                {block.participantIds.length > 0 && (
+                                  <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                    {block.participantIds.map(pid => {
+                                      const m = teamMembers.find(t => t.id === pid)
+                                      if (!m) return null
+                                      const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                      return (
+                                        <button key={pid} type="button"
+                                          onClick={() => patchBlock(block.id, { participantIds: block.participantIds.filter(p => p !== pid) })}
+                                          style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
+                                          <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                          <span style={{ fontSize:10, fontWeight:700, color:"#4338CA" }}>{m.name.split(" ")[0]}</span>
+                                          <span style={{ fontSize:8, color:"#818CF8" }}>✕</span>
+                                        </button>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </>)}
                       </div>
                     )
                   })}
@@ -1396,6 +1484,58 @@ export default function DailyUpdateForm({
                 <button onClick={addEdit} style={{ display:"flex", alignItems:"center", gap:7, marginTop:12, padding:"9px 16px", borderRadius:10, background:"rgba(99,102,241,0.06)", border:"1.5px dashed rgba(99,102,241,0.3)", color:"#6366F1", fontSize:12, fontWeight:700, cursor:"pointer" }}>
                   <Plus size={13} /> Add Another Edit
                 </button>
+              )}
+            </div>
+
+            {/* ── Media Breaks ────────────────────────────────────────── */}
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1.5px solid rgba(245,158,11,0.25)", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <Coffee size={16} style={{ color:"#D97706" }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Breaks Today</p>
+                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
+                      {mediaBreaks.length} break{mediaBreaks.length !== 1 ? "s" : ""} · {mediaBreaks.reduce((s,b) => s + b.durationHours, 0).toFixed(1)}h total · synced to attendance
+                    </p>
+                  </div>
+                </div>
+                <button onClick={addMediaBreak}
+                  style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, border:"1.5px solid rgba(245,158,11,0.4)", background:"#FEF3C7", color:"#D97706", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  <Plus size={13} /> Add Break
+                </button>
+              </div>
+
+              {mediaBreaks.length === 0 ? (
+                <div onClick={addMediaBreak} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, padding:"24px 0", borderRadius:14, border:"2px dashed rgba(245,158,11,0.3)", background:"rgba(245,158,11,0.03)", cursor:"pointer" }}>
+                  <Coffee size={28} style={{ color:"#FCD34D" }} />
+                  <p style={{ fontSize:12, fontWeight:600, color:"#9CA3AF", margin:0 }}>No breaks logged — tap to add one</p>
+                </div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  {mediaBreaks.map((b, i) => (
+                    <div key={b.id} style={{ background:"#FFFBEB", borderRadius:12, border:"1.5px solid rgba(245,158,11,0.3)", padding:"10px 14px", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                      <span style={{ fontSize:11, fontWeight:800, color:"#D97706", flexShrink:0 }}>☕ #{i+1}</span>
+                      <TimePicker value={b.startTime} onChange={v => patchMediaBreak(b.id, { startTime: v })} />
+                      <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                      <TimePicker value={b.endTime} onChange={v => patchMediaBreak(b.id, { endTime: v })} />
+                      {b.durationHours > 0 && (
+                        <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>{fmtTravel(b.durationHours)}</span>
+                      )}
+                      <select value={b.label} onChange={e => patchMediaBreak(b.id, { label: e.target.value })}
+                        style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
+                        <option value="Lunch">🍱 Lunch</option>
+                        <option value="Tea">☕ Tea</option>
+                        <option value="Short Break">🚶 Short Break</option>
+                        <option value="Personal">🏠 Personal</option>
+                      </select>
+                      <button onClick={() => removeMediaBreak(b.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
+                        <Trash2 size={13} style={{ color:"#EF4444" }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </>)}

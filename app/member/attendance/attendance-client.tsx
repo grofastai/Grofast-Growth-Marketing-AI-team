@@ -552,6 +552,24 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               )}
 
             </div>{/* inner timer card */}
+
+            {/* Monthly Total Hrs + Monthly Avg Hrs — below day status card */}
+            {monthlyPerf && (
+              <div className="flex gap-3 mt-4">
+                <div className="flex-1 rounded-2xl px-4 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Monthly Total Hrs</p>
+                  <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+                    {monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
+                  </p>
+                </div>
+                <div className="flex-1 rounded-2xl px-4 py-3" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Monthly Avg Hrs</p>
+                  <p className="text-[22px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
+                    {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgHours) : "0h"}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>{/* px-5 pb-5 */}
         </div>{/* outer card */}
 
@@ -746,20 +764,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               )
             })()}
 
-            <div className="rounded-2xl px-4 py-3 mb-2" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Monthly Total Hrs</p>
-              <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-                {monthlyPerf && monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
-              </p>
-            </div>
-            {monthlyPerf && monthlyPerf.presentDays > 0 && (
-              <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Monthly Avg Hrs</p>
-                <p className="text-[22px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                  {fmtHoursShort(monthlyPerf.avgHours)}
-                </p>
-              </div>
-            )}
           </div>
 
 
@@ -878,24 +882,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             </div>
             {rangeLoading && <p className="text-[13px]" style={{ color: "#9CA3AF" }}>Loading…</p>}
             {!rangeLoading && rangeLogs !== null && (() => {
-              const pLogs = rangeLogs.filter(l => l.status === "present" && l.clock_in)
-              const totalH = pLogs.reduce((s, l) => s + (l.clock_in && l.clock_out ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins ?? 0)/60) : 0), 0)
-              const avgH = pLogs.length > 0 ? Math.round((totalH / pLogs.length) * 10) / 10 : 0
               return (
                 <>
-                  <div className="flex flex-wrap gap-3 mb-4">
-                    {[
-                      { label:"Present Days", value: String(pLogs.length),                                    color:"#22C55E", bg:"rgba(34,197,94,0.08)" },
-                      { label:"Absent Days",  value: String(rangeLogs.filter(l=>l.status==="absent").length), color:"#EF4444", bg:"rgba(239,68,68,0.08)" },
-                      { label:"Total Hours",  value: fmtHoursShort(Math.round(totalH*10)/10),                 color:"#6366F1", bg:"rgba(99,102,241,0.08)" },
-                      { label:"Avg / Day",    value: avgH > 0 ? fmtHoursShort(avgH) : "—",                   color:"#F59E0B", bg:"rgba(245,158,11,0.08)" },
-                    ].map(s => (
-                      <div key={s.label} className="rounded-2xl px-4 py-2.5" style={{ background:s.bg }}>
-                        <p className="text-[10px] font-bold uppercase tracking-wide mb-0.5" style={{ color:s.color }}>{s.label}</p>
-                        <p className="text-[18px] font-black leading-none" style={{ color:s.color, fontFamily:"var(--font-jakarta)" }}>{s.value}</p>
-                      </div>
-                    ))}
-                  </div>
                   {rangeLogs.length === 0
                     ? <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No attendance records found for this range.</p>
                     : (
@@ -1004,27 +992,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             {rangeLoading && <p className="text-[13px]" style={{ color: "#9CA3AF" }}>Loading…</p>}
             {!rangeLoading && rangeLogs && (
               <>
-                {/* Summary bar */}
-                {(() => {
-                  const pLogs = rangeLogs.filter(l => l.status === "present" && l.clock_in)
-                  const totalH = pLogs.reduce((s, l) => s + (l.clock_in && l.clock_out ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins ?? 0)/60) : 0), 0)
-                  const avgH = pLogs.length > 0 ? Math.round((totalH / pLogs.length) * 10) / 10 : 0
-                  return (
-                    <div className="flex flex-wrap gap-3 mb-4">
-                      {[
-                        { label:"Present Days", value: String(pLogs.length),                               color:"#22C55E", bg:"rgba(34,197,94,0.08)" },
-                        { label:"Absent Days",  value: String(rangeLogs.filter(l=>l.status==="absent").length), color:"#EF4444", bg:"rgba(239,68,68,0.08)" },
-                        { label:"Total Hours",  value: fmtHoursShort(Math.round(totalH*10)/10),            color:"#6366F1", bg:"rgba(99,102,241,0.08)" },
-                        { label:"Avg / Day",    value: avgH > 0 ? fmtHoursShort(avgH) : "—",              color:"#F59E0B", bg:"rgba(245,158,11,0.08)" },
-                      ].map(s => (
-                        <div key={s.label} className="rounded-2xl px-4 py-2.5" style={{ background:s.bg }}>
-                          <p className="text-[10px] font-bold uppercase tracking-wide mb-0.5" style={{ color:s.color }}>{s.label}</p>
-                          <p className="text-[18px] font-black leading-none" style={{ color:s.color, fontFamily:"var(--font-jakarta)" }}>{s.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                })()}
 
                 {/* Table */}
                 <div style={{ overflowX:"auto" }}>

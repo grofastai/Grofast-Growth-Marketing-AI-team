@@ -362,7 +362,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         <div>
           <h1 className="text-[32px] font-black leading-tight" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Attendance</h1>
           <p className="text-[13px] font-medium mt-1" style={{ color: "#6B7280" }}>{dateStr}</p>
-          <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>Shift: 9:00 AM – 6:00 PM</p>
+          <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>Shift: 9:30 AM – 7:00 PM</p>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 rounded-full mt-2"
           style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>

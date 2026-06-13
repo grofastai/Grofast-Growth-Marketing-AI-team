@@ -1188,7 +1188,7 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             {(showPastFor.has(s.id) || pastClientOptions.includes(s.clientName)) ? (
                               <div>
-                                <button type="button" onClick={() => exitPastMode(s.id)}
+                                <button type="button" onClick={() => { exitPastMode(s.id); patchShoot(s.id, { clientName: "", brand:"", shopName:"", customClient:"" }) }}
                                   style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
                                   ← Back to Active Clients
                                 </button>
@@ -1435,7 +1435,7 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
                               <div>
-                                <button type="button" onClick={() => exitPastMode(e.id)}
+                                <button type="button" onClick={() => { exitPastMode(e.id); patchEdit(e.id, { clientName: "", brand:"", customClient:"" }) }}
                                   style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
                                   ← Back to Active Clients
                                 </button>

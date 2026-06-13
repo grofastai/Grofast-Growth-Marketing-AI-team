@@ -798,14 +798,14 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             })()}
 
             <div className="rounded-2xl px-4 py-3 mb-2" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Total Hours This Month</p>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Monthly Total Hrs</p>
               <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
                 {monthlyPerf && monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
               </p>
             </div>
             {monthlyPerf && monthlyPerf.presentDays > 0 && (
               <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Avg Hours / Day</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Monthly Avg Hrs</p>
                 <p className="text-[22px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
                   {fmtHoursShort(monthlyPerf.avgHours)}
                 </p>

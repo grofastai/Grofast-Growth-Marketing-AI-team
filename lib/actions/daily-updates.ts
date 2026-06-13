@@ -121,18 +121,22 @@ export async function submitDailyUpdate(
     if (insertError) return { success: false, error: insertError.message }
   }
 
-  // Sync break entries to attendance_logs (works for any date — past or today)
-  const breakEntries = d.work_entries.filter(e => e.task_type === 'break')
-  if (breakEntries.length > 0) {
-    const breakSessions = breakEntries
-      .filter(e => e.start_time && e.end_time && e.duration_hours > 0)
+  // Sync ALL break entries to attendance_logs — use combined entries so multiple submits accumulate
+  const existingEntries = existingRecord && Array.isArray(existingRecord.work_entries)
+    ? existingRecord.work_entries as { task_type: string; start_time?: string | null; end_time?: string | null; duration_hours: number; title?: string }[]
+    : []
+  const allWorkEntries = [...existingEntries, ...d.work_entries]
+  const allBreakEntries = allWorkEntries.filter(e => e.task_type === 'break' && e.duration_hours > 0)
+  if (allBreakEntries.length > 0) {
+    const breakSessions = allBreakEntries
+      .filter(e => e.start_time && e.end_time)
       .map(e => ({
         start: e.start_time,
         end: e.end_time,
         duration_mins: Math.round(e.duration_hours * 60),
         label: e.title || 'Break',
       }))
-    const totalBreakMins = breakSessions.reduce((s, b) => s + b.duration_mins, 0)
+    const totalBreakMins = allBreakEntries.reduce((s, e) => s + Math.round(e.duration_hours * 60), 0)
     await admin
       .from('attendance_logs')
       .update({ break_sessions: breakSessions, break_total_mins: totalBreakMins })

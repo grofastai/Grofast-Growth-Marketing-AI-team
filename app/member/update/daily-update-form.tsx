@@ -677,7 +677,7 @@ export default function DailyUpdateForm({
         participant_ids: [],
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
-      else { if (isMediaTeam) setSubmitted(true); router.refresh() }
+      else { if (isMediaTeam) setSubmitted(true); else setWorkingDone(true); router.refresh() }
     })
   }
 

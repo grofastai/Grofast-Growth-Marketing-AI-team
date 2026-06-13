@@ -80,6 +80,7 @@
     { "path": "/api/cron/content-reminder", "schedule": "0 15 * * *" },
     { "path": "/api/cron/content-reminder", "schedule": "30 15 * * *" },
     { "path": "/api/cron/content-reminder", "schedule": "0 16 * * *" },
-    { "path": "/api/cron/content-reminder", "schedule": "30 16 * * *" }
+    { "path": "/api/cron/content-reminder", "schedule": "30 16 * * *" },
+    { "path": "/api/cron/db-backup", "schedule": "30 3 * * 0" }
   ]
 }

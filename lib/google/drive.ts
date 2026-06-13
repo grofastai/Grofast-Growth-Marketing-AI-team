@@ -138,6 +138,50 @@ export async function initResumableUpload(
   return uploadUrl
 }
 
+/**
+ * Uploads a JSON string to <root>/Backups/<year>/<fileName> in the Shared Drive.
+ * Creates the folder hierarchy if it doesn't exist.
+ * Returns the Drive file ID.
+ */
+export async function uploadFileToBackupFolder(
+  year: string,
+  fileName: string,
+  content: string,
+): Promise<string> {
+  const t = await token()
+  const rootId = await getRootFolder(t)
+  const backupsId = await findOrCreate('Backups', rootId, t)
+  const yearId = await findOrCreate(year, backupsId, t)
+
+  const metadata = JSON.stringify({ name: fileName, parents: [yearId] })
+  const BOUNDARY = 'gf_backup_boundary'
+  const body = [
+    `--${BOUNDARY}\r\n`,
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n`,
+    `${metadata}\r\n`,
+    `--${BOUNDARY}\r\n`,
+    `Content-Type: application/json\r\n\r\n`,
+    `${content}\r\n`,
+    `--${BOUNDARY}--`,
+  ].join('')
+
+  const res = await fetch(
+    `${UPLOAD}/files?uploadType=multipart&supportsAllDrives=true&fields=id`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${t}`,
+        'Content-Type': `multipart/related; boundary=${BOUNDARY}`,
+      },
+      body,
+    }
+  )
+
+  if (!res.ok) throw new Error(`Drive backup upload failed (${res.status}): ${await res.text()}`)
+  const file = await res.json() as { id: string }
+  return file.id
+}
+
 /** Makes a file publicly readable and returns its web view link */
 export async function makeFilePublic(fileId: string): Promise<string> {
   const t = await token()

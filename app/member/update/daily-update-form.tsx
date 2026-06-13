@@ -651,10 +651,40 @@ export default function DailyUpdateForm({
     })
   }
 
+  function handleBreakSubmit() {
+    setError(null)
+    const breakEntries = isMediaTeam
+      ? mediaBreaks.filter(b => b.durationHours > 0).map(b => ({
+          id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
+          task_type: "break" as const,
+          title: b.label || "Break", start_time: b.startTime, end_time: b.endTime,
+          duration_hours: b.durationHours, notes: undefined,
+          video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
+        }))
+      : breakBlocks.map(t => ({
+          id: t.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
+          task_type: "break" as const,
+          title: t.breakLabel || "Break", start_time: t.startTime, end_time: t.endTime,
+          duration_hours: t.durationHours, notes: undefined,
+          video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
+        }))
+    if (breakEntries.length === 0) { setError("Add at least one break with a duration."); return }
+    startTransition(async () => {
+      const res = await submitDailyUpdate({
+        active_tab: "break", date: selectedDate, work_entries: breakEntries, links: [],
+        shoot_count: 0, editing_count: 0,
+        shoot_time_hours: 0, editing_time_hours: 0, learning_hours: 0,
+        participant_ids: [],
+      })
+      if (!res.success) setError(res.error ?? "Submission failed.")
+      else { if (isMediaTeam) setSubmitted(true); router.refresh() }
+    })
+  }
+
   function handleSubmit() {
     if (tab === "working") handleWorkingSubmit()
     else if (tab === "media") handleMediaSubmit()
-    else if (tab === "break") { if (isMediaTeam) handleMediaSubmit(); else handleWorkingSubmit() }
+    else if (tab === "break") handleBreakSubmit()
     else handleLearningSubmit()
   }
 

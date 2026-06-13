@@ -762,29 +762,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             )}
           </div>
 
-          {/* Monthly summary table — shown when This Month filter is active */}
-          {rangeMode === "thisMonth" && rangeLogs && (
-            <div className="rounded-3xl p-4" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-              <p className="text-[12px] font-bold mb-3" style={{ color: "#111111" }}>This Month — Attendance</p>
-              <div style={{ display:"flex", flexDirection:"column", gap:4, maxHeight:320, overflowY:"auto" }}>
-                {rangeLogs.map(l => {
-                  const h = l.clock_in && l.clock_out ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins ?? 0)/60) : 0
-                  const dateLabel = new Date(l.date+"T12:00:00").toLocaleDateString("en-IN", { day:"2-digit", month:"short" })
-                  const day = new Date(l.date+"T12:00:00").toLocaleDateString("en-US", { weekday:"short" })
-                  return (
-                    <div key={l.date} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px", borderRadius:8, background: l.date === today ? "rgba(222,26,26,0.05)" : "transparent" }}>
-                      <span style={{ fontSize:10, fontWeight:700, color:"#374151", width:38, flexShrink:0 }}>{day}</span>
-                      <span style={{ fontSize:10, color:"#9CA3AF", width:40, flexShrink:0 }}>{dateLabel}</span>
-                      <div style={{ width:8, height:8, borderRadius:"50%", flexShrink:0, background: l.status==="present" ? "#22C55E" : l.status==="absent" ? "#EF4444" : "#D1D5DB" }}/>
-                      <span style={{ fontSize:10, fontWeight:600, color: l.status==="present" ? "#16A34A" : "#EF4444", flex:1 }}>
-                        {l.status==="present" ? (h>0 ? fmtHoursShort(h) : "Present") : "Absent"}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
 
         </div>{/* end third col */}
 

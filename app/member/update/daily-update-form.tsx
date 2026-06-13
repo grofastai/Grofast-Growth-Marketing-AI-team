@@ -13,11 +13,12 @@ import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/l
 interface Project { id: string; business_name: string }
 interface TeamMember { id: string; name: string; employee_id: string; role: string }
 
-const OWN_BRANDS = ["Masala Unlimit", "Kutty Karthi Vlog", "GroFast Digital", "A2Z Automobile", "Kaka Mutta"]
+const INTERNAL_BRANDS = ["Grofast Digital", "Karthick Brands"]
 
 interface ShootEntry {
   id: string; clientName: string; customClient: string; title: string
   startTime: string; endTime: string; durationHours: number
+  cameraHours: number; droneHours: number
   travelHours: number
   brand: string; shopName: string
   location: string; driveLink: string
@@ -138,6 +139,7 @@ type SavedEntry = {
   drive_updated?: boolean; revisions?: number
   _client_type?: string; _brand?: string; _shop_name?: string
   _custom_client?: string; _location?: string; _travel_hours?: number
+  _camera_hours?: number; _drone_hours?: number
 }
 
 function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock[] {
@@ -194,6 +196,8 @@ function parseExistingShoots(existingUpdate: Record<string, unknown>): ShootEntr
       endTime: e.end_time ?? "17:00",
       durationHours: e.duration_hours ?? 0,
       travelHours: e._travel_hours ?? 0,
+      cameraHours: e._camera_hours ?? 0,
+      droneHours: e._drone_hours ?? 0,
       brand: e._brand ?? "",
       shopName: e._shop_name ?? "",
       location: e._location ?? "",
@@ -303,15 +307,16 @@ export default function DailyUpdateForm({
 
   const [tab, setTab] = useState<"working" | "media" | "learning">(isMediaTeam ? "media" : "working")
 
-  // Combined client options: Supabase projects first, then Sheet clients not already listed
+  // Always show Grofast Digital + Karthick Brands first, then projects, then sheet clients
   const allClientOptions = [
-    ...projects.map(p => p.business_name),
-    ...sheetClientNames.filter(n => !projects.find(p => p.business_name === n)),
+    ...INTERNAL_BRANDS,
+    ...projects.map(p => p.business_name).filter(n => !INTERNAL_BRANDS.includes(n)),
+    ...sheetClientNames.filter(n => !projects.find(p => p.business_name === n) && !INTERNAL_BRANDS.includes(n)),
   ].filter(Boolean)
 
   // ── Shoots (media) ───────────────────────────────────────────────────────
   const [shoots, setShoots] = useState<ShootEntry[]>(() => existingUpdate ? parseExistingShoots(existingUpdate) : [])
-  const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, travelHours:0, brand:"", shopName:"", location:"", driveLink:"", notes:"", videoUploaded:false, participantIds:[] }])
+  const addShoot    = () => setShoots(p => [...p, { id: crypto.randomUUID(), clientName:"", customClient:"", title:"", startTime:"09:00", endTime:"17:00", durationHours:8, cameraHours:0, droneHours:0, travelHours:0, brand:"", shopName:"", location:"", driveLink:"", notes:"", videoUploaded:false, participantIds:[] }])
   const patchShoot  = (id: string, patch: Partial<ShootEntry>) => setShoots(p => p.map(s => s.id === id ? { ...s, ...patch } : s))
   const removeShoot = (id: string) => setShoots(p => p.filter(s => s.id !== id))
 
@@ -488,7 +493,7 @@ export default function DailyUpdateForm({
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
         duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
-        _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours,
+        _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours, _drone_hours: s.droneHours,
         participant_ids: s.participantIds,
       })),
       ...edits.map(e => ({
@@ -539,7 +544,7 @@ export default function DailyUpdateForm({
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
         duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
-        _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours,
+        _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours, _drone_hours: s.droneHours,
         participant_ids: s.participantIds,
       })),
       ...edits.map(e => ({
@@ -1020,7 +1025,7 @@ export default function DailyUpdateForm({
                                 <select value={block.brand} onChange={e => patchBlock(block.id, { brand: e.target.value })}
                                   style={{ width:"100%", fontSize:11, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.3)", borderRadius:8, padding:"7px 28px 7px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
                                   <option value="">📣 Select brand…</option>
-                                  {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                                  {INTERNAL_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
                                 </select>
                                 <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#D97706", pointerEvents:"none" }} />
                               </div>
@@ -1150,7 +1155,6 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             <select value={s.clientName} onChange={e => patchShoot(s.id, { clientName: e.target.value, brand:"", shopName:"", customClient:"" })} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select client…</option>
-                              <option value="Promotion">📣 Our Brand</option>
                               {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
                               <option value="__custom__">✏️ Other (type manually)</option>
                             </select>
@@ -1162,20 +1166,6 @@ export default function DailyUpdateForm({
                           <input value={s.title} onChange={e => patchShoot(s.id, { title: e.target.value })} placeholder="e.g. Basketball Tournament Shoot" style={F} />
                         </div>
                       </div>
-
-                      {/* Our Brand (Promotion) sub-fields */}
-                      {s.clientName === "Promotion" && (
-                        <div style={{ marginBottom:10, padding:"12px 14px", borderRadius:12, background:"rgba(245,158,11,0.06)", border:"1.5px solid rgba(245,158,11,0.25)" }}>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#D97706", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>📣 Our Brand *</label>
-                          <div style={{ position:"relative" }}>
-                            <select value={s.brand} onChange={e => patchShoot(s.id, { brand: e.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                              <option value="">Select brand…</option>
-                              {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-                            </select>
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
-                        </div>
-                      )}
 
                       {/* Custom client sub-fields */}
                       {s.clientName === "__custom__" && (
@@ -1204,6 +1194,26 @@ export default function DailyUpdateForm({
                           <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
                         </div>
                       </div>
+                      {/* Camera / Drone Hours */}
+                      <div style={{ marginBottom:10 }}>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:8 }}>📷 Camera / 🚁 Drone Hours</label>
+                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                          <div>
+                            <label style={{ display:"block", fontSize:10, fontWeight:600, color:"#6B7280", marginBottom:5 }}>📷 Camera Hours</label>
+                            <DurationPicker value={s.cameraHours} onChange={v => patchShoot(s.id, { cameraHours: v })} />
+                          </div>
+                          <div>
+                            <label style={{ display:"block", fontSize:10, fontWeight:600, color:"#6B7280", marginBottom:5 }}>🚁 Drone Hours</label>
+                            <DurationPicker value={s.droneHours} onChange={v => patchShoot(s.id, { droneHours: v })} />
+                          </div>
+                        </div>
+                        {s.droneHours > 0 && (
+                          <div style={{ marginTop:6, padding:"8px 12px", borderRadius:8, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.25)" }}>
+                            <span style={{ fontSize:11, fontWeight:700, color:"#D97706" }}>🚁 Drone Expense: ₹{Math.round(s.droneHours * 500).toLocaleString()} (₹500/hr × {fmtTravel(s.droneHours)})</span>
+                          </div>
+                        )}
+                      </div>
+
                       <div style={{ display:"grid", gridTemplateColumns:"auto 1fr", gap:10, marginBottom:10, alignItems:"end" }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🚗 Travel Time</label>
@@ -1359,21 +1369,11 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             <select value={e.clientName} onChange={ev => patchEdit(e.id, { clientName: ev.target.value, brand:"", customClient:"" })} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select client…</option>
-                              <option value="Promotion">📣 Our Brand</option>
                               {allClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
                               <option value="__custom__">✏️ Other (type manually)</option>
                             </select>
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                           </div>
-                          {e.clientName === "Promotion" && (
-                            <div style={{ marginTop:8, position:"relative" }}>
-                              <select value={e.brand} onChange={ev => patchEdit(e.id, { brand: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none", background:"rgba(245,158,11,0.05)", borderColor:"rgba(245,158,11,0.3)" }}>
-                                <option value="">📣 Select brand…</option>
-                                {OWN_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-                              </select>
-                              <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#D97706", pointerEvents:"none" }} />
-                            </div>
-                          )}
                           {e.clientName === "__custom__" && (
                             <input value={e.customClient} onChange={ev => patchEdit(e.id, { customClient: ev.target.value })} placeholder="Type client name…" style={{ ...F, marginTop:8, background:"rgba(99,102,241,0.05)", borderColor:"rgba(99,102,241,0.25)" }} />
                           )}

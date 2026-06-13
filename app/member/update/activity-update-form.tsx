@@ -225,14 +225,6 @@ export default function ActivityUpdateForm({
                         </button>
                       )
                     })}
-                    <button onClick={() => toggleClient(entry.id, 'Internal')}
-                      style={{ padding: '5px 11px', borderRadius: 99, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                        border: `1.5px solid ${entry.clients.includes('Internal') ? '#DE1A1A' : '#E5E7EB'}`,
-                        background: entry.clients.includes('Internal') ? 'rgba(222,26,26,0.08)' : '#F9FAFB',
-                        color: entry.clients.includes('Internal') ? '#DE1A1A' : '#374151',
-                      }}>
-                      {entry.clients.includes('Internal') ? '✓ ' : ''}Internal / Our Brand
-                    </button>
                     {filteredClients.length === 0 && (
                       <p style={{ fontSize: 12, color: '#9CA3AF', margin: 0, padding: '4px 2px' }}>No clients found</p>
                     )}

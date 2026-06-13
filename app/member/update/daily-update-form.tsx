@@ -464,7 +464,7 @@ export default function DailyUpdateForm({
 
   const totalShootHours  = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
   const totalTravelHours = useMemo(() => shoots.reduce((s, e) => s + e.travelHours, 0), [shoots])
-  const totalEditHours  = useMemo(() => edits.reduce((s, e) => s + e.timeTaken, 0), [edits])
+  const totalEditHours  = useMemo(() => edits.reduce((s, e) => s + calcDuration(e.startTime, e.endTime), 0), [edits])
   const totalMediaHours = totalShootHours + totalEditHours
   const totalLoggedHours = useMemo(() => timeBlocks.reduce((s, b) => s + b.durationHours, 0), [timeBlocks])
   const filledBlocks     = timeBlocks.filter(b => !b.isBreak && b.description.trim())
@@ -1512,10 +1512,11 @@ export default function DailyUpdateForm({
                       {(() => {
                         if (!e.startTime || !e.endTime || shoots.length === 0) return null
                         const overlapH = calcOverlapHours(e.startTime, e.endTime, shoots)
-                        const validH = Math.max(0, e.timeTaken - overlapH)
+                        const editDur = calcDuration(e.startTime, e.endTime)
+                        const validH = Math.max(0, editDur - overlapH)
                         if (overlapH <= 0) return (
                           <div style={{ padding:"7px 12px", borderRadius:8, background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.25)", marginBottom:8, fontSize:11, fontWeight:700, color:"#16A34A" }}>
-                            ✓ No overlap with shoot time — {e.timeTaken}h valid editing
+                            ✓ No overlap with shoot time — {editDur}h valid editing
                           </div>
                         )
                         return (
@@ -1531,8 +1532,13 @@ export default function DailyUpdateForm({
                       })()}
                       <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"end", marginBottom:10 }}>
                         <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Time Taken (editing hours)</label>
-                          <DurationPicker value={e.timeTaken} onChange={v => patchEdit(e.id, { timeTaken: v })} />
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration</label>
+                          <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:8, background: calcDuration(e.startTime, e.endTime) > 0 ? "rgba(222,26,26,0.06)" : "#F9FAFB", border: calcDuration(e.startTime, e.endTime) > 0 ? "1.5px solid rgba(222,26,26,0.2)" : "1.5px solid #EBEDF2" }}>
+                            <span style={{ fontSize:13, fontWeight:700, color: calcDuration(e.startTime, e.endTime) > 0 ? "#DE1A1A" : "#9CA3AF" }}>
+                              {calcDuration(e.startTime, e.endTime) > 0 ? fmtTravel(calcDuration(e.startTime, e.endTime)) : "—"}
+                            </span>
+                            <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
+                          </div>
                         </div>
                         <button onClick={() => patchEdit(e.id, { driveUpdated: !e.driveUpdated })}
                           style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px", borderRadius:10, border:"1.5px solid", cursor:"pointer", fontSize:11, fontWeight:700, whiteSpace:"nowrap", background: e.driveUpdated ? "rgba(34,197,94,0.1)" : "#F9FAFB", borderColor: e.driveUpdated ? "rgba(34,197,94,0.4)" : "#EBEDF2", color: e.driveUpdated ? "#16A34A" : "#9CA3AF" }}>

@@ -27,7 +27,8 @@ interface ShootEntry {
 }
 interface EditEntry {
   id: string; clientName: string; brand: string; customClient: string; title: string
-  videoType: string; videoDuration: string
+  videoType: string; customVideoType: string; videoDuration: string
+  startTime: string; endTime: string
   dateGiven: string; dateFinished: string
   timeTaken: number; driveUpdated: boolean
   revisions: number; videoLink: string; notes: string
@@ -75,6 +76,19 @@ function calcDuration(start: string, end: string) {
   const [eh, em] = end.split(":").map(Number)
   const diff = (eh * 60 + em) - (sh * 60 + sm)
   return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 0
+}
+function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+function calcOverlapHours(editStart: string, editEnd: string, shoots: { startTime: string; endTime: string }[]): number {
+  if (!editStart || !editEnd) return 0
+  const eS = toMins(editStart), eE = toMins(editEnd)
+  if (eE <= eS) return 0
+  const overlapMins = shoots.reduce((acc, s) => {
+    if (!s.startTime || !s.endTime) return acc
+    const sS = toMins(s.startTime), sE = toMins(s.endTime)
+    if (sE <= sS) return acc
+    return acc + Math.max(0, Math.min(eE, sE) - Math.max(eS, sS))
+  }, 0)
+  return Math.round((overlapMins / 60) * 10) / 10
 }
 
 const F: React.CSSProperties = {
@@ -220,7 +234,10 @@ function parseExistingEdits(existingUpdate: Record<string, unknown>): EditEntry[
       customClient: e._custom_client ?? "",
       title: e.title ?? "",
       videoType: e.video_type ?? "",
+      customVideoType: "",
       videoDuration: e.video_duration ?? "",
+      startTime: e.start_time ?? "",
+      endTime: e.end_time ?? "",
       dateGiven: e.date_given ?? new Date().toISOString().split("T")[0],
       dateFinished: e.date_finished ?? new Date().toISOString().split("T")[0],
       timeTaken: e.duration_hours ?? 0,
@@ -323,11 +340,21 @@ export default function DailyUpdateForm({
   // ── Edits (media) ────────────────────────────────────────────────────────
   const [edits, setEdits] = useState<EditEntry[]>(() => existingUpdate ? parseExistingEdits(existingUpdate) : [])
   const addEdit    = () => setEdits(p => [...p, {
-    id: crypto.randomUUID(), clientName: "", brand: "", customClient: "", title: "", videoType: "", videoDuration: "",
+    id: crypto.randomUUID(), clientName: "", brand: "", customClient: "", title: "",
+    videoType: "", customVideoType: "", videoDuration: "",
+    startTime: "", endTime: "",
     dateGiven: todayStr, dateFinished: todayStr, timeTaken: 2,
     driveUpdated: false, revisions: 0, videoLink: "", notes: "", participantIds: [],
   }])
-  const patchEdit  = (id: string, patch: Partial<EditEntry>) => setEdits(p => p.map(e => e.id === id ? { ...e, ...patch } : e))
+  const patchEdit  = (id: string, patch: Partial<EditEntry>) => setEdits(p => p.map(e => {
+    if (e.id !== id) return e
+    const updated = { ...e, ...patch }
+    if (patch.startTime !== undefined || patch.endTime !== undefined) {
+      const dur = calcDuration(updated.startTime, updated.endTime)
+      if (dur > 0) updated.timeTaken = dur
+    }
+    return updated
+  }))
   const removeEdit = (id: string) => setEdits(p => p.filter(e => e.id !== id))
 
   // ── Time blocks (working) ────────────────────────────────────────────────
@@ -496,19 +523,24 @@ export default function DailyUpdateForm({
         _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours, _drone_hours: s.droneHours,
         participant_ids: s.participantIds,
       })),
-      ...edits.map(e => ({
-        id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
-        task_type: "edit" as const,
-        title: e.title || "Editing", start_time: "", end_time: "",
-        duration_hours: e.timeTaken, notes: e.notes, video_uploaded: null,
-        screenshot_url: "", video_link: e.videoLink, editing_videos: [],
-        video_type: e.videoType, video_duration: e.videoDuration,
-        date_given: e.dateGiven, date_finished: e.dateFinished,
-        drive_updated: e.driveUpdated, revisions: e.revisions,
-        _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient,
-        participant_ids: e.participantIds,
-      })),
+      ...edits.map(e => {
+        const overlapH = calcOverlapHours(e.startTime, e.endTime, shoots)
+        const validH = Math.max(0, e.timeTaken - overlapH)
+        const finalVideoType = e.videoType === "__other__" ? (e.customVideoType || "Other") : e.videoType
+        return {
+          id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+          client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
+          task_type: "edit" as const,
+          title: e.title || "Editing", start_time: e.startTime, end_time: e.endTime,
+          duration_hours: validH || e.timeTaken, notes: overlapH > 0 ? `[overlap:${overlapH}h] ${e.notes}`.trim() : e.notes, video_uploaded: null,
+          screenshot_url: "", video_link: e.videoLink, editing_videos: [],
+          video_type: finalVideoType, video_duration: e.videoDuration,
+          date_given: e.dateGiven, date_finished: e.dateFinished,
+          drive_updated: e.driveUpdated, revisions: e.revisions,
+          _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient, _overlap_hours: overlapH,
+          participant_ids: e.participantIds,
+        }
+      }),
       ...mediaBreaks.filter(b => b.durationHours > 0).map(b => ({
         id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
         task_type: "break" as const,
@@ -517,11 +549,13 @@ export default function DailyUpdateForm({
         video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
       })),
     ]
+    const totalOverlapHours = edits.reduce((acc, e) => acc + calcOverlapHours(e.startTime, e.endTime, shoots), 0)
+    const validEditHours = Math.max(0, totalEditHours - totalOverlapHours)
     startTransition(async () => {
       const res = await submitDailyUpdate({
         active_tab: "media", date: selectedDate, work_entries, links: [],
         shoot_count: shoots.length, editing_count: edits.length,
-        shoot_time_hours: totalShootHours, editing_time_hours: totalEditHours,
+        shoot_time_hours: totalShootHours, editing_time_hours: validEditHours,
         learning_hours: 0,
         participant_ids: participantIds,
       })
@@ -547,25 +581,32 @@ export default function DailyUpdateForm({
         _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours, _drone_hours: s.droneHours,
         participant_ids: s.participantIds,
       })),
-      ...edits.map(e => ({
-        id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
-        task_type: "edit" as const,
-        title: e.title || "Editing", start_time: "", end_time: "",
-        duration_hours: e.timeTaken, notes: e.notes, video_uploaded: null,
-        screenshot_url: "", video_link: e.videoLink, editing_videos: [],
-        video_type: e.videoType, video_duration: e.videoDuration,
-        date_given: e.dateGiven, date_finished: e.dateFinished,
-        drive_updated: e.driveUpdated, revisions: e.revisions,
-        _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient,
-        participant_ids: e.participantIds,
-      })),
+      ...edits.map(e => {
+        const overlapH = calcOverlapHours(e.startTime, e.endTime, shoots)
+        const validH = Math.max(0, e.timeTaken - overlapH)
+        const finalVideoType = e.videoType === "__other__" ? (e.customVideoType || "Other") : e.videoType
+        return {
+          id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+          client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName === "Promotion" ? (e.brand || "Promotion") : e.clientName || "Internal",
+          task_type: "edit" as const,
+          title: e.title || "Editing", start_time: e.startTime, end_time: e.endTime,
+          duration_hours: validH || e.timeTaken, notes: overlapH > 0 ? `[overlap:${overlapH}h] ${e.notes}`.trim() : e.notes, video_uploaded: null,
+          screenshot_url: "", video_link: e.videoLink, editing_videos: [],
+          video_type: finalVideoType, video_duration: e.videoDuration,
+          date_given: e.dateGiven, date_finished: e.dateFinished,
+          drive_updated: e.driveUpdated, revisions: e.revisions,
+          _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient, _overlap_hours: overlapH,
+          participant_ids: e.participantIds,
+        }
+      }),
     ]
+    const saveOverlapHours = edits.reduce((acc, e) => acc + calcOverlapHours(e.startTime, e.endTime, shoots), 0)
+    const saveValidEditHours = Math.max(0, totalEditHours - saveOverlapHours)
     startTransition(async () => {
       const res = await submitDailyUpdate({
         active_tab: "media", date: selectedDate, work_entries, links: [],
         shoot_count: shoots.length, editing_count: edits.length,
-        shoot_time_hours: totalShootHours, editing_time_hours: totalEditHours,
+        shoot_time_hours: totalShootHours, editing_time_hours: saveValidEditHours,
         learning_hours: 0,
         participant_ids: participantIds,
       })
@@ -1389,10 +1430,14 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             <select value={e.videoType} onChange={ev => patchEdit(e.id, { videoType: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select type…</option>
-                              {["Instagram Reels","Personal Branding","Ads and Hooks","Long Videos","Cinematic","YouTube Shorts"].map(t => <option key={t} value={t}>{t}</option>)}
+                              {["Instagram Reels","Hook","Personal Branding","Ads and Hooks","Long Videos","Cinematic","YouTube Shorts"].map(t => <option key={t} value={t}>{t}</option>)}
+                              <option value="__other__">✏️ Other (type…)</option>
                             </select>
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                           </div>
+                          {e.videoType === "__other__" && (
+                            <input value={e.customVideoType} onChange={ev => patchEdit(e.id, { customVideoType: ev.target.value })} placeholder="Type video type…" style={{ ...F, marginTop:6, background:"rgba(99,102,241,0.05)", borderColor:"rgba(99,102,241,0.25)" }} />
+                          )}
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration (mins)</label>
@@ -1409,6 +1454,37 @@ export default function DailyUpdateForm({
                           <input type="number" min="0" max="99" value={e.revisions} onChange={ev => patchEdit(e.id, { revisions: parseInt(ev.target.value) || 0 })} placeholder="0" style={F} />
                         </div>
                       </div>
+                      {/* ── Editing time window (for shoot overlap detection) ── */}
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:8 }}>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>✏️ Edit Start Time</label>
+                          <TimePicker value={e.startTime} onChange={v => patchEdit(e.id, { startTime: v })} />
+                        </div>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>✏️ Edit End Time</label>
+                          <TimePicker value={e.endTime} onChange={v => patchEdit(e.id, { endTime: v })} />
+                        </div>
+                      </div>
+                      {(() => {
+                        if (!e.startTime || !e.endTime || shoots.length === 0) return null
+                        const overlapH = calcOverlapHours(e.startTime, e.endTime, shoots)
+                        const validH = Math.max(0, e.timeTaken - overlapH)
+                        if (overlapH <= 0) return (
+                          <div style={{ padding:"7px 12px", borderRadius:8, background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.25)", marginBottom:8, fontSize:11, fontWeight:700, color:"#16A34A" }}>
+                            ✓ No overlap with shoot time — {e.timeTaken}h valid editing
+                          </div>
+                        )
+                        return (
+                          <div style={{ padding:"7px 12px", borderRadius:8, background:"rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.35)", marginBottom:8 }}>
+                            <span style={{ fontSize:11, fontWeight:700, color:"#D97706" }}>
+                              ⚠️ {overlapH}h overlaps with shoot time ({fmt12(e.startTime)}–{fmt12(e.endTime)})
+                            </span>
+                            <span style={{ fontSize:11, color:"#92400E", marginLeft:8 }}>
+                              → {validH}h counted as valid editing
+                            </span>
+                          </div>
+                        )
+                      })()}
                       <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"end", marginBottom:10 }}>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Time Taken (editing hours)</label>

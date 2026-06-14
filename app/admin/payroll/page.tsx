@@ -102,7 +102,7 @@ export default async function PayrollPage({
     const deductibleAbsent = Math.max(rawAbsent - paidLeaveDays, 0)
     const totalHours  = myUpdates.reduce((s, u) => s + (u.working_hours ?? 0), 0)
     const otHours     = Math.round(myUpdates.reduce((s, u) => {
-      const h = u.working_hours ?? 0; return h > 9 ? s + (h - 9) : s
+      const h = u.working_hours ?? 0; return h > 9.5 ? s + (h - 9.5) : s
     }, 0) * 10) / 10
 
     let basePay = 0, deduction = 0, otPay = 0, netPay = 0
@@ -111,7 +111,7 @@ export default async function PayrollPage({
       const dailyRate = m.monthly_salary / SALARY_BASIS
       basePay   = m.monthly_salary
       deduction = Math.round(deductibleAbsent * dailyRate * 100) / 100
-      otPay     = Math.round(otHours * (dailyRate / 9) * 100) / 100
+      otPay     = Math.round(otHours * (dailyRate / 9.5) * 100) / 100
       netPay    = Math.round((basePay - deduction + otPay) * 100) / 100
     } else if (m.hourly_rate) {
       basePay = Math.round(totalHours * m.hourly_rate * 100) / 100

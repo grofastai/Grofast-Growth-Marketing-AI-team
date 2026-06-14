@@ -206,6 +206,9 @@ export default function HistoryClient({
   const [dateDraft, setDateDraft] = useState<string>("")
   const [savingDate, setSavingDate] = useState(false)
 
+  // Past-client mode for edit dropdown (mirrors daily update form)
+  const [editClientShowPast, setEditClientShowPast] = useState(false)
+
   const [selectedMonth, setSelectedMonth] = useState("")
   const [search, setSearch]               = useState("")
   const [selectedDate, setSelectedDate]   = useState("")
@@ -236,6 +239,7 @@ export default function HistoryClient({
   }
 
   function startEditEntry(updateId: string, entryIdx: number, entry: WorkEntry) {
+    setEditClientShowPast(false)
     setEditingKey(`${updateId}:${entryIdx}`)
     let notes = entry.notes ?? ""
     let parsedStatus: "completed" | "in_progress" | "not_started" = "not_started"
@@ -661,13 +665,14 @@ export default function HistoryClient({
                             </button>
                           </div>
                         ) : (
-                          <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                             <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{dateLabel}</p>
                             <button
                               onClick={() => { setEditingDateId(u.id); setDateDraft(u.date) }}
                               title="Change date"
-                              style={{ width:18, height:18, borderRadius:5, background:"transparent", border:"none", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", padding:0 }}>
-                              <Pencil size={10} style={{ color:"#9CA3AF" }}/>
+                              style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:6, background:"rgba(99,102,241,0.08)", border:"1px solid rgba(99,102,241,0.25)", cursor:"pointer" }}>
+                              <Pencil size={10} style={{ color:"#6366F1" }}/>
+                              <span style={{ fontSize:10, fontWeight:700, color:"#6366F1" }}>Change date</span>
                             </button>
                           </div>
                         )}
@@ -922,24 +927,23 @@ export default function HistoryClient({
                                       <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
                                       {editDraft.task_type === "other" && editDraft.is_multi_client
                                         ? <p style={{ fontSize:11, fontWeight:700, color:"#374151", padding:"7px 0" }}>{(editDraft.client_names ?? []).join(" · ") || "—"}</p>
-                                        : allClients.length > 0
+                                        : editClientShowPast
                                           ? <select
+                                              value=""
+                                              onChange={ev => { const v = ev.target.value; if (v === "__back__") { setEditClientShowPast(false) } else if (v) { setEditDraft(d => ({ ...d, client_name: v })); setEditClientShowPast(false) } }}
+                                              style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                              <option value="__back__">← Back to Active Clients</option>
+                                              {pastClients.filter(c => !clients.includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                          : <select
                                               value={editDraft.client_name ?? ""}
-                                              onChange={ev => setEditDraft(d => ({ ...d, client_name: ev.target.value }))}
+                                              onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { setEditClientShowPast(true) } else { setEditDraft(d => ({ ...d, client_name: v })) } }}
                                               style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
                                               <option value="">— Select client —</option>
-                                              {clients.length > 0 && <optgroup label="Active">
-                                                {clients.map(c => <option key={c} value={c}>{c}</option>)}
-                                              </optgroup>}
-                                              {pastClients.filter(c => !clients.includes(c)).length > 0 && <optgroup label="Past">
-                                                {pastClients.filter(c => !clients.includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
-                                              </optgroup>}
+                                              {clients.map(c => <option key={c} value={c}>{c}</option>)}
+                                              {pastClients.filter(c => !clients.includes(c)).length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                              <option value="__custom__">✏️ Other (type manually)</option>
                                             </select>
-                                          : <input
-                                              value={editDraft.client_name ?? ""}
-                                              onChange={ev => setEditDraft(d => ({ ...d, client_name: ev.target.value }))}
-                                              style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                            />
                                       }
                                     </div>
                                   </div>

@@ -71,15 +71,17 @@ export default async function HistoryPage() {
 
   const companyId = profileResult.data?.company_id ?? ""
 
-  const [updatesResult, clientsResult, participatedResult, membersResult, attLogsResult] = await Promise.all([
+  const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult] = await Promise.all([
     supabase
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, shoot_count, editing_count, work_entries, created_at")
       .eq("user_id", effectiveUserId)
       .order("date", { ascending: false })
       .limit(90),
-    // Read active clients from Supabase (synced daily from Google Sheets by cron)
+    // Active clients
     admin.from("clients").select("name").eq("company_id", companyId).eq("status", "active").order("name"),
+    // Past clients (for edit dropdown — user may have old entries for these)
+    admin.from("clients").select("name").eq("company_id", companyId).eq("status", "past").order("name"),
     companyId
       ? admin
           .from("daily_updates")
@@ -120,6 +122,7 @@ export default async function HistoryPage() {
   }))
   const name = (profileResult.data?.name ?? "").split(" ")[0] || "there"
   const clients = ((clientsResult.data ?? []) as { name: string }[]).map(c => c.name)
+  const pastClients = ((pastClientsResult.data ?? []) as { name: string }[]).map(c => c.name)
   const participatedUpdates = (participatedResult.data ?? []) as unknown as ParticipatedUpdate[]
   const members = (membersResult.data ?? []) as MemberInfo[]
 
@@ -128,6 +131,7 @@ export default async function HistoryPage() {
       updates={updates}
       userName={name}
       clients={clients}
+      pastClients={pastClients}
       participatedUpdates={participatedUpdates}
       members={members}
     />

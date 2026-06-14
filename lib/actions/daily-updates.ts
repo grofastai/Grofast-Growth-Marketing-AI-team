@@ -314,6 +314,28 @@ export async function updateDailyUpdateLearning(
   return { success: true }
 }
 
+export async function changeDailyUpdateDate(
+  id: string,
+  newDate: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { error } = await admin
+    .from('daily_updates')
+    .update({ date: newDate })
+    .eq('id', id)
+    .eq('user_id', user.id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/member/history')
+  revalidatePath('/admin/activities')
+  return { success: true }
+}
+
 export async function getTodayUpdate() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()

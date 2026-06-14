@@ -2,7 +2,9 @@
 
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning, changeDailyUpdateDate } from "@/lib/actions/daily-updates"
+import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning, addEntryToDate } from "@/lib/actions/daily-updates"
+
+const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 import Image from "next/image"
 import {
   Camera, Film, Clock, CalendarDays,
@@ -179,11 +181,22 @@ export default function HistoryClient({
     return result
   }, [updates])
 
-  // Combined client list for edit dropdowns: active first, then past (deduped)
-  const allClients = useMemo(() => {
-    const pastOnly = pastClients.filter(c => !clients.includes(c))
-    return [...clients, ...pastOnly]
-  }, [clients, pastClients])
+  // Active clients for edit dropdown: INTERNAL_BRANDS first, then sheet clients (deduped)
+  const activeClientsForEdit = useMemo(() => {
+    const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim()
+    const seen = new Set(INTERNAL_BRANDS.map(norm))
+    const result = [...INTERNAL_BRANDS]
+    for (const c of clients) {
+      if (!seen.has(norm(c))) { seen.add(norm(c)); result.push(c) }
+    }
+    return result
+  }, [clients])
+
+  // Past clients deduped against active list
+  const pastClientsOnly = useMemo(() =>
+    pastClients.filter(c => !activeClientsForEdit.some(a => a.toLowerCase() === c.toLowerCase())),
+    [pastClients, activeClientsForEdit]
+  )
 
   const router = useRouter()
   const [deletingId, setDeletingId]       = useState<string | null>(null)
@@ -201,10 +214,9 @@ export default function HistoryClient({
   const [learningDraft, setLearningDraft] = useState<{ topic: string; notes: string; hours: string }>({ topic: "", notes: "", hours: "" })
   const [savingLearning, setSavingLearning] = useState(false)
 
-  // Date edit state
-  const [editingDateId, setEditingDateId] = useState<string | null>(null)
-  const [dateDraft, setDateDraft] = useState<string>("")
-  const [savingDate, setSavingDate] = useState(false)
+  // Per-entry date change state
+  const [editDraftDate, setEditDraftDate] = useState<string>("")
+  const [editOrigDate, setEditOrigDate] = useState<string>("")
 
   // Past-client mode for edit dropdown (mirrors daily update form)
   const [editClientShowPast, setEditClientShowPast] = useState(false)
@@ -225,21 +237,10 @@ export default function HistoryClient({
     setDeletingId(null)
   }
 
-  async function handleDateSave(id: string) {
-    if (!dateDraft) return
-    setSavingDate(true)
-    const result = await changeDailyUpdateDate(id, dateDraft)
-    if (result.success) {
-      setEditingDateId(null)
-      router.refresh()
-    } else {
-      alert("Failed to change date: " + result.error)
-    }
-    setSavingDate(false)
-  }
-
-  function startEditEntry(updateId: string, entryIdx: number, entry: WorkEntry) {
+  function startEditEntry(updateId: string, entryIdx: number, entry: WorkEntry, updateDate: string) {
     setEditClientShowPast(false)
+    setEditDraftDate(updateDate)
+    setEditOrigDate(updateDate)
     setEditingKey(`${updateId}:${entryIdx}`)
     let notes = entry.notes ?? ""
     let parsedStatus: "completed" | "in_progress" | "not_started" = "not_started"
@@ -272,17 +273,26 @@ export default function HistoryClient({
     const draftToSave = editDraft.task_type === "other"
       ? { ...editDraft, notes: `[${editEntryStatus}]` }
       : editDraft
-    const updated = allEntries.map((e, i) =>
-      i === entryIdx ? { ...(e as unknown as Record<string, unknown>), ...draftToSave } : (e as unknown as Record<string, unknown>)
-    )
-    const result = await updatePastDailyUpdate(updateId, updated)
-    if (result.success) {
-      setEditingKey(null)
-      setEditDraft({})
-      router.refresh()
+    const updatedEntry = { ...(allEntries[entryIdx] as unknown as Record<string, unknown>), ...draftToSave }
+
+    if (editDraftDate && editDraftDate !== editOrigDate) {
+      // Move entry to a different date
+      const withoutEntry = (allEntries as unknown as Record<string, unknown>[]).filter((_, i) => i !== entryIdx)
+      const r1 = await updatePastDailyUpdate(updateId, withoutEntry)
+      if (!r1.success) { alert("Failed to move entry: " + r1.error); setSavingKey(null); return }
+      const r2 = await addEntryToDate(editDraftDate, updatedEntry)
+      if (!r2.success) { alert("Entry removed from old date but failed to add to new date: " + r2.error); setSavingKey(null); return }
     } else {
-      alert("Failed to save: " + result.error)
+      const updated = allEntries.map((e, i) =>
+        i === entryIdx ? updatedEntry : (e as unknown as Record<string, unknown>)
+      )
+      const result = await updatePastDailyUpdate(updateId, updated)
+      if (!result.success) { alert("Failed to save: " + result.error); setSavingKey(null); return }
     }
+
+    setEditingKey(null)
+    setEditDraft({})
+    router.refresh()
     setSavingKey(null)
   }
 
@@ -642,40 +652,7 @@ export default function HistoryClient({
                         </span>
                       </div>
                       <div>
-                        {editingDateId === u.id ? (
-                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                            <input
-                              type="date"
-                              value={dateDraft}
-                              onChange={e => setDateDraft(e.target.value)}
-                              style={{ padding:"4px 8px", borderRadius:7, border:"1.5px solid #6366F1", fontSize:12, color:"#111111", outline:"none", background:"#fff" }}
-                            />
-                            <button
-                              onClick={() => handleDateSave(u.id)}
-                              disabled={savingDate || !dateDraft}
-                              title="Save date"
-                              style={{ width:24, height:24, borderRadius:6, background:"rgba(99,102,241,0.12)", border:"1px solid rgba(99,102,241,0.3)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", opacity: savingDate ? 0.4 : 1 }}>
-                              <Check size={11} style={{ color:"#6366F1" }}/>
-                            </button>
-                            <button
-                              onClick={() => setEditingDateId(null)}
-                              title="Cancel"
-                              style={{ width:24, height:24, borderRadius:6, background:"rgba(156,163,175,0.1)", border:"1px solid #E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
-                              <X size={11} style={{ color:"#9CA3AF" }}/>
-                            </button>
-                          </div>
-                        ) : (
-                          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                            <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{dateLabel}</p>
-                            <button
-                              onClick={() => { setEditingDateId(u.id); setDateDraft(u.date) }}
-                              title="Change date"
-                              style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:6, background:"rgba(99,102,241,0.08)", border:"1px solid rgba(99,102,241,0.25)", cursor:"pointer" }}>
-                              <Pencil size={10} style={{ color:"#6366F1" }}/>
-                              <span style={{ fontSize:10, fontWeight:700, color:"#6366F1" }}>Change date</span>
-                            </button>
-                          </div>
-                        )}
+                        <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{dateLabel}</p>
                         <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
                           {entries.length > 0
                             ? `${entries.length} work ${entries.length === 1 ? "entry" : "entries"}${u.learning_topic ? " + learning" : ""}`
@@ -892,7 +869,7 @@ export default function HistoryClient({
                               {/* Per-entry actions */}
                               <div style={{ display:"flex", gap:5, flexShrink:0 }}>
                                 <button
-                                  onClick={() => isEditingEntry ? (setEditingKey(null), setEditDraft({})) : startEditEntry(u.id, ei, e)}
+                                  onClick={() => isEditingEntry ? (setEditingKey(null), setEditDraft({})) : startEditEntry(u.id, ei, e, u.date)}
                                   title={isEditingEntry ? "Cancel edit" : "Edit this entry"}
                                   style={{ width:26, height:26, borderRadius:7, background: isEditingEntry ? "rgba(99,102,241,0.15)" : "rgba(99,102,241,0.08)", border:"1px solid rgba(99,102,241,0.25)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
                                   <Pencil size={11} style={{ color:"#6366F1" }}/>
@@ -913,6 +890,20 @@ export default function HistoryClient({
                                 <p style={{ fontSize:11, fontWeight:700, color:"#6366F1", margin:"0 0 10px" }}>Edit Entry</p>
                                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
 
+                                  {/* Date field — move entry to a different day */}
+                                  <div>
+                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Date</label>
+                                    <input
+                                      type="date"
+                                      value={editDraftDate}
+                                      onChange={ev => setEditDraftDate(ev.target.value)}
+                                      style={{ width:"100%", padding:"7px 10px", borderRadius:8, border: editDraftDate !== editOrigDate ? "1.5px solid #6366F1" : "1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
+                                    />
+                                    {editDraftDate !== editOrigDate && (
+                                      <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>This entry will move to {new Date(editDraftDate + "T12:00:00").toLocaleDateString("en-US", { day:"numeric", month:"short", year:"numeric" })}</p>
+                                    )}
+                                  </div>
+
                                   {/* Title + Client — all types */}
                                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                                     <div>
@@ -928,20 +919,25 @@ export default function HistoryClient({
                                       {editDraft.task_type === "other" && editDraft.is_multi_client
                                         ? <p style={{ fontSize:11, fontWeight:700, color:"#374151", padding:"7px 0" }}>{(editDraft.client_names ?? []).join(" · ") || "—"}</p>
                                         : editClientShowPast
-                                          ? <select
-                                              value=""
-                                              onChange={ev => { const v = ev.target.value; if (v === "__back__") { setEditClientShowPast(false) } else if (v) { setEditDraft(d => ({ ...d, client_name: v })); setEditClientShowPast(false) } }}
-                                              style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                              <option value="__back__">← Back to Active Clients</option>
-                                              {pastClients.filter(c => !clients.includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
-                                            </select>
+                                          ? <div>
+                                              <button type="button" onClick={() => setEditClientShowPast(false)}
+                                                style={{ width:"100%", padding:"6px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#6366F1", fontWeight:700, background:"rgba(99,102,241,0.06)", cursor:"pointer", textAlign:"left", marginBottom:4 }}>
+                                                ← Back to Active Clients
+                                              </button>
+                                              <select value=""
+                                                onChange={ev => { const v = ev.target.value; if (v) { setEditDraft(d => ({ ...d, client_name: v })); setEditClientShowPast(false) } }}
+                                                style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                                <option value="">— Select past client —</option>
+                                                {pastClientsOnly.map(c => <option key={c} value={c}>{c}</option>)}
+                                              </select>
+                                            </div>
                                           : <select
                                               value={editDraft.client_name ?? ""}
-                                              onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { setEditClientShowPast(true) } else { setEditDraft(d => ({ ...d, client_name: v })) } }}
+                                              onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { setEditClientShowPast(true) } else if (v === "__custom__") { setEditDraft(d => ({ ...d, client_name: "" })) } else { setEditDraft(d => ({ ...d, client_name: v })) } }}
                                               style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
                                               <option value="">— Select client —</option>
-                                              {clients.map(c => <option key={c} value={c}>{c}</option>)}
-                                              {pastClients.filter(c => !clients.includes(c)).length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                              {activeClientsForEdit.map(c => <option key={c} value={c}>{c}</option>)}
+                                              {pastClientsOnly.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
                                               <option value="__custom__">✏️ Other (type manually)</option>
                                             </select>
                                       }
@@ -960,9 +956,9 @@ export default function HistoryClient({
                                         />
                                         Split cost across multiple clients
                                       </label>
-                                      {editDraft.is_multi_client && allClients.length > 0 && (
+                                      {editDraft.is_multi_client && activeClientsForEdit.length > 0 && (
                                         <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                                          {allClients.map(name => {
+                                          {activeClientsForEdit.map(name => {
                                             const selected = (editDraft.client_names ?? []).includes(name)
                                             return (
                                               <button key={name} type="button"

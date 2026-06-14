@@ -314,22 +314,50 @@ export async function updateDailyUpdateLearning(
   return { success: true }
 }
 
-export async function changeDailyUpdateDate(
-  id: string,
-  newDate: string
+export async function addEntryToDate(
+  newDate: string,
+  entry: Record<string, unknown>
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
-  const { error } = await admin
-    .from('daily_updates')
-    .update({ date: newDate })
-    .eq('id', id)
-    .eq('user_id', user.id)
+  const { data: profile } = await admin
+    .from('users')
+    .select('company_id')
+    .eq('id', user.id)
+    .single()
+  if (!profile) return { success: false, error: 'Profile not found' }
 
-  if (error) return { success: false, error: error.message }
+  const { data: existing } = await admin
+    .from('daily_updates')
+    .select('id, work_entries')
+    .eq('user_id', user.id)
+    .eq('date', newDate)
+    .eq('company_id', profile.company_id)
+    .maybeSingle()
+
+  if (existing) {
+    const currentEntries = Array.isArray(existing.work_entries) ? existing.work_entries : []
+    const { error } = await admin
+      .from('daily_updates')
+      .update({ work_entries: [...currentEntries, entry] })
+      .eq('id', existing.id)
+    if (error) return { success: false, error: error.message }
+  } else {
+    const { error } = await admin
+      .from('daily_updates')
+      .insert({
+        user_id: user.id,
+        company_id: profile.company_id,
+        date: newDate,
+        attendance_status: 'present',
+        work_type: 'media',
+        work_entries: [entry],
+      })
+    if (error) return { success: false, error: error.message }
+  }
 
   revalidatePath('/member/history')
   revalidatePath('/admin/activities')

@@ -535,7 +535,7 @@ export default function DailyUpdateForm({
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
         duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
-        _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours, _drone_hours: s.droneHours,
+        _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours > 0 ? Math.max(0, s.durationHours - s.droneHours) : 0, _drone_hours: s.droneHours,
         participant_ids: s.participantIds,
       })),
       ...edits.map(e => {
@@ -593,7 +593,7 @@ export default function DailyUpdateForm({
         title: s.title || "Shoot", start_time: s.startTime, end_time: s.endTime,
         duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
-        _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours, _drone_hours: s.droneHours,
+        _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours > 0 ? Math.max(0, s.durationHours - s.droneHours) : 0, _drone_hours: s.droneHours,
         participant_ids: s.participantIds,
       })),
       ...edits.map(e => {
@@ -1329,7 +1329,12 @@ export default function DailyUpdateForm({
                         {s.cameraHours > 0 && (
                           <div style={{ marginBottom:8 }}>
                             <label style={{ display:"block", fontSize:10, fontWeight:600, color:"#6B7280", marginBottom:5 }}>📷 Camera Hours</label>
-                            <DurationPicker value={s.cameraHours} onChange={v => patchShoot(s.id, { cameraHours: v })} />
+                            <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:8, background:"rgba(99,102,241,0.06)", border:"1.5px solid rgba(99,102,241,0.2)" }}>
+                              <span style={{ fontSize:13, fontWeight:700, color:"#4338CA" }}>
+                                {fmtTravel(Math.max(0, s.durationHours - s.droneHours))}
+                              </span>
+                              <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto (total − drone)</span>
+                            </div>
                           </div>
                         )}
                         {s.droneHours > 0 && (

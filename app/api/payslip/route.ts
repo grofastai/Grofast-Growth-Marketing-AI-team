@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
   const leaveDays   = absentDays
   const totalHours  = Math.round(updates.reduce((s, u) => s + (u.working_hours ?? 0), 0) * 10) / 10
   const otHours     = Math.round(updates.reduce((s, u) => {
-    const h = u.working_hours ?? 0; return h > 9 ? s + (h - 9) : s
+    const h = u.working_hours ?? 0; return h > 9.5 ? s + (h - 9.5) : s
   }, 0) * 10) / 10
 
   type MemberRow = {
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     medicalAllowance  = Math.round(gross * 0.03)        // 3% of gross
     otherAllowance    = Math.max(0, gross - basic - hra - travelAllowance - medicalAllowance) // ~30%
     deduction = Math.round(absentDays * dailyRate * 100) / 100
-    otPay     = Math.round(otHours * (dailyRate / 9) * 100) / 100
+    otPay     = Math.round(otHours * (dailyRate / 9.5) * 100) / 100
   } else if (member.hourly_rate) {
     basic = Math.round(totalHours * member.hourly_rate * 100) / 100
   }

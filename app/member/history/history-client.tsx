@@ -338,7 +338,7 @@ export default function HistoryClient({
       const workH = entries.reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const learnH = u.learning_hours ?? 0
       const h = workH + learnH
-      totalHours += h; if (h > 9) totalOT += Math.round((h - 9) * 10) / 10
+      totalHours += h; if (h > 9.5) totalOT += Math.round((h - 9.5) * 10) / 10
       totalLearning += learnH
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
@@ -350,7 +350,7 @@ export default function HistoryClient({
       }
     }
     const productivity = filtered.length > 0
-      ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9)) * 40) : 0)))
+      ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9.5)) * 40) : 0)))
       : 0
     return { totalHours, totalOT, totalTasks, presentDays, totalLearning, shootH, editH, otherH, hoursPerDay, productivity }
   }, [filtered])
@@ -395,7 +395,7 @@ export default function HistoryClient({
   // Latest day stats — sum from work_entries only (not attendance-derived working_hours)
   const latestEntries = Array.isArray(latest?.work_entries) ? latest!.work_entries! : []
   const latestH  = latestEntries.reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) + (latest?.learning_hours ?? 0)
-  const latestOT = latestH > 9 ? Math.round((latestH - 9) * 10) / 10 : 0
+  const latestOT = latestH > 9.5 ? Math.round((latestH - 9.5) * 10) / 10 : 0
   const latestTasks = latest ? (Array.isArray(latest.work_entries) ? latest.work_entries : []).length : 0
   const latestSt = latest ? (STATUS_STYLE[latest.attendance_status] ?? STATUS_STYLE.present) : STATUS_STYLE.present
 
@@ -1178,8 +1178,8 @@ export default function HistoryClient({
             <p style={{ fontSize:10, color:"rgba(255,255,255,0.6)", fontWeight:600, margin:"0 0 14px", position:"relative", zIndex:1 }}>{stats.totalOT > 0 ? "Extra hours logged" : "No overtime this period"}</p>
             <div style={{ display:"flex", alignItems:"flex-end", gap:4, height:36, position:"relative", zIndex:1 }}>
               {stats.hoursPerDay.slice(-7).map((h, i) => {
-                const ot = Math.max(0, h - 9)
-                const max = Math.max(...stats.hoursPerDay.map(x => Math.max(0, x - 9)), 1)
+                const ot = Math.max(0, h - 9.5)
+                const max = Math.max(...stats.hoursPerDay.map(x => Math.max(0, x - 9.5)), 1)
                 return (
                   <div key={i} style={{ flex:1, borderRadius:3,
                     background: ot > 0 ? "#FACC15" : "rgba(255,255,255,0.15)",

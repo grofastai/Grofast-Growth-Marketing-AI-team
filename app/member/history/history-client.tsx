@@ -1037,17 +1037,32 @@ export default function HistoryClient({
                                     </div>
                                   )}
 
-                                  {/* Edit: hours */}
+                                  {/* Edit: start/end time (mirrors daily update form) */}
                                   {editDraft.task_type === "edit" && (
                                     <div>
-                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Editing Hours</label>
-                                      <select
-                                        value={editDraft.duration_hours ?? 1}
-                                        onChange={ev => setEditDraft(d => ({ ...d, duration_hours: parseFloat(ev.target.value) }))}
-                                        style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                        {[{v:0.25,l:"15 min"},{v:0.5,l:"30 min"},{v:0.75,l:"45 min"},{v:1,l:"1h"},{v:1.5,l:"1.5h"},{v:2,l:"2h"},{v:2.5,l:"2.5h"},{v:3,l:"3h"},{v:3.5,l:"3.5h"},{v:4,l:"4h"},{v:4.5,l:"4.5h"},{v:5,l:"5h"},{v:6,l:"6h"},{v:7,l:"7h"},{v:8,l:"8h"}]
-                                          .map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
-                                      </select>
+                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Editing Time</label>
+                                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                                        <input type="time" value={editDraft.start_time ?? ""}
+                                          onChange={ev => {
+                                            const st = ev.target.value
+                                            const dur = calcDurationFromTimes(st, editDraft.end_time ?? "")
+                                            setEditDraft(d => ({ ...d, start_time: st, duration_hours: dur ?? d.duration_hours }))
+                                          }}
+                                          style={{ flex:1, padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
+                                        />
+                                        <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                        <input type="time" value={editDraft.end_time ?? ""}
+                                          onChange={ev => {
+                                            const et = ev.target.value
+                                            const dur = calcDurationFromTimes(editDraft.start_time ?? "", et)
+                                            setEditDraft(d => ({ ...d, end_time: et, duration_hours: dur ?? d.duration_hours }))
+                                          }}
+                                          style={{ flex:1, padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
+                                        />
+                                        {(() => { const d = calcDurationFromTimes(editDraft.start_time, editDraft.end_time); return d != null && d > 0 ? (
+                                          <span style={{ fontSize:12, fontWeight:700, color:"#DE1A1A", flexShrink:0 }}>{fmtH(d)}</span>
+                                        ) : null })()}
+                                      </div>
                                     </div>
                                   )}
 

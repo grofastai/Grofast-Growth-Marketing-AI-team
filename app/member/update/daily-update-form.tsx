@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useMemo, useEffect, useRef, type CSSProperties } from "react"
+import { useState, useTransition, useMemo, useEffect, useRef, Fragment, type CSSProperties } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import {
@@ -1024,7 +1024,8 @@ export default function DailyUpdateForm({
                       ? { bg:"rgba(245,158,11,0.08)", color:"#D97706", border:"rgba(245,158,11,0.25)" }
                       : { bg:"#F9FAFB", color:"#9CA3AF", border:"#E5E7EB" }
                     return (
-                      <div key={block.id} style={{ background: block.isBreak ? "#FFFBEB" : "#F9FAFB", borderRadius:14, border: block.isBreak ? "1.5px solid rgba(245,158,11,0.35)" : "1px solid #EBEDF2", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
+                      <Fragment key={block.id}>
+                      <div style={{ background: block.isBreak ? "#FFFBEB" : "#F9FAFB", borderRadius:14, border: block.isBreak ? "1.5px solid rgba(245,158,11,0.35)" : "1px solid #EBEDF2", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
 
                         {/* ── Block header: Work/Break toggle + break label + delete ── */}
                         <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
@@ -1169,6 +1170,7 @@ export default function DailyUpdateForm({
                         style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:5, width:"100%", padding:"6px", borderRadius:8, border:"1.5px dashed #E5E7EB", background:"transparent", color:"#9CA3AF", fontSize:11, fontWeight:700, cursor:"pointer", marginTop:2 }}>
                         <Plus size={11} /> Add block
                       </button>
+                      </Fragment>
                     )
                   })}
                 </div>

@@ -121,18 +121,22 @@ export async function submitDailyUpdate(
     if (insertError) return { success: false, error: insertError.message }
   }
 
-  // Sync break entries to attendance_logs (works for any date — past or today)
-  const breakEntries = d.work_entries.filter(e => e.task_type === 'break')
-  if (breakEntries.length > 0) {
-    const breakSessions = breakEntries
-      .filter(e => e.start_time && e.end_time && e.duration_hours > 0)
+  // Sync ALL break entries to attendance_logs — use combined entries so multiple submits accumulate
+  const existingEntries = existingRecord && Array.isArray(existingRecord.work_entries)
+    ? existingRecord.work_entries as { task_type: string; start_time?: string | null; end_time?: string | null; duration_hours: number; title?: string }[]
+    : []
+  const allWorkEntries = [...existingEntries, ...d.work_entries]
+  const allBreakEntries = allWorkEntries.filter(e => e.task_type === 'break' && e.duration_hours > 0)
+  if (allBreakEntries.length > 0) {
+    const breakSessions = allBreakEntries
+      .filter(e => e.start_time && e.end_time)
       .map(e => ({
         start: e.start_time,
         end: e.end_time,
         duration_mins: Math.round(e.duration_hours * 60),
         label: e.title || 'Break',
       }))
-    const totalBreakMins = breakSessions.reduce((s, b) => s + b.duration_mins, 0)
+    const totalBreakMins = allBreakEntries.reduce((s, e) => s + Math.round(e.duration_hours * 60), 0)
     await admin
       .from('attendance_logs')
       .update({ break_sessions: breakSessions, break_total_mins: totalBreakMins })
@@ -197,7 +201,13 @@ export async function deleteDailyUpdate(id: string): Promise<{ success: boolean;
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
-  // Only allow deleting own records
+  const { data: record } = await admin
+    .from('daily_updates')
+    .select('date, company_id')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
   const { error } = await admin
     .from('daily_updates')
     .delete()
@@ -205,6 +215,16 @@ export async function deleteDailyUpdate(id: string): Promise<{ success: boolean;
     .eq('user_id', user.id)
 
   if (error) return { success: false, error: error.message }
+
+  // Clear break from attendance when entire day's update is deleted
+  if (record?.date) {
+    await admin
+      .from('attendance_logs')
+      .update({ break_total_mins: 0, break_sessions: [] })
+      .eq('user_id', user.id)
+      .eq('date', record.date)
+      .eq('company_id', record.company_id)
+  }
 
   revalidatePath('/member/history')
   revalidatePath('/member/dashboard')
@@ -221,6 +241,13 @@ export async function updatePastDailyUpdate(
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
+  const { data: record } = await admin
+    .from('daily_updates')
+    .select('date, company_id')
+    .eq('id', id)
+    .eq('user_id', user.id)
+    .single()
+
   const totalHours = entries.reduce((s, e) => s + ((e.duration_hours as number) ?? 0), 0)
 
   const { error } = await admin
@@ -235,6 +262,25 @@ export async function updatePastDailyUpdate(
     .eq('user_id', user.id)
 
   if (error) return { success: false, error: error.message }
+
+  // Sync break total to attendance_logs based on remaining entries
+  if (record?.date) {
+    const breakEntries = entries.filter(e => e.task_type === 'break' && (e.duration_hours as number) > 0)
+    const breakSessions = breakEntries
+      .filter(e => e.start_time && e.end_time)
+      .map(e => ({
+        start: e.start_time, end: e.end_time,
+        duration_mins: Math.round((e.duration_hours as number) * 60),
+        label: (e.title as string) || 'Break',
+      }))
+    const totalBreakMins = breakEntries.reduce((s, e) => s + Math.round((e.duration_hours as number) * 60), 0)
+    await admin
+      .from('attendance_logs')
+      .update({ break_sessions: breakSessions, break_total_mins: totalBreakMins })
+      .eq('user_id', user.id)
+      .eq('date', record.date)
+      .eq('company_id', record.company_id)
+  }
 
   revalidatePath('/member/update')
   revalidatePath('/member/history')

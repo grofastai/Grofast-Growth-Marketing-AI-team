@@ -6,13 +6,13 @@ import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning } f
 import Image from "next/image"
 import {
   Camera, Film, Clock, CalendarDays,
-  TrendingUp, Zap, BookOpen,
+  TrendingUp, Zap, BookOpen, Coffee,
   CheckCircle2, Search, Trash2,
   ArrowRight, Flame, Star, X, Pencil, Check,
 } from "lucide-react"
 
 interface WorkEntry {
-  id?: string; task_type: "shoot" | "edit" | "other"
+  id?: string; task_type: "shoot" | "edit" | "other" | "break"
   title: string; client_name: string; duration_hours: number
   notes: string; start_time?: string | null; end_time?: string | null
   screenshot_url?: string | null; video_link?: string | null
@@ -38,6 +38,7 @@ const TASK_CFG = {
   shoot: { Icon: Camera,   color:"#EF4444", bg:"rgba(239,68,68,0.1)",   label:"Shoot"   },
   edit:  { Icon: Film,     color:"#6366F1", bg:"rgba(99,102,241,0.1)",  label:"Editing" },
   other: { Icon: BookOpen, color:"#F59E0B", bg:"rgba(245,158,11,0.1)",  label:"Work"    },
+  break: { Icon: Coffee,   color:"#78716C", bg:"rgba(120,113,108,0.1)", label:"Break"   },
 }
 const DOT_COLORS = ["#22C55E","#F59E0B","#6366F1","#EF4444","#0EA5E9","#EC4899"]
 

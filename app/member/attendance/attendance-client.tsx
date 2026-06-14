@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useCallback, Fragment } from "react"
 import Image from "next/image"
 import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch } from "lucide-react"
-import { clockIn, clockOut, markAbsent, markPastAbsent, breakIn, breakOut, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes } from "@/lib/actions/attendance"
+import { clockIn, clockOut, markAbsent, markPastAbsent, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes } from "@/lib/actions/attendance"
 import { useRouter } from "next/navigation"
 
 const OFFICE_LAT     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LAT     ?? "12.415145713024462")
@@ -317,18 +317,12 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const isIn      = !!todayLog?.clock_in && !todayLog?.clock_out && todayLog?.status === "present"
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
   const notLogged = !todayLog
-  const isOvertime = isIn && (todayLog?.paused_seconds ?? 0) > 0
-
-  const isOnBreak       = !!todayLog?.break_in && !todayLog?.break_out
   const breakTotalMins  = todayLog?.break_total_mins ?? 0
-  // Minutes into current active break (if on break right now)
-  const currentBreakMins = isOnBreak && todayLog?.break_in
-    ? Math.round((Date.now() - new Date(todayLog.break_in).getTime()) / 60000)
-    : 0
   const hoursWorked    = todayLog?.clock_in
-    ? Math.max(0, calcHoursNet(todayLog.clock_in, todayLog.clock_out, breakTotalMins, todayLog.break_in ?? null, todayLog.paused_seconds) - todayPermissionHours)
+    ? Math.max(0, calcHoursNet(todayLog.clock_in, todayLog.clock_out, breakTotalMins, null, todayLog.paused_seconds) - todayPermissionHours)
     : 0
   const remainingHours = Math.max(SHIFT_HOURS - hoursWorked, 0)
+  const isOvertime     = hoursWorked > SHIFT_HOURS
 
   const dateStr    = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
   const statusLabel = isAbsent ? "Absent" : (isIn || isDone) ? "Present" : "Not Logged"
@@ -363,7 +357,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
         <div>
           <h1 className="text-[32px] font-black leading-tight" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Attendance</h1>
           <p className="text-[13px] font-medium mt-1" style={{ color: "#6B7280" }}>{dateStr}</p>
-          <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>Shift: 9:00 AM – 6:00 PM</p>
+          <p className="text-[12px] mt-0.5" style={{ color: "#9CA3AF" }}>Shift: 9:30 AM – 7:00 PM</p>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 rounded-full mt-2"
           style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
@@ -472,7 +466,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       clockInIso={todayLog.clock_in}
                       pausedSeconds={todayLog.paused_seconds}
                       breakTotalMins={breakTotalMins}
-                      currentBreakInIso={isOnBreak ? (todayLog.break_in ?? null) : null}
+                      currentBreakInIso={null}
                     />
                     <SegmentBar hoursWorked={hoursWorked} />
                     <p className="text-[12px] mb-1" style={{ color: "#9CA3AF" }}>
@@ -489,51 +483,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       {isPending ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
                       Log Out
                     </button>
-                    {/* Break buttons — multiple breaks allowed */}
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {!isOnBreak && (
-                        <button onClick={() => handle(breakIn)} disabled={isPending}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold disabled:opacity-50"
-                          style={{ border: "1.5px solid #F59E0B", background: "rgba(245,158,11,0.08)", color: "#D97706" }}>
-                          ☕ Break In
-                        </button>
-                      )}
-                      {isOnBreak && (
-                        <button onClick={() => handle(breakOut)} disabled={isPending}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold disabled:opacity-50"
-                          style={{ border: "1.5px solid #22C55E", background: "rgba(34,197,94,0.08)", color: "#16A34A" }}>
-                          ▶ Break Out
-                        </button>
-                      )}
-                      {isOnBreak && (
-                        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold"
-                          style={{ border: "1.5px solid rgba(245,158,11,0.3)", background: "rgba(245,158,11,0.07)", color: "#D97706" }}>
-                          ☕ On break · {currentBreakMins}m
-                        </div>
-                      )}
-                      {breakTotalMins > 0 && (
-                        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-semibold"
-                          style={{ border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280" }}>
-                          Total break: {breakTotalMins}m
-                        </div>
-                      )}
-                    </div>
-                    {/* Break timeline */}
-                    {(todayLog?.break_sessions?.length ?? 0) > 0 && (
-                      <div className="mt-3 space-y-1.5">
-                        <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Break History</p>
-                        {(todayLog?.break_sessions ?? []).map((s, i) => (
-                          <div key={i} className="flex items-center gap-2 text-[11px]" style={{ color: "#6B7280" }}>
-                            <span className="font-semibold" style={{ color: "#374151" }}>Break {i + 1}</span>
-                            <span>·</span>
-                            <span>{fmtTimeFromIso(s.in)}</span>
-                            <span>–</span>
-                            <span>{s.out ? fmtTimeFromIso(s.out) : <span style={{ color: "#F59E0B" }}>ongoing</span>}</span>
-                            {s.mins != null && <><span>·</span><span style={{ color: "#16A34A" }}>{s.mins} min</span></>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                     {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
                   </div>
                   {/* Large alarm clock illustration */}
@@ -571,18 +520,20 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
                     </div>
                   </div>
-                  {/* Right: Overtime button */}
-                  <button
-                    onClick={() => handle(() => resumeAttendance(today))}
-                    disabled={isPending}
-                    className="flex-shrink-0 flex flex-col items-center justify-center gap-1.5 rounded-2xl transition-all"
-                    style={{ background: "rgba(245,158,11,0.1)", border: "1.5px solid rgba(245,158,11,0.35)", color: "#D97706", padding: "12px 16px", minWidth: 72 }}>
-                    {isPending
-                      ? <Loader2 size={18} className="animate-spin" />
-                      : <TrendingUp size={18} />
-                    }
-                    <span className="text-[11px] font-bold leading-none">Overtime</span>
-                  </button>
+                  {/* Right: Overtime button — only when actually worked > 9h 30m */}
+                  {isOvertime && (
+                    <button
+                      onClick={() => handle(() => resumeAttendance(today))}
+                      disabled={isPending}
+                      className="flex-shrink-0 flex flex-col items-center justify-center gap-1.5 rounded-2xl transition-all"
+                      style={{ background: "rgba(245,158,11,0.1)", border: "1.5px solid rgba(245,158,11,0.35)", color: "#D97706", padding: "12px 16px", minWidth: 72 }}>
+                      {isPending
+                        ? <Loader2 size={18} className="animate-spin" />
+                        : <TrendingUp size={18} />
+                      }
+                      <span className="text-[11px] font-bold leading-none">Overtime</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -601,6 +552,24 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               )}
 
             </div>{/* inner timer card */}
+
+            {/* Monthly Total Hrs + Monthly Avg Hrs — below day status card */}
+            {monthlyPerf && (
+              <div className="flex gap-3 mt-4">
+                <div className="flex-1 rounded-2xl px-4 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Monthly Total Hrs</p>
+                  <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+                    {monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
+                  </p>
+                </div>
+                <div className="flex-1 rounded-2xl px-4 py-3" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Monthly Avg Hrs</p>
+                  <p className="text-[22px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
+                    {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgHours) : "0h"}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>{/* px-5 pb-5 */}
         </div>{/* outer card */}
 
@@ -630,7 +599,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               {/* Time breakdown */}
               {todayLog?.clock_in && (() => {
                 const spanH      = calcHours(todayLog.clock_in, todayLog.clock_out)
-                const totalBreakMins = isOnBreak ? breakTotalMins + currentBreakMins : breakTotalMins
+                const totalBreakMins = breakTotalMins
                 const breakH     = totalBreakMins / 60
                 return (
                   <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12, marginTop: 4 }}>
@@ -643,12 +612,11 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       </div>
                       <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>−</span>
                       {/* Break */}
-                      <div style={{ textAlign: "center", background: isOnBreak ? "rgba(245,158,11,0.1)" : "rgba(245,158,11,0.06)", borderRadius: 10, padding: "8px 4px", border: `1px solid rgba(245,158,11,${isOnBreak ? "0.35" : "0.15"})` }}>
+                      <div style={{ textAlign: "center", background: "rgba(245,158,11,0.06)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(245,158,11,0.15)" }}>
                         <p style={{ fontSize: 10, fontWeight: 700, color: "#D97706", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px" }}>Break</p>
                         <p style={{ fontSize: 15, fontWeight: 900, color: "#D97706", margin: 0, fontFamily: "var(--font-jakarta)" }}>
                           {totalBreakMins > 0 ? fmtHoursShort(breakH) : "0h"}
                         </p>
-                        {isOnBreak && <p style={{ fontSize: 9, color: "#D97706", margin: 0, fontWeight: 700 }}>ongoing</p>}
                       </div>
                       <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>=</span>
                       {/* Worked */}
@@ -796,45 +764,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               )
             })()}
 
-            <div className="rounded-2xl px-4 py-3 mb-2" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Total Hours This Month</p>
-              <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-                {monthlyPerf && monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
-              </p>
-            </div>
-            {monthlyPerf && monthlyPerf.presentDays > 0 && (
-              <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Avg Hours / Day</p>
-                <p className="text-[22px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                  {fmtHoursShort(monthlyPerf.avgHours)}
-                </p>
-              </div>
-            )}
           </div>
 
-          {/* Monthly summary table — shown when This Month filter is active */}
-          {rangeMode === "thisMonth" && rangeLogs && (
-            <div className="rounded-3xl p-4" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-              <p className="text-[12px] font-bold mb-3" style={{ color: "#111111" }}>This Month — Attendance</p>
-              <div style={{ display:"flex", flexDirection:"column", gap:4, maxHeight:320, overflowY:"auto" }}>
-                {rangeLogs.map(l => {
-                  const h = l.clock_in && l.clock_out ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins ?? 0)/60) : 0
-                  const dateLabel = new Date(l.date+"T12:00:00").toLocaleDateString("en-IN", { day:"2-digit", month:"short" })
-                  const day = new Date(l.date+"T12:00:00").toLocaleDateString("en-US", { weekday:"short" })
-                  return (
-                    <div key={l.date} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px", borderRadius:8, background: l.date === today ? "rgba(222,26,26,0.05)" : "transparent" }}>
-                      <span style={{ fontSize:10, fontWeight:700, color:"#374151", width:38, flexShrink:0 }}>{day}</span>
-                      <span style={{ fontSize:10, color:"#9CA3AF", width:40, flexShrink:0 }}>{dateLabel}</span>
-                      <div style={{ width:8, height:8, borderRadius:"50%", flexShrink:0, background: l.status==="present" ? "#22C55E" : l.status==="absent" ? "#EF4444" : "#D1D5DB" }}/>
-                      <span style={{ fontSize:10, fontWeight:600, color: l.status==="present" ? "#16A34A" : "#EF4444", flex:1 }}>
-                        {l.status==="present" ? (h>0 ? fmtHoursShort(h) : "Present") : "Absent"}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          )}
 
         </div>{/* end third col */}
 
@@ -951,24 +882,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             </div>
             {rangeLoading && <p className="text-[13px]" style={{ color: "#9CA3AF" }}>Loading…</p>}
             {!rangeLoading && rangeLogs !== null && (() => {
-              const pLogs = rangeLogs.filter(l => l.status === "present" && l.clock_in)
-              const totalH = pLogs.reduce((s, l) => s + (l.clock_in && l.clock_out ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins ?? 0)/60) : 0), 0)
-              const avgH = pLogs.length > 0 ? Math.round((totalH / pLogs.length) * 10) / 10 : 0
               return (
                 <>
-                  <div className="flex flex-wrap gap-3 mb-4">
-                    {[
-                      { label:"Present Days", value: String(pLogs.length),                                    color:"#22C55E", bg:"rgba(34,197,94,0.08)" },
-                      { label:"Absent Days",  value: String(rangeLogs.filter(l=>l.status==="absent").length), color:"#EF4444", bg:"rgba(239,68,68,0.08)" },
-                      { label:"Total Hours",  value: fmtHoursShort(Math.round(totalH*10)/10),                 color:"#6366F1", bg:"rgba(99,102,241,0.08)" },
-                      { label:"Avg / Day",    value: avgH > 0 ? fmtHoursShort(avgH) : "—",                   color:"#F59E0B", bg:"rgba(245,158,11,0.08)" },
-                    ].map(s => (
-                      <div key={s.label} className="rounded-2xl px-4 py-2.5" style={{ background:s.bg }}>
-                        <p className="text-[10px] font-bold uppercase tracking-wide mb-0.5" style={{ color:s.color }}>{s.label}</p>
-                        <p className="text-[18px] font-black leading-none" style={{ color:s.color, fontFamily:"var(--font-jakarta)" }}>{s.value}</p>
-                      </div>
-                    ))}
-                  </div>
                   {rangeLogs.length === 0
                     ? <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No attendance records found for this range.</p>
                     : (
@@ -1077,34 +992,13 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             {rangeLoading && <p className="text-[13px]" style={{ color: "#9CA3AF" }}>Loading…</p>}
             {!rangeLoading && rangeLogs && (
               <>
-                {/* Summary bar */}
-                {(() => {
-                  const pLogs = rangeLogs.filter(l => l.status === "present" && l.clock_in)
-                  const totalH = pLogs.reduce((s, l) => s + (l.clock_in && l.clock_out ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins ?? 0)/60) : 0), 0)
-                  const avgH = pLogs.length > 0 ? Math.round((totalH / pLogs.length) * 10) / 10 : 0
-                  return (
-                    <div className="flex flex-wrap gap-3 mb-4">
-                      {[
-                        { label:"Present Days", value: String(pLogs.length),                               color:"#22C55E", bg:"rgba(34,197,94,0.08)" },
-                        { label:"Absent Days",  value: String(rangeLogs.filter(l=>l.status==="absent").length), color:"#EF4444", bg:"rgba(239,68,68,0.08)" },
-                        { label:"Total Hours",  value: fmtHoursShort(Math.round(totalH*10)/10),            color:"#6366F1", bg:"rgba(99,102,241,0.08)" },
-                        { label:"Avg / Day",    value: avgH > 0 ? fmtHoursShort(avgH) : "—",              color:"#F59E0B", bg:"rgba(245,158,11,0.08)" },
-                      ].map(s => (
-                        <div key={s.label} className="rounded-2xl px-4 py-2.5" style={{ background:s.bg }}>
-                          <p className="text-[10px] font-bold uppercase tracking-wide mb-0.5" style={{ color:s.color }}>{s.label}</p>
-                          <p className="text-[18px] font-black leading-none" style={{ color:s.color, fontFamily:"var(--font-jakarta)" }}>{s.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )
-                })()}
 
                 {/* Table */}
                 <div style={{ overflowX:"auto" }}>
                   <table style={{ width:"100%", borderCollapse:"collapse", fontSize:12 }}>
                     <thead>
                       <tr style={{ background:"#F5F6FA" }}>
-                        {["Date","Day","Status","Mode","Login","Logout","Office Hrs","Worked",""].map(h => (
+                        {["Date","Day","Status","Mode","Login","Logout","Break","Office Hrs","Worked",""].map(h => (
                           <th key={h} style={{ padding:"8px 10px", textAlign:"left", fontWeight:700, color:"#6B7280", fontSize:10, textTransform:"uppercase", letterSpacing:"0.06em", whiteSpace:"nowrap" }}>{h}</th>
                         ))}
                       </tr>
@@ -1119,7 +1013,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                             <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111", whiteSpace:"nowrap" }}>{dateLabel}</td>
                             <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
                             <td style={{ padding:"9px 10px" }}><span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(0,0,0,0.04)", color:"#9CA3AF" }}>No Record</span></td>
-                            <td colSpan={4} style={{ padding:"9px 10px", color:"#D1D5DB" }}>—</td>
+                            <td colSpan={5} style={{ padding:"9px 10px", color:"#D1D5DB" }}>—</td>
                             <td style={{ padding:"9px 10px" }} />
                             <td style={{ padding:"9px 10px" }}>
                               {date < today && (
@@ -1147,6 +1041,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               <td style={{ padding:"9px 10px", color:"#6B7280", textTransform:"capitalize" }}>{l.work_type ?? "—"}</td>
                               <td style={{ padding:"9px 10px", color:"#111111", whiteSpace:"nowrap" }}>{fmtTime(l.clock_in)}</td>
                               <td style={{ padding:"9px 10px", color: l.clock_out ? "#111111" : "#EF4444", whiteSpace:"nowrap" }}>{l.clock_out ? fmtTime(l.clock_out) : "—"}</td>
+                              <td style={{ padding:"9px 10px", fontWeight:600, color: (l.break_total_mins ?? 0) > 0 ? "#F59E0B" : "#D1D5DB" }}>{(l.break_total_mins ?? 0) > 0 ? fmtHoursShort(Math.round((l.break_total_mins/60)*10)/10) : "—"}</td>
                               <td style={{ padding:"9px 10px", fontWeight:700, color:"#374151" }}>{officeH > 0 ? fmtHoursShort(Math.round(officeH*10)/10) : "—"}</td>
                               <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111" }}>{workedH > 0 ? fmtHoursShort(Math.round(workedH*10)/10) : "—"}</td>
                               <td style={{ padding:"9px 10px" }}>
@@ -1171,16 +1066,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                                       <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#6B7280", marginBottom:3 }}>LOGOUT</label>
                                       <input type="time" value={editCOut} onChange={e => setEditCOut(e.target.value)}
                                         style={{ padding:"6px 10px", borderRadius:8, border:"1.5px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none" }}/>
-                                    </div>
-                                    <div>
-                                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#F59E0B", marginBottom:3 }}>BREAK IN</label>
-                                      <input type="time" value={editBrkIn} onChange={e => setEditBrkIn(e.target.value)}
-                                        style={{ padding:"6px 10px", borderRadius:8, border:"1.5px solid #FDE68A", fontSize:12, color:"#111111", outline:"none" }}/>
-                                    </div>
-                                    <div>
-                                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#F59E0B", marginBottom:3 }}>BREAK OUT</label>
-                                      <input type="time" value={editBrkOut} onChange={e => setEditBrkOut(e.target.value)}
-                                        style={{ padding:"6px 10px", borderRadius:8, border:"1.5px solid #FDE68A", fontSize:12, color:"#111111", outline:"none" }}/>
                                     </div>
                                     <button onClick={handleEditTimes} disabled={editSaving || !editCIn}
                                       style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:8, background:"#6366F1", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:editSaving?0.6:1 }}>

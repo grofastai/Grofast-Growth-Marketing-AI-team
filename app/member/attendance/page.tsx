@@ -125,7 +125,11 @@ export default async function AttendancePage() {
   const monthPresentDays = presentLogs.length
 
   const monthTotalHrs = Math.round(
-    monthUpdates.reduce((s, u) => s + (u.working_hours ?? 0) + (u.learning_hours ?? 0), 0) * 10
+    presentLogs
+      .filter(l => l.clock_in && l.clock_out)
+      .reduce((s, l) => s + Math.max(0,
+        (new Date(l.clock_out!).getTime() - new Date(l.clock_in!).getTime()) / 3600000 - (l.break_total_mins ?? 0) / 60
+      ), 0) * 10
   ) / 10
 
   const monthAvgHrs = monthPresentDays > 0

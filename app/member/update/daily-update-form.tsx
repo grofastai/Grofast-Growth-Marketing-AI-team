@@ -13,7 +13,7 @@ import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/l
 interface Project { id: string; business_name: string }
 interface TeamMember { id: string; name: string; employee_id: string; role: string }
 
-const INTERNAL_BRANDS = ["Grofast Digital", "Karthick Brands"]
+const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 
 interface ShootEntry {
   id: string; clientName: string; customClient: string; title: string
@@ -315,14 +315,14 @@ export default function DailyUpdateForm({
     setLearningError(null)
 
     const foundTab = (found?.active_tab as string) ?? null
-    if (foundTab === "media" || foundTab === "learning" || foundTab === "working") {
-      setTab(foundTab as "working" | "media" | "learning")
+    if (foundTab === "media" || foundTab === "learning" || foundTab === "working" || foundTab === "break") {
+      setTab(foundTab as "working" | "media" | "learning" | "break")
     } else {
       setTab(isMediaTeam ? "media" : "working")
     }
   }
 
-  const [tab, setTab] = useState<"working" | "media" | "learning">(isMediaTeam ? "media" : "working")
+  const [tab, setTab] = useState<"working" | "media" | "learning" | "break">(isMediaTeam ? "media" : "working")
 
   // Normalize: collapse all whitespace (including non-breaking spaces) to single space, lowercase
   const norm = (s: string) => s.replace(/[\s ]+/g, " ").trim().toLowerCase()
@@ -408,6 +408,7 @@ export default function DailyUpdateForm({
   const removeMediaBreak = (id: string) => setMediaBreaks(p => p.filter(b => b.id !== id))
 
   // ── Learning ─────────────────────────────────────────────────────────────
+  const [learningClient, setLearningClient] = useState("GROFAST DIGITAL")
   const [learningTopic, setLearningTopic] = useState(
     (existingUpdate?.learning_topic as string) ?? ""
   )
@@ -464,7 +465,7 @@ export default function DailyUpdateForm({
 
   const totalShootHours  = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
   const totalTravelHours = useMemo(() => shoots.reduce((s, e) => s + e.travelHours, 0), [shoots])
-  const totalEditHours  = useMemo(() => edits.reduce((s, e) => s + e.timeTaken, 0), [edits])
+  const totalEditHours  = useMemo(() => edits.reduce((s, e) => s + calcDuration(e.startTime, e.endTime), 0), [edits])
   const totalMediaHours = totalShootHours + totalEditHours
   const totalLoggedHours = useMemo(() => timeBlocks.reduce((s, b) => s + b.durationHours, 0), [timeBlocks])
   const filledBlocks     = timeBlocks.filter(b => !b.isBreak && b.description.trim())
@@ -525,7 +526,7 @@ export default function DailyUpdateForm({
   // ── Submit: media (shoots + edits + breaks) ──────────────────────────────
   function handleMediaSubmit() {
     setError(null)
-    if (shoots.length === 0 && edits.length === 0) { setError("Add at least one shoot or edit entry."); return }
+    if (tab !== "break" && shoots.length === 0 && edits.length === 0) { setError("Add at least one shoot or edit entry."); return }
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
@@ -641,7 +642,7 @@ export default function DailyUpdateForm({
         shoot_count: 0, editing_count: 0,
         shoot_time_hours: 0, editing_time_hours: 0,
         learning_hours: learningHours,
-        learning_topic: learningTopic,
+        learning_topic: `[${learningClient}] ${learningTopic}`.trim(),
         learning_notes: learningNotes,
         participant_ids: learningParticipantIds,
       })
@@ -650,9 +651,40 @@ export default function DailyUpdateForm({
     })
   }
 
+  function handleBreakSubmit() {
+    setError(null)
+    const breakEntries = isMediaTeam
+      ? mediaBreaks.filter(b => b.durationHours > 0).map(b => ({
+          id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
+          task_type: "break" as const,
+          title: b.label || "Break", start_time: b.startTime, end_time: b.endTime,
+          duration_hours: b.durationHours, notes: undefined,
+          video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
+        }))
+      : breakBlocks.map(t => ({
+          id: t.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
+          task_type: "break" as const,
+          title: t.breakLabel || "Break", start_time: t.startTime, end_time: t.endTime,
+          duration_hours: t.durationHours, notes: undefined,
+          video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
+        }))
+    if (breakEntries.length === 0) { setError("Add at least one break with a duration."); return }
+    startTransition(async () => {
+      const res = await submitDailyUpdate({
+        active_tab: "break", date: selectedDate, work_entries: breakEntries, links: [],
+        shoot_count: 0, editing_count: 0,
+        shoot_time_hours: 0, editing_time_hours: 0, learning_hours: 0,
+        participant_ids: [],
+      })
+      if (!res.success) setError(res.error ?? "Submission failed.")
+      else { if (isMediaTeam) setSubmitted(true); else setWorkingDone(true); router.refresh() }
+    })
+  }
+
   function handleSubmit() {
     if (tab === "working") handleWorkingSubmit()
     else if (tab === "media") handleMediaSubmit()
+    else if (tab === "break") handleBreakSubmit()
     else handleLearningSubmit()
   }
 
@@ -690,6 +722,7 @@ export default function DailyUpdateForm({
             setTimeBlocks(parseExistingBlocks(cur))
             setShoots(parseExistingShoots(cur))
             setEdits(parseExistingEdits(cur))
+            setMediaBreaks(parseExistingMediaBreaks(cur))
             setEditMode(true)
             setSubmitted(false)
             if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
@@ -717,10 +750,11 @@ export default function DailyUpdateForm({
     { id: "working" as const, label: "⏰  Working",  desc: "Log your time blocks" },
     { id: "media"   as const, label: "🎬  Media",    desc: "Shoots & editing" },
     { id: "learning"as const, label: "📚  Learning", desc: "Skills & growth" },
+    { id: "break"   as const, label: "☕  Break",     desc: "Break in / break out" },
   ]
   const TABS = isMediaTeam
-    ? ALL_TABS.filter(t => t.id === "media" || t.id === "learning")
-    : ALL_TABS.filter(t => t.id === "working" || t.id === "learning")
+    ? ALL_TABS.filter(t => t.id === "media" || t.id === "learning" || t.id === "break")
+    : ALL_TABS.filter(t => t.id === "working" || t.id === "learning" || t.id === "break")
 
   return (
     <div className="p-4 md:p-6" style={{ background:"#F5F6FA", minHeight:"100vh" }}>
@@ -859,9 +893,7 @@ export default function DailyUpdateForm({
               </div>
 
               {/* Connector line */}
-              <div style={{ width:32, height:2, borderRadius:99, flexShrink:0,
-                background: workingDone ? "#22C55E" : "#E5E7EB",
-              }} />
+              <div style={{ width:24, height:2, borderRadius:99, flexShrink:0, background: workingDone ? "#22C55E" : "#E5E7EB" }} />
 
               {/* Step 2: Learning */}
               <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:10 }}>
@@ -879,7 +911,26 @@ export default function DailyUpdateForm({
                     Learning{learningDone ? " submitted" : ""}
                   </p>
                   <p style={{ margin:0, fontSize:10, color: learningDone ? "#16A34A" : tab === "learning" ? "#6B7280" : "#C4C9D4" }}>
-                    {learningDone ? "Done ✓" : workingDone && tab !== "learning" ? "Submit below ↓" : tab === "learning" ? "Fill & submit below" : "Pending"}
+                    {learningDone ? "Done ✓" : tab === "learning" ? "Fill & submit below" : "Pending"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Connector line */}
+              <div style={{ width:24, height:2, borderRadius:99, flexShrink:0, background: "#E5E7EB" }} />
+
+              {/* Step 3: Break */}
+              <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center",
+                  background: tab === "break" ? "#D97706" : "#E5E7EB",
+                  border: tab === "break" ? "none" : "2px solid #D1D5DB",
+                }}>
+                  <span style={{ fontSize:10, color: tab === "break" ? "#fff" : "#9CA3AF", fontWeight:900, lineHeight:1 }}>3</span>
+                </div>
+                <div>
+                  <p style={{ margin:0, fontSize:12, fontWeight:800, color: tab === "break" ? "#111827" : "#9CA3AF" }}>Break</p>
+                  <p style={{ margin:0, fontSize:10, color: tab === "break" ? "#6B7280" : "#C4C9D4" }}>
+                    {tab === "break" ? "Log breaks below" : "Optional"}
                   </p>
                 </div>
               </div>
@@ -915,6 +966,13 @@ export default function DailyUpdateForm({
                   Learning{learningDone && tab !== "learning" ? " ✓" : ""}
                 </span>
               </button>
+              <button onClick={() => setTab("break")} style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 18px", borderRadius:12, flex:1, justifyContent:"center", cursor:"pointer", border:"none", transition:"all 0.18s",
+                background: tab === "break" ? "#D97706" : "#FFFFFF",
+                boxShadow: tab === "break" ? "0 4px 14px rgba(217,119,6,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
+                outline: tab === "break" ? "none" : "1.5px solid #EBEDF2",
+              }}>
+                <span style={{ fontSize:12, fontWeight:800, color: tab === "break" ? "#fff" : "#6B7280" }}>☕ Break</span>
+              </button>
             </div>
           )}
 
@@ -936,8 +994,7 @@ export default function DailyUpdateForm({
                     style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 16px", borderRadius:10, border:"none", background:"#DE1A1A", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
                     <Plus size={13} /> Add Time Block
                   </button>
-                  <button onClick={addBreakBlock}
-                    style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, border:"1.5px solid rgba(245,158,11,0.5)", background:"#FEF3C7", color:"#D97706", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  <button onClick={addBreakBlock} style={{ display:"none" }}>
                     <Coffee size={13} /> Break
                   </button>
                 </div>
@@ -1192,7 +1249,7 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             {(showPastFor.has(s.id) || pastClientOptions.includes(s.clientName)) ? (
                               <div>
-                                <button type="button" onClick={() => exitPastMode(s.id)}
+                                <button type="button" onClick={() => { exitPastMode(s.id); patchShoot(s.id, { clientName: "", brand:"", shopName:"", customClient:"" }) }}
                                   style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
                                   ← Back to Active Clients
                                 </button>
@@ -1439,7 +1496,7 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
                               <div>
-                                <button type="button" onClick={() => exitPastMode(e.id)}
+                                <button type="button" onClick={() => { exitPastMode(e.id); patchEdit(e.id, { clientName: "", brand:"", customClient:"" }) }}
                                   style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
                                   ← Back to Active Clients
                                 </button>
@@ -1516,10 +1573,11 @@ export default function DailyUpdateForm({
                       {(() => {
                         if (!e.startTime || !e.endTime || shoots.length === 0) return null
                         const overlapH = calcOverlapHours(e.startTime, e.endTime, shoots)
-                        const validH = Math.max(0, e.timeTaken - overlapH)
+                        const editDur = calcDuration(e.startTime, e.endTime)
+                        const validH = Math.max(0, editDur - overlapH)
                         if (overlapH <= 0) return (
                           <div style={{ padding:"7px 12px", borderRadius:8, background:"rgba(34,197,94,0.08)", border:"1px solid rgba(34,197,94,0.25)", marginBottom:8, fontSize:11, fontWeight:700, color:"#16A34A" }}>
-                            ✓ No overlap with shoot time — {e.timeTaken}h valid editing
+                            ✓ No overlap with shoot time — {editDur}h valid editing
                           </div>
                         )
                         return (
@@ -1535,8 +1593,13 @@ export default function DailyUpdateForm({
                       })()}
                       <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"end", marginBottom:10 }}>
                         <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Time Taken (editing hours)</label>
-                          <DurationPicker value={e.timeTaken} onChange={v => patchEdit(e.id, { timeTaken: v })} />
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration</label>
+                          <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:8, background: calcDuration(e.startTime, e.endTime) > 0 ? "rgba(222,26,26,0.06)" : "#F9FAFB", border: calcDuration(e.startTime, e.endTime) > 0 ? "1.5px solid rgba(222,26,26,0.2)" : "1.5px solid #EBEDF2" }}>
+                            <span style={{ fontSize:13, fontWeight:700, color: calcDuration(e.startTime, e.endTime) > 0 ? "#DE1A1A" : "#9CA3AF" }}>
+                              {calcDuration(e.startTime, e.endTime) > 0 ? fmtTravel(calcDuration(e.startTime, e.endTime)) : "—"}
+                            </span>
+                            <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
+                          </div>
                         </div>
                         <button onClick={() => patchEdit(e.id, { driveUpdated: !e.driveUpdated })}
                           style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px", borderRadius:10, border:"1.5px solid", cursor:"pointer", fontSize:11, fontWeight:700, whiteSpace:"nowrap", background: e.driveUpdated ? "rgba(34,197,94,0.1)" : "#F9FAFB", borderColor: e.driveUpdated ? "rgba(34,197,94,0.4)" : "#EBEDF2", color: e.driveUpdated ? "#16A34A" : "#9CA3AF" }}>
@@ -1611,7 +1674,10 @@ export default function DailyUpdateForm({
               )}
             </div>
 
-            {/* ── Media Breaks ────────────────────────────────────────── */}
+          </>)}
+
+          {/* ══ BREAK TAB ════════════════════════════════════════════════════ */}
+          {tab === "break" && (
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1.5px solid rgba(245,158,11,0.25)", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
@@ -1621,17 +1687,21 @@ export default function DailyUpdateForm({
                   <div>
                     <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>{isPastDate ? "Breaks" : "Breaks Today"}</p>
                     <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
-                      {mediaBreaks.length} break{mediaBreaks.length !== 1 ? "s" : ""} · {mediaBreaks.reduce((s,b) => s + b.durationHours, 0).toFixed(1)}h total · {isPastDate ? "synced to past attendance" : "synced to attendance"}
+                      {isMediaTeam
+                        ? `${mediaBreaks.length} break${mediaBreaks.length !== 1 ? "s" : ""} · ${mediaBreaks.reduce((s,b) => s + b.durationHours, 0).toFixed(1)}h total`
+                        : `${breakBlocks.length} break${breakBlocks.length !== 1 ? "s" : ""} · ${breakBlocks.reduce((s,b) => s + b.durationHours, 0).toFixed(1)}h total`
+                      } · {isPastDate ? "synced to past attendance" : "synced to attendance"}
                     </p>
                   </div>
                 </div>
-                <button onClick={addMediaBreak}
+                <button onClick={isMediaTeam ? addMediaBreak : addBreakBlock}
                   style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, border:"1.5px solid rgba(245,158,11,0.4)", background:"#FEF3C7", color:"#D97706", fontSize:12, fontWeight:700, cursor:"pointer" }}>
                   <Plus size={13} /> Add Break
                 </button>
               </div>
 
-              {mediaBreaks.length === 0 ? (
+              {/* Media breaks */}
+              {isMediaTeam && (mediaBreaks.length === 0 ? (
                 <div onClick={addMediaBreak} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, padding:"24px 0", borderRadius:14, border:"2px dashed rgba(245,158,11,0.3)", background:"rgba(245,158,11,0.03)", cursor:"pointer" }}>
                   <Coffee size={28} style={{ color:"#FCD34D" }} />
                   <p style={{ fontSize:12, fontWeight:600, color:"#9CA3AF", margin:0 }}>No breaks logged — tap to add one</p>
@@ -1660,15 +1730,61 @@ export default function DailyUpdateForm({
                     </div>
                   ))}
                 </div>
-              )}
+              ))}
+
+              {/* Non-media breaks (from timeBlocks where isBreak=true) */}
+              {!isMediaTeam && (breakBlocks.length === 0 ? (
+                <div onClick={addBreakBlock} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, padding:"24px 0", borderRadius:14, border:"2px dashed rgba(245,158,11,0.3)", background:"rgba(245,158,11,0.03)", cursor:"pointer" }}>
+                  <Coffee size={28} style={{ color:"#FCD34D" }} />
+                  <p style={{ fontSize:12, fontWeight:600, color:"#9CA3AF", margin:0 }}>No breaks logged — tap to add one</p>
+                </div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  {breakBlocks.map((b, i) => (
+                    <div key={b.id} style={{ background:"#FFFBEB", borderRadius:12, border:"1.5px solid rgba(245,158,11,0.3)", padding:"10px 14px", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                      <span style={{ fontSize:11, fontWeight:800, color:"#D97706", flexShrink:0 }}>☕ #{i+1}</span>
+                      <TimePicker value={b.startTime} onChange={v => patchBlock(b.id, { startTime: v })} />
+                      <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                      <TimePicker value={b.endTime} onChange={v => patchBlock(b.id, { endTime: v })} />
+                      {b.durationHours > 0 && (
+                        <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>{fmtTravel(b.durationHours)}</span>
+                      )}
+                      <select value={b.breakLabel} onChange={e => patchBlock(b.id, { breakLabel: e.target.value })}
+                        style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
+                        <option value="Lunch">🍱 Lunch</option>
+                        <option value="Tea">☕ Tea</option>
+                        <option value="Short Break">🚶 Short Break</option>
+                        <option value="Personal">🏠 Personal</option>
+                      </select>
+                      <button onClick={() => removeBlock(b.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
+                        <Trash2 size={13} style={{ color:"#EF4444" }} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ))}
             </div>
-          </>)}
+          )}
 
           {/* ══ LEARNING ══════════════════════════════════════════════════════ */}
           {tab === "learning" && (
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
               <SectionHead icon={<BookOpen size={16} style={{ color:"#10B981" }} />} label="What did you learn today?" count={0} color="#10B981" />
               <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+                <div>
+                  <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>For Client *</label>
+                  <div style={{ display:"flex", gap:8 }}>
+                    {["GROFAST DIGITAL", "GROFAST AI"].map(c => (
+                      <button key={c} type="button" onClick={() => setLearningClient(c)}
+                        style={{ flex:1, padding:"9px 14px", borderRadius:10, fontSize:12, fontWeight:700, cursor:"pointer",
+                          border: learningClient === c ? "2px solid #10B981" : "1.5px solid #EBEDF2",
+                          background: learningClient === c ? "rgba(16,185,129,0.1)" : "#F9FAFB",
+                          color: learningClient === c ? "#059669" : "#6B7280" }}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div>
                   <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Topic / Course *</label>
                   <input value={learningTopic} onChange={e => setLearningTopic(e.target.value)} placeholder="e.g. DaVinci Resolve color grading, Adobe Premiere…" style={F} />
@@ -1764,13 +1880,16 @@ export default function DailyUpdateForm({
             </div>
           )}
 
-          {/* ── Submit bar (media team only) ───────────────────────────────── */}
-          {isMediaTeam && (
+          {/* ── Submit bar ─────────────────────────────────────────────────── */}
+          {(isMediaTeam || tab === "break") && (
             <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
               <div>
                 {error && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{error}</p>}
                 {!error && tab === "media"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{shoots.length} shoot{shoots.length !== 1 ? "s" : ""} · {edits.length} edit{edits.length !== 1 ? "s" : ""} · {totalMediaHours}h total</p>}
                 {!error && tab === "learning"&& <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningTopic || "not set"} · {learningHours}h</p>}
+                {!error && tab === "break"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>
+                  {isMediaTeam ? `${mediaBreaks.length} break${mediaBreaks.length !== 1 ? "s" : ""} · ${mediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h` : `${breakBlocks.length} break${breakBlocks.length !== 1 ? "s" : ""} · ${breakBlocks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h`}
+                </p>}
               </div>
               <button onClick={handleSubmit} disabled={isPending || submitted}
                 style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor: isPending || submitted ? "not-allowed" : "pointer", transition:"all 0.2s", opacity: isPending ? 0.7 : 1,

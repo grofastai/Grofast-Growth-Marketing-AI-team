@@ -44,7 +44,7 @@ export const workEntrySchema = z.object({
 // ── Main schema ────────────────────────────────────────────────
 export const dailyUpdateSchema = z
   .object({
-    active_tab:   z.enum(['working', 'media', 'learning']),
+    active_tab:   z.enum(['working', 'media', 'learning', 'break']),
     date:         z.string().optional(),
 
     work_entries:       z.array(workEntrySchema).optional().default([]),

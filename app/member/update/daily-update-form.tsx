@@ -1165,6 +1165,10 @@ export default function DailyUpdateForm({
                           </div>
                         </>)}
                       </div>
+                      <button type="button" onClick={addTimeBlock}
+                        style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:5, width:"100%", padding:"6px", borderRadius:8, border:"1.5px dashed #E5E7EB", background:"transparent", color:"#9CA3AF", fontSize:11, fontWeight:700, cursor:"pointer", marginTop:2 }}>
+                        <Plus size={11} /> Add block
+                      </button>
                     )
                   })}
                 </div>

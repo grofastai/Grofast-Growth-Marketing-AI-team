@@ -870,6 +870,15 @@ export default function HistoryClient({
                             <div style={{ margin:"0 18px 14px", padding:"14px", borderRadius:12, background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.25)" }}>
                               <p style={{ fontSize:11, fontWeight:700, color:"#D97706", margin:"0 0 10px" }}>Edit Learning</p>
                               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                                <div>
+                                  <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
+                                  <select value={learningDraft.client} onChange={e => setLearningDraft(d => ({ ...d, client: e.target.value }))}
+                                    style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                    <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
+                                    <option value="GROFAST AI">GROFAST AI</option>
+                                    <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
+                                  </select>
+                                </div>
                                 <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", gap:8 }}>
                                   <div>
                                     <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic</label>

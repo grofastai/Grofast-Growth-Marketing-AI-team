@@ -420,6 +420,17 @@ export default function HistoryClient({
   }, [updates])
 
   // Top activity
+  // Group participated updates by date for inline display
+  const participatedByDate = useMemo(() => {
+    const map = new Map<string, ParticipatedUpdate[]>()
+    for (const u of participatedUpdates) {
+      const arr = map.get(u.date) ?? []
+      arr.push(u)
+      map.set(u.date, arr)
+    }
+    return map
+  }, [participatedUpdates])
+
   const topActivity = useMemo(() => {
     const map: Record<string, number> = {}
     for (const u of filtered) {
@@ -1149,8 +1160,47 @@ export default function HistoryClient({
                       })}
                     </div>
                   )}
-                </div>
-              )
+
+                {/* ── Collaborated entries for this day ── */}
+                {(participatedByDate.get(u.date) ?? []).map(pu => {
+                  const submitter = members.find(m => m.id === pu.user_id)
+                  const puEntries = Array.isArray(pu.work_entries) ? pu.work_entries : []
+                  return (
+                    <div key={pu.id} style={{ borderTop: "1px dashed #E5E7EB", padding: "10px 18px", background: "rgba(99,102,241,0.03)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: puEntries.length > 0 ? 8 : 0 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#6366F1" }}>👥 Collaborated</span>
+                        <span style={{ fontSize: 11, color: "#9CA3AF" }}>
+                          · by <span style={{ fontWeight: 700, color: "#6366F1" }}>{submitter?.name ?? "Teammate"}</span>
+                        </span>
+                        {(pu.working_hours ?? 0) > 0 && (
+                          <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#6366F1" }}>
+                            {fmtH(pu.working_hours!)}
+                          </span>
+                        )}
+                      </div>
+                      {puEntries.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {puEntries.slice(0, 5).map((e, i) => {
+                            const cfg = TASK_CFG[(e as WorkEntry).task_type] ?? TASK_CFG.other
+                            return (
+                              <span key={i} style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99, background: "rgba(99,102,241,0.08)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.15)" }}>
+                                {(e as WorkEntry).title || cfg.label}
+                                {(e as WorkEntry).client_name ? ` · ${(e as WorkEntry).client_name}` : ""}
+                              </span>
+                            )
+                          })}
+                          {puEntries.length > 5 && (
+                            <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99, background: "rgba(156,163,175,0.1)", color: "#9CA3AF" }}>
+                              +{puEntries.length - 5} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
             })}
 
           </div>
@@ -1299,77 +1349,6 @@ export default function HistoryClient({
           </div>
         </div>
 
-        {/* ── COLLABORATED ON ───────────────────────────────────────────────── */}
-        {participatedUpdates.length > 0 && (
-          <div style={{ marginTop: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: 16 }}>👥</span>
-              </div>
-              <div>
-                <h2 style={{ fontSize: 16, fontWeight: 900, color: "#111111", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-                  Collaborated On
-                </h2>
-                <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Activities your teammates tagged you in</p>
-              </div>
-              <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
-                {participatedUpdates.length} records
-              </span>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {participatedUpdates.map(u => {
-                const submitter = members.find(m => m.id === u.user_id)
-                const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-                const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
-                return (
-                  <div key={u.id} style={{ background: "#fff", borderRadius: 16, border: "1px solid #EBEDF2", overflow: "hidden", boxShadow: "0 1px 6px rgba(0,0,0,0.04)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderBottom: entries.length > 0 ? "1px solid #F5F6FA" : "none" }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(99,102,241,0.08)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <span style={{ fontSize: 13, fontWeight: 900, color: "#6366F1", lineHeight: 1 }}>
-                          {new Date(u.date + "T12:00:00").getDate()}
-                        </span>
-                        <span style={{ fontSize: 8, fontWeight: 700, color: "#6366F1", textTransform: "uppercase" }}>
-                          {new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { month: "short" })}
-                        </span>
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <p style={{ fontSize: 12, fontWeight: 800, color: "#111111", margin: 0 }}>{dateLabel}</p>
-                        <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>
-                          Submitted by <span style={{ fontWeight: 700, color: "#6366F1" }}>{submitter?.name ?? "Teammate"}</span>
-                          {entries.length > 0 && ` · ${entries.length} ${entries.length === 1 ? "entry" : "entries"}`}
-                        </p>
-                      </div>
-                      {(u.working_hours ?? 0) > 0 && (
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                          <Clock size={11} style={{ color: "#9CA3AF" }} /> {fmtH(u.working_hours!)}
-                        </span>
-                      )}
-                    </div>
-                    {entries.length > 0 && (
-                      <div style={{ padding: "10px 16px", display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {entries.slice(0, 4).map((e, i) => {
-                          const cfg = TASK_CFG[e.task_type] ?? TASK_CFG.other
-                          return (
-                            <span key={i} style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99, background: cfg.bg, color: cfg.color }}>
-                              {e.title || cfg.label}
-                              {e.client_name ? ` · ${e.client_name}` : ""}
-                            </span>
-                          )
-                        })}
-                        {entries.length > 4 && (
-                          <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99, background: "rgba(156,163,175,0.12)", color: "#6B7280" }}>
-                            +{entries.length - 4} more
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

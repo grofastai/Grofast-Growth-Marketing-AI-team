@@ -1175,7 +1175,7 @@ export default function HistoryClient({
                     <YAxis tick={{ fontSize:9, fill:"#9CA3AF" }} tickLine={false} axisLine={false} />
                     <Tooltip
                       contentStyle={{ fontSize:11, borderRadius:8, border:"1px solid #E5E7EB", background:"#fff" }}
-                      formatter={(v: number) => [`${v}h`, "Hours"]}
+                      formatter={(v) => [`${v as number}h`, "Hours"]}
                       labelFormatter={l => `Day ${l}`}
                     />
                     <ReferenceLine y={9.5} stroke="#F59E0B" strokeDasharray="4 3" strokeWidth={1.5} label={{ value:"9.5h", fontSize:9, fill:"#F59E0B", position:"right" }} />

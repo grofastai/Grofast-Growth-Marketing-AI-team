@@ -32,10 +32,10 @@ const navItems = [
   { label: "Dashboard",        href: "/member/dashboard",          icon: LayoutDashboard },
   { label: "Attendance",       href: "/member/attendance",         icon: Clock },
   { label: "Daily Update",     href: "/member/update",             icon: ClipboardList },
+  { label: "History",          href: "/member/history",            icon: History },
   { label: "My Tasks",         href: "/member/tasks",              icon: Target },
   { label: "Content Calendar", href: "/member/content-calendar",   icon: CalendarDays },
   { label: "Leaves",           href: "/member/leaves",             icon: CalendarOff },
-  { label: "History",          href: "/member/history",            icon: History },
   { label: "Announcements",    href: "/member/announcements",      icon: Megaphone },
   { label: "Notes",            href: "/member/notes",              icon: StickyNote },
   { label: "Notifications",    href: "/member/notifications",      icon: Bell },
@@ -51,9 +51,9 @@ const mainBottomNav = [
 ]
 
 const moreNavItems = [
+  { label: "History",        href: "/member/history",          icon: History },
   { label: "Content Cal",    href: "/member/content-calendar", icon: CalendarDays },
   { label: "Leaves",         href: "/member/leaves",           icon: CalendarOff },
-  { label: "History",        href: "/member/history",          icon: History },
   { label: "Announcements",  href: "/member/announcements",    icon: Megaphone },
   { label: "Notes",          href: "/member/notes",            icon: StickyNote },
   { label: "Notifications",  href: "/member/notifications",    icon: Bell },

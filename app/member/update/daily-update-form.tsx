@@ -480,6 +480,26 @@ export default function DailyUpdateForm({
     return () => window.removeEventListener("beforeunload", handler)
   }, [hasUnsaved])
 
+  // Intercept in-app link navigation when form has unsaved data
+  const [pendingNav, setPendingNav] = useState<string | null>(null)
+  useEffect(() => {
+    if (!hasUnsaved) return
+    const handler = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest("a")
+      if (!anchor?.href) return
+      try {
+        const url = new URL(anchor.href)
+        if (url.origin !== window.location.origin) return
+        if (url.pathname === window.location.pathname) return
+        e.preventDefault()
+        e.stopPropagation()
+        setPendingNav(url.pathname)
+      } catch { /* ignore non-parseable hrefs */ }
+    }
+    document.addEventListener("click", handler, true)
+    return () => document.removeEventListener("click", handler, true)
+  }, [hasUnsaved])
+
   const totalShootHours  = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
   const totalTravelHours = useMemo(() => shoots.reduce((s, e) => s + e.travelHours, 0), [shoots])
   const totalEditHours  = useMemo(() => edits.reduce((s, e) => s + calcDuration(e.startTime, e.endTime), 0), [edits])
@@ -2328,6 +2348,50 @@ export default function DailyUpdateForm({
           )}
         </div>
       </div>
+
+      {/* ── Unsaved changes navigation warning ── */}
+      {pendingNav && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 9998,
+          background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: 20, padding: "28px 24px", maxWidth: 380, width: "100%",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
+          }}>
+            <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}>✋</div>
+            <h3 style={{ fontSize: 17, fontWeight: 900, color: "#111", textAlign: "center", margin: "0 0 8px" }}>
+              Unsaved Changes
+            </h3>
+            <p style={{ fontSize: 13, color: "#6B7280", textAlign: "center", margin: "0 0 24px", lineHeight: 1.6 }}>
+              You have filled in details that haven&apos;t been submitted yet. Do you want to leave without saving?
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                onClick={() => setPendingNav(null)}
+                style={{
+                  padding: "12px 0", borderRadius: 12, border: "none",
+                  background: "#DE1A1A", color: "#fff", fontSize: 14, fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Keep Editing
+              </button>
+              <button
+                onClick={() => { setPendingNav(null); router.push(pendingNav) }}
+                style={{
+                  padding: "12px 0", borderRadius: 12,
+                  border: "1.5px solid #E5E7EB", background: "transparent",
+                  color: "#6B7280", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                Leave Without Saving
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

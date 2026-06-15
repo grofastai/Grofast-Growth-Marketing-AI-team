@@ -413,6 +413,7 @@ export default function MemberTasksClient({
   currentUserId = "",
   projects = [],
   clients = [],
+  pastClients = [],
 }: {
   tasks: Task[]
   todayHours: number
@@ -420,6 +421,7 @@ export default function MemberTasksClient({
   currentUserId?: string
   projects?: { id: string; business_name: string; client_name: string | null }[]
   clients?: { id: string; name: string }[]
+  pastClients?: { id: string; name: string }[]
 }) {
   const router = useRouter()
 
@@ -1471,6 +1473,21 @@ export default function MemberTasksClient({
                     {clients
                       .filter(c => !projects.some(p => p.business_name === c.name))
                       .map(c => <option key={`cl:${c.id}`} value={`__client__:${c.name}`}>{c.name}</option>)}
+                    {(() => {
+                      const activeNames = new Set([
+                        ...projects.map(p => p.business_name.toLowerCase()),
+                        ...clients.map(c => c.name.toLowerCase()),
+                      ])
+                      const filtered = pastClients.filter(c => !activeNames.has(c.name.toLowerCase()))
+                      if (filtered.length === 0) return null
+                      return (
+                        <optgroup label="── Past Clients ──">
+                          {filtered.map(c => (
+                            <option key={`pc:${c.id}`} value={`__client__:${c.name}`}>{c.name}</option>
+                          ))}
+                        </optgroup>
+                      )
+                    })()}
                     <option value="__custom__">✏️ Other (type manually)</option>
                   </select>
                   <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useEffect, useActionState, useRef } from "react"
+import { useState, useTransition, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
@@ -427,8 +427,9 @@ export default function MemberTasksClient({
   const [search, setSearch]         = useState("")
   const [filter, setFilter]         = useState("all")
   const [sortBy, setSortBy]         = useState<"priority" | "due_date">("priority")
-  const [showAssign, setShowAssign] = useState(false)
-  const [assignState, assignAction] = useActionState(createMemberTask, null)
+  const [showAssign, setShowAssign]   = useState(false)
+  const [assignPending, setAssignPending] = useState(false)
+  const [assignError, setAssignError]     = useState<string | null>(null)
 
   // Rich form state
   const [checklistItems, setChecklistItems]     = useState<{id: string; text: string}[]>([])
@@ -457,16 +458,24 @@ export default function MemberTasksClient({
     setChecklistItems([]); setNewCheckItem("")
     setAttachmentLinks([]); setNewAttachUrl("")
     setApprovalRequired(false); setRecurringTask("none")
+    setAssignError(null)
   }
 
-  useEffect(() => {
-    if (assignState && 'success' in assignState) {
+  async function handleAssignSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setAssignPending(true)
+    setAssignError(null)
+    const fd = new FormData(e.currentTarget)
+    const result = await createMemberTask(null, fd)
+    setAssignPending(false)
+    if ('error' in result) {
+      setAssignError(result.error)
+    } else {
       setShowAssign(false)
       resetAssignForm()
       router.refresh()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assignState, router])
+  }
 
   // Load comments when panel opens
   useEffect(() => {
@@ -1430,7 +1439,7 @@ export default function MemberTasksClient({
             </div>
 
             {/* Scrollable body */}
-            <form action={assignAction} className="flex flex-col flex-1 min-h-0">
+            <form onSubmit={handleAssignSubmit} className="flex flex-col flex-1 min-h-0">
               {/* Hidden rich-field payloads */}
               <input type="hidden" name="checklist_json"   value={JSON.stringify(checklistItems.map(i => ({ text: i.text, done: false })))} />
               <input type="hidden" name="attachments_json" value={JSON.stringify(attachmentLinks.map(i => i.url).filter(Boolean))} />
@@ -1676,10 +1685,10 @@ export default function MemberTasksClient({
                   </div>
                 </div>
 
-                {assignState && "error" in assignState && (
+                {assignError && (
                   <p className="text-[12px] px-3 py-2 rounded-lg"
                     style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>
-                    {assignState.error}
+                    {assignError}
                   </p>
                 )}
               </div>
@@ -1691,10 +1700,11 @@ export default function MemberTasksClient({
                   style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#6B7280" }}>
                   Cancel
                 </button>
-                <button type="submit"
-                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white"
-                  style={{ background: "linear-gradient(135deg, #DE1A1A, #7F1D1D)" }}>
-                  Assign Task
+                <button type="submit" disabled={assignPending}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white flex items-center justify-center gap-2"
+                  style={{ background: "linear-gradient(135deg, #DE1A1A, #7F1D1D)", opacity: assignPending ? 0.7 : 1 }}>
+                  {assignPending ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : null}
+                  {assignPending ? "Assigning…" : "Assign Task"}
                 </button>
               </div>
             </form>

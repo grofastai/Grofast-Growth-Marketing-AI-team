@@ -483,6 +483,34 @@ export default function ActivitiesClient({
                         )}
                       </div>
 
+                      {/* Clients worked on */}
+                      {(() => {
+                        const clientsWorked = [...new Set(entries.flatMap(e => {
+                          if (e.task_type === "break") return []
+                          const names: string[] = []
+                          if (Array.isArray(e.client_names) && (e.client_names as string[]).length > 0)
+                            names.push(...(e.client_names as string[]))
+                          else if (e.client_name && e.client_name !== "Break" && e.client_name !== "Internal")
+                            names.push(e.client_name as string)
+                          if (e._brand) names.push(e._brand as string)
+                          else if (e._custom_client) names.push(e._custom_client as string)
+                          else if (e.client && !names.length) names.push(e.client as string)
+                          return names
+                        }).filter(Boolean))]
+                        if (clientsWorked.length === 0) return null
+                        return (
+                          <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>🏢 Client</span>
+                            {clientsWorked.map(c => (
+                              <span key={c} className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                                style={{ background: "rgba(222,26,26,0.07)", border: "1px solid rgba(222,26,26,0.15)", color: "#de1a1a" }}>
+                                {c}
+                              </span>
+                            ))}
+                          </div>
+                        )
+                      })()}
+
                       {/* Participants */}
                       {(u.participant_ids ?? []).length > 0 && (() => {
                         const participants = (u.participant_ids ?? [])

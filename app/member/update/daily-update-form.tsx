@@ -35,7 +35,7 @@ interface EditEntry {
   participantIds: string[]
 }
 interface TimeBlock {
-  id: string; isBreak: boolean; breakLabel: string
+  id: string; isBreak: boolean; breakLabel: string; breakCustom?: string
   startTime: string; endTime: string
   durationHours: number; description: string
   projectName: string; brand: string; customClient: string
@@ -541,7 +541,7 @@ export default function DailyUpdateForm({
         client_names: [],
         is_multi_client: false,
         task_type: "break" as const,
-        title: t.breakLabel || "Break",
+        title: t.breakLabel === "__other__" ? (t.breakCustom || "Break") : (t.breakLabel || "Break"),
         start_time: t.startTime, end_time: t.endTime,
         duration_hours: t.durationHours, notes: undefined,
         video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
@@ -701,7 +701,7 @@ export default function DailyUpdateForm({
       : breakBlocks.map(t => ({
           id: t.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
           task_type: "break" as const,
-          title: t.breakLabel || "Break", start_time: t.startTime, end_time: t.endTime,
+          title: t.breakLabel === "__other__" ? (t.breakCustom || "Break") : (t.breakLabel || "Break"), start_time: t.startTime, end_time: t.endTime,
           duration_hours: t.durationHours, notes: undefined,
           video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
         }))
@@ -754,19 +754,33 @@ export default function DailyUpdateForm({
           <CheckCircle2 size={56} style={{ color:"#22C55E", marginBottom:16 }} />
           <p style={{ fontSize:20, fontWeight:900, color:"#111111", margin:"0 0 8px", fontFamily:"var(--font-jakarta)" }}>Daily Update Submitted!</p>
           <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 20px" }}>Great work, {firstName}. See you tomorrow!</p>
-          <button onClick={() => {
-            const cur = activeUpdate ?? existingUpdateRef.current ?? {}
-            setTimeBlocks(parseExistingBlocks(cur))
-            setShoots(parseExistingShoots(cur))
-            setEdits(parseExistingEdits(cur))
-            setMediaBreaks(parseExistingMediaBreaks(cur))
-            setEditMode(true)
-            setSubmitted(false)
-            if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
-          }}
-            style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 24px", borderRadius:12, border:"1.5px solid #DE1A1A", background:"#FFFFFF", color:"#DE1A1A", fontSize:13, fontWeight:700, cursor:"pointer" }}>
-            Edit {isToday ? "Today's" : dateLabel.split(",")[0] + "'s"} Update
-          </button>
+          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
+            <button onClick={() => {
+              const cur = activeUpdate ?? existingUpdateRef.current ?? {}
+              setTimeBlocks(parseExistingBlocks(cur))
+              setShoots(parseExistingShoots(cur))
+              setEdits(parseExistingEdits(cur))
+              setMediaBreaks(parseExistingMediaBreaks(cur))
+              setEditMode(true)
+              setSubmitted(false)
+              if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
+            }}
+              style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 24px", borderRadius:12, border:"1.5px solid #DE1A1A", background:"#FFFFFF", color:"#DE1A1A", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+              Edit {isToday ? "Today's" : dateLabel.split(",")[0] + "'s"} Update
+            </button>
+            <button onClick={() => {
+              setTimeBlocks([])
+              setShoots([])
+              setEdits([])
+              setMediaBreaks([])
+              setEditMode(true)
+              setSubmitted(false)
+              if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
+            }}
+              style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 24px", borderRadius:12, border:"1.5px solid #E5E7EB", background:"#F9FAFB", color:"#374151", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+              ➕ Add Another Update
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -1077,13 +1091,24 @@ export default function DailyUpdateForm({
                             </button>
                           </div>
                           {block.isBreak && (
-                            <select value={block.breakLabel} onChange={e => patchBlock(block.id, { breakLabel: e.target.value })}
-                              style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
-                              <option value="Lunch">🍱 Lunch</option>
-                              <option value="Tea">☕ Tea Break</option>
-                              <option value="Short Break">🚶 Short Break</option>
-                              <option value="Personal">🏠 Personal</option>
-                            </select>
+                            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                              <select value={block.breakLabel} onChange={e => patchBlock(block.id, { breakLabel: e.target.value, breakCustom: "" })}
+                                style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
+                                <option value="Lunch">🍱 Lunch</option>
+                                <option value="Tea">☕ Tea Break</option>
+                                <option value="Short Break">🚶 Short Break</option>
+                                <option value="Personal">🏠 Personal</option>
+                                <option value="__other__">✏️ Other</option>
+                              </select>
+                              {block.breakLabel === "__other__" && (
+                                <input
+                                  value={block.breakCustom ?? ""}
+                                  onChange={e => patchBlock(block.id, { breakCustom: e.target.value })}
+                                  placeholder="Type break name…"
+                                  style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", outline:"none", width:130 }}
+                                />
+                              )}
+                            </div>
                           )}
                           <button onClick={() => removeBlock(block.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
                             <Trash2 size={13} style={{ color:"#EF4444" }} />

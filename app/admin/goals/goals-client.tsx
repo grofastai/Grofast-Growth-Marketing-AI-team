@@ -198,8 +198,8 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
 
 
 // ── Main Component ───────────────────────────────────────────────────────────
-export default function GoalsClient({ tasks: initialTasks, members, projects, clients = [] }: {
-  tasks: Task[]; members: Member[]; projects: Project[]; clients?: { id: string; name: string }[]
+export default function GoalsClient({ tasks: initialTasks, members, projects, clients = [], pastClients = [] }: {
+  tasks: Task[]; members: Member[]; projects: Project[]; clients?: { id: string; name: string }[]; pastClients?: { id: string; name: string }[]
 }) {
   const router = useRouter()
   const [tasks, setTasks] = useState(initialTasks)
@@ -756,6 +756,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                         ...clients.map(c => c.name).filter(n => !projects.some(p => p.business_name === n)),
                       ].filter(n => !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(n)).sort()
                     ]}
+                    pastClientOptions={pastClients.map(c => c.name).filter(n => !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(n))}
                     value={mediaClientType}
                     brand={mediaBrand}
                     customClient={mediaCustomClient}

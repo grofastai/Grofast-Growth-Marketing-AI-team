@@ -43,7 +43,7 @@ export default async function MemberTasksPage() {
     .single()
   const userRole = actualProfile?.role ?? 'MEMBER'
 
-  const [tasksResult, clockResult, updateResult, teamMembersResult, projectsResult, clientsResult] = await Promise.all([
+  const [tasksResult, clockResult, updateResult, teamMembersResult, projectsResult, clientsResult, pastClientsResult] = await Promise.all([
     // Fetch tasks assigned to me OR created by me (for "To Others" tab)
     admin
       .from("tasks")
@@ -87,6 +87,14 @@ export default async function MemberTasksPage() {
           .eq("status", "active")
           .order("name")
       : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+    companyId
+      ? admin
+          .from("clients")
+          .select("id, name")
+          .eq("company_id", companyId)
+          .eq("status", "past")
+          .order("name")
+      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
   ])
 
   const clockLog     = clockResult.data as unknown as AttLog | null
@@ -94,6 +102,7 @@ export default async function MemberTasksPage() {
   const teamMembers  = (teamMembersResult.data ?? []) as { id: string; name: string; employee_id: string }[]
   const projects     = (projectsResult.data ?? []) as { id: string; business_name: string; client_name: string | null }[]
   const clients      = (clientsResult.data ?? []) as { id: string; name: string }[]
+  const pastClients  = (pastClientsResult.data ?? []) as { id: string; name: string }[]
 
   // Derive today's worked hours
   let todayHours = 0
@@ -130,6 +139,7 @@ export default async function MemberTasksPage() {
       currentUserId={effectiveUserId}
       projects={projects}
       clients={clients}
+      pastClients={pastClients}
       userRole={userRole}
     />
   )

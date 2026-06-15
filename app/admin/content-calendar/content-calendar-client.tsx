@@ -28,7 +28,7 @@ interface Client { id: string; name: string }
 
 interface Props {
   posts: Post[]; shoots: Shoot[]; tasks: Task[]
-  members: Member[]; clients: Client[]
+  members: Member[]; clients: Client[]; pastClients?: Client[]
   companyId: string; initialYear: number; initialMonth: number
 }
 
@@ -161,7 +161,7 @@ const LABEL: React.CSSProperties = {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function ContentCalendarClient({ posts: initial, shoots, tasks, members, clients, initialYear, initialMonth }: Props) {
+export default function ContentCalendarClient({ posts: initial, shoots, tasks, members, clients, pastClients = [], initialYear, initialMonth }: Props) {
   const router = useRouter()
   const [posts, setPosts]     = useState(initial)
   useEffect(() => { setPosts(initial) }, [initial])
@@ -940,6 +940,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
               <ClientSelector
                 clientOptions={[...INTERNAL_BRANDS, ...clients.map(c => c.name).filter(n => !INTERNAL_BRANDS.includes(n))]}
+                pastClientOptions={pastClients.map(c => c.name).filter(n => !INTERNAL_BRANDS.includes(n))}
                 value={clientName} brand={clientBrand} customClient={clientCustom}
                 onValueChange={v => { setClientName(v); setClientId(clients.find(c => c.name === v)?.id ?? "") }}
                 onBrandChange={setClientBrand} onCustomChange={setClientCustom}

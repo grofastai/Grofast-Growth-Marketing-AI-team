@@ -1,9 +1,11 @@
 "use client"
 
+import { useState } from "react"
 import { ChevronDown } from "lucide-react"
 
 interface Props {
   clientOptions: string[]
+  pastClientOptions?: string[]
   value: string          // "__custom__" | "<client name>" | ""
   brand?: string
   customClient?: string  // typed name when value="__custom__"
@@ -27,34 +29,55 @@ const LABEL: React.CSSProperties = {
 }
 
 export default function ClientSelector({
-  clientOptions, value, brand = "", customClient = "",
+  clientOptions, pastClientOptions = [], value, brand = "", customClient = "",
   onValueChange, onBrandChange, onCustomChange,
   label = "Client / Project", required = false, fieldStyle,
 }: Props) {
+  const [showPast, setShowPast] = useState(false)
+
   return (
     <div>
       {label && <label style={LABEL}>{label}{required && " *"}</label>}
 
       {/* Main dropdown */}
       <div style={{ position: "relative" }}>
-        <select
-          value={value}
-          onChange={e => {
-            const v = e.target.value
-            onValueChange(v)
-            if (v !== "__custom__") onCustomChange?.("")
-          }}
-          style={{ ...BASE, ...fieldStyle }}
-        >
-          <option value="">Select client…</option>
-          {clientOptions.map(n => <option key={n} value={n}>{n}</option>)}
-          <option value="__custom__">✏️ Other (type manually)</option>
-        </select>
+        {showPast ? (
+          <select
+            value=""
+            onChange={e => {
+              const v = e.target.value
+              if (v === "__back__") { setShowPast(false); return }
+              onValueChange(v)
+              onCustomChange?.("")
+              setShowPast(false)
+            }}
+            style={{ ...BASE, ...fieldStyle }}
+          >
+            <option value="__back__">← Back to Active Clients</option>
+            {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        ) : (
+          <select
+            value={value}
+            onChange={e => {
+              const v = e.target.value
+              if (v === "__past__") { setShowPast(true); return }
+              onValueChange(v)
+              if (v !== "__custom__") onCustomChange?.("")
+            }}
+            style={{ ...BASE, ...fieldStyle }}
+          >
+            <option value="">Select client…</option>
+            {clientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+            {pastClientOptions.length > 0 && <option value="__past__">📁 Past Clients →</option>}
+            <option value="__custom__">✏️ Other (type manually)</option>
+          </select>
+        )}
         <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
       </div>
 
       {/* Other → text input */}
-      {value === "__custom__" && (
+      {value === "__custom__" && !showPast && (
         <input
           value={customClient}
           onChange={e => onCustomChange?.(e.target.value)}

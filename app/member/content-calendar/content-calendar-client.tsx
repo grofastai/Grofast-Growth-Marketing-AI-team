@@ -27,6 +27,7 @@ interface Props {
   posts: Post[]; shoots: Shoot[]; tasks: Task[]
   members: Member[]
   clientNames: string[]
+  pastClientNames?: string[]
   userId: string; initialYear: number; initialMonth: number
 }
 
@@ -121,7 +122,7 @@ function DonutChart({ total, posted, inProgress, ready, pending }: {
   )
 }
 
-export default function MemberContentCalendarClient({ posts: initial, shoots, tasks, members, clientNames, userId, initialYear, initialMonth }: Props) {
+export default function MemberContentCalendarClient({ posts: initial, shoots, tasks, members, clientNames, pastClientNames = [], userId, initialYear, initialMonth }: Props) {
   const router = useRouter()
   const [posts, setPosts] = useState(initial)
   useEffect(() => { setPosts(initial) }, [initial])
@@ -1014,6 +1015,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               <div>
                 <ClientSelector
                   clientOptions={clientOptions}
+                  pastClientOptions={pastClientNames.filter(n => !INTERNAL_BRANDS.includes(n))}
                   value={clientName} brand={clientBrand} customClient={clientCustom}
                   onValueChange={setClientName} onBrandChange={setClientBrand} onCustomChange={setClientCustom}
                   label="Client"

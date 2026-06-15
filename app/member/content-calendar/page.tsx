@@ -38,6 +38,8 @@ export default async function MemberContentCalendarPage() {
     { data: tasks },
     { data: members },
     { data: projects },
+    { data: activeClients },
+    { data: pastClients },
   ] = await Promise.all([
     admin.from("content_posts")
       .select("*, assignee:users!assigned_to(name)")
@@ -66,7 +68,21 @@ export default async function MemberContentCalendarPage() {
       .select("business_name")
       .eq("company_id", cid)
       .order("business_name"),
+    admin.from("clients")
+      .select("name")
+      .eq("company_id", cid)
+      .eq("status", "active")
+      .order("name"),
+    admin.from("clients")
+      .select("name")
+      .eq("company_id", cid)
+      .eq("status", "past")
+      .order("name"),
   ])
+
+  const projectNames = (projects ?? []).map(p => p.business_name).filter(Boolean) as string[]
+  const activeClientNames = (activeClients ?? []).map(c => c.name).filter(Boolean) as string[]
+  const allActiveNames = [...new Set([...projectNames, ...activeClientNames])]
 
   return (
     <MemberContentCalendarClient
@@ -74,7 +90,8 @@ export default async function MemberContentCalendarPage() {
       shoots={shoots ?? []}
       tasks={tasks ?? []}
       members={members ?? []}
-      clientNames={(projects ?? []).map(p => p.business_name).filter(Boolean) as string[]}
+      clientNames={allActiveNames}
+      pastClientNames={(pastClients ?? []).map(c => c.name).filter(Boolean) as string[]}
       userId={effectiveUserId}
       initialYear={now.getFullYear()}
       initialMonth={now.getMonth()}

@@ -32,6 +32,7 @@ export default async function ContentCalendarPage() {
     { data: tasks },
     { data: members },
     { data: clients },
+    { data: pastClients },
   ] = await Promise.all([
     admin.from("content_posts")
       .select("*, assignee:users!assigned_to(name)")
@@ -60,6 +61,12 @@ export default async function ContentCalendarPage() {
     admin.from("clients")
       .select("id, name")
       .eq("company_id", cid)
+      .eq("status", "active")
+      .order("name"),
+    admin.from("clients")
+      .select("id, name")
+      .eq("company_id", cid)
+      .eq("status", "past")
       .order("name"),
   ])
 
@@ -70,6 +77,7 @@ export default async function ContentCalendarPage() {
       tasks={tasks ?? []}
       members={members ?? []}
       clients={clients ?? []}
+      pastClients={pastClients ?? []}
       companyId={cid}
       initialYear={now.getFullYear()}
       initialMonth={now.getMonth()}

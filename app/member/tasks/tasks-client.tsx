@@ -874,34 +874,29 @@ export default function MemberTasksClient({
             })}
           </div>
           {/* Project filter dropdown */}
-          {projects.length > 0 && (
+          {projects.filter(p => p.client_name !== "__member_quick__").length > 0 && (
             <div className="relative flex-shrink-0">
-              <button onClick={() => setShowProjectFilter(s => !s)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-semibold"
-                style={{ background: filterProject ? "#de1a1a" : "#FFFFFF", border: `1px solid ${filterProject ? "#de1a1a" : "#E5E7EB"}`, color: filterProject ? "#FFFFFF" : "#374151" }}>
-                <span className="hidden sm:inline">
-                  {filterProject ? (projects.find(p => p.id === filterProject)?.business_name ?? "Client") : "All Clients"}
-                </span>
-                <span className="sm:hidden">Client</span>
-                <ChevronDown size={11} />
-              </button>
-              {showProjectFilter && (
-                <div className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-20"
-                  style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.1)", minWidth: 180 }}>
-                  <button onClick={() => { setFilterProject(""); setShowProjectFilter(false) }}
-                    className="w-full text-left px-4 py-2.5 text-[12px] font-semibold transition-colors hover:bg-gray-50"
-                    style={{ color: !filterProject ? "#de1a1a" : "#374151" }}>
-                    All Clients
-                  </button>
-                  {projects.map(p => (
-                    <button key={p.id} onClick={() => { setFilterProject(p.id); setShowProjectFilter(false) }}
-                      className="w-full text-left px-4 py-2.5 text-[12px] font-semibold transition-colors hover:bg-gray-50"
-                      style={{ color: filterProject === p.id ? "#de1a1a" : "#374151" }}>
-                      {p.business_name}{p.client_name ? ` · ${p.client_name}` : ""}
-                    </button>
+              <select
+                value={filterProject}
+                onChange={e => { setFilterProject(e.target.value); setShowProjectFilter(false) }}
+                className="px-3 py-1.5 rounded-xl text-[12px] font-semibold"
+                style={{
+                  background: filterProject ? "#de1a1a" : "#FFFFFF",
+                  border: `1px solid ${filterProject ? "#de1a1a" : "#E5E7EB"}`,
+                  color: filterProject ? "#FFFFFF" : "#374151",
+                  outline: "none",
+                  appearance: "none",
+                  paddingRight: 28,
+                  cursor: "pointer",
+                }}>
+                <option value="">All Clients</option>
+                {projects
+                  .filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id))
+                  .map(p => (
+                    <option key={p.id} value={p.id}>{p.business_name}</option>
                   ))}
-                </div>
-              )}
+              </select>
+              <ChevronDown size={11} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", color: filterProject ? "#FFFFFF" : "#9CA3AF", pointerEvents: "none" }} />
             </div>
           )}
 

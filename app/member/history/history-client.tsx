@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts"
 import { useRouter } from "next/navigation"
 import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning, addEntryToDate } from "@/lib/actions/daily-updates"
 
@@ -372,6 +373,7 @@ export default function HistoryClient({
     let totalHours = 0, totalOT = 0, totalTasks = 0, presentDays = 0, totalLearning = 0
     let shootH = 0, editH = 0, otherH = 0
     const hoursPerDay: number[] = []
+    const dailyData: { day: string; hours: number }[] = []
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
       const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
@@ -382,6 +384,7 @@ export default function HistoryClient({
       totalLearning += learnH
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
+      dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
       totalTasks += entries.filter(e => e.task_type !== "break").length
       for (const e of entries) {
         if (e.task_type === "shoot") shootH += e.duration_hours ?? 0
@@ -392,7 +395,7 @@ export default function HistoryClient({
     const productivity = filtered.length > 0
       ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9.5)) * 40) : 0)))
       : 0
-    return { totalHours, totalOT, totalTasks, presentDays, totalLearning, shootH, editH, otherH, hoursPerDay, productivity }
+    return { totalHours, totalOT, totalTasks, presentDays, totalLearning, shootH, editH, otherH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
   }, [filtered])
 
   // Streak calculation
@@ -1161,20 +1164,28 @@ export default function HistoryClient({
                 </div>
                 <span style={{ fontSize:10, fontWeight:600, color:"#9CA3AF" }}>This Month</span>
               </div>
-              <DonutChart
-                regular={stats.totalHours - stats.totalOT}
-                overtime={stats.totalOT}
-                tasks={stats.totalTasks * 0.8}
-                total={Math.max(stats.totalHours + stats.totalTasks * 0.8, 1)}
-                label={fmtH(stats.totalHours)}
-              />
+              {/* Line chart — hours per day */}
+              <div style={{ height:120, marginBottom:12 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={stats.dailyData} margin={{ top:4, right:4, left:-28, bottom:0 }}>
+                    <XAxis dataKey="day" tick={{ fontSize:9, fill:"#9CA3AF" }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize:9, fill:"#9CA3AF" }} tickLine={false} axisLine={false} />
+                    <Tooltip
+                      contentStyle={{ fontSize:11, borderRadius:8, border:"1px solid #E5E7EB", background:"#fff" }}
+                      formatter={(v: number) => [`${v}h`, "Hours"]}
+                      labelFormatter={l => `Day ${l}`}
+                    />
+                    <ReferenceLine y={9.5} stroke="#F59E0B" strokeDasharray="4 3" strokeWidth={1.5} label={{ value:"9.5h", fontSize:9, fill:"#F59E0B", position:"right" }} />
+                    <Line type="monotone" dataKey="hours" stroke="#DE1A1A" strokeWidth={2} dot={{ r:2, fill:"#DE1A1A" }} activeDot={{ r:4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
               <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
                 {[
-                  { label:"Regular Hours",   value: fmtH(stats.totalHours - stats.totalOT), color:"#22C55E" },
-                  { label:"Overtime",        value: fmtH(stats.totalOT),                   color:"#F59E0B" },
-                  { label:"Learning Hours",  value: fmtH(stats.totalLearning),             color:"#F59E0B" },
-                  { label:"Tasks Completed", value: String(stats.totalTasks),               color:"#6366F1" },
-                  { label:"Present Days",    value: String(stats.presentDays),              color:"#EF4444" },
+                  { label:"Working Hours",   value: fmtH(stats.totalHours - stats.totalLearning), color:"#22C55E" },
+                  { label:"Learning Hours",  value: fmtH(stats.totalLearning),                    color:"#6366F1" },
+                  { label:"Overtime",        value: fmtH(stats.totalOT),                          color:"#F59E0B" },
+                  { label:"Present Days",    value: String(stats.presentDays),                     color:"#DE1A1A" },
                 ].map(r => (
                   <div key={r.label} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:7 }}>
@@ -1184,12 +1195,6 @@ export default function HistoryClient({
                     <span style={{ fontSize:11, fontWeight:700, color:"#111111" }}>{r.value}</span>
                   </div>
                 ))}
-              </div>
-              {/* Trend footer */}
-              <div style={{ marginTop:12, paddingTop:10, borderTop:"1px solid #F5F6FA", display:"flex", alignItems:"center", gap:5 }}>
-                <TrendingUp size={11} style={{ color:"#22C55E" }}/>
-                <span style={{ fontSize:10, color:"#22C55E", fontWeight:700 }}>14% more hours</span>
-                <span style={{ fontSize:10, color:"#9CA3AF" }}>than last month</span>
               </div>
             </div>
 

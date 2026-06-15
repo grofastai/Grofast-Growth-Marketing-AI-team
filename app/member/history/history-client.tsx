@@ -380,8 +380,7 @@ export default function HistoryClient({
     const dailyData: { day: string; hours: number }[] = []
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-      const workH = Math.max(0, entries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) - breakH)
+      const workH = entries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const learnH = u.learning_hours ?? 0
       const h = workH + learnH
       totalHours += h; if (h > 9.5) totalOT += Math.round((h - 9.5) * 10) / 10
@@ -463,8 +462,7 @@ export default function HistoryClient({
 
   // Latest day stats — sum from work_entries only (not attendance-derived working_hours)
   const latestEntries = Array.isArray(latest?.work_entries) ? latest!.work_entries! : []
-  const latestBreakH = latestEntries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-  const latestWorkH  = Math.max(0, latestEntries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) - latestBreakH)
+  const latestWorkH  = latestEntries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
   const latestH  = latestWorkH + (latest?.learning_hours ?? 0)
   const latestOT = latestH > 9.5 ? Math.round((latestH - 9.5) * 10) / 10 : 0
   const latestTasks = latestEntries.filter(e => e.task_type !== "break").length
@@ -694,8 +692,7 @@ export default function HistoryClient({
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(() => {
-                        const dayBreakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-                        const dayEntryH = Math.max(0, entries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) - dayBreakH) + (u.learning_hours ?? 0)
+                        const dayEntryH = entries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) + (u.learning_hours ?? 0)
                         return dayEntryH > 0 ? (
                           <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
                             <Clock size={11} style={{ color:"#9CA3AF" }}/>

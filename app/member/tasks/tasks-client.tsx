@@ -1461,14 +1461,12 @@ export default function MemberTasksClient({
                         style={{ border: "1.5px solid #EBEDF2", outline: "none", appearance: "none", paddingRight: 28 }}>
                         <option value="">Select category…</option>
                         <option value="Meta Ads">Meta Ads</option>
-                        <option value="Design">Design</option>
-                        <option value="Video">Video</option>
-                        <option value="Photography">Photography</option>
-                        <option value="Social Media">Social Media</option>
-                        <option value="Content Writing">Content Writing</option>
-                        <option value="Event">Event</option>
-                        <option value="Admin">Admin</option>
-                        <option value="Other">Other</option>
+                        <option value="Script">Script</option>
+                        <option value="Grofast AI">Grofast AI</option>
+                        <option value="Video Shoot">Video Shoot</option>
+                        <option value="Video Edit">Video Edit</option>
+                        <option value="Voice Over">Voice Over</option>
+                        <option value="Poster Design">Poster Design</option>
                       </select>
                       <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
                     </div>

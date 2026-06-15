@@ -10,6 +10,8 @@ import {
 import { createContentPost, updateContentPost, updateContentPostStatus, deleteContentPost } from "@/lib/actions/content-calendar"
 import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
 
+const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Post {
   id: string; title: string; platform: string; content_type: string
@@ -211,8 +213,9 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   function dateStr(d: number) { return `${year}-${String(month + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}` }
 
   const clientOptions = useMemo(() => {
-    const names = [...new Set(posts.map(p => p.client_name).filter(Boolean))]
-    return names.sort()
+    const names = [...new Set(posts.map(p => p.client_name).filter(Boolean))] as string[]
+    const others = names.filter(n => !INTERNAL_BRANDS.includes(n)).sort()
+    return [...INTERNAL_BRANDS, ...others]
   }, [posts])
 
   const filteredPosts = useMemo(() =>
@@ -936,7 +939,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               </div>
 
               <ClientSelector
-                clientOptions={clients.map(c => c.name)}
+                clientOptions={[...INTERNAL_BRANDS, ...clients.map(c => c.name).filter(n => !INTERNAL_BRANDS.includes(n))]}
                 value={clientName} brand={clientBrand} customClient={clientCustom}
                 onValueChange={v => { setClientName(v); setClientId(clients.find(c => c.name === v)?.id ?? "") }}
                 onBrandChange={setClientBrand} onCustomChange={setClientCustom}

@@ -750,9 +750,12 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   <ClientSelector
                     label="🎬 Client / Brand (Media)"
                     clientOptions={[
-                      ...projects.map(p => p.business_name),
-                      ...clients.map(c => c.name).filter(n => !projects.some(p => p.business_name === n)),
-                    ].sort()}
+                      "GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI",
+                      ...[
+                        ...projects.map(p => p.business_name),
+                        ...clients.map(c => c.name).filter(n => !projects.some(p => p.business_name === n)),
+                      ].filter(n => !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(n)).sort()
+                    ]}
                     value={mediaClientType}
                     brand={mediaBrand}
                     customClient={mediaCustomClient}

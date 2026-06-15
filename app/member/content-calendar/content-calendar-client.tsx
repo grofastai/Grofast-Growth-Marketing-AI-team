@@ -9,7 +9,7 @@ import {
 import { updateContentPostStatus, createContentPost, updateContentPost, deleteContentPost } from "@/lib/actions/content-calendar"
 import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
 
-const INTERNAL_BRANDS = ["Grofast Digital", "Karthick Brands"]
+const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 
 interface Post {
   id: string; title: string; platform: string; content_type: string
@@ -181,7 +181,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
 
   const clientOptions = useMemo(() => {
     const fromPosts = posts.map(p => p.client_name).filter(Boolean) as string[]
-    return [...new Set([...INTERNAL_BRANDS, ...clientNames, ...fromPosts])].sort()
+    const others = [...new Set([...clientNames, ...fromPosts])].filter(n => !INTERNAL_BRANDS.includes(n)).sort()
+    return [...INTERNAL_BRANDS, ...others]
   }, [posts, clientNames])
 
   const filteredPosts = useMemo(() => {

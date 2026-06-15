@@ -9,7 +9,7 @@ const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 import Image from "next/image"
 import {
   Camera, Film, Clock, CalendarDays,
-  TrendingUp, Zap, BookOpen, Coffee,
+  TrendingUp, Zap, BookOpen, Coffee, GraduationCap,
   CheckCircle2, Search, Trash2,
   ArrowRight, Flame, Star, X, Pencil, Check,
 } from "lucide-react"
@@ -43,7 +43,7 @@ const TASK_CFG = {
   edit:     { Icon: Film,     color:"#6366F1", bg:"rgba(99,102,241,0.1)",   label:"Editing"  },
   other:    { Icon: BookOpen, color:"#F59E0B", bg:"rgba(245,158,11,0.1)",   label:"Work"     },
   break:    { Icon: Coffee,   color:"#78716C", bg:"rgba(120,113,108,0.1)",  label:"Break"    },
-  learning: { Icon: BookOpen, color:"#D97706", bg:"rgba(245,158,11,0.12)",  label:"Learning" },
+  learning: { Icon: GraduationCap, color:"#059669", bg:"rgba(5,150,105,0.12)", label:"Learning" },
 }
 const DOT_COLORS = ["#22C55E","#F59E0B","#6366F1","#EF4444","#0EA5E9","#EC4899"]
 
@@ -736,13 +736,13 @@ export default function HistoryClient({
                   {entries.length === 0 && u.learning_topic ? (
                     <div>
                       <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
-                        <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                          <BookOpen size={15} style={{ color:"#D97706" }}/>
+                        <div style={{ width:34, height:34, borderRadius:10, background:"rgba(5,150,105,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <GraduationCap size={15} style={{ color:"#059669" }}/>
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
                             <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
-                            <span style={{ fontSize:10, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.12)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
+                            <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"rgba(5,150,105,0.12)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
                           </div>
                           {u.learning_notes && (
                             <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>
@@ -832,7 +832,7 @@ export default function HistoryClient({
                             <div style={{ flex:1, minWidth:0 }}>
                               <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
                                 <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
-                                <span style={{ fontSize:10, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.12)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
+                                <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"rgba(5,150,105,0.12)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
                               </div>
                               {u.learning_notes && (
                                 <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>

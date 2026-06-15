@@ -8,7 +8,7 @@ import HistoryClient from "./history-client"
 
 type WorkEntry = {
   id?: string
-  task_type: "shoot" | "edit" | "other"
+  task_type: "shoot" | "edit" | "other" | "break" | "learning"
   title: string
   client_name: string
   duration_hours: number

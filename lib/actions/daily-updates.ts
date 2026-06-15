@@ -40,9 +40,15 @@ export async function submitDailyUpdate(
   const today = d.date ?? todayStr
   const isPastDate = today !== todayStr
 
-  // Total working hours = sum of all entry durations
-  const totalWorkHours = d.work_entries.reduce((sum, e) => sum + e.duration_hours, 0)
+  // Working hours excludes break and learning entries
+  const totalWorkHours = d.work_entries
+    .filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
+    .reduce((sum, e) => sum + e.duration_hours, 0)
   const roundedHours = Math.round(totalWorkHours * 10) / 10
+  // Learning hours from entries (new approach — stored in work_entries)
+  const newLearnHours = d.work_entries
+    .filter(e => e.task_type === 'learning')
+    .reduce((sum, e) => sum + e.duration_hours, 0)
 
   // Check if a record already exists for today (allow appending more work)
   const [{ data: existingRecord }, { data: attLog }] = await Promise.all([
@@ -89,6 +95,9 @@ export async function submitDailyUpdate(
       updatePayload.learning_start_time = d.learning_start_time ?? null
       updatePayload.learning_end_time   = d.learning_end_time   ?? null
     }
+    if (newLearnHours > 0) {
+      updatePayload.learning_hours = Math.round(((existingRecord.learning_hours || 0) + newLearnHours) * 10) / 10
+    }
 
     const { error: updateError } = await admin
       .from('daily_updates')
@@ -107,7 +116,7 @@ export async function submitDailyUpdate(
         attendance_status:   'present',
         work_type:           workType,
         working_hours:       d.active_tab !== 'learning' ? roundedHours : null,
-        learning_hours:      d.learning_hours,
+        learning_hours:      newLearnHours > 0 ? newLearnHours : d.learning_hours,
         shoot_count:         d.shoot_count,
         notes:               null,
         work_entries:        d.work_entries,

@@ -15,7 +15,7 @@ import {
 } from "lucide-react"
 
 interface WorkEntry {
-  id?: string; task_type: "shoot" | "edit" | "other" | "break"
+  id?: string; task_type: "shoot" | "edit" | "other" | "break" | "learning"
   title: string; client_name: string; duration_hours: number
   notes: string; start_time?: string | null; end_time?: string | null
   screenshot_url?: string | null; video_link?: string | null
@@ -39,10 +39,11 @@ const STATUS_STYLE: Record<string, { label: string; color: string; bg: string; d
   wfh:     { label:"WFH",      color:"#6366F1", bg:"rgba(99,102,241,0.1)",  dot:"#6366F1" },
 }
 const TASK_CFG = {
-  shoot: { Icon: Camera,   color:"#EF4444", bg:"rgba(239,68,68,0.1)",   label:"Shoot"   },
-  edit:  { Icon: Film,     color:"#6366F1", bg:"rgba(99,102,241,0.1)",  label:"Editing" },
-  other: { Icon: BookOpen, color:"#F59E0B", bg:"rgba(245,158,11,0.1)",  label:"Work"    },
-  break: { Icon: Coffee,   color:"#78716C", bg:"rgba(120,113,108,0.1)", label:"Break"   },
+  shoot:    { Icon: Camera,   color:"#EF4444", bg:"rgba(239,68,68,0.1)",    label:"Shoot"    },
+  edit:     { Icon: Film,     color:"#6366F1", bg:"rgba(99,102,241,0.1)",   label:"Editing"  },
+  other:    { Icon: BookOpen, color:"#F59E0B", bg:"rgba(245,158,11,0.1)",   label:"Work"     },
+  break:    { Icon: Coffee,   color:"#78716C", bg:"rgba(120,113,108,0.1)",  label:"Break"    },
+  learning: { Icon: BookOpen, color:"#D97706", bg:"rgba(245,158,11,0.12)",  label:"Learning" },
 }
 const DOT_COLORS = ["#22C55E","#F59E0B","#6366F1","#EF4444","#0EA5E9","#EC4899"]
 
@@ -389,19 +390,20 @@ export default function HistoryClient({
     const dailyData: { day: string; hours: number }[] = []
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      const workH = entries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-      const learnH = u.learning_hours ?? 0
+      const workH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+      const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+      const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
       const h = workH + learnH
       totalHours += h; if (h > 9.5) totalOT += Math.round((h - 9.5) * 10) / 10
       totalLearning += learnH
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
-      totalTasks += entries.filter(e => e.task_type !== "break").length
+      totalTasks += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
       for (const e of entries) {
         if (e.task_type === "shoot") shootH += e.duration_hours ?? 0
         else if (e.task_type === "edit") editH += e.duration_hours ?? 0
-        else if (e.task_type !== "break") otherH += e.duration_hours ?? 0
+        else if (e.task_type !== "break" && e.task_type !== "learning") otherH += e.duration_hours ?? 0
       }
     }
     // Also count clock-in dates in the selected month that have no daily_update record
@@ -471,10 +473,12 @@ export default function HistoryClient({
 
   // Latest day stats — sum from work_entries only (not attendance-derived working_hours)
   const latestEntries = Array.isArray(latest?.work_entries) ? latest!.work_entries! : []
-  const latestWorkH  = latestEntries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-  const latestH  = latestWorkH + (latest?.learning_hours ?? 0)
+  const latestWorkH  = latestEntries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+  const latestLearnFromEntries = latestEntries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+  const latestLearnH = latestLearnFromEntries > 0 ? latestLearnFromEntries : (latest?.learning_hours ?? 0)
+  const latestH  = latestWorkH + latestLearnH
   const latestOT = latestH > 9.5 ? Math.round((latestH - 9.5) * 10) / 10 : 0
-  const latestTasks = latestEntries.filter(e => e.task_type !== "break").length
+  const latestTasks = latestEntries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
   const latestSt = latest ? (STATUS_STYLE[latest.attendance_status] ?? STATUS_STYLE.present) : STATUS_STYLE.present
 
 
@@ -693,15 +697,21 @@ export default function HistoryClient({
                       <div>
                         <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{dateLabel}</p>
                         <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
-                          {entries.length > 0
-                            ? `${entries.length} work ${entries.length === 1 ? "entry" : "entries"}${u.learning_topic ? " + learning" : ""}`
-                            : u.learning_topic ? "Learning session" : "No entries"}
+                          {(() => {
+                            const workCount = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
+                            const learnCount = entries.filter(e => e.task_type === "learning").length + (u.learning_topic && !entries.some(e => e.task_type === "learning") ? 1 : 0)
+                            const parts = []
+                            if (workCount > 0) parts.push(`${workCount} work ${workCount === 1 ? "entry" : "entries"}`)
+                            if (learnCount > 0) parts.push(`${learnCount} learning`)
+                            return parts.length > 0 ? parts.join(" + ") : "No entries"
+                          })()}
                         </p>
                       </div>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(() => {
-                        const dayEntryH = entries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) + (u.learning_hours ?? 0)
+                        const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+                        const dayEntryH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
                         return dayEntryH > 0 ? (
                           <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
                             <Clock size={11} style={{ color:"#9CA3AF" }}/>

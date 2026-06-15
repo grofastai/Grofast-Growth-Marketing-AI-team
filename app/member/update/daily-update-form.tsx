@@ -675,15 +675,24 @@ export default function DailyUpdateForm({
     if (learningHours <= 0) { setLearningError("To time must be after From time."); return }
     startTransition(async () => {
       const res = await submitDailyUpdate({
-        active_tab: "learning", date: selectedDate, work_entries: [], links: [],
+        active_tab: "learning", date: selectedDate, links: [],
         shoot_count: 0, editing_count: 0,
         shoot_time_hours: 0, editing_time_hours: 0,
-        learning_hours:      learningHours,
-        learning_topic:      `[${learningClient}] ${learningTopic}`.trim(),
-        learning_notes:      learningNotes,
-        learning_start_time: learningFrom || undefined,
-        learning_end_time:   learningTo   || undefined,
-        participant_ids:     learningParticipantIds,
+        learning_hours: 0,
+        participant_ids: learningParticipantIds,
+        work_entries: [{
+          id: crypto.randomUUID(),
+          client_id: null,
+          client_name: learningClient,
+          client_names: [],
+          is_multi_client: false,
+          task_type: "learning" as const,
+          title: `[${learningClient}] ${learningTopic.trim()}`,
+          start_time: learningFrom || "",
+          end_time:   learningTo   || "",
+          duration_hours: learningHours,
+          notes: learningNotes || "",
+        }],
       })
       if (!res.success) setLearningError(res.error ?? "Submission failed.")
       else { setLearningDone(true); router.refresh() }

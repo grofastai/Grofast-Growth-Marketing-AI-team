@@ -215,7 +215,7 @@ export default function HistoryClient({
 
   // Learning edit state
   const [editingLearningId, setEditingLearningId] = useState<string | null>(null)
-  const [learningDraft, setLearningDraft] = useState<{ topic: string; notes: string; hours: string; startTime: string; endTime: string }>({ topic: "", notes: "", hours: "", startTime: "", endTime: "" })
+  const [learningDraft, setLearningDraft] = useState<{ client: string; topic: string; notes: string; hours: string; startTime: string; endTime: string }>({ client: "GROFAST DIGITAL", topic: "", notes: "", hours: "", startTime: "", endTime: "" })
   const [savingLearning, setSavingLearning] = useState(false)
 
   // Per-entry date change state
@@ -319,8 +319,11 @@ export default function HistoryClient({
 
   function startEditLearning(u: UpdateRow) {
     setEditingLearningId(u.id)
+    const raw = u.learning_topic ?? ""
+    const m = raw.match(/^\[([^\]]+)\]\s*(.*)$/)
     setLearningDraft({
-      topic:     u.learning_topic ?? "",
+      client:    m ? m[1] : "GROFAST DIGITAL",
+      topic:     m ? m[2] : raw,
       notes:     u.learning_notes ?? "",
       hours:     u.learning_hours != null ? String(u.learning_hours) : "",
       startTime: u.learning_start_time ?? "",
@@ -335,9 +338,12 @@ export default function HistoryClient({
     const computedHrs = (learningDraft.startTime && learningDraft.endTime)
       ? Math.max(0, (th * 60 + tm - fh * 60 - fm) / 60)
       : parseFloat(learningDraft.hours) || null
+    const fullTopic = learningDraft.topic.trim()
+      ? `[${learningDraft.client}] ${learningDraft.topic.trim()}`
+      : null
     const result = await updateDailyUpdateLearning(id, {
       learning_hours:      computedHrs,
-      learning_topic:      learningDraft.topic || null,
+      learning_topic:      fullTopic,
       learning_notes:      learningDraft.notes || null,
       learning_start_time: learningDraft.startTime || null,
       learning_end_time:   learningDraft.endTime   || null,
@@ -773,6 +779,15 @@ export default function HistoryClient({
                         <div style={{ margin:"0 18px 14px", padding:"14px", borderRadius:12, background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.25)" }}>
                           <p style={{ fontSize:11, fontWeight:700, color:"#D97706", margin:"0 0 10px" }}>Edit Learning</p>
                           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                            <div>
+                              <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
+                              <select value={learningDraft.client} onChange={e => setLearningDraft(d => ({ ...d, client: e.target.value }))}
+                                style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
+                                <option value="GROFAST AI">GROFAST AI</option>
+                                <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
+                              </select>
+                            </div>
                             <div>
                               <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic</label>
                               <input value={learningDraft.topic} onChange={e => setLearningDraft(d => ({ ...d, topic: e.target.value }))}

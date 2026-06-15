@@ -222,7 +222,10 @@ export default function HistoryClient({
   // Past-client mode for edit dropdown (mirrors daily update form)
   const [editClientShowPast, setEditClientShowPast] = useState(false)
 
-  const [selectedMonth, setSelectedMonth] = useState("")
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const now = new Date()
+    return now.toLocaleDateString("en-US", { month: "long", year: "numeric" })
+  })
   const [search, setSearch]               = useState("")
   const [selectedDate, setSelectedDate]   = useState("")
 
@@ -1162,7 +1165,7 @@ export default function HistoryClient({
                   <TrendingUp size={14} style={{ color:"#DE1A1A" }}/>
                   <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>Work Summary</span>
                 </div>
-                <span style={{ fontSize:10, fontWeight:600, color:"#9CA3AF" }}>This Month</span>
+                <span style={{ fontSize:10, fontWeight:600, color:"#9CA3AF" }}>{selectedMonth || "All Data"}</span>
               </div>
               {/* Line chart — hours per day */}
               <div style={{ height:120, marginBottom:12 }}>
@@ -1202,7 +1205,7 @@ export default function HistoryClient({
             <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
                 <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>Productivity Score</span>
-                <span style={{ fontSize:10, fontWeight:600, color:"#9CA3AF" }}>This Month</span>
+                <span style={{ fontSize:10, fontWeight:600, color:"#9CA3AF" }}>{selectedMonth || "All Data"}</span>
               </div>
               <ProductivityRing pct={stats.productivity} />
             </div>

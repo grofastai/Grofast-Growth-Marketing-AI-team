@@ -31,7 +31,7 @@ interface EditEntry {
   startTime: string; endTime: string
   dateGiven: string; dateFinished: string
   timeTaken: number; driveUpdated: boolean
-  revisions: number; videoLink: string; notes: string
+  revisions: number; hooksCompleted: number; videoLink: string; notes: string
   participantIds: string[]
 }
 interface TimeBlock {
@@ -243,6 +243,7 @@ function parseExistingEdits(existingUpdate: Record<string, unknown>): EditEntry[
       timeTaken: e.duration_hours ?? 0,
       driveUpdated: e.drive_updated ?? false,
       revisions: e.revisions ?? 0,
+      hooksCompleted: (e as Record<string, unknown>).hooks_completed as number ?? 0,
       videoLink: e.video_link ?? "",
       notes: e.notes ?? "",
       participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
@@ -355,7 +356,7 @@ export default function DailyUpdateForm({
   const [edits, setEdits] = useState<EditEntry[]>(() => existingUpdate ? parseExistingEdits(existingUpdate) : [])
   const addEdit    = () => setEdits(p => [...p, {
     id: crypto.randomUUID(), clientName: "", brand: "", customClient: "", title: "",
-    videoType: "", customVideoType: "", videoDuration: "",
+    videoType: "", customVideoType: "", videoDuration: "", hooksCompleted: 0,
     startTime: "", endTime: "",
     dateGiven: todayStr, dateFinished: todayStr, timeTaken: 2,
     driveUpdated: false, revisions: 0, videoLink: "", notes: "", participantIds: [],
@@ -551,7 +552,7 @@ export default function DailyUpdateForm({
           screenshot_url: "", video_link: e.videoLink, editing_videos: [],
           video_type: finalVideoType, video_duration: e.videoDuration,
           date_given: e.dateGiven, date_finished: e.dateFinished,
-          drive_updated: e.driveUpdated, revisions: e.revisions,
+          drive_updated: e.driveUpdated, revisions: e.revisions, hooks_completed: e.hooksCompleted || 0,
           _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient, _overlap_hours: overlapH,
           participant_ids: e.participantIds,
         }
@@ -609,7 +610,7 @@ export default function DailyUpdateForm({
           screenshot_url: "", video_link: e.videoLink, editing_videos: [],
           video_type: finalVideoType, video_duration: e.videoDuration,
           date_given: e.dateGiven, date_finished: e.dateFinished,
-          drive_updated: e.driveUpdated, revisions: e.revisions,
+          drive_updated: e.driveUpdated, revisions: e.revisions, hooks_completed: e.hooksCompleted || 0,
           _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient, _overlap_hours: overlapH,
           participant_ids: e.participantIds,
         }
@@ -1566,6 +1567,10 @@ export default function DailyUpdateForm({
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Revisions</label>
                           <input type="number" min="0" max="99" value={e.revisions} onChange={ev => patchEdit(e.id, { revisions: parseInt(ev.target.value) || 0 })} placeholder="0" style={F} />
+                        </div>
+                        <div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🪝 Hooks Completed</label>
+                          <input type="number" min="0" max="99" value={e.hooksCompleted} onChange={ev => patchEdit(e.id, { hooksCompleted: parseInt(ev.target.value) || 0 })} placeholder="0" style={F} />
                         </div>
                       </div>
                       {/* ── Editing time window (for shoot overlap detection) ── */}

@@ -374,18 +374,19 @@ export default function HistoryClient({
     const hoursPerDay: number[] = []
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      const workH = entries.reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+      const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+      const workH = Math.max(0, entries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) - breakH)
       const learnH = u.learning_hours ?? 0
       const h = workH + learnH
       totalHours += h; if (h > 9.5) totalOT += Math.round((h - 9.5) * 10) / 10
       totalLearning += learnH
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
-      totalTasks += entries.length
+      totalTasks += entries.filter(e => e.task_type !== "break").length
       for (const e of entries) {
         if (e.task_type === "shoot") shootH += e.duration_hours ?? 0
         else if (e.task_type === "edit") editH += e.duration_hours ?? 0
-        else otherH += e.duration_hours ?? 0
+        else if (e.task_type !== "break") otherH += e.duration_hours ?? 0
       }
     }
     const productivity = filtered.length > 0
@@ -433,9 +434,11 @@ export default function HistoryClient({
 
   // Latest day stats — sum from work_entries only (not attendance-derived working_hours)
   const latestEntries = Array.isArray(latest?.work_entries) ? latest!.work_entries! : []
-  const latestH  = latestEntries.reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) + (latest?.learning_hours ?? 0)
+  const latestBreakH = latestEntries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+  const latestWorkH  = Math.max(0, latestEntries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) - latestBreakH)
+  const latestH  = latestWorkH + (latest?.learning_hours ?? 0)
   const latestOT = latestH > 9.5 ? Math.round((latestH - 9.5) * 10) / 10 : 0
-  const latestTasks = latest ? (Array.isArray(latest.work_entries) ? latest.work_entries : []).length : 0
+  const latestTasks = latestEntries.filter(e => e.task_type !== "break").length
   const latestSt = latest ? (STATUS_STYLE[latest.attendance_status] ?? STATUS_STYLE.present) : STATUS_STYLE.present
 
 
@@ -662,7 +665,8 @@ export default function HistoryClient({
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(() => {
-                        const dayEntryH = entries.reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) + (u.learning_hours ?? 0)
+                        const dayBreakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+                        const dayEntryH = Math.max(0, entries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) - dayBreakH) + (u.learning_hours ?? 0)
                         return dayEntryH > 0 ? (
                           <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
                             <Clock size={11} style={{ color:"#9CA3AF" }}/>

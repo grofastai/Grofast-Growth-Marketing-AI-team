@@ -754,12 +754,20 @@ export default function HistoryClient({
                             )}
                           </span>
                         </div>
-                        <button
-                          onClick={() => editingLearningId === u.id ? setEditingLearningId(null) : startEditLearning(u)}
-                          title="Edit learning"
-                          style={{ width:26, height:26, borderRadius:7, background: editingLearningId === u.id ? "rgba(245,158,11,0.2)" : "rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.35)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}>
-                          <Pencil size={11} style={{ color:"#D97706" }}/>
-                        </button>
+                        <div style={{ display:"flex", gap:5, flexShrink:0 }}>
+                          <button
+                            onClick={() => editingLearningId === u.id ? setEditingLearningId(null) : startEditLearning(u)}
+                            title="Edit learning"
+                            style={{ width:26, height:26, borderRadius:7, background: editingLearningId === u.id ? "rgba(245,158,11,0.2)" : "rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.35)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+                            <Pencil size={11} style={{ color:"#D97706" }}/>
+                          </button>
+                          <button
+                            onClick={async () => { if (!confirm("Delete this learning entry?")) return; await updateDailyUpdateLearning(u.id, { learning_hours: null, learning_topic: null, learning_notes: null, learning_start_time: null, learning_end_time: null }); router.refresh() }}
+                            title="Delete learning"
+                            style={{ width:26, height:26, borderRadius:7, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+                            <Trash2 size={11} style={{ color:"#EF4444" }}/>
+                          </button>
+                        </div>
                       </div>
                       {editingLearningId === u.id && (
                         <div style={{ margin:"0 18px 14px", padding:"14px", borderRadius:12, background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.25)" }}>

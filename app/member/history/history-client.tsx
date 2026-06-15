@@ -985,7 +985,16 @@ export default function HistoryClient({
                                     </div>
                                     <div>
                                       <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
-                                      {editDraft.task_type === "other" && editDraft.is_multi_client
+                                      {editDraft.task_type === "learning"
+                                        ? <select
+                                            value={editDraft.client_name ?? ""}
+                                            onChange={ev => setEditDraft(d => ({ ...d, client_name: ev.target.value }))}
+                                            style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                            <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
+                                            <option value="GROFAST AI">GROFAST AI</option>
+                                            <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
+                                          </select>
+                                        : editDraft.task_type === "other" && editDraft.is_multi_client
                                         ? <p style={{ fontSize:11, fontWeight:700, color:"#374151", padding:"7px 0" }}>{(editDraft.client_names ?? []).join(" · ") || "—"}</p>
                                         : editClientShowPast
                                           ? <div>

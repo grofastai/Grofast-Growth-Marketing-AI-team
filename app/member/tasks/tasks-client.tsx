@@ -196,7 +196,7 @@ function DraggableCard({
 }: {
   task: Task
   today: string
-  onMove: (id: string, status: "todo" | "in_progress" | "completed") => void
+  onMove: (id: string, status: "todo" | "in_progress" | "review" | "completed") => void
   isDragging?: boolean
   currentUserId?: string
   onDelete?: (id: string) => void
@@ -222,7 +222,7 @@ function TaskCardInner({
 }: {
   task: Task
   today: string
-  onMove: (id: string, status: "todo" | "in_progress" | "completed") => void
+  onMove: (id: string, status: "todo" | "in_progress" | "review" | "completed") => void
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   dragProps?: { attributes: any; listeners: any }
   isDragging?: boolean
@@ -598,6 +598,7 @@ export default function MemberTasksClient({
 
   // Workload Indicator
   const activeTasks = myTasks.filter(t => t.status !== "completed")
+  const productivity  = total > 0 ? Math.round((doneTasks.length / total) * 100) : 0
   const workloadScore = activeTasks.reduce((s, t) => s + (t.priority === "high" ? 3 : t.priority === "medium" ? 2 : 1), 0)
   const workload = workloadScore <= 3
     ? { label: "Light", color: "#22C55E", emoji: "🟢" }
@@ -605,7 +606,7 @@ export default function MemberTasksClient({
       ? { label: "Medium", color: "#F59E0B", emoji: "🟡" }
       : { label: "Heavy", color: "#EF4444", emoji: "🔴" }
 
-  function moveTask(id: string, status: "todo" | "in_progress" | "completed") {
+  function moveTask(id: string, status: "todo" | "in_progress" | "review" | "completed") {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t))
     startTransition(async () => { await updateTaskStatus(id, status) })
   }

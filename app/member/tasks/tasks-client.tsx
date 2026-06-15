@@ -430,6 +430,14 @@ export default function MemberTasksClient({
   const [showAssign, setShowAssign] = useState(false)
   const [assignState, assignAction] = useActionState(createMemberTask, null)
 
+  // Rich form state
+  const [checklistItems, setChecklistItems]     = useState<{id: string; text: string}[]>([])
+  const [newCheckItem, setNewCheckItem]         = useState("")
+  const [attachmentLinks, setAttachmentLinks]   = useState<{id: string; url: string}[]>([])
+  const [newAttachUrl, setNewAttachUrl]         = useState("")
+  const [approvalRequired, setApprovalRequired] = useState(false)
+  const [recurringTask, setRecurringTask]       = useState("none")
+
   // Edit task
   const [editTask, setEditTask]         = useState<Task | null>(null)
   const [editLoading, setEditLoading]   = useState(false)
@@ -444,12 +452,20 @@ export default function MemberTasksClient({
   const [commentError, setCommentError]     = useState<string | null>(null)
   const commentEndRef = useRef<HTMLDivElement>(null)
 
+  function resetAssignForm() {
+    setAssignClientType(""); setAssignBrand(""); setAssignCustom("")
+    setChecklistItems([]); setNewCheckItem("")
+    setAttachmentLinks([]); setNewAttachUrl("")
+    setApprovalRequired(false); setRecurringTask("none")
+  }
+
   useEffect(() => {
     if (assignState && 'success' in assignState) {
       setShowAssign(false)
-      setAssignClientType(""); setAssignBrand(""); setAssignCustom("")
+      resetAssignForm()
       router.refresh()
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignState, router])
 
   // Load comments when panel opens
@@ -1393,109 +1409,286 @@ export default function MemberTasksClient({
     {/* ── Assign Task Modal ─────────────────────────────────────────────────── */}
     {showAssign && (
       <>
-        <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
-          onClick={() => setShowAssign(false)} />
+        <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)" }}
+          onClick={() => { setShowAssign(false); resetAssignForm() }} />
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-[420px] rounded-2xl shadow-2xl overflow-hidden"
-            style={{ background: "#FFFFFF", border: "1px solid rgba(222,26,26,0.15)" }}>
-            <div className="px-6 py-4 flex items-center justify-between"
-              style={{ borderBottom: "1px solid #E5E7EB" }}>
-              <h2 className="text-[16px] font-bold" style={{ color: "#111111" }}>Assign a Task</h2>
-              <button onClick={() => setShowAssign(false)}
+          <div className="w-full max-w-[600px] rounded-2xl shadow-2xl flex flex-col"
+            style={{ background: "#FFFFFF", border: "1px solid rgba(222,26,26,0.15)", maxHeight: "92vh" }}>
+
+            {/* Sticky header */}
+            <div className="flex items-center justify-between px-6 py-4 flex-shrink-0"
+              style={{ borderBottom: "1px solid #E5E7EB", background: "linear-gradient(135deg,#DE1A1A,#7F1D1D)", borderRadius: "16px 16px 0 0" }}>
+              <div>
+                <h2 className="text-[16px] font-black text-white">Assign a Task</h2>
+                <p className="text-[11px] text-white/60 mt-0.5">Fill in the details below</p>
+              </div>
+              <button onClick={() => { setShowAssign(false); resetAssignForm() }}
                 className="w-8 h-8 rounded-full flex items-center justify-center"
-                style={{ border: "1px solid #E5E7EB" }}>
-                <X size={14} style={{ color: "#6B7280" }} />
+                style={{ background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)" }}>
+                <X size={14} color="#fff" />
               </button>
             </div>
-            <form action={assignAction} className="px-6 py-5 space-y-4">
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Title *</label>
-                <input name="title" required placeholder="What needs to be done?"
-                  className="w-full px-3 py-2 rounded-xl text-[13px]"
-                  style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Description</label>
-                <textarea name="description" rows={2} placeholder="Details…"
-                  className="w-full px-3 py-2 rounded-xl text-[13px] resize-none"
-                  style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+
+            {/* Scrollable body */}
+            <form action={assignAction} className="flex flex-col flex-1 min-h-0">
+              {/* Hidden rich-field payloads */}
+              <input type="hidden" name="checklist_json"   value={JSON.stringify(checklistItems.map(i => ({ text: i.text, done: false })))} />
+              <input type="hidden" name="attachments_json" value={JSON.stringify(attachmentLinks.map(i => i.url).filter(Boolean))} />
+              <input type="hidden" name="approval_required" value={String(approvalRequired)} />
+              {/* Hidden client/project routing fields */}
+              <input type="hidden" name="project_id"
+                value={assignClientType && !assignClientType.startsWith("__client__:") && assignClientType !== "__custom__" ? assignClientType : ""} />
+              <input type="hidden" name="promotion_name"
+                value={assignClientType.startsWith("__client__:") ? assignClientType.slice(11) : assignClientType === "__custom__" ? assignCustom : ""} />
+              <input type="hidden" name="shop_name" value="" />
+
+              <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
+
+                {/* ── Task Title ── */}
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Priority</label>
-                  <select name="priority" className="w-full px-3 py-2 rounded-xl text-[13px]"
-                    style={{ border: "1.5px solid #EBEDF2", outline: "none" }}>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="low">Low</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Due Date</label>
-                  <input type="date" name="due_date" min={today} className="w-full px-3 py-2 rounded-xl text-[13px]"
-                    style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>
-                  <User size={9} className="inline mr-1" />Assign To
-                </label>
-                <select name="assigned_to" className="w-full px-3 py-2 rounded-xl text-[13px]"
-                  style={{ border: "1.5px solid #EBEDF2", outline: "none" }}>
-                  <option value={currentUserId}>Myself</option>
-                  {teamMembers.filter(m => m.id !== currentUserId).map(m => (
-                    <option key={m.id} value={m.id}>{m.name} ({m.employee_id})</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Client / Project</label>
-                {/* Hidden fields consumed by createMemberTask */}
-                {/* __client__:Name entries use promotion_name path (auto-creates quick project) */}
-                <input type="hidden" name="project_id"
-                  value={assignClientType && !assignClientType.startsWith("__client__:") && assignClientType !== "Promotion" && assignClientType !== "__custom__" ? assignClientType : ""} />
-                <input type="hidden" name="promotion_name"
-                  value={assignClientType.startsWith("__client__:") ? assignClientType.slice(11) : assignClientType === "Promotion" ? (assignBrand || "") : assignClientType === "__custom__" ? assignCustom : ""} />
-                <input type="hidden" name="shop_name" value="" />
-                {/* Main dropdown — same style as daily update */}
-                <div style={{ position: "relative" }}>
-                  <select
-                    value={assignClientType}
-                    onChange={e => { setAssignClientType(e.target.value); setAssignBrand(""); setAssignCustom("") }}
-                    className="w-full px-3 py-2 rounded-xl text-[13px]"
-                    style={{ border: "1.5px solid #EBEDF2", outline: "none", appearance: "none", paddingRight: 28 }}>
-                    <option value="">Add client / project…</option>
-                    <option value="__client__:GROFAST DIGITAL">GROFAST DIGITAL</option>
-                    <option value="__client__:KARTHICK BRANDS">KARTHICK BRANDS</option>
-                    <option value="__client__:GROFAST AI">GROFAST AI</option>
-                    {projects
-                      .filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id) && !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(p.business_name))
-                      .map(p => <option key={p.id} value={p.id}>{p.business_name}</option>)}
-                    {clients
-                      .filter(c => !projects.some(p => p.business_name === c.name) && !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(c.name))
-                      .map(c => <option key={`cl:${c.id}`} value={`__client__:${c.name}`}>{c.name}</option>)}
-                    <option value="__custom__">✏️ Other (type manually)</option>
-                  </select>
-                  <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
-                </div>
-                {/* Other → custom text */}
-                {assignClientType === "__custom__" && (
-                  <input
-                    value={assignCustom}
-                    onChange={e => setAssignCustom(e.target.value)}
-                    placeholder="Type client name…"
-                    className="w-full px-3 py-2 rounded-xl text-[13px] mt-1.5"
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Task Title *</label>
+                  <input name="title" required placeholder="What needs to be done?"
+                    className="w-full px-3 py-2.5 rounded-xl text-[13px]"
                     style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
+                </div>
+
+                {/* ── Category + Priority ── */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Task Category</label>
+                    <div style={{ position: "relative" }}>
+                      <select name="category" className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                        style={{ border: "1.5px solid #EBEDF2", outline: "none", appearance: "none", paddingRight: 28 }}>
+                        <option value="">Select category…</option>
+                        <option value="Meta Ads">Meta Ads</option>
+                        <option value="Design">Design</option>
+                        <option value="Video">Video</option>
+                        <option value="Photography">Photography</option>
+                        <option value="Social Media">Social Media</option>
+                        <option value="Content Writing">Content Writing</option>
+                        <option value="Event">Event</option>
+                        <option value="Admin">Admin</option>
+                        <option value="Other">Other</option>
+                      </select>
+                      <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Priority</label>
+                    <div style={{ position: "relative" }}>
+                      <select name="priority" className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                        style={{ border: "1.5px solid #EBEDF2", outline: "none", appearance: "none", paddingRight: 28 }}>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="low">Low</option>
+                      </select>
+                      <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Assign To ── */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>
+                    <User size={9} className="inline mr-1" />Assign To
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <select name="assigned_to" className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                      style={{ border: "1.5px solid #EBEDF2", outline: "none", appearance: "none", paddingRight: 28 }}>
+                      <option value={currentUserId}>Myself</option>
+                      {teamMembers.filter(m => m.id !== currentUserId).map(m => (
+                        <option key={m.id} value={m.id}>{m.name} ({m.employee_id})</option>
+                      ))}
+                    </select>
+                    <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                  </div>
+                </div>
+
+                {/* ── Client / Project ── */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Client / Project</label>
+                  <div style={{ position: "relative" }}>
+                    <select
+                      value={assignClientType}
+                      onChange={e => { setAssignClientType(e.target.value); setAssignBrand(""); setAssignCustom("") }}
+                      className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                      style={{ border: "1.5px solid #EBEDF2", outline: "none", appearance: "none", paddingRight: 28 }}>
+                      <option value="">Select client / project…</option>
+                      <option value="__client__:GROFAST DIGITAL">GROFAST DIGITAL</option>
+                      <option value="__client__:KARTHICK BRANDS">KARTHICK BRANDS</option>
+                      <option value="__client__:GROFAST AI">GROFAST AI</option>
+                      {projects
+                        .filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id) && !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(p.business_name))
+                        .map(p => <option key={p.id} value={p.id}>{p.business_name}</option>)}
+                      {clients
+                        .filter(c => !projects.some(p => p.business_name === c.name) && !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(c.name))
+                        .map(c => <option key={`cl:${c.id}`} value={`__client__:${c.name}`}>{c.name}</option>)}
+                      <option value="__custom__">✏️ Other (type manually)</option>
+                    </select>
+                    <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                  </div>
+                  {assignClientType === "__custom__" && (
+                    <input value={assignCustom} onChange={e => setAssignCustom(e.target.value)}
+                      placeholder="Type client name…"
+                      className="w-full px-3 py-2.5 rounded-xl text-[13px] mt-1.5"
+                      style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
+                  )}
+                </div>
+
+                {/* ── Expected Time + Due Date ── */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Expected Time</label>
+                    <input name="expected_time" placeholder="e.g. 2 hours, 30 mins"
+                      className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                      style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Due Date</label>
+                    <input type="date" name="due_date" min={today}
+                      className="w-full px-3 py-2.5 rounded-xl text-[13px]"
+                      style={{ border: "1.5px solid #EBEDF2", outline: "none", colorScheme: "light" }} />
+                  </div>
+                </div>
+
+                {/* ── Task Brief ── */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Task Brief</label>
+                  <textarea name="task_brief" rows={3} placeholder="Describe what needs to be done…"
+                    className="w-full px-3 py-2.5 rounded-xl text-[13px] resize-none"
+                    style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
+                </div>
+
+                {/* ── Expected Deliverable ── */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Expected Deliverable</label>
+                  <textarea name="expected_deliverable" rows={2} placeholder="What should be delivered on completion?"
+                    className="w-full px-3 py-2.5 rounded-xl text-[13px] resize-none"
+                    style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
+                </div>
+
+                {/* ── Checklist ── */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Checklist</label>
+                  <div className="space-y-1.5 mb-2">
+                    {checklistItems.map((item, idx) => (
+                      <div key={item.id} className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                        style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                        <span className="text-[11px] font-bold flex-shrink-0" style={{ color: "#9CA3AF" }}>{idx + 1}.</span>
+                        <span className="flex-1 text-[13px]" style={{ color: "#374151" }}>{item.text}</span>
+                        <button type="button" onClick={() => setChecklistItems(p => p.filter(i => i.id !== item.id))}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0 }}>
+                          <X size={11} style={{ color: "#9CA3AF" }} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input value={newCheckItem} onChange={e => setNewCheckItem(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          const t = newCheckItem.trim()
+                          if (t) { setChecklistItems(p => [...p, { id: crypto.randomUUID(), text: t }]); setNewCheckItem("") }
+                        }
+                      }}
+                      placeholder="Add checklist item…"
+                      className="flex-1 px-3 py-2 rounded-xl text-[13px]"
+                      style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
+                    <button type="button"
+                      onClick={() => {
+                        const t = newCheckItem.trim()
+                        if (t) { setChecklistItems(p => [...p, { id: crypto.randomUUID(), text: t }]); setNewCheckItem("") }
+                      }}
+                      className="px-3 py-2 rounded-xl text-[12px] font-bold flex items-center gap-1"
+                      style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.15)" }}>
+                      <Plus size={11} strokeWidth={3} /> Add
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── Attachments / Links ── */}
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Attachments / Links</label>
+                  <div className="space-y-1.5 mb-2">
+                    {attachmentLinks.map(item => (
+                      <div key={item.id} className="flex items-center gap-2 px-3 py-2 rounded-xl"
+                        style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                        <span className="flex-1 text-[12px] truncate" style={{ color: "#6366F1" }}>{item.url}</span>
+                        <button type="button" onClick={() => setAttachmentLinks(p => p.filter(i => i.id !== item.id))}
+                          style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0 }}>
+                          <X size={11} style={{ color: "#9CA3AF" }} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input value={newAttachUrl} onChange={e => setNewAttachUrl(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          const u = newAttachUrl.trim()
+                          if (u) { setAttachmentLinks(p => [...p, { id: crypto.randomUUID(), url: u }]); setNewAttachUrl("") }
+                        }
+                      }}
+                      placeholder="Paste Google Drive, Figma, or any link…"
+                      className="flex-1 px-3 py-2 rounded-xl text-[13px]"
+                      style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
+                    <button type="button"
+                      onClick={() => {
+                        const u = newAttachUrl.trim()
+                        if (u) { setAttachmentLinks(p => [...p, { id: crypto.randomUUID(), url: u }]); setNewAttachUrl("") }
+                      }}
+                      className="px-3 py-2 rounded-xl text-[12px] font-bold flex items-center gap-1"
+                      style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.15)" }}>
+                      <Plus size={11} strokeWidth={3} /> Add
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── Approval Required + Recurring Task ── */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center justify-between px-4 py-3 rounded-xl"
+                    style={{ border: "1.5px solid #EBEDF2", background: approvalRequired ? "rgba(222,26,26,0.04)" : "#FAFAFA" }}>
+                    <div>
+                      <p className="text-[12px] font-bold" style={{ color: "#111" }}>Approval Required</p>
+                      <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Needs sign-off</p>
+                    </div>
+                    <button type="button" onClick={() => setApprovalRequired(p => !p)}
+                      className="w-10 h-6 rounded-full transition-all flex-shrink-0"
+                      style={{ background: approvalRequired ? "#DE1A1A" : "#E5E7EB", position: "relative" }}>
+                      <span className="absolute top-1 transition-all w-4 h-4 rounded-full bg-white shadow"
+                        style={{ left: approvalRequired ? "calc(100% - 20px)" : 4 }} />
+                    </button>
+                  </div>
+                  <div className="flex flex-col gap-1.5 px-4 py-3 rounded-xl"
+                    style={{ border: "1.5px solid #EBEDF2", background: recurringTask !== "none" ? "rgba(99,102,241,0.04)" : "#FAFAFA" }}>
+                    <p className="text-[12px] font-bold" style={{ color: "#111" }}>Recurring Task</p>
+                    <div style={{ position: "relative" }}>
+                      <select name="recurring_task" value={recurringTask} onChange={e => setRecurringTask(e.target.value)}
+                        className="w-full px-2 py-1 rounded-lg text-[12px]"
+                        style={{ border: "1px solid #E5E7EB", outline: "none", appearance: "none", paddingRight: 20, background: "#fff" }}>
+                        <option value="none">None</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                      <ChevronDown size={10} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                    </div>
+                  </div>
+                </div>
+
+                {assignState && "error" in assignState && (
+                  <p className="text-[12px] px-3 py-2 rounded-lg"
+                    style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>
+                    {assignState.error}
+                  </p>
                 )}
               </div>
-              {assignState && "error" in assignState && (
-                <p className="text-[12px] px-3 py-2 rounded-lg"
-                  style={{ background: "rgba(222,26,26,0.06)", color: "#de1a1a" }}>
-                  {assignState.error}
-                </p>
-              )}
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowAssign(false)}
+
+              {/* Sticky footer */}
+              <div className="flex gap-3 px-6 py-4 flex-shrink-0" style={{ borderTop: "1px solid #E5E7EB" }}>
+                <button type="button" onClick={() => { setShowAssign(false); resetAssignForm() }}
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
                   style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#6B7280" }}>
                   Cancel
@@ -1503,7 +1696,7 @@ export default function MemberTasksClient({
                 <button type="submit"
                   className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white"
                   style={{ background: "linear-gradient(135deg, #DE1A1A, #7F1D1D)" }}>
-                  Assign
+                  Assign Task
                 </button>
               </div>
             </form>

@@ -123,7 +123,7 @@ export async function createMemberTask(
 
   const raw = {
     title:       formData.get('title') as string,
-    description: (formData.get('description') as string) || undefined,
+    description: (formData.get('task_brief') as string) || undefined,
     priority:    (formData.get('priority') as string) || 'medium',
     due_date:    (formData.get('due_date') as string) || null,
     assigned_to: (formData.get('assigned_to') as string) || null,
@@ -140,6 +140,17 @@ export async function createMemberTask(
   }).safeParse(raw)
 
   if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  // Rich fields
+  const category             = (formData.get('category') as string) || null
+  const expectedTime         = (formData.get('expected_time') as string)?.trim() || null
+  const expectedDeliverable  = (formData.get('expected_deliverable') as string)?.trim() || null
+  const approvalRequired     = formData.get('approval_required') === 'true'
+  const recurringTask        = (formData.get('recurring_task') as string) || 'none'
+  let checklist: object[] = []
+  let attachments: string[] = []
+  try { checklist  = JSON.parse((formData.get('checklist_json')   as string) || '[]') } catch { checklist = [] }
+  try { attachments = JSON.parse((formData.get('attachments_json') as string) || '[]') } catch { attachments = [] }
 
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -163,15 +174,22 @@ export async function createMemberTask(
   }
 
   const { data: insertedTask, error } = await admin.from('tasks').insert({
-    company_id:  profile.company_id,
-    title:       parsed.data.title,
-    description: parsed.data.description || null,
-    priority:    parsed.data.priority,
-    due_date:    parsed.data.due_date || null,
-    status:      'todo',
-    created_by:  user.id,
-    assigned_to: parsed.data.assigned_to || user.id,
-    project_id:  finalProjectId,
+    company_id:           profile.company_id,
+    title:                parsed.data.title,
+    description:          parsed.data.description || null,
+    priority:             parsed.data.priority,
+    due_date:             parsed.data.due_date || null,
+    status:               'todo',
+    created_by:           user.id,
+    assigned_to:          parsed.data.assigned_to || user.id,
+    project_id:           finalProjectId,
+    category,
+    expected_time:        expectedTime,
+    expected_deliverable: expectedDeliverable,
+    checklist,
+    attachments,
+    approval_required:    approvalRequired,
+    recurring_task:       recurringTask,
   }).select('id').single()
 
   if (error) return { error: error.message }

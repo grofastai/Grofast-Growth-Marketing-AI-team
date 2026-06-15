@@ -692,6 +692,7 @@ export default function DailyUpdateForm({
           end_time:   learningTo   || "",
           duration_hours: learningHours,
           notes: learningNotes || "",
+          editing_videos: [],
         }],
       })
       if (!res.success) setLearningError(res.error ?? "Submission failed.")

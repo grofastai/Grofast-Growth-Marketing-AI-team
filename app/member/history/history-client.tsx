@@ -1047,8 +1047,8 @@ export default function HistoryClient({
                                     </div>
                                   )}
 
-                                  {/* Shoot & Other: start/end time */}
-                                  {(editDraft.task_type === "shoot" || editDraft.task_type === "other") && (
+                                  {/* Shoot, Other & Learning: start/end time */}
+                                  {(editDraft.task_type === "shoot" || editDraft.task_type === "other" || editDraft.task_type === "learning") && (
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                                       <div>
                                         <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Start Time</label>

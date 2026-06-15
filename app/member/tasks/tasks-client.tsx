@@ -412,12 +412,14 @@ export default function MemberTasksClient({
   teamMembers = [],
   currentUserId = "",
   projects = [],
+  clients = [],
 }: {
   tasks: Task[]
   todayHours: number
   teamMembers?: { id: string; name: string; employee_id: string }[]
   currentUserId?: string
   projects?: { id: string; business_name: string; client_name: string | null }[]
+  clients?: { id: string; name: string }[]
 }) {
   const router = useRouter()
 
@@ -1449,10 +1451,11 @@ export default function MemberTasksClient({
               <div>
                 <label className="block text-[10px] font-bold uppercase tracking-wider mb-1.5" style={{ color: "#6B7280" }}>Client / Project</label>
                 {/* Hidden fields consumed by createMemberTask */}
+                {/* __client__:Name entries use promotion_name path (auto-creates quick project) */}
                 <input type="hidden" name="project_id"
-                  value={assignClientType && assignClientType !== "Promotion" && assignClientType !== "__custom__" ? assignClientType : ""} />
+                  value={assignClientType && !assignClientType.startsWith("__client__:") && assignClientType !== "Promotion" && assignClientType !== "__custom__" ? assignClientType : ""} />
                 <input type="hidden" name="promotion_name"
-                  value={assignClientType === "Promotion" ? (assignBrand || "") : assignClientType === "__custom__" ? assignCustom : ""} />
+                  value={assignClientType.startsWith("__client__:") ? assignClientType.slice(11) : assignClientType === "Promotion" ? (assignBrand || "") : assignClientType === "__custom__" ? assignCustom : ""} />
                 <input type="hidden" name="shop_name" value="" />
                 {/* Main dropdown — same style as daily update */}
                 <div style={{ position: "relative" }}>
@@ -1465,6 +1468,9 @@ export default function MemberTasksClient({
                     {projects
                       .filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id))
                       .map(p => <option key={p.id} value={p.id}>{p.business_name}</option>)}
+                    {clients
+                      .filter(c => !projects.some(p => p.business_name === c.name))
+                      .map(c => <option key={`cl:${c.id}`} value={`__client__:${c.name}`}>{c.name}</option>)}
                     <option value="__custom__">✏️ Other (type manually)</option>
                   </select>
                   <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />

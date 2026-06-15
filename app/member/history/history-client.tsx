@@ -64,7 +64,7 @@ function calcDurationFromTimes(start?: string | null, end?: string | null): numb
   const [sh, sm] = start.split(":").map(Number)
   const [eh, em] = end.split(":").map(Number)
   const diff = (eh * 60 + em) - (sh * 60 + sm)
-  return diff > 0 ? Math.round((diff / 60) * 10) / 10 : null
+  return diff > 0 ? diff / 60 : null
 }
 
 // ── Sparkline ──────────────────────────────────────────────────────────────────

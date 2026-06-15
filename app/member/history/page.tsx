@@ -125,6 +125,7 @@ export default async function HistoryPage() {
   const pastClients = ((pastClientsResult.data ?? []) as { name: string }[]).map(c => c.name)
   const participatedUpdates = (participatedResult.data ?? []) as unknown as ParticipatedUpdate[]
   const members = (membersResult.data ?? []) as MemberInfo[]
+  const attendanceDates = Array.from(clockedInDates)
 
   return (
     <HistoryClient
@@ -134,6 +135,7 @@ export default async function HistoryPage() {
       pastClients={pastClients}
       participatedUpdates={participatedUpdates}
       members={members}
+      attendanceDates={attendanceDates}
     />
   )
 }

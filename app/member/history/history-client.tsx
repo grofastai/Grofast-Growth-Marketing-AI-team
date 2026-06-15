@@ -166,7 +166,7 @@ interface MemberInfo { id: string; name: string }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function HistoryClient({
-  updates, userName, clients = [], pastClients = [], participatedUpdates = [], members = [],
+  updates, userName, clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [],
 }: {
   updates: UpdateRow[]
   userName: string
@@ -174,6 +174,7 @@ export default function HistoryClient({
   pastClients?: string[]
   participatedUpdates?: ParticipatedUpdate[]
   members?: MemberInfo[]
+  attendanceDates?: string[]   // all dates with a clock-in (from attendance_logs)
 }) {
 
   const months = useMemo(() => {
@@ -395,11 +396,22 @@ export default function HistoryClient({
         else if (e.task_type !== "break") otherH += e.duration_hours ?? 0
       }
     }
+    // Also count clock-in dates in the selected month that have no daily_update record
+    const updateDates = new Set(monthFiltered.map(u => u.date))
+    const monthPrefix = selectedMonth
+      ? new Date(monthFiltered[0]?.date + "T12:00:00" || Date.now()).toISOString().slice(0, 7)
+      : null
+    for (const d of attendanceDates) {
+      if (updateDates.has(d)) continue  // already counted above
+      if (monthPrefix && !d.startsWith(monthPrefix)) continue
+      presentDays++
+    }
+
     const productivity = filtered.length > 0
       ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9.5)) * 40) : 0)))
       : 0
     return { totalHours, totalOT, totalTasks, presentDays, totalLearning, shootH, editH, otherH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
-  }, [filtered])
+  }, [filtered, attendanceDates, selectedMonth, monthFiltered])
 
   // Streak calculation
   const { streak, last7 } = useMemo(() => {

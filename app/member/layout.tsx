@@ -5,6 +5,8 @@ import { cookies } from "next/headers"
 import MemberSidebar from "@/components/member/sidebar"
 import ImpersonationBanner from "@/components/member/impersonation-banner"
 import { getNotificationCount } from "@/lib/actions/notifications"
+import { getYesterdayGateStatus } from "@/lib/actions/attendance"
+import MemberGate from "@/components/member/member-gate"
 
 function adminSupabase() {
   return createClient(
@@ -23,9 +25,10 @@ export default async function MemberLayout({ children }: { children: React.React
   const cookieStore = await cookies()
   const impersonateId = cookieStore.get("gf_impersonate")?.value
 
-  const [{ data: profile }, unreadCount] = await Promise.all([
+  const [{ data: profile }, unreadCount, gate] = await Promise.all([
     admin.from("users").select("name, employee_id, role, must_change_password, photo_url, company_id, can_manage_freelancers").eq("id", user.id).single(),
     getNotificationCount(),
+    getYesterdayGateStatus(),
   ])
 
   // Admin impersonation — allowed through member layout
@@ -75,6 +78,11 @@ export default async function MemberLayout({ children }: { children: React.React
 
   return (
     <div className="flex min-h-screen" style={{ background: "#EDEEF2" }}>
+      <MemberGate
+        forgotLogout={gate.forgotLogout}
+        missingUpdate={gate.missingUpdate}
+        yesterdayDate={gate.yesterdayDate}
+      />
       <MemberSidebar
         name={profile?.name ?? "Member"}
         employeeId={profile?.employee_id ?? ""}

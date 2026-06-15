@@ -469,6 +469,107 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
   return { success: true, logs }
 }
 
+export async function getYesterdayGateStatus(): Promise<{
+  forgotLogout: boolean
+  missingUpdate: boolean
+  yesterdayDate: string
+}> {
+  const ctxResult = await getUserContext()
+  const fallback = { forgotLogout: false, missingUpdate: false, yesterdayDate: '' }
+  if ('error' in ctxResult) return fallback
+
+  const ctx = ctxResult
+  const yd = new Date()
+  yd.setDate(yd.getDate() - 1)
+  const yesterday = yd.toISOString().split('T')[0]
+
+  const admin = adminSupabase()
+  const [{ data: attLog }, { data: update }, { data: leave }] = await Promise.all([
+    admin.from('attendance_logs')
+      .select('clock_in, clock_out, status')
+      .eq('user_id', ctx.userId)
+      .eq('company_id', ctx.companyId)
+      .eq('date', yesterday)
+      .maybeSingle(),
+    admin.from('daily_updates')
+      .select('id')
+      .eq('user_id', ctx.userId)
+      .eq('company_id', ctx.companyId)
+      .eq('date', yesterday)
+      .maybeSingle(),
+    admin.from('leaves')
+      .select('id')
+      .eq('user_id', ctx.userId)
+      .eq('company_id', ctx.companyId)
+      .eq('status', 'approved')
+      .lte('from_date', yesterday)
+      .gte('to_date', yesterday)
+      .maybeSingle(),
+  ])
+
+  // Skip checks if on approved leave yesterday
+  if (leave) return fallback
+
+  const hadClockIn = attLog?.status === 'present' && !!attLog?.clock_in
+  const forgotLogout = hadClockIn && !attLog?.clock_out
+  const missingUpdate = hadClockIn && !!attLog?.clock_out && !update
+
+  return { forgotLogout, missingUpdate, yesterdayDate: yesterday }
+}
+
+export async function getTodayCoverageReport(): Promise<{
+  clockIn: string | null
+  clockOut: string | null
+  shiftMinutes: number
+  totalWorkMinutes: number
+  gapMinutes: number
+  entries: Array<{ task_type: string; title: string; client_name: string; duration_hours: number }>
+}> {
+  const ctxResult = await getUserContext()
+  const empty = { clockIn: null, clockOut: null, shiftMinutes: 0, totalWorkMinutes: 0, gapMinutes: 0, entries: [] }
+  if ('error' in ctxResult) return empty
+
+  const ctx = ctxResult
+  const today = new Date().toISOString().split('T')[0]
+  const admin = adminSupabase()
+
+  const [{ data: log }, { data: update }] = await Promise.all([
+    admin.from('attendance_logs')
+      .select('clock_in, clock_out, break_total_mins')
+      .eq('user_id', ctx.userId)
+      .eq('company_id', ctx.companyId)
+      .eq('date', today)
+      .maybeSingle(),
+    admin.from('daily_updates')
+      .select('work_entries, learning_hours')
+      .eq('user_id', ctx.userId)
+      .eq('company_id', ctx.companyId)
+      .eq('date', today)
+      .maybeSingle(),
+  ])
+
+  if (!log?.clock_in || !log?.clock_out) return empty
+
+  const shiftMs = new Date(log.clock_out).getTime() - new Date(log.clock_in).getTime()
+  const breakMs = (log.break_total_mins ?? 0) * 60 * 1000
+  const shiftMinutes = Math.max(0, Math.round((shiftMs - breakMs) / 60000))
+
+  const rawEntries = Array.isArray(update?.work_entries) ? update!.work_entries as Array<{ task_type: string; title: string; client_name: string; duration_hours: number }> : []
+  const entries = rawEntries.filter((e) => e.task_type !== 'break')
+  const learnH = update?.learning_hours ?? 0
+  const totalWorkMinutes = Math.round(entries.reduce((s, e) => s + (e.duration_hours ?? 0), 0) * 60 + learnH * 60)
+  const gapMinutes = Math.max(0, shiftMinutes - totalWorkMinutes)
+
+  return {
+    clockIn: log.clock_in,
+    clockOut: log.clock_out,
+    shiftMinutes,
+    totalWorkMinutes,
+    gapMinutes,
+    entries: rawEntries.filter(e => e.task_type !== 'break'),
+  }
+}
+
 export async function editAttendanceTimes(
   date: string, clockIn: string, clockOut: string,
   breakIn?: string, breakOut?: string

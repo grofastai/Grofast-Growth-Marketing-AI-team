@@ -61,6 +61,7 @@ export default async function MemberTasksPage() {
           .select("id, name, employee_id")
           .eq("company_id", companyId)
           .eq("status", "active")
+          .eq("role", "MEMBER")
           .order("name")
       : Promise.resolve({ data: [] as { id: string; name: string; employee_id: string }[] }),
     companyId

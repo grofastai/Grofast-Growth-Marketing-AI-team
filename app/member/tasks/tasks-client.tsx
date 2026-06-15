@@ -874,6 +874,28 @@ export default function MemberTasksClient({
             })}
           </div>
 
+          {/* Client filter */}
+          {projects.filter(p => p.client_name !== "__member_quick__").length > 0 && (
+            <div className="relative flex-shrink-0">
+              <select
+                value={filterProject}
+                onChange={e => setFilterProject(e.target.value)}
+                className="px-3 py-1.5 rounded-xl text-[12px] font-semibold"
+                style={{
+                  background: filterProject ? "#de1a1a" : "#FFFFFF",
+                  border: `1px solid ${filterProject ? "#de1a1a" : "#E5E7EB"}`,
+                  color: filterProject ? "#FFFFFF" : "#374151",
+                  outline: "none", appearance: "none", paddingRight: 26, cursor: "pointer",
+                }}>
+                <option value="">All Clients</option>
+                {projects
+                  .filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id))
+                  .map(p => <option key={p.id} value={p.id}>{p.business_name}</option>)}
+              </select>
+              <ChevronDown size={10} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", color: filterProject ? "#FFF" : "#9CA3AF", pointerEvents: "none" }} />
+            </div>
+          )}
+
           {/* Group by Project toggle */}
           <button
             onClick={() => setGroupByProject(g => !g)}

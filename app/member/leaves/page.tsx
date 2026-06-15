@@ -26,7 +26,7 @@ export default async function MemberLeavesPage() {
 
   const yearStart = `${new Date().getFullYear()}-01-01`
 
-  const [leavesResult, profileResult, usedResult] = await Promise.all([
+  const [leavesResult, profileResult, usedResult, absentResult] = await Promise.all([
     supabase
       .from("leaves")
       .select("*")
@@ -44,19 +44,28 @@ export default async function MemberLeavesPage() {
       .eq("user_id", effectiveUserId)
       .eq("status", "approved")
       .gte("from_date", yearStart),
+    admin
+      .from("attendance_logs")
+      .select("id, date")
+      .eq("user_id", effectiveUserId)
+      .eq("status", "absent")
+      .gte("date", yearStart)
+      .order("date", { ascending: false }),
   ])
 
-  const leaves       = leavesResult.data ?? []
-  const name         = (profileResult.data?.name ?? "").split(" ")[0] || "there"
+  const leaves        = leavesResult.data ?? []
+  const name          = (profileResult.data?.name ?? "").split(" ")[0] || "there"
   const paidLeaveDays = profileResult.data?.paid_leave_days ?? 0
+  const absentDays    = (absentResult.data ?? []) as { id: string; date: string }[]
 
-  // Calculate used days: full_day = exact days, half_day = 0.5, permission = 0
-  const usedDays = (usedResult.data ?? []).reduce((sum, l) => {
+  // Calculate used days: full_day = exact days, half_day = 0.5, permission = 0, absent = 1
+  const leaveUsedDays = (usedResult.data ?? []).reduce((sum, l) => {
     if (l.leave_type === "permission") return sum
     if (l.leave_type === "half_day") return sum + 0.5
     const days = Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
     return sum + days
   }, 0)
+  const usedDays = leaveUsedDays + absentDays.length
 
   return (
     <MemberLeavesClient
@@ -64,6 +73,7 @@ export default async function MemberLeavesPage() {
       userName={name}
       paidLeaveDays={paidLeaveDays}
       usedLeaveDays={usedDays}
+      absentDays={absentDays}
     />
   )
 }

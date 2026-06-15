@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     year: 'numeric',
   })
 
-  const [{ data: members }, { data: todayUpdates }, { data: todayLeaves }] = await Promise.all([
+  const [{ data: members }, { data: todayUpdates }, { data: todayLeaves }, { data: todayAbsent }] = await Promise.all([
     admin
       .from('users')
       .select('id, name, phone')
@@ -75,11 +75,18 @@ export async function GET(request: NextRequest) {
       .eq('status', 'approved')
       .lte('from_date', today)
       .gte('to_date', today),
+    admin
+      .from('attendance_logs')
+      .select('user_id')
+      .eq('company_id', companyId)
+      .eq('date', today)
+      .eq('status', 'absent'),
   ])
 
   const submittedIds = new Set((todayUpdates ?? []).map((u: any) => u.user_id))
   const onLeaveIds = new Set((todayLeaves ?? []).map((l: any) => l.user_id))
-  const pending = (members ?? []).filter((m: any) => !submittedIds.has(m.id) && !onLeaveIds.has(m.id) && m.phone)
+  const absentIds = new Set((todayAbsent ?? []).map((a: any) => a.user_id))
+  const pending = (members ?? []).filter((m: any) => !submittedIds.has(m.id) && !onLeaveIds.has(m.id) && !absentIds.has(m.id) && m.phone)
 
   let sent = 0
   let failed = 0

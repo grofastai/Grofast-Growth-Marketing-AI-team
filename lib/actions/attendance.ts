@@ -507,8 +507,9 @@ export async function getYesterdayGateStatus(): Promise<{
       .maybeSingle(),
   ])
 
-  // Skip checks if on approved leave yesterday
+  // Skip checks if on approved leave or marked absent yesterday
   if (leave) return fallback
+  if (attLog?.status === 'absent') return fallback
 
   const hadClockIn = attLog?.status === 'present' && !!attLog?.clock_in
   const forgotLogout = hadClockIn && !attLog?.clock_out

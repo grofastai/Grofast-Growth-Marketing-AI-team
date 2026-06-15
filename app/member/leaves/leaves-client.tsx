@@ -27,15 +27,17 @@ const HOLIDAYS = [
 ]
 
 const STATUS_CFG = {
-  pending:  { color: "#F59E0B", bg: "rgba(245,158,11,0.12)",  label: "Pending",  icon: Clock        },
-  approved: { color: "#10B981", bg: "rgba(16,185,129,0.12)",  label: "Approved", icon: CheckCircle2 },
-  rejected: { color: "#EF4444", bg: "rgba(239,68,68,0.12)",   label: "Rejected", icon: XCircle      },
+  pending:  { color: "#F59E0B", bg: "rgba(245,158,11,0.12)",   label: "Pending",  icon: Clock        },
+  approved: { color: "#10B981", bg: "rgba(16,185,129,0.12)",   label: "Approved", icon: CheckCircle2 },
+  rejected: { color: "#EF4444", bg: "rgba(239,68,68,0.12)",    label: "Rejected", icon: XCircle      },
+  absent:   { color: "#6B7280", bg: "rgba(107,114,128,0.12)",  label: "Absent",   icon: XCircle      },
 }
 
 const TYPE_ILLUSTRATION: Record<string, { emoji: string; bg: string }> = {
-  half_day:   { emoji: "🌤️", bg: "rgba(251,191,36,0.12)"  },
-  full_day:   { emoji: "🌴", bg: "rgba(16,185,129,0.12)"  },
-  permission: { emoji: "⏰", bg: "rgba(99,102,241,0.12)"  },
+  half_day:   { emoji: "🌤️", bg: "rgba(251,191,36,0.12)"   },
+  full_day:   { emoji: "🌴", bg: "rgba(16,185,129,0.12)"   },
+  permission: { emoji: "⏰", bg: "rgba(99,102,241,0.12)"   },
+  absent:     { emoji: "🏠", bg: "rgba(107,114,128,0.1)"   },
 }
 
 function daysBetween(from: string, to: string) {
@@ -135,10 +137,22 @@ function BalanceRing({ pct }: { pct: number }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function MemberLeavesClient({ leaves: initialLeaves, userName, paidLeaveDays = 0, usedLeaveDays = 0 }: { leaves: Leave[]; userName: string; paidLeaveDays?: number; usedLeaveDays?: number }) {
+export default function MemberLeavesClient({ leaves: initialLeaves, userName, paidLeaveDays = 0, usedLeaveDays = 0, absentDays = [] }: { leaves: Leave[]; userName: string; paidLeaveDays?: number; usedLeaveDays?: number; absentDays?: { id: string; date: string }[] }) {
   const router = useRouter()
   const [leaves, setLeaves]         = useState(initialLeaves)
   useEffect(() => { setLeaves(initialLeaves) }, [initialLeaves])
+
+  // Merge absent days from attendance_logs into a unified timeline list
+  const absentEntries: Leave[] = absentDays.map(a => ({
+    id: `absent-${a.id}`,
+    from_date: a.date,
+    to_date: a.date,
+    reason: "Marked as absent",
+    status: "absent",
+    created_at: a.date,
+    leave_type: "absent",
+  }))
+  const allEntries = [...leaves, ...absentEntries].sort((a, b) => b.from_date.localeCompare(a.from_date))
   const [showForm, setShowForm]         = useState(false)
   const [leaveType, setLeaveType]       = useState<LeaveType>("full_day")
   const [halfPeriod, setHalfPeriod]     = useState<"morning" | "afternoon">("morning")
@@ -203,10 +217,11 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     return leave.status === "pending" && leave.to_date < today
   }
 
-  const approved = leaves.filter(l => l.status === "approved")
+  const approved = allEntries.filter(l => l.status === "approved")
   // Only show pending leaves where the start date is today or in the future
-  const pendingL = leaves.filter(l => l.status === "pending" && l.from_date >= today)
-  const rejected = leaves.filter(l => l.status === "rejected")
+  const pendingL = allEntries.filter(l => l.status === "pending" && l.from_date >= today)
+  const rejected = allEntries.filter(l => l.status === "rejected")
+  const absentCount = allEntries.filter(l => l.status === "absent").length
 
   const MONTHLY_LIMIT = 5
   const currentMonth  = today.slice(0, 7) // "YYYY-MM"
@@ -233,7 +248,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     })
   }
 
-  const filteredLeaves = leaves.filter(l => filterStatus === "all" || l.status === filterStatus)
+  const filteredLeaves = allEntries.filter(l => filterStatus === "all" || l.status === filterStatus)
   const visibleLeaves  = showMore ? filteredLeaves : filteredLeaves.slice(0, 5)
 
   const FIELD: React.CSSProperties = { background: "#F9FAFB", border: "1.5px solid #E8EAED", color: "#111827", borderRadius: "12px", padding: "11px 14px", fontSize: "13px", outline: "none", width: "100%" }
@@ -305,10 +320,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
           {/* ── Stats Cards ──────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
             {[
-              { label: "Total Leaves\nThis Year",       val: leaves.length,   color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: "up"   as const, sub: "↑ 10% from last year",   subColor: "#10B981" },
+              { label: "Total Leaves\nThis Year",       val: allEntries.length,  color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: "up"   as const, sub: "↑ 10% from last year",   subColor: "#10B981" },
               { label: "Pending\nRequests",             val: pendingL.length, color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "⏳", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
               { label: "Approved\nLeaves",              val: approved.length, color: "#10B981", bg: "rgba(16,185,129,0.1)",  icon: "✅", trend: "up"   as const, sub: "↑ 22% from last week",   subColor: "#10B981" },
-              { label: "Rejected\nRequests",            val: rejected.length, color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "❌", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
+              { label: "Absent\nDays",                  val: absentCount,     color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "🏠", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
               { label: "Annual Leave\nRemaining",          val: Math.max(0, paidLeaveDays - usedLeaveDays), color: "#0EA5E9", bg: "rgba(14,165,233,0.1)", icon: "🏖️", trend: null, sub: null, subColor: "" },
               { label: "Upcoming\nHolidays",            val: HOLIDAYS.filter(h => h.date >= today).length, color: "#EC4899", bg: "rgba(236,72,153,0.1)", icon: "🎁", trend: null, sub: null, subColor: "" },
             ].map((s, i) => (
@@ -366,7 +381,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                   </button>
                   {filterOpen && (
                     <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", borderRadius: 12, border: "1px solid #EBEDF2", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 20, minWidth: 140, overflow: "hidden" }}>
-                      {["all", "pending", "approved", "rejected"].map(s => (
+                      {["all", "pending", "approved", "rejected", "absent"].map(s => (
                         <button key={s} onClick={() => { setFilter(s); setFilterOpen(false) }}
                           style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 12, fontWeight: 600, color: filterStatus === s ? "#DE1A1A" : "#374151", background: filterStatus === s ? "rgba(222,26,26,0.05)" : "none", border: "none", cursor: "pointer", textTransform: "capitalize" }}>
                           {s === "all" ? "All Status" : s}
@@ -410,10 +425,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     const yr      = dateObj.getFullYear()
                     const wd      = dateObj.toLocaleDateString("en-US", { weekday: "short" })
                     const StatusIcon = sc.icon
-                    const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : "Permission"
-                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}` : `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}`
-                    const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : "rgba(245,158,11,0.12)"
-                    const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : "#F59E0B"
+                    const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : type === "permission" ? "Permission" : type === "absent" ? "Absent Day" : "Full Day Leave"
+                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}` : type === "permission" ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : type === "absent" ? "Absent" : "Full Day"
+                    const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : type === "absent" ? "rgba(107,114,128,0.12)" : "rgba(245,158,11,0.12)"
+                    const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : type === "absent" ? "#6B7280" : "#F59E0B"
                     const duration  = isPerm ? `${leave.permission_hours}h session` : isHalf ? "1 Session" : `${days} Day${days && days > 1 ? "s" : ""}`
 
                     return (
@@ -428,7 +443,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                           <span style={{ fontSize: 8, fontWeight: 900, color: sc.color, letterSpacing: "0.1em" }}>{mon}</span>
                           <span style={{ fontSize: 26, fontWeight: 900, color: sc.color, lineHeight: 1 }}>{day}</span>
                           <span style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600 }}>{yr}</span>
-                          <span style={{ fontSize: 8, color: "#9CA3AF" }}>{wd} · {isHalf ? (leave.half_day_period ?? "Morning") : isPerm ? "Session" : "Full Day"}</span>
+                          <span style={{ fontSize: 8, color: "#9CA3AF" }}>{wd} · {isHalf ? (leave.half_day_period ?? "Morning") : isPerm ? "Session" : type === "absent" ? "Absent" : "Full Day"}</span>
                         </div>
 
                         {/* Card */}
@@ -480,8 +495,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                             {leave.status === "approved" && (
                               <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0 }}>Requested on {fmtShort(leave.created_at)}</p>
                             )}
-                            {/* Menu: edit+delete for pending; delete-only for approved/rejected full/half day */}
-                            {leave.status === "pending" ? (
+                            {/* Menu: edit+delete for pending; delete-only for approved/rejected full/half day; nothing for absent */}
+                            {leave.status === "absent" ? null : leave.status === "pending" ? (
                               <div style={{ position: "relative" }} ref={menuOpenId === leave.id ? menuRef : undefined}>
                                 <button
                                   onClick={() => setMenuOpenId(menuOpenId === leave.id ? null : leave.id)}

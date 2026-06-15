@@ -413,7 +413,6 @@ export default function MemberTasksClient({
   currentUserId = "",
   projects = [],
   clients = [],
-  pastClients = [],
 }: {
   tasks: Task[]
   todayHours: number
@@ -421,7 +420,6 @@ export default function MemberTasksClient({
   currentUserId?: string
   projects?: { id: string; business_name: string; client_name: string | null }[]
   clients?: { id: string; name: string }[]
-  pastClients?: { id: string; name: string }[]
 }) {
   const router = useRouter()
 
@@ -1467,27 +1465,15 @@ export default function MemberTasksClient({
                     className="w-full px-3 py-2 rounded-xl text-[13px]"
                     style={{ border: "1.5px solid #EBEDF2", outline: "none", appearance: "none", paddingRight: 28 }}>
                     <option value="">Add client / project…</option>
+                    <option value="__client__:GROFAST DIGITAL">GROFAST DIGITAL</option>
+                    <option value="__client__:KARTHICK BRANDS">KARTHICK BRANDS</option>
+                    <option value="__client__:GROFAST AI">GROFAST AI</option>
                     {projects
-                      .filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id))
+                      .filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id) && !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(p.business_name))
                       .map(p => <option key={p.id} value={p.id}>{p.business_name}</option>)}
                     {clients
-                      .filter(c => !projects.some(p => p.business_name === c.name))
+                      .filter(c => !projects.some(p => p.business_name === c.name) && !["GROFAST DIGITAL","KARTHICK BRANDS","GROFAST AI"].includes(c.name))
                       .map(c => <option key={`cl:${c.id}`} value={`__client__:${c.name}`}>{c.name}</option>)}
-                    {(() => {
-                      const activeNames = new Set([
-                        ...projects.map(p => p.business_name.toLowerCase()),
-                        ...clients.map(c => c.name.toLowerCase()),
-                      ])
-                      const filtered = pastClients.filter(c => !activeNames.has(c.name.toLowerCase()))
-                      if (filtered.length === 0) return null
-                      return (
-                        <optgroup label="── Past Clients ──">
-                          {filtered.map(c => (
-                            <option key={`pc:${c.id}`} value={`__client__:${c.name}`}>{c.name}</option>
-                          ))}
-                        </optgroup>
-                      )
-                    })()}
                     <option value="__custom__">✏️ Other (type manually)</option>
                   </select>
                   <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />

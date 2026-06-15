@@ -21,7 +21,7 @@ export const workEntrySchema = z.object({
   id:              z.string(),
   client_id:       z.string().nullable().optional(),
   client_name:     z.string().min(1, 'Client name required'),
-  task_type:       z.enum(['shoot', 'edit', 'upload', 'other', 'break']),
+  task_type:       z.enum(['shoot', 'edit', 'upload', 'other', 'break', 'learning']),
   title:           z.string().min(1, 'Entry title required'),
   start_time:      z.string().optional().default(''),
   end_time:        z.string().optional().default(''),
@@ -54,9 +54,11 @@ export const dailyUpdateSchema = z
     shoot_time_hours:   z.number().min(0).optional(),
     editing_time_hours: z.number().min(0).optional(),
 
-    learning_topic: z.string().optional(),
-    learning_hours: z.number().min(0).max(24).default(0),
-    learning_notes: z.string().optional(),
+    learning_topic:      z.string().optional(),
+    learning_hours:      z.number().min(0).max(24).default(0),
+    learning_notes:      z.string().optional(),
+    learning_start_time: z.string().optional(),
+    learning_end_time:   z.string().optional(),
 
     participant_ids: z.array(z.string().uuid()).optional().default([]),
 
@@ -67,11 +69,14 @@ export const dailyUpdateSchema = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Add at least one work entry', path: ['work_entries'] })
     }
     if (val.active_tab === 'learning') {
-      if (!val.learning_topic?.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Learning topic is required', path: ['learning_topic'] })
-      }
-      if (!val.learning_hours || val.learning_hours <= 0) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Time spent is required', path: ['learning_hours'] })
+      const hasLearningEntries = val.work_entries.some(e => e.task_type === 'learning')
+      if (!hasLearningEntries) {
+        if (!val.learning_topic?.trim()) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Learning topic is required', path: ['learning_topic'] })
+        }
+        if (!val.learning_hours || val.learning_hours <= 0) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Time spent is required', path: ['learning_hours'] })
+        }
       }
     }
   })

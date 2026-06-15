@@ -9,13 +9,13 @@ const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 import Image from "next/image"
 import {
   Camera, Film, Clock, CalendarDays,
-  TrendingUp, Zap, BookOpen, Coffee,
+  TrendingUp, Zap, BookOpen, Coffee, GraduationCap,
   CheckCircle2, Search, Trash2,
   ArrowRight, Flame, Star, X, Pencil, Check,
 } from "lucide-react"
 
 interface WorkEntry {
-  id?: string; task_type: "shoot" | "edit" | "other" | "break"
+  id?: string; task_type: "shoot" | "edit" | "other" | "break" | "learning"
   title: string; client_name: string; duration_hours: number
   notes: string; start_time?: string | null; end_time?: string | null
   screenshot_url?: string | null; video_link?: string | null
@@ -27,6 +27,7 @@ interface UpdateRow {
   id: string; date: string; attendance_status: string
   work_type: string | null; working_hours: number | null
   learning_hours: number | null; learning_topic: string | null; learning_notes: string | null
+  learning_start_time: string | null; learning_end_time: string | null
   shoot_count: number | null
   work_entries: WorkEntry[] | null; created_at: string
 }
@@ -38,10 +39,11 @@ const STATUS_STYLE: Record<string, { label: string; color: string; bg: string; d
   wfh:     { label:"WFH",      color:"#6366F1", bg:"rgba(99,102,241,0.1)",  dot:"#6366F1" },
 }
 const TASK_CFG = {
-  shoot: { Icon: Camera,   color:"#EF4444", bg:"rgba(239,68,68,0.1)",   label:"Shoot"   },
-  edit:  { Icon: Film,     color:"#6366F1", bg:"rgba(99,102,241,0.1)",  label:"Editing" },
-  other: { Icon: BookOpen, color:"#F59E0B", bg:"rgba(245,158,11,0.1)",  label:"Work"    },
-  break: { Icon: Coffee,   color:"#78716C", bg:"rgba(120,113,108,0.1)", label:"Break"   },
+  shoot:    { Icon: Camera,   color:"#EF4444", bg:"rgba(239,68,68,0.1)",    label:"Shoot"    },
+  edit:     { Icon: Film,     color:"#6366F1", bg:"rgba(99,102,241,0.1)",   label:"Editing"  },
+  other:    { Icon: BookOpen, color:"#F59E0B", bg:"rgba(245,158,11,0.1)",   label:"Work"     },
+  break:    { Icon: Coffee,   color:"#78716C", bg:"rgba(120,113,108,0.1)",  label:"Break"    },
+  learning: { Icon: GraduationCap, color:"#059669", bg:"rgba(5,150,105,0.12)", label:"Learning" },
 }
 const DOT_COLORS = ["#22C55E","#F59E0B","#6366F1","#EF4444","#0EA5E9","#EC4899"]
 
@@ -62,7 +64,7 @@ function calcDurationFromTimes(start?: string | null, end?: string | null): numb
   const [sh, sm] = start.split(":").map(Number)
   const [eh, em] = end.split(":").map(Number)
   const diff = (eh * 60 + em) - (sh * 60 + sm)
-  return diff > 0 ? Math.round((diff / 60) * 10) / 10 : null
+  return diff > 0 ? diff / 60 : null
 }
 
 // ── Sparkline ──────────────────────────────────────────────────────────────────
@@ -213,7 +215,7 @@ export default function HistoryClient({
 
   // Learning edit state
   const [editingLearningId, setEditingLearningId] = useState<string | null>(null)
-  const [learningDraft, setLearningDraft] = useState<{ topic: string; notes: string; hours: string }>({ topic: "", notes: "", hours: "" })
+  const [learningDraft, setLearningDraft] = useState<{ client: string; topic: string; notes: string; hours: string; startTime: string; endTime: string }>({ client: "GROFAST DIGITAL", topic: "", notes: "", hours: "", startTime: "", endTime: "" })
   const [savingLearning, setSavingLearning] = useState(false)
 
   // Per-entry date change state
@@ -317,20 +319,34 @@ export default function HistoryClient({
 
   function startEditLearning(u: UpdateRow) {
     setEditingLearningId(u.id)
+    const raw = u.learning_topic ?? ""
+    const m = raw.match(/^\[([^\]]+)\]\s*(.*)$/)
     setLearningDraft({
-      topic: u.learning_topic ?? "",
-      notes: u.learning_notes ?? "",
-      hours: u.learning_hours != null ? String(u.learning_hours) : "",
+      client:    m ? m[1] : "GROFAST DIGITAL",
+      topic:     m ? m[2] : raw,
+      notes:     u.learning_notes ?? "",
+      hours:     u.learning_hours != null ? String(u.learning_hours) : "",
+      startTime: u.learning_start_time ?? "",
+      endTime:   u.learning_end_time   ?? "",
     })
   }
 
   async function saveLearning(id: string) {
     setSavingLearning(true)
-    const hrs = parseFloat(learningDraft.hours) || null
+    const [fh, fm] = learningDraft.startTime ? learningDraft.startTime.split(":").map(Number) : [0, 0]
+    const [th, tm] = learningDraft.endTime   ? learningDraft.endTime.split(":").map(Number)   : [0, 0]
+    const computedHrs = (learningDraft.startTime && learningDraft.endTime)
+      ? Math.max(0, (th * 60 + tm - fh * 60 - fm) / 60)
+      : parseFloat(learningDraft.hours) || null
+    const fullTopic = learningDraft.topic.trim()
+      ? `[${learningDraft.client}] ${learningDraft.topic.trim()}`
+      : null
     const result = await updateDailyUpdateLearning(id, {
-      learning_hours: hrs,
-      learning_topic: learningDraft.topic || null,
-      learning_notes: learningDraft.notes || null,
+      learning_hours:      computedHrs,
+      learning_topic:      fullTopic,
+      learning_notes:      learningDraft.notes || null,
+      learning_start_time: learningDraft.startTime || null,
+      learning_end_time:   learningDraft.endTime   || null,
     })
     if (result.success) {
       setEditingLearningId(null)
@@ -380,20 +396,20 @@ export default function HistoryClient({
     const dailyData: { day: string; hours: number }[] = []
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-      const workH = Math.max(0, entries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) - breakH)
-      const learnH = u.learning_hours ?? 0
+      const workH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+      const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+      const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
       const h = workH + learnH
       totalHours += h; if (h > 9.5) totalOT += Math.round((h - 9.5) * 10) / 10
       totalLearning += learnH
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
-      totalTasks += entries.filter(e => e.task_type !== "break").length
+      totalTasks += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
       for (const e of entries) {
         if (e.task_type === "shoot") shootH += e.duration_hours ?? 0
         else if (e.task_type === "edit") editH += e.duration_hours ?? 0
-        else if (e.task_type !== "break") otherH += e.duration_hours ?? 0
+        else if (e.task_type !== "break" && e.task_type !== "learning") otherH += e.duration_hours ?? 0
       }
     }
     // Also count clock-in dates in the selected month that have no daily_update record
@@ -463,11 +479,12 @@ export default function HistoryClient({
 
   // Latest day stats — sum from work_entries only (not attendance-derived working_hours)
   const latestEntries = Array.isArray(latest?.work_entries) ? latest!.work_entries! : []
-  const latestBreakH = latestEntries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-  const latestWorkH  = Math.max(0, latestEntries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) - latestBreakH)
-  const latestH  = latestWorkH + (latest?.learning_hours ?? 0)
+  const latestWorkH  = latestEntries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+  const latestLearnFromEntries = latestEntries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+  const latestLearnH = latestLearnFromEntries > 0 ? latestLearnFromEntries : (latest?.learning_hours ?? 0)
+  const latestH  = latestWorkH + latestLearnH
   const latestOT = latestH > 9.5 ? Math.round((latestH - 9.5) * 10) / 10 : 0
-  const latestTasks = latestEntries.filter(e => e.task_type !== "break").length
+  const latestTasks = latestEntries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
   const latestSt = latest ? (STATUS_STYLE[latest.attendance_status] ?? STATUS_STYLE.present) : STATUS_STYLE.present
 
 
@@ -686,16 +703,21 @@ export default function HistoryClient({
                       <div>
                         <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{dateLabel}</p>
                         <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
-                          {entries.length > 0
-                            ? `${entries.length} work ${entries.length === 1 ? "entry" : "entries"}${u.learning_topic ? " + learning" : ""}`
-                            : u.learning_topic ? "Learning session" : "No entries"}
+                          {(() => {
+                            const workCount = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
+                            const learnCount = entries.filter(e => e.task_type === "learning").length + (u.learning_topic && !entries.some(e => e.task_type === "learning") ? 1 : 0)
+                            const parts = []
+                            if (workCount > 0) parts.push(`${workCount} work ${workCount === 1 ? "entry" : "entries"}`)
+                            if (learnCount > 0) parts.push(`${learnCount} learning`)
+                            return parts.length > 0 ? parts.join(" + ") : "No entries"
+                          })()}
                         </p>
                       </div>
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(() => {
-                        const dayBreakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-                        const dayEntryH = Math.max(0, entries.filter(e => e.task_type !== "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) - dayBreakH) + (u.learning_hours ?? 0)
+                        const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+                        const dayEntryH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
                         return dayEntryH > 0 ? (
                           <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
                             <Clock size={11} style={{ color:"#9CA3AF" }}/>
@@ -720,46 +742,74 @@ export default function HistoryClient({
                   {entries.length === 0 && u.learning_topic ? (
                     <div>
                       <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
-                        <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                          <BookOpen size={15} style={{ color:"#F59E0B" }}/>
+                        <div style={{ width:34, height:34, borderRadius:10, background:"rgba(5,150,105,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <GraduationCap size={15} style={{ color:"#059669" }}/>
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
                             <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
-                            <span style={{ fontSize:10, fontWeight:700, color:"#F59E0B", background:"rgba(245,158,11,0.1)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
+                            <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"rgba(5,150,105,0.12)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
                           </div>
                           {u.learning_notes && (
                             <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>
                           )}
-                          {(u.learning_hours ?? 0) > 0 && (
-                            <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:3, marginTop:4 }}>
-                              <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(u.learning_hours!)}
-                            </span>
-                          )}
+                          <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:6, marginTop:4 }}>
+                            {(u.learning_hours ?? 0) > 0 && <><Clock size={9} style={{ color:"#9CA3AF" }}/>{fmtH(u.learning_hours!)}</>}
+                            {u.learning_start_time && u.learning_end_time && (
+                              <span style={{ color:"#9CA3AF", fontWeight:500 }}>{fmt12(u.learning_start_time)} – {fmt12(u.learning_end_time)}</span>
+                            )}
+                          </span>
                         </div>
-                        <button
-                          onClick={() => editingLearningId === u.id ? setEditingLearningId(null) : startEditLearning(u)}
-                          title="Edit learning"
-                          style={{ width:26, height:26, borderRadius:7, background: editingLearningId === u.id ? "rgba(245,158,11,0.2)" : "rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.35)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", flexShrink:0 }}>
-                          <Pencil size={11} style={{ color:"#D97706" }}/>
-                        </button>
+                        <div style={{ display:"flex", gap:5, flexShrink:0 }}>
+                          <button
+                            onClick={() => editingLearningId === u.id ? setEditingLearningId(null) : startEditLearning(u)}
+                            title="Edit learning"
+                            style={{ width:26, height:26, borderRadius:7, background: editingLearningId === u.id ? "rgba(245,158,11,0.2)" : "rgba(245,158,11,0.1)", border:"1px solid rgba(245,158,11,0.35)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+                            <Pencil size={11} style={{ color:"#D97706" }}/>
+                          </button>
+                          <button
+                            onClick={async () => { if (!confirm("Delete this learning entry?")) return; await updateDailyUpdateLearning(u.id, { learning_hours: null, learning_topic: null, learning_notes: null, learning_start_time: null, learning_end_time: null }); router.refresh() }}
+                            title="Delete learning"
+                            style={{ width:26, height:26, borderRadius:7, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+                            <Trash2 size={11} style={{ color:"#EF4444" }}/>
+                          </button>
+                        </div>
                       </div>
                       {editingLearningId === u.id && (
                         <div style={{ margin:"0 18px 14px", padding:"14px", borderRadius:12, background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.25)" }}>
                           <p style={{ fontSize:11, fontWeight:700, color:"#D97706", margin:"0 0 10px" }}>Edit Learning</p>
                           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                            <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", gap:8 }}>
+                            <div>
+                              <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
+                              <select value={learningDraft.client} onChange={e => setLearningDraft(d => ({ ...d, client: e.target.value }))}
+                                style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
+                                <option value="GROFAST AI">GROFAST AI</option>
+                                <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic</label>
+                              <input value={learningDraft.topic} onChange={e => setLearningDraft(d => ({ ...d, topic: e.target.value }))}
+                                placeholder="What did you learn?"
+                                style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
+                            </div>
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 80px", gap:8 }}>
                               <div>
-                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic</label>
-                                <input value={learningDraft.topic} onChange={e => setLearningDraft(d => ({ ...d, topic: e.target.value }))}
-                                  placeholder="What did you learn?"
+                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>From</label>
+                                <input type="time" value={learningDraft.startTime} onChange={e => setLearningDraft(d => ({ ...d, startTime: e.target.value }))}
                                   style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
                               </div>
                               <div>
-                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Hours</label>
-                                <input type="number" min="0" step="0.25" value={learningDraft.hours} onChange={e => setLearningDraft(d => ({ ...d, hours: e.target.value }))}
-                                  placeholder="e.g. 1.5"
+                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>To</label>
+                                <input type="time" value={learningDraft.endTime} onChange={e => setLearningDraft(d => ({ ...d, endTime: e.target.value }))}
                                   style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
+                              </div>
+                              <div>
+                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Total</label>
+                                <div style={{ padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, fontWeight:700, color: learningDraft.startTime && learningDraft.endTime ? "#111111" : "#9CA3AF", background:"#F9FAFB" }}>
+                                  {(() => { const [fh,fm] = learningDraft.startTime ? learningDraft.startTime.split(":").map(Number) : [0,0]; const [th,tm] = learningDraft.endTime ? learningDraft.endTime.split(":").map(Number) : [0,0]; const h = Math.max(0,(th*60+tm-fh*60-fm)/60); return h > 0 ? fmtH(h) : "—" })()}
+                                </div>
                               </div>
                             </div>
                             <div>
@@ -791,22 +841,23 @@ export default function HistoryClient({
                       {u.learning_topic && (
                         <div style={{ borderBottom:"1px solid #F5F6FA", background:"rgba(245,158,11,0.03)" }}>
                           <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
-                            <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                              <BookOpen size={15} style={{ color:"#F59E0B" }}/>
+                            <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                              <BookOpen size={15} style={{ color:"#D97706" }}/>
                             </div>
                             <div style={{ flex:1, minWidth:0 }}>
                               <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
                                 <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
-                                <span style={{ fontSize:10, fontWeight:700, color:"#F59E0B", background:"rgba(245,158,11,0.1)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
+                                <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"rgba(5,150,105,0.12)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
                               </div>
                               {u.learning_notes && (
                                 <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>
                               )}
-                              {(u.learning_hours ?? 0) > 0 && (
-                                <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:3, marginTop:4 }}>
-                                  <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(u.learning_hours!)}
-                                </span>
-                              )}
+                              <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:6, marginTop:4 }}>
+                                {(u.learning_hours ?? 0) > 0 && <><Clock size={9} style={{ color:"#9CA3AF" }}/>{fmtH(u.learning_hours!)}</>}
+                                {u.learning_start_time && u.learning_end_time && (
+                                  <span style={{ color:"#9CA3AF", fontWeight:500 }}>{fmt12(u.learning_start_time)} – {fmt12(u.learning_end_time)}</span>
+                                )}
+                              </span>
                             </div>
                             <button
                               onClick={() => editingLearningId === u.id ? setEditingLearningId(null) : startEditLearning(u)}
@@ -819,18 +870,37 @@ export default function HistoryClient({
                             <div style={{ margin:"0 18px 14px", padding:"14px", borderRadius:12, background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.25)" }}>
                               <p style={{ fontSize:11, fontWeight:700, color:"#D97706", margin:"0 0 10px" }}>Edit Learning</p>
                               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                                <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", gap:8 }}>
+                                <div>
+                                  <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
+                                  <select value={learningDraft.client} onChange={e => setLearningDraft(d => ({ ...d, client: e.target.value }))}
+                                    style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                    <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
+                                    <option value="GROFAST AI">GROFAST AI</option>
+                                    <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic</label>
+                                  <input value={learningDraft.topic} onChange={e => setLearningDraft(d => ({ ...d, topic: e.target.value }))}
+                                    placeholder="What did you learn?"
+                                    style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
+                                </div>
+                                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 80px", gap:8 }}>
                                   <div>
-                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic</label>
-                                    <input value={learningDraft.topic} onChange={e => setLearningDraft(d => ({ ...d, topic: e.target.value }))}
-                                      placeholder="What did you learn?"
+                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>From</label>
+                                    <input type="time" value={learningDraft.startTime} onChange={e => setLearningDraft(d => ({ ...d, startTime: e.target.value }))}
                                       style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
                                   </div>
                                   <div>
-                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Hours</label>
-                                    <input type="number" min="0" step="0.25" value={learningDraft.hours} onChange={e => setLearningDraft(d => ({ ...d, hours: e.target.value }))}
-                                      placeholder="e.g. 1.5"
+                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>To</label>
+                                    <input type="time" value={learningDraft.endTime} onChange={e => setLearningDraft(d => ({ ...d, endTime: e.target.value }))}
                                       style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
+                                  </div>
+                                  <div>
+                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Total</label>
+                                    <div style={{ padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, fontWeight:700, color: learningDraft.startTime && learningDraft.endTime ? "#111111" : "#9CA3AF", background:"#F9FAFB" }}>
+                                      {(() => { const [fh,fm] = learningDraft.startTime ? learningDraft.startTime.split(":").map(Number) : [0,0]; const [th,tm] = learningDraft.endTime ? learningDraft.endTime.split(":").map(Number) : [0,0]; const h = Math.max(0,(th*60+tm-fh*60-fm)/60); return h > 0 ? fmtH(h) : "—" })()}
+                                    </div>
                                   </div>
                                 </div>
                                 <div>
@@ -949,7 +1019,16 @@ export default function HistoryClient({
                                     </div>
                                     <div>
                                       <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
-                                      {editDraft.task_type === "other" && editDraft.is_multi_client
+                                      {editDraft.task_type === "learning"
+                                        ? <select
+                                            value={editDraft.client_name ?? ""}
+                                            onChange={ev => setEditDraft(d => ({ ...d, client_name: ev.target.value }))}
+                                            style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                            <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
+                                            <option value="GROFAST AI">GROFAST AI</option>
+                                            <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
+                                          </select>
+                                        : editDraft.task_type === "other" && editDraft.is_multi_client
                                         ? <p style={{ fontSize:11, fontWeight:700, color:"#374151", padding:"7px 0" }}>{(editDraft.client_names ?? []).join(" · ") || "—"}</p>
                                         : editClientShowPast
                                           ? <div>
@@ -1011,8 +1090,8 @@ export default function HistoryClient({
                                     </div>
                                   )}
 
-                                  {/* Shoot & Other: start/end time */}
-                                  {(editDraft.task_type === "shoot" || editDraft.task_type === "other") && (
+                                  {/* Shoot, Other & Learning: start/end time */}
+                                  {(editDraft.task_type === "shoot" || editDraft.task_type === "other" || editDraft.task_type === "learning") && (
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                                       <div>
                                         <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Start Time</label>

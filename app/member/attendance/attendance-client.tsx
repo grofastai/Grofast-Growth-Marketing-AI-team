@@ -1025,7 +1025,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                             </td>
                           </tr>
                         )
-                        const officeH  = (l.clock_in && l.clock_out) ? Math.max(0, calcHours(l.clock_in, l.clock_out) - (l.break_total_mins??0)/60) : 0
+                        const officeH  = (l.clock_in && l.clock_out) ? calcHours(l.clock_in, l.clock_out) : 0
                         const workedH  = l.worked_hours ?? 0
                         const isEditing = editingDate === l.date
                         return (

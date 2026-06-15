@@ -8,7 +8,7 @@ import HistoryClient from "./history-client"
 
 type WorkEntry = {
   id?: string
-  task_type: "shoot" | "edit" | "other"
+  task_type: "shoot" | "edit" | "other" | "break" | "learning"
   title: string
   client_name: string
   duration_hours: number
@@ -27,6 +27,8 @@ type UpdateRow = {
   learning_hours: number | null
   learning_topic: string | null
   learning_notes: string | null
+  learning_start_time: string | null
+  learning_end_time: string | null
   shoot_count: number | null
   work_entries: WorkEntry[] | null
   created_at: string
@@ -74,7 +76,7 @@ export default async function HistoryPage() {
   const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult] = await Promise.all([
     supabase
       .from("daily_updates")
-      .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, shoot_count, editing_count, work_entries, created_at")
+      .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, learning_start_time, learning_end_time, shoot_count, editing_count, work_entries, created_at")
       .eq("user_id", effectiveUserId)
       .order("date", { ascending: false })
       .limit(90),

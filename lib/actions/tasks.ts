@@ -246,9 +246,29 @@ export async function deleteQuickProject(id: string): Promise<{ success: boolean
   return { success: true }
 }
 
+export async function updateManagerNote(
+  taskId: string,
+  note: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: profile } = await admin.from('users').select('role').eq('id', user.id).single()
+  if (profile?.role !== 'ADMIN') return { success: false, error: 'Only admins can add manager notes' }
+
+  const { error } = await admin.from('tasks').update({ manager_note: note }).eq('id', taskId)
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/goals')
+  revalidatePath('/member/tasks')
+  return { success: true }
+}
+
 export async function updateTaskStatus(
   taskId: string,
-  status: 'todo' | 'in_progress' | 'completed'
+  status: 'todo' | 'in_progress' | 'review' | 'completed'
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()

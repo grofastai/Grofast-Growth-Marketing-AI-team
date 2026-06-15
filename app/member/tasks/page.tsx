@@ -31,16 +31,23 @@ export default async function MemberTasksPage() {
 
   const { data: currentUserProfile } = await admin
     .from('users')
-    .select('company_id')
+    .select('company_id, role')
     .eq("id", effectiveUserId)
     .single()
   const companyId = currentUserProfile?.company_id
+  // Actual logged-in user role (not impersonated) — for manager note permissions
+  const { data: actualProfile } = await admin
+    .from('users')
+    .select('role')
+    .eq("id", user.id)
+    .single()
+  const userRole = actualProfile?.role ?? 'MEMBER'
 
   const [tasksResult, clockResult, updateResult, teamMembersResult, projectsResult, clientsResult] = await Promise.all([
     // Fetch tasks assigned to me OR created by me (for "To Others" tab)
     admin
       .from("tasks")
-      .select("id, title, description, status, priority, due_date, created_by, assigned_to, projects(id, business_name), assignedBy:users!tasks_created_by_fkey(id, name), assignedToUser:users!tasks_assigned_to_fkey(id, name)")
+      .select("id, title, description, status, priority, due_date, completed_at, created_by, assigned_to, category, manager_note, checklist, projects(id, business_name), assignedBy:users!tasks_created_by_fkey(id, name), assignedToUser:users!tasks_assigned_to_fkey(id, name)")
       .or(`assigned_to.eq.${user.id},created_by.eq.${user.id}`)
       .order("due_date", { ascending: true, nullsFirst: false }),
     supabase
@@ -123,6 +130,7 @@ export default async function MemberTasksPage() {
       currentUserId={effectiveUserId}
       projects={projects}
       clients={clients}
+      userRole={userRole}
     />
   )
 }

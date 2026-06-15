@@ -20,11 +20,15 @@ interface Task {
   id: string
   title: string
   description: string | null
-  status: "todo" | "in_progress" | "completed"
+  status: "todo" | "in_progress" | "review" | "completed"
   priority: "low" | "medium" | "high"
   due_date: string | null
+  completed_at: string | null
   created_by: string | null
   assigned_to: string | null
+  category: string | null
+  manager_note: string | null
+  checklist: Array<{ text: string; done: boolean }>
   projects: { id: string; business_name: string } | null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   assignedBy: { id: string; name: string } | null | any
@@ -42,6 +46,7 @@ const PRIORITY_STYLE = {
 const KANBAN_COLS = [
   { key: "todo"        as const, label: "To Do",       accent: "#6B7280" },
   { key: "in_progress" as const, label: "In Progress", accent: "#F59E0B" },
+  { key: "review"      as const, label: "Review",      accent: "#6366F1" },
   { key: "completed"   as const, label: "Completed",   accent: "#22C55E" },
 ]
 
@@ -229,7 +234,11 @@ function TaskCardInner({
   const pr = PRIORITY_STYLE[task.priority]
   const project = Array.isArray(task.projects) ? task.projects[0] : task.projects
   const isOverdue = !!task.due_date && task.due_date < today && task.status !== "completed"
-  const pct = task.status === "completed" ? 100 : task.status === "in_progress" ? taskPct(task.id) : 0
+  const checklistTotal = (task.checklist ?? []).length
+  const checklistDone  = (task.checklist ?? []).filter(i => i.done).length
+  const pct = checklistTotal > 0
+    ? Math.round((checklistDone / checklistTotal) * 100)
+    : task.status === "completed" ? 100 : task.status === "in_progress" || task.status === "review" ? taskPct(task.id) : 0
   const progressColor = pct === 100 ? "#22C55E" : pct > 50 ? "#F59E0B" : "#6366F1"
   const dueLabel = task.due_date
     ? new Date(task.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric" })
@@ -293,13 +302,25 @@ function TaskCardInner({
         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: pr.bg, color: pr.color }}>
           {pr.label}
         </span>
+        {task.category && (
+          <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full"
+            style={{ background: "rgba(16,185,129,0.08)", color: "#10B981" }}>
+            {task.category}
+          </span>
+        )}
         {project && (
           <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full truncate max-w-[80px]"
             style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>
             {project.business_name}
           </span>
         )}
-        {isOverdue && (
+        {task.status === "review" && (
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full ml-auto"
+            style={{ background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
+            👁 Review
+          </span>
+        )}
+        {isOverdue && task.status !== "review" && (
           <span className="flex items-center gap-0.5 text-[9px] font-bold ml-auto" style={{ color: "#de1a1a" }}>
             <AlertCircle size={9} /> Overdue
           </span>
@@ -309,11 +330,22 @@ function TaskCardInner({
         )}
       </div>
 
+      {/* Manager Note */}
+      {task.manager_note && (
+        <div className="mb-2.5 px-2.5 py-2 rounded-xl"
+          style={{ background: "rgba(245,158,11,0.07)", border: "1px solid rgba(245,158,11,0.2)" }}>
+          <p className="text-[9px] font-black mb-0.5" style={{ color: "#D97706" }}>📌 Manager Note</p>
+          <p className="text-[10px] leading-snug" style={{ color: "#374151" }}>{task.manager_note}</p>
+        </div>
+      )}
+
       {/* Progress bar */}
       {pct > 0 && (
         <div className="mb-2.5">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[8px]" style={{ color: "#9CA3AF" }}>Progress</span>
+            <span className="text-[8px]" style={{ color: "#9CA3AF" }}>
+              {checklistTotal > 0 ? `${checklistDone}/${checklistTotal} Checklist` : "Progress"}
+            </span>
             <span className="text-[8px] font-bold" style={{ color: "#374151" }}>{pct}%</span>
           </div>
           <div className="h-1 rounded-full overflow-hidden" style={{ background: "#F3F4F6" }}>
@@ -334,13 +366,16 @@ function TaskCardInner({
       {/* Move button */}
       {task.status !== "completed" && (
         <button
-          onClick={() => onMove(task.id, task.status === "todo" ? "in_progress" : "completed")}
+          onClick={() => {
+            const next = task.status === "todo" ? "in_progress" : task.status === "in_progress" ? "review" : "completed"
+            onMove(task.id, next)
+          }}
           className="w-full mt-1.5 py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80"
           style={{
-            background: task.status === "todo" ? "rgba(245,158,11,0.08)" : "rgba(34,197,94,0.08)",
-            color: task.status === "todo" ? "#D97706" : "#16A34A",
+            background: task.status === "todo" ? "rgba(245,158,11,0.08)" : task.status === "in_progress" ? "rgba(99,102,241,0.08)" : "rgba(34,197,94,0.08)",
+            color: task.status === "todo" ? "#D97706" : task.status === "in_progress" ? "#6366F1" : "#16A34A",
           }}>
-          {task.status === "todo" ? "→ Start Task" : "→ Mark Completed"}
+          {task.status === "todo" ? "→ Start Task" : task.status === "in_progress" ? "→ Send for Review" : "✓ Approve"}
         </button>
       )}
       {task.status === "completed" && (
@@ -413,6 +448,7 @@ export default function MemberTasksClient({
   currentUserId = "",
   projects = [],
   clients = [],
+  userRole = "MEMBER",
 }: {
   tasks: Task[]
   todayHours: number
@@ -420,6 +456,7 @@ export default function MemberTasksClient({
   currentUserId?: string
   projects?: { id: string; business_name: string; client_name: string | null }[]
   clients?: { id: string; name: string }[]
+  userRole?: string
 }) {
   const router = useRouter()
 
@@ -512,7 +549,7 @@ export default function MemberTasksClient({
   const [assignBrand, setAssignBrand]           = useState("")
   const [assignCustom, setAssignCustom]         = useState("")
   const [deletedProjectIds, setDeletedProjectIds] = useState<Set<string>>(new Set())
-  const [activeMobileCol, setActiveMobileCol] = useState<"todo" | "in_progress" | "completed">("todo")
+  const [activeMobileCol, setActiveMobileCol] = useState<"todo" | "in_progress" | "review" | "completed">("todo")
   const [dragId, setDragId]         = useState<string | null>(null)
   const [overCol, setOverCol]       = useState<string | null>(null)
   const [, startTransition]         = useTransition()
@@ -528,23 +565,46 @@ export default function MemberTasksClient({
   const total       = myTasks.length
   const doneTasks   = myTasks.filter(t => t.status === "completed")
   const wip         = myTasks.filter(t => t.status === "in_progress")
+  const inReview    = myTasks.filter(t => t.status === "review")
   const todos       = myTasks.filter(t => t.status === "todo")
-  const activeCount = wip.length + todos.length
-  const productivity = total > 0 ? Math.round((doneTasks.length / total) * 100) : 0
+  const activeCount = wip.length + todos.length + inReview.length
 
   const forMeCount     = tasks.filter(t => t.assigned_to === currentUserId && t.created_by === currentUserId).length
   const byOtherCount   = tasks.filter(t => t.assigned_to === currentUserId && t.created_by !== currentUserId).length
   const toOthersCount  = tasks.filter(t => t.created_by === currentUserId && t.assigned_to !== currentUserId).length
 
-  // Tasks due within 7 days (not completed) — only MY tasks
-  const dueSoon = myTasks
-    .filter(t => t.status !== "completed" && t.due_date)
-    .filter(t => {
-      const diff = (new Date(t.due_date!).getTime() - Date.now()) / 86400000
-      return diff <= 7
-    })
+  // Overdue tasks
+  const overdueList = myTasks
+    .filter(t => t.status !== "completed" && t.due_date && t.due_date < today)
     .sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""))
-    .slice(0, 4)
+
+  // Today's Priority Tasks (top 3: overdue first, then high priority, then nearest due)
+  const PRIORITY_ORDER_MAP = { high: 0, medium: 1, low: 2 }
+  const todayPriorityTasks = myTasks
+    .filter(t => t.status !== "completed" && t.due_date && t.due_date <= today)
+    .sort((a, b) => {
+      const aOv = a.due_date! < today ? 0 : 1
+      const bOv = b.due_date! < today ? 0 : 1
+      if (aOv !== bOv) return aOv - bOv
+      if (PRIORITY_ORDER_MAP[a.priority] !== PRIORITY_ORDER_MAP[b.priority])
+        return PRIORITY_ORDER_MAP[a.priority] - PRIORITY_ORDER_MAP[b.priority]
+      return (a.due_date ?? "").localeCompare(b.due_date ?? "")
+    })
+    .slice(0, 3)
+
+  // Deadline Accuracy
+  const completedWithDue = doneTasks.filter(t => t.due_date && t.completed_at)
+  const onTime = completedWithDue.filter(t => t.completed_at!.split("T")[0] <= t.due_date!)
+  const deadlineAccuracy = completedWithDue.length > 0 ? Math.round((onTime.length / completedWithDue.length) * 100) : null
+
+  // Workload Indicator
+  const activeTasks = myTasks.filter(t => t.status !== "completed")
+  const workloadScore = activeTasks.reduce((s, t) => s + (t.priority === "high" ? 3 : t.priority === "medium" ? 2 : 1), 0)
+  const workload = workloadScore <= 3
+    ? { label: "Light", color: "#22C55E", emoji: "🟢" }
+    : workloadScore <= 9
+      ? { label: "Medium", color: "#F59E0B", emoji: "🟡" }
+      : { label: "Heavy", color: "#EF4444", emoji: "🔴" }
 
   function moveTask(id: string, status: "todo" | "in_progress" | "completed") {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t))
@@ -595,16 +655,19 @@ export default function MemberTasksClient({
 
   function handleFilterChange(key: string) {
     setFilter(key)
-    if (key === "todo" || key === "in_progress" || key === "completed") setActiveMobileCol(key)
-    // for by_me / by_others keep the current mobile column visible
+    if (key === "todo" || key === "in_progress" || key === "review" || key === "completed") setActiveMobileCol(key)
   }
 
   const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 }
-  function colTasks(key: "todo" | "in_progress" | "completed") {
+  function colTasks(key: "todo" | "in_progress" | "review" | "completed") {
     let list = tasks.filter(t => t.status === key)
-    if      (filter === "by_other")  list = list.filter(t => t.assigned_to === currentUserId && t.created_by !== currentUserId)
-    else if (filter === "to_others") list = list.filter(t => t.created_by === currentUserId && t.assigned_to !== currentUserId)
-    else if (filter === "for_me")    list = list.filter(t => t.assigned_to === currentUserId && t.created_by === currentUserId)
+    if      (filter === "by_other")       list = list.filter(t => t.assigned_to === currentUserId && t.created_by !== currentUserId)
+    else if (filter === "to_others")      list = list.filter(t => t.created_by === currentUserId && t.assigned_to !== currentUserId)
+    else if (filter === "for_me")         list = list.filter(t => t.assigned_to === currentUserId && t.created_by === currentUserId)
+    else if (filter === "overdue")        list = list.filter(t => t.assigned_to === currentUserId && t.due_date && t.due_date < today)
+    else if (filter === "high_priority")  list = list.filter(t => t.assigned_to === currentUserId && t.priority === "high")
+    else if (filter === "today")          list = list.filter(t => t.assigned_to === currentUserId && t.due_date === today)
+    else if (filter === "pending_review") list = list.filter(t => t.assigned_to === currentUserId)
     if (filterProject) {
       list = list.filter(t => {
         const proj = Array.isArray(t.projects) ? t.projects[0] : t.projects
@@ -634,7 +697,7 @@ export default function MemberTasksClient({
   }
   function handleDragEnd(e: DragEndEvent) {
     const overId = e.over?.id as string | undefined
-    if (overId && (overId === "todo" || overId === "in_progress" || overId === "completed")) {
+    if (overId && (overId === "todo" || overId === "in_progress" || overId === "review" || overId === "completed")) {
       const task = tasks.find(t => t.id === e.active.id)
       if (task && task.status !== overId) moveTask(String(e.active.id), overId)
     }
@@ -645,20 +708,24 @@ export default function MemberTasksClient({
   const draggedTask = dragId ? tasks.find(t => t.id === dragId) : null
 
   const STAT_CARDS = [
-    { id: "h", label: "Worked Hours", value: todayHours > 0 ? `${todayHours}h` : "—", sub: "Today's work time",   color: "#de1a1a", data: SPARK.hours  },
-    { id: "a", label: "Active Tasks",  value: String(activeCount),                     sub: `${wip.length} in progress`, color: "#22C55E", data: SPARK.active },
-    { id: "c", label: "Completed",     value: String(doneTasks.length),                sub: "This week",          color: "#6366F1", data: SPARK.done   },
-    { id: "p", label: "Productivity",  value: `${productivity}%`,                      sub: "Completion rate",    color: "#F59E0B", data: SPARK.prod   },
+    { id: "h", label: "Worked Hours",      value: todayHours > 0 ? `${todayHours}h` : "—", sub: "Today's work time",         color: "#de1a1a", data: SPARK.hours  },
+    { id: "a", label: "Active Tasks",      value: String(activeCount),                      sub: `${inReview.length} in review`, color: "#22C55E", data: SPARK.active },
+    { id: "c", label: "Completed",         value: String(doneTasks.length),                 sub: "Total completed",            color: "#6366F1", data: SPARK.done   },
+    { id: "p", label: "Deadline Accuracy", value: deadlineAccuracy !== null ? `${deadlineAccuracy}%` : "—", sub: "On-time completion rate", color: "#F59E0B", data: SPARK.prod },
   ]
 
   const FILTER_TABS = [
-    { key: "all",        label: "All Tasks",       count: total },
-    { key: "by_other",   label: "Assigned to Me",  count: byOtherCount },
-    { key: "to_others",  label: "I Assigned",      count: toOthersCount },
-    { key: "for_me",     label: "Self-Assigned",   count: forMeCount },
-    { key: "todo",        label: "To Do",       count: todos.length },
-    { key: "in_progress", label: "In Progress", count: wip.length },
-    { key: "completed",   label: "Completed",   count: doneTasks.length },
+    { key: "all",            label: "All Tasks",       count: total },
+    { key: "overdue",        label: "🔥 Overdue",      count: overdueList.length },
+    { key: "pending_review", label: "Pending Review",  count: inReview.length },
+    { key: "high_priority",  label: "High Priority",   count: myTasks.filter(t => t.priority === "high" && t.status !== "completed").length },
+    { key: "today",          label: "Today",           count: todayPriorityTasks.length },
+    { key: "by_other",       label: "Assigned to Me",  count: byOtherCount },
+    { key: "to_others",      label: "I Assigned",      count: toOthersCount },
+    { key: "for_me",         label: "Self-Assigned",   count: forMeCount },
+    { key: "todo",           label: "To Do",           count: todos.length },
+    { key: "in_progress",    label: "In Progress",     count: wip.length },
+    { key: "completed",      label: "Completed",       count: doneTasks.length },
   ]
 
   return (
@@ -752,6 +819,42 @@ export default function MemberTasksClient({
             </div>
           ))}
         </div>
+
+        {/* ── Today's Priority Tasks ── */}
+        {todayPriorityTasks.length > 0 && (
+          <div className="mb-6 rounded-2xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+            <div className="flex items-center gap-2 mb-4">
+              <span style={{ fontSize: 18 }}>🔥</span>
+              <h3 className="text-[14px] font-black" style={{ color: "#111111" }}>Today's Priority Tasks</h3>
+              <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full"
+                style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
+                {todayPriorityTasks.length} urgent
+              </span>
+            </div>
+            <div className="space-y-2.5">
+              {todayPriorityTasks.map((task, idx) => {
+                const isOv = task.due_date! < today
+                const pr = PRIORITY_STYLE[task.priority]
+                return (
+                  <div key={task.id} className="flex items-center gap-3 px-4 py-3 rounded-xl"
+                    style={{ background: isOv ? "rgba(222,26,26,0.04)" : "#F9FAFB", border: `1px solid ${isOv ? "rgba(222,26,26,0.15)" : "#E5E7EB"}` }}>
+                    <span className="text-[13px] font-black flex-shrink-0" style={{ color: isOv ? "#de1a1a" : "#D1D5DB" }}>{idx + 1}.</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-bold truncate" style={{ color: "#111111" }}>{task.title}</p>
+                      <p className="text-[10px]" style={{ color: isOv ? "#de1a1a" : "#9CA3AF" }}>
+                        {isOv ? `⚠️ Overdue` : `Due Today`}
+                      </p>
+                    </div>
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={{ background: pr.bg, color: pr.color }}>
+                      {pr.label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Filter tabs + sort ── */}
         <div className="flex items-center justify-between mb-5 gap-3">
@@ -1007,7 +1110,7 @@ export default function MemberTasksClient({
         {/* Desktop: DnD Kanban 3-column grid */}
         {!groupByProject && (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragOver={handleDragOver as never} onDragEnd={handleDragEnd}>
-          <div className="hidden md:grid grid-cols-3 gap-4 mb-6">
+          <div className="hidden md:grid grid-cols-4 gap-4 mb-6">
             {KANBAN_COLS.map(col => {
               const list   = colTasks(col.key)
               const hidden = filter !== "all" && filter !== "todo" && filter !== "in_progress" && filter !== "completed" && list.length === 0
@@ -1171,34 +1274,34 @@ export default function MemberTasksClient({
           </div>
         </div>
 
-        {/* Due Soon */}
+        {/* Overdue Tasks */}
         <div className="rounded-2xl p-4"
           style={{ background: "#FFFFFF", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[13px] font-black" style={{ color: "#111111" }}>Due Soon</p>
-            {dueSoon.length > 0 && (
+            <p className="text-[13px] font-black" style={{ color: "#111111" }}>🚨 Overdue Tasks</p>
+            {overdueList.length > 0 && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
-                {dueSoon.length}
+                style={{ background: "rgba(222,26,26,0.1)", color: "#de1a1a" }}>
+                {overdueList.length}
               </span>
             )}
           </div>
-          {dueSoon.length === 0 ? (
-            <p className="text-[11px] text-center py-3" style={{ color: "#D1D5DB" }}>No upcoming deadlines</p>
+          {overdueList.length === 0 ? (
+            <p className="text-[11px] text-center py-3" style={{ color: "#D1D5DB" }}>No overdue tasks 🎉</p>
           ) : (
             <div className="space-y-2">
-              {dueSoon.map(task => {
-                const daysLeft = Math.ceil((new Date(task.due_date!).getTime() - Date.now()) / 86400000)
-                const overdue = daysLeft < 0
+              {overdueList.slice(0, 5).map(task => {
+                const daysLate = Math.floor((Date.now() - new Date(task.due_date!).getTime()) / 86400000)
+                const hoursLate = Math.floor((Date.now() - new Date(task.due_date!).getTime()) / 3600000)
+                const color = daysLate >= 2 ? "#de1a1a" : "#F59E0B"
                 return (
                   <div key={task.id} className="flex items-start gap-2 p-2.5 rounded-xl"
-                    style={{ background: overdue ? "rgba(222,26,26,0.05)" : "#F9FAFB" }}>
-                    <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
-                      style={{ background: overdue ? "#de1a1a" : daysLeft <= 2 ? "#F59E0B" : "#22C55E" }} />
+                    style={{ background: daysLate >= 2 ? "rgba(222,26,26,0.05)" : "rgba(245,158,11,0.05)", border: `1px solid ${color}20` }}>
+                    <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: color }} />
                     <div className="flex-1 min-w-0">
                       <p className="text-[11px] font-semibold truncate" style={{ color: "#111111" }}>{task.title}</p>
-                      <p className="text-[10px]" style={{ color: overdue ? "#de1a1a" : "#9CA3AF" }}>
-                        {overdue ? `${Math.abs(daysLeft)}d overdue` : daysLeft === 0 ? "Due today" : `${daysLeft}d left`}
+                      <p className="text-[10px] font-bold" style={{ color }}>
+                        {daysLate >= 1 ? `${daysLate} Day${daysLate > 1 ? "s" : ""} Late` : `${hoursLate}h Late`}
                       </p>
                     </div>
                   </div>
@@ -1206,6 +1309,23 @@ export default function MemberTasksClient({
               })}
             </div>
           )}
+        </div>
+
+        {/* Workload Indicator */}
+        <div className="rounded-2xl p-4"
+          style={{ background: "#FFFFFF", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
+          <p className="text-[13px] font-black mb-1" style={{ color: "#111111" }}>Current Workload</p>
+          <p className="text-[10px] mb-3" style={{ color: "#9CA3AF" }}>{activeTasks.length} active tasks</p>
+          <div className="flex items-center gap-3 p-3 rounded-xl"
+            style={{ background: `${workload.color}10`, border: `1px solid ${workload.color}30` }}>
+            <span style={{ fontSize: 22 }}>{workload.emoji}</span>
+            <div>
+              <p className="text-[14px] font-black" style={{ color: workload.color }}>{workload.label}</p>
+              <p className="text-[10px]" style={{ color: "#9CA3AF" }}>
+                {workload.label === "Light" ? "You're good to take more tasks" : workload.label === "Medium" ? "Balanced workload" : "High load — prioritize!"}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Productivity Heatmap */}

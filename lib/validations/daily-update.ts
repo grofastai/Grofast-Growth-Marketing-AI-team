@@ -69,11 +69,14 @@ export const dailyUpdateSchema = z
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Add at least one work entry', path: ['work_entries'] })
     }
     if (val.active_tab === 'learning') {
-      if (!val.learning_topic?.trim()) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Learning topic is required', path: ['learning_topic'] })
-      }
-      if (!val.learning_hours || val.learning_hours <= 0) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Time spent is required', path: ['learning_hours'] })
+      const hasLearningEntries = val.work_entries.some(e => e.task_type === 'learning')
+      if (!hasLearningEntries) {
+        if (!val.learning_topic?.trim()) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Learning topic is required', path: ['learning_topic'] })
+        }
+        if (!val.learning_hours || val.learning_hours <= 0) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Time spent is required', path: ['learning_hours'] })
+        }
       }
     }
   })

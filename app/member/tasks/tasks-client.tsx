@@ -1737,7 +1737,9 @@ export default function MemberTasksClient({
                       className="flex-1 px-3 py-2 rounded-xl text-[13px]"
                       style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
                     <button type="button"
-                      onClick={() => {
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={e => {
+                        e.stopPropagation()
                         const t = newCheckItem.trim()
                         if (t) { setChecklistItems(p => [...p, { id: crypto.randomUUID(), text: t }]); setNewCheckItem("") }
                       }}
@@ -1776,7 +1778,9 @@ export default function MemberTasksClient({
                       className="flex-1 px-3 py-2 rounded-xl text-[13px]"
                       style={{ border: "1.5px solid #EBEDF2", outline: "none" }} />
                     <button type="button"
-                      onClick={() => {
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={e => {
+                        e.stopPropagation()
                         const u = newAttachUrl.trim()
                         if (u) { setAttachmentLinks(p => [...p, { id: crypto.randomUUID(), url: u }]); setNewAttachUrl("") }
                       }}

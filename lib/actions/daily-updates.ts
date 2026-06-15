@@ -83,9 +83,11 @@ export async function submitDailyUpdate(
       ...(workType ? { work_type: workType } : {}),
     }
     if (d.learning_topic) {
-      updatePayload.learning_topic = d.learning_topic
-      updatePayload.learning_notes = d.learning_notes ?? null
-      updatePayload.learning_hours = Math.round(((existingRecord.learning_hours || 0) + d.learning_hours) * 10) / 10
+      updatePayload.learning_topic      = d.learning_topic
+      updatePayload.learning_notes      = d.learning_notes ?? null
+      updatePayload.learning_hours      = Math.round(((existingRecord.learning_hours || 0) + d.learning_hours) * 10) / 10
+      updatePayload.learning_start_time = d.learning_start_time ?? null
+      updatePayload.learning_end_time   = d.learning_end_time   ?? null
     }
 
     const { error: updateError } = await admin
@@ -111,6 +113,8 @@ export async function submitDailyUpdate(
         work_entries:        d.work_entries,
         learning_topic:      d.learning_topic ?? null,
         learning_notes:      d.learning_notes ?? null,
+        learning_start_time: d.learning_start_time ?? null,
+        learning_end_time:   d.learning_end_time   ?? null,
         links:               d.links,
         editing_count:       d.editing_count,
         shoot_time_hours:    d.shoot_time_hours ?? null,
@@ -290,7 +294,7 @@ export async function updatePastDailyUpdate(
 
 export async function updateDailyUpdateLearning(
   id: string,
-  data: { learning_hours: number | null; learning_topic: string | null; learning_notes: string | null }
+  data: { learning_hours: number | null; learning_topic: string | null; learning_notes: string | null; learning_start_time?: string | null; learning_end_time?: string | null }
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -300,9 +304,11 @@ export async function updateDailyUpdateLearning(
   const { error } = await admin
     .from('daily_updates')
     .update({
-      learning_hours: data.learning_hours,
-      learning_topic: data.learning_topic || null,
-      learning_notes: data.learning_notes || null,
+      learning_hours:      data.learning_hours,
+      learning_topic:      data.learning_topic || null,
+      learning_notes:      data.learning_notes || null,
+      learning_start_time: data.learning_start_time ?? null,
+      learning_end_time:   data.learning_end_time   ?? null,
     })
     .eq('id', id)
     .eq('user_id', user.id)

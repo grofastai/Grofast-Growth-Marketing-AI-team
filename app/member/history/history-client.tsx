@@ -27,6 +27,7 @@ interface UpdateRow {
   id: string; date: string; attendance_status: string
   work_type: string | null; working_hours: number | null
   learning_hours: number | null; learning_topic: string | null; learning_notes: string | null
+  learning_start_time: string | null; learning_end_time: string | null
   shoot_count: number | null
   work_entries: WorkEntry[] | null; created_at: string
 }
@@ -213,7 +214,7 @@ export default function HistoryClient({
 
   // Learning edit state
   const [editingLearningId, setEditingLearningId] = useState<string | null>(null)
-  const [learningDraft, setLearningDraft] = useState<{ topic: string; notes: string; hours: string }>({ topic: "", notes: "", hours: "" })
+  const [learningDraft, setLearningDraft] = useState<{ topic: string; notes: string; hours: string; startTime: string; endTime: string }>({ topic: "", notes: "", hours: "", startTime: "", endTime: "" })
   const [savingLearning, setSavingLearning] = useState(false)
 
   // Per-entry date change state
@@ -318,19 +319,27 @@ export default function HistoryClient({
   function startEditLearning(u: UpdateRow) {
     setEditingLearningId(u.id)
     setLearningDraft({
-      topic: u.learning_topic ?? "",
-      notes: u.learning_notes ?? "",
-      hours: u.learning_hours != null ? String(u.learning_hours) : "",
+      topic:     u.learning_topic ?? "",
+      notes:     u.learning_notes ?? "",
+      hours:     u.learning_hours != null ? String(u.learning_hours) : "",
+      startTime: u.learning_start_time ?? "",
+      endTime:   u.learning_end_time   ?? "",
     })
   }
 
   async function saveLearning(id: string) {
     setSavingLearning(true)
-    const hrs = parseFloat(learningDraft.hours) || null
+    const [fh, fm] = learningDraft.startTime ? learningDraft.startTime.split(":").map(Number) : [0, 0]
+    const [th, tm] = learningDraft.endTime   ? learningDraft.endTime.split(":").map(Number)   : [0, 0]
+    const computedHrs = (learningDraft.startTime && learningDraft.endTime)
+      ? Math.max(0, (th * 60 + tm - fh * 60 - fm) / 60)
+      : parseFloat(learningDraft.hours) || null
     const result = await updateDailyUpdateLearning(id, {
-      learning_hours: hrs,
-      learning_topic: learningDraft.topic || null,
-      learning_notes: learningDraft.notes || null,
+      learning_hours:      computedHrs,
+      learning_topic:      learningDraft.topic || null,
+      learning_notes:      learningDraft.notes || null,
+      learning_start_time: learningDraft.startTime || null,
+      learning_end_time:   learningDraft.endTime   || null,
     })
     if (result.success) {
       setEditingLearningId(null)
@@ -717,22 +726,23 @@ export default function HistoryClient({
                   {entries.length === 0 && u.learning_topic ? (
                     <div>
                       <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
-                        <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                          <BookOpen size={15} style={{ color:"#F59E0B" }}/>
+                        <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <BookOpen size={15} style={{ color:"#D97706" }}/>
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
                             <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
-                            <span style={{ fontSize:10, fontWeight:700, color:"#F59E0B", background:"rgba(245,158,11,0.1)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
+                            <span style={{ fontSize:10, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.12)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
                           </div>
                           {u.learning_notes && (
                             <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>
                           )}
-                          {(u.learning_hours ?? 0) > 0 && (
-                            <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:3, marginTop:4 }}>
-                              <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(u.learning_hours!)}
-                            </span>
-                          )}
+                          <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:6, marginTop:4 }}>
+                            {(u.learning_hours ?? 0) > 0 && <><Clock size={9} style={{ color:"#9CA3AF" }}/>{fmtH(u.learning_hours!)}</>}
+                            {u.learning_start_time && u.learning_end_time && (
+                              <span style={{ color:"#9CA3AF", fontWeight:500 }}>{fmt12(u.learning_start_time)} – {fmt12(u.learning_end_time)}</span>
+                            )}
+                          </span>
                         </div>
                         <button
                           onClick={() => editingLearningId === u.id ? setEditingLearningId(null) : startEditLearning(u)}
@@ -745,18 +755,28 @@ export default function HistoryClient({
                         <div style={{ margin:"0 18px 14px", padding:"14px", borderRadius:12, background:"rgba(245,158,11,0.05)", border:"1.5px solid rgba(245,158,11,0.25)" }}>
                           <p style={{ fontSize:11, fontWeight:700, color:"#D97706", margin:"0 0 10px" }}>Edit Learning</p>
                           <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                            <div style={{ display:"grid", gridTemplateColumns:"1fr 100px", gap:8 }}>
+                            <div>
+                              <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic</label>
+                              <input value={learningDraft.topic} onChange={e => setLearningDraft(d => ({ ...d, topic: e.target.value }))}
+                                placeholder="What did you learn?"
+                                style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
+                            </div>
+                            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 80px", gap:8 }}>
                               <div>
-                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Topic</label>
-                                <input value={learningDraft.topic} onChange={e => setLearningDraft(d => ({ ...d, topic: e.target.value }))}
-                                  placeholder="What did you learn?"
+                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>From</label>
+                                <input type="time" value={learningDraft.startTime} onChange={e => setLearningDraft(d => ({ ...d, startTime: e.target.value }))}
                                   style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
                               </div>
                               <div>
-                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Hours</label>
-                                <input type="number" min="0" step="0.25" value={learningDraft.hours} onChange={e => setLearningDraft(d => ({ ...d, hours: e.target.value }))}
-                                  placeholder="e.g. 1.5"
+                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>To</label>
+                                <input type="time" value={learningDraft.endTime} onChange={e => setLearningDraft(d => ({ ...d, endTime: e.target.value }))}
                                   style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}/>
+                              </div>
+                              <div>
+                                <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Total</label>
+                                <div style={{ padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, fontWeight:700, color: learningDraft.startTime && learningDraft.endTime ? "#111111" : "#9CA3AF", background:"#F9FAFB" }}>
+                                  {(() => { const [fh,fm] = learningDraft.startTime ? learningDraft.startTime.split(":").map(Number) : [0,0]; const [th,tm] = learningDraft.endTime ? learningDraft.endTime.split(":").map(Number) : [0,0]; const h = Math.max(0,(th*60+tm-fh*60-fm)/60); return h > 0 ? fmtH(h) : "—" })()}
+                                </div>
                               </div>
                             </div>
                             <div>
@@ -788,22 +808,23 @@ export default function HistoryClient({
                       {u.learning_topic && (
                         <div style={{ borderBottom:"1px solid #F5F6FA", background:"rgba(245,158,11,0.03)" }}>
                           <div style={{ display:"flex", gap:14, padding:"14px 18px", alignItems:"flex-start" }}>
-                            <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                              <BookOpen size={15} style={{ color:"#F59E0B" }}/>
+                            <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                              <BookOpen size={15} style={{ color:"#D97706" }}/>
                             </div>
                             <div style={{ flex:1, minWidth:0 }}>
                               <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
                                 <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
-                                <span style={{ fontSize:10, fontWeight:700, color:"#F59E0B", background:"rgba(245,158,11,0.1)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
+                                <span style={{ fontSize:10, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.12)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
                               </div>
                               {u.learning_notes && (
                                 <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>
                               )}
-                              {(u.learning_hours ?? 0) > 0 && (
-                                <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:3, marginTop:4 }}>
-                                  <Clock size={9} style={{ color:"#9CA3AF" }}/> {fmtH(u.learning_hours!)}
-                                </span>
-                              )}
+                              <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:6, marginTop:4 }}>
+                                {(u.learning_hours ?? 0) > 0 && <><Clock size={9} style={{ color:"#9CA3AF" }}/>{fmtH(u.learning_hours!)}</>}
+                                {u.learning_start_time && u.learning_end_time && (
+                                  <span style={{ color:"#9CA3AF", fontWeight:500 }}>{fmt12(u.learning_start_time)} – {fmt12(u.learning_end_time)}</span>
+                                )}
+                              </span>
                             </div>
                             <button
                               onClick={() => editingLearningId === u.id ? setEditingLearningId(null) : startEditLearning(u)}

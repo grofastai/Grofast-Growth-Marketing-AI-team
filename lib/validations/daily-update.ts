@@ -54,9 +54,11 @@ export const dailyUpdateSchema = z
     shoot_time_hours:   z.number().min(0).optional(),
     editing_time_hours: z.number().min(0).optional(),
 
-    learning_topic: z.string().optional(),
-    learning_hours: z.number().min(0).max(24).default(0),
-    learning_notes: z.string().optional(),
+    learning_topic:      z.string().optional(),
+    learning_hours:      z.number().min(0).max(24).default(0),
+    learning_notes:      z.string().optional(),
+    learning_start_time: z.string().optional(),
+    learning_end_time:   z.string().optional(),
 
     participant_ids: z.array(z.string().uuid()).optional().default([]),
 

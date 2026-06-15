@@ -678,10 +678,12 @@ export default function DailyUpdateForm({
         active_tab: "learning", date: selectedDate, work_entries: [], links: [],
         shoot_count: 0, editing_count: 0,
         shoot_time_hours: 0, editing_time_hours: 0,
-        learning_hours: learningHours,
-        learning_topic: `[${learningClient}] ${learningTopic}`.trim(),
-        learning_notes: learningNotes,
-        participant_ids: learningParticipantIds,
+        learning_hours:      learningHours,
+        learning_topic:      `[${learningClient}] ${learningTopic}`.trim(),
+        learning_notes:      learningNotes,
+        learning_start_time: learningFrom || undefined,
+        learning_end_time:   learningTo   || undefined,
+        participant_ids:     learningParticipantIds,
       })
       if (!res.success) setLearningError(res.error ?? "Submission failed.")
       else { setLearningDone(true); router.refresh() }

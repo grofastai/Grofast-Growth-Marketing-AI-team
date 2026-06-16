@@ -167,6 +167,25 @@ export async function assignFreelancerMembers(
   return { success: true }
 }
 
+export async function assignAllFreelancersToMembers(
+  memberIds: string[]
+): Promise<{ success: boolean; error?: string }> {
+  const companyId = await getCompanyId()
+  if (!companyId) return { success: false, error: "Not authenticated" }
+  const admin = adminClient()
+  const { data: allFreelancers } = await admin
+    .from("freelancers")
+    .select("id")
+    .eq("company_id", companyId)
+  if (!allFreelancers?.length) return { success: true }
+  for (const f of allFreelancers) {
+    await saveAssignments(admin, f.id, memberIds, companyId)
+  }
+  revalidatePath("/admin/freelancers")
+  revalidatePath("/admin/team")
+  return { success: true }
+}
+
 export async function deleteFreelancer(id: string): Promise<{ success: boolean; error?: string }> {
   const companyId = await getCompanyId()
   if (!companyId) return { success: false, error: "Not authenticated" }

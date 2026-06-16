@@ -1252,8 +1252,8 @@ export default function HistoryClient({
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                                      <div><label style={HL}>Date Given <span style={{ color:"#EF4444" }}>*</span></label><input type="date" value={editDraft.date_given??""} onChange={ev=>setEditDraft(d=>({...d,date_given:ev.target.value}))} style={{ ...HF, colorScheme:"light", borderColor:!(editDraft.date_given)??"#EF4444":"#EBEDF2" }} /></div>
-                                      <div><label style={HL}>Date Finished <span style={{ color:"#EF4444" }}>*</span></label><input type="date" value={editDraft.date_finished??""} onChange={ev=>setEditDraft(d=>({...d,date_finished:ev.target.value}))} style={{ ...HF, colorScheme:"light", borderColor:!(editDraft.date_finished)??"#EF4444":"#EBEDF2" }} /></div>
+                                      <div><label style={HL}>Date Given <span style={{ color:"#EF4444" }}>*</span></label><input type="date" value={editDraft.date_given??""} onChange={ev=>setEditDraft(d=>({...d,date_given:ev.target.value}))} style={{ ...HF, colorScheme:"light", borderColor: !editDraft.date_given ? "#EF4444" : "#EBEDF2" }} /></div>
+                                      <div><label style={HL}>Date Finished <span style={{ color:"#EF4444" }}>*</span></label><input type="date" value={editDraft.date_finished??""} onChange={ev=>setEditDraft(d=>({...d,date_finished:ev.target.value}))} style={{ ...HF, colorScheme:"light", borderColor: !editDraft.date_finished ? "#EF4444" : "#EBEDF2" }} /></div>
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                                       <div>

@@ -11,7 +11,7 @@ import {
   Camera, Film, Clock, CalendarDays,
   TrendingUp, Zap, BookOpen, Coffee, GraduationCap,
   CheckCircle2, Search, Trash2,
-  ArrowRight, Flame, Star, X, Pencil, Check,
+  ArrowRight, Flame, Star, X, Pencil, Check, ChevronDown,
 } from "lucide-react"
 
 interface WorkEntry {
@@ -22,6 +22,7 @@ interface WorkEntry {
   description?: string | null; project_name?: string | null
   is_multi_client?: boolean; client_names?: string[]
   video_type?: string | null; video_duration?: string | null; revisions?: number | null
+  participant_ids?: string[]
 }
 interface UpdateRow {
   id: string; date: string; attendance_status: string
@@ -277,6 +278,7 @@ export default function HistoryClient({
       video_type: entry.video_type ?? "",
       video_duration: entry.video_duration ?? "",
       revisions: entry.revisions ?? 0,
+      participant_ids: entry.participant_ids ?? [],
     })
   }
 
@@ -1240,6 +1242,45 @@ export default function HistoryClient({
                                         onChange={ev => setEditDraft(d => ({ ...d, notes: ev.target.value }))}
                                         style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }}
                                       />
+                                    </div>
+                                  )}
+
+                                  {/* Worked With */}
+                                  {members.length > 0 && (
+                                    <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
+                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:5 }}>👥 Worked With</label>
+                                      <div style={{ position:"relative" }}>
+                                        <select value="" onChange={ev => {
+                                          const id = ev.target.value
+                                          if (id && !(editDraft.participant_ids ?? []).includes(id))
+                                            setEditDraft(d => ({ ...d, participant_ids: [...(d.participant_ids ?? []), id] }))
+                                        }}
+                                          style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1px solid #E5E7EB", borderRadius:8, padding:"7px 24px 7px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                                          <option value="">Add teammate…</option>
+                                          {members.filter(m => !(editDraft.participant_ids ?? []).includes(m.id)).map(m => (
+                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                          ))}
+                                        </select>
+                                        <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                      </div>
+                                      {(editDraft.participant_ids ?? []).length > 0 && (
+                                        <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                          {(editDraft.participant_ids ?? []).map(pid => {
+                                            const m = members.find(t => t.id === pid)
+                                            if (!m) return null
+                                            const initials = m.name.split(" ").map((n: string) => n[0]).join("").slice(0,2).toUpperCase()
+                                            return (
+                                              <button key={pid} type="button"
+                                                onClick={() => setEditDraft(d => ({ ...d, participant_ids: (d.participant_ids ?? []).filter(p => p !== pid) }))}
+                                                style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
+                                                <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                                <span style={{ fontSize:10, fontWeight:700, color:"#4338CA" }}>{m.name.split(" ")[0]}</span>
+                                                <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
+                                              </button>
+                                            )
+                                          })}
+                                        </div>
+                                      )}
                                     </div>
                                   )}
 

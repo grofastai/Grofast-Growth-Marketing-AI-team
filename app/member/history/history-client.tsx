@@ -350,6 +350,8 @@ export default function HistoryClient({
     if (editDraft.task_type === "edit") {
       if (!editDraft.date_given) { alert("Please set Date Given before saving."); return }
       if (!editDraft.date_finished) { alert("Please set Date Finished before saving."); return }
+      if (!editDraft.start_time || !editDraft.end_time) { alert("Please set Edit Start & End Time before saving."); return }
+      if (editDraft.start_time >= (editDraft.end_time ?? "")) { alert("Edit End Time must be after Start Time."); return }
     }
     setSavingKey(key)
     let draftToSave: Partial<WorkEntry> = { ...editDraft }
@@ -1313,11 +1315,11 @@ export default function HistoryClient({
                                       <input type="number" min="0" max="99" value={editDraft.hooks_completed??0} onChange={ev=>setEditDraft(d=>({...d,hooks_completed:Math.max(0,parseInt(ev.target.value)||0)}))} placeholder="0" style={{ ...HF, width:100 }} />
                                     </div>
                                     <div>
-                                      <label style={HL}>✏️ Editing Time</label>
+                                      <label style={HL}>✏️ Editing Time <span style={{ color:"#EF4444" }}>*</span></label>
                                       <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                                        <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
+                                        <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} style={{ borderColor: !editDraft.start_time ? "#EF4444" : "#EBEDF2" }} />
                                         <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
-                                        <HTimePicker value={editDraft.end_time??"17:00"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} />
+                                        <HTimePicker value={editDraft.end_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} style={{ borderColor: !editDraft.end_time ? "#EF4444" : "#EBEDF2" }} />
                                       </div>
                                     </div>
                                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>

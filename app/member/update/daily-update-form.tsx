@@ -56,11 +56,18 @@ function fmt12(t: string) {
 
 // Native time picker — mobile triggers system drum-roll, stores as "HH:MM" (24h)
 function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [local, setLocal] = useState(value || "09:00")
+  // Sync if parent value changes externally (e.g., load from DB)
+  const prev = useRef(value)
+  if (prev.current !== value) { prev.current = value; setLocal(value || "09:00") }
   return (
     <input
       type="time"
-      value={value || "09:00"}
-      onChange={e => e.target.value && onChange(e.target.value)}
+      value={local}
+      onChange={e => {
+        setLocal(e.target.value)
+        if (e.target.value) onChange(e.target.value)
+      }}
       style={{
         fontSize: 13, fontWeight: 700, color: "#111827",
         background: "#fff", border: "1.5px solid #EBEDF2",

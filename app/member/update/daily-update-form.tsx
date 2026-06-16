@@ -45,7 +45,7 @@ interface TimeBlock {
 }
 interface MediaBreakEntry {
   id: string; startTime: string; endTime: string
-  durationHours: number; label: string
+  durationHours: number; label: string; customLabel?: string
 }
 
 function fmt12(t: string) {
@@ -766,7 +766,7 @@ export default function DailyUpdateForm({
       ? mediaBreaks.filter(b => b.durationHours > 0).map(b => ({
           id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
           task_type: "break" as const,
-          title: b.label || "Break", start_time: b.startTime, end_time: b.endTime,
+          title: b.label === "__other__" ? (b.customLabel || "Break") : (b.label || "Break"), start_time: b.startTime, end_time: b.endTime,
           duration_hours: b.durationHours, notes: undefined,
           video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
         }))
@@ -1123,7 +1123,7 @@ export default function DailyUpdateForm({
                 </div>
               </div>
 
-              {timeBlocks.length === 0 ? (
+              {timeBlocks.filter(b => !b.isBreak).length === 0 ? (
                 <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 24px", border:"2px dashed #E5E7EB", borderRadius:16, background:"#FAFBFC" }}>
                   <span style={{ fontSize:36, marginBottom:12 }}>⏰</span>
                   <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No time blocks yet</p>
@@ -1135,9 +1135,9 @@ export default function DailyUpdateForm({
                 </div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-                  {timeBlocks.map(block => {
+                  {timeBlocks.filter(b => !b.isBreak).map(block => {
                     const usedByOthers = new Set(
-                      timeBlocks
+                      timeBlocks.filter(b => !b.isBreak)
                         .filter(b => b.id !== block.id)
                         .flatMap(b => [b.startTime, b.endTime])
                     )
@@ -1148,40 +1148,10 @@ export default function DailyUpdateForm({
                       : { bg:"#F9FAFB", color:"#9CA3AF", border:"#E5E7EB" }
                     return (
                       <Fragment key={block.id}>
-                      <div style={{ background: block.isBreak ? "#FFFBEB" : "#F9FAFB", borderRadius:14, border: block.isBreak ? "1.5px solid rgba(245,158,11,0.35)" : "1px solid #EBEDF2", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
+                      <div style={{ background:"#F9FAFB", borderRadius:14, border:"1px solid #EBEDF2", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
 
-                        {/* ── Block header: Work/Break toggle + break label + delete ── */}
+                        {/* ── Block header: delete ── */}
                         <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                          <div style={{ display:"flex", alignItems:"center", background:"#F3F4F6", borderRadius:8, padding:"2px 3px", gap:2 }}>
-                            <button type="button" onClick={() => patchBlock(block.id, { isBreak: false })}
-                              style={{ padding:"4px 10px", borderRadius:6, fontSize:11, fontWeight:700, border:"none", cursor:"pointer", background: !block.isBreak ? "#FFFFFF" : "transparent", color: !block.isBreak ? "#111827" : "#9CA3AF", boxShadow: !block.isBreak ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}>
-                              ⏰ Work
-                            </button>
-                            <button type="button" onClick={() => patchBlock(block.id, { isBreak: true, description:"", clientNames:[], projectName:"", status:"not_started" as const })}
-                              style={{ padding:"4px 10px", borderRadius:6, fontSize:11, fontWeight:700, border:"none", cursor:"pointer", background: block.isBreak ? "#FEF3C7" : "transparent", color: block.isBreak ? "#D97706" : "#9CA3AF", boxShadow: block.isBreak ? "0 1px 3px rgba(0,0,0,0.1)" : "none" }}>
-                              ☕ Break
-                            </button>
-                          </div>
-                          {block.isBreak && (
-                            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                              <select value={block.breakLabel} onChange={e => patchBlock(block.id, { breakLabel: e.target.value, breakCustom: "" })}
-                                style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
-                                <option value="Lunch">🍱 Lunch</option>
-                                <option value="Tea">☕ Tea Break</option>
-                                <option value="Short Break">🚶 Short Break</option>
-                                <option value="Personal">🏠 Personal</option>
-                                <option value="__other__">✏️ Other</option>
-                              </select>
-                              {block.breakLabel === "__other__" && (
-                                <input
-                                  value={block.breakCustom ?? ""}
-                                  onChange={e => patchBlock(block.id, { breakCustom: e.target.value })}
-                                  placeholder="Type break name…"
-                                  style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", outline:"none", width:130 }}
-                                />
-                              )}
-                            </div>
-                          )}
                           <button onClick={() => removeBlock(block.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
                             <Trash2 size={13} style={{ color:"#EF4444" }} />
                           </button>
@@ -1189,9 +1159,7 @@ export default function DailyUpdateForm({
 
                         {/* ── Time row ── */}
                         <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
-                          {block.isBreak
-                            ? <Coffee size={13} style={{ color:"#D97706", flexShrink:0 }} />
-                            : <Clock size={13} style={{ color:"#DE1A1A", flexShrink:0 }} />}
+                          <Clock size={13} style={{ color:"#DE1A1A", flexShrink:0 }} />
                           <div style={{ display:"flex", alignItems:"center", gap:6, flex:1, minWidth:200 }}>
                             <TimePicker value={block.startTime} onChange={v => patchBlock(block.id, { startTime: v })} />
                             <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
@@ -1877,13 +1845,22 @@ export default function DailyUpdateForm({
                       {b.durationHours > 0 && (
                         <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>{fmtTravel(b.durationHours)}</span>
                       )}
-                      <select value={b.label} onChange={e => patchMediaBreak(b.id, { label: e.target.value })}
+                      <select value={b.label} onChange={e => patchMediaBreak(b.id, { label: e.target.value, customLabel: "" })}
                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
                         <option value="Lunch">🍱 Lunch</option>
                         <option value="Tea">☕ Tea</option>
                         <option value="Short Break">🚶 Short Break</option>
                         <option value="Personal">🏠 Personal</option>
+                        <option value="__other__">✏️ Other</option>
                       </select>
+                      {b.label === "__other__" && (
+                        <input
+                          value={b.customLabel ?? ""}
+                          onChange={e => patchMediaBreak(b.id, { customLabel: e.target.value })}
+                          placeholder="Type break name…"
+                          style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", outline:"none", width:130 }}
+                        />
+                      )}
                       <button onClick={() => removeMediaBreak(b.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
                         <Trash2 size={13} style={{ color:"#EF4444" }} />
                       </button>
@@ -1909,13 +1886,22 @@ export default function DailyUpdateForm({
                       {b.durationHours > 0 && (
                         <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>{fmtTravel(b.durationHours)}</span>
                       )}
-                      <select value={b.breakLabel} onChange={e => patchBlock(b.id, { breakLabel: e.target.value })}
+                      <select value={b.breakLabel} onChange={e => patchBlock(b.id, { breakLabel: e.target.value, breakCustom: "" })}
                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
                         <option value="Lunch">🍱 Lunch</option>
                         <option value="Tea">☕ Tea</option>
                         <option value="Short Break">🚶 Short Break</option>
                         <option value="Personal">🏠 Personal</option>
+                        <option value="__other__">✏️ Other</option>
                       </select>
+                      {b.breakLabel === "__other__" && (
+                        <input
+                          value={b.breakCustom ?? ""}
+                          onChange={e => patchBlock(b.id, { breakCustom: e.target.value })}
+                          placeholder="Type break name…"
+                          style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", outline:"none", width:130 }}
+                        />
+                      )}
                       <button onClick={() => removeBlock(b.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
                         <Trash2 size={13} style={{ color:"#EF4444" }} />
                       </button>

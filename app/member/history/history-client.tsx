@@ -47,6 +47,12 @@ const TASK_CFG = {
 }
 const DOT_COLORS = ["#22C55E","#F59E0B","#6366F1","#EF4444","#0EA5E9","#EC4899"]
 
+function parseLearningTitle(title: string | null): { client: string; topic: string } {
+  if (!title) return { client: "", topic: "" }
+  const m = title.match(/^\[([^\]]+)\]\s*(.*)$/)
+  return m ? { client: m[1], topic: m[2] } : { client: "", topic: title }
+}
+
 function monthLabel(d: string) {
   return new Date(d + "T12:00:00").toLocaleDateString("en-US", { month:"long", year:"numeric" })
 }
@@ -745,14 +751,13 @@ export default function HistoryClient({
                         <div style={{ width:34, height:34, borderRadius:10, background:"rgba(5,150,105,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                           <GraduationCap size={15} style={{ color:"#059669" }}/>
                         </div>
+                        {(() => { const { client, topic } = parseLearningTitle(u.learning_topic); return (
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
-                            <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
+                            <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{topic || u.learning_topic}</span>
                             <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"rgba(5,150,105,0.12)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
                           </div>
-                          {u.learning_notes && (
-                            <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>
-                          )}
+                          {client && <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{client}</p>}
                           <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:6, marginTop:4 }}>
                             {(u.learning_hours ?? 0) > 0 && <><Clock size={9} style={{ color:"#9CA3AF" }}/>{fmtH(u.learning_hours!)}</>}
                             {u.learning_start_time && u.learning_end_time && (
@@ -760,6 +765,7 @@ export default function HistoryClient({
                             )}
                           </span>
                         </div>
+                        )})()}
                         <div style={{ display:"flex", gap:5, flexShrink:0 }}>
                           <button
                             onClick={() => editingLearningId === u.id ? setEditingLearningId(null) : startEditLearning(u)}
@@ -844,14 +850,13 @@ export default function HistoryClient({
                             <div style={{ width:34, height:34, borderRadius:10, background:"rgba(245,158,11,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                               <BookOpen size={15} style={{ color:"#D97706" }}/>
                             </div>
+                            {(() => { const { client, topic } = parseLearningTitle(u.learning_topic); return (
                             <div style={{ flex:1, minWidth:0 }}>
                               <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
-                                <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{u.learning_topic}</span>
+                                <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{topic || u.learning_topic}</span>
                                 <span style={{ fontSize:10, fontWeight:700, color:"#059669", background:"rgba(5,150,105,0.12)", padding:"2px 8px", borderRadius:99 }}>Learning</span>
                               </div>
-                              {u.learning_notes && (
-                                <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{u.learning_notes}</p>
-                              )}
+                              {client && <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{client}</p>}
                               <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"inline-flex", alignItems:"center", gap:6, marginTop:4 }}>
                                 {(u.learning_hours ?? 0) > 0 && <><Clock size={9} style={{ color:"#9CA3AF" }}/>{fmtH(u.learning_hours!)}</>}
                                 {u.learning_start_time && u.learning_end_time && (
@@ -859,6 +864,7 @@ export default function HistoryClient({
                                 )}
                               </span>
                             </div>
+                            )})()}
                             <button
                               onClick={() => editingLearningId === u.id ? setEditingLearningId(null) : startEditLearning(u)}
                               title="Edit learning"
@@ -937,19 +943,26 @@ export default function HistoryClient({
                                 <Icon size={15} style={{ color:cfg.color }}/>
                               </div>
                               <div style={{ flex:1, minWidth:0 }}>
-                                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
-                                  <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{e.title || cfg.label}</span>
-                                  <span style={{ fontSize:10, fontWeight:700, color:cfg.color, background:cfg.bg, padding:"2px 8px", borderRadius:99 }}>{cfg.label}</span>
-                                </div>
-                                {(e.is_multi_client && e.client_names && e.client_names.length > 0)
-                                  ? <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{e.client_names.join(" · ")}</p>
-                                  : e.client_name
-                                    ? <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{e.client_name}</p>
-                                    : null
-                                }
-                                {(e.notes || e.description) && (
-                                  <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{e.notes || e.description}</p>
-                                )}
+                                {(() => {
+                                  const isLearning = e.task_type === "learning"
+                                  const { client: parsedClient, topic: parsedTopic } = isLearning ? parseLearningTitle(e.title) : { client: "", topic: "" }
+                                  const displayTitle = isLearning ? (parsedTopic || e.title || cfg.label) : (e.title || cfg.label)
+                                  const displayClient = isLearning
+                                    ? parsedClient
+                                    : (e.is_multi_client && e.client_names && e.client_names.length > 0)
+                                      ? e.client_names.join(" · ")
+                                      : (e.client_name || "")
+                                  return (<>
+                                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
+                                      <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{displayTitle}</span>
+                                      <span style={{ fontSize:10, fontWeight:700, color:cfg.color, background:cfg.bg, padding:"2px 8px", borderRadius:99 }}>{cfg.label}</span>
+                                    </div>
+                                    {displayClient && <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{displayClient}</p>}
+                                    {!isLearning && (e.notes || e.description) && (
+                                      <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{e.notes || e.description}</p>
+                                    )}
+                                  </>)
+                                })()}
                                 <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:4, flexWrap:"wrap" }}>
                                   {(() => {
                                     const d = calcDurationFromTimes(e.start_time, e.end_time) ?? (e.duration_hours ?? 0)

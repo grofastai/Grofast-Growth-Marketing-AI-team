@@ -531,11 +531,11 @@ function ClientSelect({ value, onChange, activeClientNames, pastClientNames, inp
         {INTERNAL_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
         {activeClientNames.map(n => <option key={n} value={n}>{n}</option>)}
         {pastClientNames.length > 0 && (
-          <optgroup label="── Past Clients ──">
+          <optgroup label="📁 Past Clients →">
             {pastClientNames.map(n => <option key={n} value={n}>{n}</option>)}
           </optgroup>
         )}
-        <option value="__manual__">✏️ Type manually...</option>
+        <option value="__manual__">✏️ Other (type manually)</option>
       </select>
       {manual && (
         <input className={inputCls} placeholder="Type client name…" value={value}

@@ -1160,7 +1160,7 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
         <div style={{
           background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
           border: "2px solid rgba(249,115,22,0.18)",
-          borderRadius: 18, padding: "20px 18px 14px 22px",
+          borderRadius: 18, padding: "20px 18px 0 22px",
           overflow: "hidden", position: "relative", minHeight: 148,
         }}>
           <div className="absolute right-0 bottom-0 w-24 h-24 sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
@@ -1169,20 +1169,7 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
           <div style={{ position: "relative", zIndex: 1 }}>
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "#F97316", opacity: 0.85 }}>Freelancers</p>
             <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: "#F97316" }}>{stats.freelancers}</p>
-            <div className="flex gap-2 mt-3">
-              <button
-                onClick={() => setFlSheetOpen(true)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                style={{ background: "#F97316", color: "#fff", boxShadow: "0 2px 8px rgba(249,115,22,0.3)" }}>
-                <Plus size={11} /> Add
-              </button>
-              <button
-                onClick={() => setAssignSheetOpen(true)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1.5px solid rgba(249,115,22,0.3)" }}>
-                Assign Manager
-              </button>
-            </div>
+            <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#6B7280" }}>Freelance team</p>
           </div>
         </div>
       </div>

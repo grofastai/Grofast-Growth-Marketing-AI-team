@@ -1201,6 +1201,12 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
                   <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Freelancers</h3>
                   <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{freelancers.length} freelancer{freelancers.length !== 1 ? "s" : ""}</p>
                 </div>
+                <button
+                  onClick={() => setAssignSheetOpen(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all"
+                  style={{ background: "rgba(249,115,22,0.08)", color: "#F97316", border: "1.5px solid rgba(249,115,22,0.25)" }}>
+                  <UserCheck size={13} /> Assign Manager
+                </button>
               </div>
               <div style={{ overflowX: "auto" }}>
                 <table className="w-full" style={{ minWidth: 560 }}>

@@ -868,6 +868,9 @@ function AssignManagerSheet({
     setSelectedMembers(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id])
   }
 
+  const idNum = (id: string) => { const m = id.match(/\d+/); return m ? parseInt(m[0]) : 99999 }
+  const sortedMembers = [...members].sort((a, b) => idNum(a.employee_id) - idNum(b.employee_id))
+
   async function handleSave() {
     if (selectedMembers.length === 0) { setErr("Select at least one team member"); return }
     setSaving(true); setErr("")
@@ -908,8 +911,8 @@ function AssignManagerSheet({
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                 Team Members <span className="normal-case font-normal text-gray-400">({selectedMembers.length} selected)</span>
               </label>
-              <div className="flex flex-col gap-1.5 overflow-y-auto pr-1">
-                {members.map(m => {
+              <div className="flex flex-col gap-1.5">
+                {sortedMembers.map(m => {
                   const checked = selectedMembers.includes(m.id)
                   return (
                     <button key={m.id} type="button" onClick={() => toggleMember(m.id)}
@@ -926,7 +929,7 @@ function AssignManagerSheet({
                     </button>
                   )
                 })}
-                {members.length === 0 && <p className="text-[12px] text-gray-400 italic">No members found.</p>}
+                {sortedMembers.length === 0 && <p className="text-[12px] text-gray-400 italic">No members found.</p>}
               </div>
               {err && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-xl">{err}</p>}
             </div>

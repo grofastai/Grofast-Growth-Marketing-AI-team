@@ -57,6 +57,7 @@ export type WorkEntryInput = {
   status?: string
   payment_status?: string
   notes?: string
+  amount?: number | null
   // VO
   audio_duration_minutes?: number | null
   // Edit
@@ -178,7 +179,7 @@ export async function createWorkEntry(input: WorkEntryInput): Promise<{ success:
     payment_status: input.payment_status || "unpaid",
     paid_at: input.payment_status === "paid" ? new Date().toISOString() : null,
     notes: input.notes || null,
-    amount,
+    amount: input.amount !== undefined ? input.amount : amount,
     audio_duration_minutes: input.audio_duration_minutes || null,
     cost_per_minute_snapshot: freelancer?.cost_per_minute || null,
     date_given: input.date_given || null,

@@ -2,11 +2,12 @@
 
 import { useState, useMemo, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   Plus, X, Star, Mic, Scissors, Camera, UserCog, Phone, Calendar,
   Clock, DollarSign, CheckCircle, Trash2, CreditCard, ChevronDown,
   ChevronUp, Edit2, Search, IndianRupee, HardDrive, RotateCcw,
-  Check, AlertCircle, UserCheck, Users,
+  Check, AlertCircle, UserCheck, Users, ExternalLink,
 } from "lucide-react"
 import {
   createFreelancer, updateFreelancer, deleteFreelancer,
@@ -1079,12 +1080,19 @@ function FreelancerCard({ f, entries, onEdit, onViewWork, onDelete }: {
         </div>
       </div>
 
-      {/* Action */}
-      <button onClick={onViewWork}
-        className="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all border flex items-center justify-center gap-2"
-        style={{ border: `1.5px solid ${cfg.border}`, color: cfg.color, background: cfg.bg }}>
-        <Calendar size={13} />View Work ({myEntries.length})
-      </button>
+      {/* Actions */}
+      <div className="flex gap-2">
+        <button onClick={onViewWork}
+          className="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all border flex items-center justify-center gap-2"
+          style={{ border: `1.5px solid ${cfg.border}`, color: cfg.color, background: cfg.bg }}>
+          <Calendar size={13} />Work ({myEntries.length})
+        </button>
+        <Link href={`/admin/freelancers/${f.id}`}
+          className="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all border flex items-center justify-center gap-2"
+          style={{ border: "1.5px solid #E5E7EB", color: "#374151", background: "#F9FAFB" }}>
+          <ExternalLink size={13} />Profile
+        </Link>
+      </div>
     </div>
   )
 }

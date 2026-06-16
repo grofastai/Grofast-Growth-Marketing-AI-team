@@ -121,15 +121,6 @@ const ACCOUNT_TYPES = [
     bg: "rgba(124,58,237,0.06)",
     border: "rgba(124,58,237,0.2)",
   },
-  {
-    role: "FREELANCER_MGR" as const,
-    label: "Freelancer Manager",
-    desc: "Manages freelancer portal & work logs",
-    icon: UserCheck,
-    color: "#2D6A4F",
-    bg: "rgba(45,106,79,0.06)",
-    border: "rgba(45,106,79,0.2)",
-  },
 ]
 
 function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps) {
@@ -658,10 +649,10 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
   const nextId = useMemo(() => computeNextEmployeeId(members), [members])
   const [search, setSearch] = useState(initialSearch)
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
-  const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER" | "FREELANCER_MGR">("ALL")
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER">("ALL")
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
-  const [freelancerSheetOpen, setFreelancerSheetOpen] = useState(false)
+
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [showPast, setShowPast] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Member | null>(null)
@@ -684,7 +675,6 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
       const matchRole = roleFilter === "ALL"
         || (roleFilter === "ADMIN" && ["ADMIN","FOUNDER","CEO"].includes(m.role))
         || (roleFilter === "MEMBER" && m.role === "MEMBER")
-        || (roleFilter === "FREELANCER_MGR" && m.role === "FREELANCER_MGR")
       return matchSearch && matchStatus && matchRole
     }).sort((a, b) => idNum(a.employee_id) - idNum(b.employee_id))
   }, [search, tabFilter, roleFilter, members])
@@ -739,11 +729,10 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
     })
   }
 
-  const STAT_CARDS: Array<{ label: string; value: number; sub: string; img: string; bg: string; border: string; num: string; role: "ALL" | "ADMIN" | "MEMBER" | "FREELANCER_MGR" }> = [
+  const STAT_CARDS: Array<{ label: string; value: number; sub: string; img: string; bg: string; border: string; num: string; role: "ALL" | "ADMIN" | "MEMBER" }> = [
     { label: "Total Members", value: stats.total, sub: "All accounts", img: "/brand/team-total-members.png", bg: "linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%)", border: "rgba(236,72,153,0.15)", num: "#EC4899", role: "ALL" },
     { label: "Admin Accounts", value: stats.admins, sub: "Admin access", img: "/brand/team-admins.png", bg: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "rgba(139,92,246,0.15)", num: "#7C3AED", role: "ADMIN" },
     { label: "Team Members", value: stats.teamMembers, sub: "Member accounts", img: "/brand/team-active-members.png", bg: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "rgba(34,197,94,0.15)", num: "#16A34A", role: "MEMBER" },
-    { label: "Freelancer Accounts", value: stats.freelancers, sub: "Freelancer managers", img: "/brand/team-on-leave.png", bg: "linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%)", border: "rgba(245,158,11,0.15)", num: "#D97706", role: "FREELANCER_MGR" },
   ]
 
   return (
@@ -831,14 +820,6 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
               <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{filtered.length} of {members.length} members</p>
             </div>
             <div className="flex items-center gap-2">
-            {roleFilter === "FREELANCER_MGR" && (
-              <button
-                onClick={() => setFreelancerSheetOpen(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all"
-                style={{ background: "rgba(45,106,79,0.08)", color: "#2D6A4F", border: "1.5px solid rgba(45,106,79,0.25)" }}>
-                <Plus size={13} /> Add Freelancer
-              </button>
-            )}
             {/* Tab filters */}
             <div className="flex items-center gap-1 rounded-xl p-1" style={{ background: "#F9FAFB", border: "1px solid #F3F4F6" }}>
               {([
@@ -1364,7 +1345,6 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
       {assignTarget && <AssignTaskModal member={assignTarget} onClose={() => setAssignTarget(null)} />}
 
       <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} nextId={nextId} />
-      <MemberSheet key="freelancer-add" open={freelancerSheetOpen} onClose={() => setFreelancerSheetOpen(false)} nextId={nextId} initialRole="FREELANCER_MGR" />
     </div>
   )
 }

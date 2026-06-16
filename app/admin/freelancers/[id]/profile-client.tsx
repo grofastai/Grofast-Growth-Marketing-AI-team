@@ -104,12 +104,13 @@ const TABS = [
 
 export default function FreelancerProfileClient({
   freelancer, workEntries, payments, activityLogs,
-  currentUserId, currentUserName, currentUserRole, stats,
+  clientNames, currentUserId, currentUserName, currentUserRole, stats,
 }: {
   freelancer: FreelancerRecord
   workEntries: WorkEntryRecord[]
   payments: PaymentRecord[]
   activityLogs: ActivityRecord[]
+  clientNames: string[]
   currentUserId: string
   currentUserName: string
   currentUserRole: string
@@ -157,7 +158,7 @@ export default function FreelancerProfileClient({
 
       {/* Tab Content */}
       {activeTab === "overview"     && <OverviewTab     freelancer={freelancer} stats={stats} typeColor={typeColor} />}
-      {activeTab === "work_entries" && <WorkEntriesTab  freelancer={freelancer} workEntries={workEntries} currentUserRole={currentUserRole} />}
+      {activeTab === "work_entries" && <WorkEntriesTab  freelancer={freelancer} workEntries={workEntries} currentUserRole={currentUserRole} clientNames={clientNames} />}
       {activeTab === "payments"     && <PaymentsTab     freelancer={freelancer} payments={payments} stats={stats} currentUserRole={currentUserRole} />}
       {activeTab === "statements"   && <StatementsTab   freelancer={freelancer} />}
       {activeTab === "activity"     && <ActivityTab     activityLogs={activityLogs} />}
@@ -254,8 +255,8 @@ const APPROVAL_LABEL: Record<string, string> = {
   pending: "Pending Approval", approved: "Approved", rejected: "Rejected",
 }
 
-function WorkEntriesTab({ freelancer, workEntries, currentUserRole }: {
-  freelancer: FreelancerRecord; workEntries: WorkEntryRecord[]; currentUserRole: string
+function WorkEntriesTab({ freelancer, workEntries, currentUserRole, clientNames }: {
+  freelancer: FreelancerRecord; workEntries: WorkEntryRecord[]; currentUserRole: string; clientNames: string[]
 }) {
   const [showAdd, setShowAdd]           = useState(false)
   const [rejectId, setRejectId]         = useState<string | null>(null)
@@ -326,7 +327,13 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole }: {
             </div>
             <div className="space-y-3">
               <div><Label text="Date" /><input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} style={inputStyle} /></div>
-              <div><Label text="Client Name" /><input type="text" placeholder="Client / Brand" value={form.client_name} onChange={e => setForm(p => ({ ...p, client_name: e.target.value }))} style={inputStyle} /></div>
+              <div>
+                <Label text="Client Name" />
+                <select value={form.client_name} onChange={e => setForm(p => ({ ...p, client_name: e.target.value }))} style={inputStyle}>
+                  <option value="">Select client…</option>
+                  {clientNames.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
               <div><Label text="Work Title" /><input type="text" placeholder="e.g. Product Reel Edit" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} style={inputStyle} /></div>
               <div><Label text={qtyLabel} /><input type="number" min="1" placeholder="e.g. 10" value={form.quantity} onChange={e => setForm(p => ({ ...p, quantity: e.target.value }))} style={inputStyle} /></div>
               <div><Label text={rateLabel} /><input type="number" min="0" step="0.01" value={form.rate} onChange={e => setForm(p => ({ ...p, rate: e.target.value }))} style={inputStyle} /></div>

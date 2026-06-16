@@ -90,6 +90,12 @@ export default async function ClientsUnifiedPage({
   const sheetGid = process.env.GOOGLE_CLIENTS_SHEET_GID
   const pastGid  = process.env.GOOGLE_PAST_CLIENTS_SHEET_GID
 
+  const INTERNAL_BRAND_ROWS: ClientRow[] = [
+    { id: 'grofast-digital',  name: 'GROFAST DIGITAL',  industry: 'Internal Brand', location: null, service: null, package_name: null, status: 'active', contact_name: null },
+    { id: 'grofast-ai',       name: 'GROFAST AI',        industry: 'Internal Brand', location: null, service: null, package_name: null, status: 'active', contact_name: null },
+    { id: 'karthick-brands',  name: 'KARTHICK BRANDS',   industry: 'Internal Brand', location: null, service: null, package_name: null, status: 'active', contact_name: null },
+  ]
+
   let activeClients: ClientRow[] = []
   let pastClients:   ClientRow[] = []
 
@@ -112,8 +118,12 @@ export default async function ClientsUnifiedPage({
       contact_name: c.customer_name || null,
     })
 
-    activeClients = stripped.filter(c => c.company_name || c.customer_name).map(c => toRow(c, 'active'))
-    pastClients   = strippedPast.filter(c => c.company_name || c.customer_name).map(c => toRow(c, 'past'))
+    const sheetActive = stripped.filter(c => c.company_name || c.customer_name).map(c => toRow(c, 'active'))
+    const sheetPast   = strippedPast.filter(c => c.company_name || c.customer_name).map(c => toRow(c, 'past'))
+
+    const internalIds = new Set(INTERNAL_BRAND_ROWS.map(r => r.id))
+    activeClients = [...INTERNAL_BRAND_ROWS, ...sheetActive.filter(c => !internalIds.has(c.id))]
+    pastClients   = sheetPast
 
     syncSheetClientsToSupabase(
       cid,
@@ -126,7 +136,9 @@ export default async function ClientsUnifiedPage({
       .select('id, name, industry, location, service, package_name, status, contact_name')
       .eq('company_id', cid)
       .order('name')
-    activeClients = ((dbRows ?? []) as ClientRow[]).filter(c => c.status === 'active')
+    const dbActive = ((dbRows ?? []) as ClientRow[]).filter(c => c.status === 'active')
+    const internalIds = new Set(INTERNAL_BRAND_ROWS.map(r => r.id))
+    activeClients = [...INTERNAL_BRAND_ROWS, ...dbActive.filter(c => !internalIds.has(c.id))]
     pastClients   = ((dbRows ?? []) as ClientRow[]).filter(c => c.status !== 'active')
   }
 

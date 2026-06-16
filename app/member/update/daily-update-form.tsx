@@ -55,11 +55,12 @@ function fmt12(t: string) {
 }
 
 // Native time picker — mobile triggers system drum-roll, stores as "HH:MM" (24h)
-function TimePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const [local, setLocal] = useState(value || "09:00")
-  // Sync if parent value changes externally (e.g., load from DB)
+// allowEmpty: show --:-- when no value set (used for Learning from/to)
+function TimePicker({ value, onChange, allowEmpty, style: extraStyle }: { value: string; onChange: (v: string) => void; allowEmpty?: boolean; style?: React.CSSProperties }) {
+  const initial = allowEmpty ? (value || "") : (value || "09:00")
+  const [local, setLocal] = useState(initial)
   const prev = useRef(value)
-  if (prev.current !== value) { prev.current = value; setLocal(value || "09:00") }
+  if (prev.current !== value) { prev.current = value; setLocal(allowEmpty ? (value || "") : (value || "09:00")) }
   return (
     <input
       type="time"
@@ -67,12 +68,14 @@ function TimePicker({ value, onChange }: { value: string; onChange: (v: string) 
       onChange={e => {
         setLocal(e.target.value)
         if (e.target.value) onChange(e.target.value)
+        else onChange("")
       }}
       style={{
         fontSize: 13, fontWeight: 700, color: "#111827",
         background: "#fff", border: "1.5px solid #EBEDF2",
         borderRadius: 8, padding: "6px 10px", outline: "none",
         colorScheme: "light", cursor: "pointer",
+        ...extraStyle,
       }}
     />
   )
@@ -1945,11 +1948,11 @@ export default function DailyUpdateForm({
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
                   <div>
                     <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>From *</label>
-                    <input type="time" value={learningFrom} onChange={e => setLearningFrom(e.target.value)} style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
+                    <TimePicker value={learningFrom} onChange={setLearningFrom} allowEmpty style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
                   </div>
                   <div>
                     <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>To *</label>
-                    <input type="time" value={learningTo} onChange={e => setLearningTo(e.target.value)} style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
+                    <TimePicker value={learningTo} onChange={setLearningTo} allowEmpty style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
                   </div>
                   <div>
                     <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Duration</label>

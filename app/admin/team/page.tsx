@@ -29,7 +29,7 @@ export default async function TeamPage({
 
   if (!profile) redirect('/login')
 
-  const [{ data: members, error: membersError }, { data: pastMembers }] = await Promise.all([
+  const [{ data: members, error: membersError }, { data: pastMembers }, { data: freelancersData }] = await Promise.all([
     admin
       .from('users')
       .select('id, name, employee_id, role, email, phone, status, team, position, created_at, employment_type, monthly_salary, hourly_rate, paid_leave_days, deleted_at, date_of_birth, joined_at, gender, passport_photo_url')
@@ -43,11 +43,16 @@ export default async function TeamPage({
       .eq('company_id', profile.company_id)
       .not('deleted_at', 'is', null)
       .order('deleted_at', { ascending: false }),
+    admin
+      .from('freelancers')
+      .select('id, name, type, phone, upi_id, rating, status, cost_per_minute, cost_per_video, cost_per_hour, voice_type, editing_software, created_at, gender, title')
+      .eq('company_id', profile.company_id)
+      .order('name'),
   ])
 
   if (membersError) {
     console.error('[TeamPage] members query failed:', membersError.message)
   }
 
-  return <TeamClient members={members ?? []} pastMembers={pastMembers ?? []} initialSearch={initialSearch ?? ""} />
+  return <TeamClient members={members ?? []} pastMembers={pastMembers ?? []} freelancers={freelancersData ?? []} initialSearch={initialSearch ?? ""} />
 }

@@ -1175,7 +1175,7 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
                 <table className="w-full" style={{ minWidth: 560 }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
-                      {["Name", "Type", "Phone", "Rate", "Status"].map(h => (
+                      {["Name", "Type", "Phone", "Rate", "Status", ""].map(h => (
                         <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#9CA3AF" }}>{h}</th>
                       ))}
                     </tr>
@@ -1206,6 +1206,13 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
                               <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: f.status === "active" ? "#16A34A" : "#9CA3AF" }} />
                               {f.status === "active" ? "Active" : "Inactive"}
                             </span>
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <Link href={`/admin/freelancers/${f.id}`}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                              style={{ background: "rgba(249,115,22,0.08)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
+                              View <ArrowRight size={10} />
+                            </Link>
                           </td>
                         </tr>
                       )

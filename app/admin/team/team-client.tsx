@@ -13,6 +13,21 @@ import {
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
 
+type FreelancerBasic = {
+  id: string; name: string; type: string; phone: string | null; upi_id: string | null
+  rating: number; status: "active" | "inactive"
+  cost_per_minute: number | null; cost_per_video: number | null; cost_per_hour: number | null
+  voice_type: string | null; editing_software: string[]; gender: string | null; title: string | null
+  created_at: string
+}
+
+const FL_TYPE_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  voice_over:    { label: "Voice Over",    color: "#8b5cf6", bg: "rgba(139,92,246,0.08)" },
+  video_editor:  { label: "Video Editor",  color: "#0ea5e9", bg: "rgba(14,165,233,0.08)" },
+  video_shooter: { label: "Video Shooter", color: "#10b981", bg: "rgba(16,185,129,0.08)" },
+  other:         { label: "Other",         color: "#6b7280", bg: "rgba(107,114,128,0.08)" },
+}
+
 const TEAMS = [
   "Media & Technology Team",
   "Media Team",
@@ -646,11 +661,11 @@ function AssignTaskModal({ member, onClose }: AssignTaskModalProps) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function TeamClient({ members, pastMembers, initialSearch = "" }: { members: Member[]; pastMembers: Member[]; initialSearch?: string }) {
+export default function TeamClient({ members, pastMembers, freelancers = [], initialSearch = "" }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; initialSearch?: string }) {
   const nextId = useMemo(() => computeNextEmployeeId(members), [members])
   const [search, setSearch] = useState(initialSearch)
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
-  const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER">("ALL")
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER" | "FREELANCER">("ALL")
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
 
@@ -676,7 +691,8 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
       const matchRole = roleFilter === "ALL"
         || (roleFilter === "ADMIN" && ["ADMIN","FOUNDER","CEO"].includes(m.role))
         || (roleFilter === "MEMBER" && m.role === "MEMBER")
-      return matchSearch && matchStatus && matchRole
+        || roleFilter === "FREELANCER"
+      return matchSearch && matchStatus && matchRole && roleFilter !== "FREELANCER"
     }).sort((a, b) => idNum(a.employee_id) - idNum(b.employee_id))
   }, [search, tabFilter, roleFilter, members])
 
@@ -684,7 +700,7 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
     total: members.length,
     admins: members.filter((m) => ["ADMIN","FOUNDER","CEO"].includes(m.role)).length,
     teamMembers: members.filter((m) => m.role === "MEMBER").length,
-    freelancers: members.filter((m) => m.role === "FREELANCER_MGR").length,
+    freelancers: freelancers.length,
   }
 
   // Recent activity: last 6 members sorted by created_at desc
@@ -730,7 +746,7 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
     })
   }
 
-  const STAT_CARDS: Array<{ label: string; value: number; sub: string; img: string; bg: string; border: string; num: string; role: "ALL" | "ADMIN" | "MEMBER" }> = [
+  const STAT_CARDS: Array<{ label: string; value: number; sub: string; img: string; bg: string; border: string; num: string; role: "ALL" | "ADMIN" | "MEMBER" | "FREELANCER" }> = [
     { label: "Total Members", value: stats.total, sub: "All accounts", img: "/brand/team-total-members.png", bg: "linear-gradient(135deg, #FDF2F8 0%, #FCE7F3 100%)", border: "rgba(236,72,153,0.15)", num: "#EC4899", role: "ALL" },
     { label: "Admin Accounts", value: stats.admins, sub: "Admin access", img: "/brand/team-admins.png", bg: "linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)", border: "rgba(139,92,246,0.15)", num: "#7C3AED", role: "ADMIN" },
     { label: "Team Members", value: stats.teamMembers, sub: "Member accounts", img: "/brand/team-active-members.png", bg: "linear-gradient(135deg, #F0FDF4 0%, #DCFCE7 100%)", border: "rgba(34,197,94,0.15)", num: "#16A34A", role: "MEMBER" },
@@ -807,32 +823,36 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
           )
         })}
 
-        {/* Freelancers shortcut card */}
-        <Link href="/admin/freelancers"
-          style={{
-            background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
-            border: "2px solid rgba(249,115,22,0.18)",
-            borderRadius: 18, padding: "20px 18px 0 22px",
-            overflow: "hidden", position: "relative", minHeight: 148,
-            cursor: "pointer", transition: "all 0.15s", display: "block", textDecoration: "none",
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.border = "2px solid #F97316"; (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 20px rgba(249,115,22,0.2)" }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.border = "2px solid rgba(249,115,22,0.18)"; (e.currentTarget as HTMLElement).style.boxShadow = "none" }}
-        >
-          <div className="absolute right-3 bottom-3 opacity-10 pointer-events-none">
-            <Clapperboard size={80} strokeWidth={1} style={{ color: "#F97316" }} />
-          </div>
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "#F97316", opacity: 0.85 }}>Freelancers</p>
-            <div className="mt-2 mb-1">
-              <Clapperboard size={36} strokeWidth={1.5} style={{ color: "#F97316" }} />
+        {/* Freelancers filter card */}
+        {(() => {
+          const isActive = roleFilter === "FREELANCER"
+          return (
+            <div
+              onClick={() => { setRoleFilter(isActive ? "ALL" : "FREELANCER"); setSearch("") }}
+              style={{
+                background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
+                border: `2px solid ${isActive ? "#F97316" : "rgba(249,115,22,0.18)"}`,
+                borderRadius: 18, padding: "20px 18px 0 22px",
+                overflow: "hidden", position: "relative", minHeight: 148,
+                cursor: "pointer", transition: "all 0.15s",
+                boxShadow: isActive ? "0 4px 20px rgba(249,115,22,0.25)" : "none",
+              }}>
+              {isActive && (
+                <div style={{ position: "absolute", top: 10, right: 10, zIndex: 2, background: "#F97316", color: "#fff", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 6, letterSpacing: "0.05em" }}>
+                  FILTERED
+                </div>
+              )}
+              <div className="absolute right-2 bottom-2 opacity-10 pointer-events-none">
+                <Clapperboard size={90} strokeWidth={1} style={{ color: "#F97316" }} />
+              </div>
+              <div style={{ position: "relative", zIndex: 1 }}>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "#F97316", opacity: 0.85 }}>Freelancers</p>
+                <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: "#F97316" }}>{stats.freelancers}</p>
+                <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#6B7280" }}>Active freelancers</p>
+              </div>
             </div>
-            <div className="flex items-center gap-1 mt-1" style={{ color: "#F97316" }}>
-              <p className="text-[11px] font-bold">Manage Freelancers</p>
-              <ArrowRight size={11} />
-            </div>
-          </div>
-        </Link>
+          )
+        })()}
       </div>
 
       {/* ── Main 2-column ── */}
@@ -841,6 +861,102 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
         {/* LEFT: Table */}
         <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
 
+          {/* ── Freelancers inline list ── */}
+          {roleFilter === "FREELANCER" ? (
+            <>
+              <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
+                <div>
+                  <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Freelancers</h3>
+                  <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{freelancers.length} freelancer{freelancers.length !== 1 ? "s" : ""}</p>
+                </div>
+                <Link href="/admin/freelancers"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-bold transition-all"
+                  style={{ background: "#FFF7ED", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}>
+                  <ArrowRight size={12} />Full page
+                </Link>
+              </div>
+              {freelancers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+                  <Clapperboard size={36} strokeWidth={1.5} className="mb-3 opacity-40" />
+                  <p className="text-[14px] font-semibold">No freelancers yet</p>
+                  <p className="text-[12px] mt-1 opacity-70">Add freelancers from the Freelancers page</p>
+                </div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table className="w-full" style={{ minWidth: 600 }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
+                        {["Freelancer", "Type", "Phone / UPI", "Rate", "Rating", "Status", "Action"].map(h => (
+                          <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#9CA3AF" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {freelancers.map((f, i) => {
+                        const cfg = FL_TYPE_CFG[f.type] ?? FL_TYPE_CFG.other
+                        const initials = f.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
+                        const rate = f.type === "voice_over" && f.cost_per_minute ? `₹${f.cost_per_minute}/min`
+                          : f.type === "video_editor" && f.cost_per_video ? `₹${f.cost_per_video}/video`
+                          : f.type === "video_shooter" && f.cost_per_hour ? `₹${f.cost_per_hour}/hr`
+                          : f.cost_per_video ? `₹${f.cost_per_video}` : "—"
+                        return (
+                          <tr key={f.id}
+                            style={{ borderBottom: i < freelancers.length - 1 ? "1px solid #F9FAFB" : "none" }}
+                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#FAFAFA"}
+                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold text-white"
+                                  style={{ background: cfg.color }}>
+                                  {initials}
+                                </div>
+                                <div>
+                                  <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{f.name}</p>
+                                  {f.title && <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{f.title}</p>}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <p className="text-[12px]" style={{ color: "#374151" }}>{f.phone ?? "—"}</p>
+                              {f.upi_id && <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{f.upi_id}</p>}
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>{rate}</span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <div className="flex items-center gap-0.5">
+                                {[1,2,3,4,5].map(n => (
+                                  <Star key={n} size={10} fill={n <= f.rating ? "#f59e0b" : "none"} strokeWidth={1.5}
+                                    style={{ color: n <= f.rating ? "#f59e0b" : "#d1d5db" }} />
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
+                                style={f.status === "active" ? { background: "#F0FDF4", color: "#16A34A" } : { background: "#F9FAFB", color: "#9CA3AF" }}>
+                                {f.status === "active" ? "Active" : "Inactive"}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3.5">
+                              <Link href={`/admin/freelancers/${f.id}`}
+                                className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all"
+                                style={{ background: "#FFF7ED", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
+                                Profile
+                              </Link>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
+          ) : (
+          <>
           {/* Table header row */}
           <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
             <div>
@@ -1081,6 +1197,8 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
               </tbody>
             </table>
           </div>
+          </>
+          )}
         </div>
 
         {/* RIGHT panel */}

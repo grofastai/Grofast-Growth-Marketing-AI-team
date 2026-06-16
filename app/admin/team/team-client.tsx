@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
+import { createFreelancer } from "@/lib/actions/freelancers"
 
 type FreelancerBasic = {
   id: string; name: string; type: string; phone: string | null; upi_id: string | null
@@ -659,13 +660,184 @@ function AssignTaskModal({ member, onClose }: AssignTaskModalProps) {
   )
 }
 
+// ── Freelancer Quick-Create Sheet ─────────────────────────────────────────────
+
+const FL_TYPES = [
+  { key: "voice_over",    label: "Voice Artist",   color: "#8b5cf6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.3)", rateLabel: "Base Price / Min (₹)", ratePlaceholder: "e.g. 150" },
+  { key: "video_editor",  label: "Video Editor",   color: "#0ea5e9", bg: "rgba(14,165,233,0.08)",  border: "rgba(14,165,233,0.3)",  rateLabel: "Base Pay / Video (₹)", ratePlaceholder: "e.g. 2000" },
+  { key: "video_shooter", label: "Video Shooter",  color: "#10b981", bg: "rgba(16,185,129,0.08)",  border: "rgba(16,185,129,0.3)",  rateLabel: "Base Pay / Hour (₹)",  ratePlaceholder: "e.g. 800" },
+  { key: "other",         label: "Other Service",  color: "#f97316", bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.3)",  rateLabel: "Base Pay (₹)",         ratePlaceholder: "e.g. 5000" },
+]
+
+function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
+  const [step, setStep] = useState<"type" | "details">("type")
+  const [type, setType] = useState("")
+  const [name, setName] = useState("")
+  const [phone, setPhone] = useState("")
+  const [upi, setUpi] = useState("")
+  const [rate, setRate] = useState("")
+  const [gender, setGender] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState("")
+  const [success, setSuccess] = useState(false)
+
+  function reset() {
+    setStep("type"); setType(""); setName(""); setPhone(""); setUpi(""); setRate(""); setGender(""); setSaving(false); setErr(""); setSuccess(false)
+  }
+  function close() { reset(); onClose() }
+
+  const cfg = FL_TYPES.find(t => t.key === type)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim()) { setErr("Name is required"); return }
+    setSaving(true); setErr("")
+    const rateNum = rate ? parseFloat(rate) : null
+    const res = await createFreelancer({
+      name: name.trim(), type: type as "voice_over" | "video_editor" | "video_shooter" | "other",
+      phone: phone || undefined, upi_id: upi || undefined, gender: gender || undefined,
+      cost_per_minute:  type === "voice_over"    ? rateNum : null,
+      cost_per_video:   type === "video_editor" || type === "other" ? rateNum : null,
+      cost_per_hour:    type === "video_shooter"  ? rateNum : null,
+    })
+    if (!res.success) { setErr(res.error ?? "Failed to create"); setSaving(false); return }
+    setSuccess(true); setSaving(false)
+    onCreated()
+  }
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={close} />
+      <div className="relative ml-auto h-full w-full max-w-[420px] bg-white shadow-2xl flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-[16px] font-bold text-gray-900">Add Freelancer</h2>
+            {cfg && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block" style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>}
+          </div>
+          <button onClick={close} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          {success ? (
+            <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "rgba(16,185,129,0.1)" }}>
+                <CheckCircle2 size={32} style={{ color: "#10b981" }} />
+              </div>
+              <p className="text-[16px] font-bold text-gray-900">Freelancer Added!</p>
+              <p className="text-[13px] text-gray-500">{name} has been added successfully.</p>
+              <div className="flex gap-3 mt-2">
+                <button onClick={reset}
+                  className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white"
+                  style={{ background: "#F97316" }}>
+                  Add Another
+                </button>
+                <Link href="/admin/freelancers" onClick={close}
+                  className="px-4 py-2.5 rounded-xl text-[13px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
+                  View All
+                </Link>
+              </div>
+            </div>
+          ) : step === "type" ? (
+            <div className="flex flex-col gap-4">
+              <p className="text-[13px] text-gray-500">Select freelancer type to continue</p>
+              <div className="grid grid-cols-2 gap-3">
+                {FL_TYPES.map(t => (
+                  <button key={t.key} type="button"
+                    onClick={() => { setType(t.key); setStep("details") }}
+                    className="flex flex-col items-center gap-3 p-5 rounded-2xl text-center transition-all hover:scale-[1.02] active:scale-[0.98]"
+                    style={{ border: `2px solid ${t.border}`, background: t.bg }}>
+                    <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.color }}>
+                      <Clapperboard size={20} strokeWidth={2} style={{ color: "#fff" }} />
+                    </div>
+                    <span className="text-[13px] font-bold text-gray-800 leading-tight">{t.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <form id="fl-quick-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+              <button type="button" onClick={() => setStep("type")}
+                className="flex items-center gap-1.5 text-[12px] font-semibold text-gray-400 hover:text-gray-600 -mt-1">
+                ← Change type
+              </button>
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Full Name *</label>
+                <input className={FIELD_CLS} placeholder="e.g. Ravi Kumar" value={name} onChange={e => setName(e.target.value)} />
+              </div>
+
+              {type === "voice_over" && (
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Gender</label>
+                  <div className="flex gap-2">
+                    {["male","female"].map(g => (
+                      <button key={g} type="button"
+                        onClick={() => setGender(gender === g ? "" : g)}
+                        className="flex-1 py-2.5 rounded-xl text-[13px] font-bold capitalize transition-all"
+                        style={gender === g ? { background: "#8b5cf6", color: "#fff", border: "2px solid #8b5cf6" } : { background: "#F9FAFB", color: "#6B7280", border: "2px solid #E5E7EB" }}>
+                        {g === "male" ? "Male" : "Female"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Phone</label>
+                  <input className={FIELD_CLS} placeholder="+91 9876543210" value={phone} onChange={e => setPhone(e.target.value)} />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">UPI ID</label>
+                  <input className={FIELD_CLS} placeholder="name@upi" value={upi} onChange={e => setUpi(e.target.value)} />
+                </div>
+              </div>
+
+              {cfg && (
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">{cfg.rateLabel}</label>
+                  <input className={FIELD_CLS} type="number" min="0" step="0.5" placeholder={cfg.ratePlaceholder} value={rate} onChange={e => setRate(e.target.value)} />
+                </div>
+              )}
+
+              {err && (
+                <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-xl">{err}</p>
+              )}
+            </form>
+          )}
+        </div>
+
+        {!success && step === "details" && (
+          <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+            <button type="button" onClick={close} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all">Cancel</button>
+            <button type="submit" form="fl-quick-form" disabled={saving}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all"
+              style={{ background: saving ? "#fdba74" : "#F97316" }}>
+              {saving ? "Adding…" : "Add Freelancer"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const FIELD_CLS = "w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[13px] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] transition-all bg-white"
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TeamClient({ members, pastMembers, freelancers = [], initialSearch = "" }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; initialSearch?: string }) {
+  const router = useRouter()
   const nextId = useMemo(() => computeNextEmployeeId(members), [members])
   const [search, setSearch] = useState(initialSearch)
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
   const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER" | "FREELANCER">("ALL")
+  const [flSheetOpen, setFlSheetOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
 
@@ -691,8 +863,7 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
       const matchRole = roleFilter === "ALL"
         || (roleFilter === "ADMIN" && ["ADMIN","FOUNDER","CEO"].includes(m.role))
         || (roleFilter === "MEMBER" && m.role === "MEMBER")
-        || roleFilter === "FREELANCER"
-      return matchSearch && matchStatus && matchRole && roleFilter !== "FREELANCER"
+      return matchSearch && matchStatus && matchRole
     }).sort((a, b) => idNum(a.employee_id) - idNum(b.employee_id))
   }, [search, tabFilter, roleFilter, members])
 
@@ -823,36 +994,27 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
           )
         })}
 
-        {/* Freelancers filter card */}
-        {(() => {
-          const isActive = roleFilter === "FREELANCER"
-          return (
-            <div
-              onClick={() => { setRoleFilter(isActive ? "ALL" : "FREELANCER"); setSearch("") }}
-              style={{
-                background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
-                border: `2px solid ${isActive ? "#F97316" : "rgba(249,115,22,0.18)"}`,
-                borderRadius: 18, padding: "20px 18px 0 22px",
-                overflow: "hidden", position: "relative", minHeight: 148,
-                cursor: "pointer", transition: "all 0.15s",
-                boxShadow: isActive ? "0 4px 20px rgba(249,115,22,0.25)" : "none",
-              }}>
-              {isActive && (
-                <div style={{ position: "absolute", top: 10, right: 10, zIndex: 2, background: "#F97316", color: "#fff", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 6, letterSpacing: "0.05em" }}>
-                  FILTERED
-                </div>
-              )}
-              <div className="absolute right-0 bottom-0 w-24 h-24 sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
-                <Image src="/brand/team-freelancers.png" alt="Freelancers" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
-              </div>
-              <div style={{ position: "relative", zIndex: 1 }}>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "#F97316", opacity: 0.85 }}>Freelancers</p>
-                <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: "#F97316" }}>{stats.freelancers}</p>
-                <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#6B7280" }}>Active freelancers</p>
-              </div>
-            </div>
-          )
-        })()}
+        {/* Freelancers card — opens creation form */}
+        <div
+          onClick={() => setFlSheetOpen(true)}
+          style={{
+            background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
+            border: "2px solid rgba(249,115,22,0.18)",
+            borderRadius: 18, padding: "20px 18px 0 22px",
+            overflow: "hidden", position: "relative", minHeight: 148,
+            cursor: "pointer", transition: "all 0.15s",
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.border = "2px solid #F97316"; (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 20px rgba(249,115,22,0.2)" }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.border = "2px solid rgba(249,115,22,0.18)"; (e.currentTarget as HTMLElement).style.boxShadow = "none" }}>
+          <div className="absolute right-0 bottom-0 w-24 h-24 sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
+            <Image src="/brand/team-freelancers.png" alt="Freelancers" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
+          </div>
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "#F97316", opacity: 0.85 }}>Freelancers</p>
+            <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: "#F97316" }}>{stats.freelancers}</p>
+            <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#6B7280" }}>+ Add freelancer</p>
+          </div>
+        </div>
       </div>
 
       {/* ── Main 2-column ── */}
@@ -861,102 +1023,6 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
         {/* LEFT: Table */}
         <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
 
-          {/* ── Freelancers inline list ── */}
-          {roleFilter === "FREELANCER" ? (
-            <>
-              <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
-                <div>
-                  <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Freelancers</h3>
-                  <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{freelancers.length} freelancer{freelancers.length !== 1 ? "s" : ""}</p>
-                </div>
-                <Link href="/admin/freelancers"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[12px] font-bold transition-all"
-                  style={{ background: "#FFF7ED", color: "#F97316", border: "1px solid rgba(249,115,22,0.25)" }}>
-                  <ArrowRight size={12} />Full page
-                </Link>
-              </div>
-              {freelancers.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-                  <Clapperboard size={36} strokeWidth={1.5} className="mb-3 opacity-40" />
-                  <p className="text-[14px] font-semibold">No freelancers yet</p>
-                  <p className="text-[12px] mt-1 opacity-70">Add freelancers from the Freelancers page</p>
-                </div>
-              ) : (
-                <div style={{ overflowX: "auto" }}>
-                  <table className="w-full" style={{ minWidth: 600 }}>
-                    <thead>
-                      <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
-                        {["Freelancer", "Type", "Phone / UPI", "Rate", "Rating", "Status", "Action"].map(h => (
-                          <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#9CA3AF" }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {freelancers.map((f, i) => {
-                        const cfg = FL_TYPE_CFG[f.type] ?? FL_TYPE_CFG.other
-                        const initials = f.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
-                        const rate = f.type === "voice_over" && f.cost_per_minute ? `₹${f.cost_per_minute}/min`
-                          : f.type === "video_editor" && f.cost_per_video ? `₹${f.cost_per_video}/video`
-                          : f.type === "video_shooter" && f.cost_per_hour ? `₹${f.cost_per_hour}/hr`
-                          : f.cost_per_video ? `₹${f.cost_per_video}` : "—"
-                        return (
-                          <tr key={f.id}
-                            style={{ borderBottom: i < freelancers.length - 1 ? "1px solid #F9FAFB" : "none" }}
-                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#FAFAFA"}
-                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
-                            <td className="px-5 py-3.5">
-                              <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold text-white"
-                                  style={{ background: cfg.color }}>
-                                  {initials}
-                                </div>
-                                <div>
-                                  <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{f.name}</p>
-                                  {f.title && <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{f.title}</p>}
-                                </div>
-                              </div>
-                            </td>
-                            <td className="px-5 py-3.5">
-                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
-                            </td>
-                            <td className="px-5 py-3.5">
-                              <p className="text-[12px]" style={{ color: "#374151" }}>{f.phone ?? "—"}</p>
-                              {f.upi_id && <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{f.upi_id}</p>}
-                            </td>
-                            <td className="px-5 py-3.5">
-                              <span className="text-[12px] font-semibold" style={{ color: "#111111" }}>{rate}</span>
-                            </td>
-                            <td className="px-5 py-3.5">
-                              <div className="flex items-center gap-0.5">
-                                {[1,2,3,4,5].map(n => (
-                                  <Star key={n} size={10} fill={n <= f.rating ? "#f59e0b" : "none"} strokeWidth={1.5}
-                                    style={{ color: n <= f.rating ? "#f59e0b" : "#d1d5db" }} />
-                                ))}
-                              </div>
-                            </td>
-                            <td className="px-5 py-3.5">
-                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                                style={f.status === "active" ? { background: "#F0FDF4", color: "#16A34A" } : { background: "#F9FAFB", color: "#9CA3AF" }}>
-                                {f.status === "active" ? "Active" : "Inactive"}
-                              </span>
-                            </td>
-                            <td className="px-5 py-3.5">
-                              <Link href={`/admin/freelancers/${f.id}`}
-                                className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-all"
-                                style={{ background: "#FFF7ED", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
-                                Profile
-                              </Link>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </>
-          ) : (
-          <>
           {/* Table header row */}
           <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
             <div>
@@ -1197,8 +1263,6 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
               </tbody>
             </table>
           </div>
-          </>
-          )}
         </div>
 
         {/* RIGHT panel */}
@@ -1491,6 +1555,12 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
       {assignTarget && <AssignTaskModal member={assignTarget} onClose={() => setAssignTarget(null)} />}
 
       <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} nextId={nextId} />
+
+      <FreelancerQuickSheet
+        open={flSheetOpen}
+        onClose={() => setFlSheetOpen(false)}
+        onCreated={() => startTransition(() => router.refresh())}
+      />
     </div>
   )
 }

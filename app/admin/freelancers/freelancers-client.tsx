@@ -14,7 +14,7 @@ import {
   createWorkEntry, updateWorkEntry, markWorkEntryPaid, deleteWorkEntry,
   updateWorkEntryStatus,
 } from "@/lib/actions/freelancers"
-import type { Freelancer, WorkEntry, FreelancerStats, FreelancerType } from "./page"
+import type { Freelancer, WorkEntry, FreelancerStats, FreelancerType } from "./types"
 
 type TeamMemberOption = { id: string; name: string; employee_id: string }
 

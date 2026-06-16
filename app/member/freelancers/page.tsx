@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import FreelancersClient from "@/app/admin/freelancers/freelancers-client"
-import type { Freelancer, WorkEntry, FreelancerStats } from "@/app/admin/freelancers/page"
+import type { Freelancer, WorkEntry, FreelancerStats } from "@/app/admin/freelancers/types"
 
 function adminSupabase() {
   return createClient(

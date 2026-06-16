@@ -1094,7 +1094,13 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-2 ml-auto">
+          <div className="flex items-center gap-2 ml-auto flex-wrap">
+            <button
+              onClick={() => setFlSheetOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all"
+              style={{ background: "rgba(255,255,255,0.15)", color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.3)" }}>
+              <Plus size={14} /> Add Freelancer
+            </button>
             <button
               onClick={() => { setEditMember(null); setSheetOpen(true) }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all"

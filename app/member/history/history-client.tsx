@@ -1162,6 +1162,7 @@ export default function HistoryClient({
                                             : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__")setEditClientShowPast(true);else setEditDraft(d=>({...d,client_name:v}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
                                                 <option value="">Select client…</option>
                                                 {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
+                                                {editDraft.client_name && !activeClientsForEdit.includes(editDraft.client_name) && pastClientsOnly.includes(editDraft.client_name) && <option key={editDraft.client_name} value={editDraft.client_name}>{editDraft.client_name}</option>}
                                                 {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
                                               </select>
                                           }
@@ -1275,6 +1276,7 @@ export default function HistoryClient({
                                             : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__")setEditClientShowPast(true);else setEditDraft(d=>({...d,client_name:v}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
                                                 <option value="">Select client…</option>
                                                 {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
+                                                {editDraft.client_name && !activeClientsForEdit.includes(editDraft.client_name) && pastClientsOnly.includes(editDraft.client_name) && <option key={editDraft.client_name} value={editDraft.client_name}>{editDraft.client_name}</option>}
                                                 {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
                                               </select>
                                           }
@@ -1382,6 +1384,7 @@ export default function HistoryClient({
                                           : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__"){setEditClientShowPast(true)}else if(v==="__custom__"){setEditDraft(d=>({...d,client_name:""}))}else{setEditDraft(d=>({...d,client_name:v}))}}} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
                                               <option value="">— Select client —</option>
                                               {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
+                                              {editDraft.client_name && !activeClientsForEdit.includes(editDraft.client_name) && pastClientsOnly.includes(editDraft.client_name) && <option key={editDraft.client_name} value={editDraft.client_name}>{editDraft.client_name}</option>}
                                               {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
                                               <option value="__custom__">✏️ Other (type manually)</option>
                                             </select>

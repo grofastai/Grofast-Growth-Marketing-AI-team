@@ -68,7 +68,7 @@ function TimePicker({ value, onChange, allowEmpty, style: extraStyle }: { value:
       onChange={e => {
         setLocal(e.target.value)
         if (e.target.value) onChange(e.target.value)
-        else onChange("")
+        // empty = user is mid-type; don't push to parent (prevents row disappearing)
       }}
       style={{
         fontSize: 13, fontWeight: 700, color: "#111827",

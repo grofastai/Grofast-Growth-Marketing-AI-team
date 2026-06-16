@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
-import { createFreelancer } from "@/lib/actions/freelancers"
+import { createFreelancer, assignFreelancerMembers } from "@/lib/actions/freelancers"
 
 type FreelancerBasic = {
   id: string; name: string; type: string; phone: string | null; upi_id: string | null
@@ -829,6 +829,149 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
 
 const FIELD_CLS = "w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[13px] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] transition-all bg-white"
 
+// ── Assign Manager Sheet ──────────────────────────────────────────────────────
+
+function AssignManagerSheet({
+  open, onClose, freelancers, members,
+}: {
+  open: boolean
+  onClose: () => void
+  freelancers: FreelancerBasic[]
+  members: Member[]
+}) {
+  const [selectedFreelancer, setSelectedFreelancer] = useState("")
+  const [selectedMembers, setSelectedMembers] = useState<string[]>([])
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState("")
+  const [success, setSuccess] = useState(false)
+
+  function reset() {
+    setSelectedFreelancer(""); setSelectedMembers([]); setSaving(false); setErr(""); setSuccess(false)
+  }
+  function close() { reset(); onClose() }
+
+  function toggleMember(id: string) {
+    setSelectedMembers(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id])
+  }
+
+  async function handleSave() {
+    if (!selectedFreelancer) { setErr("Select a freelancer"); return }
+    if (selectedMembers.length === 0) { setErr("Select at least one team member"); return }
+    setSaving(true); setErr("")
+    const res = await assignFreelancerMembers(selectedFreelancer, selectedMembers)
+    if (!res.success) { setErr(res.error ?? "Failed to assign"); setSaving(false); return }
+    setSuccess(true); setSaving(false)
+  }
+
+  const activeMembers = members.filter(m => m.status === "active")
+
+  if (!open) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={close} />
+      <div className="relative ml-auto h-full w-full max-w-[420px] bg-white shadow-2xl flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-[16px] font-bold text-gray-900">Assign Freelancer</h2>
+            <p className="text-[12px] text-gray-500 mt-0.5">Link a freelancer to team members</p>
+          </div>
+          <button onClick={close} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          {success ? (
+            <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+              <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "rgba(16,185,129,0.1)" }}>
+                <CheckCircle2 size={32} style={{ color: "#10b981" }} />
+              </div>
+              <p className="text-[16px] font-bold text-gray-900">Assigned!</p>
+              <p className="text-[13px] text-gray-500">Freelancer has been assigned to {selectedMembers.length} member{selectedMembers.length > 1 ? "s" : ""}.</p>
+              <button onClick={reset}
+                className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white"
+                style={{ background: "#F97316" }}>
+                Assign Another
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-5">
+              {/* Freelancer select */}
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Freelancer *</label>
+                {freelancers.length === 0 ? (
+                  <p className="text-[12px] text-gray-400 italic">No freelancers added yet. Add one first.</p>
+                ) : (
+                  <select
+                    value={selectedFreelancer}
+                    onChange={e => setSelectedFreelancer(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[13px] text-gray-800 focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] bg-white transition-all">
+                    <option value="">Select freelancer…</option>
+                    {freelancers.map(f => (
+                      <option key={f.id} value={f.id}>
+                        {f.name} — {FL_TYPE_CFG[f.type]?.label ?? f.type}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Member multi-select */}
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+                  Assign to Members * <span className="normal-case font-normal text-gray-400">({selectedMembers.length} selected)</span>
+                </label>
+                <div className="flex flex-col gap-1.5 max-h-[320px] overflow-y-auto pr-1">
+                  {activeMembers.map(m => {
+                    const checked = selectedMembers.includes(m.id)
+                    return (
+                      <button key={m.id} type="button" onClick={() => toggleMember(m.id)}
+                        className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left transition-all"
+                        style={{
+                          border: checked ? "2px solid #F97316" : "2px solid #E5E7EB",
+                          background: checked ? "rgba(249,115,22,0.05)" : "#FAFAFA",
+                        }}>
+                        <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all"
+                          style={{ background: checked ? "#F97316" : "#E5E7EB" }}>
+                          {checked && <span style={{ color: "#fff", fontSize: 11, fontWeight: 800 }}>✓</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-gray-800 truncate">{m.name}</p>
+                          <p className="text-[11px] text-gray-400">{m.employee_id} · {m.role}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                  {activeMembers.length === 0 && (
+                    <p className="text-[12px] text-gray-400 italic">No active members found.</p>
+                  )}
+                </div>
+              </div>
+
+              {err && (
+                <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-xl">{err}</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {!success && (
+          <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+            <button type="button" onClick={close} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all">Cancel</button>
+            <button type="button" onClick={handleSave} disabled={saving || !selectedFreelancer || selectedMembers.length === 0}
+              className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all disabled:opacity-40"
+              style={{ background: saving ? "#fdba74" : "#F97316" }}>
+              {saving ? "Saving…" : "Assign"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function TeamClient({ members, pastMembers, freelancers = [], initialSearch = "" }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; initialSearch?: string }) {
@@ -838,6 +981,7 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
   const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER" | "FREELANCER">("ALL")
   const [flSheetOpen, setFlSheetOpen] = useState(false)
+  const [assignSheetOpen, setAssignSheetOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
 
@@ -994,25 +1138,33 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
           )
         })}
 
-        {/* Freelancers card — opens creation form */}
-        <div
-          onClick={() => setFlSheetOpen(true)}
-          style={{
-            background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
-            border: "2px solid rgba(249,115,22,0.18)",
-            borderRadius: 18, padding: "20px 18px 0 22px",
-            overflow: "hidden", position: "relative", minHeight: 148,
-            cursor: "pointer", transition: "all 0.15s",
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.border = "2px solid #F97316"; (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 20px rgba(249,115,22,0.2)" }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.border = "2px solid rgba(249,115,22,0.18)"; (e.currentTarget as HTMLElement).style.boxShadow = "none" }}>
+        {/* Freelancers card — two action buttons */}
+        <div style={{
+          background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
+          border: "2px solid rgba(249,115,22,0.18)",
+          borderRadius: 18, padding: "20px 18px 14px 22px",
+          overflow: "hidden", position: "relative", minHeight: 148,
+        }}>
           <div className="absolute right-0 bottom-0 w-24 h-24 sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
             <Image src="/brand/team-freelancers.png" alt="Freelancers" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
           </div>
           <div style={{ position: "relative", zIndex: 1 }}>
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "#F97316", opacity: 0.85 }}>Freelancers</p>
             <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: "#F97316" }}>{stats.freelancers}</p>
-            <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#6B7280" }}>+ Add freelancer</p>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => setFlSheetOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                style={{ background: "#F97316", color: "#fff", boxShadow: "0 2px 8px rgba(249,115,22,0.3)" }}>
+                <Plus size={11} /> Add
+              </button>
+              <button
+                onClick={() => setAssignSheetOpen(true)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                style={{ background: "rgba(249,115,22,0.1)", color: "#F97316", border: "1.5px solid rgba(249,115,22,0.3)" }}>
+                Assign Manager
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1560,6 +1712,13 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
         open={flSheetOpen}
         onClose={() => setFlSheetOpen(false)}
         onCreated={() => startTransition(() => router.refresh())}
+      />
+
+      <AssignManagerSheet
+        open={assignSheetOpen}
+        onClose={() => setAssignSheetOpen(false)}
+        freelancers={freelancers}
+        members={members}
       />
     </div>
   )

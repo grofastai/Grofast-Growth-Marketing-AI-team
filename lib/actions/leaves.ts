@@ -252,12 +252,13 @@ export async function updateLeaveStatus(
     user_id: string
     from_date: string
     to_date: string
+    leave_type: string | null
     users: { name: string; phone: string | null } | null
   }
 
   const { data: leaveRaw } = await admin
     .from('leaves')
-    .select('company_id, user_id, from_date, to_date, users(name, phone)')
+    .select('company_id, user_id, from_date, to_date, leave_type, users(name, phone)')
     .eq('id', leaveId)
     .single()
 
@@ -269,6 +270,32 @@ export async function updateLeaveStatus(
     .eq('id', leaveId)
 
   if (error) return { success: false, error: error.message }
+
+  // Auto-update attendance when approved (skip permission leaves — they're still present)
+  if (status === 'approved' && leave && leave.leave_type !== 'permission') {
+    const curr = new Date(leave.from_date + 'T12:00:00')
+    const end  = new Date(leave.to_date   + 'T12:00:00')
+    while (curr <= end) {
+      const dateStr = curr.toISOString().split('T')[0]
+      const { data: existing } = await admin
+        .from('attendance_logs')
+        .select('id, clock_in')
+        .eq('company_id', leave.company_id)
+        .eq('user_id', leave.user_id)
+        .eq('date', dateStr)
+        .maybeSingle()
+      if (!existing) {
+        const attStatus = leave.leave_type === 'half_day' ? 'half_day' : 'absent'
+        admin.from('attendance_logs').insert({
+          company_id: leave.company_id,
+          user_id:    leave.user_id,
+          date:       dateStr,
+          status:     attStatus,
+        }).then(({ error: e }) => { if (e) console.error('[leave approval] attendance insert:', e.message) })
+      }
+      curr.setDate(curr.getDate() + 1)
+    }
+  }
 
   if (leave && leave.users?.phone) {
     sendNotification({

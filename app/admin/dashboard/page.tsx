@@ -4,7 +4,7 @@ import type { CSSProperties } from "react"
 import { cacheGet, cacheSet } from "@/lib/cache"
 import {
   Users, FolderOpen, Target, CalendarOff, Clock, CheckCircle2,
-  Plus, Megaphone, Bell, UserX,
+  Plus, Megaphone, Bell, UserX, UmbrellaOff,
   ArrowRight, ListTodo, CalendarDays, BarChart3, Handshake,
 } from "lucide-react"
 import Link from "next/link"
@@ -27,6 +27,13 @@ type LeaveRow = {
   id: string
   from_date: string
   to_date: string
+  reason: string
+  users: { name: string; employee_id: string } | { name: string; employee_id: string }[] | null
+}
+
+type TodayLeaveRow = {
+  id: string
+  leave_type: string | null
   reason: string
   users: { name: string; employee_id: string } | { name: string; employee_id: string }[] | null
 }
@@ -108,6 +115,7 @@ export default async function DashboardPage() {
     { data: monthLeavesRaw },
     alerts,
     { data: collabRaw },
+    { data: todayLeavesRaw },
   ] = await Promise.all([
     admin.from("leaves")
       .select("id, from_date, to_date, reason, users(name, employee_id)")
@@ -127,6 +135,10 @@ export default async function DashboardPage() {
       .eq("company_id", cid)
       .gte("date", monthStart)
       .lte("date", today),
+    admin.from("leaves")
+      .select("id, leave_type, reason, users(name, employee_id)")
+      .eq("company_id", cid).eq("status", "approved")
+      .lte("from_date", today).gte("to_date", today),
   ])
 
   // Build leave calendar map
@@ -155,6 +167,11 @@ export default async function DashboardPage() {
   }))
 
   const recentUpdates = (recentUpdatesRaw ?? []) as unknown as UpdateRow[]
+
+  const todayLeaves = ((todayLeavesRaw ?? []) as unknown as TodayLeaveRow[]).map(l => ({
+    ...l,
+    users: Array.isArray(l.users) ? (l.users[0] ?? null) : l.users,
+  }))
 
   const hour     = now.getHours()
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
@@ -432,6 +449,42 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* ── On Leave Today ─────────────────────────────── */}
+      {todayLeaves.length > 0 && (
+        <div style={{ ...CARD, padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(222,26,26,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <UmbrellaOff size={14} style={{ color: "#DE1A1A" }} />
+            </div>
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>On Leave Today</h3>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "rgba(222,26,26,0.08)", color: "#DE1A1A", marginLeft: "auto" }}>
+              {todayLeaves.length} {todayLeaves.length === 1 ? "person" : "people"}
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {todayLeaves.map(l => {
+              const name = l.users?.name ?? "Unknown"
+              const empId = l.users?.employee_id ?? ""
+              const typeLabel = l.leave_type === "half_day" ? "Half Day" : l.leave_type === "permission" ? "Permission" : "Full Day"
+              const typeColor = l.leave_type === "half_day" ? "#D97706" : l.leave_type === "permission" ? "#6366F1" : "#DE1A1A"
+              const typeBg   = l.leave_type === "half_day" ? "rgba(217,119,6,0.08)" : l.leave_type === "permission" ? "rgba(99,102,241,0.08)" : "rgba(222,26,26,0.06)"
+              return (
+                <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 12, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", background: typeBg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: typeColor }}>{name[0]?.toUpperCase()}</span>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{name}</p>
+                    <p style={{ fontSize: 11, color: "#6B7280", margin: "2px 0 0", fontWeight: 500 }}>{empId}</p>
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: typeBg, color: typeColor, flexShrink: 0 }}>{typeLabel}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Stay Productive Banner ──────────────────────── */}
       <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #7F1D1D 100%)", borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, position: "relative", overflow: "hidden" }}>

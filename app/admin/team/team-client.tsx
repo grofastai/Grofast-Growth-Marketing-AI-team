@@ -842,8 +842,8 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
                   FILTERED
                 </div>
               )}
-              <div className="absolute right-2 bottom-2 opacity-10 pointer-events-none">
-                <Clapperboard size={90} strokeWidth={1} style={{ color: "#F97316" }} />
+              <div className="absolute right-0 bottom-0 w-24 h-24 sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
+                <Image src="/brand/cinematic-boy.png" alt="Freelancers" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
               </div>
               <div style={{ position: "relative", zIndex: 1 }}>
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "#F97316", opacity: 0.85 }}>Freelancers</p>

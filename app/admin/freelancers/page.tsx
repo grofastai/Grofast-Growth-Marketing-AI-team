@@ -85,6 +85,9 @@ export type Freelancer = {
   name: string
   type: FreelancerType
   phone: string | null
+  upi_id: string | null
+  gender: string | null
+  title: string | null
   availability_notes: string | null
   rating: number
   status: "active" | "inactive"

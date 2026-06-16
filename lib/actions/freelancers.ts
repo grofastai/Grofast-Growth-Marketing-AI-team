@@ -154,6 +154,19 @@ export async function updateFreelancer(id: string, input: FreelancerInput): Prom
   return { success: true }
 }
 
+export async function assignFreelancerMembers(
+  freelancerId: string,
+  memberIds: string[]
+): Promise<{ success: boolean; error?: string }> {
+  const companyId = await getCompanyId()
+  if (!companyId) return { success: false, error: "Not authenticated" }
+  const admin = adminClient()
+  await saveAssignments(admin, freelancerId, memberIds, companyId)
+  revalidatePath("/admin/freelancers")
+  revalidatePath("/admin/team")
+  return { success: true }
+}
+
 export async function deleteFreelancer(id: string): Promise<{ success: boolean; error?: string }> {
   const companyId = await getCompanyId()
   if (!companyId) return { success: false, error: "Not authenticated" }

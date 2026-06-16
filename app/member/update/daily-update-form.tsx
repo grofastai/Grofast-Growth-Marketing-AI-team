@@ -170,7 +170,7 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
   const entries = existingUpdate?.work_entries as SavedEntry[] | null
   if (!Array.isArray(entries)) return []
   return entries
-    .filter(e => e.task_type === 'other' || e.task_type === 'break')
+    .filter(e => e.task_type === 'other')
     .map(e => ({
       id: e.id ?? crypto.randomUUID(),
       isBreak: e.task_type === 'break',
@@ -189,6 +189,20 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
       isMultiClient: (e.client_names?.length ?? 0) > 1,
       clientNames: e.is_multi_client ? (e.client_names ?? []) : (e.client_name && e.client_name !== 'Internal' && e.task_type !== 'break' ? [e.client_name] : []),
       participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+    }))
+}
+
+function parseExistingNonMediaBreaks(existingUpdate: Record<string, unknown>): MediaBreakEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'break')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      startTime: e.start_time ?? '13:00',
+      endTime: e.end_time ?? '13:30',
+      durationHours: e.duration_hours ?? 0.5,
+      label: e.title ?? 'Lunch',
     }))
 }
 
@@ -418,6 +432,18 @@ export default function DailyUpdateForm({
   }))
   const removeMediaBreak = (id: string) => setMediaBreaks(p => p.filter(b => b.id !== id))
 
+  // ── Non-Media Breaks (own state, mirrors media break approach) ───────────
+  const [nonMediaBreaks, setNonMediaBreaks] = useState<MediaBreakEntry[]>(() =>
+    !isMediaTeam && existingUpdate ? parseExistingNonMediaBreaks(existingUpdate) : []
+  )
+  const addNonMediaBreak    = () => setNonMediaBreaks(p => [...p, { id: crypto.randomUUID(), startTime: "13:00", endTime: "13:30", durationHours: 0.5, label: "Lunch" }])
+  const patchNonMediaBreak  = (id: string, patch: Partial<MediaBreakEntry>) => setNonMediaBreaks(p => p.map(b => {
+    const updated = { ...b, ...patch }
+    if (patch.startTime || patch.endTime) updated.durationHours = calcDuration(updated.startTime, updated.endTime)
+    return b.id === id ? updated : b
+  }))
+  const removeNonMediaBreak = (id: string) => setNonMediaBreaks(p => p.filter(b => b.id !== id))
+
   // ── Learning ─────────────────────────────────────────────────────────────
   const [learningClient, setLearningClient] = useState("GROFAST DIGITAL")
   const [learningTopic, setLearningTopic] = useState(
@@ -545,16 +571,16 @@ export default function DailyUpdateForm({
           video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
         }
       }),
-      ...breakBlocks.map(t => ({
-        id: t.id,
+      ...nonMediaBreaks.filter(b => b.durationHours > 0).map(b => ({
+        id: b.id,
         client_id: null,
         client_name: "Break",
         client_names: [],
         is_multi_client: false,
         task_type: "break" as const,
-        title: t.breakLabel === "__other__" ? (t.breakCustom || "Break") : (t.breakLabel || "Break"),
-        start_time: t.startTime, end_time: t.endTime,
-        duration_hours: t.durationHours, notes: undefined,
+        title: b.label === "__other__" ? (b.customLabel || "Break") : (b.label || "Break"),
+        start_time: b.startTime, end_time: b.endTime,
+        duration_hours: b.durationHours, notes: undefined,
         video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
       })),
     ]
@@ -780,11 +806,11 @@ export default function DailyUpdateForm({
           duration_hours: b.durationHours, notes: undefined,
           video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
         }))
-      : breakBlocks.map(t => ({
-          id: t.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
+      : nonMediaBreaks.filter(b => b.durationHours > 0).map(b => ({
+          id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
           task_type: "break" as const,
-          title: t.breakLabel === "__other__" ? (t.breakCustom || "Break") : (t.breakLabel || "Break"), start_time: t.startTime, end_time: t.endTime,
-          duration_hours: t.durationHours, notes: undefined,
+          title: b.label === "__other__" ? (b.customLabel || "Break") : (b.label || "Break"), start_time: b.startTime, end_time: b.endTime,
+          duration_hours: b.durationHours, notes: undefined,
           video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
         }))
     if (breakEntries.length === 0) { setError("Add at least one break with a duration."); return }
@@ -1119,7 +1145,7 @@ export default function DailyUpdateForm({
                   </div>
                   <div>
                     <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Today&apos;s Time Log</p>
-                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{filledBlocks.length} {filledBlocks.length === 1 ? "block" : "blocks"} · {totalLoggedHours.toFixed(1)}h logged{breakBlocks.length > 0 ? ` · ${breakBlocks.length} break${breakBlocks.length > 1 ? "s" : ""}` : ""}</p>
+                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{filledBlocks.length} {filledBlocks.length === 1 ? "block" : "blocks"} · {totalLoggedHours.toFixed(1)}h logged{nonMediaBreaks.length > 0 ? ` · ${nonMediaBreaks.length} break${nonMediaBreaks.length > 1 ? "s" : ""}` : ""}</p>
                   </div>
                 </div>
                 <div style={{ display:"flex", gap:8 }}>
@@ -1827,12 +1853,12 @@ export default function DailyUpdateForm({
                     <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
                       {isMediaTeam
                         ? `${mediaBreaks.length} break${mediaBreaks.length !== 1 ? "s" : ""} · ${mediaBreaks.reduce((s,b) => s + b.durationHours, 0).toFixed(1)}h total`
-                        : `${breakBlocks.length} break${breakBlocks.length !== 1 ? "s" : ""} · ${breakBlocks.reduce((s,b) => s + b.durationHours, 0).toFixed(1)}h total`
+                        : `${nonMediaBreaks.length} break${nonMediaBreaks.length !== 1 ? "s" : ""} · ${nonMediaBreaks.reduce((s,b) => s + b.durationHours, 0).toFixed(1)}h total`
                       } · {isPastDate ? "synced to past attendance" : "synced to attendance"}
                     </p>
                   </div>
                 </div>
-                <button onClick={isMediaTeam ? addMediaBreak : addBreakBlock}
+                <button onClick={isMediaTeam ? addMediaBreak : addNonMediaBreak}
                   style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, border:"1.5px solid rgba(245,158,11,0.4)", background:"#FEF3C7", color:"#D97706", fontSize:12, fontWeight:700, cursor:"pointer" }}>
                   <Plus size={13} /> Add Break
                 </button>
@@ -1879,24 +1905,24 @@ export default function DailyUpdateForm({
                 </div>
               ))}
 
-              {/* Non-media breaks (from timeBlocks where isBreak=true) */}
-              {!isMediaTeam && (breakBlocks.length === 0 ? (
-                <div onClick={addBreakBlock} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, padding:"24px 0", borderRadius:14, border:"2px dashed rgba(245,158,11,0.3)", background:"rgba(245,158,11,0.03)", cursor:"pointer" }}>
+              {/* Non-media breaks — own state, same pattern as media breaks */}
+              {!isMediaTeam && (nonMediaBreaks.length === 0 ? (
+                <div onClick={addNonMediaBreak} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, padding:"24px 0", borderRadius:14, border:"2px dashed rgba(245,158,11,0.3)", background:"rgba(245,158,11,0.03)", cursor:"pointer" }}>
                   <Coffee size={28} style={{ color:"#FCD34D" }} />
                   <p style={{ fontSize:12, fontWeight:600, color:"#9CA3AF", margin:0 }}>No breaks logged — tap to add one</p>
                 </div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                  {breakBlocks.map((b, i) => (
+                  {nonMediaBreaks.map((b, i) => (
                     <div key={b.id} style={{ background:"#FFFBEB", borderRadius:12, border:"1.5px solid rgba(245,158,11,0.3)", padding:"10px 14px", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                       <span style={{ fontSize:11, fontWeight:800, color:"#D97706", flexShrink:0 }}>☕ #{i+1}</span>
-                      <TimePicker value={b.startTime} onChange={v => patchBlock(b.id, { startTime: v })} />
+                      <TimePicker value={b.startTime} onChange={v => patchNonMediaBreak(b.id, { startTime: v })} />
                       <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
-                      <TimePicker value={b.endTime} onChange={v => patchBlock(b.id, { endTime: v })} />
+                      <TimePicker value={b.endTime} onChange={v => patchNonMediaBreak(b.id, { endTime: v })} />
                       {b.durationHours > 0 && (
                         <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>{fmtTravel(b.durationHours)}</span>
                       )}
-                      <select value={b.breakLabel} onChange={e => patchBlock(b.id, { breakLabel: e.target.value, breakCustom: "" })}
+                      <select value={b.label} onChange={e => patchNonMediaBreak(b.id, { label: e.target.value, customLabel: "" })}
                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
                         <option value="Lunch">🍱 Lunch</option>
                         <option value="Tea">☕ Tea</option>
@@ -1904,15 +1930,15 @@ export default function DailyUpdateForm({
                         <option value="Personal">🏠 Personal</option>
                         <option value="__other__">✏️ Other</option>
                       </select>
-                      {b.breakLabel === "__other__" && (
+                      {b.label === "__other__" && (
                         <input
-                          value={b.breakCustom ?? ""}
-                          onChange={e => patchBlock(b.id, { breakCustom: e.target.value })}
+                          value={b.customLabel ?? ""}
+                          onChange={e => patchNonMediaBreak(b.id, { customLabel: e.target.value })}
                           placeholder="Type break name…"
                           style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", outline:"none", width:130 }}
                         />
                       )}
-                      <button onClick={() => removeBlock(b.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
+                      <button onClick={() => removeNonMediaBreak(b.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
                         <Trash2 size={13} style={{ color:"#EF4444" }} />
                       </button>
                     </div>
@@ -2044,7 +2070,7 @@ export default function DailyUpdateForm({
                 {!error && tab === "media"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{shoots.length} shoot{shoots.length !== 1 ? "s" : ""} · {edits.length} edit{edits.length !== 1 ? "s" : ""} · {totalMediaHours}h total</p>}
                 {!error && tab === "learning"&& <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningTopic || "not set"} · {learningHours}h</p>}
                 {!error && tab === "break"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>
-                  {isMediaTeam ? `${mediaBreaks.length} break${mediaBreaks.length !== 1 ? "s" : ""} · ${mediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h` : `${breakBlocks.length} break${breakBlocks.length !== 1 ? "s" : ""} · ${breakBlocks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h`}
+                  {isMediaTeam ? `${mediaBreaks.length} break${mediaBreaks.length !== 1 ? "s" : ""} · ${mediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h` : `${nonMediaBreaks.length} break${nonMediaBreaks.length !== 1 ? "s" : ""} · ${nonMediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h`}
                 </p>}
               </div>
               <button onClick={handleSubmit} disabled={isPending || submitted}

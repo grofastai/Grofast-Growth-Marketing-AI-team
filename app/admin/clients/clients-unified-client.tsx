@@ -155,7 +155,7 @@ export default function ClientsUnifiedClient({
   selectedClientName: string | null
   selectedClientRow: ClientRow | null
   deliverables: DeliverableResult | null
-  mode: 'month' | 'day'
+  mode: 'month' | 'all'
   period: string
   today: string
   dateFrom: string
@@ -177,25 +177,33 @@ export default function ClientsUnifiedClient({
     )
   }, [allClients, search])
 
-  function selectClient(name: string) {
-    // Default to previous month so data is visible on the 1st of each month
-    const d = new Date()
-    d.setDate(1)
-    d.setMonth(d.getMonth() - 1)
-    const prevMonth = d.toISOString().slice(0, 7)
-    router.push(`/admin/clients?client=${encodeURIComponent(name)}&mode=month&period=${prevMonth}`)
+  function thisMonthStr() { return new Date().toISOString().slice(0, 7) }
+  function prevMonthStr() {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1)
+    return d.toISOString().slice(0, 7)
   }
 
-  function setMode(newMode: 'month' | 'day') {
-    if (!selectedClientName) return
-    const newPeriod = newMode === 'month' ? today.slice(0, 7) : today
-    router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=${newMode}&period=${newPeriod}`)
+  function selectClient(name: string) {
+    router.push(`/admin/clients?client=${encodeURIComponent(name)}&mode=month&period=${prevMonthStr()}`)
   }
 
   function setPeriod(newPeriod: string) {
     if (!selectedClientName) return
-    router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=${mode}&period=${newPeriod}`)
+    router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=month&period=${newPeriod}`)
   }
+
+  function setQuick(q: 'this' | 'last' | 'all') {
+    if (!selectedClientName) return
+    if (q === 'all')  router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=all`)
+    if (q === 'this') router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=month&period=${thisMonthStr()}`)
+    if (q === 'last') router.push(`/admin/clients?client=${encodeURIComponent(selectedClientName)}&mode=month&period=${prevMonthStr()}`)
+  }
+
+  const activeQuick: 'this' | 'last' | 'all' | null =
+    mode === 'all' ? 'all'
+    : period === thisMonthStr() ? 'this'
+    : period === prevMonthStr() ? 'last'
+    : null
 
   const hasData = !!deliverables && (
     deliverables.totalVideos > 0 ||
@@ -337,52 +345,40 @@ export default function ClientsUnifiedClient({
             {/* ── Date filter ──────────────────────────────────────────── */}
             <div style={{
               background: '#FFFFFF', borderRadius: 14, padding: '14px 18px',
-              border: '1px solid #EBEDF2', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+              border: '1px solid #EBEDF2', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
             }}>
-              <div style={{ display: 'flex', gap: 3, background: '#F3F4F6', borderRadius: 10, padding: 3 }}>
-                {(['month', 'day'] as const).map(m => (
-                  <button key={m} onClick={() => setMode(m)}
-                    style={{
-                      padding: '6px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700,
-                      border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-                      background: mode === m ? '#FFFFFF' : 'transparent',
-                      color: mode === m ? '#111827' : '#6B7280',
-                      boxShadow: mode === m ? '0 1px 4px rgba(0,0,0,0.1)' : 'none',
-                    }}>
-                    {m === 'month' ? '📅 Month' : '📆 Day'}
-                  </button>
-                ))}
-              </div>
+              {/* Quick buttons */}
+              {([
+                { key: 'this', label: 'This Month' },
+                { key: 'last', label: 'Last Month' },
+                { key: 'all',  label: 'All Time'   },
+              ] as const).map(({ key, label }) => (
+                <button key={key} onClick={() => setQuick(key)} style={{
+                  padding: '7px 16px', borderRadius: 9, fontSize: 12, fontWeight: 700,
+                  border: activeQuick === key ? '1.5px solid #DE1A1A' : '1.5px solid #E5E7EB',
+                  cursor: 'pointer', transition: 'all 0.15s',
+                  background: activeQuick === key ? 'rgba(222,26,26,0.06)' : '#F9FAFB',
+                  color: activeQuick === key ? '#DE1A1A' : '#6B7280',
+                }}>
+                  {label}
+                </button>
+              ))}
 
-              {mode === 'month' ? (
-                <input
-                  type="month"
-                  value={period.slice(0, 7)}
-                  max={today.slice(0, 7)}
-                  onChange={e => setPeriod(e.target.value)}
-                  style={{
-                    padding: '7px 12px', borderRadius: 10, border: '1.5px solid #E5E7EB',
-                    fontSize: 13, fontWeight: 600, color: '#111827', background: '#F9FAFB',
-                    outline: 'none', cursor: 'pointer',
-                  }}
-                />
-              ) : (
-                <input
-                  type="date"
-                  value={period}
-                  max={today}
-                  onChange={e => setPeriod(e.target.value)}
-                  style={{
-                    padding: '7px 12px', borderRadius: 10, border: '1.5px solid #E5E7EB',
-                    fontSize: 13, fontWeight: 600, color: '#111827', background: '#F9FAFB',
-                    outline: 'none', cursor: 'pointer',
-                  }}
-                />
-              )}
+              <div style={{ width: 1, height: 24, background: '#E5E7EB', margin: '0 4px' }} />
 
-              <span style={{ fontSize: 12, color: '#9CA3AF', marginLeft: 'auto' }}>
-                {mode === 'month' ? 'Full month view' : 'Single day view'}
-              </span>
+              {/* Month picker */}
+              <input
+                type="month"
+                value={mode === 'all' ? today.slice(0, 7) : period.slice(0, 7)}
+                max={today.slice(0, 7)}
+                onChange={e => setPeriod(e.target.value)}
+                style={{
+                  padding: '7px 12px', borderRadius: 10,
+                  border: activeQuick === null && mode !== 'all' ? '1.5px solid #DE1A1A' : '1.5px solid #E5E7EB',
+                  fontSize: 13, fontWeight: 600, color: '#111827', background: '#F9FAFB',
+                  outline: 'none', cursor: 'pointer',
+                }}
+              />
             </div>
 
             {/* ── Stat chips ───────────────────────────────────────────── */}
@@ -411,7 +407,7 @@ export default function ClientsUnifiedClient({
                 </p>
                 <div style={{ display: 'inline-flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
                   <p style={{ fontSize: 11, color: '#6B7280', margin: 0, background: '#F9FAFB', padding: '6px 14px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
-                    Try selecting a different month ← use the month picker above
+                    Try a different month or &ldquo;All Time&rdquo; above
                   </p>
                   <p style={{ fontSize: 11, color: '#6B7280', margin: 0, background: '#F9FAFB', padding: '6px 14px', borderRadius: 8, border: '1px solid #E5E7EB' }}>
                     Members must select &ldquo;{selectedClientRow.name}&rdquo; exactly in their daily update

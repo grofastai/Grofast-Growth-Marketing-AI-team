@@ -45,9 +45,8 @@ export default async function ClientsUnifiedPage({
   const { client: selectedClient, mode: rawMode, period: rawPeriod } = await searchParams
 
   const todayStr = new Date().toISOString().split('T')[0]
-  const mode = rawMode === 'day' ? 'day' : 'month'
+  const mode: 'month' | 'all' = rawMode === 'all' ? 'all' : 'month'
 
-  // Default to previous month so admins always see data on the first of the month
   function prevMonthStr(): string {
     const d = new Date()
     d.setDate(1)
@@ -56,18 +55,17 @@ export default async function ClientsUnifiedPage({
   }
 
   let period = rawPeriod ?? prevMonthStr()
-  if (mode === 'month' && period.length > 7) period = period.slice(0, 7)
-  if (mode === 'day'   && period.length < 10) period = todayStr
+  if (period.length > 7) period = period.slice(0, 7)
 
   let dateFrom: string
   let dateTo: string
-  if (mode === 'month') {
+  if (mode === 'all') {
+    dateFrom = '2020-01-01'
+    dateTo   = todayStr
+  } else {
     const [y, m] = period.split('-').map(Number)
     dateFrom = `${period}-01`
     dateTo   = lastDayOfMonth(y, m)
-  } else {
-    dateFrom = period
-    dateTo   = period
   }
 
   const supabase = await createServerClient()

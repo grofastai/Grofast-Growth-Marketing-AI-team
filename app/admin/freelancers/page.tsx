@@ -29,18 +29,24 @@ export default async function FreelancersPage() {
   if (!profile?.company_id) redirect("/login")
   const cid = profile.company_id
 
-  const [freelancersResult, workEntriesResult, clientsResult, teamResult] = await Promise.all([
+  const [freelancersResult, workEntriesResult, clientsResult, teamResult, assignmentsResult] = await Promise.all([
     admin.from("freelancers").select("*").eq("company_id", cid).order("name"),
     admin.from("freelancer_work_entries").select("*").eq("company_id", cid).order("date", { ascending: false }),
     admin.from("clients").select("name").eq("company_id", cid).order("name"),
-    admin.from("users").select("id, name, employee_id, can_manage_freelancers").eq("company_id", cid).eq("role", "MEMBER").eq("status", "active").order("name"),
+    admin.from("users").select("id, name, employee_id").eq("company_id", cid).eq("role", "MEMBER").eq("status", "active").order("name"),
+    admin.from("freelancer_assignments").select("freelancer_id, user_id").eq("company_id", cid),
   ])
 
   const freelancers = (freelancersResult.data ?? []) as Freelancer[]
   const workEntries = (workEntriesResult.data ?? []) as WorkEntry[]
   const clientNames = (clientsResult.data ?? []).map((c: { name: string }) => c.name).filter(Boolean)
-  const teamMembers = (teamResult.data ?? []) as { id: string; name: string; employee_id: string; can_manage_freelancers: boolean }[]
-  const currentManagerId = teamMembers.find(m => m.can_manage_freelancers)?.id ?? null
+  const teamMembers = (teamResult.data ?? []) as { id: string; name: string; employee_id: string }[]
+
+  const assignments: Record<string, string[]> = {}
+  for (const row of (assignmentsResult.data ?? [])) {
+    if (!assignments[row.freelancer_id]) assignments[row.freelancer_id] = []
+    assignments[row.freelancer_id].push(row.user_id)
+  }
 
   const stats: FreelancerStats = {
     total: freelancers.length,
@@ -64,7 +70,7 @@ export default async function FreelancersPage() {
       clientNames={clientNames}
       stats={stats}
       teamMembers={teamMembers}
-      currentManagerId={currentManagerId}
+      assignments={assignments}
     />
   )
 }

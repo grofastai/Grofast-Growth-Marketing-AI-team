@@ -117,6 +117,10 @@ export function fmtDate(s: string) {
   })
 }
 
+function stripBracketPrefix(title: string): string {
+  return title.replace(/^\[[^\]]*\]\s*/i, '').trim() || title.trim()
+}
+
 function inferVideoType(title: string | undefined): string {
   const t = (title ?? '').toLowerCase()
   if (t.includes('reel'))        return 'Reel'
@@ -189,7 +193,7 @@ export function computeDeliverables(
 
       if (tt === 'shoot') {
         const cost = hourly * hrs
-        shoots.push({ date: row.date, memberName: user.name, title: entry.title ?? 'Shoot', hours: hrs, cost })
+        shoots.push({ date: row.date, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Shoot'), hours: hrs, cost })
         tm.shootHours += hrs
         tm.cost       += cost
         dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'shoot', itemCount: 1, hours: hrs, cost, label: entry.title ?? 'Shoot' })
@@ -242,7 +246,7 @@ export function computeDeliverables(
 
       } else {
         const cost = hourly * hrs
-        otherWork.push({ date: row.date, memberName: user.name, title: entry.title ?? 'Work', hours: hrs, cost })
+        otherWork.push({ date: row.date, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Work'), hours: hrs, cost })
         tm.otherHours += hrs
         tm.cost       += cost
         dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: tt, itemCount: 0, hours: hrs, cost, label: entry.title ?? 'Work' })

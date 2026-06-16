@@ -3,11 +3,12 @@
 import { useState, useMemo, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
+import Link from "next/link"
 import {
   Search, Plus, Shield, UserCheck,
   MoreVertical, Phone, CalendarDays, X, Pencil,
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
-  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn,
+  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight,
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
@@ -805,6 +806,33 @@ export default function TeamClient({ members, pastMembers, initialSearch = "" }:
             </div>
           )
         })}
+
+        {/* Freelancers shortcut card */}
+        <Link href="/admin/freelancers"
+          style={{
+            background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
+            border: "2px solid rgba(249,115,22,0.18)",
+            borderRadius: 18, padding: "20px 18px 0 22px",
+            overflow: "hidden", position: "relative", minHeight: 148,
+            cursor: "pointer", transition: "all 0.15s", display: "block", textDecoration: "none",
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.border = "2px solid #F97316"; (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 20px rgba(249,115,22,0.2)" }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.border = "2px solid rgba(249,115,22,0.18)"; (e.currentTarget as HTMLElement).style.boxShadow = "none" }}
+        >
+          <div className="absolute right-3 bottom-3 opacity-10 pointer-events-none">
+            <Clapperboard size={80} strokeWidth={1} style={{ color: "#F97316" }} />
+          </div>
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "#F97316", opacity: 0.85 }}>Freelancers</p>
+            <div className="mt-2 mb-1">
+              <Clapperboard size={36} strokeWidth={1.5} style={{ color: "#F97316" }} />
+            </div>
+            <div className="flex items-center gap-1 mt-1" style={{ color: "#F97316" }}>
+              <p className="text-[11px] font-bold">Manage Freelancers</p>
+              <ArrowRight size={11} />
+            </div>
+          </div>
+        </Link>
       </div>
 
       {/* ── Main 2-column ── */}

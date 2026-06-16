@@ -272,7 +272,7 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, clientNames 
 
   const [form, setForm] = useState({
     date: new Date().toISOString().split("T")[0],
-    client_name: "", title: "", quantity: "", rate: defaultRate, notes: "",
+    client_name: "", title: "", quantity: "", rate: defaultRate, notes: "", manual_amount: "",
   })
 
   const total = (parseFloat(form.quantity) || 0) * (parseFloat(form.rate) || 0)
@@ -299,10 +299,10 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, clientNames 
         client_name: form.client_name || undefined,
         title:       form.title,
         notes:       form.notes || undefined,
-        amount:      total,
+        amount:      form.manual_amount ? parseFloat(form.manual_amount) : total,
       })
       setShowAdd(false)
-      setForm(f => ({ ...f, title: "", quantity: "", client_name: "", notes: "" }))
+      setForm(f => ({ ...f, title: "", quantity: "", client_name: "", notes: "", manual_amount: "" }))
     })
   }
 
@@ -342,11 +342,22 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, clientNames 
                   <p style={{ fontSize: 16, fontWeight: 800, color: "#16A34A", margin: 0 }}>Total: {fmt(total)}</p>
                 </div>
               )}
+              <div>
+                <Label text="Amount (₹)" />
+                <input type="number" min="0" step="0.01"
+                  placeholder={total > 0 ? String(total) : "Enter amount manually"}
+                  value={form.manual_amount}
+                  onChange={e => setForm(p => ({ ...p, manual_amount: e.target.value }))}
+                  style={inputStyle} />
+                {total > 0 && !form.manual_amount && (
+                  <p style={{ fontSize: 11, color: "#6B7280", marginTop: 4 }}>Auto-calculated: ₹{total}. Override above if different.</p>
+                )}
+              </div>
               <div><Label text="Notes" /><textarea rows={2} placeholder="Optional notes..." value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} style={{ ...inputStyle, resize: "vertical" }} /></div>
             </div>
             <div className="flex gap-2 mt-5">
               <button onClick={() => setShowAdd(false)} style={{ flex: 1, padding: 11, borderRadius: 10, border: "1px solid #E5E7EB", background: "#FFF", fontSize: 13, fontWeight: 700, color: "#6B7280", cursor: "pointer" }}>Cancel</button>
-              <button onClick={handleAdd} disabled={isPending || !form.title || total <= 0} style={{ flex: 2, padding: 11, borderRadius: 10, background: "#DE1A1A", color: "#FFF", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", opacity: isPending ? 0.6 : 1 }}>
+              <button onClick={handleAdd} disabled={isPending || !form.title || (total <= 0 && !form.manual_amount)} style={{ flex: 2, padding: 11, borderRadius: 10, background: "#DE1A1A", color: "#FFF", fontSize: 13, fontWeight: 700, border: "none", cursor: "pointer", opacity: isPending ? 0.6 : 1 }}>
                 {isPending ? "Saving..." : "Add Entry"}
               </button>
             </div>

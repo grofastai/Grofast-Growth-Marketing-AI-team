@@ -491,6 +491,7 @@ function FreelancerSheet({
 
 type EState = {
   client_name: string; title: string; date: string; status: string; payment_status: string; notes: string
+  manual_amount: string
   // VO
   audio_duration_minutes: string
   // Edit
@@ -502,6 +503,7 @@ type EState = {
 
 const BLANK_E: EState = {
   client_name: "", title: "", date: new Date().toISOString().split("T")[0], status: "pending", payment_status: "unpaid", notes: "",
+  manual_amount: "",
   audio_duration_minutes: "",
   date_given: "", date_finished: "", video_type: "", video_duration: "",
   time_taken_hours: "", drive_updated: false, revision_count: "0",
@@ -557,11 +559,13 @@ function WorkSheet({
     setSaving(true); setErr("")
     const entryType = freelancer.type === "video_shooter" ? "video_shoot"
       : freelancer.type === "video_editor" ? "video_edit" : "voice_over"
+    const finalAmount = form.manual_amount ? parseFloat(form.manual_amount) : (calcAmount ?? undefined)
     const res = await createWorkEntry({
       freelancer_id: freelancer.id,
       entry_type: entryType as "voice_over" | "video_edit" | "video_shoot",
       client_name: form.client_name || undefined, title: form.title || undefined,
       date: form.date, status: form.status, payment_status: form.payment_status, notes: form.notes || undefined,
+      amount: finalAmount,
       audio_duration_minutes: form.audio_duration_minutes ? parseFloat(form.audio_duration_minutes) : null,
       date_given: form.date_given || undefined, date_finished: form.date_finished || undefined,
       video_type: form.video_type || undefined, video_duration: form.video_duration || undefined,
@@ -576,7 +580,7 @@ function WorkSheet({
       entry_type: entryType as "voice_over" | "video_edit" | "video_shoot",
       client_name: form.client_name || null, title: form.title || null,
       date: form.date, status: form.status, payment_status: form.payment_status, paid_at: form.payment_status === "paid" ? new Date().toISOString() : null,
-      amount: calcAmount ?? null, notes: form.notes || null,
+      amount: finalAmount ?? null, notes: form.notes || null,
       audio_duration_minutes: form.audio_duration_minutes ? parseFloat(form.audio_duration_minutes) : null,
       cost_per_minute_snapshot: freelancer.cost_per_minute,
       date_given: form.date_given || null, date_finished: form.date_finished || null,
@@ -758,6 +762,13 @@ function WorkSheet({
                 </Field>
               )}
 
+              {/* Manual Amount */}
+              <Field label="Amount (₹)" hint={calcAmount ? `Auto: ${fmt(calcAmount)}` : "Enter manually"}>
+                <input type="number" min="0" step="0.01" className={inputCls}
+                  placeholder={calcAmount ? String(calcAmount) : "e.g. 500"}
+                  value={form.manual_amount} onChange={e => setF("manual_amount", e.target.value)} />
+              </Field>
+
               {/* Payment status */}
               <div className="flex items-center gap-3">
                 <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Payment</span>
@@ -840,6 +851,7 @@ function entryToEState(e: WorkEntry): EState {
     drive_updated: e.drive_updated ?? false, revision_count: e.revision_count?.toString() ?? "0",
     start_time: e.start_time?.slice(0,5) ?? "", end_time: e.end_time?.slice(0,5) ?? "",
     travel_hours: e.travel_hours?.toString() ?? "0",
+    manual_amount: "",
   }
 }
 

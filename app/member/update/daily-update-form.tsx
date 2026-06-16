@@ -1693,7 +1693,10 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             <select value={e.videoDuration} onChange={ev => patchEdit(e.id, { videoDuration: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select…</option>
-                              {[1,1.5,2,2.5,3,3.5,4,4.5,5,6,7,8].map(m => <option key={m} value={`${m} min`}>{m} min</option>)}
+                              <option value="15 sec">15 sec</option>
+                              <option value="30 sec">30 sec</option>
+                              <option value="45 sec">45 sec</option>
+                              {[1,1.5,2,2.5,3,3.5,4,4.5,5,10].map(m => <option key={m} value={`${m} min`}>{m} min</option>)}
                             </select>
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                           </div>

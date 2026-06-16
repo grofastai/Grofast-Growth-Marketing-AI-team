@@ -32,6 +32,9 @@ export type FreelancerInput = {
   name: string
   type: FreelancerType
   phone?: string
+  upi_id?: string
+  gender?: string
+  title?: string
   availability_notes?: string
   rating?: number
   status?: "active" | "inactive"
@@ -94,6 +97,9 @@ export async function createFreelancer(input: FreelancerInput): Promise<{ succes
     name: input.name,
     type: input.type,
     phone: input.phone || null,
+    upi_id: input.upi_id || null,
+    gender: input.gender || null,
+    title: input.title || null,
     availability_notes: input.availability_notes || null,
     rating: input.rating ?? 0,
     status: "active",
@@ -124,6 +130,9 @@ export async function updateFreelancer(id: string, input: FreelancerInput): Prom
     name: input.name,
     type: input.type,
     phone: input.phone || null,
+    upi_id: input.upi_id || null,
+    gender: input.gender || null,
+    title: input.title || null,
     availability_notes: input.availability_notes || null,
     rating: input.rating ?? 0,
     status: input.status ?? "active",

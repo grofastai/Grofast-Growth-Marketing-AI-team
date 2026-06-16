@@ -876,8 +876,6 @@ function AssignManagerSheet({
     setSuccess(true); setSaving(false)
   }
 
-  const activeMembers = members.filter(m => m.status === "active")
-
   if (!open) return null
 
   return (
@@ -910,8 +908,8 @@ function AssignManagerSheet({
               <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500">
                 Team Members <span className="normal-case font-normal text-gray-400">({selectedMembers.length} selected)</span>
               </label>
-              <div className="flex flex-col gap-1.5 max-h-[400px] overflow-y-auto pr-1">
-                {activeMembers.map(m => {
+              <div className="flex flex-col gap-1.5 overflow-y-auto pr-1">
+                {members.map(m => {
                   const checked = selectedMembers.includes(m.id)
                   return (
                     <button key={m.id} type="button" onClick={() => toggleMember(m.id)}
@@ -928,7 +926,7 @@ function AssignManagerSheet({
                     </button>
                   )
                 })}
-                {activeMembers.length === 0 && <p className="text-[12px] text-gray-400 italic">No active members found.</p>}
+                {members.length === 0 && <p className="text-[12px] text-gray-400 italic">No members found.</p>}
               </div>
               {err && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-xl">{err}</p>}
             </div>

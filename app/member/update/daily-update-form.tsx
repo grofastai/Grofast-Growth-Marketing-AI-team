@@ -669,6 +669,10 @@ export default function DailyUpdateForm({
         return setEntryErrors(p => ({ ...p, [entryId]: "End time must be after start time." }))
       if (!editEntry.videoLink.trim())
         return setEntryErrors(p => ({ ...p, [entryId]: "Enter the Drive/Video link before saving." }))
+      if (!editEntry.videoDuration)
+        return setEntryErrors(p => ({ ...p, [entryId]: "Select the video duration (e.g. 30 sec, 1 min) before saving." }))
+      if (editEntry.hooksCompleted === null || editEntry.hooksCompleted === undefined || isNaN(Number(editEntry.hooksCompleted)) || !Number.isInteger(Number(editEntry.hooksCompleted)) || Number(editEntry.hooksCompleted) < 0)
+        return setEntryErrors(p => ({ ...p, [entryId]: "Hooks Completed must be a whole number (0, 1, 2, 3…)." }))
       // Overlap check against other edits only (shoot overlap is handled separately)
       const otherEdits = edits.filter(e => e.id !== entryId)
       for (const other of otherEdits) {
@@ -1707,7 +1711,7 @@ export default function DailyUpdateForm({
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>🪝 Hooks Completed</label>
-                          <input type="number" min="0" max="99" value={e.hooksCompleted} onChange={ev => patchEdit(e.id, { hooksCompleted: parseInt(ev.target.value) || 0 })} placeholder="0" style={F} />
+                          <input type="number" min="0" max="99" step="1" value={e.hooksCompleted} onChange={ev => patchEdit(e.id, { hooksCompleted: Math.max(0, Math.floor(parseInt(ev.target.value) || 0)) })} placeholder="0" style={F} />
                         </div>
                       </div>
                       {/* ── Editing time window (for shoot overlap detection) ── */}

@@ -40,6 +40,7 @@ export default async function FreelancerProfilePage({
     { data: workEntries },
     { data: payments },
     { data: activityLogs },
+    { data: clientsData },
   ] = await Promise.all([
     admin.from("freelancers").select("*").eq("id", id).eq("company_id", cid).single(),
     admin.from("freelancer_work_entries")
@@ -58,7 +59,10 @@ export default async function FreelancerProfilePage({
       .eq("company_id", cid)
       .order("created_at", { ascending: false })
       .limit(50),
+    admin.from("clients").select("name").eq("company_id", cid).order("name"),
   ])
+
+  const clientNames = (clientsData ?? []).map((c: { name: string }) => c.name).filter(Boolean)
 
   if (!freelancer) notFound()
 
@@ -82,6 +86,7 @@ export default async function FreelancerProfilePage({
       workEntries={workEntries ?? []}
       payments={payments ?? []}
       activityLogs={activityLogs ?? []}
+      clientNames={clientNames}
       currentUserId={user.id}
       currentUserName={profile.name}
       currentUserRole={profile.role}

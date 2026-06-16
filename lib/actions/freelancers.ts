@@ -35,6 +35,7 @@ export type FreelancerInput = {
   availability_notes?: string
   rating?: number
   status?: "active" | "inactive"
+  assignedMemberIds?: string[]
   // VO
   language?: string
   voice_type?: string
@@ -46,6 +47,15 @@ export type FreelancerInput = {
   // Shooter
   availability_schedule?: string
   cost_per_hour?: number | null
+}
+
+async function saveAssignments(admin: ReturnType<typeof adminClient>, freelancerId: string, memberIds: string[], companyId: string) {
+  await admin.from("freelancer_assignments").delete().eq("freelancer_id", freelancerId)
+  if (memberIds.length > 0) {
+    await admin.from("freelancer_assignments").insert(
+      memberIds.map(userId => ({ company_id: companyId, freelancer_id: freelancerId, user_id: userId }))
+    )
+  }
 }
 
 export type WorkEntryInput = {
@@ -74,12 +84,12 @@ export type WorkEntryInput = {
   travel_hours?: number | null
 }
 
-export async function createFreelancer(input: FreelancerInput): Promise<{ success: boolean; error?: string }> {
+export async function createFreelancer(input: FreelancerInput): Promise<{ success: boolean; error?: string; id?: string }> {
   const companyId = await getCompanyId()
   if (!companyId) return { success: false, error: "Not authenticated" }
 
   const admin = adminClient()
-  const { error } = await admin.from("freelancers").insert({
+  const { data, error } = await admin.from("freelancers").insert({
     company_id: companyId,
     name: input.name,
     type: input.type,
@@ -95,11 +105,14 @@ export async function createFreelancer(input: FreelancerInput): Promise<{ succes
     cost_per_video: input.cost_per_video || null,
     availability_schedule: input.availability_schedule || null,
     cost_per_hour: input.cost_per_hour || null,
-  })
+  }).select("id").single()
 
   if (error) return { success: false, error: error.message }
+  if (data?.id && input.assignedMemberIds?.length) {
+    await saveAssignments(admin, data.id, input.assignedMemberIds, companyId)
+  }
   revalidatePath("/admin/freelancers")
-  return { success: true }
+  return { success: true, id: data?.id }
 }
 
 export async function updateFreelancer(id: string, input: FreelancerInput): Promise<{ success: boolean; error?: string }> {
@@ -125,6 +138,9 @@ export async function updateFreelancer(id: string, input: FreelancerInput): Prom
   }).eq("id", id).eq("company_id", companyId)
 
   if (error) return { success: false, error: error.message }
+  if (input.assignedMemberIds !== undefined) {
+    await saveAssignments(admin, id, input.assignedMemberIds, companyId)
+  }
   revalidatePath("/admin/freelancers")
   return { success: true }
 }

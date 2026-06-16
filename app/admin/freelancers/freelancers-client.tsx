@@ -7,15 +7,16 @@ import {
   Plus, X, Star, Mic, Scissors, Camera, UserCog, Phone, Calendar,
   Clock, DollarSign, CheckCircle, Trash2, CreditCard, ChevronDown,
   ChevronUp, Edit2, Search, IndianRupee, HardDrive, RotateCcw,
-  Check, AlertCircle, UserCheck, Users, ExternalLink,
+  Check, AlertCircle, ExternalLink, Users2,
 } from "lucide-react"
 import {
   createFreelancer, updateFreelancer, deleteFreelancer,
   createWorkEntry, updateWorkEntry, markWorkEntryPaid, deleteWorkEntry,
   updateWorkEntryStatus,
 } from "@/lib/actions/freelancers"
-import { assignFreelancerManager } from "@/lib/actions/freelancer-manager"
 import type { Freelancer, WorkEntry, FreelancerStats, FreelancerType } from "./page"
+
+type TeamMemberOption = { id: string; name: string; employee_id: string }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,7 @@ const selectCls = inputCls + " appearance-none cursor-pointer"
 
 type FState = {
   name: string; type: FreelancerType | ""; phone: string; availability_notes: string; rating: number; status: "active" | "inactive"
+  assignedMemberIds: string[]
   language: string; voice_type: string; cost_per_minute: string
   editing_software: string[]; video_types_offered: string[]; cost_per_video: string
   availability_schedule: string; cost_per_hour: string
@@ -118,15 +120,17 @@ type FState = {
 
 const BLANK_F: FState = {
   name: "", type: "", phone: "", availability_notes: "", rating: 0, status: "active",
+  assignedMemberIds: [],
   language: "", voice_type: "", cost_per_minute: "",
   editing_software: [], video_types_offered: [], cost_per_video: "",
   availability_schedule: "", cost_per_hour: "",
 }
 
-function freelancerToState(f: Freelancer): FState {
+function freelancerToState(f: Freelancer, assignedIds: string[] = []): FState {
   return {
     name: f.name, type: f.type, phone: f.phone ?? "", availability_notes: f.availability_notes ?? "",
     rating: f.rating, status: f.status,
+    assignedMemberIds: assignedIds,
     language: f.language ?? "", voice_type: f.voice_type ?? "",
     cost_per_minute: f.cost_per_minute?.toString() ?? "",
     editing_software: f.editing_software ?? [], video_types_offered: f.video_types_offered ?? [],
@@ -137,14 +141,15 @@ function freelancerToState(f: Freelancer): FState {
 }
 
 function FreelancerSheet({
-  open, onClose, editing,
+  open, onClose, editing, teamMembers, initialAssignments,
   onCreated, onUpdated,
 }: {
   open: boolean; onClose: () => void; editing: Freelancer | null
-  onCreated: (f: Freelancer) => void; onUpdated: (f: Freelancer) => void
+  teamMembers: TeamMemberOption[]; initialAssignments: string[]
+  onCreated: (f: Freelancer) => void; onUpdated: (f: Freelancer, assignedIds: string[]) => void
 }) {
   const [step, setStep] = useState<"type" | "details">(editing ? "details" : "type")
-  const [form, setForm] = useState<FState>(editing ? freelancerToState(editing) : BLANK_F)
+  const [form, setForm] = useState<FState>(editing ? freelancerToState(editing, initialAssignments) : BLANK_F)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
 
@@ -152,10 +157,10 @@ function FreelancerSheet({
   useEffect(() => {
     if (open) {
       setStep(editing ? "details" : "type")
-      setForm(editing ? freelancerToState(editing) : BLANK_F)
+      setForm(editing ? freelancerToState(editing, initialAssignments) : BLANK_F)
       setErr("")
     }
-  }, [open, editing])
+  }, [open, editing, initialAssignments])
 
   function reset() {
     setStep(editing ? "details" : "type")
@@ -178,6 +183,7 @@ function FreelancerSheet({
       name: form.name.trim(), type: form.type as FreelancerType,
       phone: form.phone || undefined, availability_notes: form.availability_notes || undefined,
       rating: form.rating, status: form.status,
+      assignedMemberIds: form.assignedMemberIds,
       language: form.language || undefined, voice_type: form.voice_type || undefined,
       cost_per_minute: form.cost_per_minute ? parseFloat(form.cost_per_minute) : null,
       editing_software: form.editing_software, video_types_offered: form.video_types_offered,
@@ -200,7 +206,7 @@ function FreelancerSheet({
         cost_per_video: payload.cost_per_video ?? null,
         availability_schedule: payload.availability_schedule ?? null,
         cost_per_hour: payload.cost_per_hour ?? null,
-      })
+      }, payload.assignedMemberIds ?? [])
     } else {
       const res = await createFreelancer(payload)
       if (!res.success) { setErr(res.error ?? "Failed"); setSaving(false); return }
@@ -344,6 +350,43 @@ function FreelancerSheet({
                   </div>
                 </div>
               </>)}
+
+              {/* Assign to members */}
+              {teamMembers.length > 0 && (
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                    Assign to Team Members
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {teamMembers.map(m => {
+                      const selected = form.assignedMemberIds.includes(m.id)
+                      return (
+                        <button key={m.id} type="button"
+                          onClick={() => set("assignedMemberIds", selected
+                            ? form.assignedMemberIds.filter(id => id !== m.id)
+                            : [...form.assignedMemberIds, m.id]
+                          )}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                          style={selected
+                            ? { background: "#DE1A1A", color: "#FFF", border: "1.5px solid #DE1A1A" }
+                            : { background: "#F9FAFB", color: "#6B7280", border: "1.5px solid #E5E7EB" }
+                          }>
+                          <div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black flex-shrink-0"
+                            style={{ background: selected ? "rgba(255,255,255,0.3)" : "#E5E7EB", color: selected ? "#FFF" : "#374151" }}>
+                            {m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                          </div>
+                          {m.name.split(" ")[0]}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {form.assignedMemberIds.length > 0 && (
+                    <p className="text-[11px] text-gray-400 mt-1.5">
+                      {form.assignedMemberIds.length} member{form.assignedMemberIds.length !== 1 ? "s" : ""} selected · they can see this freelancer
+                    </p>
+                  )}
+                </div>
+              )}
 
               <Field label="Availability / Notes">
                 <textarea className={inputCls} rows={2} placeholder="Any notes about availability or work preferences…" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
@@ -979,8 +1022,9 @@ function EntryRow({ entry, idx, freelancerType, freelancer, clientNames, onPaidT
 
 // ── Freelancer Card ───────────────────────────────────────────────────────────
 
-function FreelancerCard({ f, entries, onEdit, onViewWork, onDelete }: {
+function FreelancerCard({ f, entries, assignedMembers, onEdit, onViewWork, onDelete }: {
   f: Freelancer; entries: WorkEntry[]
+  assignedMembers: TeamMemberOption[]
   onEdit: () => void; onViewWork: () => void; onDelete: () => void
 }) {
   const cfg = TYPE_CFG[f.type]
@@ -1061,6 +1105,19 @@ function FreelancerCard({ f, entries, onEdit, onViewWork, onDelete }: {
         )}
       </div>
 
+      {/* Assigned members */}
+      {assignedMembers.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-50">
+          <Users2 size={11} style={{ color: "#9CA3AF" }} />
+          {assignedMembers.map(m => (
+            <span key={m.id} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+              style={{ background: "rgba(222,26,26,0.07)", color: "#DE1A1A" }}>
+              {m.name.split(" ")[0]}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-2 pt-3 border-t border-gray-50">
         <div className="text-center">
@@ -1105,20 +1162,21 @@ export default function FreelancersClient({
   clientNames,
   stats: initStats,
   teamMembers = [],
-  currentManagerId = null,
+  assignments: initAssignments = {},
 }: {
   freelancers: Freelancer[]
   workEntries: WorkEntry[]
   clientNames: string[]
   stats: FreelancerStats
-  teamMembers?: { id: string; name: string; employee_id: string; can_manage_freelancers: boolean }[]
-  currentManagerId?: string | null
+  teamMembers?: TeamMemberOption[]
+  assignments?: Record<string, string[]>
 }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
 
   const [freelancers, setFreelancers] = useState(initFreelancers)
   const [entries, setEntries] = useState(initEntries)
+  const [assignments, setAssignments] = useState(initAssignments)
 
   // Sheet states
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -1129,22 +1187,6 @@ export default function FreelancersClient({
   // Filters
   const [filter, setFilter] = useState<FreelancerType | "all">("all")
   const [search, setSearch] = useState("")
-
-  // Manager assignment
-  const [managerModalOpen, setManagerModalOpen] = useState(false)
-  const [managerId, setManagerId] = useState<string | null>(currentManagerId)
-  const [managerSaving, setManagerSaving] = useState(false)
-
-  async function handleAssignManager(userId: string | null) {
-    setManagerSaving(true)
-    const res = await assignFreelancerManager(userId)
-    if (res.success) {
-      setManagerId(userId)
-      setManagerModalOpen(false)
-      startTransition(() => router.refresh())
-    }
-    setManagerSaving(false)
-  }
 
   // Computed stats
   const stats = useMemo<FreelancerStats>(() => ({
@@ -1206,68 +1248,13 @@ export default function FreelancersClient({
             <h1 className="text-[22px] font-black text-gray-900">Freelancers</h1>
             <p className="text-[13px] text-gray-400 mt-0.5">{stats.total} freelancer{stats.total !== 1 ? "s" : ""} · {stats.totalWorks} work entries</p>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Assign Manager button */}
-            <button onClick={() => setManagerModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-90 shadow-sm"
-              style={{ background: managerId ? "rgba(34,197,94,0.1)" : "rgba(99,102,241,0.1)", color: managerId ? "#16A34A" : "#6366F1", border: `1.5px solid ${managerId ? "rgba(34,197,94,0.3)" : "rgba(99,102,241,0.3)"}` }}>
-              {managerId ? <UserCheck size={15} /> : <Users size={15} />}
-              {managerId ? `Manager: ${teamMembers.find(m => m.id === managerId)?.name.split(" ")[0] ?? "Assigned"}` : "Assign Manager"}
-            </button>
-            <button onClick={openAdd}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all hover:opacity-90 shadow-sm"
-              style={{ background: "#DE1A1A" }}>
-              <Plus size={15} />Add Freelancer
-            </button>
-          </div>
+          <button onClick={openAdd}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all hover:opacity-90 shadow-sm"
+            style={{ background: "#DE1A1A" }}>
+            <Plus size={15} />Add Freelancer
+          </button>
         </div>
       </div>
-
-      {/* Assign Manager Modal */}
-      {managerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setManagerModalOpen(false)} />
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6" style={{ border: "1px solid rgba(0,0,0,0.08)" }}>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="text-[16px] font-black text-gray-900">Assign Freelancer Manager</h3>
-                <p className="text-[12px] text-gray-400 mt-0.5">One member manages all freelancers</p>
-              </div>
-              <button onClick={() => setManagerModalOpen(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "#F5F5F5" }}>
-                <X size={14} style={{ color: "#6B7280" }} />
-              </button>
-            </div>
-            <div className="flex flex-col gap-2 mb-5 max-h-64 overflow-y-auto">
-              {teamMembers.length === 0 && (
-                <p className="text-[13px] text-gray-400 text-center py-6">No active members found</p>
-              )}
-              {teamMembers.map(m => {
-                const isCurrentManager = managerId === m.id
-                return (
-                  <button key={m.id} onClick={() => !managerSaving && handleAssignManager(isCurrentManager ? null : m.id)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all"
-                    style={{ background: isCurrentManager ? "rgba(34,197,94,0.08)" : "#F9FAFB", border: `1.5px solid ${isCurrentManager ? "rgba(34,197,94,0.3)" : "transparent"}` }}>
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-[12px] font-black"
-                      style={{ background: isCurrentManager ? "#22C55E" : "#E5E7EB", color: isCurrentManager ? "#fff" : "#374151" }}>
-                      {m.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-bold text-gray-900 truncate">{m.name}</p>
-                      <p className="text-[11px] text-gray-400">#{m.employee_id}</p>
-                    </div>
-                    {isCurrentManager && (
-                      <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{ background: "rgba(34,197,94,0.15)", color: "#16A34A" }}>
-                        {managerSaving ? "Saving…" : "Manager · Click to remove"}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-            <p className="text-[11px] text-gray-400 text-center">Click a member to assign · Click current manager to remove</p>
-          </div>
-        </div>
-      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6">
         {/* Stats grid */}
@@ -1317,6 +1304,7 @@ export default function FreelancersClient({
             {filtered.map(f => (
               <FreelancerCard
                 key={f.id} f={f} entries={entries}
+                assignedMembers={teamMembers.filter(m => (assignments[f.id] ?? []).includes(m.id))}
                 onEdit={() => openEdit(f)}
                 onViewWork={() => openWork(f)}
                 onDelete={() => handleDelete(f.id)}
@@ -1331,12 +1319,17 @@ export default function FreelancersClient({
         open={sheetOpen}
         onClose={() => { setSheetOpen(false); setEditingFreelancer(null) }}
         editing={editingFreelancer}
+        teamMembers={teamMembers}
+        initialAssignments={editingFreelancer ? (assignments[editingFreelancer.id] ?? []) : []}
         onCreated={f => {
           setFreelancers(prev => [f, ...prev])
           startTransition(() => router.refresh())
         }}
-        onUpdated={f => {
+        onUpdated={(f, newAssignedIds) => {
           setFreelancers(prev => prev.map(x => x.id === f.id ? { ...x, ...f } : x))
+          if (newAssignedIds !== undefined) {
+            setAssignments(prev => ({ ...prev, [f.id]: newAssignedIds }))
+          }
           startTransition(() => router.refresh())
         }}
       />

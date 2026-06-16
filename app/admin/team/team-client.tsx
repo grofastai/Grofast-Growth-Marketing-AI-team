@@ -1156,22 +1156,36 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
           )
         })}
 
-        {/* Freelancers card — two action buttons */}
-        <div style={{
-          background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
-          border: "2px solid rgba(249,115,22,0.18)",
-          borderRadius: 18, padding: "20px 18px 0 22px",
-          overflow: "hidden", position: "relative", minHeight: 148,
-        }}>
-          <div className="absolute right-0 bottom-0 w-24 h-24 sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
-            <Image src="/brand/team-freelancers.png" alt="Freelancers" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
-          </div>
-          <div style={{ position: "relative", zIndex: 1 }}>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "#F97316", opacity: 0.85 }}>Freelancers</p>
-            <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: "#F97316" }}>{stats.freelancers}</p>
-            <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#6B7280" }}>Freelance team</p>
-          </div>
-        </div>
+        {/* Freelancers card — filterable */}
+        {(() => {
+          const isActive = roleFilter === "FREELANCER"
+          return (
+            <div
+              onClick={() => { setRoleFilter(isActive ? "ALL" : "FREELANCER"); setSearch("") }}
+              style={{
+                background: "linear-gradient(135deg, #FFF7ED 0%, #FFEDD5 100%)",
+                border: `2px solid ${isActive ? "#F97316" : "rgba(249,115,22,0.18)"}`,
+                borderRadius: 18, padding: "20px 18px 0 22px",
+                overflow: "hidden", position: "relative", minHeight: 148,
+                cursor: "pointer", transition: "all 0.15s",
+                boxShadow: isActive ? "0 4px 20px rgba(249,115,22,0.33)" : "none",
+              }}>
+              {isActive && (
+                <div style={{ position: "absolute", top: 10, right: 10, zIndex: 2, background: "#F97316", color: "#fff", fontSize: 9, fontWeight: 800, padding: "2px 7px", borderRadius: 6, letterSpacing: "0.05em" }}>
+                  FILTERED
+                </div>
+              )}
+              <div className="absolute right-0 bottom-0 w-24 h-24 sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
+                <Image src="/brand/team-freelancers.png" alt="Freelancers" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
+              </div>
+              <div style={{ position: "relative", zIndex: 1 }}>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: "#F97316", opacity: 0.85 }}>Freelancers</p>
+                <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: "#F97316" }}>{stats.freelancers}</p>
+                <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#6B7280" }}>Freelance team</p>
+              </div>
+            </div>
+          )
+        })()}
       </div>
 
       {/* ── Main 2-column ── */}
@@ -1180,6 +1194,59 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
         {/* LEFT: Table */}
         <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
 
+          {roleFilter === "FREELANCER" ? (
+            <>
+              <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
+                <div>
+                  <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Freelancers</h3>
+                  <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{freelancers.length} freelancer{freelancers.length !== 1 ? "s" : ""}</p>
+                </div>
+              </div>
+              <div style={{ overflowX: "auto" }}>
+                <table className="w-full" style={{ minWidth: 560 }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
+                      {["Name", "Type", "Phone", "Rate", "Status"].map(h => (
+                        <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#9CA3AF" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {freelancers.length === 0 ? (
+                      <tr><td colSpan={5} className="px-5 py-10 text-center text-[13px]" style={{ color: "#9CA3AF" }}>No freelancers added yet</td></tr>
+                    ) : freelancers.map((f, i) => {
+                      const typeCfg = FL_TYPE_CFG[f.type] ?? { label: f.type, color: "#6B7280", bg: "rgba(107,114,128,0.08)" }
+                      const rate = f.cost_per_minute ? `₹${f.cost_per_minute}/min`
+                        : f.cost_per_video ? `₹${f.cost_per_video}/video`
+                        : f.cost_per_hour ? `₹${f.cost_per_hour}/hr`
+                        : "—"
+                      return (
+                        <tr key={f.id} style={{ borderBottom: i < freelancers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
+                          <td className="px-5 py-3.5">
+                            <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{f.name}</p>
+                            {f.gender && <p className="text-[11px] capitalize" style={{ color: "#9CA3AF" }}>{f.gender}</p>}
+                          </td>
+                          <td className="px-5 py-3.5">
+                            <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold" style={{ background: typeCfg.bg, color: typeCfg.color }}>{typeCfg.label}</span>
+                          </td>
+                          <td className="px-5 py-3.5 text-[13px]" style={{ color: "#374151" }}>{f.phone ?? "—"}</td>
+                          <td className="px-5 py-3.5 text-[13px] font-semibold" style={{ color: "#374151" }}>{rate}</td>
+                          <td className="px-5 py-3.5">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                              style={f.status === "active" ? { background: "rgba(34,197,94,0.1)", color: "#16A34A" } : { background: "rgba(107,114,128,0.1)", color: "#6B7280" }}>
+                              <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: f.status === "active" ? "#16A34A" : "#9CA3AF" }} />
+                              {f.status === "active" ? "Active" : "Inactive"}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : (
+          <>
           {/* Table header row */}
           <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
             <div>
@@ -1420,6 +1487,8 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
               </tbody>
             </table>
           </div>
+          </>
+          )}
         </div>
 
         {/* RIGHT panel */}

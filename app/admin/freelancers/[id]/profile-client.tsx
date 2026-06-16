@@ -104,13 +104,14 @@ const TABS = [
 
 export default function FreelancerProfileClient({
   freelancer, workEntries, payments, activityLogs,
-  clientNames, currentUserId, currentUserName, currentUserRole, stats,
+  activeClientNames, pastClientNames, currentUserId, currentUserName, currentUserRole, stats,
 }: {
   freelancer: FreelancerRecord
   workEntries: WorkEntryRecord[]
   payments: PaymentRecord[]
   activityLogs: ActivityRecord[]
-  clientNames: string[]
+  activeClientNames: string[]
+  pastClientNames: string[]
   currentUserId: string
   currentUserName: string
   currentUserRole: string
@@ -158,7 +159,7 @@ export default function FreelancerProfileClient({
 
       {/* Tab Content */}
       {activeTab === "overview"     && <OverviewTab     freelancer={freelancer} stats={stats} typeColor={typeColor} />}
-      {activeTab === "work_entries" && <WorkEntriesTab  freelancer={freelancer} workEntries={workEntries} currentUserRole={currentUserRole} clientNames={clientNames} />}
+      {activeTab === "work_entries" && <WorkEntriesTab  freelancer={freelancer} workEntries={workEntries} currentUserRole={currentUserRole} activeClientNames={activeClientNames} pastClientNames={pastClientNames} />}
       {activeTab === "payments"     && <PaymentsTab     freelancer={freelancer} payments={payments} stats={stats} currentUserRole={currentUserRole} />}
       {activeTab === "statements"   && <StatementsTab   freelancer={freelancer} />}
       {activeTab === "activity"     && <ActivityTab     activityLogs={activityLogs} />}
@@ -255,8 +256,10 @@ const APPROVAL_LABEL: Record<string, string> = {
   pending: "Pending Approval", approved: "Approved", rejected: "Rejected",
 }
 
-function WorkEntriesTab({ freelancer, workEntries, currentUserRole, clientNames }: {
-  freelancer: FreelancerRecord; workEntries: WorkEntryRecord[]; currentUserRole: string; clientNames: string[]
+const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
+
+function WorkEntriesTab({ freelancer, workEntries, currentUserRole, activeClientNames, pastClientNames }: {
+  freelancer: FreelancerRecord; workEntries: WorkEntryRecord[]; currentUserRole: string; activeClientNames: string[]; pastClientNames: string[]
 }) {
   const [showAdd, setShowAdd]           = useState(false)
   const [rejectId, setRejectId]         = useState<string | null>(null)
@@ -274,6 +277,7 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, clientNames 
     date: new Date().toISOString().split("T")[0],
     client_name: "", title: "", quantity: "", rate: defaultRate, notes: "", manual_amount: "",
   })
+  const [clientManual, setClientManual] = useState(false)
 
   const total = (parseFloat(form.quantity) || 0) * (parseFloat(form.rate) || 0)
 
@@ -302,6 +306,7 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, clientNames 
         amount:      form.manual_amount ? parseFloat(form.manual_amount) : total,
       })
       setShowAdd(false)
+      setClientManual(false)
       setForm(f => ({ ...f, title: "", quantity: "", client_name: "", notes: "", manual_amount: "" }))
     })
   }
@@ -329,10 +334,26 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, clientNames 
               <div><Label text="Date" /><input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} style={inputStyle} /></div>
               <div>
                 <Label text="Client Name" />
-                <select value={form.client_name} onChange={e => setForm(p => ({ ...p, client_name: e.target.value }))} style={inputStyle}>
+                <select value={clientManual ? "__manual__" : form.client_name}
+                  onChange={e => {
+                    if (e.target.value === "__manual__") { setClientManual(true); setForm(p => ({ ...p, client_name: "" })) }
+                    else { setClientManual(false); setForm(p => ({ ...p, client_name: e.target.value })) }
+                  }} style={inputStyle}>
                   <option value="">Select client…</option>
-                  {clientNames.map(c => <option key={c} value={c}>{c}</option>)}
+                  {INTERNAL_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                  {activeClientNames.map(c => <option key={c} value={c}>{c}</option>)}
+                  {pastClientNames.length > 0 && (
+                    <optgroup label="── Past Clients ──">
+                      {pastClientNames.map(c => <option key={c} value={c}>{c}</option>)}
+                    </optgroup>
+                  )}
+                  <option value="__manual__">✏️ Type manually...</option>
                 </select>
+                {clientManual && (
+                  <input type="text" placeholder="Type client name…" value={form.client_name}
+                    onChange={e => setForm(p => ({ ...p, client_name: e.target.value }))}
+                    style={{ ...inputStyle, marginTop: 6 }} autoFocus />
+                )}
               </div>
               <div><Label text="Work Title" /><input type="text" placeholder="e.g. Product Reel Edit" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} style={inputStyle} /></div>
               <div><Label text={qtyLabel} /><input type="number" min="1" placeholder="e.g. 10" value={form.quantity} onChange={e => setForm(p => ({ ...p, quantity: e.target.value }))} style={inputStyle} /></div>

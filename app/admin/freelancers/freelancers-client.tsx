@@ -510,12 +510,47 @@ const BLANK_E: EState = {
   start_time: "", end_time: "", travel_hours: "0",
 }
 
+const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
+
+function ClientSelect({ value, onChange, activeClientNames, pastClientNames, inputCls, selectCls }: {
+  value: string; onChange: (v: string) => void
+  activeClientNames: string[]; pastClientNames: string[]
+  inputCls: string; selectCls: string
+}) {
+  const [manual, setManual] = useState(
+    !!value && !INTERNAL_BRANDS.includes(value) && !activeClientNames.includes(value) && !pastClientNames.includes(value)
+  )
+  return (
+    <div className="flex flex-col gap-1.5">
+      <select className={selectCls} value={manual ? "__manual__" : value}
+        onChange={e => {
+          if (e.target.value === "__manual__") { setManual(true); onChange("") }
+          else { setManual(false); onChange(e.target.value) }
+        }}>
+        <option value="">Select client…</option>
+        {INTERNAL_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+        {activeClientNames.map(n => <option key={n} value={n}>{n}</option>)}
+        {pastClientNames.length > 0 && (
+          <optgroup label="── Past Clients ──">
+            {pastClientNames.map(n => <option key={n} value={n}>{n}</option>)}
+          </optgroup>
+        )}
+        <option value="__manual__">✏️ Type manually...</option>
+      </select>
+      {manual && (
+        <input className={inputCls} placeholder="Type client name…" value={value}
+          onChange={e => onChange(e.target.value)} autoFocus />
+      )}
+    </div>
+  )
+}
+
 function WorkSheet({
-  open, onClose, freelancer, entries, clientNames,
+  open, onClose, freelancer, entries, activeClientNames, pastClientNames,
   onEntryAdded, onEntryUpdated, onEntryDeleted,
 }: {
   open: boolean; onClose: () => void; freelancer: Freelancer | null
-  entries: WorkEntry[]; clientNames: string[]
+  entries: WorkEntry[]; activeClientNames: string[]; pastClientNames: string[]
   onEntryAdded: (e: WorkEntry) => void
   onEntryUpdated: (id: string, patch: Partial<WorkEntry>) => void
   onEntryDeleted: (id: string) => void
@@ -643,8 +678,9 @@ function WorkSheet({
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Client Name">
-                  <input list="client-list" className={inputCls} placeholder="Client name" value={form.client_name} onChange={e => setF("client_name", e.target.value)} />
-                  <datalist id="client-list">{clientNames.map(n => <option key={n} value={n} />)}</datalist>
+                  <ClientSelect value={form.client_name} onChange={v => setF("client_name", v)}
+                    activeClientNames={activeClientNames} pastClientNames={pastClientNames}
+                    inputCls={inputCls} selectCls={selectCls} />
                 </Field>
                 <Field label="Date">
                   <input type="date" className={inputCls} value={form.date} onChange={e => setF("date", e.target.value)} />
@@ -814,7 +850,8 @@ function WorkSheet({
                 <EntryRow key={entry.id} entry={entry} idx={idx}
                   freelancerType={freelancer.type}
                   freelancer={freelancer}
-                  clientNames={clientNames}
+                  activeClientNames={activeClientNames}
+                  pastClientNames={pastClientNames}
                   onPaidToggle={async (paid) => {
                     const res = await markWorkEntryPaid(entry.id, paid)
                     if (res.success) onEntryUpdated(entry.id, { payment_status: paid ? "paid" : "unpaid", paid_at: paid ? new Date().toISOString() : null })
@@ -855,8 +892,8 @@ function entryToEState(e: WorkEntry): EState {
   }
 }
 
-function EntryRow({ entry, idx, freelancerType, freelancer, clientNames, onPaidToggle, onStatusChange, onDelete, onUpdated }: {
-  entry: WorkEntry; idx: number; freelancerType: FreelancerType; freelancer: Freelancer; clientNames: string[]
+function EntryRow({ entry, idx, freelancerType, freelancer, activeClientNames, pastClientNames, onPaidToggle, onStatusChange, onDelete, onUpdated }: {
+  entry: WorkEntry; idx: number; freelancerType: FreelancerType; freelancer: Freelancer; activeClientNames: string[]; pastClientNames: string[]
   onPaidToggle: (paid: boolean) => Promise<void>
   onStatusChange: (status: string) => Promise<void>
   onDelete: () => Promise<void>
@@ -1008,8 +1045,9 @@ function EntryRow({ entry, idx, freelancerType, freelancer, clientNames, onPaidT
           <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">Edit Entry</p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Client Name">
-              <input list={`cl-${entry.id}`} className={inputCls} value={form.client_name} onChange={e => setF("client_name", e.target.value)} />
-              <datalist id={`cl-${entry.id}`}>{clientNames.map(n => <option key={n} value={n} />)}</datalist>
+              <ClientSelect value={form.client_name} onChange={v => setF("client_name", v)}
+                activeClientNames={activeClientNames} pastClientNames={pastClientNames}
+                inputCls={inputCls} selectCls={selectCls} />
             </Field>
             <Field label="Date">
               <input type="date" className={inputCls} value={form.date} onChange={e => setF("date", e.target.value)} />
@@ -1238,14 +1276,16 @@ function FreelancerCard({ f, entries, assignedMembers, onEdit, onViewWork, onDel
 export default function FreelancersClient({
   freelancers: initFreelancers,
   workEntries: initEntries,
-  clientNames,
+  activeClientNames,
+  pastClientNames,
   stats: initStats,
   teamMembers = [],
   assignments: initAssignments = {},
 }: {
   freelancers: Freelancer[]
   workEntries: WorkEntry[]
-  clientNames: string[]
+  activeClientNames: string[]
+  pastClientNames: string[]
   stats: FreelancerStats
   teamMembers?: TeamMemberOption[]
   assignments?: Record<string, string[]>
@@ -1418,7 +1458,8 @@ export default function FreelancersClient({
         onClose={() => { setWorkSheetOpen(false); setSelectedFreelancer(null) }}
         freelancer={selectedFreelancer}
         entries={entries}
-        clientNames={clientNames}
+        activeClientNames={activeClientNames}
+        pastClientNames={pastClientNames}
         onEntryAdded={e => { setEntries(prev => [e, ...prev]); startTransition(() => router.refresh()) }}
         onEntryUpdated={(id, patch) => setEntries(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e))}
         onEntryDeleted={id => setEntries(prev => prev.filter(e => e.id !== id))}

@@ -59,10 +59,13 @@ export default async function FreelancerProfilePage({
       .eq("company_id", cid)
       .order("created_at", { ascending: false })
       .limit(50),
-    admin.from("clients").select("name").eq("company_id", cid).order("name"),
+    admin.from("clients").select("name, status").eq("company_id", cid).order("name"),
   ])
 
-  const clientNames = (clientsData ?? []).map((c: { name: string }) => c.name).filter(Boolean)
+  const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
+  const allClients = (clientsData ?? []) as { name: string; status: string }[]
+  const activeClientNames = allClients.filter(c => c.status === "active" && !INTERNAL_BRANDS.includes(c.name)).map(c => c.name).filter(Boolean)
+  const pastClientNames = allClients.filter(c => c.status === "past").map(c => c.name).filter(Boolean)
 
   if (!freelancer) notFound()
 
@@ -86,7 +89,8 @@ export default async function FreelancerProfilePage({
       workEntries={workEntries ?? []}
       payments={payments ?? []}
       activityLogs={activityLogs ?? []}
-      clientNames={clientNames}
+      activeClientNames={activeClientNames}
+      pastClientNames={pastClientNames}
       currentUserId={user.id}
       currentUserName={profile.name}
       currentUserRole={profile.role}

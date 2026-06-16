@@ -62,12 +62,15 @@ export default async function MemberFreelancersPage() {
   const [freelancersResult, workEntriesResult, clientsResult] = await Promise.all([
     admin.from("freelancers").select("*").eq("company_id", cid).in("id", assignedIds).order("name"),
     admin.from("freelancer_work_entries").select("*").eq("company_id", cid).in("freelancer_id", assignedIds).order("date", { ascending: false }),
-    admin.from("clients").select("name").eq("company_id", cid).order("name"),
+    admin.from("clients").select("name, status").eq("company_id", cid).order("name"),
   ])
 
   const freelancers = (freelancersResult.data ?? []) as Freelancer[]
   const workEntries = (workEntriesResult.data ?? []) as WorkEntry[]
-  const clientNames = (clientsResult.data ?? []).map((c: { name: string }) => c.name).filter(Boolean)
+  const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
+  const allClients = (clientsResult.data ?? []) as { name: string; status: string }[]
+  const activeClientNames = allClients.filter(c => c.status === "active" && !INTERNAL_BRANDS.includes(c.name)).map(c => c.name).filter(Boolean)
+  const pastClientNames = allClients.filter(c => c.status === "past").map(c => c.name).filter(Boolean)
 
   const stats: FreelancerStats = {
     total: freelancers.length,
@@ -88,7 +91,8 @@ export default async function MemberFreelancersPage() {
     <FreelancersClient
       freelancers={freelancers}
       workEntries={workEntries}
-      clientNames={clientNames}
+      activeClientNames={activeClientNames}
+      pastClientNames={pastClientNames}
       stats={stats}
     />
   )

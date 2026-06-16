@@ -1129,8 +1129,8 @@ export default function HistoryClient({
                                     </div>
                                   )}
 
-                                  {/* Shoot: video type, duration, revisions */}
-                                  {editDraft.task_type === "shoot" && (
+                                  {/* Edit: video type, duration, revisions */}
+                                  {editDraft.task_type === "edit" && (
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 90px", gap:8 }}>
                                       <div>
                                         <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Video Type</label>

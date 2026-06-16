@@ -71,32 +71,37 @@ export async function submitDailyUpdate(
   let isFirstSubmission = false
 
   if (existingRecord) {
-    // Append new entries to existing record
-    const combinedEntries = [
-      ...(Array.isArray(existingRecord.work_entries) ? existingRecord.work_entries : []),
-      ...d.work_entries,
-    ]
-    const newWorkHours = Math.round(((existingRecord.working_hours || 0) + (d.active_tab !== 'learning' ? roundedHours : 0)) * 10) / 10
+    // Dedup by ID: new entries replace existing ones with same ID (prevents duplicates on re-save/re-submit)
+    const prevEntries = Array.isArray(existingRecord.work_entries) ? existingRecord.work_entries as Array<Record<string, unknown>> : []
+    const newIds = new Set(d.work_entries.map(e => e.id).filter(Boolean))
+    const filteredPrev = prevEntries.filter(e => !newIds.has(e.id as string))
+    const combinedEntries = [...filteredPrev, ...d.work_entries]
+
+    // Recalculate all aggregates from combined entries — never use incremental addition
+    const calcWorkHours  = Math.round(combinedEntries.filter(e => e.task_type !== 'break' && e.task_type !== 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
+    const calcShootCount = combinedEntries.filter(e => e.task_type === 'shoot').length
+    const calcEditCount  = combinedEntries.filter(e => e.task_type === 'edit').length
+    const calcLearnHours = Math.round(combinedEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
 
     const existingParticipants = (existingRecord as Record<string, unknown>).participant_ids as string[] ?? []
     const mergedParticipants = Array.from(new Set([...existingParticipants, ...(d.participant_ids ?? [])]))
     const updatePayload: Record<string, unknown> = {
       work_entries:    combinedEntries,
-      working_hours:   newWorkHours || null,
-      shoot_count:     (existingRecord.shoot_count   || 0) + d.shoot_count,
-      editing_count:   (existingRecord.editing_count || 0) + d.editing_count,
+      working_hours:   calcWorkHours || null,
+      shoot_count:     calcShootCount,
+      editing_count:   calcEditCount,
       participant_ids: mergedParticipants,
       ...(workType ? { work_type: workType } : {}),
     }
     if (d.learning_topic) {
       updatePayload.learning_topic      = d.learning_topic
       updatePayload.learning_notes      = d.learning_notes ?? null
-      updatePayload.learning_hours      = Math.round(((existingRecord.learning_hours || 0) + d.learning_hours) * 10) / 10
+      updatePayload.learning_hours      = calcLearnHours
       updatePayload.learning_start_time = d.learning_start_time ?? null
       updatePayload.learning_end_time   = d.learning_end_time   ?? null
     }
-    if (newLearnHours > 0) {
-      updatePayload.learning_hours = Math.round(((existingRecord.learning_hours || 0) + newLearnHours) * 10) / 10
+    if (calcLearnHours > 0) {
+      updatePayload.learning_hours = calcLearnHours
     }
 
     const { error: updateError } = await admin
@@ -134,11 +139,12 @@ export async function submitDailyUpdate(
     if (insertError) return { success: false, error: insertError.message }
   }
 
-  // Sync ALL break entries to attendance_logs — use combined entries so multiple submits accumulate
-  const existingEntries = existingRecord && Array.isArray(existingRecord.work_entries)
-    ? existingRecord.work_entries as { task_type: string; start_time?: string | null; end_time?: string | null; duration_hours: number; title?: string }[]
+  // Sync break entries to attendance_logs — dedup by ID same as main entries
+  const prevForBreak = existingRecord && Array.isArray(existingRecord.work_entries)
+    ? existingRecord.work_entries as { id?: string; task_type: string; start_time?: string | null; end_time?: string | null; duration_hours: number; title?: string }[]
     : []
-  const allWorkEntries = [...existingEntries, ...d.work_entries]
+  const newIdsForBreak = new Set(d.work_entries.map(e => e.id).filter(Boolean))
+  const allWorkEntries = [...prevForBreak.filter(e => !newIdsForBreak.has(e.id ?? '')), ...d.work_entries]
   const allBreakEntries = allWorkEntries.filter(e => e.task_type === 'break' && e.duration_hours > 0)
   if (allBreakEntries.length > 0) {
     const breakSessions = allBreakEntries

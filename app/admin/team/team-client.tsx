@@ -117,6 +117,7 @@ interface SheetProps {
   member?: Member | null
   nextId?: string
   initialRole?: "ADMIN" | "MEMBER" | "FREELANCER_MGR"
+  onSelectFreelancer?: () => void
 }
 
 const ACCOUNT_TYPES = [
@@ -138,9 +139,18 @@ const ACCOUNT_TYPES = [
     bg: "rgba(124,58,237,0.06)",
     border: "rgba(124,58,237,0.2)",
   },
+  {
+    role: "FREELANCER" as const,
+    label: "Freelancer",
+    desc: "Voice artist, video editor, shooter or other",
+    icon: Clapperboard,
+    color: "#F97316",
+    bg: "rgba(249,115,22,0.06)",
+    border: "rgba(249,115,22,0.2)",
+  },
 ]
 
-function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps) {
+function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreelancer }: SheetProps) {
   const isEdit = !!member
   const [step, setStep] = useState<"type" | "details">(isEdit || initialRole ? "details" : "type")
   const [form, setForm] = useState({
@@ -273,7 +283,15 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                 const Icon = type.icon
                 return (
                   <button key={type.role} type="button"
-                    onClick={() => { setForm(p => ({ ...p, role: type.role })); setStep("details") }}
+                    onClick={() => {
+                      if (type.role === "FREELANCER") {
+                        onClose()
+                        onSelectFreelancer?.()
+                      } else {
+                        setForm(p => ({ ...p, role: type.role as "ADMIN" | "MEMBER" | "FREELANCER_MGR" }))
+                        setStep("details")
+                      }
+                    }}
                     className="w-full flex items-center gap-4 rounded-2xl transition-all text-left"
                     style={{ padding: "18px 20px", background: type.bg, border: `1.5px solid ${type.border}` }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = "0.85"}
@@ -1094,13 +1112,7 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-2 ml-auto flex-wrap">
-            <button
-              onClick={() => setFlSheetOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all"
-              style={{ background: "rgba(255,255,255,0.15)", color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.3)" }}>
-              <Plus size={14} /> Add Freelancer
-            </button>
+          <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={() => { setEditMember(null); setSheetOpen(true) }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all"
@@ -1712,7 +1724,7 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
 
       {assignTarget && <AssignTaskModal member={assignTarget} onClose={() => setAssignTarget(null)} />}
 
-      <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} nextId={nextId} />
+      <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} nextId={nextId} onSelectFreelancer={() => { setSheetOpen(false); setFlSheetOpen(true) }} />
 
       <FreelancerQuickSheet
         open={flSheetOpen}

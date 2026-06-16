@@ -3,6 +3,7 @@
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { revalidatePath } from "next/cache"
+import { logFreelancerActivity } from "./freelancer-activity"
 
 function adminClient() {
   return createClient(
@@ -309,5 +310,83 @@ export async function deleteWorkEntry(id: string): Promise<{ success: boolean; e
 
   if (error) return { success: false, error: error.message }
   revalidatePath("/admin/freelancers")
+  return { success: true }
+}
+
+export async function approveWorkEntry(
+  entryId: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminClient()
+
+  const { data: actor } = await admin
+    .from('users').select('company_id, name, role').eq('id', user.id).single()
+  if (!actor) return { success: false, error: 'User not found' }
+
+  const { data: entry } = await admin
+    .from('freelancer_work_entries')
+    .select('freelancer_id, company_id, amount, title')
+    .eq('id', entryId).single()
+  if (!entry) return { success: false, error: 'Entry not found' }
+
+  const { error } = await admin
+    .from('freelancer_work_entries')
+    .update({ approval_status: 'approved', approved_by: user.id, approved_at: new Date().toISOString() })
+    .eq('id', entryId)
+  if (error) return { success: false, error: error.message }
+
+  await logFreelancerActivity({
+    companyId:    entry.company_id,
+    freelancerId: entry.freelancer_id,
+    action:       `Work entry approved: ${entry.title} (₹${entry.amount})`,
+    actorId:      user.id,
+    actorName:    actor.name,
+  })
+
+  revalidatePath(`/admin/freelancers/${entry.freelancer_id}`)
+  revalidatePath('/admin/freelancers')
+  return { success: true }
+}
+
+export async function rejectWorkEntry(
+  entryId: string,
+  reason: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminClient()
+
+  const { data: actor } = await admin
+    .from('users').select('company_id, name, role').eq('id', user.id).single()
+  if (!actor) return { success: false, error: 'User not found' }
+
+  const { data: entry } = await admin
+    .from('freelancer_work_entries')
+    .select('freelancer_id, company_id, title')
+    .eq('id', entryId).single()
+  if (!entry) return { success: false, error: 'Entry not found' }
+
+  const { error } = await admin
+    .from('freelancer_work_entries')
+    .update({ approval_status: 'rejected', rejected_reason: reason, approved_by: user.id, approved_at: new Date().toISOString() })
+    .eq('id', entryId)
+  if (error) return { success: false, error: error.message }
+
+  await logFreelancerActivity({
+    companyId:    entry.company_id,
+    freelancerId: entry.freelancer_id,
+    action:       `Work entry rejected: ${entry.title}`,
+    actorId:      user.id,
+    actorName:    actor.name,
+    remarks:      reason,
+  })
+
+  revalidatePath(`/admin/freelancers/${entry.freelancer_id}`)
+  revalidatePath('/admin/freelancers')
   return { success: true }
 }

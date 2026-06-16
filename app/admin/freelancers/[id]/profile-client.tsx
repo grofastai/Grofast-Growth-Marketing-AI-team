@@ -343,11 +343,11 @@ function WorkEntriesTab({ freelancer, workEntries, currentUserRole, activeClient
                   {INTERNAL_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
                   {activeClientNames.map(c => <option key={c} value={c}>{c}</option>)}
                   {pastClientNames.length > 0 && (
-                    <optgroup label="── Past Clients ──">
+                    <optgroup label="📁 Past Clients →">
                       {pastClientNames.map(c => <option key={c} value={c}>{c}</option>)}
                     </optgroup>
                   )}
-                  <option value="__manual__">✏️ Type manually...</option>
+                  <option value="__manual__">✏️ Other (type manually)</option>
                 </select>
                 {clientManual && (
                   <input type="text" placeholder="Type client name…" value={form.client_name}

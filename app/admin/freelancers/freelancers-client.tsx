@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useTransition, useEffect } from "react"
+import { useState, useMemo, useTransition, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -512,34 +512,106 @@ const BLANK_E: EState = {
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 
-function ClientSelect({ value, onChange, activeClientNames, pastClientNames, inputCls, selectCls }: {
+function ClientSelect({ value, onChange, activeClientNames, pastClientNames }: {
   value: string; onChange: (v: string) => void
   activeClientNames: string[]; pastClientNames: string[]
-  inputCls: string; selectCls: string
 }) {
-  const [manual, setManual] = useState(
-    !!value && !INTERNAL_BRANDS.includes(value) && !activeClientNames.includes(value) && !pastClientNames.includes(value)
-  )
+  const [open, setOpen] = useState(false)
+  const [view, setView] = useState<"main" | "past" | "manual">("main")
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false); setView("main")
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
+  function pick(v: string) { onChange(v); setOpen(false); setView("main") }
+
+  const isManual = view === "manual"
+  const displayValue = isManual ? value : (value || "")
+  const placeholder = !value && !isManual ? "Select client…" : ""
+
+  const rowCls = "w-full text-left px-3 py-2 text-[13px] transition-colors cursor-pointer"
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <select className={selectCls} value={manual ? "__manual__" : value}
-        onChange={e => {
-          if (e.target.value === "__manual__") { setManual(true); onChange("") }
-          else { setManual(false); onChange(e.target.value) }
-        }}>
-        <option value="">Select client…</option>
-        {INTERNAL_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
-        {activeClientNames.map(n => <option key={n} value={n}>{n}</option>)}
-        {pastClientNames.length > 0 && (
-          <optgroup label="📁 Past Clients →">
-            {pastClientNames.map(n => <option key={n} value={n}>{n}</option>)}
-          </optgroup>
-        )}
-        <option value="__manual__">✏️ Other (type manually)</option>
-      </select>
-      {manual && (
-        <input className={inputCls} placeholder="Type client name…" value={value}
-          onChange={e => onChange(e.target.value)} autoFocus />
+    <div ref={ref} className="relative">
+      {/* Trigger button */}
+      {!isManual && (
+        <button type="button" onClick={() => setOpen(o => !o)}
+          className={inputCls + " flex items-center justify-between text-left"}
+          style={{ color: value ? "#111827" : "#9CA3AF" }}>
+          <span>{value || "Select client…"}</span>
+          <ChevronDown size={13} className="flex-shrink-0 text-gray-400" />
+        </button>
+      )}
+
+      {/* Manual text input */}
+      {isManual && (
+        <div className="flex gap-1.5">
+          <input className={inputCls} placeholder="Type client name…" value={value}
+            onChange={e => onChange(e.target.value)} autoFocus style={{ flex: 1 }} />
+          <button type="button" onClick={() => { onChange(""); setView("main"); setOpen(true) }}
+            className="px-2 rounded-xl border border-gray-200 text-gray-400 hover:text-gray-600 text-[11px]">✕</button>
+        </div>
+      )}
+
+      {/* Dropdown panel */}
+      {open && !isManual && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-[999] overflow-hidden"
+          style={{ maxHeight: 240, overflowY: "auto" }}>
+
+          {view === "main" && <>
+            {/* Internal brands */}
+            {INTERNAL_BRANDS.map(b => (
+              <button key={b} type="button" onClick={() => pick(b)}
+                className={rowCls + " font-bold text-gray-800 hover:bg-red-50 hover:text-[#DE1A1A]"}>
+                {b}
+              </button>
+            ))}
+            {/* Divider if active clients exist */}
+            {activeClientNames.length > 0 && <div style={{ height: 1, background: "#F3F4F6", margin: "2px 0" }} />}
+            {/* Active clients */}
+            {activeClientNames.map(n => (
+              <button key={n} type="button" onClick={() => pick(n)}
+                className={rowCls + " text-gray-700 hover:bg-gray-50"}>
+                {n}
+              </button>
+            ))}
+            {/* Past clients drill-down */}
+            {pastClientNames.length > 0 && (
+              <button type="button" onClick={() => setView("past")}
+                className={rowCls + " font-semibold hover:bg-amber-50"}
+                style={{ color: "#B45309", borderTop: "1px solid #FEF3C7", marginTop: 2 }}>
+                📁 Past Clients →
+              </button>
+            )}
+            {/* Type manually */}
+            <button type="button" onClick={() => { setOpen(false); setView("manual"); onChange("") }}
+              className={rowCls + " hover:bg-blue-50"}
+              style={{ color: "#2563EB", borderTop: "1px solid #EFF6FF", marginTop: 2 }}>
+              ✏️ Other (type manually)
+            </button>
+          </>}
+
+          {view === "past" && <>
+            <button type="button" onClick={() => setView("main")}
+              className={rowCls + " text-gray-400 hover:bg-gray-50 text-[12px]"}
+              style={{ borderBottom: "1px solid #F3F4F6" }}>
+              ← Back
+            </button>
+            {pastClientNames.map(n => (
+              <button key={n} type="button" onClick={() => pick(n)}
+                className={rowCls + " text-gray-700 hover:bg-amber-50"}>
+                {n}
+              </button>
+            ))}
+          </>}
+        </div>
       )}
     </div>
   )
@@ -679,8 +751,7 @@ function WorkSheet({
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Client Name">
                   <ClientSelect value={form.client_name} onChange={v => setF("client_name", v)}
-                    activeClientNames={activeClientNames} pastClientNames={pastClientNames}
-                    inputCls={inputCls} selectCls={selectCls} />
+                    activeClientNames={activeClientNames} pastClientNames={pastClientNames} />
                 </Field>
                 <Field label="Date">
                   <input type="date" className={inputCls} value={form.date} onChange={e => setF("date", e.target.value)} />
@@ -1046,8 +1117,7 @@ function EntryRow({ entry, idx, freelancerType, freelancer, activeClientNames, p
           <div className="grid grid-cols-2 gap-3">
             <Field label="Client Name">
               <ClientSelect value={form.client_name} onChange={v => setF("client_name", v)}
-                activeClientNames={activeClientNames} pastClientNames={pastClientNames}
-                inputCls={inputCls} selectCls={selectCls} />
+                activeClientNames={activeClientNames} pastClientNames={pastClientNames} />
             </Field>
             <Field label="Date">
               <input type="date" className={inputCls} value={form.date} onChange={e => setF("date", e.target.value)} />

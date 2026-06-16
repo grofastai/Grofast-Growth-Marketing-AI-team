@@ -298,7 +298,21 @@ export default function HistoryClient({
       const m = notes.match(/^\[(completed|in_progress|not_started)\]$/)
       if (m) { parsedStatus = m[1] as typeof parsedStatus; notes = "" }
     }
-    if (entry.task_type === "shoot") notes = stripShootNotes(notes)
+    // For shoot entries: parse _travel_hours and _location from old concatenated notes as fallback
+    let parsedTravelHours = entry._travel_hours ?? 0
+    let parsedLocation = entry._location ?? ""
+    if (entry.task_type === "shoot") {
+      const rawNotes = entry.notes ?? ""
+      if (!parsedTravelHours) {
+        const travelMatch = rawNotes.match(/Travel:\s*([\d.]+)h/)
+        if (travelMatch) parsedTravelHours = parseFloat(travelMatch[1])
+      }
+      if (!parsedLocation) {
+        const locMatch = rawNotes.match(/Location:\s*([^|]+)/)
+        if (locMatch) parsedLocation = locMatch[1].trim()
+      }
+      notes = stripShootNotes(notes)
+    }
     setEditEntryStatus(parsedStatus)
     const BREAK_LABELS = ["Lunch", "Tea", "Short Break", "Personal"]
     const isCustomBreak = entry.task_type === "break" && !BREAK_LABELS.includes(entry.title)
@@ -319,8 +333,8 @@ export default function HistoryClient({
       video_duration: entry.video_duration ?? "",
       revisions: entry.revisions ?? 0,
       participant_ids: entry.participant_ids ?? [],
-      _travel_hours: entry._travel_hours ?? 0,
-      _location: entry._location ?? "",
+      _travel_hours: parsedTravelHours,
+      _location: parsedLocation,
       _camera_hours: entry._camera_hours ?? 0,
       _drone_hours: entry._drone_hours ?? 0,
       video_uploaded: entry.video_uploaded ?? false,
@@ -333,6 +347,10 @@ export default function HistoryClient({
 
   async function saveEntry(updateId: string, allEntries: WorkEntry[], entryIdx: number) {
     const key = `${updateId}:${entryIdx}`
+    if (editDraft.task_type === "edit") {
+      if (!editDraft.date_given) { alert("Please set Date Given before saving."); return }
+      if (!editDraft.date_finished) { alert("Please set Date Finished before saving."); return }
+    }
     setSavingKey(key)
     let draftToSave: Partial<WorkEntry> = { ...editDraft }
     if (editDraft.task_type === "other") {
@@ -1021,9 +1039,19 @@ export default function HistoryClient({
                                       <span style={{ fontSize:10, fontWeight:700, color:cfg.color, background:cfg.bg, padding:"2px 8px", borderRadius:99 }}>{cfg.label}</span>
                                     </div>
                                     {displayClient && <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{displayClient}</p>}
-                                    {!isLearning && (e.notes || e.description) && (
-                                      <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{e.notes || e.description}</p>
-                                    )}
+                                    {!isLearning && (() => {
+                                      if (e.task_type === "shoot") {
+                                        const tH = e._travel_hours ?? (() => { const m = (e.notes??"").match(/Travel:\s*([\d.]+)h/); return m ? parseFloat(m[1]) : 0 })()
+                                        const loc = e._location ?? (() => { const m = (e.notes??"").match(/Location:\s*([^|]+)/); return m ? m[1].trim() : "" })()
+                                        const realNotes = stripShootNotes(e.notes ?? "")
+                                        return (<>
+                                          {(loc || tH > 0) && <p style={{ fontSize:10, fontWeight:700, color:"#F59E0B", margin:"0 0 3px" }}>{loc ? `📍 ${loc}` : ""}{loc && tH > 0 ? " · " : ""}{tH > 0 ? `🚗 ${fmtTravel(tH)} travel` : ""}</p>}
+                                          {realNotes && <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{realNotes}</p>}
+                                        </>)
+                                      }
+                                      const txt = e.notes || e.description
+                                      return txt ? <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{txt}</p> : null
+                                    })()}
                                   </>)
                                 })()}
                                 <div style={{ display:"flex", alignItems:"center", gap:12, marginTop:4, flexWrap:"wrap" }}>
@@ -1224,8 +1252,8 @@ export default function HistoryClient({
                                       {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                                      <div><label style={HL}>Date Given</label><input type="date" value={editDraft.date_given??""} onChange={ev=>setEditDraft(d=>({...d,date_given:ev.target.value}))} style={{ ...HF, colorScheme:"light" }} /></div>
-                                      <div><label style={HL}>Date Finished</label><input type="date" value={editDraft.date_finished??""} onChange={ev=>setEditDraft(d=>({...d,date_finished:ev.target.value}))} style={{ ...HF, colorScheme:"light" }} /></div>
+                                      <div><label style={HL}>Date Given <span style={{ color:"#EF4444" }}>*</span></label><input type="date" value={editDraft.date_given??""} onChange={ev=>setEditDraft(d=>({...d,date_given:ev.target.value}))} style={{ ...HF, colorScheme:"light", borderColor:!(editDraft.date_given)??"#EF4444":"#EBEDF2" }} /></div>
+                                      <div><label style={HL}>Date Finished <span style={{ color:"#EF4444" }}>*</span></label><input type="date" value={editDraft.date_finished??""} onChange={ev=>setEditDraft(d=>({...d,date_finished:ev.target.value}))} style={{ ...HF, colorScheme:"light", borderColor:!(editDraft.date_finished)??"#EF4444":"#EBEDF2" }} /></div>
                                     </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                                       <div>

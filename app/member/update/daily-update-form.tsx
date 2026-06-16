@@ -437,6 +437,7 @@ export default function DailyUpdateForm({
   const [learningDone,  setLearningDone]  = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).learning_hours))
   const [editMode,      setEditMode]      = useState(false)
   const [savedIds,      setSavedIds]      = useState<Set<string>>(new Set())
+  const [entryErrors,   setEntryErrors]   = useState<Record<string, string>>({})
   const [expandedId,    setExpandedId]    = useState<string | null>(null)
   const [deletingId,    setDeletingId]    = useState<string | null>(null)
   const [editingUpdateId, setEditingUpdateId] = useState<string | null>(null)
@@ -616,12 +617,67 @@ export default function DailyUpdateForm({
     })
   }
 
+  // ── Time overlap check between two time ranges ───────────────────────────
+  function timesOverlap(s1: string, e1: string, s2: string, e2: string): boolean {
+    if (!s1 || !e1 || !s2 || !e2) return false
+    const a = toMins(s1), b = toMins(e1), c = toMins(s2), d = toMins(e2)
+    if (b <= a || d <= c) return false
+    return Math.max(a, c) < Math.min(b, d)
+  }
+
   // ── Per-entry save (media) ────────────────────────────────────────────────
   function handleSaveEntry(entryId: string) {
     setError(null)
-    const editEntry = edits.find(e => e.id === entryId)
-    // drive link optional — just warn, don't block
     const shootEntry = shoots.find(s => s.id === entryId)
+    const editEntry  = edits.find(e => e.id === entryId)
+
+    // ── Shoot validation ──────────────────────────────────────────────────
+    if (shootEntry) {
+      if (!shootEntry.clientName || shootEntry.clientName === "")
+        return setEntryErrors(p => ({ ...p, [entryId]: "Select a client before saving." }))
+      if (!shootEntry.title.trim())
+        return setEntryErrors(p => ({ ...p, [entryId]: "Enter a shoot title before saving." }))
+      if (!shootEntry.startTime || !shootEntry.endTime)
+        return setEntryErrors(p => ({ ...p, [entryId]: "Set start and end time before saving." }))
+      if (toMins(shootEntry.endTime) <= toMins(shootEntry.startTime))
+        return setEntryErrors(p => ({ ...p, [entryId]: "End time must be after start time." }))
+      // Overlap check against all other shoots and edits
+      const otherShoots = shoots.filter(s => s.id !== entryId)
+      for (const other of otherShoots) {
+        if (timesOverlap(shootEntry.startTime, shootEntry.endTime, other.startTime, other.endTime))
+          return setEntryErrors(p => ({ ...p, [entryId]: `Time overlaps with another shoot "${other.title || other.clientName}" (${other.startTime}–${other.endTime}). Fix times first.` }))
+      }
+      for (const other of edits) {
+        if (timesOverlap(shootEntry.startTime, shootEntry.endTime, other.startTime, other.endTime))
+          return setEntryErrors(p => ({ ...p, [entryId]: `Time overlaps with edit "${other.title || other.clientName}" (${other.startTime}–${other.endTime}). Fix times first.` }))
+      }
+    }
+
+    // ── Edit validation ───────────────────────────────────────────────────
+    if (editEntry) {
+      if (!editEntry.clientName || editEntry.clientName === "")
+        return setEntryErrors(p => ({ ...p, [entryId]: "Select a client before saving." }))
+      if (!editEntry.title.trim())
+        return setEntryErrors(p => ({ ...p, [entryId]: "Enter a video name before saving." }))
+      if (!editEntry.dateGiven)
+        return setEntryErrors(p => ({ ...p, [entryId]: "Set the Date Given before saving." }))
+      if (!editEntry.dateFinished)
+        return setEntryErrors(p => ({ ...p, [entryId]: "Set the Date Finished before saving." }))
+      if (!editEntry.startTime || !editEntry.endTime)
+        return setEntryErrors(p => ({ ...p, [entryId]: "Set start and end time before saving." }))
+      if (toMins(editEntry.endTime) <= toMins(editEntry.startTime))
+        return setEntryErrors(p => ({ ...p, [entryId]: "End time must be after start time." }))
+      if (!editEntry.videoLink.trim())
+        return setEntryErrors(p => ({ ...p, [entryId]: "Enter the Drive/Video link before saving." }))
+      // Overlap check against other edits only (shoot overlap is handled separately)
+      const otherEdits = edits.filter(e => e.id !== entryId)
+      for (const other of otherEdits) {
+        if (timesOverlap(editEntry.startTime, editEntry.endTime, other.startTime, other.endTime))
+          return setEntryErrors(p => ({ ...p, [entryId]: `Time overlaps with edit "${other.title || other.clientName}" (${other.startTime}–${other.endTime}). Fix times first.` }))
+      }
+    }
+
+    setEntryErrors(p => { const n = { ...p }; delete n[entryId]; return n })
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
@@ -1523,6 +1579,11 @@ export default function DailyUpdateForm({
                           </div>
                         </div>
                       )}
+                      {entryErrors[s.id] && (
+                        <div style={{ margin:"8px 0 0", padding:"8px 12px", borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.25)", fontSize:11, fontWeight:600, color:"#DC2626" }}>
+                          ⚠ {entryErrors[s.id]}
+                        </div>
+                      )}
                       <div style={{ borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:12, display:"flex", justifyContent:"flex-end", alignItems:"center", gap:10 }}>
                         {savedIds.has(s.id) && <span style={{ fontSize:11, fontWeight:700, color:"#16A34A", display:"flex", alignItems:"center", gap:4 }}><CheckCircle2 size={12} /> Saved ✓</span>}
                         <button onClick={() => handleSaveEntry(s.id)} disabled={isPending}
@@ -1740,6 +1801,11 @@ export default function DailyUpdateForm({
                               )
                             })}
                           </div>
+                        </div>
+                      )}
+                      {entryErrors[e.id] && (
+                        <div style={{ margin:"8px 0 0", padding:"8px 12px", borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.25)", fontSize:11, fontWeight:600, color:"#DC2626" }}>
+                          ⚠ {entryErrors[e.id]}
                         </div>
                       )}
                       <div style={{ borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:12, display:"flex", justifyContent:"flex-end", alignItems:"center", gap:10 }}>

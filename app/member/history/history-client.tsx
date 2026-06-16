@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts"
 import { useRouter } from "next/navigation"
 import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning, addEntryToDate } from "@/lib/actions/daily-updates"
@@ -23,6 +23,12 @@ interface WorkEntry {
   is_multi_client?: boolean; client_names?: string[]
   video_type?: string | null; video_duration?: string | null; revisions?: number | null
   participant_ids?: string[]
+  _travel_hours?: number | null; _location?: string | null
+  _camera_hours?: number | null; _drone_hours?: number | null
+  video_uploaded?: boolean | null
+  date_given?: string | null; date_finished?: string | null
+  drive_updated?: boolean | null; hooks_completed?: number | null
+  _custom_label?: string | null
 }
 interface UpdateRow {
   id: string; date: string; attendance_status: string
@@ -52,6 +58,36 @@ function parseLearningTitle(title: string | null): { client: string; topic: stri
   if (!title) return { client: "", topic: "" }
   const m = title.match(/^\[([^\]]+)\]\s*(.*)$/)
   return m ? { client: m[1], topic: m[2] } : { client: "", topic: title }
+}
+
+function stripShootNotes(notes: string): string {
+  if (!notes) return ""
+  return notes.split(" | ").filter(p => !p.match(/^(Brand:|Shop:|Location:|Travel:|Client:)/)).join(" | ").trim()
+}
+
+function fmtTravel(h: number): string {
+  const hrs = Math.floor(h), mins = Math.round((h % 1) * 60)
+  return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
+}
+
+function calcDur(start?: string | null, end?: string | null): number {
+  if (!start || !end) return 0
+  const [sh, sm] = start.split(":").map(Number)
+  const [eh, em] = end.split(":").map(Number)
+  const diff = (eh * 60 + em) - (sh * 60 + sm)
+  return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 0
+}
+
+function HTimePicker({ value, onChange, style: extra }: { value: string; onChange: (v: string) => void; style?: React.CSSProperties }) {
+  const [local, setLocal] = useState(value || "09:00")
+  const prev = useRef(value)
+  if (prev.current !== value) { prev.current = value; setLocal(value || "09:00") }
+  return (
+    <input type="time" value={local}
+      onChange={e => { setLocal(e.target.value); if (e.target.value) onChange(e.target.value) }}
+      style={{ fontSize:13, fontWeight:700, color:"#111827", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", outline:"none", colorScheme:"light", cursor:"pointer", ...extra }}
+    />
+  )
 }
 
 function monthLabel(d: string) {
@@ -262,10 +298,14 @@ export default function HistoryClient({
       const m = notes.match(/^\[(completed|in_progress|not_started)\]$/)
       if (m) { parsedStatus = m[1] as typeof parsedStatus; notes = "" }
     }
+    if (entry.task_type === "shoot") notes = stripShootNotes(notes)
     setEditEntryStatus(parsedStatus)
+    const BREAK_LABELS = ["Lunch", "Tea", "Short Break", "Personal"]
+    const isCustomBreak = entry.task_type === "break" && !BREAK_LABELS.includes(entry.title)
     setEditDraft({
       task_type: entry.task_type,
-      title: entry.title,
+      title: entry.task_type === "break" ? (isCustomBreak ? "__other__" : entry.title) : entry.title,
+      _custom_label: isCustomBreak ? entry.title : "",
       client_name: entry.client_name,
       duration_hours: entry.duration_hours,
       notes,
@@ -279,15 +319,36 @@ export default function HistoryClient({
       video_duration: entry.video_duration ?? "",
       revisions: entry.revisions ?? 0,
       participant_ids: entry.participant_ids ?? [],
+      _travel_hours: entry._travel_hours ?? 0,
+      _location: entry._location ?? "",
+      _camera_hours: entry._camera_hours ?? 0,
+      _drone_hours: entry._drone_hours ?? 0,
+      video_uploaded: entry.video_uploaded ?? false,
+      date_given: entry.date_given ?? "",
+      date_finished: entry.date_finished ?? "",
+      drive_updated: entry.drive_updated ?? false,
+      hooks_completed: entry.hooks_completed ?? 0,
     })
   }
 
   async function saveEntry(updateId: string, allEntries: WorkEntry[], entryIdx: number) {
     const key = `${updateId}:${entryIdx}`
     setSavingKey(key)
-    const draftToSave = editDraft.task_type === "other"
-      ? { ...editDraft, notes: `[${editEntryStatus}]` }
-      : editDraft
+    let draftToSave: Partial<WorkEntry> = { ...editDraft }
+    if (editDraft.task_type === "other") {
+      draftToSave = { ...editDraft, notes: `[${editEntryStatus}]` }
+    } else if (editDraft.task_type === "shoot") {
+      const travelH = editDraft._travel_hours ?? 0
+      const dur = calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0
+      const droneH = editDraft._drone_hours ?? 0
+      const rebuiltNotes = [editDraft._location ? `Location: ${editDraft._location}` : "", editDraft.notes || "", travelH > 0 ? `Travel: ${travelH}h` : ""].filter(Boolean).join(" | ")
+      draftToSave = { ...editDraft, notes: rebuiltNotes, duration_hours: dur, _camera_hours: (editDraft._camera_hours ?? 0) > 0 ? Math.max(0, dur - droneH) : 0 }
+    } else if (editDraft.task_type === "edit") {
+      draftToSave = { ...editDraft, duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
+    } else if (editDraft.task_type === "break") {
+      const finalTitle = editDraft.title === "__other__" ? (editDraft._custom_label || "Break") : (editDraft.title || "Break")
+      draftToSave = { ...editDraft, title: finalTitle, client_name: "Break", duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
+    }
     const updatedEntry = { ...(allEntries[entryIdx] as unknown as Record<string, unknown>), ...draftToSave }
 
     if (editDraftDate && editDraftDate !== editOrigDate) {
@@ -1005,299 +1066,350 @@ export default function HistoryClient({
                             {/* Inline edit form */}
                             {isEditingEntry && (
                               <div style={{ margin:"0 18px 14px", padding:"14px", borderRadius:12, background:"#F8F9FF", border:"1.5px solid rgba(99,102,241,0.25)" }}>
-                                <p style={{ fontSize:11, fontWeight:700, color:"#6366F1", margin:"0 0 10px" }}>Edit Entry</p>
-                                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
 
-                                  {/* Date field — move entry to a different day */}
-                                  <div>
-                                    <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Date</label>
-                                    <input
-                                      type="date"
-                                      value={editDraftDate}
-                                      onChange={ev => setEditDraftDate(ev.target.value)}
-                                      style={{ width:"100%", padding:"7px 10px", borderRadius:8, border: editDraftDate !== editOrigDate ? "1.5px solid #6366F1" : "1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                    />
-                                    {editDraftDate !== editOrigDate && (
-                                      <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>This entry will move to {new Date(editDraftDate + "T12:00:00").toLocaleDateString("en-US", { day:"numeric", month:"short", year:"numeric" })}</p>
-                                    )}
-                                  </div>
-
-                                  {/* Title + Client — all types */}
-                                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                                {/* ── BREAK ── */}
+                                {editDraft.task_type === "break" && (()=>{
+                                  const dur = calcDur(editDraft.start_time, editDraft.end_time)
+                                  return (<div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                                    <p style={{ fontSize:11, fontWeight:700, color:"#D97706", margin:"0 0 2px" }}>✏️ Edit Break</p>
                                     <div>
-                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Title</label>
-                                      <input
-                                        value={editDraft.title ?? ""}
-                                        onChange={ev => setEditDraft(d => ({ ...d, title: ev.target.value }))}
-                                        style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                      />
+                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Date</label>
+                                      <input type="date" value={editDraftDate} onChange={ev=>setEditDraftDate(ev.target.value)} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border: editDraftDate!==editOrigDate?"1.5px solid #6366F1":"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} />
+                                      {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
                                     </div>
+                                    <div style={{ background:"#FFFBEB", borderRadius:12, border:"1.5px solid rgba(245,158,11,0.3)", padding:"10px 14px", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                                      <HTimePicker value={editDraft.start_time??"13:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
+                                      <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                      <HTimePicker value={editDraft.end_time??"13:30"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} />
+                                      {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>{fmtTravel(dur)}</span>}
+                                      <select value={editDraft.title??"Lunch"} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value,_custom_label:""}))}
+                                        style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
+                                        <option value="Lunch">🍱 Lunch</option>
+                                        <option value="Tea">☕ Tea</option>
+                                        <option value="Short Break">🚶 Short Break</option>
+                                        <option value="Personal">🏠 Personal</option>
+                                        <option value="__other__">✏️ Other</option>
+                                      </select>
+                                      {editDraft.title==="__other__" && <input value={editDraft._custom_label??""} onChange={ev=>setEditDraft(d=>({...d,_custom_label:ev.target.value}))} placeholder="Type break name…" style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", outline:"none", width:130 }} />}
+                                    </div>
+                                    <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                                      <button onClick={()=>{setEditingKey(null);setEditDraft({})}} style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
+                                      <button onClick={()=>saveEntry(u.id,entries,ei)} disabled={savingKey===eKey} style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:8, background:"#D97706", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:savingKey===eKey?0.6:1 }}><Check size={12}/> {savingKey===eKey?"Saving…":"Save"}</button>
+                                    </div>
+                                  </div>)
+                                })()}
+
+                                {/* ── SHOOT ── */}
+                                {editDraft.task_type === "shoot" && (()=>{
+                                  const HF: React.CSSProperties = { background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box" as const }
+                                  const HL: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                                  const dur = calcDur(editDraft.start_time, editDraft.end_time)
+                                  const droneH = editDraft._drone_hours ?? 0
+                                  const cameraOn = (editDraft._camera_hours ?? 0) > 0
+                                  const droneOn = droneH > 0
+                                  return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                                    <p style={{ fontSize:11, fontWeight:800, color:"#EF4444", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Shoot</p>
                                     <div>
-                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
-                                      {editDraft.task_type === "learning"
-                                        ? <select
-                                            value={editDraft.client_name ?? ""}
-                                            onChange={ev => setEditDraft(d => ({ ...d, client_name: ev.target.value }))}
-                                            style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                            <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
-                                            <option value="GROFAST AI">GROFAST AI</option>
-                                            <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
-                                          </select>
-                                        : editDraft.task_type === "other" && editDraft.is_multi_client
-                                        ? <p style={{ fontSize:11, fontWeight:700, color:"#374151", padding:"7px 0" }}>{(editDraft.client_names ?? []).join(" · ") || "—"}</p>
-                                        : editClientShowPast
-                                          ? <div>
-                                              <button type="button" onClick={() => setEditClientShowPast(false)}
-                                                style={{ width:"100%", padding:"6px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#6366F1", fontWeight:700, background:"rgba(99,102,241,0.06)", cursor:"pointer", textAlign:"left", marginBottom:4 }}>
-                                                ← Back to Active Clients
-                                              </button>
-                                              <select value=""
-                                                onChange={ev => { const v = ev.target.value; if (v) { setEditDraft(d => ({ ...d, client_name: v })); setEditClientShowPast(false) } }}
-                                                style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                                <option value="">— Select past client —</option>
-                                                {pastClientsOnly.map(c => <option key={c} value={c}>{c}</option>)}
+                                      <label style={HL}>Date</label>
+                                      <input type="date" value={editDraftDate} onChange={ev=>setEditDraftDate(ev.target.value)} style={{ ...HF, colorScheme:"light" }} />
+                                      {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                      <div>
+                                        <label style={HL}>Client / Project *</label>
+                                        <div style={{ position:"relative" }}>
+                                          {editClientShowPast
+                                            ? <div>
+                                                <button type="button" onClick={()=>setEditClientShowPast(false)} style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>← Back</button>
+                                                <div style={{ position:"relative" }}>
+                                                  <select value="" onChange={ev=>{if(ev.target.value){setEditDraft(d=>({...d,client_name:ev.target.value}));setEditClientShowPast(false)}}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                                    <option value="">— Select past client —</option>
+                                                    {pastClientsOnly.map(c=><option key={c} value={c}>{c}</option>)}
+                                                  </select>
+                                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                                </div>
+                                              </div>
+                                            : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__")setEditClientShowPast(true);else setEditDraft(d=>({...d,client_name:v}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                                <option value="">Select client…</option>
+                                                {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
+                                                {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
                                               </select>
-                                            </div>
-                                          : <select
-                                              value={editDraft.client_name ?? ""}
-                                              onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { setEditClientShowPast(true) } else if (v === "__custom__") { setEditDraft(d => ({ ...d, client_name: "" })) } else { setEditDraft(d => ({ ...d, client_name: v })) } }}
-                                              style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                              <option value="">— Select client —</option>
-                                              {activeClientsForEdit.map(c => <option key={c} value={c}>{c}</option>)}
-                                              {pastClientsOnly.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                              <option value="__custom__">✏️ Other (type manually)</option>
-                                            </select>
-                                      }
-                                    </div>
-                                  </div>
-
-                                  {/* Multi-client toggle + selector (working entries only) */}
-                                  {editDraft.task_type === "other" && (
-                                    <div>
-                                      <label style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", fontSize:11, fontWeight:600, color:"#374151", marginBottom:6 }}>
-                                        <input
-                                          type="checkbox"
-                                          checked={editDraft.is_multi_client ?? false}
-                                          onChange={ev => setEditDraft(d => ({ ...d, is_multi_client: ev.target.checked, client_names: [] }))}
-                                          style={{ accentColor:"#de1a1a" }}
-                                        />
-                                        Split cost across multiple clients
-                                      </label>
-                                      {editDraft.is_multi_client && activeClientsForEdit.length > 0 && (
-                                        <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                                          {activeClientsForEdit.map(name => {
-                                            const selected = (editDraft.client_names ?? []).includes(name)
-                                            return (
-                                              <button key={name} type="button"
-                                                onClick={() => {
-                                                  const next = selected
-                                                    ? (editDraft.client_names ?? []).filter(n => n !== name)
-                                                    : [...(editDraft.client_names ?? []), name]
-                                                  setEditDraft(d => ({ ...d, client_names: next, client_name: next[0] || d.client_name }))
-                                                }}
-                                                style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${selected ? "#de1a1a" : "#EBEDF2"}`, background: selected ? "rgba(222,26,26,0.08)" : "#F9FAFB", color: selected ? "#de1a1a" : "#6B7280" }}>
-                                                {name}
-                                              </button>
-                                            )
-                                          })}
+                                          }
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                         </div>
-                                      )}
+                                      </div>
+                                      <div>
+                                        <label style={HL}>Shoot Type / Title *</label>
+                                        <input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="e.g. Basketball Tournament Shoot" style={HF} />
+                                      </div>
                                     </div>
-                                  )}
+                                    <div>
+                                      <label style={HL}>Time</label>
+                                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                        <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
+                                        <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                        <HTimePicker value={editDraft.end_time??"17:00"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label style={HL}>Duration</label>
+                                      <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:8, background:dur>0?"rgba(222,26,26,0.06)":"#F9FAFB", border:dur>0?"1.5px solid rgba(222,26,26,0.2)":"1.5px solid #EBEDF2" }}>
+                                        <span style={{ fontSize:13, fontWeight:700, color:dur>0?"#DE1A1A":"#9CA3AF" }}>{dur>0?fmtTravel(dur):"—"}</span>
+                                        <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label style={HL}>Shoot Type</label>
+                                      <div style={{ display:"flex", gap:8, marginBottom:8 }}>
+                                        <button type="button" onClick={()=>setEditDraft(d=>({...d,_camera_hours:cameraOn?0:1}))} style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, border:cameraOn?"2px solid #6366F1":"1.5px solid #EBEDF2", background:cameraOn?"rgba(99,102,241,0.1)":"#F9FAFB", color:cameraOn?"#4338CA":"#6B7280", fontSize:12, fontWeight:700, cursor:"pointer" }}>📷 Camera Shoot</button>
+                                        <button type="button" onClick={()=>setEditDraft(d=>({...d,_drone_hours:droneOn?0:1}))} style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, border:droneOn?"2px solid #D97706":"1.5px solid #EBEDF2", background:droneOn?"rgba(245,158,11,0.1)":"#F9FAFB", color:droneOn?"#D97706":"#6B7280", fontSize:12, fontWeight:700, cursor:"pointer" }}>🚁 Drone Shooting</button>
+                                      </div>
+                                      {cameraOn && <div style={{ marginBottom:6, padding:"8px 14px", borderRadius:8, background:"rgba(99,102,241,0.06)", border:"1.5px solid rgba(99,102,241,0.2)", display:"inline-flex", alignItems:"center", gap:6 }}><span style={{ fontSize:13, fontWeight:700, color:"#4338CA" }}>{fmtTravel(Math.max(0,dur-droneH))}</span><span style={{ fontSize:10, color:"#9CA3AF" }}>camera (auto: total − drone)</span></div>}
+                                      {droneOn && <div style={{ marginBottom:6 }}>
+                                        <label style={{ display:"block", fontSize:10, fontWeight:600, color:"#6B7280", marginBottom:4 }}>🚁 Drone Hours</label>
+                                        <select value={String(droneH)} onChange={ev=>setEditDraft(d=>({...d,_drone_hours:parseFloat(ev.target.value)||0}))} style={{ ...HF, width:"auto" }}>
+                                          {[0.25,0.5,0.75,1,1.5,2,2.5,3,4,5].map(v=><option key={v} value={String(v)}>{fmtTravel(v)}</option>)}
+                                        </select>
+                                      </div>}
+                                    </div>
+                                    <div>
+                                      <label style={HL}>🚗 Travel Time</label>
+                                      <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                                        <input type="number" min={0} max={12} placeholder="0" value={Math.floor(editDraft._travel_hours??0)||""} onChange={ev=>{const h=Math.max(0,Math.min(12,Number(ev.target.value)||0));const m=Math.round(((editDraft._travel_hours??0)-Math.floor(editDraft._travel_hours??0))*60);setEditDraft(d=>({...d,_travel_hours:h+m/60}))}} style={{ ...HF, width:60, textAlign:"center" }} />
+                                        <span style={{ fontSize:11, color:"#6B7280", fontWeight:600 }}>hr</span>
+                                        <input type="number" min={0} max={59} placeholder="0" value={Math.round(((editDraft._travel_hours??0)-Math.floor(editDraft._travel_hours??0))*60)||""} onChange={ev=>{const m=Math.max(0,Math.min(59,Number(ev.target.value)||0));const h=Math.floor(editDraft._travel_hours??0);setEditDraft(d=>({...d,_travel_hours:h+m/60}))}} style={{ ...HF, width:60, textAlign:"center" }} />
+                                        <span style={{ fontSize:11, color:"#6B7280", fontWeight:600 }}>min</span>
+                                        {(editDraft._travel_hours??0)>0 && <span style={{ fontSize:11, fontWeight:700, color:"#F59E0B" }}>+{fmtTravel(editDraft._travel_hours??0)} travel</span>}
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label style={HL}>📍 Location</label>
+                                      <input value={editDraft._location??""} onChange={ev=>setEditDraft(d=>({...d,_location:ev.target.value}))} placeholder="e.g. Anna Nagar, Chennai" style={HF} />
+                                    </div>
+                                    <div>
+                                      <label style={HL}>🔗 Drive Link</label>
+                                      <input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="Paste Google Drive / folder link…" style={HF} />
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"end" }}>
+                                      <div>
+                                        <label style={HL}>Notes</label>
+                                        <textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Shots taken, any issues…" style={{ ...HF, resize:"none" }} />
+                                      </div>
+                                      <button type="button" onClick={()=>setEditDraft(d=>({...d,video_uploaded:!d.video_uploaded}))} style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px", borderRadius:10, border:"1.5px solid", cursor:"pointer", fontSize:11, fontWeight:700, whiteSpace:"nowrap", background:editDraft.video_uploaded?"rgba(34,197,94,0.1)":"#F9FAFB", borderColor:editDraft.video_uploaded?"rgba(34,197,94,0.4)":"#EBEDF2", color:editDraft.video_uploaded?"#16A34A":"#9CA3AF" }}>{editDraft.video_uploaded?"Uploaded ✓":"Video Uploaded?"}</button>
+                                    </div>
+                                    {members.length>0 && (
+                                      <div style={{ paddingTop:8, borderTop:"1px dashed #F0F1F5" }}>
+                                        <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Shot With</p>
+                                        {(editDraft.participant_ids??[]).length>0 && <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>{(editDraft.participant_ids??[]).map(pid=>{const m=members.find(t=>t.id===pid);if(!m)return null;const ini=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase();return(<button key={pid} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:(d.participant_ids??[]).filter(p=>p!==pid)}))} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(239,68,68,0.1)", border:"1.5px solid rgba(239,68,68,0.3)", cursor:"pointer" }}><div style={{ width:16, height:16, borderRadius:"50%", background:"#EF4444", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{ini}</div><span style={{ fontSize:10, fontWeight:700, color:"#B91C1C" }}>{m.name.split(" ")[0]}</span><span style={{ fontSize:8, color:"#EF4444" }}>✕</span></button>)})}</div>}
+                                        <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>{members.map(m=>{const sel=(editDraft.participant_ids??[]).includes(m.id);const ini=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase();return(<button key={m.id} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:sel?(d.participant_ids??[]).filter(p=>p!==m.id):[...(d.participant_ids??[]),m.id]}))} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, cursor:"pointer", background:sel?"rgba(239,68,68,0.1)":"#F9FAFB", border:`1.5px solid ${sel?"rgba(239,68,68,0.4)":"#EBEDF2"}` }}><div style={{ width:16, height:16, borderRadius:"50%", background:sel?"#EF4444":"#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:sel?"#fff":"#9CA3AF" }}>{ini}</div><span style={{ fontSize:10, fontWeight:700, color:sel?"#B91C1C":"#374151" }}>{m.name.split(" ")[0]}</span>{sel&&<span style={{ fontSize:8, color:"#EF4444" }}>✓</span>}</button>)})}</div>
+                                      </div>
+                                    )}
+                                    <div style={{ display:"flex", gap:8, justifyContent:"flex-end", borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4 }}>
+                                      <button onClick={()=>{setEditingKey(null);setEditDraft({})}} style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
+                                      <button onClick={()=>saveEntry(u.id,entries,ei)} disabled={savingKey===eKey} style={{ display:"flex", alignItems:"center", gap:5, padding:"9px 20px", borderRadius:10, background:"#DE1A1A", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:savingKey===eKey?0.7:1, boxShadow:"0 4px 12px rgba(222,26,26,0.3)" }}><Check size={12}/> {savingKey===eKey?"Saving…":"Save Shoot"}</button>
+                                    </div>
+                                  </div>)
+                                })()}
 
-                                  {/* Shoot, Other & Learning: start/end time */}
-                                  {(editDraft.task_type === "shoot" || editDraft.task_type === "other" || editDraft.task_type === "learning") && (
+                                {/* ── EDITING ENTRY ── */}
+                                {editDraft.task_type === "edit" && (()=>{
+                                  const HF: React.CSSProperties = { background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box" as const }
+                                  const HL: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                                  const dur = calcDur(editDraft.start_time, editDraft.end_time)
+                                  return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                                    <p style={{ fontSize:11, fontWeight:800, color:"#6366F1", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Editing Entry</p>
+                                    <div>
+                                      <label style={HL}>Date</label>
+                                      <input type="date" value={editDraftDate} onChange={ev=>setEditDraftDate(ev.target.value)} style={{ ...HF, colorScheme:"light" }} />
+                                      {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                      <div><label style={HL}>Date Given</label><input type="date" value={editDraft.date_given??""} onChange={ev=>setEditDraft(d=>({...d,date_given:ev.target.value}))} style={{ ...HF, colorScheme:"light" }} /></div>
+                                      <div><label style={HL}>Date Finished</label><input type="date" value={editDraft.date_finished??""} onChange={ev=>setEditDraft(d=>({...d,date_finished:ev.target.value}))} style={{ ...HF, colorScheme:"light" }} /></div>
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                      <div>
+                                        <label style={HL}>Client Name *</label>
+                                        <div style={{ position:"relative" }}>
+                                          {editClientShowPast
+                                            ? <div>
+                                                <button type="button" onClick={()=>setEditClientShowPast(false)} style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>← Back</button>
+                                                <div style={{ position:"relative" }}>
+                                                  <select value="" onChange={ev=>{if(ev.target.value){setEditDraft(d=>({...d,client_name:ev.target.value}));setEditClientShowPast(false)}}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                                    <option value="">— Select past client —</option>
+                                                    {pastClientsOnly.map(c=><option key={c} value={c}>{c}</option>)}
+                                                  </select>
+                                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                                </div>
+                                              </div>
+                                            : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__")setEditClientShowPast(true);else setEditDraft(d=>({...d,client_name:v}))}} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                                <option value="">Select client…</option>
+                                                {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
+                                                {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                              </select>
+                                          }
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
+                                      </div>
+                                      <div><label style={HL}>Video Name *</label><input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} placeholder="e.g. Evan Styles Makeover Reel" style={HF} /></div>
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 110px", gap:10 }}>
+                                      <div>
+                                        <label style={HL}>Video Type</label>
+                                        <div style={{ position:"relative" }}>
+                                          <select value={editDraft.video_type??""} onChange={ev=>setEditDraft(d=>({...d,video_type:ev.target.value}))} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                            <option value="">Select type…</option>
+                                            {["Instagram Reels","Hook","Personal Branding","Ads and Hooks","Long Videos","Cinematic","YouTube Shorts"].map(t=><option key={t} value={t}>{t}</option>)}
+                                            <option value="__other__">✏️ Other</option>
+                                          </select>
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label style={HL}>Duration (mins)</label>
+                                        <div style={{ position:"relative" }}>
+                                          <select value={editDraft.video_duration??""} onChange={ev=>setEditDraft(d=>({...d,video_duration:ev.target.value}))} style={{ ...HF, paddingRight:28, appearance:"none" }}>
+                                            <option value="">Select…</option>
+                                            <option value="15 sec">15 sec</option>
+                                            <option value="30 sec">30 sec</option>
+                                            <option value="45 sec">45 sec</option>
+                                            {[1,1.5,2,2.5,3,3.5,4,4.5,5,10].map(m=><option key={m} value={`${m} min`}>{m} min</option>)}
+                                          </select>
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                        </div>
+                                      </div>
+                                      <div><label style={HL}>Revisions</label><input type="number" min="0" max="99" value={editDraft.revisions??0} onChange={ev=>setEditDraft(d=>({...d,revisions:parseInt(ev.target.value)||0}))} placeholder="0" style={HF} /></div>
+                                    </div>
+                                    <div>
+                                      <label style={HL}>🪝 Hooks Completed</label>
+                                      <input type="number" min="0" max="99" value={editDraft.hooks_completed??0} onChange={ev=>setEditDraft(d=>({...d,hooks_completed:Math.max(0,parseInt(ev.target.value)||0)}))} placeholder="0" style={{ ...HF, width:100 }} />
+                                    </div>
+                                    <div>
+                                      <label style={HL}>✏️ Editing Time</label>
+                                      <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                                        <HTimePicker value={editDraft.start_time??"09:00"} onChange={v=>setEditDraft(d=>({...d,start_time:v}))} />
+                                        <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
+                                        <HTimePicker value={editDraft.end_time??"17:00"} onChange={v=>setEditDraft(d=>({...d,end_time:v}))} />
+                                      </div>
+                                    </div>
+                                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                                      <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:8, background:dur>0?"rgba(222,26,26,0.06)":"#F9FAFB", border:dur>0?"1.5px solid rgba(222,26,26,0.2)":"1.5px solid #EBEDF2" }}>
+                                        <span style={{ fontSize:13, fontWeight:700, color:dur>0?"#DE1A1A":"#9CA3AF" }}>{dur>0?fmtTravel(dur):"—"}</span>
+                                        <span style={{ fontSize:10, color:"#9CA3AF", fontWeight:500 }}>auto</span>
+                                      </div>
+                                      <button type="button" onClick={()=>setEditDraft(d=>({...d,drive_updated:!d.drive_updated}))} style={{ display:"flex", alignItems:"center", gap:6, padding:"9px 14px", borderRadius:10, border:"1.5px solid", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.drive_updated?"rgba(34,197,94,0.1)":"#F9FAFB", borderColor:editDraft.drive_updated?"rgba(34,197,94,0.4)":"#EBEDF2", color:editDraft.drive_updated?"#16A34A":"#9CA3AF" }}>{editDraft.drive_updated?"Drive Updated ✓":"Drive Updated?"}</button>
+                                    </div>
+                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                                      <div><label style={HL}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} placeholder="Software used, challenges…" style={{ ...HF, resize:"none" }} /></div>
+                                      <div><label style={HL}>Drive / Video Link</label><input value={editDraft.video_link??""} onChange={ev=>setEditDraft(d=>({...d,video_link:ev.target.value}))} placeholder="https://drive.google.com/…" style={HF} /></div>
+                                    </div>
+                                    {members.length>0 && (
+                                      <div style={{ paddingTop:8, borderTop:"1px dashed #F0F1F5" }}>
+                                        <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Edited With</p>
+                                        {(editDraft.participant_ids??[]).length>0 && <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>{(editDraft.participant_ids??[]).map(pid=>{const m=members.find(t=>t.id===pid);if(!m)return null;const ini=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase();return(<button key={pid} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:(d.participant_ids??[]).filter(p=>p!==pid)}))} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}><div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{ini}</div><span style={{ fontSize:10, fontWeight:700, color:"#4338CA" }}>{m.name.split(" ")[0]}</span><span style={{ fontSize:8, color:"#6366F1" }}>✕</span></button>)})}</div>}
+                                        <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>{members.map(m=>{const sel=(editDraft.participant_ids??[]).includes(m.id);const ini=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase();return(<button key={m.id} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:sel?(d.participant_ids??[]).filter(p=>p!==m.id):[...(d.participant_ids??[]),m.id]}))} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, cursor:"pointer", background:sel?"rgba(99,102,241,0.1)":"#F9FAFB", border:`1.5px solid ${sel?"rgba(99,102,241,0.4)":"#EBEDF2"}` }}><div style={{ width:16, height:16, borderRadius:"50%", background:sel?"#6366F1":"#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:sel?"#fff":"#9CA3AF" }}>{ini}</div><span style={{ fontSize:10, fontWeight:700, color:sel?"#4338CA":"#374151" }}>{m.name.split(" ")[0]}</span>{sel&&<span style={{ fontSize:8, color:"#6366F1" }}>✓</span>}</button>)})}</div>
+                                      </div>
+                                    )}
+                                    <div style={{ display:"flex", gap:8, justifyContent:"flex-end", borderTop:"1px solid #F0F1F5", paddingTop:12, marginTop:4 }}>
+                                      <button onClick={()=>{setEditingKey(null);setEditDraft({})}} style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
+                                      <button onClick={()=>saveEntry(u.id,entries,ei)} disabled={savingKey===eKey} style={{ display:"flex", alignItems:"center", gap:5, padding:"9px 20px", borderRadius:10, background:"#6366F1", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:savingKey===eKey?0.7:1, boxShadow:"0 4px 12px rgba(99,102,241,0.3)" }}><Check size={12}/> {savingKey===eKey?"Saving…":"Save Edit"}</button>
+                                    </div>
+                                  </div>)
+                                })()}
+
+                                {/* ── OTHER / LEARNING ── */}
+                                {(editDraft.task_type === "other" || editDraft.task_type === "learning") && (
+                                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                                    <p style={{ fontSize:11, fontWeight:700, color:"#6366F1", margin:"0 0 2px" }}>Edit Entry</p>
+                                    <div>
+                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Date</label>
+                                      <input type="date" value={editDraftDate} onChange={ev=>setEditDraftDate(ev.target.value)} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:editDraftDate!==editOrigDate?"1.5px solid #6366F1":"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} />
+                                      {editDraftDate!==editOrigDate && <p style={{ fontSize:10, color:"#6366F1", margin:"3px 0 0", fontWeight:600 }}>Moves to {new Date(editDraftDate+"T12:00:00").toLocaleDateString("en-US",{day:"numeric",month:"short",year:"numeric"})}</p>}
+                                    </div>
                                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                                       <div>
-                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Start Time</label>
-                                        <input
-                                          type="time"
-                                          value={editDraft.start_time ?? ""}
-                                          onChange={ev => setEditDraft(d => ({ ...d, start_time: ev.target.value }))}
-                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                        />
+                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Title</label>
+                                        <input value={editDraft.title??""} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} />
                                       </div>
                                       <div>
-                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>End Time</label>
-                                        <input
-                                          type="time"
-                                          value={editDraft.end_time ?? ""}
-                                          onChange={ev => setEditDraft(d => ({ ...d, end_time: ev.target.value }))}
-                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                        />
+                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Client</label>
+                                        {editDraft.task_type==="learning"
+                                          ? <select value={editDraft.client_name??""} onChange={ev=>setEditDraft(d=>({...d,client_name:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                              <option value="GROFAST DIGITAL">GROFAST DIGITAL</option>
+                                              <option value="GROFAST AI">GROFAST AI</option>
+                                              <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
+                                            </select>
+                                          : editDraft.is_multi_client
+                                          ? <p style={{ fontSize:11, fontWeight:700, color:"#374151", padding:"7px 0" }}>{(editDraft.client_names??[]).join(" · ")||"—"}</p>
+                                          : editClientShowPast
+                                          ? <div>
+                                              <button type="button" onClick={()=>setEditClientShowPast(false)} style={{ width:"100%", padding:"6px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#6366F1", fontWeight:700, background:"rgba(99,102,241,0.06)", cursor:"pointer", textAlign:"left", marginBottom:4 }}>← Back to Active Clients</button>
+                                              <select value="" onChange={ev=>{const v=ev.target.value;if(v){setEditDraft(d=>({...d,client_name:v}));setEditClientShowPast(false)}}} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                                <option value="">— Select past client —</option>
+                                                {pastClientsOnly.map(c=><option key={c} value={c}>{c}</option>)}
+                                              </select>
+                                            </div>
+                                          : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__"){setEditClientShowPast(true)}else if(v==="__custom__"){setEditDraft(d=>({...d,client_name:""}))}else{setEditDraft(d=>({...d,client_name:v}))}}} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
+                                              <option value="">— Select client —</option>
+                                              {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
+                                              {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                              <option value="__custom__">✏️ Other (type manually)</option>
+                                            </select>
+                                        }
                                       </div>
                                     </div>
-                                  )}
-
-                                  {/* Edit: video type, duration, revisions */}
-                                  {editDraft.task_type === "edit" && (
-                                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 90px", gap:8 }}>
+                                    {editDraft.task_type==="other" && (
                                       <div>
-                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Video Type</label>
-                                        <select
-                                          value={editDraft.video_type ?? ""}
-                                          onChange={ev => setEditDraft(d => ({ ...d, video_type: ev.target.value }))}
-                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                          <option value="">Select type…</option>
-                                          {["Instagram Reels","Personal Branding","Ads and Hooks","Long Videos","Cinematic","YouTube Shorts"].map(t => <option key={t} value={t}>{t}</option>)}
-                                        </select>
+                                        <label style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", fontSize:11, fontWeight:600, color:"#374151", marginBottom:6 }}>
+                                          <input type="checkbox" checked={editDraft.is_multi_client??false} onChange={ev=>setEditDraft(d=>({...d,is_multi_client:ev.target.checked,client_names:[]}))} style={{ accentColor:"#de1a1a" }} />
+                                          Split cost across multiple clients
+                                        </label>
+                                        {editDraft.is_multi_client && activeClientsForEdit.length>0 && (
+                                          <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                                            {activeClientsForEdit.map(name=>{const selected=(editDraft.client_names??[]).includes(name);return(<button key={name} type="button" onClick={()=>{const next=selected?(editDraft.client_names??[]).filter(n=>n!==name):[...(editDraft.client_names??[]),name];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name}))}} style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${selected?"#de1a1a":"#EBEDF2"}`, background:selected?"rgba(222,26,26,0.08)":"#F9FAFB", color:selected?"#de1a1a":"#6B7280" }}>{name}</button>)})}
+                                          </div>
+                                        )}
                                       </div>
-                                      <div>
-                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Duration (mins)</label>
-                                        <select
-                                          value={editDraft.video_duration ?? ""}
-                                          onChange={ev => setEditDraft(d => ({ ...d, video_duration: ev.target.value }))}
-                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                          <option value="">Select…</option>
-                                          {[1,1.5,2,2.5,3,3.5,4,4.5,5,6,7,8].map(m => <option key={m} value={`${m} min`}>{m} min</option>)}
-                                        </select>
+                                    )}
+                                    {(editDraft.task_type==="other"||editDraft.task_type==="learning") && (
+                                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                                        <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Start Time</label><input type="time" value={editDraft.start_time??""} onChange={ev=>setEditDraft(d=>({...d,start_time:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} /></div>
+                                        <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>End Time</label><input type="time" value={editDraft.end_time??""} onChange={ev=>setEditDraft(d=>({...d,end_time:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} /></div>
                                       </div>
-                                      <div>
-                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Revisions</label>
-                                        <input
-                                          type="number" min="0" max="99"
-                                          value={editDraft.revisions ?? 0}
-                                          onChange={ev => setEditDraft(d => ({ ...d, revisions: parseInt(ev.target.value) || 0 }))}
-                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                        />
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Edit: start/end time (mirrors daily update form) */}
-                                  {editDraft.task_type === "edit" && (
-                                    <div>
-                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Editing Time</label>
-                                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                                        <input type="time" value={editDraft.start_time ?? ""}
-                                          onChange={ev => {
-                                            const st = ev.target.value
-                                            const dur = calcDurationFromTimes(st, editDraft.end_time ?? "")
-                                            setEditDraft(d => ({ ...d, start_time: st, duration_hours: dur ?? d.duration_hours }))
-                                          }}
-                                          style={{ flex:1, padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                        />
-                                        <span style={{ fontSize:11, color:"#9CA3AF", flexShrink:0 }}>to</span>
-                                        <input type="time" value={editDraft.end_time ?? ""}
-                                          onChange={ev => {
-                                            const et = ev.target.value
-                                            const dur = calcDurationFromTimes(editDraft.start_time ?? "", et)
-                                            setEditDraft(d => ({ ...d, end_time: et, duration_hours: dur ?? d.duration_hours }))
-                                          }}
-                                          style={{ flex:1, padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                        />
-                                        {(() => { const d = calcDurationFromTimes(editDraft.start_time, editDraft.end_time); return d != null && d > 0 ? (
-                                          <span style={{ fontSize:12, fontWeight:700, color:"#DE1A1A", flexShrink:0 }}>{fmtH(d)}</span>
-                                        ) : null })()}
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {/* Shoot & Edit: drive link */}
-                                  {(editDraft.task_type === "shoot" || editDraft.task_type === "edit") && (
-                                    <div>
-                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Drive Link</label>
-                                      <input
-                                        type="url"
-                                        value={editDraft.video_link ?? ""}
-                                        onChange={ev => setEditDraft(d => ({ ...d, video_link: ev.target.value }))}
-                                        placeholder="https://drive.google.com/…"
-                                        style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                      />
-                                    </div>
-                                  )}
-
-                                  {/* Other: project name + status */}
-                                  {editDraft.task_type === "other" && (
-                                    <>
-                                      <div>
-                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Project / Task Name</label>
-                                        <input
-                                          value={editDraft.project_name ?? ""}
-                                          onChange={ev => setEditDraft(d => ({ ...d, project_name: ev.target.value }))}
-                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Status</label>
-                                        <select
-                                          value={editEntryStatus}
-                                          onChange={ev => setEditEntryStatus(ev.target.value as typeof editEntryStatus)}
-                                          style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                          <option value="not_started">Not Started</option>
-                                          <option value="in_progress">In Progress</option>
-                                          <option value="completed">Completed ✓</option>
-                                        </select>
-                                      </div>
-                                    </>
-                                  )}
-
-                                  {/* Notes — shoot + edit types only */}
-                                  {editDraft.task_type !== "other" && (
-                                    <div>
-                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label>
-                                      <textarea
-                                        rows={2}
-                                        value={editDraft.notes ?? ""}
-                                        onChange={ev => setEditDraft(d => ({ ...d, notes: ev.target.value }))}
-                                        style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }}
-                                      />
-                                    </div>
-                                  )}
-
-                                  {/* Worked With */}
-                                  {members.length > 0 && (
-                                    <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
-                                      <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:5 }}>👥 Worked With</label>
-                                      <div style={{ position:"relative" }}>
-                                        <select value="" onChange={ev => {
-                                          const id = ev.target.value
-                                          if (id && !(editDraft.participant_ids ?? []).includes(id))
-                                            setEditDraft(d => ({ ...d, participant_ids: [...(d.participant_ids ?? []), id] }))
-                                        }}
-                                          style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1px solid #E5E7EB", borderRadius:8, padding:"7px 24px 7px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
-                                          <option value="">Add teammate…</option>
-                                          {members.filter(m => !(editDraft.participant_ids ?? []).includes(m.id)).map(m => (
-                                            <option key={m.id} value={m.id}>{m.name}</option>
-                                          ))}
-                                        </select>
-                                        <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                      </div>
-                                      {(editDraft.participant_ids ?? []).length > 0 && (
-                                        <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
-                                          {(editDraft.participant_ids ?? []).map(pid => {
-                                            const m = members.find(t => t.id === pid)
-                                            if (!m) return null
-                                            const initials = m.name.split(" ").map((n: string) => n[0]).join("").slice(0,2).toUpperCase()
-                                            return (
-                                              <button key={pid} type="button"
-                                                onClick={() => setEditDraft(d => ({ ...d, participant_ids: (d.participant_ids ?? []).filter(p => p !== pid) }))}
-                                                style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
-                                                <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
-                                                <span style={{ fontSize:10, fontWeight:700, color:"#4338CA" }}>{m.name.split(" ")[0]}</span>
-                                                <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
-                                              </button>
-                                            )
-                                          })}
+                                    )}
+                                    {editDraft.task_type==="other" && (
+                                      <>
+                                        <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Project / Task Name</label><input value={editDraft.project_name??""} onChange={ev=>setEditDraft(d=>({...d,project_name:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} /></div>
+                                        <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Status</label><select value={editEntryStatus} onChange={ev=>setEditEntryStatus(ev.target.value as typeof editEntryStatus)} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}><option value="not_started">Not Started</option><option value="in_progress">In Progress</option><option value="completed">Completed ✓</option></select></div>
+                                      </>
+                                    )}
+                                    {editDraft.task_type!=="other" && (
+                                      <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }} /></div>
+                                    )}
+                                    {members.length>0 && (
+                                      <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
+                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:5 }}>👥 Worked With</label>
+                                        <div style={{ position:"relative" }}>
+                                          <select value="" onChange={ev=>{const id=ev.target.value;if(id&&!(editDraft.participant_ids??[]).includes(id))setEditDraft(d=>({...d,participant_ids:[...(d.participant_ids??[]),id]}))}} style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1px solid #E5E7EB", borderRadius:8, padding:"7px 24px 7px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                                            <option value="">Add teammate…</option>
+                                            {members.filter(m=>!(editDraft.participant_ids??[]).includes(m.id)).map(m=>(<option key={m.id} value={m.id}>{m.name}</option>))}
+                                          </select>
+                                          <ChevronDown size={11} style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                         </div>
-                                      )}
+                                        {(editDraft.participant_ids??[]).length>0 && (
+                                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                            {(editDraft.participant_ids??[]).map(pid=>{const m=members.find(t=>t.id===pid);if(!m)return null;const initials=m.name.split(" ").map((n:string)=>n[0]).join("").slice(0,2).toUpperCase();return(<button key={pid} type="button" onClick={()=>setEditDraft(d=>({...d,participant_ids:(d.participant_ids??[]).filter(p=>p!==pid)}))} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}><div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div><span style={{ fontSize:10, fontWeight:700, color:"#4338CA" }}>{m.name.split(" ")[0]}</span><span style={{ fontSize:8, color:"#6366F1" }}>✕</span></button>)})}
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                    <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
+                                      <button onClick={()=>{setEditingKey(null);setEditDraft({})}} style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>
+                                      <button onClick={()=>saveEntry(u.id,entries,ei)} disabled={savingKey===eKey} style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:8, background:"#6366F1", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity:savingKey===eKey?0.6:1 }}><Check size={12}/> {savingKey===eKey?"Saving…":"Save"}</button>
                                     </div>
-                                  )}
-
-                                  <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
-                                    <button
-                                      onClick={() => { setEditingKey(null); setEditDraft({}) }}
-                                      style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>
-                                      Cancel
-                                    </button>
-                                    <button
-                                      onClick={() => saveEntry(u.id, entries, ei)}
-                                      disabled={savingKey === eKey}
-                                      style={{ display:"flex", alignItems:"center", gap:5, padding:"7px 14px", borderRadius:8, background:"#6366F1", border:"none", fontSize:12, fontWeight:700, color:"#fff", cursor:"pointer", opacity: savingKey === eKey ? 0.6 : 1 }}>
-                                      <Check size={12}/> {savingKey === eKey ? "Saving…" : "Save"}
-                                    </button>
                                   </div>
-                                </div>
+                                )}
+
                               </div>
                             )}
                           </div>

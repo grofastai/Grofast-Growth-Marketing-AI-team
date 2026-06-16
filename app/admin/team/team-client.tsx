@@ -869,7 +869,9 @@ function AssignManagerSheet({
   }
 
   const idNum = (id: string) => { const m = id.match(/\d+/); return m ? parseInt(m[0]) : 99999 }
-  const sortedMembers = [...members].sort((a, b) => idNum(a.employee_id) - idNum(b.employee_id))
+  const sortedMembers = [...members]
+    .filter(m => m.role === "MEMBER")
+    .sort((a, b) => idNum(a.employee_id) - idNum(b.employee_id))
 
   async function handleSave() {
     if (selectedMembers.length === 0) { setErr("Select at least one team member"); return }

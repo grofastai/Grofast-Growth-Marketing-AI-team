@@ -495,10 +495,11 @@ export default function HistoryClient({
 
   // Stats always use the full month (not search-filtered)
   const stats = useMemo(() => {
-    let totalHours = 0, totalOT = 0, totalTasks = 0, presentDays = 0, totalLearning = 0
+    let totalHours = 0, totalTasks = 0, presentDays = 0, totalLearning = 0
     let shootH = 0, editH = 0, otherH = 0
     const hoursPerDay: number[] = []
     const dailyData: { day: string; hours: number }[] = []
+    const perDayWorkH: number[] = []  // work-only hours per day (excl. learning/break)
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
       const shootEntries = entries.filter(e => e.task_type === "shoot")
@@ -510,8 +511,9 @@ export default function HistoryClient({
       const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
       const h = workH + learnH
-      totalHours += h; if (h > 9.5) totalOT += Math.round((h - 9.5) * 10) / 10
+      totalHours += h
       totalLearning += learnH
+      perDayWorkH.push(workH)
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
@@ -528,10 +530,18 @@ export default function HistoryClient({
       ? new Date(monthFiltered[0]?.date + "T12:00:00" || Date.now()).toISOString().slice(0, 7)
       : null
     for (const d of attendanceDates) {
-      if (updateDates.has(d)) continue  // already counted above
+      if (updateDates.has(d)) continue
       if (monthPrefix && !d.startsWith(monthPrefix)) continue
       presentDays++
     }
+
+    // Overtime: only counts when monthly avg working hours >= 8.5h;
+    // per-day overtime = hours above 8.5h on that day
+    const totalWorkOnly = totalHours - totalLearning
+    const avgWorkH = presentDays > 0 ? totalWorkOnly / presentDays : 0
+    const totalOT = avgWorkH >= 8.5
+      ? Math.round(perDayWorkH.reduce((sum, wh) => sum + Math.max(0, wh - 8.5), 0) * 10) / 10
+      : 0
 
     const productivity = filtered.length > 0
       ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9.5)) * 40) : 0)))
@@ -568,6 +578,24 @@ export default function HistoryClient({
     }
     return map
   }, [participatedUpdates])
+
+  // Merge own updates + orphan collaborated entries (dates where user has no own update)
+  type MergedItem = { type: "own"; date: string; u: UpdateRow } | { type: "collab"; date: string; pus: ParticipatedUpdate[] }
+  const mergedList = useMemo((): MergedItem[] => {
+    const ownDates = new Set(filtered.map(u => u.date))
+    const monthPrefix = selectedMonth && monthFiltered[0]?.date ? monthFiltered[0].date.slice(0, 7) : null
+    const orphans: { date: string; pus: ParticipatedUpdate[] }[] = []
+    for (const [date, pus] of participatedByDate.entries()) {
+      if (ownDates.has(date)) continue
+      if (monthPrefix && !date.startsWith(monthPrefix)) continue
+      if (!selectedMonth && !filtered.some(u => u.date >= date.slice(0, 7))) continue
+      orphans.push({ date, pus })
+    }
+    orphans.sort((a, b) => b.date.localeCompare(a.date))
+    const ownItems: MergedItem[] = filtered.map(u => ({ type: "own", date: u.date, u }))
+    const collabItems: MergedItem[] = orphans.map(o => ({ type: "collab", date: o.date, pus: o.pus }))
+    return [...ownItems, ...collabItems].sort((a, b) => b.date.localeCompare(a.date))
+  }, [filtered, participatedByDate, selectedMonth, monthFiltered])
 
   const topActivity = useMemo(() => {
     const map: Record<string, number> = {}
@@ -785,7 +813,7 @@ export default function HistoryClient({
             </div>
 
             {/* ── ENTRIES LIST ────────────────────────────────────────────── */}
-            {filtered.length === 0 ? (
+            {mergedList.length === 0 ? (
               <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"48px 24px", textAlign:"center", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                 <p style={{ fontSize:36, margin:"0 0 12px" }}>📋</p>
                 <p style={{ fontSize:16, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>No entries found</p>
@@ -793,7 +821,72 @@ export default function HistoryClient({
                   {searchActive || dateActive || selectedMonth ? "Try clearing your filters" : "No daily updates submitted yet"}
                 </p>
               </div>
-            ) : filtered.map(u => {
+            ) : mergedList.map(item => {
+              // ── Collab-only card (no own update that day) ──
+              if (item.type === "collab") {
+                const collabDate = new Date(item.date + "T12:00:00")
+                const collabDateLabel = collabDate.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
+                return (
+                  <div key={`c-${item.date}`} style={{ background:"#fff", borderRadius:20, border:"1.5px dashed rgba(99,102,241,0.3)", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 18px", borderBottom:"1px solid #F5F6FA", background:"rgba(99,102,241,0.03)" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ minWidth:36, textAlign:"center" }}>
+                          <span style={{ fontSize:16, fontWeight:900, color:"#6366F1", display:"block", lineHeight:1 }}>{collabDate.getDate()}</span>
+                          <span style={{ fontSize:8, fontWeight:700, color:"#6366F1", textTransform:"uppercase" }}>{collabDate.toLocaleDateString("en-US",{month:"short"})}</span>
+                        </div>
+                        <div>
+                          <p style={{ fontSize:12, fontWeight:800, color:"#111111", margin:0 }}>{collabDateLabel}</p>
+                          <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Collaborated — no own submission</p>
+                        </div>
+                      </div>
+                    </div>
+                    {item.pus.map(pu => {
+                      const submitter = members.find(m => m.id === pu.user_id)
+                      const allEnt = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
+                      const perEntry = userId ? allEnt.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : allEnt
+                      const puEntries = perEntry.length > 0 ? perEntry : allEnt.filter(e => e.task_type !== "break" && e.task_type !== "learning")
+                      return (
+                        <div key={pu.id} style={{ padding:"12px 18px", borderTop:"1px dashed rgba(99,102,241,0.15)" }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom: puEntries.length > 0 ? 10 : 0 }}>
+                            <span style={{ fontSize:11, fontWeight:700, color:"#6366F1" }}>👥 Collaborated</span>
+                            <span style={{ fontSize:11, color:"#9CA3AF" }}>· by <span style={{ fontWeight:700, color:"#6366F1" }}>{submitter?.name ?? "Teammate"}</span></span>
+                          </div>
+                          {puEntries.map((pe, pi) => {
+                            const cfg = TASK_CFG[pe.task_type] ?? TASK_CFG.other
+                            const { Icon } = cfg
+                            const displayTitle = pe.title || cfg.label
+                            const displayClient = (pe.is_multi_client && pe.client_names?.length) ? pe.client_names.join(" · ") : pe.client_name || ""
+                            const tH = pe.task_type === "shoot" ? (pe._travel_hours ?? 0) : 0
+                            const dur = calcDurationFromTimes(pe.start_time, pe.end_time) ?? (pe.duration_hours ?? 0)
+                            return (
+                              <div key={pi} style={{ display:"flex", gap:10, padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none", alignItems:"flex-start" }}>
+                                <div style={{ width:30, height:30, borderRadius:8, background:cfg.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                                  <Icon size={13} style={{ color:cfg.color }}/>
+                                </div>
+                                <div style={{ flex:1, minWidth:0 }}>
+                                  <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginBottom:2 }}>
+                                    <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{displayTitle}</span>
+                                    <span style={{ fontSize:9, fontWeight:700, color:cfg.color, background:cfg.bg, padding:"1px 6px", borderRadius:99 }}>{cfg.label}</span>
+                                  </div>
+                                  {displayClient && <p style={{ fontSize:10, color:"#6B7280", margin:"0 0 2px", fontWeight:600 }}>{displayClient}</p>}
+                                  <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                                    {dur + tH > 0 && <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:3 }}><Clock size={9} style={{ color:"#9CA3AF" }}/>{fmtH(dur + tH)}</span>}
+                                    {pe.start_time && pe.end_time && <span style={{ fontSize:10, color:"#9CA3AF" }}>{fmt12(pe.start_time)} – {fmt12(pe.end_time)}</span>}
+                                    {tH > 0 && <span style={{ fontSize:10, color:"#F59E0B", fontWeight:700 }}>🚗 {fmtTravel(tH)}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              }
+
+              // ── Own update card ──
+              const u = item.u
               const entries = (Array.isArray(u.work_entries) ? [...u.work_entries] : []).sort((a, b) => {
                 const ta = a.start_time ?? ""
                 const tb = b.start_time ?? ""

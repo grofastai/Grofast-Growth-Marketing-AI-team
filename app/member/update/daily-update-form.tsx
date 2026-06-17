@@ -407,7 +407,7 @@ export default function DailyUpdateForm({
     status: "not_started" as const, isMultiClient: false, clientNames: [], participantIds: [],
   }])
   const addBreakBlock = () => setTimeBlocks(p => [...p, {
-    id: crypto.randomUUID(), isBreak: true, breakLabel: "Lunch",
+    id: crypto.randomUUID(), isBreak: true, breakLabel: "Lunch Break",
     startTime: "13:00", endTime: "13:30",
     durationHours: 0.5, description: "", projectName: "", brand: "", customClient: "",
     status: "not_started" as const, isMultiClient: false, clientNames: [], participantIds: [],
@@ -424,7 +424,7 @@ export default function DailyUpdateForm({
   const [mediaBreaks, setMediaBreaks] = useState<MediaBreakEntry[]>(() =>
     existingUpdate ? parseExistingMediaBreaks(existingUpdate) : []
   )
-  const addMediaBreak    = () => setMediaBreaks(p => [...p, { id: crypto.randomUUID(), startTime: "13:00", endTime: "13:30", durationHours: 0.5, label: "Lunch" }])
+  const addMediaBreak    = () => setMediaBreaks(p => [...p, { id: crypto.randomUUID(), startTime: "13:00", endTime: "13:30", durationHours: 0.5, label: "Lunch Break" }])
   const patchMediaBreak  = (id: string, patch: Partial<MediaBreakEntry>) => setMediaBreaks(p => p.map(b => {
     const updated = { ...b, ...patch }
     if (patch.startTime || patch.endTime) updated.durationHours = calcDuration(updated.startTime, updated.endTime)
@@ -436,7 +436,7 @@ export default function DailyUpdateForm({
   const [nonMediaBreaks, setNonMediaBreaks] = useState<MediaBreakEntry[]>(() =>
     !isMediaTeam && existingUpdate ? parseExistingNonMediaBreaks(existingUpdate) : []
   )
-  const addNonMediaBreak    = () => setNonMediaBreaks(p => [...p, { id: crypto.randomUUID(), startTime: "13:00", endTime: "13:30", durationHours: 0.5, label: "Lunch" }])
+  const addNonMediaBreak    = () => setNonMediaBreaks(p => [...p, { id: crypto.randomUUID(), startTime: "13:00", endTime: "13:30", durationHours: 0.5, label: "Lunch Break" }])
   const patchNonMediaBreak  = (id: string, patch: Partial<MediaBreakEntry>) => setNonMediaBreaks(p => p.map(b => {
     const updated = { ...b, ...patch }
     if (patch.startTime || patch.endTime) updated.durationHours = calcDuration(updated.startTime, updated.endTime)
@@ -1893,10 +1893,13 @@ export default function DailyUpdateForm({
                       )}
                       <select value={b.label} onChange={e => patchMediaBreak(b.id, { label: e.target.value, customLabel: "" })}
                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
-                        <option value="Lunch">🍱 Lunch</option>
+                        <option value="Permission">🙋 Permission</option>
                         <option value="Tea">☕ Tea</option>
-                        <option value="Short Break">🚶 Short Break</option>
+                        <option value="Lunch Break">🍱 Lunch Break</option>
                         <option value="Personal">🏠 Personal</option>
+                        <option value="Short Break">🚶 Short Break</option>
+                        <option value="Early Logoff">🌙 Early Logoff</option>
+                        <option value="Late Login">⏰ Late Login</option>
                         <option value="__other__">✏️ Other</option>
                       </select>
                       {b.label === "__other__" && (
@@ -1934,10 +1937,13 @@ export default function DailyUpdateForm({
                       )}
                       <select value={b.label} onChange={e => patchNonMediaBreak(b.id, { label: e.target.value, customLabel: "" })}
                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
-                        <option value="Lunch">🍱 Lunch</option>
+                        <option value="Permission">🙋 Permission</option>
                         <option value="Tea">☕ Tea</option>
-                        <option value="Short Break">🚶 Short Break</option>
+                        <option value="Lunch Break">🍱 Lunch Break</option>
                         <option value="Personal">🏠 Personal</option>
+                        <option value="Short Break">🚶 Short Break</option>
+                        <option value="Early Logoff">🌙 Early Logoff</option>
+                        <option value="Late Login">⏰ Late Login</option>
                         <option value="__other__">✏️ Other</option>
                       </select>
                       {b.label === "__other__" && (

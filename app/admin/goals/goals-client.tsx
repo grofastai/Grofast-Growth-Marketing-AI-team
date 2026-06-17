@@ -216,6 +216,9 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
   const [mediaClientType, setMediaClientType] = useState("")
   const [mediaBrand, setMediaBrand] = useState("")
   const [mediaCustomClient, setMediaCustomClient] = useState("")
+  const [managerNote, setManagerNote] = useState("")
+  const [checklistItems, setChecklistItems] = useState<string[]>([])
+  const [newCheckItem, setNewCheckItem] = useState("")
 
   function openForm(preselect?: string) {
     setSelectedMembers(preselect ? [preselect] : [])
@@ -230,6 +233,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
       setShowForm(false)
       setSelectedMembers([])
       setMediaClientType(""); setMediaBrand(""); setMediaCustomClient("")
+      setManagerNote(""); setChecklistItems([]); setNewCheckItem("")
       startTransition(() => { router.refresh() })
     }
   }, [state]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -696,7 +700,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                   <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Assign work to your team</p>
                 </div>
               </div>
-              <button onClick={() => { setShowForm(false); setSelectedMembers([]); }}
+              <button onClick={() => { setShowForm(false); setSelectedMembers([]); setManagerNote(""); setChecklistItems([]); setNewCheckItem("") }}
                 style={{ width: 34, height: 34, borderRadius: 10, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <X size={15} style={{ color: "#6B7280" }} />
               </button>
@@ -790,12 +794,70 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                 <input name="due_date" type="date" className="ti" style={{ colorScheme: "light" }} />
               </div>
 
+              {/* Manager Note */}
+              <div>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#D97706", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>📌 Manager Note <span style={{ color: "#9CA3AF", fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(shown on task card)</span></label>
+                <textarea
+                  name="manager_note"
+                  rows={2}
+                  value={managerNote}
+                  onChange={e => setManagerNote(e.target.value)}
+                  placeholder="Instructions, context, or notes for the assignee…"
+                  className="ti"
+                  style={{ resize: "none" }}
+                />
+              </div>
+
+              {/* Checklist */}
+              <div>
+                <label style={{ display: "block", fontSize: 10, fontWeight: 700, color: "#374151", textTransform: "uppercase", letterSpacing: "0.14em", marginBottom: 6 }}>
+                  Checklist <span style={{ color: "#9CA3AF", fontWeight: 500, textTransform: "none", letterSpacing: 0 }}>(optional — shown to assignee)</span>
+                </label>
+                <input type="hidden" name="checklist_json" value={JSON.stringify(checklistItems.map(text => ({ text, done: false })))} />
+                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                  <input
+                    type="text"
+                    value={newCheckItem}
+                    onChange={e => setNewCheckItem(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        const t = newCheckItem.trim()
+                        if (t) { setChecklistItems(prev => [...prev, t]); setNewCheckItem("") }
+                      }
+                    }}
+                    placeholder="Add checklist item… (Enter to add)"
+                    className="ti"
+                    style={{ flex: 1 }}
+                  />
+                  <button type="button"
+                    onClick={() => {
+                      const t = newCheckItem.trim()
+                      if (t) { setChecklistItems(prev => [...prev, t]); setNewCheckItem("") }
+                    }}
+                    style={{ padding: "0 14px", borderRadius: 12, background: "rgba(222,26,26,0.08)", border: "1.5px solid rgba(222,26,26,0.2)", color: "#de1a1a", fontWeight: 700, fontSize: 13, cursor: "pointer" }}>
+                    +
+                  </button>
+                </div>
+                {checklistItems.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {checklistItems.map((item, idx) => (
+                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", borderRadius: 10, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                        <span style={{ fontSize: 11, color: "#6B7280", flex: 1 }}>☐ {item}</span>
+                        <button type="button" onClick={() => setChecklistItems(prev => prev.filter((_, i) => i !== idx))}
+                          style={{ background: "none", border: "none", cursor: "pointer", color: "#de1a1a", fontSize: 14, lineHeight: 1, padding: 2 }}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {state && "error" in state && (
                 <p style={{ fontSize: 12, color: "#de1a1a", fontWeight: 600, margin: 0, padding: "8px 12px", background: "rgba(222,26,26,0.06)", borderRadius: 8 }}>{state.error}</p>
               )}
 
               <div style={{ display: "flex", gap: 10, paddingTop: 4 }}>
-                <button type="button" onClick={() => { setShowForm(false); setSelectedMembers([]); setMediaClientType(""); setMediaBrand(""); setMediaCustomClient("") }}
+                <button type="button" onClick={() => { setShowForm(false); setSelectedMembers([]); setMediaClientType(""); setMediaBrand(""); setMediaCustomClient(""); setManagerNote(""); setChecklistItems([]); setNewCheckItem("") }}
                   style={{ flex: 1, padding: "12px 0", borderRadius: 12, fontSize: 13, fontWeight: 600, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: "pointer" }}>
                   Cancel
                 </button>

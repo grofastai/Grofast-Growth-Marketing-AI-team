@@ -2402,35 +2402,60 @@ export default function DailyUpdateForm({
               </p>
 
               {/* Non-media team: stats based on active tab */}
-              {!isMediaTeam && tab === "working" && (
-                <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-                  <p style={{ fontSize:10, fontWeight:700, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>⏰ Work Log</p>
-                  {([
-                    { label:"Hours Logged",  value:`${totalLoggedHours.toFixed(1)}h`, color: totalLoggedHours >= 8 ? "#22C55E" : "#111111" },
-                    { label:"Blocks Filled", value:`${filledBlocks.length}`,           color:"#6366F1" },
-                    { label:"Productivity",  value:`${generalProductivity}%`,          color: generalProductivity >= 70 ? "#22C55E" : generalProductivity > 0 ? "#F59E0B" : "#9CA3AF" },
-                  ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
-                    <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                      <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
-                      <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {!isMediaTeam && tab === "learning" && (
-                <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-                  <p style={{ fontSize:10, fontWeight:700, color:"#10B981", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>📚 Learning</p>
-                  {([
-                    { label:"Topic", value: learningTopic || "Not set", color:"#10B981" },
-                    { label:"Hours", value:`${learningHours}h`,          color:"#6366F1" },
-                  ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
-                    <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
-                      <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
-                      <span style={{ fontSize:11, fontWeight:700, color:r.color, maxWidth:130, textOverflow:"ellipsis", overflow:"hidden", whiteSpace:"nowrap" }}>{r.value}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {!isMediaTeam && tab === "working" && (() => {
+                // Use submitted data when available, otherwise live form state
+                const sourceUpdate = activeUpdate ?? (workingDone ? existingUpdate : null)
+                const submittedEntries = Array.isArray((sourceUpdate as Record<string,unknown> | null)?.work_entries)
+                  ? (sourceUpdate as Record<string,unknown>).work_entries as Array<Record<string,unknown>>
+                  : null
+                const dispH = submittedEntries
+                  ? submittedEntries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+                  : totalLoggedHours
+                const dispEntries = submittedEntries
+                  ? submittedEntries.filter(e => e.task_type === "other" || e.task_type === "voiceover" || e.task_type === "poster").length
+                  : filledBlocks.length
+                const dispProd = submittedEntries
+                  ? (() => { const total = submittedEntries.filter(e => e.task_type === "other").length; if (total === 0) return generalProductivity; const done = submittedEntries.filter(e => e.task_type === "other" && String(e.notes ?? "").includes("[completed]")).length; return Math.round(done / total * 100) })()
+                  : generalProductivity
+                return (
+                  <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                    <p style={{ fontSize:10, fontWeight:700, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>
+                      ⏰ Work Log{submittedEntries ? " ✓" : ""}
+                    </p>
+                    {([
+                      { label:"Hours Logged",  value:`${dispH.toFixed(1)}h`,    color: dispH >= 8 ? "#22C55E" : "#111111" },
+                      { label:"Entries",       value:`${dispEntries}`,           color:"#6366F1" },
+                      { label:"Productivity",  value:`${dispProd}%`,            color: dispProd >= 70 ? "#22C55E" : dispProd > 0 ? "#F59E0B" : "#9CA3AF" },
+                    ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
+                      <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
+                        <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+              {!isMediaTeam && tab === "learning" && (() => {
+                const src = activeUpdate ?? (learningDone ? existingUpdate : null)
+                const srcTopic = (src as Record<string,unknown> | null)?.learning_topic as string | null
+                const srcHours = (src as Record<string,unknown> | null)?.learning_hours as number | null
+                return (
+                  <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                    <p style={{ fontSize:10, fontWeight:700, color:"#10B981", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>
+                      📚 Learning{src ? " ✓" : ""}
+                    </p>
+                    {([
+                      { label:"Topic", value: srcTopic || learningTopic || "Not set", color:"#10B981" },
+                      { label:"Hours", value:`${srcHours ?? learningHours}h`,          color:"#6366F1" },
+                    ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
+                      <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+                        <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
+                        <span style={{ fontSize:11, fontWeight:700, color:r.color, maxWidth:130, textOverflow:"ellipsis", overflow:"hidden", whiteSpace:"nowrap" }}>{r.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
 
               {(isMediaTeam && tab === "media") && (
                 <div style={{ display:"flex", flexDirection:"column", gap:9 }}>

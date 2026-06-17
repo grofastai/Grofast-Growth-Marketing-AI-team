@@ -157,6 +157,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [leaveType, setLeaveType]       = useState<LeaveType>("full_day")
   const [halfPeriod, setHalfPeriod]     = useState<"morning" | "afternoon">("morning")
   const [permHours, setPermHours]       = useState<number>(1)
+  const [permEndTime, setPermEndTime]   = useState("")
   const [halfFromTime, setHalfFromTime] = useState("")
   const [halfToTime,   setHalfToTime]   = useState("")
   const [permTime, setPermTime]         = useState("")
@@ -744,34 +745,42 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     <input type="hidden" name="half_to_time" value={halfToTime} />
                   </>
                 )}
-                {leaveType === "permission" && (
-                  <>
-                    <input type="hidden" name="permission_hours" value={permHours} />
-                    <input type="hidden" name="permission_time" value={permTime} />
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
-                    {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}</div>
-                    <div>
-                      <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Duration (hours) *</label>
-                      <input
-                        type="number" min="0.5" max="8" step="0.5" required
-                        value={permHours}
-                        onChange={e => setPermHours(Math.max(0.5, Number(e.target.value)))}
-                        placeholder="e.g. 1, 1.5, 2"
-                        style={{ ...FIELD }}
-                      />
-                      <p style={{ fontSize: 10, color: "#9CA3AF", margin: "3px 0 0" }}>Enter hours: 0.5, 1, 1.5, 2, 2.5, 3…</p>
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Start Time *</label>
-                      <input type="time" required style={FIELD} value={permTime} onChange={e => setPermTime(e.target.value)} />
-                      {permTime && (
-                        <p style={{ fontSize: 11, color: "#6366F1", margin: "4px 0 0", fontWeight: 600 }}>
-                          Out {permTime} → Back by {(() => { const [h,m] = permTime.split(":").map(Number); const end = new Date(0,0,0,h+permHours,m); return end.toTimeString().slice(0,5) })()}
-                        </p>
-                      )}
-                    </div>
-                  </>
-                )}
+                {leaveType === "permission" && (() => {
+                  const calcPermH = () => {
+                    if (!permTime || !permEndTime) return permHours
+                    const [sh, sm] = permTime.split(":").map(Number)
+                    const [eh, em] = permEndTime.split(":").map(Number)
+                    const diff = (eh * 60 + em) - (sh * 60 + sm)
+                    return diff > 0 ? Math.round(diff / 60 * 10) / 10 : permHours
+                  }
+                  const effectiveH = calcPermH()
+                  return (
+                    <>
+                      <input type="hidden" name="permission_hours" value={effectiveH} />
+                      <input type="hidden" name="permission_time" value={permTime} />
+                      <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
+                      {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}</div>
+                      <div>
+                        <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Permission Time *</label>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                          <div>
+                            <label style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 4, display: "block" }}>Leave From</label>
+                            <input type="time" required style={FIELD} value={permTime} onChange={e => setPermTime(e.target.value)} />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 4, display: "block" }}>Return By</label>
+                            <input type="time" required style={FIELD} value={permEndTime} onChange={e => setPermEndTime(e.target.value)} />
+                          </div>
+                        </div>
+                        {permTime && permEndTime && effectiveH > 0 && (
+                          <p style={{ fontSize: 11, color: "#6366F1", margin: "6px 0 0", fontWeight: 600 }}>
+                            Out {permTime} → Back by {permEndTime} · {effectiveH}h permission
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )
+                })()}
 
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Reason *</label>
@@ -789,7 +798,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 )}
 
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermHours(1); setPermTime(""); setHalfFromTime(""); setHalfToTime(""); setEditError(null) }}
+                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermHours(1); setPermTime(""); setPermEndTime(""); setHalfFromTime(""); setHalfToTime(""); setEditError(null) }}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
                   <button type="submit" disabled={pending || editing}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: (pending || editing) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>

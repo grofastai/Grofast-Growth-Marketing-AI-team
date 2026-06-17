@@ -77,6 +77,21 @@ function calcDur(start?: string | null, end?: string | null): number {
   const diff = (eh * 60 + em) - (sh * 60 + sm)
   return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 0
 }
+function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+function calcEditNetHours(e: WorkEntry, shoots: WorkEntry[]): number {
+  if (e.start_time && e.end_time) {
+    const eS = toMins(e.start_time), eE = toMins(e.end_time)
+    if (eE <= eS) return e.duration_hours ?? 0
+    const overlapMins = shoots.reduce((acc, s) => {
+      if (!s.start_time || !s.end_time) return acc
+      const sS = toMins(s.start_time), sE = toMins(s.end_time)
+      if (sE <= sS) return acc
+      return acc + Math.max(0, Math.min(eE, sE) - Math.max(eS, sS))
+    }, 0)
+    return Math.max(0, (eE - eS - overlapMins)) / 60
+  }
+  return e.duration_hours ?? 0
+}
 
 function HTimePicker({ value, onChange, style: extra }: { value: string; onChange: (v: string) => void; style?: React.CSSProperties }) {
   const [local, setLocal] = useState(value || "09:00")
@@ -486,10 +501,11 @@ export default function HistoryClient({
     const dailyData: { day: string; hours: number }[] = []
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+      const shootEntries = entries.filter(e => e.task_type === "shoot")
       const workH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => {
-        const h = e.duration_hours ?? 0
-        const travel = e.task_type === "shoot" ? (e._travel_hours ?? 0) : 0
-        return sum + h + travel
+        if (e.task_type === "shoot") return sum + (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
+        if (e.task_type === "edit") return sum + calcEditNetHours(e, shootEntries)
+        return sum + (e.duration_hours ?? 0)
       }, 0)
       const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
@@ -818,7 +834,12 @@ export default function HistoryClient({
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(() => {
                         const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-                        const dayEntryH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
+                        const dayShoots = entries.filter(e => e.task_type === "shoot")
+                        const dayEntryH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => {
+                          if (e.task_type === "shoot") return sum + (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
+                          if (e.task_type === "edit") return sum + calcEditNetHours(e, dayShoots)
+                          return sum + (e.duration_hours ?? 0)
+                        }, 0) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
                         return dayEntryH > 0 ? (
                           <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
                             <Clock size={11} style={{ color:"#9CA3AF" }}/>

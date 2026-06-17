@@ -211,10 +211,11 @@ interface MemberInfo { id: string; name: string }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function HistoryClient({
-  updates, userName, clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [],
+  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [],
 }: {
   updates: UpdateRow[]
   userName: string
+  userId?: string
   clients?: string[]
   pastClients?: string[]
   participatedUpdates?: ParticipatedUpdate[]
@@ -1465,7 +1466,11 @@ export default function HistoryClient({
                 {/* ── Collaborated entries for this day ── */}
                 {(participatedByDate.get(u.date) ?? []).map(pu => {
                   const submitter = members.find(m => m.id === pu.user_id)
-                  const puEntries = Array.isArray(pu.work_entries) ? pu.work_entries : []
+                  const puEntries = (Array.isArray(pu.work_entries) ? pu.work_entries : []).filter(e => {
+                    if (!userId) return true
+                    const ids = (e as WorkEntry).participant_ids
+                    return Array.isArray(ids) && ids.includes(userId)
+                  })
                   return (
                     <div key={pu.id} style={{ borderTop: "1px dashed #E5E7EB", padding: "10px 18px", background: "rgba(99,102,241,0.03)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: puEntries.length > 0 ? 8 : 0 }}>

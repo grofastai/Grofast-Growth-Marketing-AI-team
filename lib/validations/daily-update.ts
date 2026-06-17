@@ -39,7 +39,7 @@ export const workEntrySchema = z.object({
   // Multi-client split
   is_multi_client:  z.boolean().optional(),
   client_names:     z.array(z.string()).optional(),
-  participant_ids:  z.array(z.string()).optional().default([]),
+  participant_ids:  z.array(z.string()).optional(),
 })
 
 // ── Main schema ────────────────────────────────────────────────

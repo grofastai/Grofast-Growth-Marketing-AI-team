@@ -368,6 +368,7 @@ export default function HistoryClient({
       if (!editDraft.date_finished) { alert("Please set Date Finished before saving."); return }
       if (!editDraft.start_time || !editDraft.end_time) { alert("Please set Edit Start & End Time before saving."); return }
       if (editDraft.start_time >= (editDraft.end_time ?? "")) { alert("Edit End Time must be after Start Time."); return }
+      if (!editDraft.video_duration) { alert("Please select the video Duration before saving."); return }
     }
     setSavingKey(key)
     let draftToSave: Partial<WorkEntry> = { ...editDraft }

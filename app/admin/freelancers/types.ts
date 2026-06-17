@@ -48,6 +48,7 @@ export type WorkEntry = {
   cost_per_video_snapshot: number | null
   start_time: string | null
   end_time: string | null
+  break_minutes: number
   travel_hours: number | null
   working_hours: number | null
   cost_per_hour_snapshot: number | null

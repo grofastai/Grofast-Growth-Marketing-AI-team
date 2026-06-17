@@ -498,7 +498,7 @@ type EState = {
   date_given: string; date_finished: string; video_type: string; video_duration: string
   time_taken_hours: string; drive_updated: boolean; revision_count: string
   // Shoot
-  start_time: string; end_time: string; travel_hours: string
+  start_time: string; end_time: string; break_minutes: string; travel_hours: string
 }
 
 const BLANK_E: EState = {
@@ -507,7 +507,7 @@ const BLANK_E: EState = {
   audio_duration_minutes: "",
   date_given: "", date_finished: "", video_type: "", video_duration: "",
   time_taken_hours: "", drive_updated: false, revision_count: "0",
-  start_time: "", end_time: "", travel_hours: "0",
+  start_time: "", end_time: "", break_minutes: "0", travel_hours: "0",
 }
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
@@ -646,7 +646,8 @@ function WorkSheet({
     if (freelancer.type === "video_shooter" && form.start_time && form.end_time && freelancer.cost_per_hour) {
       const [sh, sm] = form.start_time.split(":").map(Number)
       const [eh, em] = form.end_time.split(":").map(Number)
-      const hrs = ((eh * 60 + em) - (sh * 60 + sm)) / 60
+      const breakMins = parseInt(form.break_minutes) || 0
+      const hrs = ((eh * 60 + em) - (sh * 60 + sm) - breakMins) / 60
       if (hrs > 0) return hrs * freelancer.cost_per_hour
     }
     return null
@@ -656,9 +657,10 @@ function WorkSheet({
     if (!freelancer || freelancer.type !== "video_shooter" || !form.start_time || !form.end_time) return null
     const [sh, sm] = form.start_time.split(":").map(Number)
     const [eh, em] = form.end_time.split(":").map(Number)
-    const hrs = ((eh * 60 + em) - (sh * 60 + sm)) / 60
+    const breakMins = parseInt(form.break_minutes) || 0
+    const hrs = ((eh * 60 + em) - (sh * 60 + sm) - breakMins) / 60
     return hrs > 0 ? hrs : null
-  }, [freelancer, form.start_time, form.end_time])
+  }, [freelancer, form.start_time, form.end_time, form.break_minutes])
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -679,6 +681,7 @@ function WorkSheet({
       time_taken_hours: form.time_taken_hours ? parseFloat(form.time_taken_hours) : null,
       drive_updated: form.drive_updated, revision_count: parseInt(form.revision_count) || 0,
       start_time: form.start_time || undefined, end_time: form.end_time || undefined,
+      break_minutes: parseInt(form.break_minutes) || 0,
       travel_hours: form.travel_hours ? parseFloat(form.travel_hours) : null,
     })
     if (!res.success) { setErr(res.error ?? "Failed to add entry"); setSaving(false); return }
@@ -696,6 +699,7 @@ function WorkSheet({
       drive_updated: form.drive_updated, revision_count: parseInt(form.revision_count) || 0,
       cost_per_video_snapshot: freelancer.cost_per_video,
       start_time: form.start_time || null, end_time: form.end_time || null,
+      break_minutes: parseInt(form.break_minutes) || 0,
       travel_hours: form.travel_hours ? parseFloat(form.travel_hours) : null,
       working_hours: calcHours, cost_per_hour_snapshot: freelancer.cost_per_hour,
       created_at: new Date().toISOString(),
@@ -828,17 +832,21 @@ function WorkSheet({
               {/* Video Shooter specific */}
               {freelancer.type === "video_shooter" && (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <Field label="Start Time">
                       <input type="time" className={inputCls} value={form.start_time} onChange={e => setF("start_time", e.target.value)} />
                     </Field>
                     <Field label="End Time">
                       <input type="time" className={inputCls} value={form.end_time} onChange={e => setF("end_time", e.target.value)} />
                     </Field>
+                    <Field label="Break (min)">
+                      <input type="number" min="0" step="5" className={inputCls} placeholder="0" value={form.break_minutes} onChange={e => setF("break_minutes", e.target.value)} />
+                    </Field>
                   </div>
                   {calcHours !== null && (
                     <div className="flex items-center gap-4 text-[12px] px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100">
                       <span className="text-emerald-700">Working Hours: <strong>{calcHours.toFixed(1)}</strong></span>
+                      {parseInt(form.break_minutes) > 0 && <span className="text-orange-600">Break: <strong>{form.break_minutes} min</strong></span>}
                       {calcAmount && <span className="text-emerald-700">Amount: <strong>{fmt(calcAmount)}</strong></span>}
                     </div>
                   )}
@@ -958,6 +966,7 @@ function entryToEState(e: WorkEntry): EState {
     time_taken_hours: e.time_taken_hours?.toString() ?? "",
     drive_updated: e.drive_updated ?? false, revision_count: e.revision_count?.toString() ?? "0",
     start_time: e.start_time?.slice(0,5) ?? "", end_time: e.end_time?.slice(0,5) ?? "",
+    break_minutes: e.break_minutes?.toString() ?? "0",
     travel_hours: e.travel_hours?.toString() ?? "0",
     manual_amount: "",
   }
@@ -1018,6 +1027,7 @@ function EntryRow({ entry, idx, freelancerType, freelancer, activeClientNames, p
       revision_count: parseInt(form.revision_count) || 0,
       start_time: startT,
       end_time: endT,
+      break_minutes: parseInt(form.break_minutes) || 0,
       travel_hours: form.travel_hours ? parseFloat(form.travel_hours) : null,
       amount: optimisticAmount,
     }
@@ -1149,12 +1159,15 @@ function EntryRow({ entry, idx, freelancerType, freelancer, activeClientNames, p
             </div>
           )}
           {freelancerType === "video_shooter" && (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Start Time">
                 <input type="time" className={inputCls} value={form.start_time} onChange={e => setF("start_time", e.target.value)} />
               </Field>
               <Field label="End Time">
                 <input type="time" className={inputCls} value={form.end_time} onChange={e => setF("end_time", e.target.value)} />
+              </Field>
+              <Field label="Break (min)">
+                <input type="number" min="0" step="5" className={inputCls} placeholder="0" value={form.break_minutes} onChange={e => setF("break_minutes", e.target.value)} />
               </Field>
               <Field label="Travel Hours">
                 <input type="number" min="0" step="0.5" className={inputCls} value={form.travel_hours} onChange={e => setF("travel_hours", e.target.value)} />

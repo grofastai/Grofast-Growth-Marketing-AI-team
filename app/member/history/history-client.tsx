@@ -489,7 +489,7 @@ export default function HistoryClient({
       const workH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => {
         const h = e.duration_hours ?? 0
         const travel = e.task_type === "shoot" ? (e._travel_hours ?? 0) : 0
-        return sum + Math.max(0, h - travel)
+        return sum + h + travel
       }, 0)
       const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
@@ -501,7 +501,7 @@ export default function HistoryClient({
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
       totalTasks += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
       for (const e of entries) {
-        if (e.task_type === "shoot") shootH += Math.max(0, (e.duration_hours ?? 0) - (e._travel_hours ?? 0))
+        if (e.task_type === "shoot") shootH += (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
         else if (e.task_type === "edit") editH += e.duration_hours ?? 0
         else if (e.task_type !== "break" && e.task_type !== "learning") otherH += e.duration_hours ?? 0
       }

@@ -40,12 +40,12 @@ export async function submitDailyUpdate(
   const today = d.date ?? todayStr
   const isPastDate = today !== todayStr
 
-  // Working hours excludes break and learning entries, and subtracts travel time from shoot entries
+  // Working hours excludes break and learning entries; shoot entries add travel time on top of shoot duration
   const totalWorkHours = d.work_entries
     .filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
     .reduce((sum, e) => {
       const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
-      return sum + Math.max(0, e.duration_hours - travel)
+      return sum + e.duration_hours + travel
     }, 0)
   const roundedHours = Math.round(totalWorkHours * 10) / 10
   // Learning hours from entries (new approach — stored in work_entries)
@@ -83,7 +83,7 @@ export async function submitDailyUpdate(
     // Recalculate all aggregates from combined entries — never use incremental addition
     const calcWorkHours  = Math.round(combinedEntries.filter(e => e.task_type !== 'break' && e.task_type !== 'learning').reduce((s, e) => {
       const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
-      return s + Math.max(0, (Number(e.duration_hours) || 0) - travel)
+      return s + (Number(e.duration_hours) || 0) + travel
     }, 0) * 10) / 10
     const calcShootCount = combinedEntries.filter(e => e.task_type === 'shoot').length
     const calcEditCount  = combinedEntries.filter(e => e.task_type === 'edit').length
@@ -276,7 +276,7 @@ export async function updatePastDailyUpdate(
 
   const totalHours = entries.reduce((s, e) => {
     const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
-    return s + Math.max(0, ((e.duration_hours as number) ?? 0) - travel)
+    return s + ((e.duration_hours as number) ?? 0) + travel
   }, 0)
 
   const { error } = await admin

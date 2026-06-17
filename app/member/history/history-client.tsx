@@ -1512,21 +1512,42 @@ export default function HistoryClient({
                         )}
                       </div>
                       {puEntries.length > 0 && (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                          {puEntries.slice(0, 5).map((e, i) => {
-                            const cfg = TASK_CFG[(e as WorkEntry).task_type] ?? TASK_CFG.other
+                        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                          {puEntries.map((pe, pi) => {
+                            const cfg = TASK_CFG[pe.task_type] ?? TASK_CFG.other
+                            const { Icon } = cfg
+                            const displayTitle = pe.title || cfg.label
+                            const displayClient = (pe.is_multi_client && pe.client_names && pe.client_names.length > 0)
+                              ? pe.client_names.join(" · ")
+                              : pe.client_name || ""
+                            const tH = pe.task_type === "shoot" ? (pe._travel_hours ?? 0) : 0
+                            const dur = calcDurationFromTimes(pe.start_time, pe.end_time) ?? (pe.duration_hours ?? 0)
                             return (
-                              <span key={i} style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99, background: "rgba(99,102,241,0.08)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.15)" }}>
-                                {(e as WorkEntry).title || cfg.label}
-                                {(e as WorkEntry).client_name ? ` · ${(e as WorkEntry).client_name}` : ""}
-                              </span>
+                              <div key={pi} style={{ display: "flex", gap: 10, padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none", alignItems: "flex-start" }}>
+                                <div style={{ width: 30, height: 30, borderRadius: 8, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <Icon size={13} style={{ color: cfg.color }}/>
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 800, color: "#111111" }}>{displayTitle}</span>
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: "1px 6px", borderRadius: 99 }}>{cfg.label}</span>
+                                  </div>
+                                  {displayClient && <p style={{ fontSize: 10, color: "#6B7280", margin: "0 0 2px", fontWeight: 600 }}>{displayClient}</p>}
+                                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                    {dur + tH > 0 && (
+                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 3 }}>
+                                        <Clock size={9} style={{ color: "#9CA3AF" }}/>{fmtH(dur + tH)}
+                                      </span>
+                                    )}
+                                    {pe.start_time && pe.end_time && (
+                                      <span style={{ fontSize: 10, color: "#9CA3AF" }}>{fmt12(pe.start_time)} – {fmt12(pe.end_time)}</span>
+                                    )}
+                                    {tH > 0 && <span style={{ fontSize: 10, color: "#F59E0B", fontWeight: 700 }}>🚗 {fmtTravel(tH)}</span>}
+                                  </div>
+                                </div>
+                              </div>
                             )
                           })}
-                          {puEntries.length > 5 && (
-                            <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99, background: "rgba(156,163,175,0.1)", color: "#9CA3AF" }}>
-                              +{puEntries.length - 5} more
-                            </span>
-                          )}
                         </div>
                       )}
                     </div>

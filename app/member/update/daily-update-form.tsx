@@ -6,7 +6,7 @@ import Image from "next/image"
 import {
   Camera, Film, Plus, Trash2, CheckCircle2,
   Loader2, SendHorizonal, Clock, BookOpen, Coffee,
-  ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal, Calendar,
+  ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal, Calendar, X,
 } from "lucide-react"
 import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
 
@@ -274,6 +274,44 @@ function parseExistingEdits(existingUpdate: Record<string, unknown>): EditEntry[
     }))
 }
 
+function parseExistingVoiceovers(existingUpdate: Record<string, unknown>): EditEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'voiceover')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      clientName: e._client_type ?? e.client_name ?? "",
+      brand: "", customClient: e._custom_client ?? "",
+      title: e.title ?? "", videoType: "", customVideoType: "", videoDuration: "",
+      startTime: e.start_time ?? "", endTime: e.end_time ?? "",
+      dateGiven: "", dateFinished: "",
+      timeTaken: e.duration_hours ?? 0,
+      driveUpdated: false, revisions: 0, hooksCompleted: 0,
+      videoLink: e.video_link ?? "", notes: e.notes ?? "",
+      participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+    }))
+}
+
+function parseExistingPosters(existingUpdate: Record<string, unknown>): EditEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'poster')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      clientName: e._client_type ?? e.client_name ?? "",
+      brand: "", customClient: e._custom_client ?? "",
+      title: e.title ?? "", videoType: "", customVideoType: "", videoDuration: "",
+      startTime: e.start_time ?? "", endTime: e.end_time ?? "",
+      dateGiven: "", dateFinished: "",
+      timeTaken: e.duration_hours ?? 0,
+      driveUpdated: false, revisions: 0, hooksCompleted: 0,
+      videoLink: e.video_link ?? "", notes: e.notes ?? "",
+      participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+    }))
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 type PastUpdate = {
   id: string; date: string; working_hours: number | null; learning_hours: number | null
@@ -395,6 +433,18 @@ export default function DailyUpdateForm({
     return updated
   }))
   const removeEdit = (id: string) => setEdits(p => p.filter(e => e.id !== id))
+
+  // ── Voiceovers (media) ───────────────────────────────────────────────────
+  const [voiceovers, setVoiceovers] = useState<EditEntry[]>(() => existingUpdate ? parseExistingVoiceovers(existingUpdate) : [])
+  const addVoiceover    = () => setVoiceovers(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[] }])
+  const patchVoiceover  = (id: string, patch: Partial<EditEntry>) => setVoiceovers(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
+  const removeVoiceover = (id: string) => setVoiceovers(p => p.filter(e => e.id !== id))
+
+  // ── Posters (media) ──────────────────────────────────────────────────────
+  const [posters, setPosters] = useState<EditEntry[]>(() => existingUpdate ? parseExistingPosters(existingUpdate) : [])
+  const addPoster    = () => setPosters(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[] }])
+  const patchPoster  = (id: string, patch: Partial<EditEntry>) => setPosters(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
+  const removePoster = (id: string) => setPosters(p => p.filter(e => e.id !== id))
 
   // ── Time blocks (working) ────────────────────────────────────────────────
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>(() =>
@@ -537,10 +587,12 @@ export default function DailyUpdateForm({
     return () => document.removeEventListener("click", handler, true)
   }, [hasUnsaved])
 
-  const totalShootHours  = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
-  const totalTravelHours = useMemo(() => shoots.reduce((s, e) => s + e.travelHours, 0), [shoots])
-  const totalEditHours  = useMemo(() => edits.reduce((s, e) => s + calcDuration(e.startTime, e.endTime), 0), [edits])
-  const totalMediaHours = totalShootHours + totalEditHours
+  const totalShootHours     = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
+  const totalTravelHours    = useMemo(() => shoots.reduce((s, e) => s + e.travelHours, 0), [shoots])
+  const totalEditHours      = useMemo(() => edits.reduce((s, e) => s + calcDuration(e.startTime, e.endTime), 0), [edits])
+  const totalVoiceoverHours = useMemo(() => voiceovers.reduce((s, e) => s + (calcDuration(e.startTime, e.endTime) || e.timeTaken), 0), [voiceovers])
+  const totalPosterHours    = useMemo(() => posters.reduce((s, e) => s + (calcDuration(e.startTime, e.endTime) || e.timeTaken), 0), [posters])
+  const totalMediaHours = totalShootHours + totalEditHours + totalVoiceoverHours + totalPosterHours
   const totalLoggedHours = useMemo(() => timeBlocks.reduce((s, b) => s + b.durationHours, 0), [timeBlocks])
   const filledBlocks     = timeBlocks.filter(b => !b.isBreak && b.description.trim())
   const breakBlocks      = timeBlocks.filter(b => b.isBreak && b.durationHours > 0)
@@ -600,7 +652,7 @@ export default function DailyUpdateForm({
   // ── Submit: media (shoots + edits + breaks) ──────────────────────────────
   function handleMediaSubmit() {
     setError(null)
-    if (tab !== "break" && shoots.length === 0 && edits.length === 0) { setError("Add at least one shoot or edit entry."); return }
+    if (tab !== "break" && shoots.length === 0 && edits.length === 0 && voiceovers.length === 0 && posters.length === 0) { setError("Add at least one shoot, edit, voiceover, or poster entry."); return }
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
@@ -630,6 +682,26 @@ export default function DailyUpdateForm({
           participant_ids: e.participantIds,
         }
       }),
+      ...voiceovers.map(e => ({
+        id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        task_type: "voiceover" as const,
+        title: e.title || "Voiceover", start_time: e.startTime, end_time: e.endTime,
+        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
+        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
+        _client_type: e.clientName, _custom_client: e.customClient,
+        participant_ids: e.participantIds,
+      })),
+      ...posters.map(e => ({
+        id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        task_type: "poster" as const,
+        title: e.title || "Poster", start_time: e.startTime, end_time: e.endTime,
+        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
+        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
+        _client_type: e.clientName, _custom_client: e.customClient,
+        participant_ids: e.participantIds,
+      })),
       ...mediaBreaks.filter(b => b.durationHours > 0).map(b => ({
         id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
         task_type: "break" as const,
@@ -644,6 +716,8 @@ export default function DailyUpdateForm({
       ...participantIds,
       ...shoots.flatMap(s => s.participantIds),
       ...edits.flatMap(e => e.participantIds),
+      ...voiceovers.flatMap(e => e.participantIds),
+      ...posters.flatMap(e => e.participantIds),
     ])]
     startTransition(async () => {
       const res = await submitDailyUpdate({
@@ -752,6 +826,24 @@ export default function DailyUpdateForm({
           participant_ids: e.participantIds,
         }
       }),
+      ...voiceovers.map(e => ({
+        id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        task_type: "voiceover" as const,
+        title: e.title || "Voiceover", start_time: e.startTime, end_time: e.endTime,
+        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
+        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
+        _client_type: e.clientName, _custom_client: e.customClient, participant_ids: e.participantIds,
+      })),
+      ...posters.map(e => ({
+        id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        task_type: "poster" as const,
+        title: e.title || "Poster", start_time: e.startTime, end_time: e.endTime,
+        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
+        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
+        _client_type: e.clientName, _custom_client: e.customClient, participant_ids: e.participantIds,
+      })),
     ]
     const saveOverlapHours = edits.reduce((acc, e) => acc + calcOverlapHours(e.startTime, e.endTime, shoots), 0)
     const saveValidEditHours = Math.max(0, totalEditHours - saveOverlapHours)
@@ -759,6 +851,8 @@ export default function DailyUpdateForm({
       ...participantIds,
       ...shoots.flatMap(s => s.participantIds),
       ...edits.flatMap(e => e.participantIds),
+      ...voiceovers.flatMap(e => e.participantIds),
+      ...posters.flatMap(e => e.participantIds),
     ])]
     startTransition(async () => {
       const res = await submitDailyUpdate({
@@ -866,13 +960,70 @@ export default function DailyUpdateForm({
   // ── Already submitted screen ──────────────────────────────────────────────
   const allDone = isMediaTeam ? (submitted || !!activeUpdate) : (workingDone && learningDone)
   if (allDone && !editMode) {
+    const submittedEntries = Array.isArray((activeUpdate ?? existingUpdateRef.current ?? {})?.work_entries)
+      ? ((activeUpdate ?? existingUpdateRef.current ?? {})?.work_entries as Record<string,unknown>[])
+      : []
+    const totalSubmittedH = submittedEntries
+      .filter(e => e.task_type !== "break")
+      .reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
     return (
-      <div style={{ background:"#F5F6FA", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
-        <div style={{ textAlign:"center" }}>
-          <CheckCircle2 size={56} style={{ color:"#22C55E", marginBottom:16 }} />
-          <p style={{ fontSize:20, fontWeight:900, color:"#111111", margin:"0 0 8px", fontFamily:"var(--font-jakarta)" }}>Daily Update Submitted!</p>
-          <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 20px" }}>Great work, {firstName}. See you tomorrow!</p>
-          <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10 }}>
+      <div style={{ background:"#F5F6FA", minHeight:"100vh", padding:"24px 16px" }}>
+        {/* Date selector strip */}
+        <div style={{ background:"#FFFFFF", borderRadius:14, border: isPastDate ? "1.5px solid #F59E0B" : "1px solid #EBEDF2", padding:"10px 16px", display:"flex", alignItems:"center", gap:12, marginBottom:16, flexWrap:"wrap" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, flex:1, minWidth:200 }}>
+            <Calendar size={15} style={{ color: isPastDate ? "#D97706" : "#DE1A1A" }} />
+            <p style={{ fontSize:13, fontWeight:800, color: isPastDate ? "#D97706" : "#111827", margin:0 }}>{dateLabel}</p>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            {isPastDate && <button onClick={() => handleDateChange(todayStr)} style={{ fontSize:11, fontWeight:700, padding:"5px 12px", borderRadius:8, border:"1.5px solid #DE1A1A", background:"rgba(222,26,26,0.06)", color:"#DE1A1A", cursor:"pointer" }}>Back to Today</button>}
+            <label style={{ fontSize:11, fontWeight:700, color:"#6B7280", display:"flex", alignItems:"center", gap:6, cursor:"pointer" }}>
+              <span style={{ whiteSpace:"nowrap" }}>{isPastDate ? "Change date" : "Pick past date"}</span>
+              <input type="date" value={selectedDate} max={todayStr} min={(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d.toISOString().split("T")[0] })()} onChange={e => e.target.value && handleDateChange(e.target.value)} style={{ fontSize:12, fontWeight:600, color:"#374151", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"5px 8px", cursor:"pointer", outline:"none" }} />
+            </label>
+          </div>
+        </div>
+
+        <div style={{ maxWidth:600, margin:"0 auto" }}>
+          {/* Header */}
+          <div style={{ textAlign:"center", marginBottom:20 }}>
+            <CheckCircle2 size={44} style={{ color:"#22C55E", marginBottom:10 }} />
+            <p style={{ fontSize:18, fontWeight:900, color:"#111111", margin:"0 0 4px", fontFamily:"var(--font-jakarta)" }}>
+              {isToday ? "Today's Update Submitted!" : `${dateLabel.split(",")[0]}'s Update`}
+            </p>
+            <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>
+              {totalSubmittedH > 0 ? `${totalSubmittedH.toFixed(1)}h logged · ${submittedEntries.filter(e => e.task_type !== "break").length} entries` : "No entries logged"}
+            </p>
+          </div>
+
+          {/* Entries list */}
+          {submittedEntries.length > 0 && (
+            <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", overflow:"hidden", marginBottom:14, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <div style={{ padding:"12px 16px", borderBottom:"1px solid #F0F1F5", display:"flex", alignItems:"center", gap:7 }}>
+                <BarChart2 size={13} style={{ color:"#DE1A1A" }} />
+                <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>Entries for {dateLabel}</span>
+              </div>
+              {submittedEntries.map((e, i) => {
+                const type = e.task_type as string
+                const typeColor = type === "shoot" ? "#EF4444" : type === "edit" ? "#6366F1" : type === "voiceover" ? "#8B5CF6" : type === "poster" ? "#EC4899" : type === "break" ? "#78716C" : type === "learning" ? "#10B981" : "#6366F1"
+                const typeIcon = type === "shoot" ? "📷" : type === "edit" ? "✂️" : type === "voiceover" ? "🎙️" : type === "poster" ? "🖼️" : type === "break" ? "☕" : type === "learning" ? "📚" : "⏰"
+                const hrs = Number(e.duration_hours) || 0
+                return (
+                  <div key={i} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 16px", borderBottom: i < submittedEntries.length - 1 ? "1px solid #F5F6FA" : "none" }}>
+                    <span style={{ fontSize:16 }}>{typeIcon}</span>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <p style={{ fontSize:12, fontWeight:700, color:"#111827", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{String(e.title || "Entry")}</p>
+                      <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{String(e.client_name || "")}</p>
+                    </div>
+                    <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:`${typeColor}18`, color:typeColor, flexShrink:0 }}>{type}</span>
+                    <span style={{ fontSize:11, fontWeight:800, color:"#374151", flexShrink:0 }}>{hrs > 0 ? `${hrs}h` : "—"}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             <button onClick={() => {
               const cur = activeUpdate ?? existingUpdateRef.current ?? {}
               setTimeBlocks(parseExistingBlocks(cur))
@@ -883,7 +1034,7 @@ export default function DailyUpdateForm({
               setSubmitted(false)
               if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
             }}
-              style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 24px", borderRadius:12, border:"1.5px solid #DE1A1A", background:"#FFFFFF", color:"#DE1A1A", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+              style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 24px", borderRadius:12, border:"1.5px solid #DE1A1A", background:"#FFFFFF", color:"#DE1A1A", fontSize:13, fontWeight:700, cursor:"pointer" }}>
               Edit {isToday ? "Today's" : dateLabel.split(",")[0] + "'s"} Update
             </button>
             <button onClick={() => {
@@ -895,7 +1046,7 @@ export default function DailyUpdateForm({
               setSubmitted(false)
               if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
             }}
-              style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"10px 24px", borderRadius:12, border:"1.5px solid #E5E7EB", background:"#F9FAFB", color:"#374151", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+              style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 24px", borderRadius:12, border:"1.5px solid #E5E7EB", background:"#F9FAFB", color:"#374151", fontSize:13, fontWeight:700, cursor:"pointer" }}>
               ➕ Add Another Update
             </button>
           </div>
@@ -1848,6 +1999,144 @@ export default function DailyUpdateForm({
               )}
             </div>
 
+            {/* ── VOICEOVERS ──────────────────────────────────────────────── */}
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background:"rgba(139,92,246,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <span style={{ fontSize:18 }}>🎙️</span>
+                  </div>
+                  <div>
+                    <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Voiceovers</p>
+                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{voiceovers.length} voiceover{voiceovers.length !== 1 ? "s" : ""} · {totalVoiceoverHours.toFixed(1)}h</p>
+                  </div>
+                </div>
+                <button onClick={addVoiceover} style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, background:"rgba(139,92,246,0.08)", border:"1.5px solid rgba(139,92,246,0.3)", color:"#8B5CF6", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  <Plus size={13}/> Add Voiceover
+                </button>
+              </div>
+              {voiceovers.map((e, vi) => {
+                const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
+                const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                const dur = calcDuration(e.startTime, e.endTime)
+                return (
+                  <div key={e.id} style={{ borderRadius:14, border:"1.5px solid rgba(139,92,246,0.2)", padding:"14px", marginBottom:10, background:"rgba(139,92,246,0.02)" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                      <span style={{ fontSize:12, fontWeight:700, color:"#8B5CF6" }}>Voiceover #{vi+1}</span>
+                      <button onClick={() => removeVoiceover(e.id)} style={{ width:26, height:26, borderRadius:7, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <X size={12} style={{ color:"#EF4444" }} />
+                      </button>
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+                      <div>
+                        <label style={L}>Client</label>
+                        <select value={e.clientName} onChange={ev => patchVoiceover(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
+                          <option value="">Select client…</option>
+                          {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                          <option value="__custom__">Other…</option>
+                        </select>
+                        {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchVoiceover(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
+                      </div>
+                      <div>
+                        <label style={L}>Title / Project</label>
+                        <input value={e.title} onChange={ev => patchVoiceover(e.id, { title: ev.target.value })} placeholder="Script or project name" style={F} />
+                      </div>
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:10, alignItems:"end", marginBottom:10 }}>
+                      <div>
+                        <label style={L}>Start Time</label>
+                        <input type="time" value={e.startTime} onChange={ev => patchVoiceover(e.id, { startTime: ev.target.value })} style={F} />
+                      </div>
+                      <div>
+                        <label style={L}>End Time</label>
+                        <input type="time" value={e.endTime} onChange={ev => patchVoiceover(e.id, { endTime: ev.target.value })} style={F} />
+                      </div>
+                      {dur > 0 && <span style={{ fontSize:12, fontWeight:800, color:"#8B5CF6", padding:"8px 12px", borderRadius:8, background:"rgba(139,92,246,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                      <div>
+                        <label style={L}>Drive / Audio Link</label>
+                        <input value={e.videoLink} onChange={ev => patchVoiceover(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
+                      </div>
+                      <div>
+                        <label style={L}>Notes</label>
+                        <input value={e.notes} onChange={ev => patchVoiceover(e.id, { notes: ev.target.value })} placeholder="Script details, revisions…" style={F} />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* ── POSTERS ─────────────────────────────────────────────────── */}
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background:"rgba(236,72,153,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <span style={{ fontSize:18 }}>🖼️</span>
+                  </div>
+                  <div>
+                    <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Posters</p>
+                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{posters.length} poster{posters.length !== 1 ? "s" : ""} · {totalPosterHours.toFixed(1)}h</p>
+                  </div>
+                </div>
+                <button onClick={addPoster} style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, background:"rgba(236,72,153,0.08)", border:"1.5px solid rgba(236,72,153,0.3)", color:"#EC4899", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  <Plus size={13}/> Add Poster
+                </button>
+              </div>
+              {posters.map((e, pi) => {
+                const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
+                const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                const dur = calcDuration(e.startTime, e.endTime)
+                return (
+                  <div key={e.id} style={{ borderRadius:14, border:"1.5px solid rgba(236,72,153,0.2)", padding:"14px", marginBottom:10, background:"rgba(236,72,153,0.02)" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                      <span style={{ fontSize:12, fontWeight:700, color:"#EC4899" }}>Poster #{pi+1}</span>
+                      <button onClick={() => removePoster(e.id)} style={{ width:26, height:26, borderRadius:7, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <X size={12} style={{ color:"#EF4444" }} />
+                      </button>
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
+                      <div>
+                        <label style={L}>Client</label>
+                        <select value={e.clientName} onChange={ev => patchPoster(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
+                          <option value="">Select client…</option>
+                          {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                          <option value="__custom__">Other…</option>
+                        </select>
+                        {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchPoster(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
+                      </div>
+                      <div>
+                        <label style={L}>Poster Name</label>
+                        <input value={e.title} onChange={ev => patchPoster(e.id, { title: ev.target.value })} placeholder="Poster or design name" style={F} />
+                      </div>
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:10, alignItems:"end", marginBottom:10 }}>
+                      <div>
+                        <label style={L}>Start Time</label>
+                        <input type="time" value={e.startTime} onChange={ev => patchPoster(e.id, { startTime: ev.target.value })} style={F} />
+                      </div>
+                      <div>
+                        <label style={L}>End Time</label>
+                        <input type="time" value={e.endTime} onChange={ev => patchPoster(e.id, { endTime: ev.target.value })} style={F} />
+                      </div>
+                      {dur > 0 && <span style={{ fontSize:12, fontWeight:800, color:"#EC4899", padding:"8px 12px", borderRadius:8, background:"rgba(236,72,153,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                      <div>
+                        <label style={L}>Drive / File Link</label>
+                        <input value={e.videoLink} onChange={ev => patchPoster(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
+                      </div>
+                      <div>
+                        <label style={L}>Notes</label>
+                        <input value={e.notes} onChange={ev => patchPoster(e.id, { notes: ev.target.value })} placeholder="Design details, revisions…" style={F} />
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
           </>)}
 
           {/* ══ BREAK TAB ════════════════════════════════════════════════════ */}
@@ -2389,81 +2678,7 @@ export default function DailyUpdateForm({
             </div>
           )}
 
-          {/* ══ WORKED WITH / PARTICIPANTS ════════════════════════════════════════ */}
-          {teamMembers.length > 0 && (
-            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1.5px solid rgba(99,102,241,0.2)", padding:"18px 20px", boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
-                <div style={{ width:34, height:34, borderRadius:10, background:"rgba(99,102,241,0.1)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                  <span style={{ fontSize:16 }}>👥</span>
-                </div>
-                <div>
-                  <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Worked With</p>
-                  <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Tag teammates who participated — they get auto-tracked</p>
-                </div>
-                {participantIds.length > 0 && (
-                  <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:99, background:"rgba(99,102,241,0.1)", color:"#6366F1" }}>
-                    {participantIds.length} selected
-                  </span>
-                )}
-              </div>
-
-              {/* Selected chips */}
-              {participantIds.length > 0 && (
-                <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:10 }}>
-                  {participantIds.map(pid => {
-                    const m = teamMembers.find(t => t.id === pid)
-                    if (!m) return null
-                    const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
-                    return (
-                      <button key={pid} onClick={() => toggleParticipant(pid)}
-                        style={{ display:"flex", alignItems:"center", gap:6, padding:"5px 10px 5px 6px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
-                        <div style={{ width:22, height:22, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:800, color:"#fff", flexShrink:0 }}>
-                          {initials}
-                        </div>
-                        <span style={{ fontSize:12, fontWeight:700, color:"#4338CA" }}>{m.name.split(" ")[0]}</span>
-                        <span style={{ fontSize:10, color:"#818CF8", lineHeight:1 }}>✕</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-
-              {/* Search input */}
-              <input
-                value={participantSearch}
-                onChange={e => setParticipantSearch(e.target.value)}
-                placeholder="Search team members…"
-                style={{ width:"100%", boxSizing:"border-box", fontSize:12, padding:"8px 12px", borderRadius:10, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none", marginBottom:10 }}
-              />
-
-              {/* Member chips */}
-              <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                {filteredMembers.slice(0,20).map(m => {
-                  const selected = participantIds.includes(m.id)
-                  const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
-                  return (
-                    <button key={m.id} onClick={() => toggleParticipant(m.id)}
-                      style={{ display:"flex", alignItems:"center", gap:6, padding:"5px 12px 5px 6px", borderRadius:99, cursor:"pointer", transition:"all 0.15s",
-                        background: selected ? "rgba(99,102,241,0.1)" : "#F9FAFB",
-                        border: `1.5px solid ${selected ? "rgba(99,102,241,0.4)" : "#EBEDF2"}`,
-                      }}>
-                      <div style={{ width:22, height:22, borderRadius:"50%", background: selected ? "#6366F1" : "#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:9, fontWeight:800, color: selected ? "#fff" : "#9CA3AF", flexShrink:0 }}>
-                        {initials}
-                      </div>
-                      <div style={{ textAlign:"left" }}>
-                        <p style={{ fontSize:11, fontWeight:700, color: selected ? "#4338CA" : "#374151", margin:0 }}>{m.name.split(" ")[0]}</p>
-                        <p style={{ fontSize:9, color:"#9CA3AF", margin:0 }}>{m.employee_id}</p>
-                      </div>
-                      {selected && <span style={{ fontSize:10, color:"#6366F1", flexShrink:0 }}>✓</span>}
-                    </button>
-                  )
-                })}
-                {filteredMembers.length === 0 && (
-                  <p style={{ fontSize:12, color:"#9CA3AF", margin:"4px 0" }}>No members found</p>
-                )}
-              </div>
-            </div>
-          )}
+          {/* Worked With section removed — collaboration tracked per-entry */}
 
           {/* Hours breakdown for media */}
           {tab === "media" && (totalShootHours > 0 || totalEditHours > 0) && (

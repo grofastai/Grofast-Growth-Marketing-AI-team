@@ -966,6 +966,14 @@ export default function DailyUpdateForm({
     const totalSubmittedH = submittedEntries
       .filter(e => e.task_type !== "break")
       .reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+
+    // Media team stats from work_entries
+    const subShoots   = submittedEntries.filter(e => e.task_type === "shoot")
+    const subEdits    = submittedEntries.filter(e => e.task_type === "edit")
+    const subShootH   = subShoots.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+    const subEditH    = subEdits.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+    const subTravelH  = subShoots.reduce((s, e) => s + (Number((e as Record<string,unknown>)._travel_hours) || 0), 0)
+
     return (
       <div style={{ background:"#F5F6FA", minHeight:"100vh", padding:"24px 16px" }}>
         {/* Date selector strip */}
@@ -994,6 +1002,32 @@ export default function DailyUpdateForm({
               {totalSubmittedH > 0 ? `${totalSubmittedH.toFixed(1)}h logged · ${submittedEntries.filter(e => e.task_type !== "break").length} entries` : "No entries logged"}
             </p>
           </div>
+
+          {/* Media team stats tiles */}
+          {isMediaTeam && submittedEntries.length > 0 && (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:14 }}>
+              {[
+                { label:"SHOOTS",       value:`${subShoots.length}`,         icon:"📸", color:"#DE1A1A", bg:"rgba(222,26,26,0.07)" },
+                { label:"HRS SHOOTING", value:`${subShootH}h`,               icon:"🎥", color:"#EF4444", bg:"rgba(239,68,68,0.07)" },
+                { label:"TRAVEL HRS",   value:`${subTravelH > 0 ? subTravelH.toFixed(1) : "0"}`, icon:"🚗", color:"#F59E0B", bg:"rgba(245,158,11,0.07)" },
+                { label:"EDITED",       value:`${subEdits.length}`,           icon:"🎬", color:"#6366F1", bg:"rgba(99,102,241,0.07)" },
+              ].map(s => (
+                <div key={s.label} style={{ background:"#FFFFFF", borderRadius:12, padding:"10px 10px 8px", border:"1px solid #EBEDF2", textAlign:"center" }}>
+                  <span style={{ fontSize:18 }}>{s.icon}</span>
+                  <p style={{ fontSize:16, fontWeight:900, color:s.color, margin:"4px 0 2px" }}>{s.value}</p>
+                  <p style={{ fontSize:9, fontWeight:700, color:"#9CA3AF", margin:0, letterSpacing:"0.06em" }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {isMediaTeam && subEdits.length > 0 && (
+            <div style={{ background:"#FFFFFF", borderRadius:12, border:"1px solid #EBEDF2", padding:"10px 14px", marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <span style={{ fontSize:11, color:"#6B7280", fontWeight:700 }}>Edit Hours</span>
+              <span style={{ fontSize:13, fontWeight:900, color:"#6366F1" }}>{subEditH.toFixed(1)}h</span>
+              <span style={{ fontSize:11, color:"#6B7280", fontWeight:700 }}>Total Hours</span>
+              <span style={{ fontSize:13, fontWeight:900, color: totalSubmittedH >= 8 ? "#22C55E" : "#111111" }}>{totalSubmittedH.toFixed(1)}h</span>
+            </div>
+          )}
 
           {/* Entries list */}
           {submittedEntries.length > 0 && (
@@ -1403,20 +1437,34 @@ export default function DailyUpdateForm({
           {tab === "media" && (<>
 
             {/* ── Media Stats Row ─────────────────────────────────────────── */}
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:10 }}>
-              {[
-                { label:"SHOOTS",       value:`${shoots.length}`,        color:"#DE1A1A", bg:"rgba(222,26,26,0.07)",   icon:"📸" },
-                { label:"HRS SHOOTING", value:`${totalShootHours}h`,    color:"#EF4444", bg:"rgba(239,68,68,0.07)",   icon:"🎥" },
-                { label:"TRAVEL HRS",   value: fmtTravel(totalTravelHours) ?? "0",   color:"#F59E0B", bg:"rgba(245,158,11,0.07)",  icon:"🚗" },
-                { label:"EDITED COUNT", value:`${edits.length}`,        color:"#6366F1", bg:"rgba(99,102,241,0.07)",  icon:"🎬" },
-              ].map(s => (
-                <div key={s.label} style={{ background:"#FFFFFF", borderRadius:16, border:`1.5px solid ${s.color}22`, padding:"14px 12px", textAlign:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
-                  <div style={{ fontSize:20, marginBottom:4 }}>{s.icon}</div>
-                  <p style={{ fontSize:20, fontWeight:900, color:s.color, margin:"0 0 3px", fontFamily:"var(--font-jakarta)", lineHeight:1 }}>{s.value}</p>
-                  <p style={{ fontSize:9, fontWeight:800, color:"#9CA3AF", margin:0, textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.label}</p>
+            {(() => {
+              // When past date selected, prefer activeUpdate.work_entries over live state
+              const srEntries = Array.isArray((activeUpdate as Record<string,unknown> | null)?.work_entries)
+                ? (activeUpdate as Record<string,unknown>).work_entries as Array<Record<string,unknown>>
+                : null
+              const srShoots     = srEntries ? srEntries.filter(e => e.task_type === "shoot") : null
+              const srEdits      = srEntries ? srEntries.filter(e => e.task_type === "edit")  : null
+              const srShootH     = srShoots ? srShoots.reduce((s,e) => s + (Number(e.duration_hours)||0), 0) : totalShootHours
+              const srTravelH    = srShoots ? srShoots.reduce((s,e) => s + (Number((e as Record<string,unknown>)._travel_hours)||0), 0) : totalTravelHours
+              const srShootCount = srShoots ? srShoots.length : shoots.length
+              const srEditCount  = srEdits  ? srEdits.length  : edits.length
+              return (
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:10 }}>
+                  {[
+                    { label:"SHOOTS",       value:`${srShootCount}`,              color:"#DE1A1A", bg:"rgba(222,26,26,0.07)",   icon:"📸" },
+                    { label:"HRS SHOOTING", value:`${srShootH}h`,                 color:"#EF4444", bg:"rgba(239,68,68,0.07)",   icon:"🎥" },
+                    { label:"TRAVEL HRS",   value: fmtTravel(srTravelH) ?? "0",  color:"#F59E0B", bg:"rgba(245,158,11,0.07)",  icon:"🚗" },
+                    { label:"EDITED COUNT", value:`${srEditCount}`,               color:"#6366F1", bg:"rgba(99,102,241,0.07)",  icon:"🎬" },
+                  ].map(s => (
+                    <div key={s.label} style={{ background:"#FFFFFF", borderRadius:16, border:`1.5px solid ${s.color}22`, padding:"14px 12px", textAlign:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
+                      <div style={{ fontSize:20, marginBottom:4 }}>{s.icon}</div>
+                      <p style={{ fontSize:20, fontWeight:900, color:s.color, margin:"0 0 3px", fontFamily:"var(--font-jakarta)", lineHeight:1 }}>{s.value}</p>
+                      <p style={{ fontSize:9, fontWeight:800, color:"#9CA3AF", margin:0, textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.label}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )
+            })()}
 
             {/* Shoots */}
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
@@ -2365,22 +2413,37 @@ export default function DailyUpdateForm({
                 )
               })()}
 
-              {(isMediaTeam && tab === "media") && (
-                <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-                  {([
-                    { label:"Shoots",      value:`${shoots.length}`,         color: shoots.length > 0 ? "#EF4444" : "#9CA3AF" },
-                    { label:"Edits",       value:`${edits.length}`,          color: edits.length > 0  ? "#6366F1" : "#9CA3AF" },
-                    { label:"Shoot Hours", value:`${totalShootHours}h`,      color:"#EF4444" },
-                    { label:"Edit Hours",  value:`${totalEditHours}h`,       color:"#6366F1" },
-                    { label:"Total Hours", value:`${totalMediaHours}h`,      color: totalMediaHours >= 8 ? "#22C55E" : "#111111" },
-                  ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
-                    <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                      <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
-                      <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {(isMediaTeam && tab === "media") && (() => {
+                // Read from activeUpdate.work_entries when a past date is selected (incl. edit mode)
+                const ovSrc = Array.isArray((activeUpdate as Record<string,unknown> | null)?.work_entries)
+                  ? (activeUpdate as Record<string,unknown>).work_entries as Array<Record<string,unknown>>
+                  : null
+                const ovShoots    = ovSrc ? ovSrc.filter(e => e.task_type === "shoot") : null
+                const ovEdits     = ovSrc ? ovSrc.filter(e => e.task_type === "edit")  : null
+                const ovShootH    = ovShoots ? ovShoots.reduce((s,e) => s + (Number(e.duration_hours)||0), 0) : totalShootHours
+                const ovEditH     = ovEdits  ? ovEdits.reduce((s,e)  => s + (Number(e.duration_hours)||0), 0) : totalEditHours
+                const ovShootLen  = ovShoots ? ovShoots.length : shoots.length
+                const ovEditLen   = ovEdits  ? ovEdits.length  : edits.length
+                const ovTotalH    = ovSrc
+                  ? ovSrc.filter(e => e.task_type !== "break").reduce((s,e) => s + (Number(e.duration_hours)||0), 0)
+                  : totalMediaHours
+                return (
+                  <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                    {([
+                      { label:"Shoots",      value:`${ovShootLen}`,    color: ovShootLen > 0 ? "#EF4444" : "#9CA3AF" },
+                      { label:"Edits",       value:`${ovEditLen}`,     color: ovEditLen > 0  ? "#6366F1" : "#9CA3AF" },
+                      { label:"Shoot Hours", value:`${ovShootH}h`,     color:"#EF4444" },
+                      { label:"Edit Hours",  value:`${ovEditH}h`,      color:"#6366F1" },
+                      { label:"Total Hours", value:`${ovTotalH}h`,     color: ovTotalH >= 8 ? "#22C55E" : "#111111" },
+                    ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
+                      <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
+                        <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
 
               {(isMediaTeam && tab === "learning") && (
                 <div style={{ display:"flex", flexDirection:"column", gap:9 }}>

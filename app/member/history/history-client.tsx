@@ -773,7 +773,14 @@ export default function HistoryClient({
                 </p>
               </div>
             ) : filtered.map(u => {
-              const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+              const entries = (Array.isArray(u.work_entries) ? [...u.work_entries] : []).sort((a, b) => {
+                const ta = a.start_time ?? ""
+                const tb = b.start_time ?? ""
+                if (!ta && !tb) return 0
+                if (!ta) return 1
+                if (!tb) return -1
+                return ta.localeCompare(tb)
+              })
               const st = STATUS_STYLE[u.attendance_status] ?? STATUS_STYLE.present
               const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
               return (

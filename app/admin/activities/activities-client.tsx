@@ -399,7 +399,12 @@ export default function ActivitiesClient({
             const wt = u.work_type ? WORK_TYPE[u.work_type] : null
             const user = Array.isArray(u.users) ? u.users[0] : u.users
             const isExpanded = expandedIds.has(u.id)
-            const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+            const entries = (Array.isArray(u.work_entries) ? [...(u.work_entries as { task_type: string; start_time?: string | null; [k: string]: unknown }[])] : []).sort((a, b) => {
+              const ta = (a.start_time as string | null | undefined) ?? ""
+              const tb = (b.start_time as string | null | undefined) ?? ""
+              if (!ta && !tb) return 0; if (!ta) return 1; if (!tb) return -1
+              return ta.localeCompare(tb)
+            })
             const workEntries  = entries.filter(e => e.task_type === "work")
             const shootEntries = entries.filter(e => e.task_type === "shoot")
             const editEntries  = entries.filter(e => e.task_type === "edit")

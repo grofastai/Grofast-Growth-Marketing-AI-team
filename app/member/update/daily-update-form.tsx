@@ -2403,8 +2403,8 @@ export default function DailyUpdateForm({
 
               {/* Non-media team: stats based on active tab */}
               {!isMediaTeam && tab === "working" && (() => {
-                // Use submitted data when available, otherwise live form state
-                const sourceUpdate = activeUpdate ?? (workingDone ? existingUpdate : null)
+                // "Today's Overview" always shows TODAY's data (existingUpdate), not the past-date being edited
+                const sourceUpdate = workingDone ? existingUpdate : null
                 const submittedEntries = Array.isArray((sourceUpdate as Record<string,unknown> | null)?.work_entries)
                   ? (sourceUpdate as Record<string,unknown>).work_entries as Array<Record<string,unknown>>
                   : null
@@ -2436,7 +2436,7 @@ export default function DailyUpdateForm({
                 )
               })()}
               {!isMediaTeam && tab === "learning" && (() => {
-                const src = activeUpdate ?? (learningDone ? existingUpdate : null)
+                const src = learningDone ? existingUpdate : null
                 const srcTopic = (src as Record<string,unknown> | null)?.learning_topic as string | null
                 const srcHours = (src as Record<string,unknown> | null)?.learning_hours as number | null
                 return (

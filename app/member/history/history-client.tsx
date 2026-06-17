@@ -1490,11 +1490,14 @@ export default function HistoryClient({
                 {/* ── Collaborated entries for this day ── */}
                 {(participatedByDate.get(u.date) ?? []).map(pu => {
                   const submitter = members.find(m => m.id === pu.user_id)
-                  const puEntries = (Array.isArray(pu.work_entries) ? pu.work_entries : []).filter(e => {
-                    if (!userId) return true
-                    const ids = (e as WorkEntry).participant_ids
-                    return Array.isArray(ids) && ids.includes(userId)
-                  })
+                  const allEntries = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
+                  const perEntryFiltered = userId
+                    ? allEntries.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId))
+                    : allEntries
+                  // If no entry-level tagging found, show all non-break work entries (update was already confirmed participated)
+                  const puEntries = perEntryFiltered.length > 0
+                    ? perEntryFiltered
+                    : allEntries.filter(e => e.task_type !== "break" && e.task_type !== "learning")
                   return (
                     <div key={pu.id} style={{ borderTop: "1px dashed #E5E7EB", padding: "10px 18px", background: "rgba(99,102,241,0.03)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: puEntries.length > 0 ? 8 : 0 }}>

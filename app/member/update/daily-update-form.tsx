@@ -1164,137 +1164,30 @@ export default function DailyUpdateForm({
         </div>
       </div>
 
-      {/* ── TABS (media team only) ────────────────────────────────────────── */}
-      {isMediaTeam && (
-        <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
-          {TABS.map(t => (
+      {/* ── TABS (all teams) ─────────────────────────────────────────────── */}
+      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
+        {TABS.map(t => {
+          const isDone = t.id === "working" ? workingDone : t.id === "learning" ? learningDone : false
+          return (
             <button key={t.id} onClick={() => { setTab(t.id); setError(null) }}
               style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", padding:"12px 20px", borderRadius:14, cursor:"pointer", transition:"all 0.18s", flex:"1 1 120px",
-                background: tab === t.id ? "#DE1A1A" : "#FFFFFF",
-                color:      tab === t.id ? "#fff"    : "#6B7280",
+                background: tab === t.id ? "#DE1A1A" : isDone ? "rgba(34,197,94,0.07)" : "#FFFFFF",
+                color:      tab === t.id ? "#fff"    : isDone ? "#16A34A" : "#6B7280",
                 boxShadow:  tab === t.id ? "0 4px 18px rgba(222,26,26,0.4)" : "0 1px 4px rgba(0,0,0,0.06)",
-                border:     tab === t.id ? "none" : "1px solid #EBEDF2",
+                border:     tab === t.id ? "none" : isDone ? "1px solid rgba(34,197,94,0.25)" : "1px solid #EBEDF2",
               }}>
-              <span style={{ fontSize:14, fontWeight:800 }}>{t.label}</span>
-              <span style={{ fontSize:10, opacity:0.7, marginTop:2 }}>{t.desc}</span>
+              <span style={{ fontSize:14, fontWeight:800 }}>{t.label}{isDone && tab !== t.id ? " ✓" : ""}</span>
+              <span style={{ fontSize:10, opacity:0.7, marginTop:2 }}>{isDone && tab !== t.id ? "Submitted" : t.desc}</span>
             </button>
-          ))}
-        </div>
-      )}
+          )
+        })}
+      </div>
 
       {/* ── MAIN GRID ─────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-[18px] items-start">
 
         {/* ── LEFT ─────────────────────────────────────────────────────────── */}
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-
-          {/* Two-step progress indicator (non-media team) */}
-          {!isMediaTeam && (
-            <div style={{ background:"#FFFFFF", borderRadius:14, border:"1px solid #EBEDF2", padding:"12px 16px", boxShadow:"0 1px 4px rgba(0,0,0,0.05)", display:"flex", alignItems:"center", gap:8 }}>
-              {/* Step 1: Work Log */}
-              <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center",
-                  background: workingDone ? "#22C55E" : tab === "working" ? "#DE1A1A" : "#E5E7EB",
-                  border: workingDone ? "none" : tab === "working" ? "none" : "2px solid #D1D5DB",
-                }}>
-                  {workingDone
-                    ? <span style={{ fontSize:11, color:"#fff", fontWeight:900, lineHeight:1 }}>✓</span>
-                    : <span style={{ fontSize:10, color: tab === "working" ? "#fff" : "#9CA3AF", fontWeight:900, lineHeight:1 }}>1</span>
-                  }
-                </div>
-                <div>
-                  <p style={{ margin:0, fontSize:12, fontWeight:800, color: workingDone ? "#16A34A" : tab === "working" ? "#111827" : "#9CA3AF" }}>
-                    Work Log{workingDone ? " submitted" : ""}
-                  </p>
-                  <p style={{ margin:0, fontSize:10, color: workingDone ? "#16A34A" : tab === "working" ? "#6B7280" : "#C4C9D4" }}>
-                    {workingDone ? "Done ✓" : tab === "working" ? "Fill & submit below" : "Pending"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Connector line */}
-              <div style={{ width:24, height:2, borderRadius:99, flexShrink:0, background: workingDone ? "#22C55E" : "#E5E7EB" }} />
-
-              {/* Step 2: Learning */}
-              <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center",
-                  background: learningDone ? "#22C55E" : tab === "learning" ? "#DE1A1A" : "#E5E7EB",
-                  border: learningDone ? "none" : tab === "learning" ? "none" : "2px solid #D1D5DB",
-                }}>
-                  {learningDone
-                    ? <span style={{ fontSize:11, color:"#fff", fontWeight:900, lineHeight:1 }}>✓</span>
-                    : <span style={{ fontSize:10, color: tab === "learning" ? "#fff" : "#9CA3AF", fontWeight:900, lineHeight:1 }}>2</span>
-                  }
-                </div>
-                <div>
-                  <p style={{ margin:0, fontSize:12, fontWeight:800, color: learningDone ? "#16A34A" : tab === "learning" ? "#111827" : "#9CA3AF" }}>
-                    Learning{learningDone ? " submitted" : ""}
-                  </p>
-                  <p style={{ margin:0, fontSize:10, color: learningDone ? "#16A34A" : tab === "learning" ? "#6B7280" : "#C4C9D4" }}>
-                    {learningDone ? "Done ✓" : tab === "learning" ? "Fill & submit below" : "Pending"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Connector line */}
-              <div style={{ width:24, height:2, borderRadius:99, flexShrink:0, background: "#E5E7EB" }} />
-
-              {/* Step 3: Break */}
-              <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center",
-                  background: tab === "break" ? "#D97706" : "#E5E7EB",
-                  border: tab === "break" ? "none" : "2px solid #D1D5DB",
-                }}>
-                  <span style={{ fontSize:10, color: tab === "break" ? "#fff" : "#9CA3AF", fontWeight:900, lineHeight:1 }}>3</span>
-                </div>
-                <div>
-                  <p style={{ margin:0, fontSize:12, fontWeight:800, color: tab === "break" ? "#111827" : "#9CA3AF" }}>Break</p>
-                  <p style={{ margin:0, fontSize:10, color: tab === "break" ? "#6B7280" : "#C4C9D4" }}>
-                    {tab === "break" ? "Log breaks below" : "Optional"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Tab switcher (non-media team) */}
-          {!isMediaTeam && (
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <button onClick={() => setTab("working")} style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 18px", borderRadius:12, flex:1, justifyContent:"center", cursor:"pointer", border:"none", transition:"all 0.18s",
-                background: tab === "working" ? "#DE1A1A" : workingDone ? "rgba(34,197,94,0.08)" : "#FFFFFF",
-                boxShadow: tab === "working" ? "0 4px 14px rgba(222,26,26,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
-                outline: tab === "working" ? "none" : workingDone ? "1.5px solid rgba(34,197,94,0.3)" : "1.5px solid #EBEDF2",
-              }}>
-                <div style={{ width:16, height:16, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
-                  background: tab === "working" ? "rgba(255,255,255,0.3)" : workingDone ? "#22C55E" : "#E5E7EB" }}>
-                  {workingDone && tab !== "working" && <span style={{ fontSize:9, color:"#fff", fontWeight:900 }}>✓</span>}
-                </div>
-                <span style={{ fontSize:12, fontWeight:800, color: tab === "working" ? "#fff" : workingDone ? "#16A34A" : "#6B7280" }}>
-                  Work Log{workingDone && tab !== "working" ? " ✓" : ""}
-                </span>
-              </button>
-              <button onClick={() => setTab("learning")} style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 18px", borderRadius:12, flex:1, justifyContent:"center", cursor:"pointer", border:"none", transition:"all 0.18s",
-                background: tab === "learning" ? "#DE1A1A" : learningDone ? "rgba(34,197,94,0.08)" : "#FFFFFF",
-                boxShadow: tab === "learning" ? "0 4px 14px rgba(222,26,26,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
-                outline: tab === "learning" ? "none" : learningDone ? "1.5px solid rgba(34,197,94,0.3)" : "1.5px solid #EBEDF2",
-              }}>
-                <div style={{ width:16, height:16, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
-                  background: tab === "learning" ? "rgba(255,255,255,0.3)" : learningDone ? "#22C55E" : "#E5E7EB" }}>
-                  {learningDone && tab !== "learning" && <span style={{ fontSize:9, color:"#fff", fontWeight:900 }}>✓</span>}
-                </div>
-                <span style={{ fontSize:12, fontWeight:800, color: tab === "learning" ? "#fff" : learningDone ? "#16A34A" : "#6B7280" }}>
-                  Learning{learningDone && tab !== "learning" ? " ✓" : ""}
-                </span>
-              </button>
-              <button onClick={() => setTab("break")} style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 18px", borderRadius:12, flex:1, justifyContent:"center", cursor:"pointer", border:"none", transition:"all 0.18s",
-                background: tab === "break" ? "#D97706" : "#FFFFFF",
-                boxShadow: tab === "break" ? "0 4px 14px rgba(217,119,6,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
-                outline: tab === "break" ? "none" : "1.5px solid #EBEDF2",
-              }}>
-                <span style={{ fontSize:12, fontWeight:800, color: tab === "break" ? "#fff" : "#6B7280" }}>☕ Break</span>
-              </button>
-            </div>
-          )}
 
           {/* ══ WORKING: Time Blocks ══════════════════════════════════════════ */}
           {tab === "working" && (

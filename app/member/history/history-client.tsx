@@ -535,12 +535,11 @@ export default function HistoryClient({
       presentDays++
     }
 
-    // Overtime: only counts when monthly avg working hours >= 8.5h;
-    // per-day overtime = hours above 8.5h on that day
-    const totalWorkOnly = totalHours - totalLearning
-    const avgWorkH = presentDays > 0 ? totalWorkOnly / presentDays : 0
-    const totalOT = avgWorkH >= 8.5
-      ? Math.round(perDayWorkH.reduce((sum, wh) => sum + Math.max(0, wh - 8.5), 0) * 10) / 10
+    // Overtime: only counts when monthly avg (work + learning) >= 8.5h;
+    // per-day overtime = total hours above 8.5h on that day
+    const avgTotalH = presentDays > 0 ? totalHours / presentDays : 0
+    const totalOT = avgTotalH >= 8.5
+      ? Math.round(hoursPerDay.reduce((sum, h) => sum + Math.max(0, h - 8.5), 0) * 10) / 10
       : 0
 
     const productivity = filtered.length > 0

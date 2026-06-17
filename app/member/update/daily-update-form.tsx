@@ -2403,29 +2403,44 @@ export default function DailyUpdateForm({
 
               {/* Non-media team: stats based on active tab */}
               {!isMediaTeam && tab === "working" && (() => {
-                // "Today's Overview" always shows TODAY's data (existingUpdate), not the past-date being edited
-                const sourceUpdate = workingDone ? existingUpdate : null
-                const submittedEntries = Array.isArray((sourceUpdate as Record<string,unknown> | null)?.work_entries)
+                // Past date selected → show that date's data; else show today's submitted or live
+                const sourceUpdate = activeUpdate ?? (workingDone ? existingUpdate : null)
+                const srcEntries = Array.isArray((sourceUpdate as Record<string,unknown> | null)?.work_entries)
                   ? (sourceUpdate as Record<string,unknown>).work_entries as Array<Record<string,unknown>>
                   : null
-                const dispH = submittedEntries
-                  ? submittedEntries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
-                  : totalLoggedHours
-                const dispEntries = submittedEntries
-                  ? submittedEntries.filter(e => e.task_type === "other" || e.task_type === "voiceover" || e.task_type === "poster").length
-                  : filledBlocks.length
-                const dispProd = submittedEntries
-                  ? (() => { const total = submittedEntries.filter(e => e.task_type === "other").length; if (total === 0) return generalProductivity; const done = submittedEntries.filter(e => e.task_type === "other" && String(e.notes ?? "").includes("[completed]")).length; return Math.round(done / total * 100) })()
-                  : generalProductivity
+                if (srcEntries) {
+                  const workH  = srcEntries.filter(e => e.task_type === "other").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+                  const breakH = srcEntries.filter(e => e.task_type === "break").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+                  const voiceH = srcEntries.filter(e => e.task_type === "voiceover").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+                  const postH  = srcEntries.filter(e => e.task_type === "poster").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+                  const rows = [
+                    { label:"Working",    value:`${workH.toFixed(1)}h`,  color: workH >= 8 ? "#22C55E" : workH > 0 ? "#111111" : "#9CA3AF" },
+                    { label:"Break",      value:`${breakH.toFixed(1)}h`, color: breakH > 0 ? "#F59E0B" : "#9CA3AF" },
+                    ...(voiceH > 0 ? [{ label:"Voiceover", value:`${voiceH.toFixed(1)}h`, color:"#8B5CF6" }] : []),
+                    ...(postH  > 0 ? [{ label:"Poster",    value:`${postH.toFixed(1)}h`,  color:"#EC4899" }] : []),
+                  ] as Array<{label:string;value:string;color:string}>
+                  return (
+                    <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                      <p style={{ fontSize:10, fontWeight:700, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>
+                        ⏰ Work Log {activeUpdate ? `· ${selectedDate}` : "✓"}
+                      </p>
+                      {rows.map((r,i) => (
+                        <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                          <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
+                          <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                }
+                // No submitted data — show live form stats
                 return (
                   <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-                    <p style={{ fontSize:10, fontWeight:700, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>
-                      ⏰ Work Log{submittedEntries ? " ✓" : ""}
-                    </p>
+                    <p style={{ fontSize:10, fontWeight:700, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>⏰ Work Log</p>
                     {([
-                      { label:"Hours Logged",  value:`${dispH.toFixed(1)}h`,    color: dispH >= 8 ? "#22C55E" : "#111111" },
-                      { label:"Entries",       value:`${dispEntries}`,           color:"#6366F1" },
-                      { label:"Productivity",  value:`${dispProd}%`,            color: dispProd >= 70 ? "#22C55E" : dispProd > 0 ? "#F59E0B" : "#9CA3AF" },
+                      { label:"Hours Logged",  value:`${totalLoggedHours.toFixed(1)}h`, color: totalLoggedHours >= 8 ? "#22C55E" : "#111111" },
+                      { label:"Entries",       value:`${filledBlocks.length}`,           color:"#6366F1" },
+                      { label:"Productivity",  value:`${generalProductivity}%`,          color: generalProductivity >= 70 ? "#22C55E" : generalProductivity > 0 ? "#F59E0B" : "#9CA3AF" },
                     ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
                       <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                         <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
@@ -2436,7 +2451,7 @@ export default function DailyUpdateForm({
                 )
               })()}
               {!isMediaTeam && tab === "learning" && (() => {
-                const src = learningDone ? existingUpdate : null
+                const src = activeUpdate ?? (learningDone ? existingUpdate : null)
                 const srcTopic = (src as Record<string,unknown> | null)?.learning_topic as string | null
                 const srcHours = (src as Record<string,unknown> | null)?.learning_hours as number | null
                 return (

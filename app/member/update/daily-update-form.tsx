@@ -640,13 +640,18 @@ export default function DailyUpdateForm({
     ]
     const totalOverlapHours = edits.reduce((acc, e) => acc + calcOverlapHours(e.startTime, e.endTime, shoots), 0)
     const validEditHours = Math.max(0, totalEditHours - totalOverlapHours)
+    const allMediaParticipantIds = [...new Set([
+      ...participantIds,
+      ...shoots.flatMap(s => s.participantIds),
+      ...edits.flatMap(e => e.participantIds),
+    ])]
     startTransition(async () => {
       const res = await submitDailyUpdate({
         active_tab: "media", date: selectedDate, work_entries, links: [],
         shoot_count: shoots.length, editing_count: edits.length,
         shoot_time_hours: totalShootHours, editing_time_hours: validEditHours,
         learning_hours: 0,
-        participant_ids: participantIds,
+        participant_ids: allMediaParticipantIds,
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
       else { setSubmitted(true); router.refresh() }
@@ -750,13 +755,18 @@ export default function DailyUpdateForm({
     ]
     const saveOverlapHours = edits.reduce((acc, e) => acc + calcOverlapHours(e.startTime, e.endTime, shoots), 0)
     const saveValidEditHours = Math.max(0, totalEditHours - saveOverlapHours)
+    const saveMediaParticipantIds = [...new Set([
+      ...participantIds,
+      ...shoots.flatMap(s => s.participantIds),
+      ...edits.flatMap(e => e.participantIds),
+    ])]
     startTransition(async () => {
       const res = await submitDailyUpdate({
         active_tab: "media", date: selectedDate, work_entries, links: [],
         shoot_count: shoots.length, editing_count: edits.length,
         shoot_time_hours: totalShootHours, editing_time_hours: saveValidEditHours,
         learning_hours: 0,
-        participant_ids: participantIds,
+        participant_ids: saveMediaParticipantIds,
       })
       if (!res.success) setError(res.error ?? "Save failed.")
       else setSavedIds(prev => new Set([...prev, entryId]))

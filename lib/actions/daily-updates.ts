@@ -84,7 +84,8 @@ export async function submitDailyUpdate(
     const calcLearnHours = Math.round(combinedEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
 
     const existingParticipants = (existingRecord as Record<string, unknown>).participant_ids as string[] ?? []
-    const mergedParticipants = Array.from(new Set([...existingParticipants, ...(d.participant_ids ?? [])]))
+    const entryParticipants = d.work_entries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)
+    const mergedParticipants = Array.from(new Set([...existingParticipants, ...(d.participant_ids ?? []), ...entryParticipants]))
     const updatePayload: Record<string, unknown> = {
       work_entries:    combinedEntries,
       working_hours:   calcWorkHours || null,
@@ -133,7 +134,7 @@ export async function submitDailyUpdate(
         editing_count:       d.editing_count,
         shoot_time_hours:    d.shoot_time_hours ?? null,
         editing_time_hours:  d.editing_time_hours ?? null,
-        participant_ids:     d.participant_ids ?? [],
+        participant_ids:     [...new Set([...(d.participant_ids ?? []), ...d.work_entries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)])],
       })
 
     if (insertError) return { success: false, error: insertError.message }

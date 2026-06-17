@@ -40,10 +40,13 @@ export async function submitDailyUpdate(
   const today = d.date ?? todayStr
   const isPastDate = today !== todayStr
 
-  // Working hours excludes break and learning entries
+  // Working hours excludes break and learning entries, and subtracts travel time from shoot entries
   const totalWorkHours = d.work_entries
     .filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
-    .reduce((sum, e) => sum + e.duration_hours, 0)
+    .reduce((sum, e) => {
+      const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
+      return sum + Math.max(0, e.duration_hours - travel)
+    }, 0)
   const roundedHours = Math.round(totalWorkHours * 10) / 10
   // Learning hours from entries (new approach — stored in work_entries)
   const newLearnHours = d.work_entries
@@ -78,7 +81,10 @@ export async function submitDailyUpdate(
     const combinedEntries = [...filteredPrev, ...d.work_entries]
 
     // Recalculate all aggregates from combined entries — never use incremental addition
-    const calcWorkHours  = Math.round(combinedEntries.filter(e => e.task_type !== 'break' && e.task_type !== 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
+    const calcWorkHours  = Math.round(combinedEntries.filter(e => e.task_type !== 'break' && e.task_type !== 'learning').reduce((s, e) => {
+      const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
+      return s + Math.max(0, (Number(e.duration_hours) || 0) - travel)
+    }, 0) * 10) / 10
     const calcShootCount = combinedEntries.filter(e => e.task_type === 'shoot').length
     const calcEditCount  = combinedEntries.filter(e => e.task_type === 'edit').length
     const calcLearnHours = Math.round(combinedEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
@@ -268,7 +274,10 @@ export async function updatePastDailyUpdate(
     .eq('user_id', user.id)
     .single()
 
-  const totalHours = entries.reduce((s, e) => s + ((e.duration_hours as number) ?? 0), 0)
+  const totalHours = entries.reduce((s, e) => {
+    const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
+    return s + Math.max(0, ((e.duration_hours as number) ?? 0) - travel)
+  }, 0)
 
   const { error } = await admin
     .from('daily_updates')

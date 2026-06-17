@@ -84,6 +84,7 @@ export type WorkEntryInput = {
   // Shoot
   start_time?: string
   end_time?: string
+  break_minutes?: number
   travel_hours?: number | null
 }
 
@@ -221,7 +222,8 @@ export async function createWorkEntry(input: WorkEntryInput): Promise<{ success:
   } else if (input.entry_type === "video_shoot" && input.start_time && input.end_time && freelancer?.cost_per_hour) {
     const [sh, sm] = input.start_time.split(":").map(Number)
     const [eh, em] = input.end_time.split(":").map(Number)
-    working_hours = Math.round(((eh * 60 + em) - (sh * 60 + sm)) / 60 * 100) / 100
+    const breakMins = input.break_minutes ?? 0
+    working_hours = Math.round(((eh * 60 + em) - (sh * 60 + sm) - breakMins) / 60 * 100) / 100
     amount = Math.round(working_hours * (freelancer.cost_per_hour as number) * 100) / 100
   }
 
@@ -249,6 +251,7 @@ export async function createWorkEntry(input: WorkEntryInput): Promise<{ success:
     cost_per_video_snapshot: freelancer?.cost_per_video || null,
     start_time: input.start_time || null,
     end_time: input.end_time || null,
+    break_minutes: input.break_minutes ?? 0,
     travel_hours: input.travel_hours || 0,
     working_hours,
     cost_per_hour_snapshot: freelancer?.cost_per_hour || null,
@@ -299,7 +302,7 @@ export async function updateWorkEntry(id: string, input: Partial<WorkEntryInput>
   // Fetch existing entry + freelancer current rates to recalculate amount
   const { data: existing } = await admin
     .from("freelancer_work_entries")
-    .select("freelancer_id, entry_type, audio_duration_minutes, start_time, end_time")
+    .select("freelancer_id, entry_type, audio_duration_minutes, start_time, end_time, break_minutes")
     .eq("id", id).eq("company_id", companyId).single()
 
   const { data: freelancer } = existing
@@ -322,7 +325,8 @@ export async function updateWorkEntry(id: string, input: Partial<WorkEntryInput>
     } else if (entryType === "video_shoot" && startTime && endTime && freelancer.cost_per_hour) {
       const [sh, sm] = (startTime as string).split(":").map(Number)
       const [eh, em] = (endTime   as string).split(":").map(Number)
-      const hrs = Math.round(((eh * 60 + em) - (sh * 60 + sm)) / 60 * 100) / 100
+      const breakMins = input.break_minutes !== undefined ? input.break_minutes : (existing?.break_minutes ?? 0)
+      const hrs = Math.round(((eh * 60 + em) - (sh * 60 + sm) - (breakMins as number)) / 60 * 100) / 100
       amount = Math.round(hrs * (freelancer.cost_per_hour as number) * 100) / 100
     }
   }
@@ -347,6 +351,7 @@ export async function updateWorkEntry(id: string, input: Partial<WorkEntryInput>
   if (input.revision_count !== undefined) updates.revision_count = input.revision_count
   if (input.start_time  !== undefined) updates.start_time  = input.start_time || null
   if (input.end_time    !== undefined) updates.end_time    = input.end_time || null
+  if (input.break_minutes !== undefined) updates.break_minutes = input.break_minutes
   if (input.travel_hours !== undefined) updates.travel_hours = input.travel_hours
   if (amount !== undefined) updates.amount = amount
 

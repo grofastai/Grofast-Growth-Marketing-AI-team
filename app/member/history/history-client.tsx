@@ -495,11 +495,11 @@ export default function HistoryClient({
 
   // Stats always use the full month (not search-filtered)
   const stats = useMemo(() => {
-    let totalHours = 0, totalTasks = 0, presentDays = 0, totalLearning = 0
+    let totalHours = 0, totalTasks = 0, presentDays = 0, totalLearning = 0, totalBreak = 0
     let shootH = 0, editH = 0, otherH = 0
+    let isMedia = false
     const hoursPerDay: number[] = []
     const dailyData: { day: string; hours: number }[] = []
-    const perDayWorkH: number[] = []  // work-only hours per day (excl. learning/break)
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
       const shootEntries = entries.filter(e => e.task_type === "shoot")
@@ -510,17 +510,19 @@ export default function HistoryClient({
       }, 0)
       const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
+      const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const h = workH + learnH
       totalHours += h
       totalLearning += learnH
-      perDayWorkH.push(workH)
+      totalBreak += breakH
+      if (entries.some(e => e.task_type === "shoot" || e.task_type === "edit")) isMedia = true
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
       totalTasks += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
       for (const e of entries) {
         if (e.task_type === "shoot") shootH += (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
-        else if (e.task_type === "edit") editH += e.duration_hours ?? 0
+        else if (e.task_type === "edit") editH += calcEditNetHours(e, shootEntries)
         else if (e.task_type !== "break" && e.task_type !== "learning") otherH += e.duration_hours ?? 0
       }
     }
@@ -535,14 +537,20 @@ export default function HistoryClient({
       presentDays++
     }
 
-    // Overtime = total hours worked above (8.5h × presentDays) for the month.
-    // Automatically zero when monthly average < 8.5h.
+    // Absent days: elapsed calendar days in period minus present days
+    const todayStr = new Date().toISOString().split("T")[0]
+    const firstDate = monthFiltered.length > 0 ? monthFiltered[monthFiltered.length - 1].date : todayStr
+    const elapsedDays = Math.floor((new Date(todayStr + "T12:00:00").getTime() - new Date(firstDate + "T12:00:00").getTime()) / 86400000) + 1
+    const absentDays = Math.max(0, elapsedDays - presentDays)
+
+    // Overtime = total monthly hours above (8.5h × presentDays). Zero if avg < 8.5h.
     const totalOT = Math.round(Math.max(0, totalHours - 8.5 * presentDays) * 10) / 10
+    const avgH = presentDays > 0 ? Math.round((totalHours / presentDays) * 10) / 10 : 0
 
     const productivity = filtered.length > 0
       ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9.5)) * 40) : 0)))
       : 0
-    return { totalHours, totalOT, totalTasks, presentDays, totalLearning, shootH, editH, otherH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
+    return { totalHours, totalOT, totalTasks, presentDays, absentDays, totalLearning, totalBreak, shootH, editH, otherH, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
   }, [filtered, attendanceDates, selectedMonth, monthFiltered])
 
   // Streak calculation
@@ -717,7 +725,7 @@ export default function HistoryClient({
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
 
           {/* LEFT ── Hero + Entries ──────────────────────────────────────── */}
-          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          <div className="order-2 lg:order-none" style={{ display:"flex", flexDirection:"column", gap:16 }}>
 
             {/* ── HERO BANNER ─────────────────────────────────────────────── */}
             <div style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:22, overflow:"hidden", boxShadow:"0 8px 32px rgba(180,0,0,0.4)", position:"relative", minHeight:240 }}>
@@ -1649,58 +1657,72 @@ export default function HistoryClient({
           </div>
 
           {/* RIGHT ── Stats panel ─────────────────────────────────────────── */}
-          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div className="order-1 lg:order-none" style={{ display:"flex", flexDirection:"column", gap:14 }}>
 
-            {/* Work Summary */}
+            {/* Anna's Stats Card */}
             <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:7 }}>
                   <TrendingUp size={14} style={{ color:"#DE1A1A" }}/>
-                  <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>Work Summary</span>
+                  <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{stats.isMedia ? "Media" : "Work"} Summary</span>
                 </div>
                 <span style={{ fontSize:10, fontWeight:600, color:"#9CA3AF" }}>{selectedMonth || "All Data"}</span>
               </div>
-              {/* Line chart — hours per day */}
-              <div style={{ height:120, marginBottom:12 }}>
+
+              {/* Hours trend mini-chart */}
+              <div style={{ height:80, marginBottom:14 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={stats.dailyData} margin={{ top:4, right:4, left:-28, bottom:0 }}>
                     <XAxis dataKey="day" tick={{ fontSize:9, fill:"#9CA3AF" }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fontSize:9, fill:"#9CA3AF" }} tickLine={false} axisLine={false} />
-                    <Tooltip
-                      contentStyle={{ fontSize:11, borderRadius:8, border:"1px solid #E5E7EB", background:"#fff" }}
-                      formatter={(v) => [`${v as number}h`, "Hours"]}
-                      labelFormatter={l => `Day ${l}`}
-                    />
-                    <ReferenceLine y={9.5} stroke="#F59E0B" strokeDasharray="4 3" strokeWidth={1.5} label={{ value:"9.5h", fontSize:9, fill:"#F59E0B", position:"right" }} />
+                    <Tooltip contentStyle={{ fontSize:11, borderRadius:8, border:"1px solid #E5E7EB", background:"#fff" }} formatter={(v) => [`${v as number}h`, "Hours"]} labelFormatter={l => `Day ${l}`} />
+                    <ReferenceLine y={8.5} stroke="#F59E0B" strokeDasharray="4 3" strokeWidth={1.5} label={{ value:"8.5h", fontSize:9, fill:"#F59E0B", position:"right" }} />
                     <Line type="monotone" dataKey="hours" stroke="#DE1A1A" strokeWidth={2} dot={{ r:2, fill:"#DE1A1A" }} activeDot={{ r:4 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-              <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-                {[
-                  { label:"Working Hours",   value: fmtH(stats.totalHours - stats.totalLearning), color:"#22C55E" },
-                  { label:"Learning Hours",  value: fmtH(stats.totalLearning),                    color:"#6366F1" },
-                  { label:"Overtime",        value: fmtH(stats.totalOT),                          color:"#F59E0B" },
-                  { label:"Present Days",    value: String(stats.presentDays),                     color:"#DE1A1A" },
-                ].map(r => (
-                  <div key={r.label} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+
+              {/* Stats rows */}
+              <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
+                {(stats.isMedia ? [
+                  { label:"Working Hours",   value: fmtH(stats.shootH + stats.editH),    color:"#22C55E", dot:"#22C55E" },
+                  { label:"Shooting Hours",  value: fmtH(stats.shootH),                  color:"#EF4444", dot:"#EF4444" },
+                  { label:"Editing Hours",   value: fmtH(stats.editH),                   color:"#6366F1", dot:"#6366F1" },
+                  { label:"Break Hours",     value: fmtH(stats.totalBreak),              color:"#78716C", dot:"#78716C" },
+                  { label:"Present Days",    value: String(stats.presentDays),            color:"#059669", dot:"#059669" },
+                  { label:"Absent Days",     value: String(stats.absentDays),             color:"#EF4444", dot:"#EF4444" },
+                  { label:"Overtime",        value: fmtH(stats.totalOT),                 color:"#F59E0B", dot:"#F59E0B" },
+                ] : [
+                  { label:"Working Hours",   value: fmtH(stats.totalHours - stats.totalLearning), color:"#22C55E", dot:"#22C55E" },
+                  { label:"Learning Hours",  value: fmtH(stats.totalLearning),                    color:"#6366F1", dot:"#6366F1" },
+                  { label:"Break Hours",     value: fmtH(stats.totalBreak),                       color:"#78716C", dot:"#78716C" },
+                  { label:"Overtime",        value: fmtH(stats.totalOT),                          color:"#F59E0B", dot:"#F59E0B" },
+                  { label:"Present Days",    value: String(stats.presentDays),                     color:"#059669", dot:"#059669" },
+                  { label:"Absent Days",     value: String(stats.absentDays),                      color:"#EF4444", dot:"#EF4444" },
+                ]).map((r, i, arr) => (
+                  <div key={r.label} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"9px 0", borderBottom: i < arr.length - 1 ? "1px solid #F5F6FA" : "none" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                      <div style={{ width:8, height:8, borderRadius:"50%", background:r.color }}/>
+                      <div style={{ width:8, height:8, borderRadius:"50%", background:r.dot, flexShrink:0 }}/>
                       <span style={{ fontSize:11, color:"#6B7280" }}>{r.label}</span>
                     </div>
-                    <span style={{ fontSize:11, fontWeight:700, color:"#111111" }}>{r.value}</span>
+                    <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{r.value}</span>
                   </div>
                 ))}
-              </div>
-            </div>
 
-            {/* Productivity Score */}
-            <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-                <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>Productivity Score</span>
-                <span style={{ fontSize:10, fontWeight:600, color:"#9CA3AF" }}>{selectedMonth || "All Data"}</span>
+                {/* Avg Working Hours with up/down indicator */}
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", paddingTop:9 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", background: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", flexShrink:0 }}/>
+                    <span style={{ fontSize:11, color:"#6B7280" }}>Avg Working Hrs</span>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                    <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{fmtH(stats.avgH)}</span>
+                    <span style={{ fontSize:14, fontWeight:900, color: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444" }}>
+                      {stats.avgH >= 8.5 ? "↑" : "↓"}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <ProductivityRing pct={stats.productivity} />
             </div>
 
           </div>

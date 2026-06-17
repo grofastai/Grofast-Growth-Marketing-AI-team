@@ -604,7 +604,7 @@ export default function DailyUpdateForm({
   // ── Submit: working (time blocks) ────────────────────────────────────────
   function handleWorkingSubmit() {
     setWorkingError(null)
-    if (filledBlocks.length === 0 && voiceovers.length === 0 && posters.length === 0) { setWorkingError("Add at least one time block, voiceover, or poster entry."); return }
+    if (filledBlocks.length === 0) { setWorkingError("Add at least one time block with a description."); return }
     const work_entries = [
       ...filledBlocks.map(t => {
         const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")
@@ -623,26 +623,6 @@ export default function DailyUpdateForm({
           video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
         }
       }),
-      ...voiceovers.map(e => ({
-        id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
-        client_names: [], is_multi_client: false,
-        task_type: "voiceover" as const,
-        title: e.title || "Voiceover", start_time: e.startTime, end_time: e.endTime,
-        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
-        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
-        participant_ids: e.participantIds,
-      })),
-      ...posters.map(e => ({
-        id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
-        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
-        client_names: [], is_multi_client: false,
-        task_type: "poster" as const,
-        title: e.title || "Poster", start_time: e.startTime, end_time: e.endTime,
-        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
-        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
-        participant_ids: e.participantIds,
-      })),
       ...nonMediaBreaks.filter(b => b.durationHours > 0).map(b => ({
         id: b.id,
         client_id: null,
@@ -656,11 +636,7 @@ export default function DailyUpdateForm({
         video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
       })),
     ]
-    const allParticipantIds = [...new Set([
-      ...filledBlocks.flatMap(b => b.participantIds),
-      ...voiceovers.flatMap(e => e.participantIds),
-      ...posters.flatMap(e => e.participantIds),
-    ])]
+    const allParticipantIds = [...new Set(filledBlocks.flatMap(b => b.participantIds))]
     startTransition(async () => {
       const res = await submitDailyUpdate({
         active_tab: "working", date: selectedDate, work_entries, links: [],
@@ -1496,148 +1472,6 @@ export default function DailyUpdateForm({
                         </button>
                       </div>
                       </Fragment>
-                    )
-                  })}
-                </div>
-              )}
-
-              {/* ── Voiceovers (non-media team) ─────────────────────────── */}
-              {!isMediaTeam && (
-                <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", marginTop:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                      <div style={{ width:34, height:34, borderRadius:10, background:"rgba(139,92,246,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        <span style={{ fontSize:18 }}>🎙️</span>
-                      </div>
-                      <div>
-                        <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Voiceovers</p>
-                        <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{voiceovers.length} voiceover{voiceovers.length !== 1 ? "s" : ""} · {totalVoiceoverHours.toFixed(1)}h</p>
-                      </div>
-                    </div>
-                    <button onClick={addVoiceover} style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, background:"rgba(139,92,246,0.08)", border:"1.5px solid rgba(139,92,246,0.3)", color:"#8B5CF6", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                      <Plus size={13}/> Add Voiceover
-                    </button>
-                  </div>
-                  {voiceovers.map((e, vi) => {
-                    const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
-                    const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
-                    const dur = calcDuration(e.startTime, e.endTime)
-                    return (
-                      <div key={e.id} style={{ borderRadius:14, border:"1.5px solid rgba(139,92,246,0.2)", padding:"14px", marginBottom:10, background:"rgba(139,92,246,0.02)" }}>
-                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                          <span style={{ fontSize:12, fontWeight:700, color:"#8B5CF6" }}>Voiceover #{vi+1}</span>
-                          <button onClick={() => removeVoiceover(e.id)} style={{ width:26, height:26, borderRadius:7, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                            <X size={12} style={{ color:"#EF4444" }} />
-                          </button>
-                        </div>
-                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
-                          <div>
-                            <label style={L}>Client</label>
-                            <select value={e.clientName} onChange={ev => patchVoiceover(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
-                              <option value="">Select client…</option>
-                              {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                              <option value="__custom__">Other…</option>
-                            </select>
-                            {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchVoiceover(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
-                          </div>
-                          <div>
-                            <label style={L}>Title / Project</label>
-                            <input value={e.title} onChange={ev => patchVoiceover(e.id, { title: ev.target.value })} placeholder="Script or project name" style={F} />
-                          </div>
-                        </div>
-                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:10, alignItems:"end", marginBottom:10 }}>
-                          <div>
-                            <label style={L}>Start Time</label>
-                            <input type="time" value={e.startTime} onChange={ev => patchVoiceover(e.id, { startTime: ev.target.value })} style={F} />
-                          </div>
-                          <div>
-                            <label style={L}>End Time</label>
-                            <input type="time" value={e.endTime} onChange={ev => patchVoiceover(e.id, { endTime: ev.target.value })} style={F} />
-                          </div>
-                          {dur > 0 && <span style={{ fontSize:12, fontWeight:800, color:"#8B5CF6", padding:"8px 12px", borderRadius:8, background:"rgba(139,92,246,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
-                        </div>
-                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                          <div>
-                            <label style={L}>Drive / Audio Link</label>
-                            <input value={e.videoLink} onChange={ev => patchVoiceover(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
-                          </div>
-                          <div>
-                            <label style={L}>Notes</label>
-                            <input value={e.notes} onChange={ev => patchVoiceover(e.id, { notes: ev.target.value })} placeholder="Script details, revisions…" style={F} />
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-
-              {/* ── Posters (non-media team) ─────────────────────────────── */}
-              {!isMediaTeam && (
-                <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", marginTop:16, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                      <div style={{ width:34, height:34, borderRadius:10, background:"rgba(236,72,153,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        <span style={{ fontSize:18 }}>🖼️</span>
-                      </div>
-                      <div>
-                        <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Posters</p>
-                        <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{posters.length} poster{posters.length !== 1 ? "s" : ""} · {totalPosterHours.toFixed(1)}h</p>
-                      </div>
-                    </div>
-                    <button onClick={addPoster} style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, background:"rgba(236,72,153,0.08)", border:"1.5px solid rgba(236,72,153,0.3)", color:"#EC4899", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                      <Plus size={13}/> Add Poster
-                    </button>
-                  </div>
-                  {posters.map((e, pi) => {
-                    const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
-                    const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
-                    const dur = calcDuration(e.startTime, e.endTime)
-                    return (
-                      <div key={e.id} style={{ borderRadius:14, border:"1.5px solid rgba(236,72,153,0.2)", padding:"14px", marginBottom:10, background:"rgba(236,72,153,0.02)" }}>
-                        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                          <span style={{ fontSize:12, fontWeight:700, color:"#EC4899" }}>Poster #{pi+1}</span>
-                          <button onClick={() => removePoster(e.id)} style={{ width:26, height:26, borderRadius:7, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                            <X size={12} style={{ color:"#EF4444" }} />
-                          </button>
-                        </div>
-                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
-                          <div>
-                            <label style={L}>Client</label>
-                            <select value={e.clientName} onChange={ev => patchPoster(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
-                              <option value="">Select client…</option>
-                              {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                              <option value="__custom__">Other…</option>
-                            </select>
-                            {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchPoster(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
-                          </div>
-                          <div>
-                            <label style={L}>Poster Name</label>
-                            <input value={e.title} onChange={ev => patchPoster(e.id, { title: ev.target.value })} placeholder="Poster or design name" style={F} />
-                          </div>
-                        </div>
-                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:10, alignItems:"end", marginBottom:10 }}>
-                          <div>
-                            <label style={L}>Start Time</label>
-                            <input type="time" value={e.startTime} onChange={ev => patchPoster(e.id, { startTime: ev.target.value })} style={F} />
-                          </div>
-                          <div>
-                            <label style={L}>End Time</label>
-                            <input type="time" value={e.endTime} onChange={ev => patchPoster(e.id, { endTime: ev.target.value })} style={F} />
-                          </div>
-                          {dur > 0 && <span style={{ fontSize:12, fontWeight:800, color:"#EC4899", padding:"8px 12px", borderRadius:8, background:"rgba(236,72,153,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
-                        </div>
-                        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                          <div>
-                            <label style={L}>Drive / File Link</label>
-                            <input value={e.videoLink} onChange={ev => patchPoster(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
-                          </div>
-                          <div>
-                            <label style={L}>Notes</label>
-                            <input value={e.notes} onChange={ev => patchPoster(e.id, { notes: ev.target.value })} placeholder="Design details, revisions…" style={F} />
-                          </div>
-                        </div>
-                      </div>
                     )
                   })}
                 </div>

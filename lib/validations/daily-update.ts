@@ -40,7 +40,7 @@ export const workEntrySchema = z.object({
   is_multi_client:  z.boolean().optional(),
   client_names:     z.array(z.string()).optional(),
   participant_ids:  z.array(z.string()).optional(),
-})
+}).passthrough()
 
 // ── Main schema ────────────────────────────────────────────────
 export const dailyUpdateSchema = z

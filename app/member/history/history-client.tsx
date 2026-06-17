@@ -12,10 +12,11 @@ import {
   TrendingUp, Zap, BookOpen, Coffee, GraduationCap,
   CheckCircle2, Search, Trash2,
   ArrowRight, Flame, Star, X, Pencil, Check, ChevronDown,
+  Mic, ImageIcon,
 } from "lucide-react"
 
 interface WorkEntry {
-  id?: string; task_type: "shoot" | "edit" | "other" | "break" | "learning"
+  id?: string; task_type: "shoot" | "edit" | "other" | "break" | "learning" | "voiceover" | "poster"
   title: string; client_name: string; duration_hours: number
   notes: string; start_time?: string | null; end_time?: string | null
   screenshot_url?: string | null; video_link?: string | null
@@ -46,11 +47,13 @@ const STATUS_STYLE: Record<string, { label: string; color: string; bg: string; d
   wfh:     { label:"WFH",      color:"#6366F1", bg:"rgba(99,102,241,0.1)",  dot:"#6366F1" },
 }
 const TASK_CFG = {
-  shoot:    { Icon: Camera,   color:"#EF4444", bg:"rgba(239,68,68,0.1)",    label:"Shoot"    },
-  edit:     { Icon: Film,     color:"#6366F1", bg:"rgba(99,102,241,0.1)",   label:"Editing"  },
-  other:    { Icon: BookOpen, color:"#F59E0B", bg:"rgba(245,158,11,0.1)",   label:"Work"     },
-  break:    { Icon: Coffee,   color:"#78716C", bg:"rgba(120,113,108,0.1)",  label:"Break"    },
-  learning: { Icon: GraduationCap, color:"#059669", bg:"rgba(5,150,105,0.12)", label:"Learning" },
+  shoot:     { Icon: Camera,       color:"#EF4444", bg:"rgba(239,68,68,0.1)",    label:"Shoot"     },
+  edit:      { Icon: Film,         color:"#6366F1", bg:"rgba(99,102,241,0.1)",   label:"Editing"   },
+  other:     { Icon: BookOpen,     color:"#F59E0B", bg:"rgba(245,158,11,0.1)",   label:"Work"      },
+  break:     { Icon: Coffee,       color:"#78716C", bg:"rgba(120,113,108,0.1)",  label:"Break"     },
+  learning:  { Icon: GraduationCap, color:"#059669", bg:"rgba(5,150,105,0.12)", label:"Learning"  },
+  voiceover: { Icon: Mic,          color:"#8B5CF6", bg:"rgba(139,92,246,0.1)",   label:"Voiceover" },
+  poster:    { Icon: ImageIcon,    color:"#EC4899", bg:"rgba(236,72,153,0.1)",   label:"Poster"    },
 }
 const DOT_COLORS = ["#22C55E","#F59E0B","#6366F1","#EF4444","#0EA5E9","#EC4899"]
 
@@ -78,19 +81,36 @@ function calcDur(start?: string | null, end?: string | null): number {
   return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 0
 }
 function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m }
-function calcEditNetHours(e: WorkEntry, shoots: WorkEntry[]): number {
-  if (e.start_time && e.end_time) {
-    const eS = toMins(e.start_time), eE = toMins(e.end_time)
-    if (eE <= eS) return e.duration_hours ?? 0
-    const overlapMins = shoots.reduce((acc, s) => {
-      if (!s.start_time || !s.end_time) return acc
-      const sS = toMins(s.start_time), sE = toMins(s.end_time)
-      if (sE <= sS) return acc
-      return acc + Math.max(0, Math.min(eE, sE) - Math.max(eS, sS))
-    }, 0)
-    return Math.max(0, (eE - eS - overlapMins)) / 60
+
+// Merges overlapping time intervals across ALL work entries so no minute is double-counted.
+// Works for media (shoot+edit overlap) and non-media (overlapping time blocks) alike.
+function calcNetWorkHours(entries: WorkEntry[]): number {
+  const workEntries = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning")
+  // Build intervals from entries that have start+end times
+  const intervals = workEntries
+    .filter(e => e.start_time && e.end_time)
+    .map(e => ({ start: toMins(e.start_time!), end: toMins(e.end_time!) }))
+    .filter(i => i.end > i.start)
+    .sort((a, b) => a.start - b.start)
+  // Merge overlapping intervals
+  let timedMins = 0
+  if (intervals.length > 0) {
+    let cs = intervals[0].start, ce = intervals[0].end
+    for (let i = 1; i < intervals.length; i++) {
+      if (intervals[i].start < ce) { ce = Math.max(ce, intervals[i].end) }
+      else { timedMins += ce - cs; cs = intervals[i].start; ce = intervals[i].end }
+    }
+    timedMins += ce - cs
   }
-  return e.duration_hours ?? 0
+  // Travel hours for shoots are always additive (travel happens outside shoot window)
+  const travelH = workEntries
+    .filter(e => e.task_type === "shoot")
+    .reduce((s, e) => s + (e._travel_hours ?? 0), 0)
+  // Entries with no time range — use their stored duration_hours directly
+  const untimedH = workEntries
+    .filter(e => !e.start_time || !e.end_time)
+    .reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+  return Math.round((timedMins / 60 + travelH + untimedH) * 10) / 10
 }
 
 function HTimePicker({ value, onChange, style: extra }: { value: string; onChange: (v: string) => void; style?: React.CSSProperties }) {
@@ -503,12 +523,7 @@ export default function HistoryClient({
     const dailyData: { day: string; hours: number }[] = []
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      const shootEntries = entries.filter(e => e.task_type === "shoot")
-      const workH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => {
-        if (e.task_type === "shoot") return sum + (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
-        if (e.task_type === "edit") return sum + calcEditNetHours(e, shootEntries)
-        return sum + (e.duration_hours ?? 0)
-      }, 0)
+      const workH = calcNetWorkHours(entries)
       const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
       const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
@@ -523,7 +538,7 @@ export default function HistoryClient({
       totalTasks += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
       for (const e of entries) {
         if (e.task_type === "shoot") shootH += (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
-        else if (e.task_type === "edit") editH += calcEditNetHours(e, shootEntries)
+        else if (e.task_type === "edit") editH += e.duration_hours ?? 0
         else if (e.task_type !== "break" && e.task_type !== "learning") otherH += e.duration_hours ?? 0
       }
     }
@@ -932,12 +947,7 @@ export default function HistoryClient({
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(() => {
                         const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-                        const dayShoots = entries.filter(e => e.task_type === "shoot")
-                        const dayEntryH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => {
-                          if (e.task_type === "shoot") return sum + (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
-                          if (e.task_type === "edit") return sum + calcEditNetHours(e, dayShoots)
-                          return sum + (e.duration_hours ?? 0)
-                        }, 0) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
+                        const dayEntryH = calcNetWorkHours(entries) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
                         return dayEntryH > 0 ? (
                           <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
                             <Clock size={11} style={{ color:"#9CA3AF" }}/>

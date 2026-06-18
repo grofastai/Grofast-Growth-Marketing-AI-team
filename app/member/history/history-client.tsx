@@ -934,11 +934,13 @@ export default function HistoryClient({
                         <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{dateLabel}</p>
                         <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
                           {(() => {
-                            const workCount = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
+                            const workCount  = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
                             const learnCount = entries.filter(e => e.task_type === "learning").length + (u.learning_topic && !entries.some(e => e.task_type === "learning") ? 1 : 0)
+                            const breakCount = entries.filter(e => e.task_type === "break").length
                             const parts = []
                             if (workCount > 0) parts.push(`${workCount} work ${workCount === 1 ? "entry" : "entries"}`)
                             if (learnCount > 0) parts.push(`${learnCount} learning`)
+                            if (breakCount > 0 && workCount === 0) parts.push(`${breakCount} break${breakCount > 1 ? "s" : ""} only`)
                             return parts.length > 0 ? parts.join(" + ") : "No entries"
                           })()}
                         </p>

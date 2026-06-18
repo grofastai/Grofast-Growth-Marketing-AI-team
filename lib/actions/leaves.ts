@@ -75,15 +75,23 @@ export async function submitLeaveRequest(
 
   const { data: overlapping } = await supabase
     .from('leaves')
-    .select('id')
+    .select('id, leave_type')
     .eq('user_id', session.user.id)
     .lte('from_date', parsed.data.to_date)
     .gte('to_date', parsed.data.from_date)
     .not('status', 'eq', 'rejected')
-    .limit(1)
 
   if (overlapping && overlapping.length > 0) {
-    return { error: 'You already have a leave request for those dates.' }
+    // Multiple permissions on the same day are allowed (e.g. morning + evening)
+    // Only block if there is a full_day or half_day leave already on that date
+    const blocking = parsed.data.leave_type === 'permission'
+      ? overlapping.filter(l => l.leave_type !== 'permission')
+      : overlapping
+    if (blocking.length > 0) {
+      return { error: parsed.data.leave_type === 'permission'
+        ? 'You already have a full-day or half-day leave on that date.'
+        : 'You already have a leave request for those dates.' }
+    }
   }
 
   const { data: inserted, error: insertError } = await supabase.from('leaves').insert({

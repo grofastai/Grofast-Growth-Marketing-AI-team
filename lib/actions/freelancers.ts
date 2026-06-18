@@ -26,6 +26,20 @@ async function getCompanyId(): Promise<string | null> {
   return data?.company_id ?? null
 }
 
+async function getCompanyAndUser(): Promise<{ companyId: string; userId: string } | null> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const admin = adminClient()
+  const { data } = await admin
+    .from("users")
+    .select("company_id")
+    .eq("id", user.id)
+    .single()
+  if (!data?.company_id) return null
+  return { companyId: data.company_id, userId: user.id }
+}
+
 export type FreelancerType = "voice_over" | "video_editor" | "video_shooter" | "other"
 
 export type FreelancerInput = {
@@ -89,8 +103,9 @@ export type WorkEntryInput = {
 }
 
 export async function createFreelancer(input: FreelancerInput): Promise<{ success: boolean; error?: string; id?: string }> {
-  const companyId = await getCompanyId()
-  if (!companyId) return { success: false, error: "Not authenticated" }
+  const ctx = await getCompanyAndUser()
+  if (!ctx) return { success: false, error: "Not authenticated" }
+  const { companyId, userId } = ctx
 
   const admin = adminClient()
   const { data, error } = await admin.from("freelancers").insert({
@@ -115,10 +130,13 @@ export async function createFreelancer(input: FreelancerInput): Promise<{ succes
   }).select("id").single()
 
   if (error) return { success: false, error: error.message }
-  if (data?.id && input.assignedMemberIds?.length) {
-    await saveAssignments(admin, data.id, input.assignedMemberIds, companyId)
+  if (data?.id) {
+    // Always include the creating user in assignments so they see it on their page
+    const allAssignees = [...new Set([...(input.assignedMemberIds ?? []), userId])]
+    await saveAssignments(admin, data.id, allAssignees, companyId)
   }
   revalidatePath("/admin/freelancers")
+  revalidatePath("/member/freelancers")
   return { success: true, id: data?.id }
 }
 

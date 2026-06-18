@@ -371,6 +371,8 @@ export default function DailyUpdateForm({
     setLearningParticipantIds(found?.active_tab === "learning" ? ((found?.participant_ids as string[]) ?? []) : [])
     setWorkingDone(!!(found && (found as Record<string, unknown>).working_hours))
     setLearningDone(!!(found && (found as Record<string, unknown>).learning_hours))
+    setMediaDone(isMediaTeam && existingHasMedia(found))
+    setBreaksDone(isMediaTeam && existingHasBreaks(found))
     setSubmitted(false)
     setEditMode(false)
     setError(null)
@@ -518,9 +520,20 @@ export default function DailyUpdateForm({
   const [error,         setError]         = useState<string | null>(null)
   const [workingError,  setWorkingError]  = useState<string | null>(null)
   const [learningError, setLearningError] = useState<string | null>(null)
+  const existingHasMedia = (u: Record<string, unknown> | null) =>
+    !!(u && Array.isArray((u as Record<string,unknown>).work_entries) &&
+      ((u as Record<string,unknown>).work_entries as Record<string,unknown>[])
+        .some(e => ['shoot', 'edit', 'voiceover', 'poster'].includes(e.task_type as string)))
+  const existingHasBreaks = (u: Record<string, unknown> | null) =>
+    !!(u && Array.isArray((u as Record<string,unknown>).work_entries) &&
+      ((u as Record<string,unknown>).work_entries as Record<string,unknown>[])
+        .some(e => e.task_type === 'break' && Number(e.duration_hours) > 0))
+
   const [submitted,     setSubmitted]     = useState(false)
   const [workingDone,   setWorkingDone]   = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).working_hours))
   const [learningDone,  setLearningDone]  = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).learning_hours))
+  const [mediaDone,     setMediaDone]     = useState(() => isMediaTeam && existingHasMedia(existingUpdate as unknown as Record<string,unknown> | null))
+  const [breaksDone,    setBreaksDone]    = useState(() => isMediaTeam && existingHasBreaks(existingUpdate as unknown as Record<string,unknown> | null))
   const [editMode,      setEditMode]      = useState(false)
   const [savedIds,      setSavedIds]      = useState<Set<string>>(new Set())
   const [entryErrors,   setEntryErrors]   = useState<Record<string, string>>({})
@@ -544,6 +557,23 @@ export default function DailyUpdateForm({
   const filteredMembers = participantSearch.trim()
     ? teamMembers.filter(m => m.name.toLowerCase().includes(participantSearch.toLowerCase()) || m.employee_id.toLowerCase().includes(participantSearch.toLowerCase()))
     : teamMembers
+
+  // After router.refresh() updates pastUpdates, sync activeUpdate + tab-done states for current past date
+  useEffect(() => {
+    const isDone = isMediaTeam ? mediaDone : workingDone
+    if (isDone && isPastDate && !activeUpdate) {
+      const found = pastUpdates.find(u => u.date === selectedDate)
+      if (found) {
+        const rec = found as unknown as Record<string, unknown>
+        setActiveUpdate(rec)
+        if (isMediaTeam) {
+          setMediaDone(existingHasMedia(rec))
+          setBreaksDone(existingHasBreaks(rec))
+          setLearningDone(!!(rec.learning_hours))
+        }
+      }
+    }
+  }, [pastUpdates]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Autosave time blocks
   useEffect(() => {
@@ -728,7 +758,7 @@ export default function DailyUpdateForm({
         participant_ids: allMediaParticipantIds,
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
-      else { setSubmitted(true); router.refresh() }
+      else { setMediaDone(true); setEditMode(false); router.refresh() }
     })
   }
 
@@ -896,7 +926,7 @@ export default function DailyUpdateForm({
         }],
       })
       if (!res.success) setLearningError(res.error ?? "Submission failed.")
-      else { setLearningDone(true); router.refresh() }
+      else { setLearningDone(true); setEditMode(false); router.refresh() }
     })
   }
 
@@ -926,7 +956,7 @@ export default function DailyUpdateForm({
         participant_ids: [],
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
-      else { if (isMediaTeam) setSubmitted(true); else setWorkingDone(true); router.refresh() }
+      else { if (isMediaTeam) { setBreaksDone(true); setEditMode(false) } else setWorkingDone(true); router.refresh() }
     })
   }
 
@@ -958,7 +988,21 @@ export default function DailyUpdateForm({
   }
 
   // ── Already submitted screen ──────────────────────────────────────────────
-  const allDone = isMediaTeam ? (submitted || !!activeUpdate) : (workingDone && learningDone)
+  // Media team: all three tabs (media + learning + break) must be submitted.
+  // Non-media: working is enough; learning is optional.
+  const allDone = isMediaTeam ? (mediaDone && learningDone && breaksDone) : workingDone
+
+  // Past 14 days with no submission at all — shown in the submitted screen
+  const unsubmittedDates = useMemo(() => {
+    const done = new Set([...pastUpdates.map(u => u.date), todayStr])
+    const dates: string[] = []
+    for (let i = 1; i <= 14; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i)
+      const ds = d.toLocaleDateString("en-CA")
+      if (!done.has(ds)) dates.push(ds)
+    }
+    return dates
+  }, [pastUpdates, todayStr]) // eslint-disable-line react-hooks/exhaustive-deps
   if (allDone && !editMode) {
     const submittedEntries = Array.isArray((activeUpdate ?? existingUpdateRef.current ?? {})?.work_entries)
       ? ((activeUpdate ?? existingUpdateRef.current ?? {})?.work_entries as Record<string,unknown>[])
@@ -1056,6 +1100,27 @@ export default function DailyUpdateForm({
             </div>
           )}
 
+          {/* Missed dates — only show dates with no submission at all */}
+          {unsubmittedDates.length > 0 && (
+            <div style={{ background:"#FFF7ED", borderRadius:14, border:"1.5px solid #FED7AA", padding:"14px 16px", marginBottom:14 }}>
+              <p style={{ fontSize:11, fontWeight:800, color:"#D97706", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.06em" }}>
+                ⚠️ Missed Updates
+              </p>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {unsubmittedDates.slice(0, 5).map(date => {
+                  const lbl = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday:"short", day:"numeric", month:"short" })
+                  return (
+                    <button key={date} onClick={() => handleDateChange(date)}
+                      style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"9px 12px", borderRadius:10, border:"1px solid #FED7AA", background:"#FFFFFF", cursor:"pointer" }}>
+                      <span style={{ fontSize:12, fontWeight:700, color:"#374151" }}>{lbl}</span>
+                      <span style={{ fontSize:11, fontWeight:700, color:"#D97706" }}>Submit →</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             <button onClick={() => {
@@ -1067,10 +1132,25 @@ export default function DailyUpdateForm({
               setEditMode(true)
               setSubmitted(false)
               if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
+              else { setMediaDone(false) }
             }}
               style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 24px", borderRadius:12, border:"1.5px solid #DE1A1A", background:"#FFFFFF", color:"#DE1A1A", fontSize:13, fontWeight:700, cursor:"pointer" }}>
               Edit {isToday ? "Today's" : dateLabel.split(",")[0] + "'s"} Update
             </button>
+
+            {/* Non-media: Add Learning as optional step from submitted screen */}
+            {!isMediaTeam && !learningDone && (
+              <button onClick={() => { setTab("learning"); setEditMode(true) }}
+                style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 24px", borderRadius:12, border:"1.5px solid #10B981", background:"rgba(16,185,129,0.06)", color:"#059669", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                📚 Also Submit Learning
+              </button>
+            )}
+            {!isMediaTeam && learningDone && (
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, padding:"11px 24px", borderRadius:12, border:"1px solid rgba(34,197,94,0.3)", background:"rgba(34,197,94,0.05)", color:"#16A34A", fontSize:13, fontWeight:700 }}>
+                <CheckCircle2 size={14} /> Learning Submitted ✓
+              </div>
+            )}
+
             <button onClick={() => {
               setTimeBlocks([])
               setShoots([])
@@ -1079,6 +1159,7 @@ export default function DailyUpdateForm({
               setEditMode(true)
               setSubmitted(false)
               if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
+              else { setMediaDone(false) }
             }}
               style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 24px", borderRadius:12, border:"1.5px solid #E5E7EB", background:"#F9FAFB", color:"#374151", fontSize:13, fontWeight:700, cursor:"pointer" }}>
               ➕ Add Another Update
@@ -1201,7 +1282,7 @@ export default function DailyUpdateForm({
       {/* ── TABS (all teams) ─────────────────────────────────────────────── */}
       <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
         {TABS.map(t => {
-          const isDone = t.id === "working" ? workingDone : t.id === "learning" ? learningDone : false
+          const isDone = t.id === "working" ? workingDone : t.id === "learning" ? learningDone : t.id === "media" ? mediaDone : t.id === "break" ? breaksDone : false
           return (
             <button key={t.id} onClick={() => { setTab(t.id); setError(null) }}
               style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", padding:"12px 20px", borderRadius:14, cursor:"pointer", transition:"all 0.18s", flex:"1 1 120px",

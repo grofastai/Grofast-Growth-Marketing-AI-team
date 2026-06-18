@@ -287,14 +287,16 @@ function FreelancerSheet({
                 </button>
               )}
 
-              {/* ── Voice Artist ── */}
-              {form.type === "voice_over" && (<>
-                <Field label="Full Name *">
-                  <input className={inputCls} placeholder="e.g. Ravi Kumar" value={form.name} onChange={e => set("name", e.target.value)} />
-                </Field>
-                <Field label="Title">
-                  <input className={inputCls} placeholder="e.g. Voice Artist, Narrator" value={form.title} onChange={e => set("title", e.target.value)} />
-                </Field>
+              {/* ── Shared gender toggle ── */}
+              {form.type && (
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Full Name *</label>
+                  <input className={inputCls}
+                    placeholder={form.type === "other" ? "e.g. Graphic Designer, Copywriter" : form.type === "voice_over" ? "e.g. Ravi Kumar" : form.type === "video_editor" ? "e.g. Priya S" : "e.g. Arjun M"}
+                    value={form.name} onChange={e => set("name", e.target.value)} />
+                </div>
+              )}
+              {form.type && (
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Gender</label>
                   <div className="flex gap-2">
@@ -310,12 +312,8 @@ function FreelancerSheet({
                     ))}
                   </div>
                 </div>
-                <Field label="Voice Tone">
-                  <select className={selectCls} value={form.voice_type} onChange={e => set("voice_type", e.target.value)}>
-                    <option value="">Select voice tone</option>
-                    {VOICE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </Field>
+              )}
+              {form.type && (
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Phone">
                     <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
@@ -324,93 +322,29 @@ function FreelancerSheet({
                     <input className={inputCls} placeholder="name@upi" value={form.upi_id} onChange={e => set("upi_id", e.target.value)} />
                   </Field>
                 </div>
+              )}
+
+              {/* ── Type-specific price field only ── */}
+              {form.type === "voice_over" && (
                 <Field label="Base Price / Min (₹)" hint="Used for auto-calculation">
                   <input className={inputCls} type="number" min="0" step="0.5" placeholder="e.g. 150" value={form.cost_per_minute} onChange={e => set("cost_per_minute", e.target.value)} />
                 </Field>
-                <Field label="Free Time / Availability">
-                  <input className={inputCls} placeholder="e.g. Weekdays 10am–6pm" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
-                </Field>
-                <Field label="Rating">
-                  <StarRating value={form.rating} onChange={v => set("rating", v)} />
-                </Field>
-              </>)}
-
-              {/* ── Video Editor ── */}
-              {form.type === "video_editor" && (<>
-                <Field label="Full Name *">
-                  <input className={inputCls} placeholder="e.g. Priya S" value={form.name} onChange={e => set("name", e.target.value)} />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Phone">
-                    <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
-                  </Field>
-                  <Field label="UPI ID">
-                    <input className={inputCls} placeholder="name@upi" value={form.upi_id} onChange={e => set("upi_id", e.target.value)} />
-                  </Field>
-                </div>
+              )}
+              {form.type === "video_editor" && (
                 <Field label="Base Pay / Video (₹)" hint="Flat rate per video">
                   <input className={inputCls} type="number" min="0" step="50" placeholder="e.g. 2000" value={form.cost_per_video} onChange={e => set("cost_per_video", e.target.value)} />
                 </Field>
-                <Field label="Free Time / Availability">
-                  <input className={inputCls} placeholder="e.g. Mon–Fri evenings" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
-                </Field>
-                <ChipSelect label="Editing Software" options={SOFTWARE_OPTS} selected={form.editing_software} onChange={v => set("editing_software", v)} />
-                <ChipSelect label="Video Types Offered" options={VIDEO_TYPES} selected={form.video_types_offered} onChange={v => set("video_types_offered", v)} />
-                <Field label="Rating">
-                  <StarRating value={form.rating} onChange={v => set("rating", v)} />
-                </Field>
-              </>)}
-
-              {/* ── Video Shooter ── */}
-              {form.type === "video_shooter" && (<>
-                <Field label="Full Name *">
-                  <input className={inputCls} placeholder="e.g. Arjun M" value={form.name} onChange={e => set("name", e.target.value)} />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Phone">
-                    <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
-                  </Field>
-                  <Field label="UPI ID">
-                    <input className={inputCls} placeholder="name@upi" value={form.upi_id} onChange={e => set("upi_id", e.target.value)} />
-                  </Field>
-                </div>
-                <Field label="Free Time / Availability">
-                  <input className={inputCls} placeholder="e.g. Weekends only" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
-                </Field>
+              )}
+              {form.type === "video_shooter" && (
                 <Field label="Base Pay / Hour (₹)" hint="Used for auto-calculation">
                   <input className={inputCls} type="number" min="0" step="50" placeholder="e.g. 800" value={form.cost_per_hour} onChange={e => set("cost_per_hour", e.target.value)} />
                 </Field>
-                <Field label="Rating">
-                  <StarRating value={form.rating} onChange={v => set("rating", v)} />
-                </Field>
-              </>)}
-
-              {/* ── Other Service ── */}
-              {form.type === "other" && (<>
-                <Field label="Service Name *">
-                  <input className={inputCls} placeholder="e.g. Graphic Designer, Copywriter" value={form.name} onChange={e => set("name", e.target.value)} />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Phone">
-                    <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
-                  </Field>
-                  <Field label="UPI ID">
-                    <input className={inputCls} placeholder="name@upi" value={form.upi_id} onChange={e => set("upi_id", e.target.value)} />
-                  </Field>
-                </div>
-                <Field label="Service Type">
-                  <input className={inputCls} placeholder="e.g. Graphic Design, Content Writing" value={form.language} onChange={e => set("language", e.target.value)} />
-                </Field>
+              )}
+              {form.type === "other" && (
                 <Field label="Base Pay (₹)">
                   <input className={inputCls} type="number" min="0" step="50" placeholder="e.g. 5000" value={form.cost_per_video} onChange={e => set("cost_per_video", e.target.value)} />
                 </Field>
-                <Field label="Free Time / Availability">
-                  <input className={inputCls} placeholder="e.g. Available on weekdays" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
-                </Field>
-                <Field label="Rating">
-                  <StarRating value={form.rating} onChange={v => set("rating", v)} />
-                </Field>
-              </>)}
+              )}
 
               {/* Status — editing only */}
               {editing && (

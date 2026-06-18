@@ -1025,12 +1025,18 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                             </td>
                           </tr>
                         )
-                        const officeH  = (l.clock_in && l.clock_out) ? calcHours(l.clock_in, l.clock_out) : 0
-                        const workedH  = l.worked_hours ?? 0
+                        const isToday   = l.date === today
+                        const isInProgress = isToday && !!l.clock_in && !l.clock_out
+                        const officeH  = l.clock_in
+                          ? calcHours(l.clock_in, l.clock_out)   // uses Date.now() when clock_out=null
+                          : 0
+                        const workedH  = l.worked_hours && l.worked_hours > 0
+                          ? l.worked_hours
+                          : (isInProgress && l.clock_in ? Math.max(0, calcHoursNet(l.clock_in, null, l.break_total_mins ?? 0, null) ) : 0)
                         const isEditing = editingDate === l.date
                         return (
                           <Fragment key={l.date}>
-                            <tr style={{ borderBottom:"1px solid #F5F6FA", background: l.date===today ? "rgba(222,26,26,0.03)" : "transparent" }}>
+                            <tr style={{ borderBottom:"1px solid #F5F6FA", background: isToday ? "rgba(222,26,26,0.03)" : "transparent" }}>
                               <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111", whiteSpace:"nowrap" }}>{dateLabel}</td>
                               <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
                               <td style={{ padding:"9px 10px" }}>
@@ -1040,10 +1046,12 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               </td>
                               <td style={{ padding:"9px 10px", color:"#6B7280", textTransform:"capitalize" }}>{l.work_type ?? "—"}</td>
                               <td style={{ padding:"9px 10px", color:"#111111", whiteSpace:"nowrap" }}>{fmtTime(l.clock_in)}</td>
-                              <td style={{ padding:"9px 10px", color: l.clock_out ? "#111111" : "#EF4444", whiteSpace:"nowrap" }}>{l.clock_out ? fmtTime(l.clock_out) : "—"}</td>
+                              <td style={{ padding:"9px 10px", color: l.clock_out ? "#111111" : isInProgress ? "#F59E0B" : "#EF4444", whiteSpace:"nowrap", fontStyle: isInProgress ? "italic" : "normal", fontSize: isInProgress ? 10 : 12 }}>
+                                {l.clock_out ? fmtTime(l.clock_out) : isInProgress ? "In Progress…" : "—"}
+                              </td>
                               <td style={{ padding:"9px 10px", fontWeight:600, color: (l.break_total_mins ?? 0) > 0 ? "#F59E0B" : "#D1D5DB" }}>{(l.break_total_mins ?? 0) > 0 ? fmtHoursShort(Math.round((l.break_total_mins/60)*10)/10) : "—"}</td>
-                              <td style={{ padding:"9px 10px", fontWeight:700, color:"#374151" }}>{officeH > 0 ? fmtHoursShort(Math.round(officeH*10)/10) : "—"}</td>
-                              <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111" }}>{workedH > 0 ? fmtHoursShort(Math.round(workedH*10)/10) : "—"}</td>
+                              <td style={{ padding:"9px 10px", fontWeight:700, color: isInProgress ? "#9CA3AF" : "#374151" }}>{officeH > 0 ? `${fmtHoursShort(Math.round(officeH*10)/10)}${isInProgress ? "~" : ""}` : "—"}</td>
+                              <td style={{ padding:"9px 10px", fontWeight:700, color: isInProgress ? "#F59E0B" : "#111111" }}>{workedH > 0 ? `${fmtHoursShort(Math.round(workedH*10)/10)}${isInProgress ? "~" : ""}` : "—"}</td>
                               <td style={{ padding:"9px 10px" }}>
                                 {l.status === "present" && (
                                   <button onClick={() => isEditing ? setEditingDate(null) : openEditTimes(l.date, l.clock_in, l.clock_out, l.break_in, l.break_out)}

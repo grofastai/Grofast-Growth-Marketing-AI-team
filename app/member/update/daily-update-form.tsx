@@ -316,6 +316,7 @@ function parseExistingPosters(existingUpdate: Record<string, unknown>): EditEntr
 type PastUpdate = {
   id: string; date: string; working_hours: number | null; learning_hours: number | null
   shoot_count: number | null; editing_count: number | null
+  shoot_time_hours: number | null; editing_time_hours: number | null
   work_entries: Record<string, unknown>[] | null; active_tab: string | null; learning_topic: string | null
 }
 
@@ -521,9 +522,13 @@ export default function DailyUpdateForm({
   const [workingError,  setWorkingError]  = useState<string | null>(null)
   const [learningError, setLearningError] = useState<string | null>(null)
   const existingHasMedia = (u: Record<string, unknown> | null) =>
-    !!(u && Array.isArray((u as Record<string,unknown>).work_entries) &&
-      ((u as Record<string,unknown>).work_entries as Record<string,unknown>[])
-        .some(e => ['shoot', 'edit', 'voiceover', 'poster'].includes(e.task_type as string)))
+    !!(u && (
+      (Array.isArray((u as Record<string,unknown>).work_entries) &&
+        ((u as Record<string,unknown>).work_entries as Record<string,unknown>[])
+          .some(e => ['shoot', 'edit', 'voiceover', 'poster'].includes(e.task_type as string)))
+      || Number((u as Record<string,unknown>).shoot_count) > 0
+      || Number((u as Record<string,unknown>).editing_count) > 0
+    ))
   const existingHasBreaks = (u: Record<string, unknown> | null) =>
     !!(u && Array.isArray((u as Record<string,unknown>).work_entries) &&
       ((u as Record<string,unknown>).work_entries as Record<string,unknown>[])
@@ -1011,11 +1016,18 @@ export default function DailyUpdateForm({
       .filter(e => e.task_type !== "break")
       .reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
 
-    // Media team stats from work_entries
+    // Media team stats from work_entries — fall back to summary columns when work_entries is empty
     const subShoots   = submittedEntries.filter(e => e.task_type === "shoot")
     const subEdits    = submittedEntries.filter(e => e.task_type === "edit")
-    const subShootH   = subShoots.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
-    const subEditH    = subEdits.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+    const subActUpd   = (activeUpdate ?? existingUpdateRef.current) as Record<string,unknown> | null
+    const subShootLen = subShoots.length || Number(subActUpd?.shoot_count) || 0
+    const subEditLen  = subEdits.length  || Number(subActUpd?.editing_count) || 0
+    const subShootH   = subShoots.length > 0
+      ? subShoots.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+      : (Number(subActUpd?.shoot_time_hours) || 0)
+    const subEditH    = subEdits.length > 0
+      ? subEdits.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+      : (Number(subActUpd?.editing_time_hours) || 0)
     const subTravelH  = subShoots.reduce((s, e) => s + (Number((e as Record<string,unknown>)._travel_hours) || 0), 0)
 
     return (
@@ -1048,13 +1060,13 @@ export default function DailyUpdateForm({
           </div>
 
           {/* Media team stats tiles */}
-          {isMediaTeam && submittedEntries.length > 0 && (
+          {isMediaTeam && (subShootLen > 0 || subEditLen > 0) && (
             <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:14 }}>
               {[
-                { label:"SHOOTS",       value:`${subShoots.length}`,         icon:"📸", color:"#DE1A1A", bg:"rgba(222,26,26,0.07)" },
+                { label:"SHOOTS",       value:`${subShootLen}`,              icon:"📸", color:"#DE1A1A", bg:"rgba(222,26,26,0.07)" },
                 { label:"HRS SHOOTING", value:`${subShootH}h`,               icon:"🎥", color:"#EF4444", bg:"rgba(239,68,68,0.07)" },
                 { label:"TRAVEL HRS",   value:`${subTravelH > 0 ? subTravelH.toFixed(1) : "0"}`, icon:"🚗", color:"#F59E0B", bg:"rgba(245,158,11,0.07)" },
-                { label:"EDITED",       value:`${subEdits.length}`,           icon:"🎬", color:"#6366F1", bg:"rgba(99,102,241,0.07)" },
+                { label:"EDITED",       value:`${subEditLen}`,               icon:"🎬", color:"#6366F1", bg:"rgba(99,102,241,0.07)" },
               ].map(s => (
                 <div key={s.label} style={{ background:"#FFFFFF", borderRadius:12, padding:"10px 10px 8px", border:"1px solid #EBEDF2", textAlign:"center" }}>
                   <span style={{ fontSize:18 }}>{s.icon}</span>
@@ -1064,7 +1076,7 @@ export default function DailyUpdateForm({
               ))}
             </div>
           )}
-          {isMediaTeam && subEdits.length > 0 && (
+          {isMediaTeam && subEditLen > 0 && (
             <div style={{ background:"#FFFFFF", borderRadius:12, border:"1px solid #EBEDF2", padding:"10px 14px", marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
               <span style={{ fontSize:11, color:"#6B7280", fontWeight:700 }}>Edit Hours</span>
               <span style={{ fontSize:13, fontWeight:900, color:"#6366F1" }}>{subEditH.toFixed(1)}h</span>
@@ -1520,15 +1532,25 @@ export default function DailyUpdateForm({
             {/* ── Media Stats Row ─────────────────────────────────────────── */}
             {(() => {
               // When past date selected, prefer activeUpdate.work_entries over live state
-              const srEntries = Array.isArray((activeUpdate as Record<string,unknown> | null)?.work_entries)
-                ? (activeUpdate as Record<string,unknown>).work_entries as Array<Record<string,unknown>>
+              const actUpd = activeUpdate as Record<string,unknown> | null
+              const srEntries = Array.isArray(actUpd?.work_entries)
+                ? actUpd!.work_entries as Array<Record<string,unknown>>
                 : null
               const srShoots     = srEntries ? srEntries.filter(e => e.task_type === "shoot") : null
               const srEdits      = srEntries ? srEntries.filter(e => e.task_type === "edit")  : null
-              const srShootH     = srShoots ? srShoots.reduce((s,e) => s + (Number(e.duration_hours)||0), 0) : totalShootHours
-              const srTravelH    = srShoots ? srShoots.reduce((s,e) => s + (Number((e as Record<string,unknown>)._travel_hours)||0), 0) : totalTravelHours
-              const srShootCount = srShoots ? srShoots.length : shoots.length
-              const srEditCount  = srEdits  ? srEdits.length  : edits.length
+              // Fallback chain: work_entries → summary columns → live state
+              const srShootCount = srShoots && srShoots.length > 0
+                ? srShoots.length
+                : (Number(actUpd?.shoot_count) || shoots.length)
+              const srEditCount  = srEdits && srEdits.length > 0
+                ? srEdits.length
+                : (Number(actUpd?.editing_count) || edits.length)
+              const srShootH = srShoots && srShoots.length > 0
+                ? srShoots.reduce((s,e) => s + (Number(e.duration_hours)||0), 0)
+                : (Number(actUpd?.shoot_time_hours) || totalShootHours)
+              const srTravelH = srShoots && srShoots.length > 0
+                ? srShoots.reduce((s,e) => s + (Number((e as Record<string,unknown>)._travel_hours)||0), 0)
+                : totalTravelHours
               return (
                 <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:10 }}>
                   {[
@@ -2500,18 +2522,28 @@ export default function DailyUpdateForm({
 
               {(isMediaTeam && tab === "media") && (() => {
                 // Read from activeUpdate.work_entries when a past date is selected (incl. edit mode)
-                const ovSrc = Array.isArray((activeUpdate as Record<string,unknown> | null)?.work_entries)
-                  ? (activeUpdate as Record<string,unknown>).work_entries as Array<Record<string,unknown>>
+                const ovUpd = activeUpdate as Record<string,unknown> | null
+                const ovSrc = Array.isArray(ovUpd?.work_entries)
+                  ? ovUpd!.work_entries as Array<Record<string,unknown>>
                   : null
                 const ovShoots    = ovSrc ? ovSrc.filter(e => e.task_type === "shoot") : null
                 const ovEdits     = ovSrc ? ovSrc.filter(e => e.task_type === "edit")  : null
-                const ovShootH    = ovShoots ? ovShoots.reduce((s,e) => s + (Number(e.duration_hours)||0), 0) : totalShootHours
-                const ovEditH     = ovEdits  ? ovEdits.reduce((s,e)  => s + (Number(e.duration_hours)||0), 0) : totalEditHours
-                const ovShootLen  = ovShoots ? ovShoots.length : shoots.length
-                const ovEditLen   = ovEdits  ? ovEdits.length  : edits.length
-                const ovTotalH    = ovSrc
+                // Fallback chain: work_entries → summary columns → live state
+                const ovShootLen  = ovShoots && ovShoots.length > 0
+                  ? ovShoots.length
+                  : (Number(ovUpd?.shoot_count) || shoots.length)
+                const ovEditLen   = ovEdits && ovEdits.length > 0
+                  ? ovEdits.length
+                  : (Number(ovUpd?.editing_count) || edits.length)
+                const ovShootH    = ovShoots && ovShoots.length > 0
+                  ? ovShoots.reduce((s,e) => s + (Number(e.duration_hours)||0), 0)
+                  : (Number(ovUpd?.shoot_time_hours) || totalShootHours)
+                const ovEditH     = ovEdits && ovEdits.length > 0
+                  ? ovEdits.reduce((s,e) => s + (Number(e.duration_hours)||0), 0)
+                  : (Number(ovUpd?.editing_time_hours) || totalEditHours)
+                const ovTotalH    = ovSrc && ovSrc.length > 0
                   ? ovSrc.filter(e => e.task_type !== "break").reduce((s,e) => s + (Number(e.duration_hours)||0), 0)
-                  : totalMediaHours
+                  : ((Number(ovUpd?.shoot_time_hours) || totalShootHours) + (Number(ovUpd?.editing_time_hours) || totalEditHours))
                 return (
                   <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
                     {([

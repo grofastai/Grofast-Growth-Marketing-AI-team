@@ -69,7 +69,7 @@ export default async function UpdatePage() {
       .maybeSingle(),
     admin
       .from("daily_updates")
-      .select("id, date, working_hours, learning_hours, shoot_count, editing_count, work_entries, active_tab, learning_topic")
+      .select("id, date, working_hours, learning_hours, shoot_count, editing_count, shoot_time_hours, editing_time_hours, work_entries, active_tab, learning_topic")
       .eq("user_id", effectiveUserId)
       .neq("date", today)
       .order("date", { ascending: false })

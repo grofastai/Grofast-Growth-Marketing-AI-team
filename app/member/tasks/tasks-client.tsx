@@ -1,5 +1,7 @@
 "use client"
 
+const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
+
 import { useState, useTransition, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -12,6 +14,7 @@ import {
   TrendingUp, CheckCircle2, ChevronDown, Zap,
   Flame, AlertCircle, GripVertical, Plus, X, User,
   Trash2, MessageSquare, Send, Loader2, Pencil, Layers,
+  ChevronLeft, Check, FileText,
 } from "lucide-react"
 import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject, updateTask } from "@/lib/actions/tasks"
 import { getTaskComments, addTaskComment, type TaskComment } from "@/lib/actions/comments"
@@ -190,9 +193,13 @@ function timeAgo(iso: string) {
   return `${Math.floor(h / 24)}d ago`
 }
 
+function fmtChatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
+}
+
 // ── Draggable Task Card ────────────────────────────────────────────────────────
 function DraggableCard({
-  task, today, onMove, isDragging, currentUserId, onDelete, onComment, onEdit,
+  task, today, onMove, isDragging, currentUserId, onDelete, onComment, onEdit, onDetail,
 }: {
   task: Task
   today: string
@@ -202,6 +209,7 @@ function DraggableCard({
   onDelete?: (id: string) => void
   onComment?: (id: string) => void
   onEdit?: (task: Task) => void
+  onDetail?: (task: Task) => void
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task.id, data: { status: task.status } })
   const style = transform
@@ -211,14 +219,14 @@ function DraggableCard({
   return (
     <div ref={setNodeRef} style={style}>
       <TaskCardInner task={task} today={today} onMove={onMove} dragProps={{ attributes, listeners }} isDragging={isDragging}
-        currentUserId={currentUserId} onDelete={onDelete} onComment={onComment} onEdit={onEdit} />
+        currentUserId={currentUserId} onDelete={onDelete} onComment={onComment} onEdit={onEdit} onDetail={onDetail} />
     </div>
   )
 }
 
 // ── Task Card Inner ────────────────────────────────────────────────────────────
 function TaskCardInner({
-  task, today, onMove, dragProps, isDragging, currentUserId, onDelete, onComment, onEdit,
+  task, today, onMove, dragProps, isDragging, currentUserId, onDelete, onComment, onEdit, onDetail,
 }: {
   task: Task
   today: string
@@ -230,6 +238,7 @@ function TaskCardInner({
   onDelete?: (id: string) => void
   onComment?: (id: string) => void
   onEdit?: (task: Task) => void
+  onDetail?: (task: Task) => void
 }) {
   const pr = PRIORITY_STYLE[task.priority]
   const project = Array.isArray(task.projects) ? task.projects[0] : task.projects
@@ -263,7 +272,9 @@ function TaskCardInner({
           </button>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-[12px] font-semibold leading-snug line-clamp-2" style={{ color: "#111111" }}>
+          <p className="text-[12px] font-semibold leading-snug line-clamp-2 cursor-pointer hover:text-[#de1a1a] transition-colors"
+            style={{ color: "#111111" }}
+            onClick={e => { e.stopPropagation(); onDetail?.(task) }}>
             {task.title}
           </p>
           {task.assignedBy && task.created_by !== currentUserId && (
@@ -478,6 +489,9 @@ export default function MemberTasksClient({
   const [approvalRequired, setApprovalRequired] = useState(false)
   const [recurringTask, setRecurringTask]       = useState("none")
 
+  // Detail modal
+  const [detailTask, setDetailTask]     = useState<Task | null>(null)
+
   // Edit task
   const [editTask, setEditTask]         = useState<Task | null>(null)
   const [editLoading, setEditLoading]   = useState(false)
@@ -545,7 +559,8 @@ export default function MemberTasksClient({
   }
   const [showSort, setShowSort]             = useState(false)
   const [groupByProject, setGroupByProject] = useState(false)
-  const [filterProject, setFilterProject]   = useState("")
+  const [filterClient, setFilterClient]     = useState("")
+  const [filterManualClient, setFilterManualClient] = useState("")
   const [assignClientType, setAssignClientType] = useState("")
   const [assignBrand, setAssignBrand]           = useState("")
   const [assignCustom, setAssignCustom]         = useState("")
@@ -671,10 +686,11 @@ export default function MemberTasksClient({
     else if (filter === "high_priority")  list = list.filter(t => t.assigned_to === currentUserId && t.priority === "high")
     else if (filter === "today")          list = list.filter(t => t.assigned_to === currentUserId && t.due_date === today)
     else if (filter === "pending_review") list = list.filter(t => t.assigned_to === currentUserId)
-    if (filterProject) {
+    const effectiveFilterClient = filterClient === "__manual__" ? filterManualClient.trim() : filterClient
+    if (effectiveFilterClient) {
       list = list.filter(t => {
         const proj = Array.isArray(t.projects) ? t.projects[0] : t.projects
-        return proj?.id === filterProject
+        return proj?.client_name === effectiveFilterClient || proj?.business_name === effectiveFilterClient
       })
     }
     if (search.trim()) {
@@ -878,26 +894,45 @@ export default function MemberTasksClient({
           </div>
 
           {/* Client filter */}
-          {projects.filter(p => p.client_name !== "__member_quick__").length > 0 && (
-            <div className="relative flex-shrink-0">
+          <div className="relative flex-shrink-0 flex items-center gap-1.5">
+            <div className="relative">
               <select
-                value={filterProject}
-                onChange={e => setFilterProject(e.target.value)}
+                value={filterClient}
+                onChange={e => { setFilterClient(e.target.value); setFilterManualClient("") }}
                 className="px-3 py-1.5 rounded-xl text-[12px] font-semibold"
                 style={{
-                  background: filterProject ? "#de1a1a" : "#FFFFFF",
-                  border: `1px solid ${filterProject ? "#de1a1a" : "#E5E7EB"}`,
-                  color: filterProject ? "#FFFFFF" : "#374151",
+                  background: filterClient ? "#de1a1a" : "#FFFFFF",
+                  border: `1px solid ${filterClient ? "#de1a1a" : "#E5E7EB"}`,
+                  color: filterClient ? "#FFFFFF" : "#374151",
                   outline: "none", appearance: "none", paddingRight: 26, cursor: "pointer",
                 }}>
                 <option value="">All Clients</option>
-                {projects
-                  .filter(p => p.client_name !== "__member_quick__" && !deletedProjectIds.has(p.id))
-                  .map(p => <option key={p.id} value={p.id}>{p.business_name}</option>)}
+                {INTERNAL_BRANDS.map(b => <option key={b} value={b}>{b}</option>)}
+                {clients
+                  .filter(c => !INTERNAL_BRANDS.includes(c.name))
+                  .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                {pastClients.length > 0 && (
+                  <optgroup label="── Past Clients ──">
+                    {pastClients
+                      .filter(c => !INTERNAL_BRANDS.includes(c.name))
+                      .map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </optgroup>
+                )}
+                <option value="__manual__">✏️ Type manually...</option>
               </select>
-              <ChevronDown size={10} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", color: filterProject ? "#FFF" : "#9CA3AF", pointerEvents: "none" }} />
+              <ChevronDown size={10} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", color: filterClient ? "#FFF" : "#9CA3AF", pointerEvents: "none" }} />
             </div>
-          )}
+            {filterClient === "__manual__" && (
+              <input
+                type="text"
+                value={filterManualClient}
+                onChange={e => setFilterManualClient(e.target.value)}
+                placeholder="Client name..."
+                className="px-3 py-1.5 rounded-xl text-[12px] font-semibold"
+                style={{ border: "1px solid #de1a1a", outline: "none", width: 120, color: "#374151" }}
+              />
+            )}
+          </div>
 
           {/* Group by Project toggle */}
           <button
@@ -993,7 +1028,8 @@ export default function MemberTasksClient({
                         currentUserId={currentUserId}
                         onDelete={handleDeleteTask}
                         onComment={id => setCommentTaskId(id)}
-                        onEdit={setEditTask} />
+                        onEdit={setEditTask}
+                        onDetail={setDetailTask} />
                     ))
                   )}
                 </div>
@@ -1091,6 +1127,7 @@ export default function MemberTasksClient({
                           onDelete={handleDeleteTask}
                           onComment={id => setCommentTaskId(id)}
                           onEdit={setEditTask}
+                          onDetail={setDetailTask}
                         />
                       ))}
                     </div>
@@ -1143,7 +1180,8 @@ export default function MemberTasksClient({
                             currentUserId={currentUserId}
                             onDelete={handleDeleteTask}
                             onComment={id => setCommentTaskId(id)}
-                            onEdit={setEditTask} />
+                            onEdit={setEditTask}
+                            onDetail={setDetailTask} />
                         ))
                       )}
                     </div>
@@ -1333,89 +1371,236 @@ export default function MemberTasksClient({
       </div>
     </div>
 
-    {/* ── Comment Panel ────────────────────────────────────────────────────── */}
+    {/* ── WhatsApp-style Chat Panel ─────────────────────────────────────────── */}
     {commentTaskId && (
       <>
-        <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+        <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
           onClick={() => { setCommentTaskId(null); setCommentText("") }} />
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div style={{ width: "100%", maxWidth: 480, maxHeight: "82vh", background: "#fff", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.22)", border: "1px solid rgba(222,26,26,0.1)" }}>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+          <div style={{ width: "100%", maxWidth: 480, height: "92vh", maxHeight: 680, background: "#ECE5DD", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}>
 
-            {/* Header */}
-            <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "flex-start", gap: 12 }}>
-              <div style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(99,102,241,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <MessageSquare size={14} style={{ color: "#6366F1" }} />
+            {/* WhatsApp-style header */}
+            <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #7F1D1D 100%)", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+              <button onClick={() => { setCommentTaskId(null); setCommentText("") }}
+                style={{ background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <ChevronLeft size={18} style={{ color: "#fff" }} />
+              </button>
+              <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <MessageSquare size={16} style={{ color: "#fff" }} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 14, fontWeight: 800, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <p style={{ fontSize: 14, fontWeight: 800, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {tasks.find(t => t.id === commentTaskId)?.title ?? "Task"}
                 </p>
-                <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Comments & Updates</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", margin: 0 }}>
+                  {commentLoading ? "loading…" : `${comments.length} message${comments.length !== 1 ? "s" : ""}`}
+                </p>
               </div>
               <button onClick={() => { setCommentTaskId(null); setCommentText("") }}
-                style={{ width: 28, height: 28, borderRadius: "50%", background: "#F5F6FA", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <X size={12} style={{ color: "#6B7280" }} />
+                style={{ background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <X size={14} style={{ color: "#fff" }} />
               </button>
             </div>
 
-            {/* Comment list */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "14px 20px" }}>
+            {/* Chat messages */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 12px", display: "flex", flexDirection: "column", gap: 4 }}>
               {commentLoading ? (
-                <div style={{ display: "flex", justifyContent: "center", padding: 32 }}>
-                  <Loader2 size={20} style={{ color: "#9CA3AF", animation: "spin 1s linear infinite" }} />
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", flex: 1 }}>
+                  <Loader2 size={24} style={{ color: "#9CA3AF" }} className="animate-spin" />
                 </div>
               ) : comments.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "28px 0" }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", margin: "0 0 4px" }}>No comments yet</p>
-                  <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Be the first to add a comment or update!</p>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, gap: 8 }}>
+                  <div style={{ background: "rgba(255,255,255,0.85)", borderRadius: 12, padding: "12px 20px", textAlign: "center" }}>
+                    <div style={{ fontSize: 28, marginBottom: 6 }}>👋</div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: "#374151", margin: "0 0 2px" }}>No messages yet</p>
+                    <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>Say something about this task!</p>
+                  </div>
                 </div>
               ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {comments.map(c => {
+                <>
+                  {comments.map((c, idx) => {
+                    const isMe = c.user_id === currentUserId
                     const initials = c.user.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
+                    const prevSame = idx > 0 && comments[idx - 1].user_id === c.user_id
                     return (
-                      <div key={c.id} style={{ display: "flex", gap: 10 }}>
-                        <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #DE1A1A, #7F1D1D)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 11, fontWeight: 900, color: "#fff" }}>
-                          {initials}
-                        </div>
-                        <div style={{ flex: 1, background: "#F9FAFB", borderRadius: 12, padding: "9px 13px" }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 5 }}>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: "#111" }}>{c.user.name}</span>
-                            <span style={{ fontSize: 10, color: "#9CA3AF" }}>{timeAgo(c.created_at)}</span>
+                      <div key={c.id} style={{ display: "flex", flexDirection: "column", alignItems: isMe ? "flex-end" : "flex-start", marginTop: prevSame ? 2 : 10 }}>
+                        {!isMe && !prevSame && (
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#de1a1a", marginLeft: 44, marginBottom: 2 }}>{c.user.name}</span>
+                        )}
+                        <div style={{ display: "flex", alignItems: "flex-end", gap: 6, flexDirection: isMe ? "row-reverse" : "row", maxWidth: "80%" }}>
+                          {!isMe && !prevSame && (
+                            <div style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#DE1A1A,#7F1D1D)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 10, fontWeight: 900, color: "#fff" }}>
+                              {initials}
+                            </div>
+                          )}
+                          {!isMe && prevSame && <div style={{ width: 30, flexShrink: 0 }} />}
+                          <div style={{
+                            background: isMe ? "#DE1A1A" : "#FFFFFF",
+                            color: isMe ? "#fff" : "#111",
+                            borderRadius: isMe ? "16px 4px 16px 16px" : "4px 16px 16px 16px",
+                            padding: "8px 12px 6px",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.12)",
+                          }}>
+                            <p style={{ fontSize: 13, lineHeight: 1.5, margin: "0 0 4px", wordBreak: "break-word" }}>{c.comment}</p>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+                              <span style={{ fontSize: 10, opacity: 0.7 }}>{fmtChatTime(c.created_at)}</span>
+                              {isMe && <Check size={12} style={{ opacity: 0.8 }} />}
+                            </div>
                           </div>
-                          <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.55, margin: 0, wordBreak: "break-word" }}>{c.comment}</p>
                         </div>
                       </div>
                     )
                   })}
                   <div ref={commentEndRef} />
+                </>
+              )}
+            </div>
+
+            {/* Input bar */}
+            <div style={{ background: "#F0F2F5", padding: "10px 12px", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              {commentError && (
+                <p style={{ fontSize: 10, color: "#DE1A1A", margin: 0, position: "absolute", bottom: 56, left: 12 }}>{commentError}</p>
+              )}
+              <input
+                value={commentText}
+                onChange={e => { setCommentText(e.target.value); setCommentError(null) }}
+                onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComment() } }}
+                placeholder="Type a message…"
+                style={{ flex: 1, padding: "10px 16px", borderRadius: 24, border: "none", fontSize: 13, outline: "none", color: "#111", background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}
+              />
+              <button onClick={sendComment} disabled={commentSending || !commentText.trim()}
+                style={{ width: 42, height: 42, borderRadius: "50%", border: "none", cursor: commentText.trim() ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", background: commentText.trim() ? "#DE1A1A" : "#B0B0B0", flexShrink: 0, transition: "background 0.2s" }}>
+                {commentSending
+                  ? <Loader2 size={16} style={{ color: "#fff" }} className="animate-spin" />
+                  : <Send size={16} style={{ color: "#fff" }} />}
+              </button>
+            </div>
+          </div>
+        </div>
+      </>
+    )}
+
+    {/* ── Task Detail Modal ──────────────────────────────────────────────────── */}
+    {detailTask && (
+      <>
+        <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          onClick={() => setDetailTask(null)} />
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
+          <div style={{ width: "100%", maxWidth: 500, maxHeight: "92vh", background: "#fff", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.28)" }}>
+
+            {/* Header */}
+            <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #7F1D1D 100%)", padding: "18px 20px", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+                <button onClick={() => setDetailTask(null)}
+                  style={{ background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", borderRadius: "50%", width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <X size={14} style={{ color: "#fff" }} />
+                </button>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Task Details</span>
+              </div>
+              <p style={{ fontSize: 17, fontWeight: 900, color: "#fff", margin: "0 0 8px", lineHeight: 1.3 }}>{detailTask.title}</p>
+              {/* Assigned by */}
+              {detailTask.assignedBy && detailTask.created_by !== currentUserId && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff" }}>
+                    {detailTask.assignedBy.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                  </div>
+                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>Assigned by {detailTask.assignedBy.name}</span>
                 </div>
               )}
             </div>
 
-            {/* Input */}
-            <div style={{ padding: "12px 20px", borderTop: "1px solid #F3F4F6" }}>
-              {commentError && (
-                <p style={{ fontSize: 11, fontWeight: 600, color: "#DE1A1A", margin: "0 0 8px", padding: "7px 12px", background: "rgba(222,26,26,0.06)", borderRadius: 8 }}>
-                  {commentError}
-                </p>
-              )}
-              <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  value={commentText}
-                  onChange={e => { setCommentText(e.target.value); setCommentError(null) }}
-                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendComment() } }}
-                  placeholder="Write a comment or update..."
-                  style={{ flex: 1, padding: "9px 14px", borderRadius: 12, border: "1.5px solid #EBEDF2", fontSize: 13, outline: "none", color: "#111" }}
-                />
-                <button onClick={sendComment} disabled={commentSending || !commentText.trim()}
-                  style={{ padding: "9px 14px", borderRadius: 12, border: "none", cursor: commentText.trim() ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", background: commentText.trim() ? "linear-gradient(135deg, #DE1A1A, #7F1D1D)" : "#F3F4F6", transition: "background 0.2s" }}>
-                  {commentSending
-                    ? <Loader2 size={15} style={{ color: commentText.trim() ? "#fff" : "#9CA3AF", animation: "spin 1s linear infinite" }} />
-                    : <Send size={15} style={{ color: commentText.trim() ? "#fff" : "#9CA3AF" }} />}
-                </button>
+            {/* Body */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "18px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+
+              {/* Badges row */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {(() => { const pr = PRIORITY_STYLE[detailTask.priority]; return (
+                  <span style={{ fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 99, background: pr.bg, color: pr.color }}>{pr.label} Priority</span>
+                )})()}
+                {detailTask.projects && (() => { const proj = Array.isArray(detailTask.projects) ? detailTask.projects[0] : detailTask.projects; return proj ? (
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>{proj.business_name}</span>
+                ) : null })()}
+                {detailTask.due_date && (
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(245,158,11,0.1)", color: "#D97706", display: "flex", alignItems: "center", gap: 4 }}>
+                    <Calendar size={10} /> {new Date(detailTask.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </span>
+                )}
+                {detailTask.category && (
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(16,185,129,0.1)", color: "#10B981" }}>{detailTask.category}</span>
+                )}
               </div>
+
+              {/* Description */}
+              {detailTask.description && (
+                <div style={{ padding: "12px 14px", borderRadius: 12, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <FileText size={12} style={{ color: "#6B7280" }} />
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Description</span>
+                  </div>
+                  <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, margin: 0 }}>{detailTask.description}</p>
+                </div>
+              )}
+
+              {/* Manager Note */}
+              {detailTask.manager_note && (
+                <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(245,158,11,0.07)", border: "1.5px solid rgba(245,158,11,0.25)" }}>
+                  <p style={{ fontSize: 10, fontWeight: 900, color: "#D97706", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.08em" }}>📌 Manager Note</p>
+                  <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, margin: 0 }}>{detailTask.manager_note}</p>
+                </div>
+              )}
+
+              {/* Checklist */}
+              {(detailTask.checklist ?? []).length > 0 && (
+                <div style={{ padding: "12px 14px", borderRadius: 12, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>☑ Checklist</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#DE1A1A" }}>
+                      {(detailTask.checklist ?? []).filter(i => i.done).length} / {(detailTask.checklist ?? []).length}
+                    </span>
+                  </div>
+                  {/* Progress bar */}
+                  <div style={{ height: 4, borderRadius: 4, background: "#E5E7EB", marginBottom: 10, overflow: "hidden" }}>
+                    <div style={{ height: "100%", borderRadius: 4, background: "#DE1A1A", transition: "width 0.4s", width: `${Math.round(((detailTask.checklist ?? []).filter(i => i.done).length / (detailTask.checklist ?? []).length) * 100)}%` }} />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {(detailTask.checklist ?? []).map((item, idx) => (
+                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${item.done ? "#DE1A1A" : "#D1D5DB"}`, background: item.done ? "#DE1A1A" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          {item.done && <Check size={10} style={{ color: "#fff" }} strokeWidth={3} />}
+                        </div>
+                        <span style={{ fontSize: 13, color: item.done ? "#9CA3AF" : "#111", textDecoration: item.done ? "line-through" : "none", lineHeight: 1.4 }}>{item.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* No description or note placeholder */}
+              {!detailTask.description && !detailTask.manager_note && (detailTask.checklist ?? []).length === 0 && (
+                <div style={{ textAlign: "center", padding: "16px 0", color: "#D1D5DB" }}>
+                  <p style={{ fontSize: 13, margin: 0 }}>No additional details added for this task.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer actions */}
+            <div style={{ padding: "12px 20px", borderTop: "1px solid #F3F4F6", display: "flex", gap: 10, flexShrink: 0 }}>
+              <button
+                onClick={() => { setDetailTask(null); setCommentTaskId(detailTask.id) }}
+                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px 0", borderRadius: 12, background: "#DE1A1A", color: "#fff", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+                <MessageSquare size={14} /> Open Chat
+              </button>
+              {detailTask.status !== "completed" && (
+                <button
+                  onClick={() => {
+                    const next = detailTask.status === "todo" ? "in_progress" : detailTask.status === "in_progress" ? "review" : "completed"
+                    moveTask(detailTask.id, next)
+                    setDetailTask(prev => prev ? { ...prev, status: next } : null)
+                  }}
+                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px 0", borderRadius: 12, background: "#F9FAFB", color: "#374151", border: "1.5px solid #E5E7EB", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+                  {detailTask.status === "todo" ? "→ Start Task" : detailTask.status === "in_progress" ? "→ Send for Review" : "✓ Approve"}
+                </button>
+              )}
             </div>
           </div>
         </div>

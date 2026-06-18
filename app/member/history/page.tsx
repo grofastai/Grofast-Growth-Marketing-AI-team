@@ -133,6 +133,7 @@ export default async function HistoryPage() {
     <HistoryClient
       updates={updates}
       userName={name}
+      userId={effectiveUserId}
       clients={clients}
       pastClients={pastClients}
       participatedUpdates={participatedUpdates}

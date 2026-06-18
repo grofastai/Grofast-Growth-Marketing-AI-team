@@ -78,6 +78,21 @@ function calcDur(start?: string | null, end?: string | null): number {
   const diff = (eh * 60 + em) - (sh * 60 + sm)
   return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 0
 }
+function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+function calcEditNetHours(e: WorkEntry, shoots: WorkEntry[]): number {
+  if (e.start_time && e.end_time) {
+    const eS = toMins(e.start_time), eE = toMins(e.end_time)
+    if (eE <= eS) return e.duration_hours ?? 0
+    const overlapMins = shoots.reduce((acc, s) => {
+      if (!s.start_time || !s.end_time) return acc
+      const sS = toMins(s.start_time), sE = toMins(s.end_time)
+      if (sE <= sS) return acc
+      return acc + Math.max(0, Math.min(eE, sE) - Math.max(eS, sS))
+    }, 0)
+    return Math.max(0, (eE - eS - overlapMins)) / 60
+  }
+  return e.duration_hours ?? 0
+}
 
 function HTimePicker({ value, onChange, style: extra }: { value: string; onChange: (v: string) => void; style?: React.CSSProperties }) {
   const [local, setLocal] = useState(value || "09:00")
@@ -212,10 +227,11 @@ interface MemberInfo { id: string; name: string }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function HistoryClient({
-  updates, userName, clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [],
+  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [],
 }: {
   updates: UpdateRow[]
   userName: string
+  userId?: string
   clients?: string[]
   pastClients?: string[]
   participatedUpdates?: ParticipatedUpdate[]
@@ -315,7 +331,7 @@ export default function HistoryClient({
       notes = stripShootNotes(notes)
     }
     setEditEntryStatus(parsedStatus)
-    const BREAK_LABELS = ["Lunch", "Tea", "Short Break", "Personal"]
+    const BREAK_LABELS = ["Lunch", "Lunch Break", "Tea", "Short Break", "Personal", "Permission", "Early Logoff", "Late Login"]
     const isCustomBreak = entry.task_type === "break" && !BREAK_LABELS.includes(entry.title)
     setEditDraft({
       task_type: entry.task_type,
@@ -353,6 +369,7 @@ export default function HistoryClient({
       if (!editDraft.date_finished) { alert("Please set Date Finished before saving."); return }
       if (!editDraft.start_time || !editDraft.end_time) { alert("Please set Edit Start & End Time before saving."); return }
       if (editDraft.start_time >= (editDraft.end_time ?? "")) { alert("Edit End Time must be after Start Time."); return }
+      if (!editDraft.video_duration) { alert("Please select the video Duration before saving."); return }
     }
     setSavingKey(key)
     let draftToSave: Partial<WorkEntry> = { ...editDraft }
@@ -480,25 +497,34 @@ export default function HistoryClient({
 
   // Stats always use the full month (not search-filtered)
   const stats = useMemo(() => {
-    let totalHours = 0, totalOT = 0, totalTasks = 0, presentDays = 0, totalLearning = 0
+    let totalHours = 0, totalTasks = 0, presentDays = 0, totalLearning = 0, totalBreak = 0
     let shootH = 0, editH = 0, otherH = 0
+    let isMedia = false
     const hoursPerDay: number[] = []
     const dailyData: { day: string; hours: number }[] = []
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      const workH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+      const shootEntries = entries.filter(e => e.task_type === "shoot")
+      const workH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => {
+        if (e.task_type === "shoot") return sum + (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
+        if (e.task_type === "edit") return sum + calcEditNetHours(e, shootEntries)
+        return sum + (e.duration_hours ?? 0)
+      }, 0)
       const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
+      const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const h = workH + learnH
-      totalHours += h; if (h > 9.5) totalOT += Math.round((h - 9.5) * 10) / 10
+      totalHours += h
       totalLearning += learnH
+      totalBreak += breakH
+      if (entries.some(e => e.task_type === "shoot" || e.task_type === "edit")) isMedia = true
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
       totalTasks += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
       for (const e of entries) {
-        if (e.task_type === "shoot") shootH += e.duration_hours ?? 0
-        else if (e.task_type === "edit") editH += e.duration_hours ?? 0
+        if (e.task_type === "shoot") shootH += (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
+        else if (e.task_type === "edit") editH += calcEditNetHours(e, shootEntries)
         else if (e.task_type !== "break" && e.task_type !== "learning") otherH += e.duration_hours ?? 0
       }
     }
@@ -508,15 +534,25 @@ export default function HistoryClient({
       ? new Date(monthFiltered[0]?.date + "T12:00:00" || Date.now()).toISOString().slice(0, 7)
       : null
     for (const d of attendanceDates) {
-      if (updateDates.has(d)) continue  // already counted above
+      if (updateDates.has(d)) continue
       if (monthPrefix && !d.startsWith(monthPrefix)) continue
       presentDays++
     }
 
+    // Absent days: elapsed calendar days in period minus present days
+    const todayStr = new Date().toISOString().split("T")[0]
+    const firstDate = monthFiltered.length > 0 ? monthFiltered[monthFiltered.length - 1].date : todayStr
+    const elapsedDays = Math.floor((new Date(todayStr + "T12:00:00").getTime() - new Date(firstDate + "T12:00:00").getTime()) / 86400000) + 1
+    const absentDays = Math.max(0, elapsedDays - presentDays)
+
+    // Overtime = total monthly hours above (8.5h × presentDays). Zero if avg < 8.5h.
+    const totalOT = Math.round(Math.max(0, totalHours - 8.5 * presentDays) * 10) / 10
+    const avgH = presentDays > 0 ? Math.round((totalHours / presentDays) * 10) / 10 : 0
+
     const productivity = filtered.length > 0
       ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9.5)) * 40) : 0)))
       : 0
-    return { totalHours, totalOT, totalTasks, presentDays, totalLearning, shootH, editH, otherH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
+    return { totalHours, totalOT, totalTasks, presentDays, absentDays, totalLearning, totalBreak, shootH, editH, otherH, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
   }, [filtered, attendanceDates, selectedMonth, monthFiltered])
 
   // Streak calculation
@@ -548,6 +584,24 @@ export default function HistoryClient({
     }
     return map
   }, [participatedUpdates])
+
+  // Merge own updates + orphan collaborated entries (dates where user has no own update)
+  type MergedItem = { type: "own"; date: string; u: UpdateRow } | { type: "collab"; date: string; pus: ParticipatedUpdate[] }
+  const mergedList = useMemo((): MergedItem[] => {
+    const ownDates = new Set(filtered.map(u => u.date))
+    const monthPrefix = selectedMonth && monthFiltered[0]?.date ? monthFiltered[0].date.slice(0, 7) : null
+    const orphans: { date: string; pus: ParticipatedUpdate[] }[] = []
+    for (const [date, pus] of participatedByDate.entries()) {
+      if (ownDates.has(date)) continue
+      if (monthPrefix && !date.startsWith(monthPrefix)) continue
+      if (!selectedMonth && !filtered.some(u => u.date >= date.slice(0, 7))) continue
+      orphans.push({ date, pus })
+    }
+    orphans.sort((a, b) => b.date.localeCompare(a.date))
+    const ownItems: MergedItem[] = filtered.map(u => ({ type: "own", date: u.date, u }))
+    const collabItems: MergedItem[] = orphans.map(o => ({ type: "collab", date: o.date, pus: o.pus }))
+    return [...ownItems, ...collabItems].sort((a, b) => b.date.localeCompare(a.date))
+  }, [filtered, participatedByDate, selectedMonth, monthFiltered])
 
   const topActivity = useMemo(() => {
     const map: Record<string, number> = {}
@@ -673,7 +727,7 @@ export default function HistoryClient({
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5 items-start">
 
           {/* LEFT ── Hero + Entries ──────────────────────────────────────── */}
-          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+          <div className="order-2 lg:order-none" style={{ display:"flex", flexDirection:"column", gap:16 }}>
 
             {/* ── HERO BANNER ─────────────────────────────────────────────── */}
             <div style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:22, overflow:"hidden", boxShadow:"0 8px 32px rgba(180,0,0,0.4)", position:"relative", minHeight:240 }}>
@@ -765,7 +819,7 @@ export default function HistoryClient({
             </div>
 
             {/* ── ENTRIES LIST ────────────────────────────────────────────── */}
-            {filtered.length === 0 ? (
+            {mergedList.length === 0 ? (
               <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"48px 24px", textAlign:"center", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                 <p style={{ fontSize:36, margin:"0 0 12px" }}>📋</p>
                 <p style={{ fontSize:16, fontWeight:800, color:"#111111", margin:"0 0 6px" }}>No entries found</p>
@@ -773,8 +827,80 @@ export default function HistoryClient({
                   {searchActive || dateActive || selectedMonth ? "Try clearing your filters" : "No daily updates submitted yet"}
                 </p>
               </div>
-            ) : filtered.map(u => {
-              const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+            ) : mergedList.map(item => {
+              // ── Collab-only card (no own update that day) ──
+              if (item.type === "collab") {
+                const collabDate = new Date(item.date + "T12:00:00")
+                const collabDateLabel = collabDate.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
+                return (
+                  <div key={`c-${item.date}`} style={{ background:"#fff", borderRadius:20, border:"1.5px dashed rgba(99,102,241,0.3)", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 18px", borderBottom:"1px solid #F5F6FA", background:"rgba(99,102,241,0.03)" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ minWidth:36, textAlign:"center" }}>
+                          <span style={{ fontSize:16, fontWeight:900, color:"#6366F1", display:"block", lineHeight:1 }}>{collabDate.getDate()}</span>
+                          <span style={{ fontSize:8, fontWeight:700, color:"#6366F1", textTransform:"uppercase" }}>{collabDate.toLocaleDateString("en-US",{month:"short"})}</span>
+                        </div>
+                        <div>
+                          <p style={{ fontSize:12, fontWeight:800, color:"#111111", margin:0 }}>{collabDateLabel}</p>
+                          <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Collaborated — no own submission</p>
+                        </div>
+                      </div>
+                    </div>
+                    {item.pus.map(pu => {
+                      const submitter = members.find(m => m.id === pu.user_id)
+                      const allEnt = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
+                      const perEntry = userId ? allEnt.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : allEnt
+                      const puEntries = perEntry.length > 0 ? perEntry : allEnt.filter(e => e.task_type !== "break" && e.task_type !== "learning")
+                      return (
+                        <div key={pu.id} style={{ padding:"12px 18px", borderTop:"1px dashed rgba(99,102,241,0.15)" }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom: puEntries.length > 0 ? 10 : 0 }}>
+                            <span style={{ fontSize:11, fontWeight:700, color:"#6366F1" }}>👥 Collaborated</span>
+                            <span style={{ fontSize:11, color:"#9CA3AF" }}>· by <span style={{ fontWeight:700, color:"#6366F1" }}>{submitter?.name ?? "Teammate"}</span></span>
+                          </div>
+                          {puEntries.map((pe, pi) => {
+                            const cfg = TASK_CFG[pe.task_type] ?? TASK_CFG.other
+                            const { Icon } = cfg
+                            const displayTitle = pe.title || cfg.label
+                            const displayClient = (pe.is_multi_client && pe.client_names?.length) ? pe.client_names.join(" · ") : pe.client_name || ""
+                            const tH = pe.task_type === "shoot" ? (pe._travel_hours ?? 0) : 0
+                            const dur = calcDurationFromTimes(pe.start_time, pe.end_time) ?? (pe.duration_hours ?? 0)
+                            return (
+                              <div key={pi} style={{ display:"flex", gap:10, padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none", alignItems:"flex-start" }}>
+                                <div style={{ width:30, height:30, borderRadius:8, background:cfg.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                                  <Icon size={13} style={{ color:cfg.color }}/>
+                                </div>
+                                <div style={{ flex:1, minWidth:0 }}>
+                                  <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginBottom:2 }}>
+                                    <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{displayTitle}</span>
+                                    <span style={{ fontSize:9, fontWeight:700, color:cfg.color, background:cfg.bg, padding:"1px 6px", borderRadius:99 }}>{cfg.label}</span>
+                                  </div>
+                                  {displayClient && <p style={{ fontSize:10, color:"#6B7280", margin:"0 0 2px", fontWeight:600 }}>{displayClient}</p>}
+                                  <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
+                                    {dur + tH > 0 && <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:3 }}><Clock size={9} style={{ color:"#9CA3AF" }}/>{fmtH(dur + tH)}</span>}
+                                    {pe.start_time && pe.end_time && <span style={{ fontSize:10, color:"#9CA3AF" }}>{fmt12(pe.start_time)} – {fmt12(pe.end_time)}</span>}
+                                    {tH > 0 && <span style={{ fontSize:10, color:"#F59E0B", fontWeight:700 }}>🚗 {fmtTravel(tH)}</span>}
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              }
+
+              // ── Own update card ──
+              const u = item.u
+              const entries = (Array.isArray(u.work_entries) ? [...u.work_entries] : []).sort((a, b) => {
+                const ta = a.start_time ?? ""
+                const tb = b.start_time ?? ""
+                if (!ta && !tb) return 0
+                if (!ta) return 1
+                if (!tb) return -1
+                return ta.localeCompare(tb)
+              })
               const st = STATUS_STYLE[u.attendance_status] ?? STATUS_STYLE.present
               const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
               return (
@@ -807,7 +933,12 @@ export default function HistoryClient({
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(() => {
                         const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-                        const dayEntryH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
+                        const dayShoots = entries.filter(e => e.task_type === "shoot")
+                        const dayEntryH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => {
+                          if (e.task_type === "shoot") return sum + (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
+                          if (e.task_type === "edit") return sum + calcEditNetHours(e, dayShoots)
+                          return sum + (e.duration_hours ?? 0)
+                        }, 0) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
                         return dayEntryH > 0 ? (
                           <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
                             <Clock size={11} style={{ color:"#9CA3AF" }}/>
@@ -1124,10 +1255,13 @@ export default function HistoryClient({
                                       {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>{fmtTravel(dur)}</span>}
                                       <select value={editDraft.title??"Lunch"} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value,_custom_label:""}))}
                                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
-                                        <option value="Lunch">🍱 Lunch</option>
+                                        <option value="Permission">🙋 Permission</option>
                                         <option value="Tea">☕ Tea</option>
-                                        <option value="Short Break">🚶 Short Break</option>
+                                        <option value="Lunch Break">🍱 Lunch Break</option>
                                         <option value="Personal">🏠 Personal</option>
+                                        <option value="Short Break">🚶 Short Break</option>
+                                        <option value="Early Logoff">🌙 Early Logoff</option>
+                                        <option value="Late Login">⏰ Late Login</option>
                                         <option value="__other__">✏️ Other</option>
                                       </select>
                                       {editDraft.title==="__other__" && <input value={editDraft._custom_label??""} onChange={ev=>setEditDraft(d=>({...d,_custom_label:ev.target.value}))} placeholder="Type break name…" style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", outline:"none", width:130 }} />}
@@ -1464,7 +1598,14 @@ export default function HistoryClient({
                 {/* ── Collaborated entries for this day ── */}
                 {(participatedByDate.get(u.date) ?? []).map(pu => {
                   const submitter = members.find(m => m.id === pu.user_id)
-                  const puEntries = Array.isArray(pu.work_entries) ? pu.work_entries : []
+                  const allEntries = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
+                  const perEntryFiltered = userId
+                    ? allEntries.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId))
+                    : allEntries
+                  // If no entry-level tagging found, show all non-break work entries (update was already confirmed participated)
+                  const puEntries = perEntryFiltered.length > 0
+                    ? perEntryFiltered
+                    : allEntries.filter(e => e.task_type !== "break" && e.task_type !== "learning")
                   return (
                     <div key={pu.id} style={{ borderTop: "1px dashed #E5E7EB", padding: "10px 18px", background: "rgba(99,102,241,0.03)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: puEntries.length > 0 ? 8 : 0 }}>
@@ -1479,21 +1620,42 @@ export default function HistoryClient({
                         )}
                       </div>
                       {puEntries.length > 0 && (
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                          {puEntries.slice(0, 5).map((e, i) => {
-                            const cfg = TASK_CFG[(e as WorkEntry).task_type] ?? TASK_CFG.other
+                        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                          {puEntries.map((pe, pi) => {
+                            const cfg = TASK_CFG[pe.task_type] ?? TASK_CFG.other
+                            const { Icon } = cfg
+                            const displayTitle = pe.title || cfg.label
+                            const displayClient = (pe.is_multi_client && pe.client_names && pe.client_names.length > 0)
+                              ? pe.client_names.join(" · ")
+                              : pe.client_name || ""
+                            const tH = pe.task_type === "shoot" ? (pe._travel_hours ?? 0) : 0
+                            const dur = calcDurationFromTimes(pe.start_time, pe.end_time) ?? (pe.duration_hours ?? 0)
                             return (
-                              <span key={i} style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99, background: "rgba(99,102,241,0.08)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.15)" }}>
-                                {(e as WorkEntry).title || cfg.label}
-                                {(e as WorkEntry).client_name ? ` · ${(e as WorkEntry).client_name}` : ""}
-                              </span>
+                              <div key={pi} style={{ display: "flex", gap: 10, padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none", alignItems: "flex-start" }}>
+                                <div style={{ width: 30, height: 30, borderRadius: 8, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <Icon size={13} style={{ color: cfg.color }}/>
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
+                                    <span style={{ fontSize: 12, fontWeight: 800, color: "#111111" }}>{displayTitle}</span>
+                                    <span style={{ fontSize: 9, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: "1px 6px", borderRadius: 99 }}>{cfg.label}</span>
+                                  </div>
+                                  {displayClient && <p style={{ fontSize: 10, color: "#6B7280", margin: "0 0 2px", fontWeight: 600 }}>{displayClient}</p>}
+                                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                    {dur + tH > 0 && (
+                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 3 }}>
+                                        <Clock size={9} style={{ color: "#9CA3AF" }}/>{fmtH(dur + tH)}
+                                      </span>
+                                    )}
+                                    {pe.start_time && pe.end_time && (
+                                      <span style={{ fontSize: 10, color: "#9CA3AF" }}>{fmt12(pe.start_time)} – {fmt12(pe.end_time)}</span>
+                                    )}
+                                    {tH > 0 && <span style={{ fontSize: 10, color: "#F59E0B", fontWeight: 700 }}>🚗 {fmtTravel(tH)}</span>}
+                                  </div>
+                                </div>
+                              </div>
                             )
                           })}
-                          {puEntries.length > 5 && (
-                            <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 99, background: "rgba(156,163,175,0.1)", color: "#9CA3AF" }}>
-                              +{puEntries.length - 5} more
-                            </span>
-                          )}
                         </div>
                       )}
                     </div>
@@ -1506,58 +1668,72 @@ export default function HistoryClient({
           </div>
 
           {/* RIGHT ── Stats panel ─────────────────────────────────────────── */}
-          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <div className="order-1 lg:order-none" style={{ display:"flex", flexDirection:"column", gap:14 }}>
 
-            {/* Work Summary */}
+            {/* Anna's Stats Card */}
             <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:7 }}>
                   <TrendingUp size={14} style={{ color:"#DE1A1A" }}/>
-                  <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>Work Summary</span>
+                  <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{stats.isMedia ? "Media" : "Work"} Summary</span>
                 </div>
                 <span style={{ fontSize:10, fontWeight:600, color:"#9CA3AF" }}>{selectedMonth || "All Data"}</span>
               </div>
-              {/* Line chart — hours per day */}
-              <div style={{ height:120, marginBottom:12 }}>
+
+              {/* Hours trend mini-chart */}
+              <div style={{ height:80, marginBottom:14 }}>
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={stats.dailyData} margin={{ top:4, right:4, left:-28, bottom:0 }}>
                     <XAxis dataKey="day" tick={{ fontSize:9, fill:"#9CA3AF" }} tickLine={false} axisLine={false} />
                     <YAxis tick={{ fontSize:9, fill:"#9CA3AF" }} tickLine={false} axisLine={false} />
-                    <Tooltip
-                      contentStyle={{ fontSize:11, borderRadius:8, border:"1px solid #E5E7EB", background:"#fff" }}
-                      formatter={(v) => [`${v as number}h`, "Hours"]}
-                      labelFormatter={l => `Day ${l}`}
-                    />
-                    <ReferenceLine y={9.5} stroke="#F59E0B" strokeDasharray="4 3" strokeWidth={1.5} label={{ value:"9.5h", fontSize:9, fill:"#F59E0B", position:"right" }} />
+                    <Tooltip contentStyle={{ fontSize:11, borderRadius:8, border:"1px solid #E5E7EB", background:"#fff" }} formatter={(v) => [`${v as number}h`, "Hours"]} labelFormatter={l => `Day ${l}`} />
+                    <ReferenceLine y={8.5} stroke="#F59E0B" strokeDasharray="4 3" strokeWidth={1.5} label={{ value:"8.5h", fontSize:9, fill:"#F59E0B", position:"right" }} />
                     <Line type="monotone" dataKey="hours" stroke="#DE1A1A" strokeWidth={2} dot={{ r:2, fill:"#DE1A1A" }} activeDot={{ r:4 }} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-              <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-                {[
-                  { label:"Working Hours",   value: fmtH(stats.totalHours - stats.totalLearning), color:"#22C55E" },
-                  { label:"Learning Hours",  value: fmtH(stats.totalLearning),                    color:"#6366F1" },
-                  { label:"Overtime",        value: fmtH(stats.totalOT),                          color:"#F59E0B" },
-                  { label:"Present Days",    value: String(stats.presentDays),                     color:"#DE1A1A" },
-                ].map(r => (
-                  <div key={r.label} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+
+              {/* Stats rows */}
+              <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
+                {(stats.isMedia ? [
+                  { label:"Working Hours",   value: fmtH(stats.shootH + stats.editH),    color:"#22C55E", dot:"#22C55E" },
+                  { label:"Shooting Hours",  value: fmtH(stats.shootH),                  color:"#EF4444", dot:"#EF4444" },
+                  { label:"Editing Hours",   value: fmtH(stats.editH),                   color:"#6366F1", dot:"#6366F1" },
+                  { label:"Break Hours",     value: fmtH(stats.totalBreak),              color:"#78716C", dot:"#78716C" },
+                  { label:"Present Days",    value: String(stats.presentDays),            color:"#059669", dot:"#059669" },
+                  { label:"Absent Days",     value: String(stats.absentDays),             color:"#EF4444", dot:"#EF4444" },
+                  { label:"Overtime",        value: fmtH(stats.totalOT),                 color:"#F59E0B", dot:"#F59E0B" },
+                ] : [
+                  { label:"Working Hours",   value: fmtH(stats.totalHours - stats.totalLearning), color:"#22C55E", dot:"#22C55E" },
+                  { label:"Learning Hours",  value: fmtH(stats.totalLearning),                    color:"#6366F1", dot:"#6366F1" },
+                  { label:"Break Hours",     value: fmtH(stats.totalBreak),                       color:"#78716C", dot:"#78716C" },
+                  { label:"Overtime",        value: fmtH(stats.totalOT),                          color:"#F59E0B", dot:"#F59E0B" },
+                  { label:"Present Days",    value: String(stats.presentDays),                     color:"#059669", dot:"#059669" },
+                  { label:"Absent Days",     value: String(stats.absentDays),                      color:"#EF4444", dot:"#EF4444" },
+                ]).map((r, i, arr) => (
+                  <div key={r.label} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"9px 0", borderBottom: i < arr.length - 1 ? "1px solid #F5F6FA" : "none" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                      <div style={{ width:8, height:8, borderRadius:"50%", background:r.color }}/>
+                      <div style={{ width:8, height:8, borderRadius:"50%", background:r.dot, flexShrink:0 }}/>
                       <span style={{ fontSize:11, color:"#6B7280" }}>{r.label}</span>
                     </div>
-                    <span style={{ fontSize:11, fontWeight:700, color:"#111111" }}>{r.value}</span>
+                    <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{r.value}</span>
                   </div>
                 ))}
-              </div>
-            </div>
 
-            {/* Productivity Score */}
-            <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"18px", boxShadow:"0 2px 12px rgba(0,0,0,0.05)" }}>
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-                <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>Productivity Score</span>
-                <span style={{ fontSize:10, fontWeight:600, color:"#9CA3AF" }}>{selectedMonth || "All Data"}</span>
+                {/* Avg Working Hours with up/down indicator */}
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", paddingTop:9 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                    <div style={{ width:8, height:8, borderRadius:"50%", background: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", flexShrink:0 }}/>
+                    <span style={{ fontSize:11, color:"#6B7280" }}>Avg Working Hrs</span>
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                    <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{fmtH(stats.avgH)}</span>
+                    <span style={{ fontSize:14, fontWeight:900, color: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444" }}>
+                      {stats.avgH >= 8.5 ? "↑" : "↓"}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <ProductivityRing pct={stats.productivity} />
             </div>
 
           </div>

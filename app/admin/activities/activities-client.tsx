@@ -399,14 +399,23 @@ export default function ActivitiesClient({
             const wt = u.work_type ? WORK_TYPE[u.work_type] : null
             const user = Array.isArray(u.users) ? u.users[0] : u.users
             const isExpanded = expandedIds.has(u.id)
-            const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+            const entries = (Array.isArray(u.work_entries) ? [...(u.work_entries as { task_type: string; start_time?: string | null; [k: string]: unknown }[])] : []).sort((a, b) => {
+              const ta = (a.start_time as string | null | undefined) ?? ""
+              const tb = (b.start_time as string | null | undefined) ?? ""
+              if (!ta && !tb) return 0; if (!ta) return 1; if (!tb) return -1
+              return ta.localeCompare(tb)
+            })
             const workEntries  = entries.filter(e => e.task_type === "work")
             const shootEntries = entries.filter(e => e.task_type === "shoot")
             const editEntries  = entries.filter(e => e.task_type === "edit")
             const otherEntries = entries.filter(e => !["work","shoot","edit"].includes(String(e.task_type ?? "")))
             const allWorkLike  = [...workEntries, ...otherEntries]
             const workHrs  = Math.round(allWorkLike.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
-            const mediaHrs = Math.round([...shootEntries,...editEntries].reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
+            const mediaHrs = Math.round([...shootEntries,...editEntries].reduce((s, e) => {
+              const h = Number(e.duration_hours) || 0
+              const travel = e.task_type === "shoot" ? (Number(e._travel_hours) || 0) : 0
+              return s + Math.max(0, h - travel)
+            }, 0) * 10) / 10
             const hasMedia = shootEntries.length > 0 || editEntries.length > 0
             const tasksCompleted = u.tasks_completed ?? 0
             const tasksTotal = u.tasks_total ?? 0

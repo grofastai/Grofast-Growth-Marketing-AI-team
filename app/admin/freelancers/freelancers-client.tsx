@@ -1,20 +1,22 @@
 "use client"
 
-import { useState, useMemo, useTransition, useEffect } from "react"
+import { useState, useMemo, useTransition, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import {
   Plus, X, Star, Mic, Scissors, Camera, UserCog, Phone, Calendar,
   Clock, DollarSign, CheckCircle, Trash2, CreditCard, ChevronDown,
   ChevronUp, Edit2, Search, IndianRupee, HardDrive, RotateCcw,
-  Check, AlertCircle, UserCheck, Users,
+  Check, AlertCircle, ExternalLink, Users2,
 } from "lucide-react"
 import {
   createFreelancer, updateFreelancer, deleteFreelancer,
   createWorkEntry, updateWorkEntry, markWorkEntryPaid, deleteWorkEntry,
   updateWorkEntryStatus,
 } from "@/lib/actions/freelancers"
-import { assignFreelancerManager } from "@/lib/actions/freelancer-manager"
-import type { Freelancer, WorkEntry, FreelancerStats, FreelancerType } from "./page"
+import type { Freelancer, WorkEntry, FreelancerStats, FreelancerType } from "./types"
+
+type TeamMemberOption = { id: string; name: string; employee_id: string }
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -109,23 +111,28 @@ const selectCls = inputCls + " appearance-none cursor-pointer"
 // ── Freelancer Sheet ──────────────────────────────────────────────────────────
 
 type FState = {
-  name: string; type: FreelancerType | ""; phone: string; availability_notes: string; rating: number; status: "active" | "inactive"
+  name: string; type: FreelancerType | ""; phone: string; upi_id: string; gender: string; title: string
+  availability_notes: string; rating: number; status: "active" | "inactive"
+  assignedMemberIds: string[]
   language: string; voice_type: string; cost_per_minute: string
   editing_software: string[]; video_types_offered: string[]; cost_per_video: string
   availability_schedule: string; cost_per_hour: string
 }
 
 const BLANK_F: FState = {
-  name: "", type: "", phone: "", availability_notes: "", rating: 0, status: "active",
+  name: "", type: "", phone: "", upi_id: "", gender: "", title: "", availability_notes: "", rating: 0, status: "active",
+  assignedMemberIds: [],
   language: "", voice_type: "", cost_per_minute: "",
   editing_software: [], video_types_offered: [], cost_per_video: "",
   availability_schedule: "", cost_per_hour: "",
 }
 
-function freelancerToState(f: Freelancer): FState {
+function freelancerToState(f: Freelancer, assignedIds: string[] = []): FState {
   return {
-    name: f.name, type: f.type, phone: f.phone ?? "", availability_notes: f.availability_notes ?? "",
+    name: f.name, type: f.type, phone: f.phone ?? "", upi_id: f.upi_id ?? "", gender: f.gender ?? "", title: f.title ?? "",
+    availability_notes: f.availability_notes ?? "",
     rating: f.rating, status: f.status,
+    assignedMemberIds: assignedIds,
     language: f.language ?? "", voice_type: f.voice_type ?? "",
     cost_per_minute: f.cost_per_minute?.toString() ?? "",
     editing_software: f.editing_software ?? [], video_types_offered: f.video_types_offered ?? [],
@@ -136,14 +143,15 @@ function freelancerToState(f: Freelancer): FState {
 }
 
 function FreelancerSheet({
-  open, onClose, editing,
+  open, onClose, editing, teamMembers, initialAssignments,
   onCreated, onUpdated,
 }: {
   open: boolean; onClose: () => void; editing: Freelancer | null
-  onCreated: (f: Freelancer) => void; onUpdated: (f: Freelancer) => void
+  teamMembers: TeamMemberOption[]; initialAssignments: string[]
+  onCreated: (f: Freelancer) => void; onUpdated: (f: Freelancer, assignedIds: string[]) => void
 }) {
   const [step, setStep] = useState<"type" | "details">(editing ? "details" : "type")
-  const [form, setForm] = useState<FState>(editing ? freelancerToState(editing) : BLANK_F)
+  const [form, setForm] = useState<FState>(editing ? freelancerToState(editing, initialAssignments) : BLANK_F)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
 
@@ -151,10 +159,10 @@ function FreelancerSheet({
   useEffect(() => {
     if (open) {
       setStep(editing ? "details" : "type")
-      setForm(editing ? freelancerToState(editing) : BLANK_F)
+      setForm(editing ? freelancerToState(editing, initialAssignments) : BLANK_F)
       setErr("")
     }
-  }, [open, editing])
+  }, [open, editing, initialAssignments])
 
   function reset() {
     setStep(editing ? "details" : "type")
@@ -175,8 +183,11 @@ function FreelancerSheet({
     setSaving(true); setErr("")
     const payload = {
       name: form.name.trim(), type: form.type as FreelancerType,
-      phone: form.phone || undefined, availability_notes: form.availability_notes || undefined,
+      phone: form.phone || undefined, upi_id: form.upi_id || undefined,
+      gender: form.gender || undefined, title: form.title || undefined,
+      availability_notes: form.availability_notes || undefined,
       rating: form.rating, status: form.status,
+      assignedMemberIds: form.assignedMemberIds,
       language: form.language || undefined, voice_type: form.voice_type || undefined,
       cost_per_minute: form.cost_per_minute ? parseFloat(form.cost_per_minute) : null,
       editing_software: form.editing_software, video_types_offered: form.video_types_offered,
@@ -190,7 +201,9 @@ function FreelancerSheet({
       onUpdated({
         ...editing,
         name: payload.name, type: payload.type,
-        phone: payload.phone ?? null, availability_notes: payload.availability_notes ?? null,
+        phone: payload.phone ?? null, upi_id: payload.upi_id ?? null,
+        gender: payload.gender ?? null, title: payload.title ?? null,
+        availability_notes: payload.availability_notes ?? null,
         rating: payload.rating ?? 0, status: payload.status ?? "active",
         language: payload.language ?? null, voice_type: payload.voice_type ?? null,
         cost_per_minute: payload.cost_per_minute ?? null,
@@ -199,15 +212,16 @@ function FreelancerSheet({
         cost_per_video: payload.cost_per_video ?? null,
         availability_schedule: payload.availability_schedule ?? null,
         cost_per_hour: payload.cost_per_hour ?? null,
-      })
+      }, payload.assignedMemberIds ?? [])
     } else {
       const res = await createFreelancer(payload)
       if (!res.success) { setErr(res.error ?? "Failed"); setSaving(false); return }
-      // optimistic: create fake entry — server will revalidate
       const fake: Freelancer = {
         id: `new-${Date.now()}`, company_id: "",
         name: payload.name, type: payload.type,
-        phone: payload.phone ?? null, availability_notes: payload.availability_notes ?? null,
+        phone: payload.phone ?? null, upi_id: payload.upi_id ?? null,
+        gender: payload.gender ?? null, title: payload.title ?? null,
+        availability_notes: payload.availability_notes ?? null,
         rating: payload.rating ?? 0, status: "active",
         language: payload.language ?? null, voice_type: payload.voice_type ?? null,
         cost_per_minute: payload.cost_per_minute ?? null,
@@ -273,18 +287,132 @@ function FreelancerSheet({
                 </button>
               )}
 
-              <Field label="Full Name *">
-                <input className={inputCls} placeholder="e.g. Ravi Kumar" value={form.name} onChange={e => set("name", e.target.value)} />
-              </Field>
+              {/* ── Voice Artist ── */}
+              {form.type === "voice_over" && (<>
+                <Field label="Full Name *">
+                  <input className={inputCls} placeholder="e.g. Ravi Kumar" value={form.name} onChange={e => set("name", e.target.value)} />
+                </Field>
+                <Field label="Title">
+                  <input className={inputCls} placeholder="e.g. Voice Artist, Narrator" value={form.title} onChange={e => set("title", e.target.value)} />
+                </Field>
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Gender</label>
+                  <div className="flex gap-2">
+                    {(["male", "female"] as const).map(g => (
+                      <button key={g} type="button"
+                        onClick={() => set("gender", form.gender === g ? "" : g)}
+                        className="flex-1 py-2.5 rounded-xl text-[13px] font-bold capitalize transition-all"
+                        style={form.gender === g
+                          ? { background: "#DE1A1A", color: "#fff", border: "2px solid #DE1A1A" }
+                          : { background: "#F9FAFB", color: "#6B7280", border: "2px solid #E5E7EB" }}>
+                        {g === "male" ? "Male" : "Female"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Field label="Voice Tone">
+                  <select className={selectCls} value={form.voice_type} onChange={e => set("voice_type", e.target.value)}>
+                    <option value="">Select voice tone</option>
+                    {VOICE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Phone">
+                    <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
+                  </Field>
+                  <Field label="UPI ID">
+                    <input className={inputCls} placeholder="name@upi" value={form.upi_id} onChange={e => set("upi_id", e.target.value)} />
+                  </Field>
+                </div>
+                <Field label="Base Price / Min (₹)" hint="Used for auto-calculation">
+                  <input className={inputCls} type="number" min="0" step="0.5" placeholder="e.g. 150" value={form.cost_per_minute} onChange={e => set("cost_per_minute", e.target.value)} />
+                </Field>
+                <Field label="Free Time / Availability">
+                  <input className={inputCls} placeholder="e.g. Weekdays 10am–6pm" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
+                </Field>
+                <Field label="Rating">
+                  <StarRating value={form.rating} onChange={v => set("rating", v)} />
+                </Field>
+              </>)}
 
-              <Field label="Phone Number">
-                <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
-              </Field>
+              {/* ── Video Editor ── */}
+              {form.type === "video_editor" && (<>
+                <Field label="Full Name *">
+                  <input className={inputCls} placeholder="e.g. Priya S" value={form.name} onChange={e => set("name", e.target.value)} />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Phone">
+                    <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
+                  </Field>
+                  <Field label="UPI ID">
+                    <input className={inputCls} placeholder="name@upi" value={form.upi_id} onChange={e => set("upi_id", e.target.value)} />
+                  </Field>
+                </div>
+                <Field label="Base Pay / Video (₹)" hint="Flat rate per video">
+                  <input className={inputCls} type="number" min="0" step="50" placeholder="e.g. 2000" value={form.cost_per_video} onChange={e => set("cost_per_video", e.target.value)} />
+                </Field>
+                <Field label="Free Time / Availability">
+                  <input className={inputCls} placeholder="e.g. Mon–Fri evenings" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
+                </Field>
+                <ChipSelect label="Editing Software" options={SOFTWARE_OPTS} selected={form.editing_software} onChange={v => set("editing_software", v)} />
+                <ChipSelect label="Video Types Offered" options={VIDEO_TYPES} selected={form.video_types_offered} onChange={v => set("video_types_offered", v)} />
+                <Field label="Rating">
+                  <StarRating value={form.rating} onChange={v => set("rating", v)} />
+                </Field>
+              </>)}
 
-              <Field label="Rating">
-                <StarRating value={form.rating} onChange={v => set("rating", v)} />
-              </Field>
+              {/* ── Video Shooter ── */}
+              {form.type === "video_shooter" && (<>
+                <Field label="Full Name *">
+                  <input className={inputCls} placeholder="e.g. Arjun M" value={form.name} onChange={e => set("name", e.target.value)} />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Phone">
+                    <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
+                  </Field>
+                  <Field label="UPI ID">
+                    <input className={inputCls} placeholder="name@upi" value={form.upi_id} onChange={e => set("upi_id", e.target.value)} />
+                  </Field>
+                </div>
+                <Field label="Free Time / Availability">
+                  <input className={inputCls} placeholder="e.g. Weekends only" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
+                </Field>
+                <Field label="Base Pay / Hour (₹)" hint="Used for auto-calculation">
+                  <input className={inputCls} type="number" min="0" step="50" placeholder="e.g. 800" value={form.cost_per_hour} onChange={e => set("cost_per_hour", e.target.value)} />
+                </Field>
+                <Field label="Rating">
+                  <StarRating value={form.rating} onChange={v => set("rating", v)} />
+                </Field>
+              </>)}
 
+              {/* ── Other Service ── */}
+              {form.type === "other" && (<>
+                <Field label="Service Name *">
+                  <input className={inputCls} placeholder="e.g. Graphic Designer, Copywriter" value={form.name} onChange={e => set("name", e.target.value)} />
+                </Field>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Phone">
+                    <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
+                  </Field>
+                  <Field label="UPI ID">
+                    <input className={inputCls} placeholder="name@upi" value={form.upi_id} onChange={e => set("upi_id", e.target.value)} />
+                  </Field>
+                </div>
+                <Field label="Service Type">
+                  <input className={inputCls} placeholder="e.g. Graphic Design, Content Writing" value={form.language} onChange={e => set("language", e.target.value)} />
+                </Field>
+                <Field label="Base Pay (₹)">
+                  <input className={inputCls} type="number" min="0" step="50" placeholder="e.g. 5000" value={form.cost_per_video} onChange={e => set("cost_per_video", e.target.value)} />
+                </Field>
+                <Field label="Free Time / Availability">
+                  <input className={inputCls} placeholder="e.g. Available on weekdays" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
+                </Field>
+                <Field label="Rating">
+                  <StarRating value={form.rating} onChange={v => set("rating", v)} />
+                </Field>
+              </>)}
+
+              {/* Status — editing only */}
               {editing && (
                 <Field label="Status">
                   <select className={selectCls} value={form.status} onChange={e => set("status", e.target.value as "active" | "inactive")}>
@@ -294,59 +422,42 @@ function FreelancerSheet({
                 </Field>
               )}
 
-              {/* Voice Over fields */}
-              {form.type === "voice_over" && (<>
-                <div className="border-t border-gray-100 pt-4">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-purple-500 mb-4">Voice Over Details</p>
-                  <div className="flex flex-col gap-4">
-                    <Field label="Language(s)">
-                      <input className={inputCls} placeholder="e.g. English, Hindi, Tamil" value={form.language} onChange={e => set("language", e.target.value)} />
-                    </Field>
-                    <Field label="Voice Type">
-                      <select className={selectCls} value={form.voice_type} onChange={e => set("voice_type", e.target.value)}>
-                        <option value="">Select voice type</option>
-                        {VOICE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
-                      </select>
-                    </Field>
-                    <Field label="Cost Per Minute (₹)" hint="Used for auto-calculation">
-                      <input className={inputCls} type="number" min="0" step="0.5" placeholder="e.g. 150" value={form.cost_per_minute} onChange={e => set("cost_per_minute", e.target.value)} />
-                    </Field>
+              {/* Assign to members */}
+              {teamMembers.length > 0 && (
+                <div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">
+                    Assign to Team Members
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {teamMembers.map(m => {
+                      const selected = form.assignedMemberIds.includes(m.id)
+                      return (
+                        <button key={m.id} type="button"
+                          onClick={() => set("assignedMemberIds", selected
+                            ? form.assignedMemberIds.filter(id => id !== m.id)
+                            : [...form.assignedMemberIds, m.id]
+                          )}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all"
+                          style={selected
+                            ? { background: "#DE1A1A", color: "#FFF", border: "1.5px solid #DE1A1A" }
+                            : { background: "#F9FAFB", color: "#6B7280", border: "1.5px solid #E5E7EB" }
+                          }>
+                          <div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black flex-shrink-0"
+                            style={{ background: selected ? "rgba(255,255,255,0.3)" : "#E5E7EB", color: selected ? "#FFF" : "#374151" }}>
+                            {m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                          </div>
+                          {m.name.split(" ")[0]}
+                        </button>
+                      )
+                    })}
                   </div>
+                  {form.assignedMemberIds.length > 0 && (
+                    <p className="text-[11px] text-gray-400 mt-1.5">
+                      {form.assignedMemberIds.length} member{form.assignedMemberIds.length !== 1 ? "s" : ""} selected · they can see this freelancer
+                    </p>
+                  )}
                 </div>
-              </>)}
-
-              {/* Video Editor fields */}
-              {form.type === "video_editor" && (<>
-                <div className="border-t border-gray-100 pt-4">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-blue-500 mb-4">Editor Details</p>
-                  <div className="flex flex-col gap-4">
-                    <ChipSelect label="Editing Software" options={SOFTWARE_OPTS} selected={form.editing_software} onChange={v => set("editing_software", v)} />
-                    <ChipSelect label="Video Types Offered" options={VIDEO_TYPES} selected={form.video_types_offered} onChange={v => set("video_types_offered", v)} />
-                    <Field label="Cost Per Video (₹)" hint="Flat rate per video">
-                      <input className={inputCls} type="number" min="0" step="50" placeholder="e.g. 2000" value={form.cost_per_video} onChange={e => set("cost_per_video", e.target.value)} />
-                    </Field>
-                  </div>
-                </div>
-              </>)}
-
-              {/* Video Shooter fields */}
-              {form.type === "video_shooter" && (<>
-                <div className="border-t border-gray-100 pt-4">
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-500 mb-4">Shooter Details</p>
-                  <div className="flex flex-col gap-4">
-                    <Field label="Availability Schedule">
-                      <input className={inputCls} placeholder="e.g. Weekends only, Mon–Sat" value={form.availability_schedule} onChange={e => set("availability_schedule", e.target.value)} />
-                    </Field>
-                    <Field label="Cost Per Hour (₹)" hint="Used for auto-calculation">
-                      <input className={inputCls} type="number" min="0" step="50" placeholder="e.g. 800" value={form.cost_per_hour} onChange={e => set("cost_per_hour", e.target.value)} />
-                    </Field>
-                  </div>
-                </div>
-              </>)}
-
-              <Field label="Availability / Notes">
-                <textarea className={inputCls} rows={2} placeholder="Any notes about availability or work preferences…" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
-              </Field>
+              )}
 
               {err && (
                 <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-100">
@@ -380,29 +491,138 @@ function FreelancerSheet({
 
 type EState = {
   client_name: string; title: string; date: string; status: string; payment_status: string; notes: string
+  manual_amount: string
   // VO
   audio_duration_minutes: string
   // Edit
   date_given: string; date_finished: string; video_type: string; video_duration: string
   time_taken_hours: string; drive_updated: boolean; revision_count: string
   // Shoot
-  start_time: string; end_time: string; travel_hours: string
+  start_time: string; end_time: string; break_minutes: string; travel_hours: string
 }
 
 const BLANK_E: EState = {
   client_name: "", title: "", date: new Date().toISOString().split("T")[0], status: "pending", payment_status: "unpaid", notes: "",
+  manual_amount: "",
   audio_duration_minutes: "",
   date_given: "", date_finished: "", video_type: "", video_duration: "",
   time_taken_hours: "", drive_updated: false, revision_count: "0",
-  start_time: "", end_time: "", travel_hours: "0",
+  start_time: "", end_time: "", break_minutes: "0", travel_hours: "0",
+}
+
+const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
+
+function ClientSelect({ value, onChange, activeClientNames, pastClientNames }: {
+  value: string; onChange: (v: string) => void
+  activeClientNames: string[]; pastClientNames: string[]
+}) {
+  const [open, setOpen] = useState(false)
+  const [view, setView] = useState<"main" | "past" | "manual">("main")
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false); setView("main")
+      }
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [])
+
+  function pick(v: string) { onChange(v); setOpen(false); setView("main") }
+
+  const isManual = view === "manual"
+  const displayValue = isManual ? value : (value || "")
+  const placeholder = !value && !isManual ? "Select client…" : ""
+
+  const rowCls = "w-full text-left px-3 py-2 text-[13px] transition-colors cursor-pointer"
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Trigger button */}
+      {!isManual && (
+        <button type="button" onClick={() => setOpen(o => !o)}
+          className={inputCls + " flex items-center justify-between text-left"}
+          style={{ color: value ? "#111827" : "#9CA3AF" }}>
+          <span>{value || "Select client…"}</span>
+          <ChevronDown size={13} className="flex-shrink-0 text-gray-400" />
+        </button>
+      )}
+
+      {/* Manual text input */}
+      {isManual && (
+        <div className="flex gap-1.5">
+          <input className={inputCls} placeholder="Type client name…" value={value}
+            onChange={e => onChange(e.target.value)} autoFocus style={{ flex: 1 }} />
+          <button type="button" onClick={() => { onChange(""); setView("main"); setOpen(true) }}
+            className="px-2 rounded-xl border border-gray-200 text-gray-400 hover:text-gray-600 text-[11px]">✕</button>
+        </div>
+      )}
+
+      {/* Dropdown panel */}
+      {open && !isManual && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl z-[999] overflow-hidden"
+          style={{ maxHeight: 240, overflowY: "auto" }}>
+
+          {view === "main" && <>
+            {/* Internal brands */}
+            {INTERNAL_BRANDS.map(b => (
+              <button key={b} type="button" onClick={() => pick(b)}
+                className={rowCls + " font-bold text-gray-800 hover:bg-red-50 hover:text-[#DE1A1A]"}>
+                {b}
+              </button>
+            ))}
+            {/* Divider if active clients exist */}
+            {activeClientNames.length > 0 && <div style={{ height: 1, background: "#F3F4F6", margin: "2px 0" }} />}
+            {/* Active clients */}
+            {activeClientNames.map(n => (
+              <button key={n} type="button" onClick={() => pick(n)}
+                className={rowCls + " text-gray-700 hover:bg-gray-50"}>
+                {n}
+              </button>
+            ))}
+            {/* Past clients drill-down */}
+            {pastClientNames.length > 0 && (
+              <button type="button" onClick={() => setView("past")}
+                className={rowCls + " font-semibold hover:bg-amber-50"}
+                style={{ color: "#B45309", borderTop: "1px solid #FEF3C7", marginTop: 2 }}>
+                📁 Past Clients →
+              </button>
+            )}
+            {/* Type manually */}
+            <button type="button" onClick={() => { setOpen(false); setView("manual"); onChange("") }}
+              className={rowCls + " hover:bg-blue-50"}
+              style={{ color: "#2563EB", borderTop: "1px solid #EFF6FF", marginTop: 2 }}>
+              ✏️ Other (type manually)
+            </button>
+          </>}
+
+          {view === "past" && <>
+            <button type="button" onClick={() => setView("main")}
+              className={rowCls + " text-gray-400 hover:bg-gray-50 text-[12px]"}
+              style={{ borderBottom: "1px solid #F3F4F6" }}>
+              ← Back
+            </button>
+            {pastClientNames.map(n => (
+              <button key={n} type="button" onClick={() => pick(n)}
+                className={rowCls + " text-gray-700 hover:bg-amber-50"}>
+                {n}
+              </button>
+            ))}
+          </>}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function WorkSheet({
-  open, onClose, freelancer, entries, clientNames,
+  open, onClose, freelancer, entries, activeClientNames, pastClientNames,
   onEntryAdded, onEntryUpdated, onEntryDeleted,
 }: {
   open: boolean; onClose: () => void; freelancer: Freelancer | null
-  entries: WorkEntry[]; clientNames: string[]
+  entries: WorkEntry[]; activeClientNames: string[]; pastClientNames: string[]
   onEntryAdded: (e: WorkEntry) => void
   onEntryUpdated: (id: string, patch: Partial<WorkEntry>) => void
   onEntryDeleted: (id: string) => void
@@ -426,7 +646,8 @@ function WorkSheet({
     if (freelancer.type === "video_shooter" && form.start_time && form.end_time && freelancer.cost_per_hour) {
       const [sh, sm] = form.start_time.split(":").map(Number)
       const [eh, em] = form.end_time.split(":").map(Number)
-      const hrs = ((eh * 60 + em) - (sh * 60 + sm)) / 60
+      const breakMins = parseInt(form.break_minutes) || 0
+      const hrs = ((eh * 60 + em) - (sh * 60 + sm) - breakMins) / 60
       if (hrs > 0) return hrs * freelancer.cost_per_hour
     }
     return null
@@ -436,9 +657,10 @@ function WorkSheet({
     if (!freelancer || freelancer.type !== "video_shooter" || !form.start_time || !form.end_time) return null
     const [sh, sm] = form.start_time.split(":").map(Number)
     const [eh, em] = form.end_time.split(":").map(Number)
-    const hrs = ((eh * 60 + em) - (sh * 60 + sm)) / 60
+    const breakMins = parseInt(form.break_minutes) || 0
+    const hrs = ((eh * 60 + em) - (sh * 60 + sm) - breakMins) / 60
     return hrs > 0 ? hrs : null
-  }, [freelancer, form.start_time, form.end_time])
+  }, [freelancer, form.start_time, form.end_time, form.break_minutes])
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -446,17 +668,20 @@ function WorkSheet({
     setSaving(true); setErr("")
     const entryType = freelancer.type === "video_shooter" ? "video_shoot"
       : freelancer.type === "video_editor" ? "video_edit" : "voice_over"
+    const finalAmount = form.manual_amount ? parseFloat(form.manual_amount) : (calcAmount ?? undefined)
     const res = await createWorkEntry({
       freelancer_id: freelancer.id,
       entry_type: entryType as "voice_over" | "video_edit" | "video_shoot",
       client_name: form.client_name || undefined, title: form.title || undefined,
       date: form.date, status: form.status, payment_status: form.payment_status, notes: form.notes || undefined,
+      amount: finalAmount,
       audio_duration_minutes: form.audio_duration_minutes ? parseFloat(form.audio_duration_minutes) : null,
       date_given: form.date_given || undefined, date_finished: form.date_finished || undefined,
       video_type: form.video_type || undefined, video_duration: form.video_duration || undefined,
       time_taken_hours: form.time_taken_hours ? parseFloat(form.time_taken_hours) : null,
       drive_updated: form.drive_updated, revision_count: parseInt(form.revision_count) || 0,
       start_time: form.start_time || undefined, end_time: form.end_time || undefined,
+      break_minutes: parseInt(form.break_minutes) || 0,
       travel_hours: form.travel_hours ? parseFloat(form.travel_hours) : null,
     })
     if (!res.success) { setErr(res.error ?? "Failed to add entry"); setSaving(false); return }
@@ -465,7 +690,7 @@ function WorkSheet({
       entry_type: entryType as "voice_over" | "video_edit" | "video_shoot",
       client_name: form.client_name || null, title: form.title || null,
       date: form.date, status: form.status, payment_status: form.payment_status, paid_at: form.payment_status === "paid" ? new Date().toISOString() : null,
-      amount: calcAmount ?? null, notes: form.notes || null,
+      amount: finalAmount ?? null, notes: form.notes || null,
       audio_duration_minutes: form.audio_duration_minutes ? parseFloat(form.audio_duration_minutes) : null,
       cost_per_minute_snapshot: freelancer.cost_per_minute,
       date_given: form.date_given || null, date_finished: form.date_finished || null,
@@ -474,6 +699,7 @@ function WorkSheet({
       drive_updated: form.drive_updated, revision_count: parseInt(form.revision_count) || 0,
       cost_per_video_snapshot: freelancer.cost_per_video,
       start_time: form.start_time || null, end_time: form.end_time || null,
+      break_minutes: parseInt(form.break_minutes) || 0,
       travel_hours: form.travel_hours ? parseFloat(form.travel_hours) : null,
       working_hours: calcHours, cost_per_hour_snapshot: freelancer.cost_per_hour,
       created_at: new Date().toISOString(),
@@ -528,8 +754,8 @@ function WorkSheet({
 
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Client Name">
-                  <input list="client-list" className={inputCls} placeholder="Client name" value={form.client_name} onChange={e => setF("client_name", e.target.value)} />
-                  <datalist id="client-list">{clientNames.map(n => <option key={n} value={n} />)}</datalist>
+                  <ClientSelect value={form.client_name} onChange={v => setF("client_name", v)}
+                    activeClientNames={activeClientNames} pastClientNames={pastClientNames} />
                 </Field>
                 <Field label="Date">
                   <input type="date" className={inputCls} value={form.date} onChange={e => setF("date", e.target.value)} />
@@ -606,17 +832,21 @@ function WorkSheet({
               {/* Video Shooter specific */}
               {freelancer.type === "video_shooter" && (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <Field label="Start Time">
                       <input type="time" className={inputCls} value={form.start_time} onChange={e => setF("start_time", e.target.value)} />
                     </Field>
                     <Field label="End Time">
                       <input type="time" className={inputCls} value={form.end_time} onChange={e => setF("end_time", e.target.value)} />
                     </Field>
+                    <Field label="Break (min)">
+                      <input type="number" min="0" step="5" className={inputCls} placeholder="0" value={form.break_minutes} onChange={e => setF("break_minutes", e.target.value)} />
+                    </Field>
                   </div>
                   {calcHours !== null && (
                     <div className="flex items-center gap-4 text-[12px] px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100">
                       <span className="text-emerald-700">Working Hours: <strong>{calcHours.toFixed(1)}</strong></span>
+                      {parseInt(form.break_minutes) > 0 && <span className="text-orange-600">Break: <strong>{form.break_minutes} min</strong></span>}
                       {calcAmount && <span className="text-emerald-700">Amount: <strong>{fmt(calcAmount)}</strong></span>}
                     </div>
                   )}
@@ -646,6 +876,13 @@ function WorkSheet({
                   </select>
                 </Field>
               )}
+
+              {/* Manual Amount */}
+              <Field label="Amount (₹)" hint={calcAmount ? `Auto: ${fmt(calcAmount)}` : "Enter manually"}>
+                <input type="number" min="0" step="0.01" className={inputCls}
+                  placeholder={calcAmount ? String(calcAmount) : "e.g. 500"}
+                  value={form.manual_amount} onChange={e => setF("manual_amount", e.target.value)} />
+              </Field>
 
               {/* Payment status */}
               <div className="flex items-center gap-3">
@@ -692,7 +929,8 @@ function WorkSheet({
                 <EntryRow key={entry.id} entry={entry} idx={idx}
                   freelancerType={freelancer.type}
                   freelancer={freelancer}
-                  clientNames={clientNames}
+                  activeClientNames={activeClientNames}
+                  pastClientNames={pastClientNames}
                   onPaidToggle={async (paid) => {
                     const res = await markWorkEntryPaid(entry.id, paid)
                     if (res.success) onEntryUpdated(entry.id, { payment_status: paid ? "paid" : "unpaid", paid_at: paid ? new Date().toISOString() : null })
@@ -728,12 +966,14 @@ function entryToEState(e: WorkEntry): EState {
     time_taken_hours: e.time_taken_hours?.toString() ?? "",
     drive_updated: e.drive_updated ?? false, revision_count: e.revision_count?.toString() ?? "0",
     start_time: e.start_time?.slice(0,5) ?? "", end_time: e.end_time?.slice(0,5) ?? "",
+    break_minutes: e.break_minutes?.toString() ?? "0",
     travel_hours: e.travel_hours?.toString() ?? "0",
+    manual_amount: "",
   }
 }
 
-function EntryRow({ entry, idx, freelancerType, freelancer, clientNames, onPaidToggle, onStatusChange, onDelete, onUpdated }: {
-  entry: WorkEntry; idx: number; freelancerType: FreelancerType; freelancer: Freelancer; clientNames: string[]
+function EntryRow({ entry, idx, freelancerType, freelancer, activeClientNames, pastClientNames, onPaidToggle, onStatusChange, onDelete, onUpdated }: {
+  entry: WorkEntry; idx: number; freelancerType: FreelancerType; freelancer: Freelancer; activeClientNames: string[]; pastClientNames: string[]
   onPaidToggle: (paid: boolean) => Promise<void>
   onStatusChange: (status: string) => Promise<void>
   onDelete: () => Promise<void>
@@ -787,6 +1027,7 @@ function EntryRow({ entry, idx, freelancerType, freelancer, clientNames, onPaidT
       revision_count: parseInt(form.revision_count) || 0,
       start_time: startT,
       end_time: endT,
+      break_minutes: parseInt(form.break_minutes) || 0,
       travel_hours: form.travel_hours ? parseFloat(form.travel_hours) : null,
       amount: optimisticAmount,
     }
@@ -885,8 +1126,8 @@ function EntryRow({ entry, idx, freelancerType, freelancer, clientNames, onPaidT
           <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">Edit Entry</p>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Client Name">
-              <input list={`cl-${entry.id}`} className={inputCls} value={form.client_name} onChange={e => setF("client_name", e.target.value)} />
-              <datalist id={`cl-${entry.id}`}>{clientNames.map(n => <option key={n} value={n} />)}</datalist>
+              <ClientSelect value={form.client_name} onChange={v => setF("client_name", v)}
+                activeClientNames={activeClientNames} pastClientNames={pastClientNames} />
             </Field>
             <Field label="Date">
               <input type="date" className={inputCls} value={form.date} onChange={e => setF("date", e.target.value)} />
@@ -918,12 +1159,15 @@ function EntryRow({ entry, idx, freelancerType, freelancer, clientNames, onPaidT
             </div>
           )}
           {freelancerType === "video_shooter" && (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Start Time">
                 <input type="time" className={inputCls} value={form.start_time} onChange={e => setF("start_time", e.target.value)} />
               </Field>
               <Field label="End Time">
                 <input type="time" className={inputCls} value={form.end_time} onChange={e => setF("end_time", e.target.value)} />
+              </Field>
+              <Field label="Break (min)">
+                <input type="number" min="0" step="5" className={inputCls} placeholder="0" value={form.break_minutes} onChange={e => setF("break_minutes", e.target.value)} />
               </Field>
               <Field label="Travel Hours">
                 <input type="number" min="0" step="0.5" className={inputCls} value={form.travel_hours} onChange={e => setF("travel_hours", e.target.value)} />
@@ -978,8 +1222,9 @@ function EntryRow({ entry, idx, freelancerType, freelancer, clientNames, onPaidT
 
 // ── Freelancer Card ───────────────────────────────────────────────────────────
 
-function FreelancerCard({ f, entries, onEdit, onViewWork, onDelete }: {
+function FreelancerCard({ f, entries, assignedMembers, onEdit, onViewWork, onDelete }: {
   f: Freelancer; entries: WorkEntry[]
+  assignedMembers: TeamMemberOption[]
   onEdit: () => void; onViewWork: () => void; onDelete: () => void
 }) {
   const cfg = TYPE_CFG[f.type]
@@ -1060,6 +1305,19 @@ function FreelancerCard({ f, entries, onEdit, onViewWork, onDelete }: {
         )}
       </div>
 
+      {/* Assigned members */}
+      {assignedMembers.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-gray-50">
+          <Users2 size={11} style={{ color: "#9CA3AF" }} />
+          {assignedMembers.map(m => (
+            <span key={m.id} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold"
+              style={{ background: "rgba(222,26,26,0.07)", color: "#DE1A1A" }}>
+              {m.name.split(" ")[0]}
+            </span>
+          ))}
+        </div>
+      )}
+
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-2 pt-3 border-t border-gray-50">
         <div className="text-center">
@@ -1079,12 +1337,19 @@ function FreelancerCard({ f, entries, onEdit, onViewWork, onDelete }: {
         </div>
       </div>
 
-      {/* Action */}
-      <button onClick={onViewWork}
-        className="w-full py-2.5 rounded-xl text-[12px] font-bold transition-all border flex items-center justify-center gap-2"
-        style={{ border: `1.5px solid ${cfg.border}`, color: cfg.color, background: cfg.bg }}>
-        <Calendar size={13} />View Work ({myEntries.length})
-      </button>
+      {/* Actions */}
+      <div className="flex gap-2">
+        <button onClick={onViewWork}
+          className="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all border flex items-center justify-center gap-2"
+          style={{ border: `1.5px solid ${cfg.border}`, color: cfg.color, background: cfg.bg }}>
+          <Calendar size={13} />Work ({myEntries.length})
+        </button>
+        <Link href={`/admin/freelancers/${f.id}`}
+          className="flex-1 py-2.5 rounded-xl text-[12px] font-bold transition-all border flex items-center justify-center gap-2"
+          style={{ border: "1.5px solid #E5E7EB", color: "#374151", background: "#F9FAFB" }}>
+          <ExternalLink size={13} />Profile
+        </Link>
+      </div>
     </div>
   )
 }
@@ -1094,23 +1359,26 @@ function FreelancerCard({ f, entries, onEdit, onViewWork, onDelete }: {
 export default function FreelancersClient({
   freelancers: initFreelancers,
   workEntries: initEntries,
-  clientNames,
+  activeClientNames,
+  pastClientNames,
   stats: initStats,
   teamMembers = [],
-  currentManagerId = null,
+  assignments: initAssignments = {},
 }: {
   freelancers: Freelancer[]
   workEntries: WorkEntry[]
-  clientNames: string[]
+  activeClientNames: string[]
+  pastClientNames: string[]
   stats: FreelancerStats
-  teamMembers?: { id: string; name: string; employee_id: string; can_manage_freelancers: boolean }[]
-  currentManagerId?: string | null
+  teamMembers?: TeamMemberOption[]
+  assignments?: Record<string, string[]>
 }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
 
   const [freelancers, setFreelancers] = useState(initFreelancers)
   const [entries, setEntries] = useState(initEntries)
+  const [assignments, setAssignments] = useState(initAssignments)
 
   // Sheet states
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -1121,22 +1389,6 @@ export default function FreelancersClient({
   // Filters
   const [filter, setFilter] = useState<FreelancerType | "all">("all")
   const [search, setSearch] = useState("")
-
-  // Manager assignment
-  const [managerModalOpen, setManagerModalOpen] = useState(false)
-  const [managerId, setManagerId] = useState<string | null>(currentManagerId)
-  const [managerSaving, setManagerSaving] = useState(false)
-
-  async function handleAssignManager(userId: string | null) {
-    setManagerSaving(true)
-    const res = await assignFreelancerManager(userId)
-    if (res.success) {
-      setManagerId(userId)
-      setManagerModalOpen(false)
-      startTransition(() => router.refresh())
-    }
-    setManagerSaving(false)
-  }
 
   // Computed stats
   const stats = useMemo<FreelancerStats>(() => ({
@@ -1198,68 +1450,13 @@ export default function FreelancersClient({
             <h1 className="text-[22px] font-black text-gray-900">Freelancers</h1>
             <p className="text-[13px] text-gray-400 mt-0.5">{stats.total} freelancer{stats.total !== 1 ? "s" : ""} · {stats.totalWorks} work entries</p>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Assign Manager button */}
-            <button onClick={() => setManagerModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all hover:opacity-90 shadow-sm"
-              style={{ background: managerId ? "rgba(34,197,94,0.1)" : "rgba(99,102,241,0.1)", color: managerId ? "#16A34A" : "#6366F1", border: `1.5px solid ${managerId ? "rgba(34,197,94,0.3)" : "rgba(99,102,241,0.3)"}` }}>
-              {managerId ? <UserCheck size={15} /> : <Users size={15} />}
-              {managerId ? `Manager: ${teamMembers.find(m => m.id === managerId)?.name.split(" ")[0] ?? "Assigned"}` : "Assign Manager"}
-            </button>
-            <button onClick={openAdd}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all hover:opacity-90 shadow-sm"
-              style={{ background: "#DE1A1A" }}>
-              <Plus size={15} />Add Freelancer
-            </button>
-          </div>
+          <button onClick={openAdd}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all hover:opacity-90 shadow-sm"
+            style={{ background: "#DE1A1A" }}>
+            <Plus size={15} />Add Freelancer
+          </button>
         </div>
       </div>
-
-      {/* Assign Manager Modal */}
-      {managerModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setManagerModalOpen(false)} />
-          <div className="relative bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6" style={{ border: "1px solid rgba(0,0,0,0.08)" }}>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h3 className="text-[16px] font-black text-gray-900">Assign Freelancer Manager</h3>
-                <p className="text-[12px] text-gray-400 mt-0.5">One member manages all freelancers</p>
-              </div>
-              <button onClick={() => setManagerModalOpen(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "#F5F5F5" }}>
-                <X size={14} style={{ color: "#6B7280" }} />
-              </button>
-            </div>
-            <div className="flex flex-col gap-2 mb-5 max-h-64 overflow-y-auto">
-              {teamMembers.length === 0 && (
-                <p className="text-[13px] text-gray-400 text-center py-6">No active members found</p>
-              )}
-              {teamMembers.map(m => {
-                const isCurrentManager = managerId === m.id
-                return (
-                  <button key={m.id} onClick={() => !managerSaving && handleAssignManager(isCurrentManager ? null : m.id)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-2xl text-left transition-all"
-                    style={{ background: isCurrentManager ? "rgba(34,197,94,0.08)" : "#F9FAFB", border: `1.5px solid ${isCurrentManager ? "rgba(34,197,94,0.3)" : "transparent"}` }}>
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-[12px] font-black"
-                      style={{ background: isCurrentManager ? "#22C55E" : "#E5E7EB", color: isCurrentManager ? "#fff" : "#374151" }}>
-                      {m.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[13px] font-bold text-gray-900 truncate">{m.name}</p>
-                      <p className="text-[11px] text-gray-400">#{m.employee_id}</p>
-                    </div>
-                    {isCurrentManager && (
-                      <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{ background: "rgba(34,197,94,0.15)", color: "#16A34A" }}>
-                        {managerSaving ? "Saving…" : "Manager · Click to remove"}
-                      </span>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
-            <p className="text-[11px] text-gray-400 text-center">Click a member to assign · Click current manager to remove</p>
-          </div>
-        </div>
-      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6">
         {/* Stats grid */}
@@ -1309,6 +1506,7 @@ export default function FreelancersClient({
             {filtered.map(f => (
               <FreelancerCard
                 key={f.id} f={f} entries={entries}
+                assignedMembers={teamMembers.filter(m => (assignments[f.id] ?? []).includes(m.id))}
                 onEdit={() => openEdit(f)}
                 onViewWork={() => openWork(f)}
                 onDelete={() => handleDelete(f.id)}
@@ -1323,12 +1521,17 @@ export default function FreelancersClient({
         open={sheetOpen}
         onClose={() => { setSheetOpen(false); setEditingFreelancer(null) }}
         editing={editingFreelancer}
+        teamMembers={teamMembers}
+        initialAssignments={editingFreelancer ? (assignments[editingFreelancer.id] ?? []) : []}
         onCreated={f => {
           setFreelancers(prev => [f, ...prev])
           startTransition(() => router.refresh())
         }}
-        onUpdated={f => {
+        onUpdated={(f, newAssignedIds) => {
           setFreelancers(prev => prev.map(x => x.id === f.id ? { ...x, ...f } : x))
+          if (newAssignedIds !== undefined) {
+            setAssignments(prev => ({ ...prev, [f.id]: newAssignedIds }))
+          }
           startTransition(() => router.refresh())
         }}
       />
@@ -1338,7 +1541,8 @@ export default function FreelancersClient({
         onClose={() => { setWorkSheetOpen(false); setSelectedFreelancer(null) }}
         freelancer={selectedFreelancer}
         entries={entries}
-        clientNames={clientNames}
+        activeClientNames={activeClientNames}
+        pastClientNames={pastClientNames}
         onEntryAdded={e => { setEntries(prev => [e, ...prev]); startTransition(() => router.refresh()) }}
         onEntryUpdated={(id, patch) => setEntries(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e))}
         onEntryDeleted={id => setEntries(prev => prev.filter(e => e.id !== id))}

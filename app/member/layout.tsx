@@ -61,7 +61,7 @@ export default async function MemberLayout({ children }: { children: React.React
           employeeId={impProfile.employee_id ?? ""}
           unreadCount={unreadCount}
           photoUrl={impProfile.photo_url ?? null}
-          canManageFreelancers={impUserProfile?.can_manage_freelancers ?? false}
+          canManageFreelancers={true}
         />
         <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0" style={{ marginTop: 38 }}>
           {children}
@@ -88,7 +88,7 @@ export default async function MemberLayout({ children }: { children: React.React
         employeeId={profile?.employee_id ?? ""}
         unreadCount={unreadCount}
         photoUrl={profile?.photo_url ?? null}
-        canManageFreelancers={profile?.can_manage_freelancers ?? false}
+        canManageFreelancers={true}
       />
       <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0">
         {children}

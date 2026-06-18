@@ -57,10 +57,13 @@ export async function submitDailyUpdate(
     }
   }
 
-  // Working hours excludes break and learning entries
+  // Working hours excludes break and learning entries; shoot entries add travel time on top of shoot duration
   const totalWorkHours = d.work_entries
     .filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
-    .reduce((sum, e) => sum + e.duration_hours, 0)
+    .reduce((sum, e) => {
+      const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
+      return sum + e.duration_hours + travel
+    }, 0)
   const roundedHours = Math.round(totalWorkHours * 10) / 10
   // Learning hours from entries (new approach — stored in work_entries)
   const newLearnHours = d.work_entries
@@ -95,13 +98,17 @@ export async function submitDailyUpdate(
     const combinedEntries = [...filteredPrev, ...d.work_entries]
 
     // Recalculate all aggregates from combined entries — never use incremental addition
-    const calcWorkHours  = Math.round(combinedEntries.filter(e => e.task_type !== 'break' && e.task_type !== 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
+    const calcWorkHours  = Math.round(combinedEntries.filter(e => e.task_type !== 'break' && e.task_type !== 'learning').reduce((s, e) => {
+      const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
+      return s + (Number(e.duration_hours) || 0) + travel
+    }, 0) * 10) / 10
     const calcShootCount = combinedEntries.filter(e => e.task_type === 'shoot').length
     const calcEditCount  = combinedEntries.filter(e => e.task_type === 'edit').length
     const calcLearnHours = Math.round(combinedEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
 
     const existingParticipants = (existingRecord as Record<string, unknown>).participant_ids as string[] ?? []
-    const mergedParticipants = Array.from(new Set([...existingParticipants, ...(d.participant_ids ?? [])]))
+    const entryParticipants = d.work_entries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)
+    const mergedParticipants = Array.from(new Set([...existingParticipants, ...(d.participant_ids ?? []), ...entryParticipants]))
     const updatePayload: Record<string, unknown> = {
       work_entries:    combinedEntries,
       working_hours:   calcWorkHours || null,
@@ -150,7 +157,7 @@ export async function submitDailyUpdate(
         editing_count:       d.editing_count,
         shoot_time_hours:    d.shoot_time_hours ?? null,
         editing_time_hours:  d.editing_time_hours ?? null,
-        participant_ids:     d.participant_ids ?? [],
+        participant_ids:     [...new Set([...(d.participant_ids ?? []), ...d.work_entries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)])],
       })
 
     if (insertError) return { success: false, error: insertError.message }
@@ -284,7 +291,10 @@ export async function updatePastDailyUpdate(
     .eq('user_id', user.id)
     .single()
 
-  const totalHours = entries.reduce((s, e) => s + ((e.duration_hours as number) ?? 0), 0)
+  const totalHours = entries.reduce((s, e) => {
+    const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
+    return s + ((e.duration_hours as number) ?? 0) + travel
+  }, 0)
 
   const { error } = await admin
     .from('daily_updates')

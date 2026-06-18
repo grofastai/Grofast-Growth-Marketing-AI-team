@@ -53,6 +53,10 @@ export async function createTask(
   const { data: profile } = await admin.from('users').select('company_id').eq('id', user.id).single()
   if (!profile?.company_id) return { error: 'Profile not found — contact support' }
 
+  const managerNote = (formData.get('manager_note') as string)?.trim() || null
+  let adminChecklist: object[] = []
+  try { adminChecklist = JSON.parse((formData.get('checklist_json') as string) || '[]') } catch { adminChecklist = [] }
+
   const base = {
     company_id: profile.company_id,
     title: parsed.data.title,
@@ -62,6 +66,8 @@ export async function createTask(
     due_date: parsed.data.due_date || null,
     status: 'todo' as const,
     created_by: user.id,
+    manager_note: managerNote,
+    checklist: adminChecklist,
   }
 
   if (assignedToList.length === 0) {

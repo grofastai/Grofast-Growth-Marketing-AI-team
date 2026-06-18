@@ -21,7 +21,7 @@ export const workEntrySchema = z.object({
   id:              z.string(),
   client_id:       z.string().nullable().optional(),
   client_name:     z.string().min(1, 'Client name required'),
-  task_type:       z.enum(['shoot', 'edit', 'upload', 'other', 'break', 'learning']),
+  task_type:       z.enum(['shoot', 'edit', 'upload', 'other', 'break', 'learning', 'voiceover', 'poster']),
   title:           z.string().min(1, 'Entry title required'),
   start_time:      z.string().optional().default(''),
   end_time:        z.string().optional().default(''),
@@ -37,9 +37,10 @@ export const workEntrySchema = z.object({
   video_link:      z.string().optional(),
   editing_videos:  z.array(editingVideoSchema).optional().default([]),
   // Multi-client split
-  is_multi_client: z.boolean().optional(),
-  client_names:    z.array(z.string()).optional(),
-})
+  is_multi_client:  z.boolean().optional(),
+  client_names:     z.array(z.string()).optional(),
+  participant_ids:  z.array(z.string()).optional(),
+}).passthrough()
 
 // ── Main schema ────────────────────────────────────────────────
 export const dailyUpdateSchema = z

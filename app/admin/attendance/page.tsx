@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import AttendanceDateNav from "./attendance-date-nav"
 import { AttendanceDonut, WeeklyTrendChart } from "./attendance-charts"
+import ClearAttendanceBtn from "./clear-attendance-btn"
 
 function adminSupabase() {
   return createClient(
@@ -282,8 +283,8 @@ export default async function AttendancePage({
           <div className="overflow-x-auto">
             <div style={{ minWidth: 640 }}>
               {/* Column headers */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px", padding: "10px 22px", borderBottom: "1px solid #F5F5F5", background: "#FAFAFA" }}>
-                {["EMPLOYEE", "CLOCK IN", "CLOCK OUT", "DURATION", "STATUS"].map(h => (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px 40px", padding: "10px 22px", borderBottom: "1px solid #F5F5F5", background: "#FAFAFA" }}>
+                {["EMPLOYEE", "CLOCK IN", "CLOCK OUT", "DURATION", "STATUS", ""].map(h => (
                   <span key={h} style={{ fontSize: 10, fontWeight: 800, color: "#9CA3AF", letterSpacing: "0.1em" }}>{h}</span>
                 ))}
               </div>
@@ -314,9 +315,10 @@ export default async function AttendancePage({
                     const avatarColors = ["#de1a1a","#6366F1","#10B981","#F59E0B","#8B5CF6","#06B6D4"]
                     const avatarColor = avatarColors[i % avatarColors.length]
 
+                    const hasLog = !!(log?.clock_in || log?.status === "absent")
                     return (
                       <div key={m.id} style={{
-                        display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px",
+                        display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px 40px",
                         padding: "13px 22px", borderBottom: "1px solid #F9FAFB", alignItems: "center",
                         background: i % 2 === 0 ? "#FFFFFF" : "#FDFCFC",
                         transition: "background 0.15s",
@@ -340,6 +342,11 @@ export default async function AttendancePage({
                           <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusDot, flexShrink: 0 }} />
                           {statusLabel}
                         </span>
+                        <div>
+                          {hasLog && (
+                            <ClearAttendanceBtn userId={m.id} userName={m.name} date={selectedDate} />
+                          )}
+                        </div>
                       </div>
                     )
                   })

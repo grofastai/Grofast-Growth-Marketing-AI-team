@@ -75,6 +75,22 @@ export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ s
 
   if (existing) return { success: false, error: 'Already logged attendance today' }
 
+  // Block clock-in if on approved full-day leave
+  const { data: approvedLeave } = await admin
+    .from('leaves')
+    .select('id')
+    .eq('company_id', ctx.companyId)
+    .eq('user_id', ctx.userId)
+    .eq('status', 'approved')
+    .eq('leave_type', 'full_day')
+    .lte('from_date', today)
+    .gte('to_date', today)
+    .maybeSingle()
+
+  if (approvedLeave) {
+    return { success: false, error: 'You are on approved leave today. Clock-in is not allowed.' }
+  }
+
   const clockInTime = new Date().toISOString()
 
   const { error } = await admin.from('attendance_logs').insert({
@@ -627,3 +643,33 @@ export async function editAttendanceTimes(
   revalidatePath('/admin/attendance')
   return { success: true }
 }
+
+// Admin-only: delete an attendance log record (clears incorrect clock-in)
+export async function adminDeleteAttendanceLog(
+  userId: string,
+  date: string
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: adminUser } = await admin
+    .from('users').select('role, company_id').eq('id', user.id).single()
+  if (adminUser?.role !== 'ADMIN') return { success: false, error: 'Admin only' }
+
+  const { error } = await admin
+    .from('attendance_logs')
+    .delete()
+    .eq('company_id', adminUser.company_id)
+    .eq('user_id', userId)
+    .eq('date', date)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath('/admin/attendance')
+  revalidatePath('/member/attendance')
+  revalidatePath('/member/dashboard')
+  return { success: true }
+}
+

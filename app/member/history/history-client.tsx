@@ -40,10 +40,11 @@ interface UpdateRow {
 }
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  present: { label:"Present",  color:"#16A34A", bg:"rgba(22,163,74,0.12)",  dot:"#22C55E" },
-  absent:  { label:"Absent",   color:"#9CA3AF", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
-  holiday: { label:"Holiday",  color:"#6B7280", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
-  wfh:     { label:"WFH",      color:"#6366F1", bg:"rgba(99,102,241,0.1)",  dot:"#6366F1" },
+  present:  { label:"Present",   color:"#16A34A", bg:"rgba(22,163,74,0.12)",   dot:"#22C55E" },
+  absent:   { label:"Absent",    color:"#9CA3AF", bg:"rgba(0,0,0,0.06)",       dot:"#9CA3AF" },
+  holiday:  { label:"Holiday",   color:"#6B7280", bg:"rgba(0,0,0,0.06)",       dot:"#9CA3AF" },
+  wfh:      { label:"WFH",       color:"#6366F1", bg:"rgba(99,102,241,0.1)",   dot:"#6366F1" },
+  on_leave: { label:"On Leave",  color:"#10B981", bg:"rgba(16,185,129,0.12)",  dot:"#10B981" },
 }
 const TASK_CFG = {
   shoot:    { Icon: Camera,   color:"#EF4444", bg:"rgba(239,68,68,0.1)",    label:"Shoot"    },
@@ -920,6 +921,15 @@ export default function HistoryClient({
                           </div>
                         </div>
                       )}
+                    </div>
+                  ) : u.attendance_status === "on_leave" && entries.length === 1 && entries[0]?.title?.includes("Full Day Leave") ? (
+                    <div style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 18px", background:"linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(16,185,129,0.02) 100%)", borderTop:"1px solid rgba(16,185,129,0.12)" }}>
+                      <div style={{ fontSize:40, lineHeight:1 }}>🌴</div>
+                      <div>
+                        <p style={{ fontSize:14, fontWeight:900, color:"#059669", margin:"0 0 3px" }}>Full Day Leave</p>
+                        <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{entries[0]?.client_name ?? "Approved Leave"}</p>
+                      </div>
+                      <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>Approved</span>
                     </div>
                   ) : entries.length === 0 ? (
                     <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>

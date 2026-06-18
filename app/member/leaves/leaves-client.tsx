@@ -723,17 +723,25 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                       </div>
                     </div>
                     <div>
-                      <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Time Period <span style={{ fontWeight: 400, color: "#9CA3AF" }}>(Optional)</span></label>
+                      <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Time Period *</label>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                         <div>
                           <label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>From</label>
-                          <input type="time" style={FIELD} value={halfFrom} onChange={e => setHalfFrom(e.target.value)} />
+                          <input type="time" required style={FIELD} value={halfFrom} onChange={e => setHalfFrom(e.target.value)} />
                         </div>
                         <div>
                           <label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>To</label>
-                          <input type="time" style={FIELD} value={halfTo} onChange={e => setHalfTo(e.target.value)} />
+                          <input type="time" required style={FIELD} value={halfTo} onChange={e => setHalfTo(e.target.value)} />
                         </div>
                       </div>
+                      {halfFrom && halfTo && (() => {
+                        const [fh, fm] = halfFrom.split(":").map(Number)
+                        const [th, tm] = halfTo.split(":").map(Number)
+                        const diff = (th * 60 + tm) - (fh * 60 + fm)
+                        if (diff <= 0) return <p style={{ fontSize: 11, color: "#EF4444", margin: "4px 0 0", fontWeight: 600 }}>To time must be after From time</p>
+                        const hrs = Math.floor(diff / 60), mins = diff % 60
+                        return <p style={{ fontSize: 11, color: "#6366F1", margin: "6px 0 0", fontWeight: 600 }}>Duration: {hrs > 0 ? `${hrs}h ` : ""}{mins > 0 ? `${mins}m` : ""}</p>
+                      })()}
                     </div>
                   </>
                 )}

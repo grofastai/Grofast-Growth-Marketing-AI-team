@@ -26,6 +26,15 @@ const leaveSchema = z.object({
   permission_time:     z.string().optional(),
   permission_end_time: z.string().optional(),
   reason:              z.string().min(3, 'Please provide a reason'),
+}).superRefine((data, ctx) => {
+  if (data.leave_type === 'half_day') {
+    if (!data.half_day_from_time) ctx.addIssue({ code: 'custom', path: ['half_day_from_time'], message: 'From time is required for half day leave' })
+    if (!data.half_day_to_time)   ctx.addIssue({ code: 'custom', path: ['half_day_to_time'],   message: 'To time is required for half day leave' })
+  }
+  if (data.leave_type === 'permission') {
+    if (!data.permission_time)     ctx.addIssue({ code: 'custom', path: ['permission_time'],     message: 'Leave From time is required for permission' })
+    if (!data.permission_end_time) ctx.addIssue({ code: 'custom', path: ['permission_end_time'], message: 'Return By time is required for permission' })
+  }
 })
 
 function parseCompanyId(accessToken: string): string | null {

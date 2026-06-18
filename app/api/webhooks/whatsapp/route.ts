@@ -210,7 +210,7 @@ async function handleAttendanceButtonReply(
       company_id: user.company_id,
       user_id: user.id,
       date: today,
-      status: 'absent',
+      status: 'leave',
     })
     if (leaveErr) {
       console.error('[whatsapp-webhook] attendance insert error:', leaveErr)
@@ -317,7 +317,7 @@ async function handleAttendanceTextReply(from: string, text: string) {
       company_id: user.company_id,
       user_id: user.id,
       date: today,
-      status: 'absent',
+      status: 'leave',
     })
     await sendWhatsAppReply(from, 'Got it! Marked as On Leave for today ✅')
     return

@@ -42,7 +42,8 @@ interface UpdateRow {
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string; dot: string }> = {
   present: { label:"Present",  color:"#16A34A", bg:"rgba(22,163,74,0.12)",  dot:"#22C55E" },
-  absent:  { label:"Absent",   color:"#9CA3AF", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
+  absent:  { label:"On Leave", color:"#9CA3AF", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
+  leave:   { label:"On Leave", color:"#9CA3AF", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
   holiday: { label:"Holiday",  color:"#6B7280", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
   wfh:     { label:"WFH",      color:"#6366F1", bg:"rgba(99,102,241,0.1)",  dot:"#6366F1" },
 }
@@ -1066,7 +1067,7 @@ export default function HistoryClient({
                     </div>
                   ) : entries.length === 0 ? (
                     <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>
-                      {u.attendance_status === "absent" ? "You didn't submit an update for this day." : "No work entries logged"}
+                      {(u.attendance_status === "leave" || u.attendance_status === "absent") ? "You were on leave this day." : "No work entries logged"}
                     </p>
                   ) : (
                     <div>
@@ -1703,7 +1704,7 @@ export default function HistoryClient({
                   { label:"Editing Hours",   value: fmtH(stats.editH),                   color:"#6366F1", dot:"#6366F1" },
                   { label:"Break Hours",     value: fmtH(stats.totalBreak),              color:"#78716C", dot:"#78716C" },
                   { label:"Present Days",    value: String(stats.presentDays),            color:"#059669", dot:"#059669" },
-                  { label:"Absent Days",     value: String(stats.absentDays),             color:"#EF4444", dot:"#EF4444" },
+                  { label:"Leave Days",      value: String(stats.absentDays),             color:"#EF4444", dot:"#EF4444" },
                   { label:"Overtime",        value: fmtH(stats.totalOT),                 color:"#F59E0B", dot:"#F59E0B" },
                 ] : [
                   { label:"Working Hours",   value: fmtH(stats.totalHours - stats.totalLearning), color:"#22C55E", dot:"#22C55E" },

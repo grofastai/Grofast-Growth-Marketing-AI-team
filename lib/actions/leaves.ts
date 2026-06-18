@@ -293,7 +293,7 @@ export async function updateLeaveStatus(
         .eq('date', dateStr)
         .maybeSingle()
       if (!existing) {
-        const attStatus = leave.leave_type === 'half_day' ? 'half_day' : 'absent'
+        const attStatus = leave.leave_type === 'half_day' ? 'half_day' : 'leave'
         admin.from('attendance_logs').insert({
           company_id: leave.company_id,
           user_id:    leave.user_id,

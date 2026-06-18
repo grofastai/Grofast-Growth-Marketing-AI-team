@@ -110,21 +110,21 @@ export interface Database {
       daily_updates: {
         Row: {
           id: string; company_id: string; user_id: string; date: string
-          attendance_status: 'present' | 'absent' | 'holiday' | 'outside'
+          attendance_status: 'present' | 'leave' | 'holiday' | 'outside'
           work_type: 'office' | 'outside' | 'wfh' | null
           working_hours: number | null; learning_hours: number
           shoot_count: number; notes: string | null; created_at: string
         }
         Insert: {
           id?: string; company_id: string; user_id: string; date?: string
-          attendance_status?: 'present' | 'absent' | 'holiday' | 'outside'
+          attendance_status?: 'present' | 'leave' | 'holiday' | 'outside'
           work_type?: 'office' | 'outside' | 'wfh' | null
           working_hours?: number | null; learning_hours?: number
           shoot_count?: number; notes?: string | null; created_at?: string
         }
         Update: {
           company_id?: string; user_id?: string; date?: string
-          attendance_status?: 'present' | 'absent' | 'holiday' | 'outside'
+          attendance_status?: 'present' | 'leave' | 'holiday' | 'outside'
           work_type?: 'office' | 'outside' | 'wfh' | null
           working_hours?: number | null; learning_hours?: number
           shoot_count?: number; notes?: string | null

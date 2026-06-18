@@ -89,7 +89,7 @@ export default async function ReportsPage({
     u.attendance_status === "present" ||
     (u.attendance_status == null && (u.working_hours ?? 0) > 0)
   )
-  const absentUpdates  = updates.filter((u: any) => u.attendance_status === "absent")
+  const absentUpdates  = updates.filter((u: any) => u.attendance_status === "leave" || u.attendance_status === "absent")
 
   const totalHours    = presentUpdates.reduce((s: number, u: any) => s + (u.working_hours  ?? 0), 0)
   const totalLearning = updates.reduce((s: number, u: any) => s + (u.learning_hours ?? 0), 0)

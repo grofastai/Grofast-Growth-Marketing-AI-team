@@ -68,7 +68,7 @@ export default function AnalyticsChart({ data }: { data: ChartPoint[] }) {
           activeDot={{ r: 5, fill: "#de1a1a", stroke: "#fff", strokeWidth: 2 }}
         />
         <Area
-          type="monotone" dataKey="absent" name="Absent"
+          type="monotone" dataKey="absent" name="On Leave"
           stroke="#6B7280" strokeWidth={2}
           fill="url(#grayGrad)"
           dot={{ fill: "#6B7280", r: 3, strokeWidth: 0 }}

@@ -163,7 +163,7 @@ export async function markAbsent(): Promise<{ success: boolean; error?: string }
     company_id: ctx.companyId,
     user_id: ctx.userId,
     date: today,
-    status: 'absent',
+    status: 'leave',
   })
 
   if (error) return { success: false, error: error.message }
@@ -179,7 +179,7 @@ export async function markPastAbsent(date: string): Promise<{ success: boolean; 
   const ctx = ctxResult
 
   const today = new Date().toISOString().split('T')[0]
-  if (date > today) return { success: false, error: 'Cannot mark future dates as absent' }
+  if (date > today) return { success: false, error: 'Cannot mark future dates as on leave' }
 
   const admin = adminSupabase()
   const { data: existing } = await admin
@@ -196,7 +196,7 @@ export async function markPastAbsent(date: string): Promise<{ success: boolean; 
     company_id: ctx.companyId,
     user_id: ctx.userId,
     date,
-    status: 'absent',
+    status: 'leave',
   })
 
   if (error) return { success: false, error: error.message }
@@ -507,9 +507,9 @@ export async function getYesterdayGateStatus(): Promise<{
       .maybeSingle(),
   ])
 
-  // Skip checks if on approved leave or marked absent yesterday
+  // Skip checks if on approved leave or marked on leave yesterday
   if (leave) return fallback
-  if (attLog?.status === 'absent') return fallback
+  if (attLog?.status === 'leave' || attLog?.status === 'absent') return fallback
 
   const hadClockIn = attLog?.status === 'present' && !!attLog?.clock_in
   const forgotLogout = hadClockIn && !attLog?.clock_out

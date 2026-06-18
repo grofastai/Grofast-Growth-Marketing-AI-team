@@ -313,7 +313,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     setEditBrkIn(toHHMM(breakIn)); setEditBrkOut(toHHMM(breakOut))
   }
 
-  const isAbsent  = todayLog?.status === "absent"
+  const isAbsent  = todayLog?.status === "leave" || todayLog?.status === "absent"
   const isIn      = !!todayLog?.clock_in && !todayLog?.clock_out && todayLog?.status === "present"
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
   const notLogged = !todayLog
@@ -325,7 +325,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const isOvertime     = hoursWorked > SHIFT_HOURS
 
   const dateStr    = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
-  const statusLabel = isAbsent ? "Absent" : (isIn || isDone) ? "Present" : "Not Logged"
+  const statusLabel = isAbsent ? "On Leave" : (isIn || isDone) ? "Present" : "Not Logged"
   const statusGreen = (isIn || isDone) && !isAbsent
 
   const activeWeekStart = weekOff === 0 ? weekStart : getWeekStartStr(weekOff)
@@ -336,7 +336,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const isBelowExpected  = isIn && hoursWorked > 0 && hoursWorked < SHIFT_HOURS
 
   const presentCount    = activeWeekLogs.filter(l => l.status === "present").length
-  const absentCount     = activeWeekLogs.filter(l => l.status === "absent").length
+  const absentCount     = activeWeekLogs.filter(l => l.status === "leave" || l.status === "absent").length
   const wfhCount        = activeWeekLogs.filter(l => l.work_type === "wfh" && l.status === "present").length
   const officeCount     = activeWeekLogs.filter(l => l.work_type === "office" && l.status === "present").length
   const totalWeekHours  = activeWeekLogs.filter(l => l.clock_in && l.status === "present").reduce((sum, l) => {
@@ -419,19 +419,19 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                         </button>
                         <button onClick={() => setConfirmAbsent(true)} disabled={isPending}
                           className="text-[12px] font-medium underline underline-offset-2" style={{ color: "#EF4444" }}>
-                          Mark Absent
+                          Mark as Leave
                         </button>
                       </div>
                     </>
                   ) : (
                     <div className="rounded-2xl p-4" style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)" }}>
-                      <p className="text-[14px] font-bold mb-1" style={{ color: "#111111" }}>Mark today as absent?</p>
-                      <p className="text-[12px] mb-4" style={{ color: "#6B7280" }}>This will record your absence. Cannot be undone.</p>
+                      <p className="text-[14px] font-bold mb-1" style={{ color: "#111111" }}>Mark today as on leave?</p>
+                      <p className="text-[12px] mb-4" style={{ color: "#6B7280" }}>This will record your leave for today. Cannot be undone.</p>
                       <div className="flex gap-3">
                         <button onClick={() => { handle(markAbsent); setConfirmAbsent(false) }} disabled={isPending}
                           className="px-5 py-2 rounded-xl text-[13px] font-bold disabled:opacity-50"
                           style={{ background: "#EF4444", color: "#FFFFFF" }}>
-                          {isPending ? <Loader2 size={13} className="animate-spin" /> : "Confirm Absent"}
+                          {isPending ? <Loader2 size={13} className="animate-spin" /> : "Confirm Leave"}
                         </button>
                         <button onClick={() => setConfirmAbsent(false)}
                           className="px-5 py-2 rounded-xl text-[13px] font-bold"
@@ -680,7 +680,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 const isFuture   = date > today
                 const isToday    = date === today
                 const present    = log?.status === "present"
-                const absent     = log?.status === "absent"
+                const absent     = log?.status === "leave" || log?.status === "absent"
                 // Net hours = (clock_out - clock_in) minus breaks and permission deductions
                 const rawH = log?.clock_in
                   ? (log.clock_out ? calcHours(log.clock_in, log.clock_out) : (isToday ? calcHours(log.clock_in, null) : 0))
@@ -689,7 +689,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
                 let dot = "#D1D5DB"; let label = "No record"; let color = "#9CA3AF"
                 if (isFuture)    { dot = "#E5E7EB"; label = "—"; color = "rgba(0,0,0,0.1)" }
-                else if (absent) { dot = "#EF4444"; label = "Absent"; color = "#EF4444" }
+                else if (absent) { dot = "#EF4444"; label = "On Leave"; color = "#EF4444" }
                 else if (present){ dot = isToday ? "#de1a1a" : "#22C55E"; label = h > 0 ? `Present · ${fmtHoursShort(h)}` : "Present"; color = isToday ? "#de1a1a" : "#16A34A" }
 
                 return (
@@ -749,8 +749,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     {[
                       { label: "Office",  value: monthlyPerf?.officeDays   ?? 0, color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
                       { label: "WFH",     value: monthlyPerf?.wfhDays      ?? 0, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
-                      { label: "Absent",  value: monthlyPerf?.absentDays   ?? 0, color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
-                      { label: "Leave",   value: monthlyPerf?.leaveDays    ?? 0, color: "#D97706", bg: "rgba(217,119,6,0.08)" },
+                      { label: "Leave",   value: (monthlyPerf?.absentDays ?? 0) + (monthlyPerf?.leaveDays ?? 0), color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
                     ].map(stat => (
                       <div key={stat.label} className="rounded-2xl p-3 text-center" style={{ background: stat.bg }}>
                         <p className="text-[22px] font-black leading-none mb-1" style={{ color: stat.color, fontFamily: "var(--font-jakarta)" }}>

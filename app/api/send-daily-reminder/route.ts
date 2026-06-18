@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
       .select('user_id')
       .eq('company_id', companyId)
       .eq('date', today)
-      .eq('status', 'absent'),
+      .in('status', ['absent', 'leave']),
   ])
 
   const submittedIds = new Set((todayUpdates ?? []).map((u: any) => u.user_id))

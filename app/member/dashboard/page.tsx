@@ -102,10 +102,10 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
   const presentRows    = monthlyUpdates.filter(u => u.attendance_status === "present")
   const totalMonthHrs  = Math.round(presentRows.reduce((s, u) => s + (u.working_hours ?? 0), 0) * 10) / 10
-  const avgHoursPerDay = workingDays > 0 ? Math.round((totalMonthHrs / workingDays) * 10) / 10 : 0
-  const overtimeDays   = presentRows.filter(u => (u.working_hours ?? 0) > 9.5).length
+  const OVERTIME_THRESHOLD = 8.5
+  const overtimeDays   = presentRows.filter(u => (u.working_hours ?? 0) > OVERTIME_THRESHOLD).length
   const overtimeHrs    = Math.round(presentRows.reduce((sum, u) => {
-    const h = u.working_hours ?? 0; return h > 9.5 ? sum + (h - 9.5) : sum
+    const h = u.working_hours ?? 0; return h > OVERTIME_THRESHOLD ? sum + (h - OVERTIME_THRESHOLD) : sum
   }, 0) * 10) / 10
 
   const leaveDays = approvedLeaves.reduce((sum, l) => {
@@ -127,8 +127,8 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
   let productivitySignal: { icon: "zap" | "warn"; text: string; color: string } | null = null
   if (clockLog?.clock_in) {
-    if (todayHours > 9.5)
-      productivitySignal = { icon: "zap",  text: `Overtime: +${Math.round((todayHours - 9.5) * 10) / 10}h beyond 9.5h today`, color: "#EA580C" }
+    if (todayHours > 8.5)
+      productivitySignal = { icon: "zap",  text: `Overtime: +${Math.round((todayHours - 8.5) * 10) / 10}h beyond 8.5h today`, color: "#EA580C" }
     else if (todayHours >= 6)
       productivitySignal = { icon: "zap",  text: "You're on track today", color: "#de1a1a" }
     else
@@ -147,14 +147,13 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   }
 
   // Monthly stats grid
-  const avgColor = avgHoursPerDay >= 9.5 ? "#16A34A" : avgHoursPerDay >= 7 ? "#D97706" : avgHoursPerDay > 0 ? "#de1a1a" : "#D1D5DB"
   const monthlyStats = [
-    { label: "Avg Hours / Day", value: avgHoursPerDay > 0 ? `${avgHoursPerDay}h` : "—",  color: avgColor,   sub: avgHoursPerDay > 0 ? (avgHoursPerDay >= 9.5 ? "On target ✓" : `${(9.5 - avgHoursPerDay).toFixed(1)}h below`) : undefined },
-    { label: "Working Days",    value: workingDays,                                         color: "#111111",  sub: undefined },
-    { label: "Office Days",     value: officeDays,                                          color: "#de1a1a",  sub: undefined },
-    { label: "WFH Days",        value: wfhDays,                                             color: "#6366F1",  sub: undefined },
-    { label: "Leave Days",      value: leaveDays,                                           color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: pendingLeaves > 0 ? `${pendingLeaves} pending` : undefined },
-    { label: "Overtime Hrs",    value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",          color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeDays > 0 ? `${overtimeDays} day${overtimeDays !== 1 ? "s" : ""}` : undefined },
+    { label: "Total Hrs This Month", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : "—", color: "#6366F1",  sub: undefined },
+    { label: "Working Days",         value: workingDays,                                      color: "#111111",  sub: undefined },
+    { label: "Office Days",          value: officeDays,                                       color: "#de1a1a",  sub: undefined },
+    { label: "WFH Days",             value: wfhDays,                                          color: "#6366F1",  sub: undefined },
+    { label: "Leave Days",           value: leaveDays,                                        color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: pendingLeaves > 0 ? `${pendingLeaves} pending` : undefined },
+    { label: "Overtime Hrs",         value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",       color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeDays > 0 ? `${overtimeDays} day${overtimeDays !== 1 ? "s" : ""}` : undefined },
   ]
 
   return (
@@ -231,18 +230,6 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
             </Link>
           </div>
 
-          {avgHoursPerDay > 0 && avgHoursPerDay < 9 && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto"
-              style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
-              ⚠ {(9 - avgHoursPerDay).toFixed(1)}h below daily target
-            </span>
-          )}
-          {avgHoursPerDay >= 9 && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full ml-auto"
-              style={{ background: "rgba(22,163,74,0.1)", color: "#16A34A" }}>
-              ✓ On target
-            </span>
-          )}
           {holidayDays > 0 && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
               style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>
@@ -263,7 +250,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
               </p>
               {stat.sub && (
                 <p className="text-[9px] mt-1 font-semibold"
-                  style={{ color: stat.label === "Leave Days" ? "#D97706" : avgHoursPerDay >= 9.5 ? "#16A34A" : "#de1a1a" }}>
+                  style={{ color: stat.label === "Leave Days" ? "#D97706" : stat.label === "Overtime Hrs" ? "#EA580C" : "#6B7280" }}>
                   {stat.sub}
                 </p>
               )}

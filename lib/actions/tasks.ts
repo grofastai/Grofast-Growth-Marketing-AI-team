@@ -291,14 +291,16 @@ export async function updateTaskStatus(
   const { error } = await admin.from('tasks').update(dbUpdates).eq('id', taskId)
   if (error) return { success: false, error: error.message }
 
-  // Notify the task creator when it's marked completed (skip if creator is completing own task)
-  if (status === 'completed' && task?.created_by && task.created_by !== user.id) {
-    const { data: completer } = await admin.from('users').select('name').eq('id', user.id).single()
+  // Notify creator when task is sent for review or completed (skip self-assigned)
+  if ((status === 'review' || status === 'completed') && task?.created_by && task.created_by !== user.id) {
+    const { data: mover } = await admin.from('users').select('name').eq('id', user.id).single()
     insertNotification({
       companyId: task.company_id,
       userId: task.created_by,
-      type: 'task_completed',
-      title: `${completer?.name ?? 'Someone'} completed a task`,
+      type: status === 'review' ? 'task_review' : 'task_completed',
+      title: status === 'review'
+        ? `${mover?.name ?? 'Someone'} sent a task for review`
+        : `${mover?.name ?? 'Someone'} completed a task`,
       body: task.title,
       link: '/member/tasks',
     }).catch(console.error)
@@ -328,6 +330,22 @@ export async function deleteTask(id: string): Promise<{ success: boolean; error?
   if (error) return { success: false, error: error.message }
 
   revalidatePath('/admin/goals')
+  revalidatePath('/member/tasks')
+  return { success: true }
+}
+
+export async function updateTaskChecklist(
+  taskId: string,
+  checklist: Array<{ text: string; done: boolean }>
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { error } = await admin.from('tasks').update({ checklist }).eq('id', taskId)
+  if (error) return { success: false, error: error.message }
+
   revalidatePath('/member/tasks')
   return { success: true }
 }

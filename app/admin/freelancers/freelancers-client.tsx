@@ -1371,6 +1371,12 @@ export default function FreelancersClient({
       f.name.toLowerCase().includes(search.toLowerCase())
     ), [freelancers, filter, search])
 
+  // Stable reference so FreelancerSheet's useEffect doesn't re-fire on every render
+  const sheetInitAssignments = useMemo(
+    () => editingFreelancer ? (assignments[editingFreelancer.id] ?? []) : [],
+    [editingFreelancer, assignments]
+  )
+
   function openAdd() { setEditingFreelancer(null); setSheetOpen(true) }
   function openEdit(f: Freelancer) { setEditingFreelancer(f); setSheetOpen(true) }
   function openWork(f: Freelancer) { setSelectedFreelancer(f); setWorkSheetOpen(true) }
@@ -1483,7 +1489,7 @@ export default function FreelancersClient({
         onClose={() => { setSheetOpen(false); setEditingFreelancer(null) }}
         editing={editingFreelancer}
         teamMembers={teamMembers}
-        initialAssignments={editingFreelancer ? (assignments[editingFreelancer.id] ?? []) : []}
+        initialAssignments={sheetInitAssignments}
         onCreated={f => {
           setFreelancers(prev => [f, ...prev])
           startTransition(() => router.refresh())

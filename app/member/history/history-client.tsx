@@ -951,12 +951,22 @@ export default function HistoryClient({
                       {(() => {
                         const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
                         const dayEntryH = calcNetWorkHours(entries) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
-                        return dayEntryH > 0 ? (
-                          <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
-                            <Clock size={11} style={{ color:"#9CA3AF" }}/>
-                            {fmtH(dayEntryH)}
-                          </span>
-                        ) : null
+                        const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+                        return (
+                          <>
+                            {dayEntryH > 0 && (
+                              <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
+                                <Clock size={11} style={{ color:"#9CA3AF" }}/>
+                                {fmtH(dayEntryH)}
+                              </span>
+                            )}
+                            {breakH > 0 && (
+                              <span style={{ fontSize:10, fontWeight:700, color:"#78716C", display:"flex", alignItems:"center", gap:3, background:"rgba(120,113,108,0.08)", border:"1px solid rgba(120,113,108,0.18)", borderRadius:99, padding:"2px 8px" }}>
+                                ☕ {fmtH(breakH)} break
+                              </span>
+                            )}
+                          </>
+                        )
                       })()}
                       <span style={{ fontSize:11, fontWeight:700, color:st.color, background:st.bg, padding:"3px 10px", borderRadius:99 }}>
                         {st.label}

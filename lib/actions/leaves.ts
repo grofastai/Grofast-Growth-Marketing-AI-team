@@ -262,6 +262,7 @@ async function autoInsertLeaveHistory(
     reason: string | null
     permission_time: string | null
     permission_end_time: string | null
+    permission_hours: number | null
     half_day_from_time: string | null
     half_day_to_time: string | null
     half_day_period: string | null
@@ -272,8 +273,16 @@ async function autoInsertLeaveHistory(
   if (type === 'permission') {
     // Insert break entry with exact times on the leave date
     const startTime = leave.permission_time ?? null
-    const endTime   = leave.permission_end_time ?? null
-    if (!startTime || !endTime) return
+    if (!startTime) return
+
+    // Use explicit end time if stored, otherwise fall back to start + hours
+    let endTime = leave.permission_end_time ?? null
+    if (!endTime && leave.permission_hours) {
+      const [fh, fm] = startTime.split(':').map(Number)
+      const totalMins = fh * 60 + fm + Math.round((leave.permission_hours) * 60)
+      endTime = `${String(Math.floor(totalMins / 60)).padStart(2, '0')}:${String(totalMins % 60).padStart(2, '0')}`
+    }
+    if (!endTime) return
 
     const [fh, fm] = startTime.split(':').map(Number)
     const [th, tm] = endTime.split(':').map(Number)
@@ -397,6 +406,7 @@ export async function updateLeaveStatus(
     reason: string | null
     permission_time: string | null
     permission_end_time: string | null
+    permission_hours: number | null
     half_day_from_time: string | null
     half_day_to_time: string | null
     half_day_period: string | null
@@ -405,7 +415,7 @@ export async function updateLeaveStatus(
 
   const { data: leaveRaw } = await admin
     .from('leaves')
-    .select('company_id, user_id, from_date, to_date, leave_type, reason, permission_time, permission_end_time, half_day_from_time, half_day_to_time, half_day_period, users(name, phone)')
+    .select('company_id, user_id, from_date, to_date, leave_type, reason, permission_time, permission_end_time, permission_hours, half_day_from_time, half_day_to_time, half_day_period, users(name, phone)')
     .eq('id', leaveId)
     .single()
 

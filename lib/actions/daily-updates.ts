@@ -40,6 +40,23 @@ export async function submitDailyUpdate(
   const today = d.date ?? todayStr
   const isPastDate = today !== todayStr
 
+  // Block submission if on approved full-day leave (today only)
+  if (!isPastDate) {
+    const { data: leaveBlock } = await admin
+      .from('leaves')
+      .select('id')
+      .eq('company_id', profile.company_id)
+      .eq('user_id', user.id)
+      .eq('status', 'approved')
+      .eq('leave_type', 'full_day')
+      .lte('from_date', today)
+      .gte('to_date', today)
+      .maybeSingle()
+    if (leaveBlock) {
+      return { success: false, error: 'You are on approved leave today. Daily update submission is not allowed.' }
+    }
+  }
+
   // Working hours excludes break and learning entries; shoot entries add travel time on top of shoot duration
   const totalWorkHours = d.work_entries
     .filter(e => e.task_type !== 'break' && e.task_type !== 'learning')

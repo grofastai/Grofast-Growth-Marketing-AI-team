@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import AttendanceDateNav from "./attendance-date-nav"
 import { AttendanceDonut, WeeklyTrendChart } from "./attendance-charts"
+import ClearAttendanceBtn from "./clear-attendance-btn"
 
 function adminSupabase() {
   return createClient(
@@ -62,7 +63,7 @@ export default async function AttendancePage({
   const weekStart = weekDates[0]
   const lateThreshold = `${selectedDate}T04:30:00.000Z`
 
-  const [{ data: members }, { data: logs }, { data: lateLogs }, { data: weeklyRaw }, { data: dayPermissions }] = await Promise.all([
+  const [{ data: members }, { data: logs }, { data: lateLogs }, { data: weeklyRaw }, { data: dayPermissions }, { data: fullDayLeaves }] = await Promise.all([
     admin.from("users").select("id, name, employee_id")
       .eq("company_id", cid).eq("role", "MEMBER").eq("status", "active").order("name"),
     admin.from("attendance_logs")
@@ -81,6 +82,13 @@ export default async function AttendancePage({
       .eq("leave_type", "permission")
       .eq("status", "approved")
       .eq("from_date", selectedDate),
+    admin.from("leaves")
+      .select("user_id")
+      .eq("company_id", cid)
+      .eq("leave_type", "full_day")
+      .eq("status", "approved")
+      .lte("from_date", selectedDate)
+      .gte("to_date", selectedDate),
   ])
 
   type Log     = { user_id: string; clock_in: string | null; clock_out: string | null; status: string; break_total_mins: number | null }
@@ -94,6 +102,9 @@ export default async function AttendancePage({
   for (const p of (dayPermissions ?? []) as { user_id: string; permission_hours: number | null }[]) {
     permHoursMap.set(p.user_id, (permHoursMap.get(p.user_id) ?? 0) + (p.permission_hours ?? 1))
   }
+
+  // Approved full-day leaves for the selected date
+  const onLeaveSet = new Set<string>((fullDayLeaves ?? []).map((l: { user_id: string }) => l.user_id))
 
   function calcDurationNet(clockIn: string | null, clockOut: string | null, userId: string, breakTotalMins: number | null) {
     if (!clockIn) return null
@@ -282,8 +293,8 @@ export default async function AttendancePage({
           <div className="overflow-x-auto">
             <div style={{ minWidth: 640 }}>
               {/* Column headers */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px", padding: "10px 22px", borderBottom: "1px solid #F5F5F5", background: "#FAFAFA" }}>
-                {["EMPLOYEE", "CLOCK IN", "CLOCK OUT", "DURATION", "STATUS"].map(h => (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px 40px", padding: "10px 22px", borderBottom: "1px solid #F5F5F5", background: "#FAFAFA" }}>
+                {["EMPLOYEE", "CLOCK IN", "CLOCK OUT", "DURATION", "STATUS", ""].map(h => (
                   <span key={h} style={{ fontSize: 10, fontWeight: 800, color: "#9CA3AF", letterSpacing: "0.1em" }}>{h}</span>
                 ))}
               </div>
@@ -305,6 +316,7 @@ export default async function AttendancePage({
                     const isDone    = !!(log?.clock_in && log?.clock_out)
                     const dur       = calcDurationNet(log?.clock_in ?? null, log?.clock_out ?? null, m.id, log?.break_total_mins ?? null)
 
+                    const isOnLeave = !log && onLeaveSet.has(m.id)
                     let statusLabel = "Not Logged"; let statusColor = "#9CA3AF"; let statusBg = "#F3F4F6"; let statusDot = "#D1D5DB"
                     if (isAbsent)  { statusLabel = "On Leave"; statusColor = "#DE1A1A"; statusBg = "rgba(222,26,26,0.08)"; statusDot = "#DE1A1A" }
                     if (isWorking) { statusLabel = "Working"; statusColor = "#10B981"; statusBg = "rgba(16,185,129,0.09)"; statusDot = "#10B981" }
@@ -314,9 +326,10 @@ export default async function AttendancePage({
                     const avatarColors = ["#de1a1a","#6366F1","#10B981","#F59E0B","#8B5CF6","#06B6D4"]
                     const avatarColor = avatarColors[i % avatarColors.length]
 
+                    const hasLog = !!(log?.clock_in || log?.status === "absent")
                     return (
                       <div key={m.id} style={{
-                        display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px",
+                        display: "grid", gridTemplateColumns: "1fr 110px 110px 90px 110px 40px",
                         padding: "13px 22px", borderBottom: "1px solid #F9FAFB", alignItems: "center",
                         background: i % 2 === 0 ? "#FFFFFF" : "#FDFCFC",
                         transition: "background 0.15s",
@@ -340,6 +353,11 @@ export default async function AttendancePage({
                           <span style={{ width: 6, height: 6, borderRadius: "50%", background: statusDot, flexShrink: 0 }} />
                           {statusLabel}
                         </span>
+                        <div>
+                          {hasLog && (
+                            <ClearAttendanceBtn userId={m.id} userName={m.name} date={selectedDate} />
+                          )}
+                        </div>
                       </div>
                     )
                   })

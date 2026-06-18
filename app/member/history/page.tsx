@@ -73,7 +73,7 @@ export default async function HistoryPage() {
 
   const companyId = profileResult.data?.company_id ?? ""
 
-  const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult] = await Promise.all([
+  const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult, leavesResult] = await Promise.all([
     supabase
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, learning_start_time, learning_end_time, shoot_count, editing_count, work_entries, created_at")
@@ -109,6 +109,13 @@ export default async function HistoryPage() {
       .not("clock_in", "is", null)
       .order("date", { ascending: false })
       .limit(90),
+    // Approved full-day leaves — used to inject leave days into history dynamically
+    admin
+      .from("leaves")
+      .select("id, from_date, to_date, reason, leave_type")
+      .eq("user_id", effectiveUserId)
+      .eq("status", "approved")
+      .eq("leave_type", "full_day"),
   ])
 
   // Build a set of dates where the member actually clocked in
@@ -128,6 +135,7 @@ export default async function HistoryPage() {
   const participatedUpdates = (participatedResult.data ?? []) as unknown as ParticipatedUpdate[]
   const members = (membersResult.data ?? []) as MemberInfo[]
   const attendanceDates = Array.from(clockedInDates)
+  const approvedLeaves = (leavesResult.data ?? []) as { id: string; from_date: string; to_date: string; reason: string | null; leave_type: string | null }[]
 
   return (
     <HistoryClient
@@ -139,6 +147,7 @@ export default async function HistoryPage() {
       participatedUpdates={participatedUpdates}
       members={members}
       attendanceDates={attendanceDates}
+      approvedLeaves={approvedLeaves}
     />
   )
 }

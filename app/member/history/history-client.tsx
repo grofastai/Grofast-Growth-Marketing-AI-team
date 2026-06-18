@@ -244,10 +244,11 @@ interface ParticipatedUpdate {
 }
 
 interface MemberInfo { id: string; name: string }
+interface ApprovedLeave { id: string; from_date: string; to_date: string; reason: string | null; leave_type: string | null }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function HistoryClient({
-  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [],
+  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [],
 }: {
   updates: UpdateRow[]
   userName: string
@@ -257,6 +258,7 @@ export default function HistoryClient({
   participatedUpdates?: ParticipatedUpdate[]
   members?: MemberInfo[]
   attendanceDates?: string[]   // all dates with a clock-in (from attendance_logs)
+  approvedLeaves?: ApprovedLeave[]
 }) {
 
   const months = useMemo(() => {
@@ -601,7 +603,7 @@ export default function HistoryClient({
   }, [participatedUpdates])
 
   // Merge own updates + orphan collaborated entries (dates where user has no own update)
-  type MergedItem = { type: "own"; date: string; u: UpdateRow } | { type: "collab"; date: string; pus: ParticipatedUpdate[] }
+  type MergedItem = { type: "own"; date: string; u: UpdateRow } | { type: "collab"; date: string; pus: ParticipatedUpdate[] } | { type: "leave"; date: string; reason: string | null }
   const mergedList = useMemo((): MergedItem[] => {
     const ownDates = new Set(filtered.map(u => u.date))
     const monthPrefix = selectedMonth && monthFiltered[0]?.date ? monthFiltered[0].date.slice(0, 7) : null
@@ -616,8 +618,24 @@ export default function HistoryClient({
     orphans.sort((a, b) => b.date.localeCompare(a.date))
     const ownItems: MergedItem[] = filtered.map(u => ({ type: "own", date: u.date, u }))
     const collabItems: MergedItem[] = orphans.map(o => ({ type: "collab", date: o.date, pus: o.pus }))
-    return [...ownItems, ...collabItems].sort((a, b) => b.date.localeCompare(a.date))
-  }, [filtered, participatedByDate, selectedMonth, monthFiltered])
+
+    // Inject a virtual leave card for every day of every approved full-day leave
+    // that isn't already covered by an own daily_update record
+    const leaveItems: MergedItem[] = []
+    for (const leave of approvedLeaves) {
+      const start = new Date(leave.from_date + "T12:00:00")
+      const end   = new Date(leave.to_date   + "T12:00:00")
+      for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const date = d.toISOString().split("T")[0]
+        if (ownDates.has(date)) continue
+        if (dateActive && date !== selectedDate) continue
+        if (selectedMonth && monthLabel(date) !== selectedMonth) continue
+        leaveItems.push({ type: "leave", date, reason: leave.reason })
+      }
+    }
+
+    return [...ownItems, ...collabItems, ...leaveItems].sort((a, b) => b.date.localeCompare(a.date))
+  }, [filtered, participatedByDate, selectedMonth, monthFiltered, approvedLeaves, dateActive, selectedDate])
 
   const topActivity = useMemo(() => {
     const map: Record<string, number> = {}
@@ -989,6 +1007,37 @@ export default function HistoryClient({
                         </div>
                       )
                     })}
+                  </div>
+                )
+              }
+
+              // ── Full-day leave card (virtual — injected from approved leaves) ──
+              if (item.type === "leave") {
+                const leaveDate = new Date(item.date + "T12:00:00")
+                const leaveDateLabel = leaveDate.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
+                return (
+                  <div key={`leave-${item.date}`} style={{ background:"#fff", borderRadius:20, border:"1px solid rgba(16,185,129,0.2)", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid rgba(16,185,129,0.1)", background:"rgba(16,185,129,0.04)", flexWrap:"wrap", gap:8 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:38, height:38, borderRadius:10, background:"rgba(16,185,129,0.12)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <span style={{ fontSize:14, fontWeight:900, color:"#059669", lineHeight:1 }}>{leaveDate.getDate()}</span>
+                          <span style={{ fontSize:8, fontWeight:700, color:"#059669", textTransform:"uppercase" }}>{leaveDate.toLocaleDateString("en-US", { month:"short" })}</span>
+                        </div>
+                        <div>
+                          <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{leaveDateLabel}</p>
+                          <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Approved Leave</p>
+                        </div>
+                      </div>
+                      <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>On Leave</span>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 18px", background:"linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(16,185,129,0.02) 100%)" }}>
+                      <div style={{ fontSize:40, lineHeight:1 }}>🌴</div>
+                      <div>
+                        <p style={{ fontSize:14, fontWeight:900, color:"#059669", margin:"0 0 3px" }}>Full Day Leave</p>
+                        <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{item.reason ?? "Approved Leave"}</p>
+                      </div>
+                      <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>Approved</span>
+                    </div>
                   </div>
                 )
               }

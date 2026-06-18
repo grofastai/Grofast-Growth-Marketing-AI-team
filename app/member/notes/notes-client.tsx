@@ -17,6 +17,21 @@ function newItem(text = ''): ChecklistItem {
   return { id: Math.random().toString(36).slice(2), text, checked: false }
 }
 
+function istToUTC(date: string, time: string): string {
+  const [h, m] = time.split(':').map(Number)
+  const [y, mo, d] = date.split('-').map(Number)
+  let utcH = h - 5, utcM = m - 30, utcD = d, utcMo = mo, utcY = y
+  if (utcM < 0) { utcM += 60; utcH -= 1 }
+  if (utcH < 0) { utcH += 24; utcD -= 1 }
+  if (utcD < 1) { utcMo -= 1; if (utcMo < 1) { utcMo = 12; utcY -= 1 }; utcD = new Date(utcY, utcMo, 0).getDate() }
+  return new Date(Date.UTC(utcY, utcMo - 1, utcD, utcH, utcM, 0)).toISOString()
+}
+
+function utcToIST(iso: string): { date: string; time: string } {
+  const ist = new Date(new Date(iso).getTime() + 5.5 * 60 * 60 * 1000)
+  return { date: ist.toISOString().slice(0, 10), time: ist.toISOString().slice(11, 16) }
+}
+
 function buildContent(
   noteType: 'text' | 'checklist',
   textContent: string,
@@ -47,6 +62,7 @@ function formatReminder(iso: string): string {
 const EMPTY_DRAFT: NoteInput = {
   title: '', content: '', color: '#FFFFFF',
   pinned: false, reminder_at: null,
+  reminder_recipients: [], reminder_message: null,
   note_type: 'text', items: [], labels: [],
 }
 
@@ -159,7 +175,10 @@ function NoteCard({
       {note.reminder_at && !note.reminded && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 8, padding: '3px 8px', background: 'rgba(245,158,11,0.12)', borderRadius: 20, width: 'fit-content' }}>
           <Bell size={10} color="#F59E0B" />
-          <span style={{ fontSize: 10, fontWeight: 600, color: '#D97706' }}>{formatReminder(note.reminder_at)}</span>
+          <span style={{ fontSize: 10, fontWeight: 600, color: '#D97706' }}>
+            {formatReminder(note.reminder_at)}
+            {note.reminder_recipients.length > 1 && ` · ${note.reminder_recipients.length} recipients`}
+          </span>
         </div>
       )}
 
@@ -211,6 +230,7 @@ function NoteCard({
 
 function InlineEditor({
   draft, setDraft, allLabels, onSave, onCancel, isPending, error,
+  teamMembers, currentUserId,
 }: {
   draft: NoteInput
   setDraft: React.Dispatch<React.SetStateAction<NoteInput>>
@@ -219,9 +239,41 @@ function InlineEditor({
   onCancel: () => void
   isPending: boolean
   error: string | null
+  teamMembers: { id: string; name: string; employee_id: string }[]
+  currentUserId: string
 }) {
   const [labelInput, setLabelInput] = useState('')
   const [showLabelSug, setLabelSug] = useState(false)
+
+  // ── Reminder local state ─────────────────────────────────────────────────────
+  const [showReminder, setShowReminder] = useState(!!draft.reminder_at)
+  const istInit = draft.reminder_at ? utcToIST(draft.reminder_at) : { date: '', time: '' }
+  const [reminderDate, setReminderDate] = useState(istInit.date)
+  const [reminderTime, setReminderTime] = useState(istInit.time)
+  const [reminderMsg,  setReminderMsg]  = useState(draft.reminder_message ?? '')
+  const [selRcpts, setSelRcpts] = useState<string[]>(
+    draft.reminder_recipients?.length ? draft.reminder_recipients : currentUserId ? [currentUserId] : []
+  )
+
+  function toggleRcpt(id: string) {
+    setSelRcpts(prev => prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id])
+  }
+  function applyReminder() {
+    if (!reminderDate || !reminderTime || selRcpts.length === 0) return
+    setDraft(d => ({
+      ...d,
+      reminder_at: istToUTC(reminderDate, reminderTime),
+      reminder_recipients: selRcpts,
+      reminder_message: reminderMsg.trim() || null,
+    }))
+    setShowReminder(false)
+  }
+  function clearReminder() {
+    setDraft(d => ({ ...d, reminder_at: null, reminder_recipients: [], reminder_message: null }))
+    setReminderDate(''); setReminderTime(''); setReminderMsg('')
+    setSelRcpts(currentUserId ? [currentUserId] : [])
+    setShowReminder(false)
+  }
 
   const suggestions = allLabels.filter(
     l => l.toLowerCase().includes(labelInput.toLowerCase()) && !draft.labels.includes(l)
@@ -324,6 +376,67 @@ function InlineEditor({
         </div>
       )}
 
+      {/* ── Reminder Panel ────────────────────────────────────────────────── */}
+      {showReminder && (
+        <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)', marginBottom: 10 }}>
+          <p style={{ fontSize: 10, fontWeight: 800, color: '#D97706', margin: '0 0 10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>⏰ Set Reminder</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>
+            <div>
+              <label style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', display: 'block', marginBottom: 3 }}>DATE</label>
+              <input type="date" value={reminderDate} onChange={e => setReminderDate(e.target.value)}
+                min={new Date().toISOString().slice(0, 10)}
+                style={{ width: '100%', padding: '6px 8px', borderRadius: 7, border: '1.5px solid #E2E8F0', fontSize: 12, outline: 'none', boxSizing: 'border-box', background: '#fff' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', display: 'block', marginBottom: 3 }}>TIME (IST)</label>
+              <input type="time" value={reminderTime} onChange={e => setReminderTime(e.target.value)}
+                style={{ width: '100%', padding: '6px 8px', borderRadius: 7, border: '1.5px solid #E2E8F0', fontSize: 12, outline: 'none', boxSizing: 'border-box', background: '#fff' }} />
+            </div>
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', display: 'block', marginBottom: 3 }}>MESSAGE (optional)</label>
+            <input value={reminderMsg} onChange={e => setReminderMsg(e.target.value)}
+              placeholder="Add a reminder message…"
+              style={{ width: '100%', padding: '6px 8px', borderRadius: 7, border: '1.5px solid #E2E8F0', fontSize: 12, outline: 'none', boxSizing: 'border-box', background: '#fff' }} />
+          </div>
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', display: 'block', marginBottom: 5 }}>NOTIFY</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              <button type="button" onClick={() => toggleRcpt(currentUserId)}
+                style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1.5px solid',
+                  borderColor: selRcpts.includes(currentUserId) ? '#F59E0B' : '#E2E8F0',
+                  background: selRcpts.includes(currentUserId) ? 'rgba(245,158,11,0.1)' : 'transparent',
+                  color: selRcpts.includes(currentUserId) ? '#D97706' : '#9CA3AF' }}>
+                {selRcpts.includes(currentUserId) ? '✓ ' : ''}Self
+              </button>
+              {teamMembers.filter(m => m.id !== currentUserId).map(m => (
+                <button key={m.id} type="button" onClick={() => toggleRcpt(m.id)}
+                  style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1.5px solid',
+                    borderColor: selRcpts.includes(m.id) ? '#6366F1' : '#E2E8F0',
+                    background: selRcpts.includes(m.id) ? 'rgba(99,102,241,0.08)' : 'transparent',
+                    color: selRcpts.includes(m.id) ? '#6366F1' : '#9CA3AF' }}>
+                  {selRcpts.includes(m.id) ? '✓ ' : ''}{m.name.split(' ')[0]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button type="button" onClick={applyReminder}
+              disabled={!reminderDate || !reminderTime || selRcpts.length === 0}
+              style={{ flex: 1, padding: '7px', borderRadius: 8, border: 'none',
+                background: (!reminderDate || !reminderTime || selRcpts.length === 0) ? '#E5E7EB' : '#F59E0B',
+                color: (!reminderDate || !reminderTime || selRcpts.length === 0) ? '#9CA3AF' : '#fff',
+                fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              Set Reminder
+            </button>
+            <button type="button" onClick={clearReminder}
+              style={{ padding: '7px 12px', borderRadius: 8, border: '1px solid #E2E8F0', background: 'transparent', fontSize: 12, color: '#6B7280', cursor: 'pointer' }}>
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       {error && <p style={{ fontSize: 12, color: '#EF4444', marginBottom: 8 }}>{error}</p>}
 
       {/* Toolbar */}
@@ -346,6 +459,13 @@ function InlineEditor({
               style={{ width: 18, height: 18, borderRadius: '50%', background: c.value, border: draft.color === c.value ? '2.5px solid #DE1A1A' : '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer', flexShrink: 0 }} />
           ))}
         </div>
+
+        {/* Reminder toggle */}
+        <button type="button" onClick={() => setShowReminder(r => !r)} title="Set reminder"
+          style={{ padding: '5px 8px', borderRadius: 7, border: `1.5px solid ${draft.reminder_at ? '#F59E0B' : '#E2E8F0'}`, background: draft.reminder_at ? 'rgba(245,158,11,0.08)' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Bell size={13} color={draft.reminder_at ? '#F59E0B' : '#6B7280'} />
+          {draft.reminder_at && <span style={{ fontSize: 10, fontWeight: 700, color: '#D97706' }}>Set</span>}
+        </button>
 
         {/* Label input */}
         <div style={{ position: 'relative', flex: 1, minWidth: 100 }}>
@@ -392,9 +512,13 @@ function InlineEditor({
 export default function NotesClient({
   initialNotes,
   showArchived = false,
+  teamMembers = [],
+  currentUserId = '',
 }: {
   initialNotes: NoteRow[]
   showArchived?: boolean
+  teamMembers?: { id: string; name: string; employee_id: string }[]
+  currentUserId?: string
 }) {
   const [notes, setNotes]             = useState<NoteRow[]>(initialNotes)
   const [isPending, start]            = useTransition()
@@ -438,14 +562,16 @@ export default function NotesClient({
   function openEdit(note: NoteRow) {
     setEditingNote(note)
     setDraft({
-      title:       note.title ?? '',
-      content:     note.content,
-      color:       note.color,
-      pinned:      note.pinned,
-      reminder_at: note.reminder_at,
-      note_type:   note.note_type,
-      items:       note.items,
-      labels:      note.labels,
+      title:               note.title ?? '',
+      content:             note.content,
+      color:               note.color,
+      pinned:              note.pinned,
+      reminder_at:         note.reminder_at,
+      reminder_recipients: note.reminder_recipients ?? [],
+      reminder_message:    note.reminder_message,
+      note_type:           note.note_type,
+      items:               note.items,
+      labels:              note.labels,
     })
     setError(null)
     setEditorOpen(true)
@@ -478,14 +604,16 @@ export default function NotesClient({
         if (!res.success) { setError(res.error ?? 'Failed to save'); return }
         const newNote: NoteRow = {
           id: res.id!, ...input,
-          title:       input.title || null,
-          color:       input.color ?? '#FFFFFF',
-          pinned:      input.pinned ?? false,
-          reminder_at: input.reminder_at ?? null,
-          reminded:    false,
-          archived:    false,
-          created_at:  new Date().toISOString(),
-          updated_at:  new Date().toISOString(),
+          title:               input.title || null,
+          color:               input.color ?? '#FFFFFF',
+          pinned:              input.pinned ?? false,
+          reminder_at:         input.reminder_at ?? null,
+          reminder_recipients: input.reminder_recipients ?? [],
+          reminder_message:    input.reminder_message ?? null,
+          reminded:            false,
+          archived:            false,
+          created_at:          new Date().toISOString(),
+          updated_at:          new Date().toISOString(),
         }
         setNotes(prev => [newNote, ...prev])
       }
@@ -564,10 +692,12 @@ export default function NotesClient({
       {!showArchived && (
         editorOpen && !editingNote ? (
           <InlineEditor
+            key="new"
             draft={draft} setDraft={setDraft}
             allLabels={allLabels}
             onSave={handleSave} onCancel={closeEditor}
             isPending={isPending} error={error}
+            teamMembers={teamMembers} currentUserId={currentUserId}
           />
         ) : (
           <div style={{ background: '#FFFFFF', borderRadius: 12, border: '1.5px solid #E2E8F0', padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 1px 6px rgba(0,0,0,0.06)' }}>
@@ -596,10 +726,12 @@ export default function NotesClient({
           <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }} onClick={closeEditor} />
           <div style={{ position: 'relative', width: '100%', maxWidth: 520 }}>
             <InlineEditor
+              key={editingNote?.id}
               draft={draft} setDraft={setDraft}
               allLabels={allLabels}
               onSave={handleSave} onCancel={closeEditor}
               isPending={isPending} error={error}
+              teamMembers={teamMembers} currentUserId={currentUserId}
             />
           </div>
         </div>

@@ -691,16 +691,20 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
   const [step, setStep] = useState<"type" | "details">("type")
   const [type, setType] = useState("")
   const [name, setName] = useState("")
+  const [title, setTitle] = useState("")
   const [phone, setPhone] = useState("")
   const [upi, setUpi] = useState("")
   const [rate, setRate] = useState("")
   const [gender, setGender] = useState("")
+  const [voiceTone, setVoiceTone] = useState("")
+  const [availability, setAvailability] = useState("")
+  const [rating, setRating] = useState(0)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
   const [success, setSuccess] = useState(false)
 
   function reset() {
-    setStep("type"); setType(""); setName(""); setPhone(""); setUpi(""); setRate(""); setGender(""); setSaving(false); setErr(""); setSuccess(false)
+    setStep("type"); setType(""); setName(""); setTitle(""); setPhone(""); setUpi(""); setRate(""); setGender(""); setVoiceTone(""); setAvailability(""); setRating(0); setSaving(false); setErr(""); setSuccess(false)
   }
   function close() { reset(); onClose() }
 
@@ -714,6 +718,8 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
     const res = await createFreelancer({
       name: name.trim(), type: type as "voice_over" | "video_editor" | "video_shooter" | "other",
       phone: phone || undefined, upi_id: upi || undefined, gender: gender || undefined,
+      title: title || undefined, voice_type: voiceTone || undefined,
+      availability_notes: availability || undefined, rating,
       cost_per_minute:  type === "voice_over"    ? rateNum : null,
       cost_per_video:   type === "video_editor" || type === "other" ? rateNum : null,
       cost_per_hour:    type === "video_shooter"  ? rateNum : null,
@@ -789,19 +795,32 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
                 <input className={FIELD_CLS} placeholder="e.g. Ravi Kumar" value={name} onChange={e => setName(e.target.value)} />
               </div>
 
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Title</label>
+                <input className={FIELD_CLS} placeholder="e.g. Voice Artist, Narrator" value={title} onChange={e => setTitle(e.target.value)} />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Gender</label>
+                <div className="flex gap-2">
+                  {["male","female"].map(g => (
+                    <button key={g} type="button"
+                      onClick={() => setGender(gender === g ? "" : g)}
+                      className="flex-1 py-2.5 rounded-xl text-[13px] font-bold capitalize transition-all"
+                      style={gender === g ? { background: "#F97316", color: "#fff", border: "2px solid #F97316" } : { background: "#F9FAFB", color: "#6B7280", border: "2px solid #E5E7EB" }}>
+                      {g === "male" ? "Male" : "Female"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {type === "voice_over" && (
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Gender</label>
-                  <div className="flex gap-2">
-                    {["male","female"].map(g => (
-                      <button key={g} type="button"
-                        onClick={() => setGender(gender === g ? "" : g)}
-                        className="flex-1 py-2.5 rounded-xl text-[13px] font-bold capitalize transition-all"
-                        style={gender === g ? { background: "#8b5cf6", color: "#fff", border: "2px solid #8b5cf6" } : { background: "#F9FAFB", color: "#6B7280", border: "2px solid #E5E7EB" }}>
-                        {g === "male" ? "Male" : "Female"}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Voice Tone</label>
+                  <select className={SELECT_CLS} value={voiceTone} onChange={e => setVoiceTone(e.target.value)}>
+                    <option value="">Select voice tone</option>
+                    {FL_VOICE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
                 </div>
               )}
 
@@ -822,6 +841,25 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
                   <input className={FIELD_CLS} type="number" min="0" step="0.5" placeholder={cfg.ratePlaceholder} value={rate} onChange={e => setRate(e.target.value)} />
                 </div>
               )}
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Free Time / Availability</label>
+                <input className={FIELD_CLS} placeholder="e.g. Weekdays 10am–6pm" value={availability} onChange={e => setAvailability(e.target.value)} />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Rating</label>
+                <div className="flex gap-1">
+                  {[1,2,3,4,5].map(n => (
+                    <button key={n} type="button" onClick={() => setRating(rating === n ? 0 : n)}
+                      className="p-1 transition-all">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill={n <= rating ? "#f59e0b" : "none"} stroke={n <= rating ? "#f59e0b" : "#d1d5db"} strokeWidth="1.5">
+                        <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {err && (
                 <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-xl">{err}</p>
@@ -846,6 +884,8 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
 }
 
 const FIELD_CLS = "w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[13px] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] transition-all bg-white"
+const SELECT_CLS = FIELD_CLS + " appearance-none cursor-pointer"
+const FL_VOICE_TYPES = ["Commercial Tone", "Emotional Tone", "High Pitch", "Base Voice", "Warm & Friendly", "Deep & Authoritative", "Neutral", "Energetic", "Soft & Calm"]
 
 // ── Assign Manager Sheet ──────────────────────────────────────────────────────
 

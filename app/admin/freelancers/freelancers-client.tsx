@@ -29,7 +29,7 @@ const TYPE_CFG: Record<FreelancerType, { label: string; color: string; bg: strin
 
 const SOFTWARE_OPTS = ["Adobe Premiere Pro", "Final Cut Pro", "DaVinci Resolve", "After Effects", "Adobe Rush", "CapCut", "Vegas Pro"]
 const VIDEO_TYPES   = ["Reels", "YouTube", "Corporate", "Wedding", "Product", "Documentary", "Social Media", "Ad Film", "Testimonial"]
-const VOICE_TYPES   = ["Warm & Friendly", "Deep & Authoritative", "Neutral", "High-pitched", "Energetic", "Soft & Calm"]
+const VOICE_TYPES   = ["Commercial Tone", "Emotional Tone", "High Pitch", "Base Voice", "Warm & Friendly", "Deep & Authoritative", "Neutral", "Energetic", "Soft & Calm"]
 const WK_STATUSES   = ["pending", "in_progress", "completed", "cancelled"]
 
 function fmt(n: number | null) {
@@ -287,14 +287,18 @@ function FreelancerSheet({
                 </button>
               )}
 
-              {/* ── Shared gender toggle ── */}
+              {/* ── Common fields for all types ── */}
               {form.type && (
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Full Name *</label>
+                <Field label="Full Name *">
                   <input className={inputCls}
                     placeholder={form.type === "other" ? "e.g. Graphic Designer, Copywriter" : form.type === "voice_over" ? "e.g. Ravi Kumar" : form.type === "video_editor" ? "e.g. Priya S" : "e.g. Arjun M"}
                     value={form.name} onChange={e => set("name", e.target.value)} />
-                </div>
+                </Field>
+              )}
+              {form.type && (
+                <Field label="Title">
+                  <input className={inputCls} placeholder="e.g. Voice Artist, Video Editor, Narrator" value={form.title} onChange={e => set("title", e.target.value)} />
+                </Field>
               )}
               {form.type && (
                 <div>
@@ -313,6 +317,14 @@ function FreelancerSheet({
                   </div>
                 </div>
               )}
+              {form.type === "voice_over" && (
+                <Field label="Voice Tone">
+                  <select className={selectCls} value={form.voice_type} onChange={e => set("voice_type", e.target.value)}>
+                    <option value="">Select voice tone</option>
+                    {VOICE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </Field>
+              )}
               {form.type && (
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Phone">
@@ -324,7 +336,7 @@ function FreelancerSheet({
                 </div>
               )}
 
-              {/* ── Type-specific price field only ── */}
+              {/* ── Type-specific price ── */}
               {form.type === "voice_over" && (
                 <Field label="Base Price / Min (₹)" hint="Used for auto-calculation">
                   <input className={inputCls} type="number" min="0" step="0.5" placeholder="e.g. 150" value={form.cost_per_minute} onChange={e => set("cost_per_minute", e.target.value)} />
@@ -343,6 +355,16 @@ function FreelancerSheet({
               {form.type === "other" && (
                 <Field label="Base Pay (₹)">
                   <input className={inputCls} type="number" min="0" step="50" placeholder="e.g. 5000" value={form.cost_per_video} onChange={e => set("cost_per_video", e.target.value)} />
+                </Field>
+              )}
+              {form.type && (
+                <Field label="Free Time / Availability">
+                  <input className={inputCls} placeholder="e.g. Weekdays 10am–6pm" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
+                </Field>
+              )}
+              {form.type && (
+                <Field label="Rating">
+                  <StarRating value={form.rating} onChange={v => set("rating", v)} />
                 </Field>
               )}
               {/* Status — editing only */}

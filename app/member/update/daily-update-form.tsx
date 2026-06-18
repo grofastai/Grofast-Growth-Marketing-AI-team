@@ -1329,15 +1329,6 @@ export default function DailyUpdateForm({
                     <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{filledBlocks.length} {filledBlocks.length === 1 ? "block" : "blocks"} · {totalLoggedHours.toFixed(1)}h logged{nonMediaBreaks.length > 0 ? ` · ${nonMediaBreaks.length} break${nonMediaBreaks.length > 1 ? "s" : ""}` : ""}</p>
                   </div>
                 </div>
-                <div style={{ display:"flex", gap:8 }}>
-                  <button onClick={addTimeBlock}
-                    style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 16px", borderRadius:10, border:"none", background:"#DE1A1A", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                    <Plus size={13} /> Add Time Block
-                  </button>
-                  <button onClick={addBreakBlock} style={{ display:"none" }}>
-                    <Coffee size={13} /> Break
-                  </button>
-                </div>
               </div>
 
               {timeBlocks.filter(b => !b.isBreak).length === 0 ? (
@@ -1485,15 +1476,18 @@ export default function DailyUpdateForm({
                           </div>
                         </>)}
                       </div>
-                      <div style={{ display:"flex", justifyContent:"center", marginTop:4 }}>
-                        <button type="button" onClick={addTimeBlock}
-                          style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 16px", borderRadius:10, border:"none", background:"#DE1A1A", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                          <Plus size={13} /> Add block
-                        </button>
-                      </div>
                       </Fragment>
                     )
                   })}
+                </div>
+              )}
+
+              {timeBlocks.filter(b => !b.isBreak).length > 0 && (
+                <div style={{ display:"flex", justifyContent:"center", marginTop:12 }}>
+                  <button type="button" onClick={addTimeBlock}
+                    style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 20px", borderRadius:10, border:"none", background:"#DE1A1A", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                    <Plus size={13} /> Add block
+                  </button>
                 </div>
               )}
 

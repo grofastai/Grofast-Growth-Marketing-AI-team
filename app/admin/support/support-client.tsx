@@ -1,12 +1,11 @@
 'use client'
 
 import { useState, useTransition, useMemo, useEffect, useRef } from 'react'
-import Image from 'next/image'
 import {
-  Plus, Send, Loader2, X, Search, AlertCircle, Clock,
+  Plus, Send, Loader2, X, Search, AlertCircle,
   CheckCircle2, XCircle, MessageSquare, ChevronDown,
-  ArrowRight, Star, Bell, LayoutGrid, List as ListIcon,
-  Paperclip, Activity,
+  ArrowRight, LayoutGrid, List as ListIcon,
+  Paperclip,
 } from 'lucide-react'
 import { addResponse, updateTicketStatus, createTicket, closeTicket } from '@/lib/actions/support'
 import { createBrowserClient } from '@/lib/supabase/client'
@@ -14,7 +13,7 @@ import { createBrowserClient } from '@/lib/supabase/client'
 type Response = { id: string; responder_id: string; responder_name: string; message: string; created_at: string }
 type Ticket = {
   id: string; user_id: string; title: string; category: string
-  description: string; status: string; priority: string
+  description: string; status: string; priority: string; assigned_to?: string
   created_at: string; updated_at: string; support_responses: Response[]
 }
 
@@ -33,32 +32,30 @@ const PRIORITY_CONFIG = {
 } as const
 
 const CATEGORIES_DEF = [
-  { key: 'technical', label: 'Technical Issues',       img: '/brand/support/2e18e69d-b9ee-4b97-9ae2-214b2e3265c4.png', color: '#8B5CF6' },
-  { key: 'payroll',   label: 'Payroll Requests',       img: '/brand/support/930f34a6-9e6e-4d81-a890-238e7ad2e780.png', color: '#F59E0B' },
-  { key: 'leave',     label: 'Attendance Corrections', img: '/brand/support/b0690677-06b2-4761-941f-e8ddc0447c5b.png', color: '#10B981' },
-  { key: 'general',   label: 'Client Support',         img: '/brand/support/b05fa85e-c94d-47f7-afa2-6ccff275ba42.png', color: '#3B82F6' },
-  { key: 'hr',        label: 'HR Helpdesk',            img: '/brand/support/39b03623-2907-4fa1-a732-c1d4e644d72f.png', color: '#EC4899' },
-  { key: 'other',     label: 'Escalated Issues',       img: '/brand/support/824ff68e-303d-417c-8507-6422f7f58ed4.png', color: '#EF4444' },
+  { key: 'attendance',  label: 'Attendance',    emoji: '📅', color: '#10B981' },
+  { key: 'leave',       label: 'Leave',         emoji: '🌴', color: '#22C55E' },
+  { key: 'task',        label: 'Task',          emoji: '✅', color: '#6366F1' },
+  { key: 'client',      label: 'Client',        emoji: '🤝', color: '#3B82F6' },
+  { key: 'payment',     label: 'Payment',       emoji: '💰', color: '#F59E0B' },
+  { key: 'freelancer',  label: 'Freelancer',    emoji: '👷', color: '#EC4899' },
+  { key: 'design',      label: 'Design',        emoji: '🎨', color: '#8B5CF6' },
+  { key: 'video',       label: 'Video Editing', emoji: '🎬', color: '#EF4444' },
+  { key: 'marketing',   label: 'Marketing',     emoji: '📢', color: '#F97316' },
+  { key: 'automation',  label: 'Automation',    emoji: '🤖', color: '#06B6D4' },
+  { key: 'other',       label: 'Other',         emoji: '📋', color: '#9CA3AF' },
 ]
 
 const KNOWLEDGE_BASE = [
-  { label: 'Common Fixes',        count: 24, img: '/brand/support/39b03623-2907-4fa1-a732-c1d4e644d72f.png', bg: '#EFF6FF' },
-  { label: 'Payroll Help',        count: 18, img: '/brand/support/b24636c9-fd8e-4c14-8b87-eeb30aa4f9e5.png', bg: '#FFFBEB' },
-  { label: 'Attendance Guides',   count: 16, img: '/brand/support/99e7f61e-df79-46fa-b3e0-e77a089afdbd.png', bg: '#F0FDF4' },
-  { label: 'Client Support Docs', count: 22, img: '/brand/support/b05fa85e-c94d-47f7-afa2-6ccff275ba42.png', bg: '#FDF4FF' },
-  { label: 'Getting Started',     count: 12, img: '/brand/support/210a60d1-e9ed-48b3-874c-e6dab2a80e97.png', bg: '#FEF2F2' },
+  { label: 'Attendance Guides',  count: 16, emoji: '📅', bg: '#F0FDF4' },
+  { label: 'Leave Policies',     count: 12, emoji: '🌴', bg: '#DCFCE7' },
+  { label: 'Task Help',          count: 18, emoji: '✅', bg: '#EEF2FF' },
+  { label: 'Client Requests',    count: 22, emoji: '🤝', bg: '#EFF6FF' },
+  { label: 'Getting Started',    count: 10, emoji: '📋', bg: '#FEF2F2' },
 ]
 
-const ACTIVITY_STATIC = [
-  { label: 'New ticket created',        time: '10:30 AM', color: '#EF4444' },
-  { label: 'Ticket assigned to agent',  time: '10:32 AM', color: '#8B5CF6' },
-  { label: 'Agent replied',             time: '10:35 AM', color: '#3B82F6' },
-  { label: 'Attachment uploaded',       time: '10:36 AM', color: '#F59E0B' },
-  { label: 'Status changed to In Progress', time: '10:38 AM', color: '#10B981' },
-]
 
-const CATEGORIES_FORM = ['general', 'technical', 'hr', 'payroll', 'leave', 'other']
-const PRIORITIES_FORM  = ['low', 'normal', 'high', 'urgent']
+const CATEGORIES_FORM = ['attendance', 'leave', 'task', 'client', 'payment', 'freelancer', 'design', 'video', 'marketing', 'automation', 'other']
+const PRIORITIES_FORM  = ['low', 'medium', 'high', 'urgent']
 
 function ticketNum(i: number) { return `#TKT-${String(1001 + i).padStart(5, '0')}` }
 
@@ -70,44 +67,6 @@ function timeAgo(s: string) {
   return `${Math.floor(h / 24)}d ago`
 }
 
-function Sparkline({ on, color }: { on: boolean; color: string }) {
-  const d = on
-    ? 'M0,35 C15,30 30,24 48,18 C66,12 82,8 100,5 C110,3 115,2 120,2'
-    : 'M0,35 C40,35 80,35 120,35'
-  return (
-    <svg width="100%" height="40" viewBox="0 0 120 40" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id={`sg${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.15" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {on && <path d={`${d} L120,40 L0,40 Z`} fill={`url(#sg${color.replace('#','')})`} />}
-      <path d={d} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-function DonutChart({ pct }: { pct: number }) {
-  const r = 54
-  const circ = 2 * Math.PI * r
-  const filled = (pct / 100) * circ
-  return (
-    <svg width="148" height="148" viewBox="0 0 148 148">
-      <circle cx="74" cy="74" r={r} fill="none" stroke="#F3F4F6" strokeWidth="15" />
-      <circle cx="74" cy="74" r={r} fill="none" stroke="url(#dg)" strokeWidth="15"
-        strokeDasharray={`${filled} ${circ - filled}`}
-        strokeLinecap="round" transform="rotate(-90 74 74)" />
-      <defs>
-        <linearGradient id="dg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#DE1A1A" /><stop offset="100%" stopColor="#7F1D1D" />
-        </linearGradient>
-      </defs>
-      <text x="74" y="69" textAnchor="middle" style={{ fontSize: 22, fontWeight: 900, fill: '#111111', fontFamily: 'inherit' }}>{pct}%</text>
-      <text x="74" y="87" textAnchor="middle" style={{ fontSize: 9.5, fill: '#9CA3AF', fontFamily: 'inherit' }}>Capacity Used</text>
-    </svg>
-  )
-}
 
 function renderMessage(msg: string) {
   if (msg.startsWith('[img]')) {
@@ -339,12 +298,6 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
         borderBottom: '1px solid rgba(0,0,0,0.06)',
         position: 'relative', overflow: 'hidden', minHeight: 240,
       }}>
-        {/* Illustration — absolute center */}
-        <div className="absolute bottom-0 pointer-events-none hidden lg:block"
-          style={{ left: '37%', width: 320, height: 232, zIndex: 1 }}>
-          <Image src="/brand/support/a307fc0b-2dcf-4800-bb57-54e1a455db9c.png"
-            alt="Support hero" fill style={{ objectFit: 'contain', objectPosition: 'bottom' }} />
-        </div>
 
         <div style={{ display: 'flex', gap: 20, padding: '28px 28px 0', position: 'relative', zIndex: 2 }}>
 
@@ -381,30 +334,24 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
           {/* Right: 4 stat cards 2×2 */}
           <div className="hidden lg:grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12, alignContent: 'start', paddingBottom: 28 }}>
             {[
-              { label: 'Open Tickets',          value: stats.open,     sub: '↑ 18.4%', color: '#EF4444', img: '/brand/support/210a60d1-e9ed-48b3-874c-e6dab2a80e97.png' },
-              { label: 'Avg Response Time',     value: '2h 34m',       sub: '↓ 12.6%', color: '#8B5CF6', img: '/brand/support/fd6c3e07-21b4-45cc-b8b3-2b5b1e182d57.png' },
-              { label: 'Resolved Today',        value: stats.resolved, sub: '↑ 24.8%', color: '#10B981', img: '/brand/support/ba561bd8-46c5-4ff5-a665-fefc78ae2256.png' },
-              { label: 'Customer Satisfaction', value: '4.8/5',        sub: '↑ 8.3%',  color: '#F59E0B', img: '/brand/support/d89a0fe5-45da-46c6-ba09-fda6dc5e0826.png' },
+              { label: 'Pending',     value: stats.open,        emoji: '📋', color: '#EF4444', bg: '#FEE2E2' },
+              { label: 'Avg Response',value: '2h',              emoji: '⏱️', color: '#8B5CF6', bg: '#F5F3FF' },
+              { label: 'Resolved',    value: stats.resolved,    emoji: '✅', color: '#10B981', bg: '#F0FDF4' },
+              { label: 'In Review',   value: stats.in_progress, emoji: '🔍', color: '#F59E0B', bg: '#FFFBEB' },
             ].map((c, i) => (
               <div key={i} style={{
-                background: '#FFFFFF', borderRadius: 20, overflow: 'hidden',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.09)', border: '1px solid rgba(0,0,0,0.05)', minWidth: 172,
+                background: '#FFFFFF', borderRadius: 20, padding: '14px 16px',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.09)', border: '1px solid rgba(0,0,0,0.05)', minWidth: 148,
               }}>
-                <div style={{ padding: '14px 16px 0' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div style={{ width: 42, height: 42, borderRadius: 12, background: '#F9FAFB', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
-                      <Image src={c.img} alt={c.label} fill style={{ objectFit: 'cover' }} />
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 28, fontWeight: 900, color: '#111111', lineHeight: 1 }}>{c.value}</div>
-                      <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{c.label}</div>
-                    </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
+                    {c.emoji}
                   </div>
-                  <div style={{ fontSize: 11, marginTop: 6, fontWeight: 600, color: c.color }}>
-                    {c.sub} <span style={{ color: '#9CA3AF', fontWeight: 400 }}>vs last week</span>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 28, fontWeight: 900, color: '#111111', lineHeight: 1 }}>{c.value}</div>
+                    <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>{c.label}</div>
                   </div>
                 </div>
-                <Sparkline on={typeof c.value === 'number' ? c.value > 0 : true} color={c.color} />
               </div>
             ))}
           </div>
@@ -442,15 +389,14 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F9FAFB'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, background: '#F9FAFB', position: 'relative', overflow: 'hidden', flexShrink: 0 }}>
-                        <Image src={cat.img} alt={cat.label} fill style={{ objectFit: 'cover' }} />
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${cat.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+                        {cat.emoji}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                           <span style={{ fontSize: 12, fontWeight: 600, color: '#111111' }}>{cat.label}</span>
                           <span style={{ fontSize: 13, fontWeight: 700, color: '#111111' }}>{count}</span>
                         </div>
-                        <div style={{ fontSize: 10, color: '#9CA3AF', marginTop: 1 }}>Last activity: 2m ago</div>
                         <div style={{ marginTop: 5, height: 3, borderRadius: 99, background: '#F3F4F6' }}>
                           <div style={{ height: '100%', width: `${pct}%`, background: cat.color, borderRadius: 99 }} />
                         </div>
@@ -512,7 +458,7 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
                     </div>
                     <div style={{ display: 'flex', gap: 14, marginTop: 5, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'monospace' }}>{ticketNum(indexMap[featured.id] ?? 0)}</span>
-                      <span style={{ fontSize: 11, color: '#9CA3AF' }}>{featured.category.charAt(0).toUpperCase() + featured.category.slice(1)}</span>
+                      <span style={{ fontSize: 11, color: '#9CA3AF' }}>{CATEGORIES_DEF.find(c => c.key === featured.category)?.emoji ?? ''} {CATEGORIES_DEF.find(c => c.key === featured.category)?.label ?? featured.category}</span>
                       <span style={{ fontSize: 11, color: '#9CA3AF' }}>Updated {timeAgo(featured.updated_at)}</span>
                     </div>
                   </div>
@@ -643,9 +589,10 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
                       <p style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.12em', margin: '0 0 10px' }}>Ticket Info</p>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {[
-                          { label: 'Priority', val: featured.priority.charAt(0).toUpperCase() + featured.priority.slice(1), dot: pc.color },
-                          { label: 'Status',   val: sc.label, dot: sc.dot },
-                          { label: 'Category', val: featured.category.charAt(0).toUpperCase() + featured.category.slice(1), dot: '#6B7280' },
+                          { label: 'Priority',    val: featured.priority.charAt(0).toUpperCase() + featured.priority.slice(1), dot: pc.color },
+                          { label: 'Status',      val: sc.label, dot: sc.dot },
+                          { label: 'Type',        val: (CATEGORIES_DEF.find(c => c.key === featured.category)?.label ?? featured.category), dot: CATEGORIES_DEF.find(c => c.key === featured.category)?.color ?? '#6B7280' },
+                          ...(featured.assigned_to ? [{ label: 'Assigned To', val: featured.assigned_to, dot: '#6366F1' }] : []),
                         ].map(row => (
                           <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontSize: 11, color: '#9CA3AF' }}>{row.label}</span>
@@ -721,7 +668,7 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 13, fontWeight: 700, color: '#111111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</p>
-                      <p style={{ fontSize: 11, color: '#9CA3AF', margin: '2px 0 0', fontFamily: 'monospace' }}>{ticketNum(indexMap[t.id] ?? i)} · {t.category}</p>
+                      <p style={{ fontSize: 11, color: '#9CA3AF', margin: '2px 0 0', fontFamily: 'monospace' }}>{ticketNum(indexMap[t.id] ?? i)} · {CATEGORIES_DEF.find(c => c.key === t.category)?.label ?? t.category}</p>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
                       <span style={{ padding: '3px 8px', borderRadius: 99, fontSize: 10, fontWeight: 700, background: pc.bg, color: pc.color }}>
@@ -760,74 +707,82 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
         {/* RIGHT: Widgets */}
         <div className="hidden xl:flex" style={{ width: 284, flexShrink: 0, flexDirection: 'column', gap: 16 }}>
 
-          {/* Team Workload */}
+          {/* Request Overview */}
           <div style={{ background: '#FFFFFF', borderRadius: 22, padding: 18, boxShadow: '0 2px 16px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.05)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#111111' }}>Team Workload</span>
-              <button style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#6B7280', background: '#F9FAFB', border: '1px solid #F3F4F6', borderRadius: 8, padding: '4px 8px', cursor: 'pointer' }}>
-                This Week <ChevronDown size={10} />
-              </button>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-              <DonutChart pct={68} />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#111111', display: 'block', marginBottom: 14 }}>Request Overview</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {[
-                { label: 'Available', count: 5,  color: '#10B981' },
-                { label: 'Busy',      count: 12, color: '#DE1A1A' },
-                { label: 'Offline',   count: 3,  color: '#9CA3AF' },
+                { label: 'Pending',    value: stats.open,        color: '#DE1A1A', bg: '#FEE2E2' },
+                { label: 'In Review',  value: stats.in_progress, color: '#D97706', bg: '#FEF3C7' },
+                { label: 'Resolved',   value: stats.resolved,    color: '#15803D', bg: '#DCFCE7' },
+                { label: 'Closed',     value: stats.closed,      color: '#6B7280', bg: '#F3F4F6' },
               ].map(row => (
-                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={row.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ width: 8, height: 8, borderRadius: '50%', background: row.color, display: 'inline-block' }} />
                     <span style={{ fontSize: 12, color: '#6B7280' }}>{row.label}</span>
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#111111' }}>{row.count}</span>
+                  <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: 12, fontWeight: 700, background: row.bg, color: row.color }}>{row.value}</span>
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Activity Timeline */}
-          <div style={{ background: '#FFFFFF', borderRadius: 22, padding: 18, boxShadow: '0 2px 16px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.05)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#111111' }}>Activity Timeline</span>
-              <button style={{ fontSize: 11, fontWeight: 600, color: '#DE1A1A', background: 'none', border: 'none', cursor: 'pointer' }}>View All</button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {ACTIVITY_STATIC.map((item, i) => (
-                <div key={i} style={{ display: 'flex', gap: 12, position: 'relative' }}>
-                  {i < ACTIVITY_STATIC.length - 1 && (
-                    <div style={{ position: 'absolute', left: 13, top: 28, bottom: 0, width: 2, background: '#F3F4F6', zIndex: 0 }} />
-                  )}
-                  <div style={{ width: 28, height: 28, borderRadius: '50%', background: item.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, zIndex: 1, boxShadow: `0 2px 8px ${item.color}44` }}>
-                    <Bell size={11} color="white" />
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #F3F4F6' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 10px' }}>By Type</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {CATEGORIES_DEF.filter(c => (catCounts[c.key] ?? 0) > 0).slice(0, 5).map(cat => (
+                  <div key={cat.key} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <span style={{ fontSize: 13 }}>{cat.emoji}</span>
+                    <span style={{ fontSize: 11, color: '#374151', flex: 1 }}>{cat.label}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: cat.color }}>{catCounts[cat.key] ?? 0}</span>
                   </div>
-                  <div style={{ paddingBottom: i < ACTIVITY_STATIC.length - 1 ? 16 : 0, paddingTop: 3 }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: '#111111', margin: 0, lineHeight: 1.35 }}>{item.label}</p>
-                    <p style={{ fontSize: 11, color: '#9CA3AF', margin: '2px 0 0' }}>{item.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* AI Support Assistant */}
-          <div style={{ background: 'linear-gradient(145deg,#FAF5FF 0%,#EDE9FE 100%)', borderRadius: 22, padding: 18, boxShadow: '0 2px 16px rgba(139,92,246,0.12)', border: '1px solid rgba(167,139,250,0.2)', overflow: 'hidden', position: 'relative' }}>
-            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-              <div style={{ width: 130, height: 130, position: 'relative' }}>
-                <Image src="/brand/support/41a33c24-4165-47cb-bb1b-d88b8d5ad939.png" alt="AI Assistant" fill style={{ objectFit: 'contain' }} />
+                ))}
               </div>
             </div>
-            <h4 style={{ fontSize: 14, fontWeight: 700, color: '#111111', margin: '0 0 6px', textAlign: 'center', lineHeight: 1.4 }}>
-              Need help resolving tickets faster?
-            </h4>
-            <p style={{ fontSize: 12, color: '#6B7280', margin: '0 0 14px', textAlign: 'center', lineHeight: 1.55 }}>
-              Let AI suggest solutions and automate responses.
-            </p>
-            <button style={{ width: '100%', padding: '11px', borderRadius: 14, fontSize: 13, fontWeight: 700, color: '#FFFFFF', background: 'linear-gradient(135deg,#8B5CF6,#6D28D9)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, boxShadow: '0 4px 16px rgba(109,40,217,0.35)' }}>
-              <Star size={14} fill="white" stroke="none" /> Open AI Assistant
-            </button>
+          </div>
+
+          {/* Recent Requests */}
+          <div style={{ background: '#FFFFFF', borderRadius: 22, padding: 18, boxShadow: '0 2px 16px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.05)' }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#111111', display: 'block', marginBottom: 14 }}>Recent Requests</span>
+            {tickets.length === 0 ? (
+              <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '16px 0' }}>No requests yet</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {tickets.slice(0, 5).map((t, i) => {
+                  const cat = CATEGORIES_DEF.find(c => c.key === t.category)
+                  const sc  = STATUS_CONFIG[t.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.closed
+                  return (
+                    <div key={t.id}
+                      onClick={() => { setSelectedId(t.id); setActiveTab('Conversation') }}
+                      style={{ display: 'flex', alignItems: 'flex-start', gap: 9, padding: '9px 0', borderBottom: i < Math.min(tickets.length, 5) - 1 ? '1px solid #F9FAFB' : 'none', cursor: 'pointer' }}>
+                      <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{cat?.emoji ?? '📋'}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: '#111111', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.title}</p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 3 }}>
+                          <span style={{ padding: '1px 6px', borderRadius: 99, fontSize: 9, fontWeight: 700, background: sc.bg, color: sc.color }}>{sc.label}</span>
+                          {t.assigned_to && <span style={{ fontSize: 9, color: '#9CA3AF' }}>→ {t.assigned_to}</span>}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 10, color: '#9CA3AF', flexShrink: 0 }}>{timeAgo(t.updated_at)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Response SLA */}
+          <div style={{ background: 'linear-gradient(145deg,#F0FDF4 0%,#DCFCE7 100%)', borderRadius: 22, padding: 18, boxShadow: '0 2px 16px rgba(34,197,94,0.10)', border: '1px solid rgba(34,197,94,0.2)' }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#111111', display: 'block', marginBottom: 12 }}>Response SLA</span>
+            {[
+              { label: 'Avg First Response', value: '2h',   color: '#15803D' },
+              { label: 'Avg Resolution',     value: '8h',   color: '#15803D' },
+              { label: 'Open Rate',          value: `${stats.open > 0 ? Math.round((stats.open / (tickets.length || 1)) * 100) : 0}%`, color: '#D97706' },
+            ].map(s => (
+              <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 11, color: '#6B7280' }}>{s.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: s.color }}>{s.value}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -846,8 +801,8 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
               style={{ background: '#FFFFFF', borderRadius: 20, padding: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'all 0.15s' }}
               onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.transform = 'translateY(-3px)'; el.style.boxShadow = '0 10px 28px rgba(0,0,0,0.1)' }}
               onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.transform = 'translateY(0)'; el.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)' }}>
-              <div style={{ width: 50, height: 50, borderRadius: 14, background: card.bg, marginBottom: 12, position: 'relative', overflow: 'hidden' }}>
-                <Image src={card.img} alt={card.label} fill style={{ objectFit: 'cover' }} />
+              <div style={{ width: 50, height: 50, borderRadius: 14, background: card.bg, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>
+                {card.emoji}
               </div>
               <p style={{ fontSize: 13, fontWeight: 700, color: '#111111', margin: '0 0 3px', lineHeight: 1.3 }}>{card.label}</p>
               <p style={{ fontSize: 11, color: '#9CA3AF', margin: '0 0 10px' }}>{card.count} Articles</p>

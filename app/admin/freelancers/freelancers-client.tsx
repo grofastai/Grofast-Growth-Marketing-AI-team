@@ -155,9 +155,12 @@ function FreelancerSheet({
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
 
-  // Sync form state when editing changes or sheet opens
+  // Reset form/step only when the sheet transitions from closed → open
+  const wasOpen = useRef(false)
   useEffect(() => {
-    if (open) {
+    const justOpened = open && !wasOpen.current
+    wasOpen.current = open
+    if (justOpened) {
       setStep(editing ? "details" : "type")
       setForm(editing ? freelancerToState(editing, initialAssignments) : BLANK_F)
       setErr("")

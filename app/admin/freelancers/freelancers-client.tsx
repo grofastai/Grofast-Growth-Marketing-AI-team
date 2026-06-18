@@ -1336,6 +1336,11 @@ export default function FreelancersClient({
   const [entries, setEntries] = useState(initEntries)
   const [assignments, setAssignments] = useState(initAssignments)
 
+  // Sync state when server refreshes (router.refresh() sends updated props)
+  useEffect(() => { setFreelancers(initFreelancers) }, [initFreelancers])
+  useEffect(() => { setEntries(initEntries) }, [initEntries])
+  useEffect(() => { setAssignments(initAssignments) }, [initAssignments])
+
   // Sheet states
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingFreelancer, setEditingFreelancer] = useState<Freelancer | null>(null)

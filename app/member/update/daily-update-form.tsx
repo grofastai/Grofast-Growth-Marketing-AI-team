@@ -2459,11 +2459,15 @@ export default function DailyUpdateForm({
                 return (
                   <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
                     <p style={{ fontSize:10, fontWeight:700, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>⏰ Work Log</p>
-                    {([
-                      { label:"Hours Logged",  value:`${totalLoggedHours.toFixed(1)}h`, color: totalLoggedHours >= 8 ? "#22C55E" : "#111111" },
-                      { label:"Entries",       value:`${filledBlocks.length}`,           color:"#6366F1" },
-                      { label:"Productivity",  value:`${generalProductivity}%`,          color: generalProductivity >= 70 ? "#22C55E" : generalProductivity > 0 ? "#F59E0B" : "#9CA3AF" },
-                    ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
+                    {((() => {
+                      const workH  = timeBlocks.filter(b => !b.isBreak).reduce((s, b) => s + b.durationHours, 0)
+                      const breakH = breakBlocks.reduce((s, b) => s + b.durationHours, 0)
+                      return [
+                        { label:"Working Hours", value:`${workH.toFixed(1)}h`,  color: workH >= 8 ? "#22C55E" : "#111111" },
+                        { label:"Break Hours",   value:`${breakH.toFixed(1)}h`, color:"#F59E0B" },
+                        { label:"Learning",      value: learningHours > 0 ? `${(learningHours as number).toFixed(1)}h` : "—", color:"#10B981" },
+                      ]
+                    })() as Array<{label:string;value:string;color:string}>).map((r,i) => (
                       <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                         <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
                         <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>

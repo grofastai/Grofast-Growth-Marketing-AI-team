@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
-import { createFreelancer, assignAllFreelancersToMembers } from "@/lib/actions/freelancers"
+import { createFreelancer, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
 
 type FreelancerBasic = {
   id: string; name: string; type: string; phone: string | null; upi_id: string | null
@@ -996,12 +996,14 @@ function AssignManagerSheet({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function TeamClient({ members, pastMembers, freelancers = [], initialSearch = "" }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; initialSearch?: string }) {
+export default function TeamClient({ members, pastMembers, freelancers: initFreelancers = [], initialSearch = "" }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; initialSearch?: string }) {
   const router = useRouter()
   const nextId = useMemo(() => computeNextEmployeeId(members), [members])
   const [search, setSearch] = useState(initialSearch)
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
   const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER" | "FREELANCER">("ALL")
+  const [freelancers, setFreelancers] = useState(initFreelancers)
+  const [flTypeFilter, setFlTypeFilter] = useState<"all" | "voice_over" | "video_editor" | "video_shooter" | "other">("all")
   const [flSheetOpen, setFlSheetOpen] = useState(false)
   const [assignSheetOpen, setAssignSheetOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -1038,6 +1040,28 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
     admins: members.filter((m) => ["ADMIN","FOUNDER","CEO"].includes(m.role)).length,
     teamMembers: members.filter((m) => m.role === "MEMBER").length,
     freelancers: freelancers.length,
+  }
+
+  const filteredFreelancers = useMemo(() =>
+    flTypeFilter === "all" ? freelancers : freelancers.filter(f => f.type === flTypeFilter),
+    [freelancers, flTypeFilter]
+  )
+
+  const flTypeCounts = useMemo(() => ({
+    all: freelancers.length,
+    voice_over: freelancers.filter(f => f.type === "voice_over").length,
+    video_editor: freelancers.filter(f => f.type === "video_editor").length,
+    video_shooter: freelancers.filter(f => f.type === "video_shooter").length,
+    other: freelancers.filter(f => f.type === "other").length,
+  }), [freelancers])
+
+  async function handleDeleteFreelancer(id: string, name: string) {
+    if (!confirm(`Delete freelancer "${name}"? This cannot be undone.`)) return
+    const res = await deleteFreelancer(id)
+    if (res.success) {
+      setFreelancers(prev => prev.filter(f => f.id !== id))
+      startTransition(() => router.refresh())
+    }
   }
 
   // Recent activity: last 6 members sorted by created_at desc
@@ -1200,10 +1224,11 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
 
           {roleFilter === "FREELANCER" ? (
             <>
+              {/* Header */}
               <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
                 <div>
                   <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Freelancers</h3>
-                  <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{freelancers.length} freelancer{freelancers.length !== 1 ? "s" : ""}</p>
+                  <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{filteredFreelancers.length} of {freelancers.length} freelancer{freelancers.length !== 1 ? "s" : ""}</p>
                 </div>
                 <button
                   onClick={() => setAssignSheetOpen(true)}
@@ -1212,26 +1237,47 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
                   <UserCheck size={13} /> Assign Manager
                 </button>
               </div>
+              {/* Type filter tabs */}
+              <div className="flex items-center gap-1 px-5 py-3 overflow-x-auto" style={{ borderBottom: "1px solid #F3F4F6" }}>
+                {([
+                  { key: "all",          label: `All (${flTypeCounts.all})` },
+                  { key: "voice_over",   label: `Voice Over (${flTypeCounts.voice_over})` },
+                  { key: "video_editor", label: `Video Editor (${flTypeCounts.video_editor})` },
+                  { key: "video_shooter",label: `Video Shooter (${flTypeCounts.video_shooter})` },
+                  { key: "other",        label: `Other (${flTypeCounts.other})` },
+                ] as const).map(({ key, label }) => (
+                  <button key={key} onClick={() => setFlTypeFilter(key)}
+                    className="whitespace-nowrap px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all flex-shrink-0"
+                    style={flTypeFilter === key
+                      ? { background: "#F97316", color: "#fff" }
+                      : { background: "#F3F4F6", color: "#6B7280" }
+                    }>
+                    {label}
+                  </button>
+                ))}
+              </div>
               <div style={{ overflowX: "auto" }}>
                 <table className="w-full" style={{ minWidth: 560 }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
-                      {["Name", "Type", "Phone", "Rate", "Status", ""].map(h => (
+                      {["Name", "Type", "Phone", "Rate", "Status", "Actions"].map(h => (
                         <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#9CA3AF" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {freelancers.length === 0 ? (
-                      <tr><td colSpan={5} className="px-5 py-10 text-center text-[13px]" style={{ color: "#9CA3AF" }}>No freelancers added yet</td></tr>
-                    ) : freelancers.map((f, i) => {
+                    {filteredFreelancers.length === 0 ? (
+                      <tr><td colSpan={6} className="px-5 py-10 text-center text-[13px]" style={{ color: "#9CA3AF" }}>
+                        {freelancers.length === 0 ? "No freelancers added yet" : "No freelancers match this filter"}
+                      </td></tr>
+                    ) : filteredFreelancers.map((f, i) => {
                       const typeCfg = FL_TYPE_CFG[f.type] ?? { label: f.type, color: "#6B7280", bg: "rgba(107,114,128,0.08)" }
                       const rate = f.cost_per_minute ? `₹${f.cost_per_minute}/min`
                         : f.cost_per_video ? `₹${f.cost_per_video}/video`
                         : f.cost_per_hour ? `₹${f.cost_per_hour}/hr`
                         : "—"
                       return (
-                        <tr key={f.id} style={{ borderBottom: i < freelancers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
+                        <tr key={f.id} style={{ borderBottom: i < filteredFreelancers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
                           <td className="px-5 py-3.5">
                             <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{f.name}</p>
                             {f.gender && <p className="text-[11px] capitalize" style={{ color: "#9CA3AF" }}>{f.gender}</p>}
@@ -1249,11 +1295,19 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
                             </span>
                           </td>
                           <td className="px-5 py-3.5">
-                            <Link href={`/admin/freelancers/${f.id}`}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                              style={{ background: "rgba(249,115,22,0.08)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
-                              View <ArrowRight size={10} />
-                            </Link>
+                            <div className="flex items-center gap-2">
+                              <Link href={`/admin/freelancers/${f.id}`}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                                style={{ background: "rgba(249,115,22,0.08)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
+                                View <ArrowRight size={10} />
+                              </Link>
+                              <button
+                                onClick={() => handleDeleteFreelancer(f.id, f.name)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                                style={{ background: "rgba(222,26,26,0.07)", color: "#DE1A1A", border: "1px solid rgba(222,26,26,0.18)" }}>
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )

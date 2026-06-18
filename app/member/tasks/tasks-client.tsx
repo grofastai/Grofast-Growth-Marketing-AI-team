@@ -365,7 +365,7 @@ function TaskCardInner({
       )}
 
       {/* Progress bar */}
-      {pct > 0 && (
+      {(checklistTotal > 0 || pct > 0) && (
         <div className="mb-2.5">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[8px]" style={{ color: "#9CA3AF" }}>
@@ -381,12 +381,19 @@ function TaskCardInner({
       )}
 
       {/* Footer */}
-      {dueLabel && (
-        <div className="flex items-center gap-1 mb-2">
-          <Calendar size={9} style={{ color: isOverdue ? "#de1a1a" : "#9CA3AF" }} />
-          <span className="text-[9px]" style={{ color: isOverdue ? "#de1a1a" : "#9CA3AF" }}>{dueLabel}</span>
-        </div>
-      )}
+      <div className="flex items-center gap-2 mb-2">
+        {dueLabel && (
+          <div className="flex items-center gap-1">
+            <Calendar size={9} style={{ color: isOverdue ? "#de1a1a" : "#9CA3AF" }} />
+            <span className="text-[9px]" style={{ color: isOverdue ? "#de1a1a" : "#9CA3AF" }}>{dueLabel}</span>
+          </div>
+        )}
+        {(task.attachments ?? []).length > 0 && (
+          <span className="flex items-center gap-1 text-[9px] font-bold" style={{ color: "#6366F1" }}>
+            <ExternalLink size={9} /> {(task.attachments ?? []).length} link{(task.attachments ?? []).length > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
 
       {/* Move button — approval restricted to task creator */}
       {task.status !== "completed" && task.status !== "review" && (

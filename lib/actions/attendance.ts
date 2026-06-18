@@ -471,8 +471,8 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
   const workedByDate: Record<string, number> = {}
   const learnByDate: Record<string, number> = {}
   for (const r of (updatesResult.data ?? [])) {
-    workedByDate[r.date] = (workedByDate[r.date] ?? 0) + (r.working_hours ?? 0)
-    learnByDate[r.date]  = (learnByDate[r.date]  ?? 0) + (r.learning_hours ?? 0)
+    workedByDate[r.date] = Math.max(workedByDate[r.date] ?? 0, r.working_hours ?? 0)
+    learnByDate[r.date]  = Math.max(learnByDate[r.date]  ?? 0, r.learning_hours ?? 0)
   }
 
   const logs = (attResult.data ?? []).map(l => ({

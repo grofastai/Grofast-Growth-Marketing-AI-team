@@ -37,7 +37,7 @@ interface Props {
   monthlyPerf?: MonthlyPerf
 }
 
-const SHIFT_HOURS = 9.5
+const SHIFT_HOURS = 8.5
 const WEEK_DAYS   = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 function fmtTime(iso: string | null) {

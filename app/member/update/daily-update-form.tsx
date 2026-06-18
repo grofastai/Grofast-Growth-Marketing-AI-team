@@ -1183,7 +1183,7 @@ export default function DailyUpdateForm({
   }
 
   // day progress ring
-  const workStart = 9, workEnd = 18, totalWorkHours = workEnd - workStart
+  const workStart = 9, workEnd = 17.5, totalWorkHours = 8.5
   const elapsed = Math.max(0, Math.min(h - workStart, totalWorkHours))
   const dayPct = Math.round((elapsed / totalWorkHours) * 100)
   const ringR = 32, ringCirc = 2 * Math.PI * ringR

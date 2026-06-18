@@ -345,7 +345,6 @@ function FreelancerSheet({
                   <input className={inputCls} type="number" min="0" step="50" placeholder="e.g. 5000" value={form.cost_per_video} onChange={e => set("cost_per_video", e.target.value)} />
                 </Field>
               )}
-
               {/* Status — editing only */}
               {editing && (
                 <Field label="Status">

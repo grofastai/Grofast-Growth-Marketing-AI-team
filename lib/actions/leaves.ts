@@ -339,7 +339,7 @@ async function autoInsertLeaveHistory(
         start_time: null,
         end_time: null,
       }
-      await upsertWorkEntry(admin, leave.company_id, leave.user_id, date, entry, 'on_leave')
+      await upsertWorkEntry(admin, leave.company_id, leave.user_id, date, entry, 'absent')
     }
   }
 }

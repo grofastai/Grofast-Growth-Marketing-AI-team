@@ -1053,7 +1053,7 @@ export default function HistoryClient({
                         </div>
                       )}
                     </div>
-                  ) : u.attendance_status === "on_leave" && entries.length === 1 && entries[0]?.title?.includes("Full Day Leave") ? (
+                  ) : entries.length === 1 && entries[0]?.title?.includes("Full Day Leave") ? (
                     <div style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 18px", background:"linear-gradient(135deg, rgba(16,185,129,0.06) 0%, rgba(16,185,129,0.02) 100%)", borderTop:"1px solid rgba(16,185,129,0.12)" }}>
                       <div style={{ fontSize:40, lineHeight:1 }}>🌴</div>
                       <div>

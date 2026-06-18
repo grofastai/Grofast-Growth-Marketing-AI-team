@@ -460,7 +460,6 @@ export async function updateLeaveStatus(
       }
       curr.setDate(curr.getDate() + 1)
     }
-  }
     // Auto-insert history entry
     try {
       await autoInsertLeaveHistory(admin, leave)

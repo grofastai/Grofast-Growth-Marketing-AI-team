@@ -827,7 +827,8 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Phone</label>
-                  <input className={FIELD_CLS} placeholder="+91 9876543210" value={phone} onChange={e => setPhone(e.target.value)} />
+                  <input className={FIELD_CLS} inputMode="numeric" placeholder="9876543210" value={phone}
+                    onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 15))} />
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">UPI ID</label>

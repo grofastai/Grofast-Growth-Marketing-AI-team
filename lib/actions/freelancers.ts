@@ -136,6 +136,7 @@ export async function createFreelancer(input: FreelancerInput): Promise<{ succes
     await saveAssignments(admin, data.id, allAssignees, companyId)
   }
   revalidatePath("/admin/freelancers")
+  revalidatePath("/admin/team")
   revalidatePath("/member/freelancers")
   return { success: true, id: data?.id }
 }
@@ -170,6 +171,8 @@ export async function updateFreelancer(id: string, input: FreelancerInput): Prom
     await saveAssignments(admin, id, input.assignedMemberIds, companyId)
   }
   revalidatePath("/admin/freelancers")
+  revalidatePath("/admin/team")
+  revalidatePath("/member/freelancers")
   return { success: true }
 }
 
@@ -210,10 +213,15 @@ export async function deleteFreelancer(id: string): Promise<{ success: boolean; 
   if (!companyId) return { success: false, error: "Not authenticated" }
 
   const admin = adminClient()
+  // Remove assignments before deleting so orphaned rows don't linger
+  await admin.from("freelancer_assignments").delete().eq("freelancer_id", id)
+
   const { error } = await admin.from("freelancers").delete().eq("id", id).eq("company_id", companyId)
 
   if (error) return { success: false, error: error.message }
   revalidatePath("/admin/freelancers")
+  revalidatePath("/admin/team")
+  revalidatePath("/member/freelancers")
   return { success: true }
 }
 

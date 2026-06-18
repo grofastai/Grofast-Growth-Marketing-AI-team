@@ -328,7 +328,8 @@ function FreelancerSheet({
               {form.type && (
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Phone">
-                    <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
+                    <input className={inputCls} inputMode="numeric" placeholder="9876543210" value={form.phone}
+                      onChange={e => set("phone", e.target.value.replace(/\D/g, "").slice(0, 15))} />
                   </Field>
                   <Field label="UPI ID">
                     <input className={inputCls} placeholder="name@upi" value={form.upi_id} onChange={e => set("upi_id", e.target.value)} />

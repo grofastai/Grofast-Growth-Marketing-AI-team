@@ -950,7 +950,8 @@ export default function HistoryClient({
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(() => {
                         const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-                        const dayEntryH = calcNetWorkHours(entries) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
+                        const entryCalcH = calcNetWorkHours(entries) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
+                        const dayEntryH = (u.working_hours ?? 0) > 0 ? u.working_hours! : entryCalcH
                         const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
                         return (
                           <>

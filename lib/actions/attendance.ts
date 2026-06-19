@@ -461,14 +461,15 @@ export async function resumeAttendance(date: string): Promise<{ success: boolean
 export async function getAttendanceRange(startDate: string, endDate: string): Promise<{
   success: boolean
   logs: Array<{ id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; break_in: string | null; break_out: string | null; work_type: string | null; status: string; learning_hours: number; worked_hours: number }>
+  leaveDates: string[]
   error?: string
 }> {
   const ctxResult = await getUserContext()
-  if ('error' in ctxResult) return { success: false, logs: [], error: ctxResult.error }
+  if ('error' in ctxResult) return { success: false, logs: [], leaveDates: [], error: ctxResult.error }
   const ctx = ctxResult
 
   const admin = adminSupabase()
-  const [attResult, updatesResult] = await Promise.all([
+  const [attResult, updatesResult, leavesResult] = await Promise.all([
     admin
       .from('attendance_logs')
       .select('id, date, clock_in, clock_out, break_total_mins, break_in, break_out, work_type, status')
@@ -484,9 +485,17 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
       .eq('user_id', ctx.userId)
       .gte('date', startDate)
       .lte('date', endDate),
+    admin
+      .from('leaves')
+      .select('from_date, to_date, leave_type')
+      .eq('company_id', ctx.companyId)
+      .eq('user_id', ctx.userId)
+      .eq('status', 'approved')
+      .lte('from_date', endDate)
+      .gte('to_date', startDate),
   ])
 
-  if (attResult.error) return { success: false, logs: [], error: attResult.error.message }
+  if (attResult.error) return { success: false, logs: [], leaveDates: [], error: attResult.error.message }
 
   const workedByDate: Record<string, number> = {}
   const learnByDate: Record<string, number> = {}
@@ -502,7 +511,20 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
     learning_hours: learnByDate[l.date] ?? 0,
     worked_hours: (workedByDate[l.date] ?? 0) + (learnByDate[l.date] ?? 0),
   }))
-  return { success: true, logs }
+
+  // Expand approved leave date ranges into individual date strings
+  const leaveDates: string[] = []
+  for (const lv of (leavesResult.data ?? [])) {
+    if (lv.leave_type === 'permission') continue // permission doesn't make full day absent
+    const cur = new Date(lv.from_date + 'T12:00:00')
+    const end = new Date(lv.to_date + 'T12:00:00')
+    while (cur <= end) {
+      leaveDates.push(cur.toISOString().split('T')[0])
+      cur.setDate(cur.getDate() + 1)
+    }
+  }
+
+  return { success: true, logs, leaveDates }
 }
 
 export async function getYesterdayGateStatus(): Promise<{

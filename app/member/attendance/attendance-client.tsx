@@ -135,6 +135,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   // Range filter
   const [rangeMode, setRangeMode]       = useState<RangeMode>("date")
   const [rangeLogs, setRangeLogs]       = useState<RangeLog[] | null>(null)
+  const [rangeLeaveDates, setRangeLeaveDates] = useState<string[]>([])
   const [rangeLoading, setRangeLoading] = useState(false)
   const [customFrom, setCustomFrom]     = useState("")
   const [customTo, setCustomTo]         = useState("")
@@ -255,13 +256,13 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     setRangeLoading(true)
     setRangeFrom(from); setRangeTo(to)
     const res = await getAttendanceRange(from, to)
-    if (res.success) setRangeLogs(res.logs)
+    if (res.success) { setRangeLogs(res.logs); setRangeLeaveDates(res.leaveDates ?? []) }
     setRangeLoading(false)
   }
 
   async function handleRangeFilter(mode: RangeMode) {
     setRangeMode(mode); setHistoryDate(""); setHistoryLog(null)
-    if (mode === "date") { setRangeLogs(null); setCustomFrom(""); setCustomTo(""); setRangeFrom(""); setRangeTo(""); return }
+    if (mode === "date") { setRangeLogs(null); setRangeLeaveDates([]); setCustomFrom(""); setCustomTo(""); setRangeFrom(""); setRangeTo(""); return }
     setRangeLoading(true)
     const now = new Date(), todayStr = now.toISOString().split("T")[0]
     let start = "", end = todayStr
@@ -275,7 +276,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     }
     setRangeFrom(start); setRangeTo(end)
     const res = await getAttendanceRange(start, end)
-    if (res.success) setRangeLogs(res.logs)
+    if (res.success) { setRangeLogs(res.logs); setRangeLeaveDates(res.leaveDates ?? []) }
     setRangeLoading(false)
   }
 
@@ -978,23 +979,31 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               const dayLabel  = new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"})
                               const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"})
                               // Gap row — no attendance record exists
-                              if (!l) return (
-                                <tr key={date} style={{ borderBottom:"1px solid #F5F6FA" }}>
-                                  <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111", whiteSpace:"nowrap" }}>{dateLabel}</td>
-                                  <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
-                                  <td style={{ padding:"9px 10px" }}><span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(0,0,0,0.04)", color:"#9CA3AF" }}>No Record</span></td>
-                                  <td colSpan={3} style={{ padding:"9px 10px", color:"#D1D5DB" }}>—</td>
-                                  <td style={{ padding:"9px 10px" }} />
-                                  <td style={{ padding:"9px 10px" }}>
-                                    {date < today && (
-                                      <button onClick={() => handleMarkPastAbsent(date)} disabled={markingAbsent === date}
-                                        style={{ fontSize:10, fontWeight:700, padding:"3px 10px", borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", color:"#EF4444", cursor:"pointer", opacity: markingAbsent === date ? 0.6 : 1 }}>
-                                        {markingAbsent === date ? "..." : "Mark Absent"}
-                                      </button>
-                                    )}
-                                  </td>
-                                </tr>
-                              )
+                              if (!l) {
+                                const isLeaveDay = rangeLeaveDates.includes(date)
+                                return (
+                                  <tr key={date} style={{ borderBottom:"1px solid #F5F6FA", background: isLeaveDay ? "rgba(239,68,68,0.02)" : undefined }}>
+                                    <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111", whiteSpace:"nowrap" }}>{dateLabel}</td>
+                                    <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
+                                    <td style={{ padding:"9px 10px" }}>
+                                      {isLeaveDay
+                                        ? <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(239,68,68,0.1)", color:"#EF4444" }}>On Leave</span>
+                                        : <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(0,0,0,0.04)", color:"#9CA3AF" }}>No Record</span>
+                                      }
+                                    </td>
+                                    <td colSpan={3} style={{ padding:"9px 10px", color:"#D1D5DB" }}>—</td>
+                                    <td style={{ padding:"9px 10px" }} />
+                                    <td style={{ padding:"9px 10px" }}>
+                                      {date < today && !isLeaveDay && (
+                                        <button onClick={() => handleMarkPastAbsent(date)} disabled={markingAbsent === date}
+                                          style={{ fontSize:10, fontWeight:700, padding:"3px 10px", borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", color:"#EF4444", cursor:"pointer", opacity: markingAbsent === date ? 0.6 : 1 }}>
+                                          {markingAbsent === date ? "..." : "Mark Absent"}
+                                        </button>
+                                      )}
+                                    </td>
+                                  </tr>
+                                )
+                              }
                               const workedH = l.worked_hours ?? 0
                               const isEditing = editingDate === l.date
                               return (
@@ -1084,15 +1093,22 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                         const l = rangeLogs.find(r => r.date === date)
                         const dayLabel  = new Date(date+"T12:00:00").toLocaleDateString("en-US",{weekday:"short"})
                         const dateLabel = new Date(date+"T12:00:00").toLocaleDateString("en-IN",{day:"2-digit",month:"short"})
-                        if (!l) return (
-                          <tr key={date} style={{ borderBottom:"1px solid #F5F6FA" }}>
+                        if (!l) {
+                          const isLeaveDay = rangeLeaveDates.includes(date)
+                          return (
+                          <tr key={date} style={{ borderBottom:"1px solid #F5F6FA", background: isLeaveDay ? "rgba(239,68,68,0.02)" : undefined }}>
                             <td style={{ padding:"9px 10px", fontWeight:700, color:"#111111", whiteSpace:"nowrap" }}>{dateLabel}</td>
                             <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
-                            <td style={{ padding:"9px 10px" }}><span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(0,0,0,0.04)", color:"#9CA3AF" }}>No Record</span></td>
+                            <td style={{ padding:"9px 10px" }}>
+                              {isLeaveDay
+                                ? <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(239,68,68,0.1)", color:"#EF4444" }}>On Leave</span>
+                                : <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background:"rgba(0,0,0,0.04)", color:"#9CA3AF" }}>No Record</span>
+                              }
+                            </td>
                             <td colSpan={5} style={{ padding:"9px 10px", color:"#D1D5DB" }}>—</td>
                             <td style={{ padding:"9px 10px" }} />
                             <td style={{ padding:"9px 10px" }}>
-                              {date < today && (
+                              {date < today && !isLeaveDay && (
                                 <button onClick={() => handleMarkPastAbsent(date)} disabled={markingAbsent === date}
                                   style={{ fontSize:10, fontWeight:700, padding:"3px 10px", borderRadius:8, background:"rgba(239,68,68,0.08)", border:"1px solid rgba(239,68,68,0.2)", color:"#EF4444", cursor:"pointer", opacity: markingAbsent === date ? 0.6 : 1 }}>
                                   {markingAbsent === date ? "..." : "Mark Absent"}
@@ -1100,7 +1116,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               )}
                             </td>
                           </tr>
-                        )
+                        )}
                         const isToday   = l.date === today
                         const isInProgress = isToday && !!l.clock_in && !l.clock_out
                         const officeH  = l.clock_in

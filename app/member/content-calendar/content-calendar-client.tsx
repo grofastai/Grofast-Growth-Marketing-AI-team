@@ -181,10 +181,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   function dateStr(d: number) { return `${year}-${String(month + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}` }
 
   const clientOptions = useMemo(() => {
-    const fromPosts = posts.map(p => p.client_name).filter(Boolean) as string[]
-    const others = [...new Set([...clientNames, ...fromPosts])].filter(n => !INTERNAL_BRANDS.includes(n)).sort()
+    const others = clientNames.filter(n => !INTERNAL_BRANDS.includes(n)).sort()
     return [...INTERNAL_BRANDS, ...others]
-  }, [posts, clientNames])
+  }, [clientNames])
 
   const filteredPosts = useMemo(() => {
     let p = filter === "mine" ? posts.filter(p => p.assigned_to === userId) : posts

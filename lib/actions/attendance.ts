@@ -622,7 +622,11 @@ export async function getYesterdayGateStatus(): Promise<{
 
   const hadClockIn = attLog?.status === 'present' && !!attLog?.clock_in
   const forgotLogout = hadClockIn && !attLog?.clock_out
-  const missingUpdate = hadClockIn && !!attLog?.clock_out && !update
+  // Also trigger on weekdays when member had no attendance record but also no daily update
+  const ydDay = yd.getDay() // 0=Sun, 6=Sat
+  const isWeekday = ydDay !== 0 && ydDay !== 6
+  const noAttendanceRecord = !attLog && isWeekday
+  const missingUpdate = !update && (hadClockIn || noAttendanceRecord)
 
   return { forgotLogout, missingUpdate, yesterdayDate: yesterday }
 }

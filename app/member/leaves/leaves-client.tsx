@@ -209,6 +209,22 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
     const fromDate = fd.get("from_date") as string || ""
     const toDate   = (fd.get("to_date") as string) || fromDate
     if (!fromDate) return // let HTML5 required handle it
+
+    // Block if any date in range is a company holiday
+    const holidaySet = new Set(companyLeaves.map(h => h.date))
+    const cur = new Date(fromDate + "T12:00:00")
+    const end = new Date(toDate   + "T12:00:00")
+    while (cur <= end) {
+      const ds = cur.toISOString().split("T")[0]
+      if (holidaySet.has(ds)) {
+        const hName = companyLeaves.find(h => h.date === ds)?.name ?? "a company holiday"
+        e.preventDefault()
+        setNewFormError(`${ds} is already a company holiday (${hName}). You cannot apply leave on a holiday.`)
+        return
+      }
+      cur.setDate(cur.getDate() + 1)
+    }
+
     const conflict = leaves.some(l => !(toDate < l.from_date || fromDate > l.to_date))
     if (conflict) {
       e.preventDefault()

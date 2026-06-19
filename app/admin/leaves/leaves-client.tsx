@@ -3,9 +3,9 @@
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { useState, useTransition } from "react"
-import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, XOctagon, Paperclip, Plus, Trash2 } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, XOctagon, Paperclip, Plus, Trash2, Pencil, X } from "lucide-react"
 import { updateLeaveStatus } from "@/lib/actions/leaves"
-import { addCompanyLeave, deleteCompanyLeave } from "@/lib/actions/company-leaves"
+import { addCompanyLeave, updateCompanyLeave, deleteCompanyLeave } from "@/lib/actions/company-leaves"
 
 interface Leave {
   id: string
@@ -268,6 +268,28 @@ export default function LeavesClient({
   const [holidayAdding, setHolidayAdding] = useState(false)
   const [holidayError, setHolidayError] = useState<string | null>(null)
   const [deletingHolidayId, setDeletingHolidayId] = useState<string | null>(null)
+  const [editingHolidayId, setEditingHolidayId]   = useState<string | null>(null)
+  const [editHolidayDate, setEditHolidayDate]     = useState("")
+  const [editHolidayName, setEditHolidayName]     = useState("")
+  const [savingHolidayId, setSavingHolidayId]     = useState<string | null>(null)
+  const [editHolidayError, setEditHolidayError]   = useState<string | null>(null)
+
+  function startEditHoliday(h: CompanyLeave) {
+    setEditingHolidayId(h.id)
+    setEditHolidayDate(h.date)
+    setEditHolidayName(h.name)
+    setEditHolidayError(null)
+  }
+
+  async function handleSaveHoliday(id: string) {
+    if (!editHolidayDate || !editHolidayName.trim()) { setEditHolidayError("Enter both date and name."); return }
+    setSavingHolidayId(id)
+    setEditHolidayError(null)
+    const res = await updateCompanyLeave(id, editHolidayDate, editHolidayName.trim())
+    setSavingHolidayId(null)
+    if (res.success) { setEditingHolidayId(null); router.refresh() }
+    else setEditHolidayError(res.error ?? "Failed to save")
+  }
 
   async function handleAddHoliday() {
     if (!holidayDate || !holidayName.trim()) { setHolidayError("Enter both date and holiday name."); return }
@@ -416,11 +438,36 @@ export default function LeavesClient({
                 ) : (
                   <div>
                     {companyLeaves.map((h, i) => {
-                      const d = new Date(h.date + "T12:00:00")
-                      const dayName = d.toLocaleDateString("en-IN", { weekday:"long" })
-                      const dateFmt = d.toLocaleDateString("en-IN", { day:"numeric", month:"long", year:"numeric" })
+                      const isEditing = editingHolidayId === h.id
+                      const d = new Date((isEditing ? editHolidayDate || h.date : h.date) + "T12:00:00")
+                      const dayName = new Date(h.date + "T12:00:00").toLocaleDateString("en-IN", { weekday:"long" })
+                      const dateFmt = new Date(h.date + "T12:00:00").toLocaleDateString("en-IN", { day:"numeric", month:"long", year:"numeric" })
+                      const borderStyle = i < companyLeaves.length - 1 ? "1px solid #F5F6FA" : "none"
+                      if (isEditing) {
+                        return (
+                          <div key={h.id} style={{ padding:"12px 20px", borderBottom: borderStyle, background:"rgba(30,64,175,0.03)" }}>
+                            <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+                              <input type="date" value={editHolidayDate} onChange={e => setEditHolidayDate(e.target.value)}
+                                style={{ fontSize:12, fontWeight:600, color:"#111827", background:"#F9FAFB", border:"1.5px solid #BFDBFE", borderRadius:8, padding:"7px 10px", outline:"none", flex:"0 0 148px" }} />
+                              <input type="text" value={editHolidayName} onChange={e => setEditHolidayName(e.target.value)}
+                                onKeyDown={e => e.key === "Enter" && handleSaveHoliday(h.id)}
+                                style={{ fontSize:12, fontWeight:600, color:"#111827", background:"#F9FAFB", border:"1.5px solid #BFDBFE", borderRadius:8, padding:"7px 10px", outline:"none", flex:1, minWidth:100 }} />
+                              <button onClick={() => handleSaveHoliday(h.id)} disabled={savingHolidayId === h.id}
+                                style={{ padding:"7px 14px", borderRadius:8, background:"#1E40AF", color:"#fff", fontSize:11, fontWeight:700, border:"none", cursor:"pointer", display:"flex", alignItems:"center", gap:5, flexShrink:0 }}>
+                                {savingHolidayId === h.id ? <Loader2 size={11} style={{ animation:"spin 1s linear infinite" }} /> : null}
+                                Save
+                              </button>
+                              <button onClick={() => setEditingHolidayId(null)}
+                                style={{ width:28, height:28, borderRadius:8, background:"#F3F4F6", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                                <X size={12} style={{ color:"#6B7280" }} />
+                              </button>
+                            </div>
+                            {editHolidayError && <p style={{ fontSize:11, color:"#EF4444", fontWeight:600, margin:"6px 0 0" }}>{editHolidayError}</p>}
+                          </div>
+                        )
+                      }
                       return (
-                        <div key={h.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 20px", borderBottom: i < companyLeaves.length - 1 ? "1px solid #F5F6FA" : "none" }}>
+                        <div key={h.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 20px", borderBottom: borderStyle }}>
                           <div style={{ width:42, height:42, borderRadius:12, background:"rgba(30,64,175,0.08)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                             <span style={{ fontSize:14, fontWeight:900, color:"#1E40AF", lineHeight:1 }}>{d.getDate()}</span>
                             <span style={{ fontSize:8, fontWeight:700, color:"#1E40AF", textTransform:"uppercase" }}>{d.toLocaleDateString("en-IN", { month:"short" })}</span>
@@ -429,6 +476,10 @@ export default function LeavesClient({
                             <p style={{ fontSize:13, fontWeight:700, color:"#111827", margin:0 }}>{h.name}</p>
                             <p style={{ fontSize:11, color:"#9CA3AF", margin:"2px 0 0" }}>{dayName} · {dateFmt}</p>
                           </div>
+                          <button onClick={() => startEditHoliday(h)}
+                            style={{ width:30, height:30, borderRadius:8, background:"rgba(30,64,175,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <Pencil size={12} style={{ color:"#1E40AF" }} />
+                          </button>
                           <button onClick={() => handleDeleteHoliday(h.id)} disabled={deletingHolidayId === h.id}
                             style={{ width:30, height:30, borderRadius:8, background:"rgba(239,68,68,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                             {deletingHolidayId === h.id ? <Loader2 size={12} style={{ color:"#EF4444", animation:"spin 1s linear infinite" }} /> : <Trash2 size={12} style={{ color:"#EF4444" }} />}

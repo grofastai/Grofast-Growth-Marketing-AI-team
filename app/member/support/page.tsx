@@ -14,5 +14,5 @@ export default async function MemberSupportPage() {
   }
 
   const tickets = await getTickets('MEMBER')
-  return <MemberSupportClient tickets={tickets as any} currentUserId={user?.id ?? ''} />
+  return <AdminSupportClient tickets={tickets as any} currentUserId={user?.id ?? ''} />
 }

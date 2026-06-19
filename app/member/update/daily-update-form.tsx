@@ -640,6 +640,23 @@ export default function DailyUpdateForm({
   function handleWorkingSubmit() {
     setWorkingError(null)
     if (filledBlocks.length === 0) { setWorkingError("Add at least one time block with a description."); return }
+
+    // Per-block validation: timings + description + client are all mandatory
+    for (let i = 0; i < filledBlocks.length; i++) {
+      const b = filledBlocks[i]
+      const label = filledBlocks.length > 1 ? `Block ${i + 1}: ` : ""
+      if (!b.startTime || !b.endTime || toMins(b.endTime) <= toMins(b.startTime)) {
+        setWorkingError(`${label}End time must be after start time.`); return
+      }
+      if (!b.description.trim()) {
+        setWorkingError(`${label}Enter what you worked on.`); return
+      }
+      const hasClient = b.clientNames.length > 0 || (b.projectName === "__custom__" && b.customClient.trim())
+      if (!hasClient) {
+        setWorkingError(`${label}Select a client / project.`); return
+      }
+    }
+
     const work_entries = [
       ...filledBlocks.map(t => {
         const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")

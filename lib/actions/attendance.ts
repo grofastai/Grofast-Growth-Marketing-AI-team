@@ -617,7 +617,7 @@ export async function editAttendanceTimes(
   const admin = adminSupabase()
   const { data: log } = await admin
     .from('attendance_logs')
-    .select('id')
+    .select('id, break_total_mins')
     .eq('company_id', ctx.companyId)
     .eq('user_id', ctx.userId)
     .eq('date', date)
@@ -642,12 +642,18 @@ export async function editAttendanceTimes(
   if (clockOut) updates.clock_out = clockOutISO
   if (breakIn)  updates.break_in  = toISO(breakIn)
   if (breakOut) updates.break_out = toISO(breakOut)
-  // Recalculate break_total_mins if both provided
+  // Recalculate break_total_mins from explicit break times, or cap existing to new span
   if (breakIn && breakOut) {
     const [bih, bim] = breakIn.split(':').map(Number)
     const [boh, bom] = breakOut.split(':').map(Number)
     const mins = (boh * 60 + bom) - (bih * 60 + bim)
     if (mins > 0) updates.break_total_mins = mins
+  } else if (clockOutISO) {
+    // Cap stored break_total_mins to the new span so editing clock times can't leave
+    // an impossible state where break > span.
+    const spanMins = Math.floor((new Date(clockOutISO).getTime() - new Date(clockInISO).getTime()) / 60000)
+    const existing = log.break_total_mins ?? 0
+    if (existing > spanMins) updates.break_total_mins = 0
   }
 
   const { error } = await admin.from('attendance_logs').update(updates).eq('id', log.id)

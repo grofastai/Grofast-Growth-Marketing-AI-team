@@ -336,8 +336,12 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
   const notLogged = !todayLog
   const breakTotalMins  = todayLog?.break_total_mins ?? 0
+  const spanMinsToday   = (todayLog?.clock_in && todayLog?.clock_out)
+    ? Math.floor((new Date(todayLog.clock_out).getTime() - new Date(todayLog.clock_in).getTime()) / 60000)
+    : Infinity
+  const cappedBreakMins = Math.min(breakTotalMins, spanMinsToday)
   const hoursWorked    = todayLog?.clock_in
-    ? Math.max(0, calcHoursNet(todayLog.clock_in, todayLog.clock_out, breakTotalMins, null, todayLog.paused_seconds) - todayPermissionHours)
+    ? Math.max(0, calcHoursNet(todayLog.clock_in, todayLog.clock_out, cappedBreakMins, null, todayLog.paused_seconds) - todayPermissionHours)
     : 0
   const remainingHours = Math.max(SHIFT_HOURS - hoursWorked, 0)
   const isOvertime     = hoursWorked > SHIFT_HOURS
@@ -554,7 +558,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                           { label: "In",     value: fmtTime(todayLog.clock_in),  color: "#111111" },
                           { label: "Out",    value: fmtTime(todayLog.clock_out), color: "#111111" },
                           { label: "Span",   value: fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out)), color: "#6366F1" },
-                          { label: "Break",  value: breakTotalMins > 0 ? fmtHoursShort(breakTotalMins / 60) : "—", color: "#F59E0B" },
+                          { label: "Break",  value: cappedBreakMins > 0 ? fmtHoursShort(cappedBreakMins / 60) : "—", color: "#F59E0B" },
                           { label: "Worked", value: fmtHoursShort(hoursWorked), color: "#22C55E" },
                         ].map(r => (
                           <div key={r.label}>

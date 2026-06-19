@@ -160,7 +160,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
   // Monthly stats grid
   const monthlyStats = [
-    { label: "Total Hrs This Month", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : "—", color: "#6366F1",  sub: undefined },
+    { label: "Monthly Avg Hrs",       value: monthlyAvgHrs > 0 ? `${Math.round(monthlyAvgHrs * 10) / 10}h` : "—", color: "#6366F1", sub: undefined },
     { label: "Working Days",         value: workingDays,                                      color: "#111111",  sub: undefined },
     { label: "Office Days",          value: officeDays,                                       color: "#de1a1a",  sub: undefined },
     { label: "WFH Days",             value: wfhDays,                                          color: "#6366F1",  sub: undefined },

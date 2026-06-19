@@ -352,7 +352,7 @@ export async function updateTaskChecklist(
 
 export async function updateTask(
   id: string,
-  updates: { title?: string; description?: string; priority?: 'low' | 'medium' | 'high'; due_date?: string | null; assigned_to?: string | null }
+  updates: { title?: string; description?: string; priority?: 'low' | 'medium' | 'high'; due_date?: string | null; assigned_to?: string | null; attachments?: { type: 'link' | 'file'; url: string; name: string }[] }
 ): Promise<{ success: boolean; error?: string }> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()

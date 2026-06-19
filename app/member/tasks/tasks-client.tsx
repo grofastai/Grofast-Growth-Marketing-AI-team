@@ -788,7 +788,7 @@ export default function MemberTasksClient({
     const next = [...detailAttachments, entry]
     setDetailAttachments(next)
     setDetailNewLink("")
-    await updateTask(detailTask.id, {})
+    await updateTask(detailTask.id, { attachments: next })
     setTasks(prev => prev.map(t => t.id === detailTask.id ? { ...t, attachments: next } : t))
   }
 
@@ -805,6 +805,7 @@ export default function MemberTasksClient({
       const entry = { type: 'file' as const, url: publicUrl, name: file.name }
       const next = [...detailAttachments, entry]
       setDetailAttachments(next)
+      await updateTask(detailTask.id, { attachments: next })
       setTasks(prev => prev.map(t => t.id === detailTask.id ? { ...t, attachments: next } : t))
     } finally {
       setDetailAttachUploading(false)

@@ -83,26 +83,49 @@ function calcDur(start?: string | null, end?: string | null): number {
 }
 function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m }
 
-// Merges overlapping time intervals across ALL work entries so no minute is double-counted.
-// Works for media (shoot+edit overlap) and non-media (overlapping time blocks) alike.
+// Calculates net work hours by merging work intervals then subtracting any break
+// intervals that overlap — so a break taken inside a work window doesn't count as work.
 function calcNetWorkHours(entries: WorkEntry[]): number {
-  const workEntries = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning")
-  // Build intervals from entries that have start+end times
-  const intervals = workEntries
+  const workEntries  = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning")
+  const breakEntries = entries.filter(e => e.task_type === "break")
+
+  // Build and merge work intervals
+  const workIntervals = workEntries
     .filter(e => e.start_time && e.end_time)
     .map(e => ({ start: toMins(e.start_time!), end: toMins(e.end_time!) }))
     .filter(i => i.end > i.start)
     .sort((a, b) => a.start - b.start)
-  // Merge overlapping intervals
-  let timedMins = 0
-  if (intervals.length > 0) {
-    let cs = intervals[0].start, ce = intervals[0].end
-    for (let i = 1; i < intervals.length; i++) {
-      if (intervals[i].start < ce) { ce = Math.max(ce, intervals[i].end) }
-      else { timedMins += ce - cs; cs = intervals[i].start; ce = intervals[i].end }
+
+  let merged: { start: number; end: number }[] = []
+  if (workIntervals.length > 0) {
+    let cs = workIntervals[0].start, ce = workIntervals[0].end
+    for (let i = 1; i < workIntervals.length; i++) {
+      if (workIntervals[i].start < ce) { ce = Math.max(ce, workIntervals[i].end) }
+      else { merged.push({ start: cs, end: ce }); cs = workIntervals[i].start; ce = workIntervals[i].end }
     }
-    timedMins += ce - cs
+    merged.push({ start: cs, end: ce })
   }
+
+  // Subtract break intervals that overlap with work intervals
+  const breakIntervals = breakEntries
+    .filter(e => e.start_time && e.end_time)
+    .map(e => ({ start: toMins(e.start_time!), end: toMins(e.end_time!) }))
+    .filter(i => i.end > i.start)
+  for (const brk of breakIntervals) {
+    const next: { start: number; end: number }[] = []
+    for (const w of merged) {
+      if (brk.end <= w.start || brk.start >= w.end) {
+        next.push(w)
+      } else {
+        if (brk.start > w.start) next.push({ start: w.start, end: brk.start })
+        if (brk.end < w.end)   next.push({ start: brk.end,  end: w.end   })
+      }
+    }
+    merged = next
+  }
+
+  const timedMins = merged.reduce((s, i) => s + (i.end - i.start), 0)
+
   // Travel hours for shoots are always additive (travel happens outside shoot window)
   const travelH = workEntries
     .filter(e => e.task_type === "shoot")
@@ -1264,7 +1287,7 @@ export default function HistoryClient({
                       {(() => {
                         const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
                         const entryCalcH = calcNetWorkHours(entries) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
-                        const dayEntryH = (u.working_hours ?? 0) > 0 ? u.working_hours! : entryCalcH
+                        const dayEntryH = entryCalcH > 0 ? entryCalcH : (u.working_hours ?? 0)
                         const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
                         return (
                           <>

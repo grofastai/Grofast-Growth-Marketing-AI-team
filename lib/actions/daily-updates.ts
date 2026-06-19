@@ -297,10 +297,12 @@ export async function updatePastDailyUpdate(
   const entriesWithoutLeave = entries.filter(e => !e._is_leave)
   const finalEntries = [...entriesWithoutLeave, ...existingLeaveEntries]
 
-  const totalHours = finalEntries.reduce((s, e) => {
-    const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
-    return s + ((e.duration_hours as number) ?? 0) + travel
-  }, 0)
+  const totalHours = finalEntries
+    .filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
+    .reduce((s, e) => {
+      const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
+      return s + ((e.duration_hours as number) ?? 0) + travel
+    }, 0)
 
   const { error } = await admin
     .from('daily_updates')
@@ -401,10 +403,12 @@ export async function addEntryToDate(
   ]
 
   // Recalculate all aggregates (same logic as updatePastDailyUpdate)
-  const totalHours = allEntries.reduce((s, e) => {
-    const travel = e.task_type === 'shoot' ? (Number(e._travel_hours) || 0) : 0
-    return s + ((e.duration_hours as number) ?? 0) + travel
-  }, 0)
+  const totalHours = allEntries
+    .filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
+    .reduce((s, e) => {
+      const travel = e.task_type === 'shoot' ? (Number(e._travel_hours) || 0) : 0
+      return s + ((e.duration_hours as number) ?? 0) + travel
+    }, 0)
   const aggregates = {
     work_entries: allEntries,
     working_hours: Math.round(totalHours * 10) / 10 || null,

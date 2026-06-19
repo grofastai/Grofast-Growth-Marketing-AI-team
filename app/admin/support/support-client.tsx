@@ -46,12 +46,21 @@ const CATEGORIES_DEF = [
 ]
 
 const KNOWLEDGE_BASE = [
-  { label: 'Attendance Guides',  count: 16, emoji: '📅', bg: '#F0FDF4' },
-  { label: 'Leave Policies',     count: 12, emoji: '🌴', bg: '#DCFCE7' },
-  { label: 'Task Help',          count: 18, emoji: '✅', bg: '#EEF2FF' },
-  { label: 'Client Requests',    count: 22, emoji: '🤝', bg: '#EFF6FF' },
-  { label: 'Getting Started',    count: 10, emoji: '📋', bg: '#FEF2F2' },
+  { label: 'Attendance Guides',  count: 16, img: '/support/scene-attendance.png',   bg: '#FFF8EE' },
+  { label: 'Leave Policies',     count: 12, img: '/support/scene-common-fixes.png', bg: '#F0FDF4' },
+  { label: 'Payroll & Salary',   count: 18, img: '/support/scene-payroll.png',      bg: '#FFF8F8' },
+  { label: 'Payroll Help',       count: 22, img: '/support/scene-payroll-help.png', bg: '#F0F4FF' },
+  { label: 'Getting Started',    count: 10, img: '/support/cat-support.png',        bg: '#FEF2F2' },
 ]
+
+const CAT_IMAGES: Record<string, string> = {
+  attendance: '/support/cat-attendance.png',
+  payment:    '/support/cat-payment.png',
+  other:      '/support/cat-technical.png',
+  leave:      '/support/cat-general.png',
+  client:     '/support/cat-support.png',
+  freelancer: '/support/cat-support.png',
+}
 
 
 const CATEGORIES_FORM = ['attendance', 'leave', 'task', 'client', 'payment', 'freelancer', 'design', 'video', 'marketing', 'automation', 'other']
@@ -298,6 +307,8 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
         borderBottom: '1px solid rgba(0,0,0,0.06)',
         position: 'relative', overflow: 'hidden', minHeight: 240,
       }}>
+        {/* Hero character — right background */}
+        <img src="/support/hero-agent.png" alt="" aria-hidden style={{ position: 'absolute', right: 280, bottom: 0, height: 230, objectFit: 'contain', zIndex: 1, pointerEvents: 'none', opacity: 0.95 }} className="hidden xl:block" />
 
         <div style={{ display: 'flex', gap: 20, padding: '28px 28px 0', position: 'relative', zIndex: 2 }}>
 
@@ -334,18 +345,18 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
           {/* Right: 4 stat cards 2×2 */}
           <div className="hidden lg:grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12, alignContent: 'start', paddingBottom: 28 }}>
             {[
-              { label: 'Pending',     value: stats.open,        emoji: '📋', color: '#EF4444', bg: '#FEE2E2' },
-              { label: 'Avg Response',value: '2h',              emoji: '⏱️', color: '#8B5CF6', bg: '#F5F3FF' },
-              { label: 'Resolved',    value: stats.resolved,    emoji: '✅', color: '#10B981', bg: '#F0FDF4' },
-              { label: 'In Review',   value: stats.in_progress, emoji: '🔍', color: '#F59E0B', bg: '#FFFBEB' },
+              { label: 'Pending',      value: stats.open,        img: '/support/icon-pending.png',  color: '#EF4444', bg: '#FEE2E2' },
+              { label: 'Avg Response', value: '2h',              img: '/support/icon-clock.png',    color: '#8B5CF6', bg: '#F5F3FF' },
+              { label: 'Resolved',     value: stats.resolved,    img: '/support/icon-resolved.png', color: '#10B981', bg: '#F0FDF4' },
+              { label: 'In Review',    value: stats.in_progress, img: '/support/icon-star.png',     color: '#F59E0B', bg: '#FFFBEB' },
             ].map((c, i) => (
               <div key={i} style={{
                 background: '#FFFFFF', borderRadius: 20, padding: '14px 16px',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.09)', border: '1px solid rgba(0,0,0,0.05)', minWidth: 148,
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
-                    {c.emoji}
+                  <div style={{ width: 44, height: 44, borderRadius: 12, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                    <img src={c.img} alt={c.label} style={{ width: 36, height: 36, objectFit: 'contain' }} />
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: 28, fontWeight: 900, color: '#111111', lineHeight: 1 }}>{c.value}</div>
@@ -389,8 +400,10 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F9FAFB'}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${cat.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
-                        {cat.emoji}
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: `${cat.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, overflow: 'hidden' }}>
+                        {CAT_IMAGES[cat.key]
+                          ? <img src={CAT_IMAGES[cat.key]} alt={cat.label} style={{ width: 28, height: 28, objectFit: 'contain' }} />
+                          : <span style={{ fontSize: 18 }}>{cat.emoji}</span>}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -643,9 +656,9 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
 
           {/* Empty state */}
           {filtered.length === 0 && (
-            <div style={{ background: '#FFFFFF', borderRadius: 22, padding: '60px 20px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #E5E7EB' }}>
-              <MessageSquare size={40} color="#E5E7EB" />
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#9CA3AF', margin: '12px 0 4px' }}>No tickets found</p>
+            <div style={{ background: '#FFFFFF', borderRadius: 22, padding: '40px 20px', textAlign: 'center', boxShadow: '0 2px 8px rgba(0,0,0,0.04)', border: '1px solid #E5E7EB' }}>
+              <img src="/support/hero-agent-2.png" alt="" style={{ width: 140, height: 140, objectFit: 'contain', margin: '0 auto 12px' }} />
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#9CA3AF', margin: '0 0 4px' }}>No tickets found</p>
               <p style={{ fontSize: 12, color: '#D1D5DB', margin: 0 }}>Try adjusting your search or filter</p>
             </div>
           )}
@@ -801,8 +814,8 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
               style={{ background: '#FFFFFF', borderRadius: 20, padding: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'all 0.15s' }}
               onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.transform = 'translateY(-3px)'; el.style.boxShadow = '0 10px 28px rgba(0,0,0,0.1)' }}
               onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.transform = 'translateY(0)'; el.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)' }}>
-              <div style={{ width: 50, height: 50, borderRadius: 14, background: card.bg, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>
-                {card.emoji}
+              <div style={{ width: '100%', height: 90, borderRadius: 14, background: card.bg, marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                <img src={card.img} alt={card.label} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 14 }} />
               </div>
               <p style={{ fontSize: 13, fontWeight: 700, color: '#111111', margin: '0 0 3px', lineHeight: 1.3 }}>{card.label}</p>
               <p style={{ fontSize: 11, color: '#9CA3AF', margin: '0 0 10px' }}>{card.count} Articles</p>

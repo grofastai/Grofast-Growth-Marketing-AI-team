@@ -35,6 +35,9 @@ export default async function UpdatePage() {
 
   const companyId = profile?.company_id ?? ""
 
+  const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split("T")[0]
+
   const [
     { data: projectsRaw },
     { data: supabaseClientsRaw },
@@ -42,6 +45,7 @@ export default async function UpdatePage() {
     { data: existingUpdate },
     { data: pastUpdates },
     { data: teamMembersRaw },
+    { data: approvedLeavesRaw },
   ] = await Promise.all([
     admin
       .from("projects")
@@ -82,6 +86,12 @@ export default async function UpdatePage() {
       .eq("role", "MEMBER")
       .neq("id", effectiveUserId)
       .order("name"),
+    admin
+      .from("leaves")
+      .select("from_date, to_date, leave_type")
+      .eq("user_id", effectiveUserId)
+      .eq("status", "approved")
+      .gte("to_date", thirtyDaysAgoStr),
   ])
 
   type Project = { id: string; business_name: string }
@@ -93,6 +103,17 @@ export default async function UpdatePage() {
   const clientNames = supabaseClientNames
   const pastClientNames = (pastClientsRaw ?? []).map((c: { name: string }) => c.name)
   const userName = (profile as { name?: string } | null)?.name ?? ""
+
+  // Expand approved leave date ranges into individual YYYY-MM-DD strings
+  const approvedLeaveDates: string[] = []
+  for (const lv of (approvedLeavesRaw ?? [])) {
+    const cur = new Date(lv.from_date + "T12:00:00")
+    const end = new Date(lv.to_date + "T12:00:00")
+    while (cur <= end) {
+      approvedLeaveDates.push(cur.toISOString().split("T")[0])
+      cur.setDate(cur.getDate() + 1)
+    }
+  }
 
   const fallback = (
     <div className="flex items-center justify-center py-16">
@@ -112,6 +133,7 @@ export default async function UpdatePage() {
         existingUpdate={existingUpdate ?? null}
         pastUpdates={pastUpdates ?? []}
         teamMembers={teamMembers}
+        approvedLeaveDates={approvedLeaveDates}
       />
     </Suspense>
   )

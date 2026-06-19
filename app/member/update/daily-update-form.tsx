@@ -321,11 +321,11 @@ type PastUpdate = {
 }
 
 export default function DailyUpdateForm({
-  projects, sheetClientNames = [], pastClientNames = [], userName, team, existingUpdate, pastUpdates = [], teamMembers = [],
+  projects, sheetClientNames = [], pastClientNames = [], userName, team, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
 }: {
   projects: Project[]; sheetClientNames?: string[]; pastClientNames?: string[]; userName: string; team?: string | null
   existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
-  teamMembers?: TeamMember[]
+  teamMembers?: TeamMember[]; approvedLeaveDates?: string[]
 }) {
   const router = useRouter()
   const existingUpdateRef = useRef(existingUpdate)
@@ -1014,25 +1014,28 @@ export default function DailyUpdateForm({
   // Non-media: working is enough; learning is optional.
   const allDone = isMediaTeam ? (mediaDone && learningDone && breaksDone) : workingDone
 
-  // Past 14 days with no submission at all — shown in the submitted screen
+  // Past 14 days with no submission and no approved leave — shown in the submitted screen
   const unsubmittedDates = useMemo(() => {
-    const done = new Set([...pastUpdates.map(u => u.date), todayStr])
+    const done = new Set([...pastUpdates.map(u => u.date), ...approvedLeaveDates, todayStr])
     const dates: string[] = []
     for (let i = 1; i <= 14; i++) {
-      const d = new Date(); d.setDate(d.getDate() - i)
-      const ds = d.toLocaleDateString("en-CA")
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const ds = d.toISOString().split("T")[0]
       if (!done.has(ds)) dates.push(ds)
     }
     return dates
-  }, [pastUpdates, todayStr]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pastUpdates, approvedLeaveDates, todayStr]) // eslint-disable-line react-hooks/exhaustive-deps
   if (allDone && !editMode) {
     const submittedEntries = Array.isArray((activeUpdate ?? existingUpdateRef.current ?? {})?.work_entries)
       ? ((activeUpdate ?? existingUpdateRef.current ?? {})?.work_entries as Record<string,unknown>[])
       : []
     const subActUpd0  = (activeUpdate ?? existingUpdateRef.current) as Record<string,unknown> | null
-    const totalSubmittedH = submittedEntries.length > 0
+    const rawSubmittedH = submittedEntries.length > 0
       ? submittedEntries.filter(e => e.task_type !== "break").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
-      : Number(subActUpd0?.working_hours) || 0
+      : 0
+    // fall back to working_hours when all entries are breaks (e.g. permission-only days)
+    const totalSubmittedH = rawSubmittedH > 0 ? rawSubmittedH : Number(subActUpd0?.working_hours) || 0
 
     // Media team stats from work_entries — fall back to summary columns when work_entries is empty
     const subShoots   = submittedEntries.filter(e => e.task_type === "shoot")

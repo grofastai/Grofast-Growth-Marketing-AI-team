@@ -339,11 +339,18 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const spanMinsToday   = (todayLog?.clock_in && todayLog?.clock_out)
     ? Math.floor((new Date(todayLog.clock_out).getTime() - new Date(todayLog.clock_in).getTime()) / 60000)
     : Infinity
-  const cappedBreakMins = Math.min(breakTotalMins, spanMinsToday)
+  // Permission breaks are stored in break_sessions with label:"Permission" — exclude them
+  // from cappedBreakMins so the timer shows actual work time, not 0
+  const permBreakMins = ((todayLog?.break_sessions ?? []) as unknown as Record<string, unknown>[])
+    .filter(s => s.label === 'Permission')
+    .reduce((sum, s) => sum + (Number(s.duration_mins) || 0), 0)
+  const actualBreakMins = Math.max(0, breakTotalMins - permBreakMins)
+  const cappedBreakMins = Math.min(actualBreakMins, spanMinsToday)
   const hoursWorked    = todayLog?.clock_in
-    ? Math.max(0, calcHoursNet(todayLog.clock_in, todayLog.clock_out, cappedBreakMins, null, todayLog.paused_seconds) - todayPermissionHours)
+    ? Math.max(0, calcHoursNet(todayLog.clock_in, todayLog.clock_out, cappedBreakMins, null, todayLog.paused_seconds))
     : 0
-  const remainingHours = Math.max(SHIFT_HOURS - hoursWorked, 0)
+  // remaining = shift target minus permission credit minus actual worked
+  const remainingHours = Math.max(SHIFT_HOURS - todayPermissionHours - hoursWorked, 0)
   const isOvertime     = hoursWorked > SHIFT_HOURS
 
   const dateStr    = new Date().toLocaleDateString("en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
@@ -355,7 +362,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(activeWeekStart, i))
   const logByDate = Object.fromEntries(activeWeekLogs.map(l => [l.date, l]))
 
-  const isBelowExpected  = isIn && hoursWorked > 0 && hoursWorked < SHIFT_HOURS
+  const isBelowExpected  = isIn && hoursWorked > 0 && hoursWorked < (SHIFT_HOURS - todayPermissionHours)
 
   const presentCount    = activeWeekLogs.filter(l => l.status === "present").length
   const absentCount     = activeWeekLogs.filter(l => l.status === "leave" || l.status === "absent").length

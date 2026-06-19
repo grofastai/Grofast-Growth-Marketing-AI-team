@@ -802,7 +802,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="grid grid-cols-2 gap-2">
                     {[
                       { label: "Office",  value: monthlyPerf?.officeDays   ?? 0, color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
                       { label: "WFH",     value: monthlyPerf?.wfhDays      ?? 0, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
@@ -816,37 +816,44 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       </div>
                     ))}
                   </div>
-
-                  {/* Monthly Working Insights */}
-                  {monthlyPerf && (
-                    <div className="rounded-2xl p-3" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}>
-                      <p className="text-[11px] font-black uppercase tracking-widest text-center mb-2.5" style={{ color: "#111111" }}>Work Hours Summary</p>
-                      <div className="grid grid-cols-2 gap-2 mb-2">
-                        <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.18)" }}>
-                          <p className="text-[20px] font-black leading-none mb-1" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
-                            {monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
-                          </p>
-                          <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#6366F1" }}>Total</p>
-                        </div>
-                        <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(245,158,11,0.09)", border: "1px solid rgba(245,158,11,0.2)" }}>
-                          <p className="text-[20px] font-black leading-none mb-1" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
-                          <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#D97706" }}>Daily Target</p>
-                        </div>
-                      </div>
-                      <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(34,197,94,0.09)", border: "1px solid rgba(34,197,94,0.2)" }}>
-                        <p className="text-[20px] font-black leading-none mb-1" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                          {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgHours) : "0h"}
-                        </p>
-                        <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#16A34A" }}>Avg / Day</p>
-                      </div>
-                    </div>
-                  )}
                 </>
               )
             })()}
 
           </div>
 
+          {/* Work Hours Summary — separate card */}
+          {monthlyPerf && (
+            <div className="rounded-3xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
+                  <Clock size={16} style={{ color: "#6366F1" }} />
+                </div>
+                <div>
+                  <h3 className="text-[15px] font-bold leading-none" style={{ color: "#111111" }}>Work Hours Summary</h3>
+                  <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>{new Date().toLocaleString("en-US", { month: "long", year: "numeric" })}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)" }}>
+                  <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
+                    {monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
+                  </p>
+                  <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#6366F1" }}>Total</p>
+                </div>
+                <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.15)" }}>
+                  <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
+                  <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#D97706" }}>Daily Target</p>
+                </div>
+              </div>
+              <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}>
+                <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
+                  {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgHours) : "0h"}
+                </p>
+                <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#16A34A" }}>Avg / Day</p>
+              </div>
+            </div>
+          )}
 
         </div>{/* end third col */}
 

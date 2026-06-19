@@ -2447,7 +2447,7 @@ export default function DailyUpdateForm({
               {/* Non-media team: stats based on active tab */}
               {!isMediaTeam && tab === "working" && (() => {
                 // Past date selected → show that date's data; else show today's submitted or live
-                const sourceUpdate = activeUpdate ?? (workingDone ? existingUpdate : null)
+                const sourceUpdate = activeUpdate ?? existingUpdate ?? null
                 const srcEntries = Array.isArray((sourceUpdate as Record<string,unknown> | null)?.work_entries)
                   ? (sourceUpdate as Record<string,unknown>).work_entries as Array<Record<string,unknown>>
                   : null

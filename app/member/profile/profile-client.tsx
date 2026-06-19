@@ -853,14 +853,15 @@ export default function ProfileClient({
           <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <p style={{ fontSize: 14, fontWeight: 800, color: "#111111", margin: 0 }}>Recent Activity</p>
-              <button style={{ fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>View All</button>
+              <button onClick={() => router.push("/member/history")} style={{ fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>View All</button>
             </div>
             {recentUpdates.length === 0 ? (
               <p style={{ fontSize: 12, color: "#D1D5DB", textAlign: "center", padding: "12px 0", margin: 0 }}>No recent activity</p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {recentUpdates.map((upd, i) => (
-                  <div key={upd.date} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                  <div key={upd.date} onClick={() => router.push(`/member/history?date=${upd.date}`)}
+                    style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
                     <div style={{ width: 10, height: 10, borderRadius: "50%", background: DOT_COLORS[i % DOT_COLORS.length], marginTop: 4, flexShrink: 0 }}/>
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 12, fontWeight: 700, color: "#111111", margin: "0 0 2px" }}>{relativeDate(upd.date)}</p>

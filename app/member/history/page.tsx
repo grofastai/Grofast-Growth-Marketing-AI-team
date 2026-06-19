@@ -53,7 +53,8 @@ function adminSupabase() {
   )
 }
 
-export default async function HistoryPage() {
+export default async function HistoryPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+  const { date: defaultDate } = await searchParams
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
@@ -165,6 +166,7 @@ export default async function HistoryPage() {
       attendanceDates={attendanceDates}
       approvedLeaves={approvedLeaves}
       companyLeaves={companyLeaves}
+      defaultDate={defaultDate}
     />
   )
 }

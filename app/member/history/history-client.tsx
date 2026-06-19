@@ -283,7 +283,7 @@ interface CompanyHoliday {
 
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function HistoryClient({
-  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [], companyLeaves = [],
+  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [], companyLeaves = [], defaultDate = "",
 }: {
   updates: UpdateRow[]
   userName: string
@@ -295,6 +295,7 @@ export default function HistoryClient({
   attendanceDates?: string[]
   approvedLeaves?: ApprovedLeave[]
   companyLeaves?: CompanyHoliday[]
+  defaultDate?: string
 }) {
 
   const months = useMemo(() => {
@@ -348,7 +349,7 @@ export default function HistoryClient({
     return now.toLocaleDateString("en-US", { month: "long", year: "numeric" })
   })
   const [search, setSearch]               = useState("")
-  const [selectedDate, setSelectedDate]   = useState("")
+  const [selectedDate, setSelectedDate]   = useState(defaultDate ?? "")
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this day's submission? This cannot be undone.")) return

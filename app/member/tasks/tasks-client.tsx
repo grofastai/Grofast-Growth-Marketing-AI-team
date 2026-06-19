@@ -269,12 +269,13 @@ function TaskCardInner({
 
   return (
     <div className="rounded-2xl p-3.5 mb-2.5 group transition-all select-none"
+      onClick={() => onDetail?.(task)}
       style={{
         background: isDragging ? "#F3F4F6" : "#FFFFFF",
         boxShadow: isDragging ? "0 8px 24px rgba(0,0,0,0.15)" : "0 2px 10px rgba(0,0,0,0.05)",
         border: isOverdue ? "1px solid rgba(222,26,26,0.2)" : "1px solid transparent",
         opacity: isDragging ? 0.5 : 1,
-        cursor: dragProps ? "grab" : "default",
+        cursor: onDetail ? "pointer" : dragProps ? "grab" : "default",
       }}>
 
       {/* Title + drag handle */}
@@ -286,9 +287,8 @@ function TaskCardInner({
           </button>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-[12px] font-semibold leading-snug line-clamp-2 cursor-pointer hover:text-[#de1a1a] transition-colors"
-            style={{ color: "#111111" }}
-            onClick={e => { e.stopPropagation(); if (onDetail) onDetail(task) }}>
+          <p className="text-[12px] font-semibold leading-snug line-clamp-2 hover:text-[#de1a1a] transition-colors"
+            style={{ color: "#111111" }}>
             {task.title}
           </p>
           {task.assignedBy && task.created_by !== currentUserId && (
@@ -398,7 +398,8 @@ function TaskCardInner({
       {/* Move button — approval restricted to task creator */}
       {task.status !== "completed" && task.status !== "review" && (
         <button
-          onClick={() => {
+          onClick={e => {
+            e.stopPropagation()
             const next = task.status === "todo" ? "in_progress" : "review"
             onMove(task.id, next)
           }}
@@ -413,13 +414,13 @@ function TaskCardInner({
       {task.status === "review" && task.created_by === currentUserId && (
         <div className="flex gap-1.5 mt-1.5">
           <button
-            onClick={() => onMove(task.id, "completed")}
+            onClick={e => { e.stopPropagation(); onMove(task.id, "completed") }}
             className="flex-1 py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80"
             style={{ background: "rgba(34,197,94,0.08)", color: "#16A34A" }}>
             ✓ Approve
           </button>
           <button
-            onClick={() => onMove(task.id, "in_progress")}
+            onClick={e => { e.stopPropagation(); onMove(task.id, "in_progress") }}
             className="flex-1 py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80"
             style={{ background: "rgba(245,158,11,0.08)", color: "#D97706" }}>
             ↩ Changes

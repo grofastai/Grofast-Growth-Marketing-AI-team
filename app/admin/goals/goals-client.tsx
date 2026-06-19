@@ -6,10 +6,13 @@ import Image from "next/image"
 import {
   Plus, X, Trash2, Loader2, Calendar, Users, Columns, Target,
   TrendingUp, CheckSquare, Clock, BarChart3, Sparkles, Archive, ChevronDown, ChevronUp,
+  Paperclip, Link2, FileText, ExternalLink,
 } from "lucide-react"
 import { createTask, updateTaskStatus, deleteTask } from "@/lib/actions/tasks"
 import ClientSelector, { resolveClientName } from "@/components/ui/ClientSelector"
 import { syncClientsNow } from "@/lib/actions/sync"
+
+interface TaskAttachment { type: 'link' | 'file'; url: string; name?: string }
 
 interface Task {
   id: string
@@ -19,6 +22,7 @@ interface Task {
   priority: "low" | "medium" | "high"
   due_date: string | null
   acknowledged_at: string | null
+  attachments?: TaskAttachment[] | null
   users: { id: string; name: string; employee_id: string; team?: string | null } | null
   creator: { id: string; name: string; photo_url?: string | null } | null
   projects: { id: string; business_name: string } | null
@@ -174,6 +178,35 @@ function TaskCard({ task, onMove, onDelete, isMoving, isDeleting }: {
           )
         )}
       </div>
+      {/* Attachments submitted by member */}
+      {(task.attachments ?? []).length > 0 && (
+        <div style={{ marginBottom: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 2 }}>
+            <Paperclip size={9} style={{ color: "#6B7280" }} />
+            <span style={{ fontSize: 9, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Attachments ({(task.attachments ?? []).length})
+            </span>
+          </div>
+          {(task.attachments ?? []).map((att, i) => {
+            const isImage = att.type === 'file' && /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url)
+            const name = att.name ?? att.url
+            return (
+              <a key={i} href={att.url} target="_blank" rel="noopener noreferrer"
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", borderRadius: 8, background: "#F9FAFB", border: "1px solid #E5E7EB", textDecoration: "none" }}>
+                {isImage
+                  ? <FileText size={10} style={{ color: "#10B981", flexShrink: 0 }} />
+                  : att.type === 'file'
+                    ? <FileText size={10} style={{ color: "#6366F1", flexShrink: 0 }} />
+                    : <Link2 size={10} style={{ color: "#6366F1", flexShrink: 0 }} />}
+                <span style={{ flex: 1, fontSize: 10, color: "#6366F1", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {name.length > 40 ? name.slice(0, 37) + "…" : name}
+                </span>
+                <ExternalLink size={9} style={{ color: "#9CA3AF", flexShrink: 0 }} />
+              </a>
+            )
+          })}
+        </div>
+      )}
       <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity pt-2"
         style={{ borderTop: "1px dashed #F0F0F0" }}>
         {prev && (

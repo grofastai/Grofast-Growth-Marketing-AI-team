@@ -719,7 +719,7 @@ export default function HistoryClient({
           <h1 style={{ fontSize:26, fontWeight:900, color:"#111111", fontFamily:"var(--font-jakarta)", margin:0 }}>
             Update <span style={{ color:"#DE1A1A" }}>History</span>
           </h1>
-          <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Your daily work logs — last 90 days</p>
+          <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Your daily work logs for {new Date().getFullYear()}</p>
         </div>
 
         {/* Search */}

@@ -544,6 +544,8 @@ export default function MemberTasksClient({
   const [detailAttachments, setDetailAttachments] = useState<Array<{ type: 'link' | 'file'; url: string; name: string }>>([])
   const [detailNewLink, setDetailNewLink] = useState("")
   const [detailAttachUploading, setDetailAttachUploading] = useState(false)
+  const [detailAttachError, setDetailAttachError] = useState<string | null>(null)
+  const [detailAttachSuccess, setDetailAttachSuccess] = useState<string | null>(null)
   const detailFileRef = useRef<HTMLInputElement>(null)
 
   // Edit task
@@ -747,6 +749,8 @@ export default function MemberTasksClient({
     setDetailAttachments((task.attachments ?? []).map(normalizeAttachment))
     setDetailNewCheckItem("")
     setDetailNewLink("")
+    setDetailAttachError(null)
+    setDetailAttachSuccess(null)
   }
 
   async function handleDetailChecklistToggle(idx: number) {
@@ -785,29 +789,45 @@ export default function MemberTasksClient({
   async function handleDetailLinkAdd() {
     const url = detailNewLink.trim()
     if (!url || !detailTask) return
+    setDetailAttachError(null)
+    setDetailAttachSuccess(null)
     const entry = { type: 'link' as const, url, name: url }
     const next = [...detailAttachments, entry]
     setDetailAttachments(next)
     setDetailNewLink("")
-    await updateTask(detailTask.id, { attachments: next })
+    const res = await updateTask(detailTask.id, { attachments: next })
+    if (!res.success) {
+      setDetailAttachments(detailAttachments) // revert
+      setDetailAttachError("Failed to save link. Please try again.")
+      return
+    }
     setTasks(prev => prev.map(t => t.id === detailTask.id ? { ...t, attachments: next } : t))
+    setDetailAttachSuccess("Link added")
+    setTimeout(() => setDetailAttachSuccess(null), 2500)
+    router.refresh()
   }
 
   async function handleDetailFileUpload(file: File) {
     if (!detailTask) return
+    setDetailAttachError(null)
+    setDetailAttachSuccess(null)
     setDetailAttachUploading(true)
     try {
       const supabase = createBrowserClient()
       const ext = file.name.split('.').pop() ?? 'bin'
       const path = `task-attachments/${detailTask.id}/${Date.now()}.${ext}`
       const { data, error } = await supabase.storage.from('media-uploads').upload(path, file, { upsert: false })
-      if (error) { setDetailAttachUploading(false); return }
+      if (error) { setDetailAttachError("Upload failed: " + error.message); return }
       const { data: { publicUrl } } = supabase.storage.from('media-uploads').getPublicUrl(data.path)
       const entry = { type: 'file' as const, url: publicUrl, name: file.name }
       const next = [...detailAttachments, entry]
       setDetailAttachments(next)
-      await updateTask(detailTask.id, { attachments: next })
+      const res = await updateTask(detailTask.id, { attachments: next })
+      if (!res.success) { setDetailAttachError("File uploaded but failed to save. Please try again."); return }
       setTasks(prev => prev.map(t => t.id === detailTask.id ? { ...t, attachments: next } : t))
+      setDetailAttachSuccess("File uploaded successfully")
+      setTimeout(() => setDetailAttachSuccess(null), 2500)
+      router.refresh()
     } finally {
       setDetailAttachUploading(false)
     }
@@ -1824,6 +1844,13 @@ export default function MemberTasksClient({
                       )
                     })}
                   </div>
+                )}
+                {/* Feedback */}
+                {detailAttachError && (
+                  <p style={{ fontSize: 11, color: "#DC2626", margin: "0 0 6px", fontWeight: 600 }}>⚠ {detailAttachError}</p>
+                )}
+                {detailAttachSuccess && (
+                  <p style={{ fontSize: 11, color: "#16A34A", margin: "0 0 6px", fontWeight: 600 }}>✓ {detailAttachSuccess}</p>
                 )}
                 {/* Add link or upload file */}
                 <div style={{ display: "flex", gap: 7 }}>

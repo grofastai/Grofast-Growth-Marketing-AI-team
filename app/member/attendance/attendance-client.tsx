@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition, useCallback, Fragment } from "react"
 import Image from "next/image"
-import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, Calendar, Target, Clock, LogIn, CalendarSearch, RotateCcw } from "lucide-react"
+import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch, RotateCcw } from "lucide-react"
 import { clockIn, clockOut, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes } from "@/lib/actions/attendance"
 import { submitLeaveRequest } from "@/lib/actions/leaves"
 import { useRouter } from "next/navigation"

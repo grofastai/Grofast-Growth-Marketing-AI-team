@@ -3,7 +3,8 @@
 import { useState, useEffect, useTransition, useCallback, Fragment } from "react"
 import Image from "next/image"
 import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch } from "lucide-react"
-import { clockIn, clockOut, markAbsent, markPastAbsent, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes } from "@/lib/actions/attendance"
+import { clockIn, clockOut, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes } from "@/lib/actions/attendance"
+import { submitLeaveRequest } from "@/lib/actions/leaves"
 import { useRouter } from "next/navigation"
 
 const OFFICE_LAT     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LAT     ?? "12.415145713024462")
@@ -139,6 +140,13 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [rangeFrom, setRangeFrom]       = useState("")
   const [rangeTo, setRangeTo]           = useState("")
   const [markingAbsent, setMarkingAbsent] = useState<string | null>(null)
+  // Absent reason states
+  const [absentReason, setAbsentReason]       = useState("")
+  const [absentSubmitting, setAbsentSubmitting] = useState(false)
+  const [absentDone, setAbsentDone]           = useState(false)
+  const [pastAbsentDialog, setPastAbsentDialog] = useState<string | null>(null)
+  const [pastAbsentReason, setPastAbsentReason] = useState("")
+  const [pastAbsentSubmitting, setPastAbsentSubmitting] = useState(false)
   // Login/logout edit
   const [editingDate, setEditingDate]   = useState<string | null>(null)
   const [editCIn, setEditCIn]           = useState("")
@@ -270,14 +278,24 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     setRangeLoading(false)
   }
 
-  async function handleMarkPastAbsent(date: string) {
-    setMarkingAbsent(date)
-    const res = await markPastAbsent(date)
-    if (res.success && rangeFrom && rangeTo) {
-      const refresh = await getAttendanceRange(rangeFrom, rangeTo)
-      if (refresh.success) setRangeLogs(refresh.logs)
-    }
-    setMarkingAbsent(null)
+  function handleMarkPastAbsent(date: string) {
+    setPastAbsentReason("")
+    setPastAbsentDialog(date)
+  }
+
+  async function submitPastAbsent() {
+    if (!pastAbsentDialog || !pastAbsentReason.trim()) return
+    setPastAbsentSubmitting(true)
+    const fd = new FormData()
+    fd.set("leave_type", "full_day")
+    fd.set("from_date", pastAbsentDialog)
+    fd.set("to_date", pastAbsentDialog)
+    fd.set("reason", pastAbsentReason.trim())
+    await submitLeaveRequest(null, fd)
+    setPastAbsentDialog(null)
+    setPastAbsentReason("")
+    setPastAbsentSubmitting(false)
+    router.refresh()
   }
 
   async function handleWeekNav(offset: number) {
@@ -350,6 +368,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   }, 0)
 
   return (
+    <>
     <div className="p-5 md:p-6 xl:p-8 max-w-[1400px]" style={{ background: "#F1F2F6", minHeight: "100vh" }}>
 
       {/* ── Header ── */}
@@ -423,17 +442,44 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                         </button>
                       </div>
                     </>
+                  ) : absentDone ? (
+                    <div className="rounded-2xl p-4" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                      <p className="text-[14px] font-bold" style={{ color: "#059669" }}>Leave request submitted!</p>
+                      <p className="text-[12px] mt-1" style={{ color: "#6B7280" }}>Waiting for admin approval. It will appear in your Leaves page.</p>
+                    </div>
                   ) : (
                     <div className="rounded-2xl p-4" style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)" }}>
-                      <p className="text-[14px] font-bold mb-1" style={{ color: "#111111" }}>Mark today as absent?</p>
-                      <p className="text-[12px] mb-4" style={{ color: "#6B7280" }}>This will record your absence. Cannot be undone.</p>
+                      <p className="text-[14px] font-bold mb-1" style={{ color: "#111111" }}>Apply for today&apos;s leave?</p>
+                      <p className="text-[12px] mb-3" style={{ color: "#6B7280" }}>Give a reason — admin will approve it.</p>
+                      <textarea
+                        value={absentReason}
+                        onChange={e => setAbsentReason(e.target.value)}
+                        placeholder="Reason for absence..."
+                        rows={2}
+                        className="w-full text-[13px] rounded-xl p-3 mb-3 resize-none outline-none"
+                        style={{ border: "1px solid #E5E7EB", color: "#111111", background: "#fff" }}
+                      />
                       <div className="flex gap-3">
-                        <button onClick={() => { handle(markAbsent); setConfirmAbsent(false) }} disabled={isPending}
+                        <button
+                          disabled={!absentReason.trim() || absentSubmitting}
+                          onClick={async () => {
+                            setAbsentSubmitting(true)
+                            const fd = new FormData()
+                            fd.set("leave_type", "full_day")
+                            fd.set("from_date", today)
+                            fd.set("to_date", today)
+                            fd.set("reason", absentReason.trim())
+                            await submitLeaveRequest(null, fd)
+                            setAbsentSubmitting(false)
+                            setConfirmAbsent(false)
+                            setAbsentReason("")
+                            setAbsentDone(true)
+                          }}
                           className="px-5 py-2 rounded-xl text-[13px] font-bold disabled:opacity-50"
                           style={{ background: "#EF4444", color: "#FFFFFF" }}>
-                          {isPending ? <Loader2 size={13} className="animate-spin" /> : "Confirm Absent"}
+                          {absentSubmitting ? <Loader2 size={13} className="animate-spin" /> : "Submit Leave Request"}
                         </button>
-                        <button onClick={() => setConfirmAbsent(false)}
+                        <button onClick={() => { setConfirmAbsent(false); setAbsentReason("") }}
                           className="px-5 py-2 rounded-xl text-[13px] font-bold"
                           style={{ background: "#F3F4F6", color: "#374151" }}>Cancel</button>
                       </div>
@@ -1091,5 +1137,36 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
       </div>
 
     </div>
+
+    {/* Past-date absent reason modal */}
+    {pastAbsentDialog && (
+      <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+        <div style={{ background:"#fff", borderRadius:20, padding:24, width:"100%", maxWidth:380, boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
+          <p style={{ fontSize:15, fontWeight:800, color:"#111111", margin:"0 0 4px" }}>Apply Leave for {new Date(pastAbsentDialog + "T12:00:00").toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" })}</p>
+          <p style={{ fontSize:12, color:"#6B7280", margin:"0 0 14px" }}>Give a reason — admin will approve it.</p>
+          <textarea
+            value={pastAbsentReason}
+            onChange={e => setPastAbsentReason(e.target.value)}
+            placeholder="Reason for absence..."
+            rows={3}
+            style={{ width:"100%", fontSize:13, border:"1px solid #E5E7EB", borderRadius:12, padding:"10px 12px", outline:"none", resize:"none", boxSizing:"border-box", color:"#111111" }}
+          />
+          <div style={{ display:"flex", gap:10, marginTop:14 }}>
+            <button
+              disabled={!pastAbsentReason.trim() || pastAbsentSubmitting}
+              onClick={submitPastAbsent}
+              style={{ flex:1, padding:"10px 0", borderRadius:12, background:"#EF4444", color:"#fff", fontSize:13, fontWeight:700, border:"none", cursor:"pointer", opacity: (!pastAbsentReason.trim() || pastAbsentSubmitting) ? 0.5 : 1 }}>
+              {pastAbsentSubmitting ? "Submitting…" : "Submit Leave Request"}
+            </button>
+            <button
+              onClick={() => { setPastAbsentDialog(null); setPastAbsentReason("") }}
+              style={{ padding:"10px 16px", borderRadius:12, background:"#F3F4F6", color:"#374151", fontSize:13, fontWeight:700, border:"none", cursor:"pointer" }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

@@ -73,7 +73,11 @@ export default async function HistoryPage() {
 
   const companyId = profileResult.data?.company_id ?? ""
 
-  const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult] = await Promise.all([
+  const ninetyDaysAgo = new Date()
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
+  const fromDateStr = ninetyDaysAgo.toISOString().split("T")[0]
+
+  const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult, leavesResult] = await Promise.all([
     supabase
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, learning_start_time, learning_end_time, shoot_count, editing_count, work_entries, created_at")
@@ -109,6 +113,14 @@ export default async function HistoryPage() {
       .not("clock_in", "is", null)
       .order("date", { ascending: false })
       .limit(90),
+    // Approved leaves — used to show in history even if no daily_updates entry
+    admin
+      .from("leaves")
+      .select("id, leave_type, from_date, to_date, reason, permission_time, permission_end_time, permission_hours, half_day_from_time, half_day_to_time, half_day_period")
+      .eq("user_id", effectiveUserId)
+      .eq("status", "approved")
+      .gte("from_date", fromDateStr)
+      .order("from_date", { ascending: false }),
   ])
 
   // Build a set of dates where the member actually clocked in
@@ -129,6 +141,14 @@ export default async function HistoryPage() {
   const members = (membersResult.data ?? []) as MemberInfo[]
   const attendanceDates = Array.from(clockedInDates)
 
+  type ApprovedLeave = {
+    id: string; leave_type: string; from_date: string; to_date: string
+    reason: string | null; permission_time: string | null; permission_end_time: string | null
+    permission_hours: number | null; half_day_from_time: string | null
+    half_day_to_time: string | null; half_day_period: string | null
+  }
+  const approvedLeaves = (leavesResult.data ?? []) as ApprovedLeave[]
+
   return (
     <HistoryClient
       updates={updates}
@@ -139,6 +159,7 @@ export default async function HistoryPage() {
       participatedUpdates={participatedUpdates}
       members={members}
       attendanceDates={attendanceDates}
+      approvedLeaves={approvedLeaves}
     />
   )
 }

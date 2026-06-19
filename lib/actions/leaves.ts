@@ -170,25 +170,72 @@ export async function deleteLeaveRequest(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
 
-  // Only allow deleting own pending leaves
   const { data: leave } = await supabase
     .from('leaves')
-    .select('user_id, status')
+    .select('user_id, status, leave_type, from_date, to_date, company_id')
     .eq('id', leaveId)
     .single()
 
   if (!leave) return { success: false, error: 'Leave not found' }
   if (leave.user_id !== user.id) return { success: false, error: 'Not authorized' }
-  const { error } = await supabase
-    .from('leaves')
-    .delete()
-    .eq('id', leaveId)
 
+  // Delete the leave record
+  const { error } = await supabase.from('leaves').delete().eq('id', leaveId)
   if (error) return { success: false, error: error.message }
+
+  // If it was approved, also clean up attendance_logs and daily_updates
+  if (leave.status === 'approved') {
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+    // Build all dates in the leave range
+    const dates: string[] = []
+    const cur = new Date(leave.from_date + 'T12:00:00')
+    const end = new Date(leave.to_date   + 'T12:00:00')
+    while (cur <= end) { dates.push(cur.toISOString().split('T')[0]); cur.setDate(cur.getDate() + 1) }
+
+    for (const date of dates) {
+      // Remove absent attendance_log (no clock_in) inserted when leave was approved
+      await admin.from('attendance_logs')
+        .delete()
+        .eq('user_id', leave.user_id)
+        .eq('company_id', leave.company_id)
+        .eq('date', date)
+        .is('clock_in', null)
+
+      // Remove daily_updates row if it was the auto-inserted leave entry (attendance_status = absent)
+      const { data: du } = await admin.from('daily_updates')
+        .select('id, work_entries')
+        .eq('user_id', leave.user_id)
+        .eq('company_id', leave.company_id)
+        .eq('date', date)
+        .single()
+
+      if (du) {
+        const entries: { title?: string }[] = Array.isArray(du.work_entries) ? du.work_entries : []
+        const leaveEntryIdx = entries.findIndex(e =>
+          e.title?.includes('Full Day Leave') ||
+          e.title?.includes('Permission') ||
+          e.title?.includes('Half Day Leave')
+        )
+        if (leaveEntryIdx !== -1) {
+          const remaining = entries.filter((_, i) => i !== leaveEntryIdx)
+          if (remaining.length === 0) {
+            await admin.from('daily_updates').delete().eq('id', du.id)
+          } else {
+            await admin.from('daily_updates').update({ work_entries: remaining }).eq('id', du.id)
+          }
+        }
+      }
+    }
+  }
 
   revalidatePath('/member/leaves')
   revalidatePath('/member/dashboard')
   revalidatePath('/admin/leaves')
+  revalidatePath('/member/history')
   return { success: true }
 }
 

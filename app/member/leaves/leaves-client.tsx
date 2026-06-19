@@ -142,16 +142,18 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [leaves, setLeaves]         = useState(initialLeaves)
   useEffect(() => { setLeaves(initialLeaves) }, [initialLeaves])
 
-  // Merge absent days from attendance_logs into a unified timeline list
-  const absentEntries: Leave[] = absentDays.map(a => ({
-    id: `absent-${a.id}`,
-    from_date: a.date,
-    to_date: a.date,
-    reason: "Marked as absent",
-    status: "absent",
-    created_at: a.date,
-    leave_type: "absent",
-  }))
+  // Merge absent days from attendance_logs — skip dates already covered by a leave record
+  const absentEntries: Leave[] = absentDays
+    .filter(a => !leaves.some(l => a.date >= l.from_date && a.date <= l.to_date))
+    .map(a => ({
+      id: `absent-${a.id}`,
+      from_date: a.date,
+      to_date: a.date,
+      reason: "Marked as absent",
+      status: "absent",
+      created_at: a.date,
+      leave_type: "absent",
+    }))
   const allEntries = [...leaves, ...absentEntries].sort((a, b) => b.from_date.localeCompare(a.from_date))
   const [showForm, setShowForm]         = useState(false)
   const [leaveType, setLeaveType]       = useState<LeaveType>("full_day")
@@ -501,8 +503,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                             {leave.status === "approved" && (
                               <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0 }}>Requested on {fmtShort(leave.created_at)}</p>
                             )}
-                            {/* Actions: pending gets Edit + Cancel; approved/rejected get delete icon; absent = nothing */}
-                            {leave.status === "absent" ? null : leave.status === "pending" ? (
+                            {/* Actions: pending → Edit + Cancel; approved → Withdraw; absent/rejected → nothing */}
+                            {leave.status === "absent" || leave.status === "rejected" ? null : leave.status === "pending" ? (
                               <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
                                 <button
                                   onClick={() => { setEditingLeave(leave); setShowForm(true) }}
@@ -515,14 +517,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                                   <X size={11} /> Cancel
                                 </button>
                               </div>
-                            ) : (leave.leave_type === "full_day" || leave.leave_type === "half_day" || !leave.leave_type) ? (
-                              <button onClick={() => setDeleteId(leave.id)} title="Delete"
-                                style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.15)", cursor: "pointer", padding: "5px 7px", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                <Trash2 size={13} style={{ color: "#EF4444" }} />
+                            ) : leave.status === "approved" ? (
+                              <button onClick={() => setDeleteId(leave.id)}
+                                style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 8, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", fontSize: 11, fontWeight: 700, color: "#EF4444", cursor: "pointer" }}>
+                                <X size={11} /> Withdraw
                               </button>
-                            ) : (
-                              <div style={{ width: 22 }} />
-                            )}
+                            ) : null}
                           </div>
                         </div>
                       </div>
@@ -616,16 +616,26 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
             <div style={{ width: 52, height: 52, borderRadius: 16, background: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16 }}>
               <AlertTriangle size={24} style={{ color: "#EF4444" }} />
             </div>
-            <p style={{ fontSize: 16, fontWeight: 900, color: "#0A0A0B", margin: "0 0 8px" }}>Delete Leave Request?</p>
-            <p style={{ fontSize: 13, color: "#6B7280", margin: "0 0 24px", lineHeight: 1.6 }}>This will permanently remove your pending leave request. This action cannot be undone.</p>
-            <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
-              <button onClick={() => handleDelete(deleteId)} disabled={deleting}
-                style={{ flex: 1, padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 700, background: "#EF4444", color: "#fff", border: "none", cursor: "pointer", opacity: deleting ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                {deleting ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                Delete
-              </button>
-            </div>
+            {(() => {
+              const deletingLeave = leaves.find(l => l.id === deleteId)
+              const isApproved = deletingLeave?.status === "approved"
+              return (<>
+                <p style={{ fontSize: 16, fontWeight: 900, color: "#0A0A0B", margin: "0 0 8px" }}>{isApproved ? "Withdraw Approved Leave?" : "Cancel Leave Request?"}</p>
+                <p style={{ fontSize: 13, color: "#6B7280", margin: "0 0 24px", lineHeight: 1.6 }}>
+                  {isApproved
+                    ? "This will withdraw your approved leave and remove it from your attendance and history. This cannot be undone."
+                    : "This will permanently remove your pending leave request. This action cannot be undone."}
+                </p>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button onClick={() => setDeleteId(null)} style={{ flex: 1, padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
+                  <button onClick={() => handleDelete(deleteId)} disabled={deleting}
+                    style={{ flex: 1, padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 700, background: "#EF4444", color: "#fff", border: "none", cursor: "pointer", opacity: deleting ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    {deleting ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
+                    {isApproved ? "Withdraw Leave" : "Cancel Request"}
+                  </button>
+                </div>
+              </>)
+            })()}
           </div>
         </div>
       )}

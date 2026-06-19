@@ -225,9 +225,16 @@ interface ParticipatedUpdate {
 
 interface MemberInfo { id: string; name: string }
 
+interface ApprovedLeave {
+  id: string; leave_type: string; from_date: string; to_date: string
+  reason: string | null; permission_time: string | null; permission_end_time: string | null
+  permission_hours: number | null; half_day_from_time: string | null
+  half_day_to_time: string | null; half_day_period: string | null
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function HistoryClient({
-  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [],
+  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [],
 }: {
   updates: UpdateRow[]
   userName: string
@@ -236,7 +243,8 @@ export default function HistoryClient({
   pastClients?: string[]
   participatedUpdates?: ParticipatedUpdate[]
   members?: MemberInfo[]
-  attendanceDates?: string[]   // all dates with a clock-in (from attendance_logs)
+  attendanceDates?: string[]
+  approvedLeaves?: ApprovedLeave[]
 }) {
 
   const months = useMemo(() => {
@@ -585,11 +593,17 @@ export default function HistoryClient({
     return map
   }, [participatedUpdates])
 
-  // Merge own updates + orphan collaborated entries (dates where user has no own update)
-  type MergedItem = { type: "own"; date: string; u: UpdateRow } | { type: "collab"; date: string; pus: ParticipatedUpdate[] }
+  // Merge own updates + collab orphans + approved leave-only dates
+  type MergedItem =
+    | { type: "own"; date: string; u: UpdateRow }
+    | { type: "collab"; date: string; pus: ParticipatedUpdate[] }
+    | { type: "leave"; date: string; leave: ApprovedLeave }
+
   const mergedList = useMemo((): MergedItem[] => {
     const ownDates = new Set(filtered.map(u => u.date))
     const monthPrefix = selectedMonth && monthFiltered[0]?.date ? monthFiltered[0].date.slice(0, 7) : null
+
+    // Collab orphans
     const orphans: { date: string; pus: ParticipatedUpdate[] }[] = []
     for (const [date, pus] of participatedByDate.entries()) {
       if (ownDates.has(date)) continue
@@ -598,10 +612,29 @@ export default function HistoryClient({
       orphans.push({ date, pus })
     }
     orphans.sort((a, b) => b.date.localeCompare(a.date))
-    const ownItems: MergedItem[] = filtered.map(u => ({ type: "own", date: u.date, u }))
+
+    // Approved leave dates that have no daily_updates entry
+    const leaveItems: MergedItem[] = []
+    const collabDates = new Set(orphans.map(o => o.date))
+    for (const leave of approvedLeaves) {
+      const start = new Date(leave.from_date + "T12:00:00")
+      const end   = new Date(leave.to_date   + "T12:00:00")
+      const cur   = new Date(start)
+      while (cur <= end) {
+        const ds = cur.toISOString().split("T")[0]
+        if (!ownDates.has(ds) && !collabDates.has(ds)) {
+          if (!monthPrefix || ds.startsWith(monthPrefix)) {
+            leaveItems.push({ type: "leave", date: ds, leave })
+          }
+        }
+        cur.setDate(cur.getDate() + 1)
+      }
+    }
+
+    const ownItems: MergedItem[]    = filtered.map(u => ({ type: "own", date: u.date, u }))
     const collabItems: MergedItem[] = orphans.map(o => ({ type: "collab", date: o.date, pus: o.pus }))
-    return [...ownItems, ...collabItems].sort((a, b) => b.date.localeCompare(a.date))
-  }, [filtered, participatedByDate, selectedMonth, monthFiltered])
+    return [...ownItems, ...collabItems, ...leaveItems].sort((a, b) => b.date.localeCompare(a.date))
+  }, [filtered, participatedByDate, selectedMonth, monthFiltered, approvedLeaves])
 
   const topActivity = useMemo(() => {
     const map: Record<string, number> = {}
@@ -889,6 +922,131 @@ export default function HistoryClient({
                     })}
                   </div>
                 )
+              }
+
+              // ── Approved leave card (no daily_updates entry) ──
+              if (item.type === "leave") {
+                const leave = item.leave
+                const ld = new Date(item.date + "T12:00:00")
+                const ldLabel = ld.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
+                const ldMon = ld.toLocaleDateString("en-US", { month:"short" })
+
+                if (leave.leave_type === "full_day") {
+                  return (
+                    <div key={`leave-${item.date}`} style={{ background:"#fff", borderRadius:20, border:"1px solid rgba(16,185,129,0.2)", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid rgba(16,185,129,0.1)", background:"rgba(16,185,129,0.02)" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <div style={{ width:38, height:38, borderRadius:10, background:"rgba(16,185,129,0.1)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <span style={{ fontSize:14, fontWeight:900, color:"#059669", lineHeight:1 }}>{ld.getDate()}</span>
+                            <span style={{ fontSize:8, fontWeight:700, color:"#059669", textTransform:"uppercase" }}>{ldMon}</span>
+                          </div>
+                          <div>
+                            <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{ldLabel}</p>
+                            <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Full Day Leave</p>
+                          </div>
+                        </div>
+                        <span style={{ fontSize:11, fontWeight:700, color:"#10B981", background:"rgba(16,185,129,0.12)", padding:"3px 10px", borderRadius:99 }}>Approved</span>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 18px", background:"linear-gradient(135deg,rgba(16,185,129,0.06) 0%,rgba(16,185,129,0.02) 100%)" }}>
+                        <div style={{ fontSize:36, lineHeight:1 }}>🌴</div>
+                        <div>
+                          <p style={{ fontSize:14, fontWeight:900, color:"#059669", margin:"0 0 3px" }}>Full Day Leave</p>
+                          <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leave.reason ?? "Approved Leave"}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (leave.leave_type === "permission") {
+                  const startT = leave.permission_time ?? ""
+                  let endT = leave.permission_end_time ?? ""
+                  if (!endT && leave.permission_hours && startT) {
+                    const [fh, fm] = startT.split(":").map(Number)
+                    const totalMins = fh * 60 + fm + Math.round(leave.permission_hours * 60)
+                    endT = `${String(Math.floor(totalMins / 60)).padStart(2,"0")}:${String(totalMins % 60).padStart(2,"0")}`
+                  }
+                  const dur = startT && endT ? calcDurationFromTimes(startT, endT) : null
+                  return (
+                    <div key={`leave-${item.date}`} style={{ background:"#fff", borderRadius:20, border:"1px solid rgba(99,102,241,0.2)", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid rgba(99,102,241,0.1)", background:"rgba(99,102,241,0.02)" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <div style={{ width:38, height:38, borderRadius:10, background:"rgba(99,102,241,0.1)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <span style={{ fontSize:14, fontWeight:900, color:"#6366F1", lineHeight:1 }}>{ld.getDate()}</span>
+                            <span style={{ fontSize:8, fontWeight:700, color:"#6366F1", textTransform:"uppercase" }}>{ldMon}</span>
+                          </div>
+                          <div>
+                            <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{ldLabel}</p>
+                            <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Permission Leave</p>
+                          </div>
+                        </div>
+                        <span style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"rgba(99,102,241,0.12)", padding:"3px 10px", borderRadius:99 }}>Approved</span>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:16, padding:"18px 18px" }}>
+                        <div style={{ fontSize:32, lineHeight:1 }}>🕐</div>
+                        <div style={{ flex:1 }}>
+                          <p style={{ fontSize:14, fontWeight:900, color:"#6366F1", margin:"0 0 3px" }}>Permission</p>
+                          <p style={{ fontSize:12, color:"#6B7280", margin:"0 0 6px" }}>{leave.reason ?? "Permission Leave"}</p>
+                          {startT && (
+                            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                              <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
+                                <Clock size={11} style={{ color:"#9CA3AF" }}/>
+                                {fmt12(startT)}{endT ? ` – ${fmt12(endT)}` : ""}
+                              </span>
+                              {dur && dur > 0 && (
+                                <span style={{ fontSize:10, fontWeight:700, color:"#6366F1", background:"rgba(99,102,241,0.1)", padding:"2px 8px", borderRadius:99 }}>{fmtH(dur)}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+
+                if (leave.leave_type === "half_day") {
+                  const startT = leave.half_day_from_time ?? ""
+                  const endT   = leave.half_day_to_time   ?? ""
+                  const dur    = startT && endT ? calcDurationFromTimes(startT, endT) : null
+                  const period = leave.half_day_period ?? ""
+                  return (
+                    <div key={`leave-${item.date}`} style={{ background:"#fff", borderRadius:20, border:"1px solid rgba(245,158,11,0.2)", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid rgba(245,158,11,0.1)", background:"rgba(245,158,11,0.02)" }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <div style={{ width:38, height:38, borderRadius:10, background:"rgba(245,158,11,0.1)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <span style={{ fontSize:14, fontWeight:900, color:"#D97706", lineHeight:1 }}>{ld.getDate()}</span>
+                            <span style={{ fontSize:8, fontWeight:700, color:"#D97706", textTransform:"uppercase" }}>{ldMon}</span>
+                          </div>
+                          <div>
+                            <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{ldLabel}</p>
+                            <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Half Day Leave{period ? ` · ${period}` : ""}</p>
+                          </div>
+                        </div>
+                        <span style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.12)", padding:"3px 10px", borderRadius:99 }}>Approved</span>
+                      </div>
+                      <div style={{ display:"flex", alignItems:"center", gap:16, padding:"18px 18px" }}>
+                        <div style={{ fontSize:32, lineHeight:1 }}>🌓</div>
+                        <div style={{ flex:1 }}>
+                          <p style={{ fontSize:14, fontWeight:900, color:"#D97706", margin:"0 0 3px" }}>Half Day Leave</p>
+                          <p style={{ fontSize:12, color:"#6B7280", margin:"0 0 6px" }}>{leave.reason ?? "Half Day Leave"}</p>
+                          {startT && endT && (
+                            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                              <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
+                                <Clock size={11} style={{ color:"#9CA3AF" }}/>
+                                {fmt12(startT)} – {fmt12(endT)}
+                              </span>
+                              {dur && dur > 0 && (
+                                <span style={{ fontSize:10, fontWeight:700, color:"#D97706", background:"rgba(245,158,11,0.1)", padding:"2px 8px", borderRadius:99 }}>{fmtH(dur)}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+
+                return null
               }
 
               // ── Own update card ──

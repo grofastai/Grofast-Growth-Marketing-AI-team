@@ -423,7 +423,7 @@ export async function resumeAttendance(date: string): Promise<{ success: boolean
 
   const { data: log } = await admin
     .from('attendance_logs')
-    .select('id, clock_out, paused_seconds')
+    .select('id, clock_in, clock_out, paused_seconds, break_total_mins')
     .eq('company_id', ctx.companyId)
     .eq('user_id', ctx.userId)
     .eq('date', date)
@@ -434,15 +434,22 @@ export async function resumeAttendance(date: string): Promise<{ success: boolean
   if (!log.clock_out) return { success: false, error: 'Already clocked in — not clocked out yet.' }
 
   // Add the gap between clock_out and now to paused_seconds so the live timer
-  // doesn't count the idle window between logout and the overtime resume click.
-  // Clamp the existing value first (guards corrupted negative rows), then add gap.
+  // doesn't count the idle window between logout and the continue click.
   const gapSeconds = Math.max(0, Math.floor((Date.now() - new Date(log.clock_out).getTime()) / 1000))
   const existingPaused = Math.max(0, (log.paused_seconds as number) ?? 0)
   const newPausedSeconds = existingPaused + gapSeconds
 
+  // If break_total_mins somehow exceeds the session span (corrupted data),
+  // reset it to 0 so the live timer doesn't show 0 after resuming.
+  const spanMins = log.clock_in
+    ? Math.floor((new Date(log.clock_out).getTime() - new Date(log.clock_in).getTime()) / 60000)
+    : 0
+  const updates: Record<string, unknown> = { clock_out: null, paused_seconds: newPausedSeconds }
+  if ((log.break_total_mins ?? 0) > spanMins) updates.break_total_mins = 0
+
   const { error } = await admin
     .from('attendance_logs')
-    .update({ clock_out: null, paused_seconds: newPausedSeconds })
+    .update(updates)
     .eq('id', log.id)
 
   if (error) return { success: false, error: error.message }

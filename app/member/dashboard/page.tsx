@@ -51,7 +51,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   type TaskRow       = { id: string; title: string; status: string; priority: string; due_date: string | null }
   type AttLog        = { clock_in: string | null; clock_out: string | null }
   type MonthlyUpdate = { working_hours: number | null; attendance_status: string }
-  type MonthlyAttLog = { work_type: string | null; status: string }
+  type MonthlyAttLog = { work_type: string | null; status: string; date: string }
   type LeaveRow      = { from_date: string; to_date: string; leave_type: string | null }
 
   const [
@@ -75,7 +75,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
     supabase.from("daily_updates").select("working_hours, attendance_status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
     adminClient().from("leaves").select("from_date, to_date, leave_type").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
-    supabase.from("attendance_logs").select("work_type, status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
+    supabase.from("attendance_logs").select("work_type, status, date").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
   ])
 
   const profile        = profileRaw as unknown as ProfileRow | null
@@ -118,11 +118,18 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     const h = u.working_hours ?? 0; return h > OVERTIME_THRESHOLD ? sum + (h - OVERTIME_THRESHOLD) : sum
   }, 0) * 10) / 10 : 0
 
-  const leaveDays = approvedLeaves
-    .filter(l => l.leave_type !== "permission")
-    .reduce((sum, l) => {
-      return sum + Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
-    }, 0)
+  // Union: approved leave dates + attendance_logs marked leave/absent
+  const leaveDateSet = new Set<string>()
+  for (const l of approvedLeaves) {
+    if (l.leave_type === "permission") continue
+    const cur = new Date(l.from_date + "T12:00:00")
+    const end = new Date(l.to_date   + "T12:00:00")
+    while (cur <= end) { leaveDateSet.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
+  }
+  for (const l of monthlyAttLogs) {
+    if (l.status === "leave" || l.status === "absent") leaveDateSet.add(l.date)
+  }
+  const leaveDays = leaveDateSet.size
 
   const hour      = now.getHours()
   const greeting  = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"

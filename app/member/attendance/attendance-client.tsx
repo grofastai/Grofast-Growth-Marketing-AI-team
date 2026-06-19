@@ -515,7 +515,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     <LiveTimer
                       clockInIso={todayLog.clock_in}
                       pausedSeconds={todayLog.paused_seconds}
-                      breakTotalMins={breakTotalMins}
+                      breakTotalMins={cappedBreakMins}
                       currentBreakInIso={null}
                     />
                     <SegmentBar hoursWorked={hoursWorked} />

@@ -2493,6 +2493,29 @@ export default function DailyUpdateForm({
                     </div>
                   )
                 }
+                // Old format — working_hours stored directly on record
+                if (sourceUpdate) {
+                  const workH  = Number((sourceUpdate as Record<string,unknown>).working_hours) || 0
+                  const learnH = Number((sourceUpdate as Record<string,unknown>).learning_hours) || 0
+                  const rows = [
+                    { label:"Working Hours", value:`${workH.toFixed(1)}h`,  color: workH >= 8 ? "#22C55E" : workH > 0 ? "#111111" : "#9CA3AF" },
+                    { label:"Break Hours",   value:"—",                      color:"#9CA3AF" },
+                    { label:"Learning",      value: learnH > 0 ? `${learnH.toFixed(1)}h` : "—", color:"#10B981" },
+                  ] as Array<{label:string;value:string;color:string}>
+                  return (
+                    <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                      <p style={{ fontSize:10, fontWeight:700, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>
+                        ⏰ Work Log {activeUpdate ? `· ${selectedDate}` : "✓"}
+                      </p>
+                      {rows.map((r,i) => (
+                        <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                          <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
+                          <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )
+                }
                 // No submitted data — show live form stats
                 return (
                   <div style={{ display:"flex", flexDirection:"column", gap:9 }}>

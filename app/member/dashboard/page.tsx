@@ -66,7 +66,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", effectiveUserId).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
     supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
     supabase.from("daily_updates").select("working_hours, attendance_status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
-    supabase.from("leaves").select("from_date, to_date").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
+    supabase.from("leaves").select("from_date, to_date").eq("user_id", effectiveUserId).eq("status", "approved").neq("leave_type", "permission").gte("from_date", monthStart).lte("from_date", monthEnd),
     supabase.from("attendance_logs").select("work_type, status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
   ])
 
@@ -103,10 +103,12 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const presentRows    = monthlyUpdates.filter(u => u.attendance_status === "present")
   const totalMonthHrs  = Math.round(presentRows.reduce((s, u) => s + (u.working_hours ?? 0), 0) * 10) / 10
   const OVERTIME_THRESHOLD = 8.5
-  const overtimeDays   = presentRows.filter(u => (u.working_hours ?? 0) > OVERTIME_THRESHOLD).length
-  const overtimeHrs    = Math.round(presentRows.reduce((sum, u) => {
+  const monthlyAvgHrs    = presentRows.length > 0 ? totalMonthHrs / presentRows.length : 0
+  const overtimeEligible = monthlyAvgHrs >= OVERTIME_THRESHOLD
+  const overtimeDays     = overtimeEligible ? presentRows.filter(u => (u.working_hours ?? 0) > OVERTIME_THRESHOLD).length : 0
+  const overtimeHrs      = overtimeEligible ? Math.round(presentRows.reduce((sum, u) => {
     const h = u.working_hours ?? 0; return h > OVERTIME_THRESHOLD ? sum + (h - OVERTIME_THRESHOLD) : sum
-  }, 0) * 10) / 10
+  }, 0) * 10) / 10 : 0
 
   const leaveDays = approvedLeaves.reduce((sum, l) => {
     return sum + Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1

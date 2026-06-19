@@ -97,11 +97,12 @@ export default async function AttendancePage() {
       .select("*", { count: "exact", head: true })
       .eq("user_id", effectiveUserId)
       .eq("status", "pending"),
-    // Approved leaves this month
+    // Approved leaves this month (permissions excluded — they are not full leave days)
     admin.from("leaves")
       .select("from_date, to_date")
       .eq("user_id", effectiveUserId)
       .eq("status", "approved")
+      .neq("leave_type", "permission")
       .gte("from_date", monthStart)
       .lte("from_date", today),
   ])

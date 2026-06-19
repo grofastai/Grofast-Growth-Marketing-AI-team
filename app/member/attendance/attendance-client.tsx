@@ -30,6 +30,7 @@ type RangeMode = "date" | "last7" | "thisMonth" | "lastMonth"
 interface MonthlyPerf {
   presentDays: number; absentDays: number; officeDays: number; wfhDays: number
   leaveDays: number; pendingLeaves: number; totalHours: number; avgHours: number
+  loginHours?: number; avgLoginHours?: number
 }
 
 interface Props {
@@ -527,7 +528,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     />
                     <SegmentBar hoursWorked={hoursWorked} />
                     <p className="text-[12px] mb-1" style={{ color: "#9CA3AF" }}>
-                      {fmtHoursShort(hoursWorked)} / {fmtHoursShort(SHIFT_HOURS)}
+                      {fmtHoursShort(hoursWorked)} / 9h 30m
                     </p>
                     {todayPermissionHours > 0 && (
                       <p className="text-[11px] mb-3 font-semibold" style={{ color: "#7C3AED" }}>
@@ -609,15 +610,15 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
             {monthlyPerf && (
               <div className="flex gap-3 mt-4">
                 <div className="flex-1 rounded-2xl px-4 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Monthly Total Hrs</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Monthly Login Hrs</p>
                   <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-                    {monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
+                    {(monthlyPerf.loginHours ?? 0) > 0 ? fmtHoursShort(monthlyPerf.loginHours ?? 0) : "0h"}
                   </p>
                 </div>
                 <div className="flex-1 rounded-2xl px-4 py-3" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Monthly Avg Hrs</p>
+                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Avg Login Hrs</p>
                   <p className="text-[22px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                    {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgHours) : "0h"}
+                    {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgLoginHours ?? 0) : "0h"}
                   </p>
                 </div>
               </div>
@@ -659,7 +660,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", alignItems: "center", gap: 4, marginBottom: 10 }}>
                       {/* Span */}
                       <div style={{ textAlign: "center", background: "rgba(99,102,241,0.07)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(99,102,241,0.15)" }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px" }}>Span</p>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px" }}>Logged</p>
                         <p style={{ fontSize: 15, fontWeight: 900, color: "#6366F1", margin: 0, fontFamily: "var(--font-jakarta)" }}>{fmtHoursShort(spanH)}</p>
                       </div>
                       <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>−</span>
@@ -712,9 +713,12 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(222,26,26,0.1)" }}>
                 <Calendar size={16} style={{ color: "#de1a1a" }} />
               </div>
-              <h3 className="text-[15px] font-bold flex-1" style={{ color: "#111111" }}>
-                {weekOff === 0 ? "This Week" : weekOff === -1 ? "Last Week" : `${Math.abs(weekOff)}w ago`}
-              </h3>
+              <div className="flex-1">
+                <h3 className="text-[15px] font-bold leading-tight" style={{ color: "#111111" }}>
+                  {weekOff === 0 ? "This Week" : weekOff === -1 ? "Last Week" : `${Math.abs(weekOff)}w ago`}
+                </h3>
+                <p className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>Working Hrs</p>
+              </div>
               <div className="flex items-center gap-1">
                 <button onClick={() => handleWeekNav(weekOff - 1)} disabled={navLoading || weekOff <= -12}
                   style={{ width:24, height:24, borderRadius:6, background:"rgba(0,0,0,0.06)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:700, color:"#374151" }}>‹</button>
@@ -811,6 +815,27 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       </div>
                     ))}
                   </div>
+
+                  {/* Monthly Working Insights */}
+                  {monthlyPerf && (
+                    <div className="rounded-2xl p-3" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.12)" }}>
+                      <p className="text-[9px] font-bold uppercase tracking-wide mb-2" style={{ color: "#6366F1" }}>Monthly Working Insights</p>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px]" style={{ color: "#9CA3AF" }}>Total Working Hrs</span>
+                          <span className="text-[12px] font-black" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>{monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px]" style={{ color: "#9CA3AF" }}>Target (8h 30m/day)</span>
+                          <span className="text-[12px] font-black" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>{fmtHoursShort(monthlyPerf.presentDays * 8.5)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px]" style={{ color: "#9CA3AF" }}>Avg Working / Day</span>
+                          <span className="text-[12px] font-black" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>{monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgHours) : "0h"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               )
             })()}
@@ -846,21 +871,21 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
           {/* Stats */}
           <div className="flex gap-4 flex-wrap">
             <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#6366F1" }}>Working Hours</p>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#6366F1" }}>Login Hrs</p>
               <p className="text-[22px] font-black leading-none" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
-                {hoursWorked > 0 ? fmtHoursShort(hoursWorked) : "0h"}
+                {todayLog?.clock_in ? fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out)) : "0h"}
               </p>
             </div>
             <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Expected</p>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Target</p>
               <p className="text-[22px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>
-                {fmtHoursShort(SHIFT_HOURS)}
+                9h 30m
               </p>
             </div>
             <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
               <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Remaining</p>
               <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-                {remainingHours > 0 ? fmtHoursShort(remainingHours) : "0h"}
+                {todayLog?.clock_in ? fmtHoursShort(Math.max(0, 9.5 - calcHours(todayLog.clock_in, todayLog.clock_out))) : "9h 30m"}
               </p>
             </div>
           </div>

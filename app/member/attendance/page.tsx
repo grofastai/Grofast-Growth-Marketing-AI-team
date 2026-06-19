@@ -124,6 +124,17 @@ export default async function AttendancePage() {
   const monthWfhDays     = presentLogs.filter(l => l.work_type === "wfh").length
   const monthPresentDays = presentLogs.length
 
+  // Login hours = raw span (no break deduction) — for Monthly Login Hrs / Avg Login Hrs
+  const monthLoginHrs = Math.round(
+    presentLogs
+      .filter(l => l.clock_in && l.clock_out)
+      .reduce((s, l) => s + (new Date(l.clock_out!).getTime() - new Date(l.clock_in!).getTime()) / 3600000, 0) * 10
+  ) / 10
+  const monthAvgLoginHrs = monthPresentDays > 0
+    ? Math.round((monthLoginHrs / monthPresentDays) * 10) / 10
+    : 0
+
+  // Working hours = span minus breaks — for Monthly Working Insights
   const monthTotalHrs = Math.round(
     presentLogs
       .filter(l => l.clock_in && l.clock_out)
@@ -158,6 +169,8 @@ export default async function AttendancePage() {
     pendingLeaves: pendingLeavesCount ?? 0,
     totalHours:   monthTotalHrs,
     avgHours:     monthAvgHrs,
+    loginHours:   monthLoginHrs,
+    avgLoginHours: monthAvgLoginHrs,
   }
 
   return (

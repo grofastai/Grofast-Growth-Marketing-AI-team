@@ -123,9 +123,9 @@ export default async function HistoryPage() {
       .eq("status", "approved")
       .gte("from_date", fromDateStr)
       .order("from_date", { ascending: false }),
-    // Company holidays — show in timeline
+    // Company holidays — show in timeline (fetch all, no upper bound, so upcoming holidays in current month also appear)
     companyId
-      ? admin.from("company_leaves").select("id, date, name").eq("company_id", companyId).gte("date", fromDateStr).lte("date", todayStr).order("date", { ascending: false })
+      ? admin.from("company_leaves").select("id, date, name").eq("company_id", companyId).gte("date", fromDateStr).order("date", { ascending: false })
       : Promise.resolve({ data: [] }),
   ])
 

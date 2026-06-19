@@ -1,12 +1,20 @@
 export const revalidate = 0
 
 import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
 
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export default async function MemberDashboardPage({ searchParams }: { searchParams: Promise<{ month?: string }> }) {
   const supabase = await createServerClient()
@@ -66,7 +74,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", effectiveUserId).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
     supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
     supabase.from("daily_updates").select("working_hours, attendance_status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
-    supabase.from("leaves").select("from_date, to_date").eq("user_id", effectiveUserId).eq("status", "approved").neq("leave_type", "permission").gte("from_date", monthStart).lte("from_date", monthEnd),
+    adminClient().from("leaves").select("from_date, to_date").eq("user_id", effectiveUserId).eq("status", "approved").neq("leave_type", "permission").gte("from_date", monthStart).lte("from_date", monthEnd),
     supabase.from("attendance_logs").select("work_type, status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
   ])
 

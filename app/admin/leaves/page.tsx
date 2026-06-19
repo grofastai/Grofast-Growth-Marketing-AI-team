@@ -58,6 +58,7 @@ export default async function LeavesPage({
     { count: pendingCount },
     { count: approvedCount },
     { count: rejectedCount },
+    { data: companyLeaves },
   ] = await Promise.all([
     leavesQuery,
     admin
@@ -93,6 +94,7 @@ export default async function LeavesPage({
     admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "pending"),
     admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "approved"),
     admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "rejected"),
+    admin.from("company_leaves").select("id, date, name").eq("company_id", cid).order("date"),
   ])
 
   const total = Math.max(1, memberCount ?? 0)
@@ -114,6 +116,7 @@ export default async function LeavesPage({
       pendingCount={pendingCount ?? 0}
       approvedCount={approvedCount ?? 0}
       rejectedCount={rejectedCount ?? 0}
+      companyLeaves={(companyLeaves ?? []) as { id: string; date: string; name: string }[]}
     />
   )
 }

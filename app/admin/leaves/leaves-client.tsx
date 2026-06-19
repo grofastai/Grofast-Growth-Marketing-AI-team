@@ -3,8 +3,9 @@
 import Image from "next/image"
 import { useRouter, usePathname } from "next/navigation"
 import { useState, useTransition } from "react"
-import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, XOctagon, Paperclip } from "lucide-react"
+import { CheckCircle2, XCircle, Loader2, CalendarDays, Clock, Users, XOctagon, Paperclip, Plus, Trash2 } from "lucide-react"
 import { updateLeaveStatus } from "@/lib/actions/leaves"
+import { addCompanyLeave, deleteCompanyLeave } from "@/lib/actions/company-leaves"
 
 interface Leave {
   id: string
@@ -19,6 +20,12 @@ interface Leave {
   users: { id: string; name: string; employee_id: string; phone: string | null; gender?: string } | null
 }
 
+interface CompanyLeave {
+  id: string
+  date: string
+  name: string
+}
+
 interface LeavesClientProps {
   leaves: Leave[]
   statusFilter: string
@@ -28,6 +35,7 @@ interface LeavesClientProps {
   pendingCount: number
   approvedCount: number
   rejectedCount: number
+  companyLeaves: CompanyLeave[]
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -37,6 +45,7 @@ const STATUS_TABS = [
   { key: "approved", label: "Approved", color: "#10B981" },
   { key: "rejected", label: "Rejected", color: "#EF4444" },
   { key: "all",      label: "All",      color: "#6B7280" },
+  { key: "holidays", label: "🏢 Holidays", color: "#1E40AF" },
 ]
 
 function daysBetween(from: string, to: string) {
@@ -245,13 +254,36 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 // ── Main ───────────────────────────────────────────────────────────────────────
 export default function LeavesClient({
   leaves, statusFilter, upcomingLeaves, availabilityPct, onLeaveToday,
-  pendingCount, approvedCount, rejectedCount,
+  pendingCount, approvedCount, rejectedCount, companyLeaves,
 }: LeavesClientProps) {
   const router   = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = useTransition()
   const [actionId, setActionId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+
+  // Holiday management state
+  const [holidayDate, setHolidayDate] = useState("")
+  const [holidayName, setHolidayName] = useState("")
+  const [holidayAdding, setHolidayAdding] = useState(false)
+  const [holidayError, setHolidayError] = useState<string | null>(null)
+  const [deletingHolidayId, setDeletingHolidayId] = useState<string | null>(null)
+
+  async function handleAddHoliday() {
+    if (!holidayDate || !holidayName.trim()) { setHolidayError("Enter both date and holiday name."); return }
+    setHolidayAdding(true); setHolidayError(null)
+    const res = await addCompanyLeave(holidayDate, holidayName.trim())
+    setHolidayAdding(false)
+    if (res.success) { setHolidayDate(""); setHolidayName(""); router.refresh() }
+    else setHolidayError(res.error ?? "Failed to add")
+  }
+
+  async function handleDeleteHoliday(id: string) {
+    setDeletingHolidayId(id)
+    await deleteCompanyLeave(id)
+    setDeletingHolidayId(null)
+    router.refresh()
+  }
 
   function navigate(s: string) { router.push(`${pathname}?status=${s}`) }
   function handleApprove(id: string) {
@@ -343,8 +375,75 @@ export default function LeavesClient({
             })}
           </div>
 
+          {/* ── Holidays Tab UI ─────────────────────────────────────────── */}
+          {statusFilter === "holidays" && (
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              {/* Add holiday form */}
+              <div style={{ background:"#FFFFFF", borderRadius:18, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                <p style={{ fontSize:13, fontWeight:800, color:"#111827", margin:"0 0 14px", fontFamily:"var(--font-jakarta)" }}>Add Company Holiday</p>
+                <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"flex-end" }}>
+                  <div style={{ display:"flex", flexDirection:"column", gap:5, flex:"0 0 160px" }}>
+                    <label style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em" }}>Date</label>
+                    <input type="date" value={holidayDate} onChange={e => setHolidayDate(e.target.value)}
+                      style={{ fontSize:13, fontWeight:600, color:"#111827", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"9px 12px", outline:"none", cursor:"pointer" }} />
+                  </div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:5, flex:1, minWidth:160 }}>
+                    <label style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.08em" }}>Holiday Name</label>
+                    <input type="text" value={holidayName} onChange={e => setHolidayName(e.target.value)}
+                      placeholder="e.g. Pongal, Diwali…"
+                      onKeyDown={e => e.key === "Enter" && handleAddHoliday()}
+                      style={{ fontSize:13, fontWeight:600, color:"#111827", background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"9px 12px", outline:"none" }} />
+                  </div>
+                  <button onClick={handleAddHoliday} disabled={holidayAdding}
+                    style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 20px", borderRadius:10, border:"none", background:"#1E40AF", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:holidayAdding?"not-allowed":"pointer", opacity:holidayAdding?0.7:1, whiteSpace:"nowrap" }}>
+                    {holidayAdding ? <Loader2 size={13} style={{ animation:"spin 1s linear infinite" }} /> : <Plus size={13} />}
+                    Add Holiday
+                  </button>
+                </div>
+                {holidayError && <p style={{ fontSize:12, color:"#EF4444", fontWeight:600, margin:"10px 0 0" }}>{holidayError}</p>}
+              </div>
+
+              {/* Holiday list */}
+              <div style={{ background:"#FFFFFF", borderRadius:18, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                <div style={{ padding:"14px 20px", borderBottom:"1px solid #F0F1F5", display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ fontSize:16 }}>🏢</span>
+                  <span style={{ fontSize:13, fontWeight:800, color:"#111827" }}>Company Holidays ({companyLeaves.length})</span>
+                </div>
+                {companyLeaves.length === 0 ? (
+                  <div style={{ padding:"40px 24px", textAlign:"center" }}>
+                    <p style={{ fontSize:14, color:"#9CA3AF", margin:0 }}>No holidays added yet.</p>
+                  </div>
+                ) : (
+                  <div>
+                    {companyLeaves.map((h, i) => {
+                      const d = new Date(h.date + "T12:00:00")
+                      const dayName = d.toLocaleDateString("en-IN", { weekday:"long" })
+                      const dateFmt = d.toLocaleDateString("en-IN", { day:"numeric", month:"long", year:"numeric" })
+                      return (
+                        <div key={h.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 20px", borderBottom: i < companyLeaves.length - 1 ? "1px solid #F5F6FA" : "none" }}>
+                          <div style={{ width:42, height:42, borderRadius:12, background:"rgba(30,64,175,0.08)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <span style={{ fontSize:14, fontWeight:900, color:"#1E40AF", lineHeight:1 }}>{d.getDate()}</span>
+                            <span style={{ fontSize:8, fontWeight:700, color:"#1E40AF", textTransform:"uppercase" }}>{d.toLocaleDateString("en-IN", { month:"short" })}</span>
+                          </div>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <p style={{ fontSize:13, fontWeight:700, color:"#111827", margin:0 }}>{h.name}</p>
+                            <p style={{ fontSize:11, color:"#9CA3AF", margin:"2px 0 0" }}>{dayName} · {dateFmt}</p>
+                          </div>
+                          <button onClick={() => handleDeleteHoliday(h.id)} disabled={deletingHolidayId === h.id}
+                            style={{ width:30, height:30, borderRadius:8, background:"rgba(239,68,68,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            {deletingHolidayId === h.id ? <Loader2 size={12} style={{ color:"#EF4444", animation:"spin 1s linear infinite" }} /> : <Trash2 size={12} style={{ color:"#EF4444" }} />}
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* On Leave Today strip */}
-          {onLeaveToday.length > 0 && (
+          {statusFilter !== "holidays" && onLeaveToday.length > 0 && (
             <div style={{
               background: gradBg, borderRadius: 14, padding: "12px 16px",
               display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap",
@@ -367,7 +466,7 @@ export default function LeavesClient({
           )}
 
           {/* Leave Cards */}
-          {leaves.length === 0 ? (
+          {statusFilter !== "holidays" && (leaves.length === 0 ? (
             <div style={{
               background: gradBg, borderRadius: 18, padding: "60px 24px", textAlign: "center",
               position: "relative", overflow: "hidden", boxShadow: "0 8px 32px rgba(180,0,0,0.3)",
@@ -391,7 +490,7 @@ export default function LeavesClient({
                 />
               ))}
             </div>
-          )}
+          ))}
         </div>
 
         {/* ── Right Sidebar ─────────────────────────────────────────────────── */}

@@ -77,7 +77,9 @@ export default async function HistoryPage() {
   ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
   const fromDateStr = ninetyDaysAgo.toISOString().split("T")[0]
 
-  const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult, leavesResult] = await Promise.all([
+  const todayStr = new Date().toISOString().split("T")[0]
+
+  const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult, leavesResult, companyLeavesResult] = await Promise.all([
     supabase
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, learning_start_time, learning_end_time, shoot_count, editing_count, work_entries, created_at")
@@ -121,6 +123,10 @@ export default async function HistoryPage() {
       .eq("status", "approved")
       .gte("from_date", fromDateStr)
       .order("from_date", { ascending: false }),
+    // Company holidays — show in timeline
+    companyId
+      ? admin.from("company_leaves").select("id, date, name").eq("company_id", companyId).gte("date", fromDateStr).lte("date", todayStr).order("date", { ascending: false })
+      : Promise.resolve({ data: [] }),
   ])
 
   // Build a set of dates where the member actually clocked in
@@ -148,6 +154,7 @@ export default async function HistoryPage() {
     half_day_to_time: string | null; half_day_period: string | null
   }
   const approvedLeaves = (leavesResult.data ?? []) as ApprovedLeave[]
+  const companyLeaves  = (companyLeavesResult.data ?? []) as { id: string; date: string; name: string }[]
 
   return (
     <HistoryClient
@@ -160,6 +167,7 @@ export default async function HistoryPage() {
       members={members}
       attendanceDates={attendanceDates}
       approvedLeaves={approvedLeaves}
+      companyLeaves={companyLeaves}
     />
   )
 }

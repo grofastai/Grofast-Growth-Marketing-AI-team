@@ -26,18 +26,21 @@ export default async function MemberLeavesPage() {
 
   const yearStart = `${new Date().getFullYear()}-01-01`
 
-  const [leavesResult, profileResult, usedResult, absentResult] = await Promise.all([
+  const { data: profileData } = await admin
+    .from("users")
+    .select("name, paid_leave_days, company_id")
+    .eq("id", effectiveUserId)
+    .single()
+
+  const companyId = profileData?.company_id ?? ""
+
+  const [leavesResult, usedResult, absentResult, companyLeavesResult] = await Promise.all([
     supabase
       .from("leaves")
       .select("*")
       .eq("user_id", effectiveUserId)
       .order("created_at", { ascending: false })
       .limit(50),
-    admin
-      .from("users")
-      .select("name, paid_leave_days")
-      .eq("id", effectiveUserId)
-      .single(),
     admin
       .from("leaves")
       .select("from_date, to_date, leave_type")
@@ -51,12 +54,16 @@ export default async function MemberLeavesPage() {
       .in("status", ["absent", "leave"])
       .gte("date", yearStart)
       .order("date", { ascending: false }),
+    companyId
+      ? admin.from("company_leaves").select("id, date, name").eq("company_id", companyId).order("date")
+      : Promise.resolve({ data: [] }),
   ])
 
   const leaves        = leavesResult.data ?? []
-  const name          = (profileResult.data?.name ?? "").split(" ")[0] || "there"
-  const paidLeaveDays = profileResult.data?.paid_leave_days ?? 0
+  const name          = (profileData?.name ?? "").split(" ")[0] || "there"
+  const paidLeaveDays = profileData?.paid_leave_days ?? 0
   const absentDays    = (absentResult.data ?? []) as { id: string; date: string }[]
+  const companyLeaves = (companyLeavesResult.data ?? []) as { id: string; date: string; name: string }[]
 
   // Calculate used days: full_day = exact days, half_day = 0.5, permission = 0, absent = 1
   const leaveUsedDays = (usedResult.data ?? []).reduce((sum, l) => {
@@ -74,6 +81,7 @@ export default async function MemberLeavesPage() {
       paidLeaveDays={paidLeaveDays}
       usedLeaveDays={usedDays}
       absentDays={absentDays}
+      companyLeaves={companyLeaves}
     />
   )
 }

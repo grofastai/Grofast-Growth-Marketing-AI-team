@@ -252,9 +252,15 @@ interface ApprovedLeave {
   half_day_to_time: string | null; half_day_period: string | null
 }
 
+interface CompanyHoliday {
+  id: string
+  date: string
+  name: string
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 export default function HistoryClient({
-  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [],
+  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [], companyLeaves = [],
 }: {
   updates: UpdateRow[]
   userName: string
@@ -265,6 +271,7 @@ export default function HistoryClient({
   members?: MemberInfo[]
   attendanceDates?: string[]
   approvedLeaves?: ApprovedLeave[]
+  companyLeaves?: CompanyHoliday[]
 }) {
 
   const months = useMemo(() => {
@@ -608,11 +615,15 @@ export default function HistoryClient({
     return map
   }, [participatedUpdates])
 
-  // Merge own updates + collab orphans + approved leave-only dates
+  // Build holiday lookup maps
+  const holidayMap = useMemo(() => new Map(companyLeaves.map(h => [h.date, h])), [companyLeaves])
+
+  // Merge own updates + collab orphans + approved leave-only dates + company holidays
   type MergedItem =
     | { type: "own"; date: string; u: UpdateRow }
     | { type: "collab"; date: string; pus: ParticipatedUpdate[] }
     | { type: "leave"; date: string; leave: ApprovedLeave }
+    | { type: "company_holiday"; date: string; holiday: CompanyHoliday }
   const mergedList = useMemo((): MergedItem[] => {
     const ownDates = new Set(filtered.map(u => u.date))
     const monthPrefix = selectedMonth && monthFiltered[0]?.date ? monthFiltered[0].date.slice(0, 7) : null
@@ -646,10 +657,26 @@ export default function HistoryClient({
       }
     }
 
+    // Company holiday dates — only for days with no own work, no collab, no personal leave
+    const leaveDates = new Set(leaveItems.map(l => l.date))
+    const holidayItems: MergedItem[] = []
+    for (const holiday of companyLeaves) {
+      if (ownDates.has(holiday.date)) continue
+      if (collabDates.has(holiday.date)) continue
+      if (leaveDates.has(holiday.date)) continue
+      if (dateActive && holiday.date !== selectedDate) continue
+      if (monthPrefix && !holiday.date.startsWith(monthPrefix)) continue
+      if (!monthPrefix && !dateActive) {
+        const hMonth = holiday.date.slice(0, 7)
+        if (!filtered.some(u => u.date.slice(0, 7) === hMonth) && selectedMonth === "") continue
+      }
+      holidayItems.push({ type: "company_holiday", date: holiday.date, holiday })
+    }
+
     const ownItems: MergedItem[]    = filtered.map(u => ({ type: "own", date: u.date, u }))
     const collabItems: MergedItem[] = orphans.map(o => ({ type: "collab", date: o.date, pus: o.pus }))
-    return [...ownItems, ...collabItems, ...leaveItems].sort((a, b) => b.date.localeCompare(a.date))
-  }, [filtered, participatedByDate, selectedMonth, monthFiltered, approvedLeaves])
+    return [...ownItems, ...collabItems, ...leaveItems, ...holidayItems].sort((a, b) => b.date.localeCompare(a.date))
+  }, [filtered, participatedByDate, selectedMonth, monthFiltered, approvedLeaves, companyLeaves, dateActive, selectedDate])
 
   const topActivity = useMemo(() => {
     const map: Record<string, number> = {}
@@ -1150,6 +1177,37 @@ export default function HistoryClient({
                 return null
               }
 
+              // ── Company holiday card ──
+              if (item.type === "company_holiday") {
+                const hd = new Date(item.date + "T12:00:00")
+                const hdLabel = hd.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
+                const hdMon   = hd.toLocaleDateString("en-US", { month:"short" })
+                return (
+                  <div key={`holiday-${item.date}`} style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid rgba(30,64,175,0.2)", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid rgba(30,64,175,0.1)", background:"rgba(30,64,175,0.02)" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div style={{ width:38, height:38, borderRadius:10, background:"rgba(30,64,175,0.1)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <span style={{ fontSize:14, fontWeight:900, color:"#1E40AF", lineHeight:1 }}>{hd.getDate()}</span>
+                          <span style={{ fontSize:8, fontWeight:700, color:"#1E40AF", textTransform:"uppercase" }}>{hdMon}</span>
+                        </div>
+                        <div>
+                          <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{hdLabel}</p>
+                          <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>Company Holiday</p>
+                        </div>
+                      </div>
+                      <span style={{ fontSize:11, fontWeight:700, color:"#1E40AF", background:"rgba(30,64,175,0.12)", padding:"3px 10px", borderRadius:99 }}>Holiday</span>
+                    </div>
+                    <div style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 18px", background:"linear-gradient(135deg,rgba(30,64,175,0.06) 0%,rgba(30,64,175,0.02) 100%)" }}>
+                      <div style={{ fontSize:36, lineHeight:1 }}>🏢</div>
+                      <div>
+                        <p style={{ fontSize:14, fontWeight:900, color:"#1E40AF", margin:"0 0 3px" }}>{item.holiday.name}</p>
+                        <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>Company Holiday · No work required</p>
+                      </div>
+                    </div>
+                  </div>
+                )
+              }
+
               // ── Own update card ──
               const u = item.u
               const entries = (Array.isArray(u.work_entries) ? [...u.work_entries] : []).sort((a, b) => {
@@ -1162,8 +1220,16 @@ export default function HistoryClient({
               })
               const st = STATUS_STYLE[u.attendance_status] ?? STATUS_STYLE.present
               const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
+              const holidayOnDay = holidayMap.get(u.date)
               return (
                 <div key={u.id} style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                  {/* Holiday banner */}
+                  {holidayOnDay && (
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 18px", background:"rgba(30,64,175,0.08)", borderBottom:"1px solid rgba(30,64,175,0.12)" }}>
+                      <span style={{ fontSize:14 }}>🏢</span>
+                      <span style={{ fontSize:11, fontWeight:700, color:"#1E40AF" }}>Company Holiday: {holidayOnDay.name}</span>
+                    </div>
+                  )}
                   {/* Day header */}
                   <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid #F5F6FA", flexWrap:"wrap", gap:8 }}>
                     <div style={{ display:"flex", alignItems:"center", gap:10 }}>

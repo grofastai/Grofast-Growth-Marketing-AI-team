@@ -625,8 +625,10 @@ export default function HistoryClient({
     | { type: "leave"; date: string; leave: ApprovedLeave }
     | { type: "company_holiday"; date: string; holiday: CompanyHoliday }
   const mergedList = useMemo((): MergedItem[] => {
-    // Cap at today in IST (UTC+5:30) — never show future dates in history
-    const todayIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().split("T")[0]
+    // Show today, past, and tomorrow only (so member can see if tmr is a holiday/leave)
+    const nowIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000)
+    nowIST.setDate(nowIST.getDate() + 1)
+    const todayIST = nowIST.toISOString().split("T")[0]
 
     const ownDates = new Set(filtered.map(u => u.date))
     const monthPrefix = selectedMonth && monthFiltered[0]?.date ? monthFiltered[0].date.slice(0, 7) : null

@@ -24,7 +24,7 @@ function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number)
 type BreakSession = { in: string; out: string | null; mins: number | null }
 type AttLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_in: string | null; break_out: string | null; break_total_mins: number; break_sessions: BreakSession[] | null; work_type: string | null; status: string; paused_seconds: number }
 type DailyUpdate = { working_hours: number | null; learning_hours: number | null; shoot_count: number | null }
-type RangeLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; break_in: string | null; break_out: string | null; work_type: string | null; status: string; learning_hours: number; worked_hours: number }
+type RangeLog = { id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; break_in: string | null; break_out: string | null; work_type: string | null; status: string; learning_hours: number; worked_hours: number; entries_break_hours: number }
 type RangeMode = "date" | "last7" | "thisMonth" | "lastMonth"
 
 interface MonthlyPerf {
@@ -1084,6 +1084,10 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                         const workedH  = l.worked_hours && l.worked_hours > 0
                           ? l.worked_hours
                           : (isInProgress && l.clock_in ? Math.max(0, calcHoursNet(l.clock_in, null, l.break_total_mins ?? 0, null) ) : 0)
+                        // Break: use work_entries-based break; fall back to clock break only for in-progress today
+                        const breakH = (l.entries_break_hours ?? 0) > 0
+                          ? l.entries_break_hours
+                          : (isInProgress ? (l.break_total_mins ?? 0) / 60 : 0)
                         const isEditing = editingDate === l.date
                         return (
                           <Fragment key={l.date}>
@@ -1100,7 +1104,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               <td style={{ padding:"9px 10px", color: l.clock_out ? "#111111" : isInProgress ? "#F59E0B" : "#EF4444", whiteSpace:"nowrap", fontStyle: isInProgress ? "italic" : "normal", fontSize: isInProgress ? 10 : 12 }}>
                                 {l.clock_out ? fmtTime(l.clock_out) : isInProgress ? "In Progress…" : "—"}
                               </td>
-                              <td style={{ padding:"9px 10px", fontWeight:600, color: (l.break_total_mins ?? 0) > 0 ? "#F59E0B" : "#D1D5DB" }}>{(l.break_total_mins ?? 0) > 0 ? fmtHoursShort(Math.round((l.break_total_mins/60)*10)/10) : "—"}</td>
+                              <td style={{ padding:"9px 10px", fontWeight:600, color: breakH > 0 ? "#F59E0B" : "#D1D5DB" }}>{breakH > 0 ? fmtHoursShort(Math.round(breakH*10)/10) : "—"}</td>
                               <td style={{ padding:"9px 10px", fontWeight:700, color: isInProgress ? "#9CA3AF" : "#374151" }}>{officeH > 0 ? `${fmtHoursShort(Math.round(officeH*10)/10)}${isInProgress ? "~" : ""}` : "—"}</td>
                               <td style={{ padding:"9px 10px", fontWeight:700, color: isInProgress ? "#F59E0B" : "#111111" }}>{workedH > 0 ? `${fmtHoursShort(Math.round(workedH*10)/10)}${isInProgress ? "~" : ""}` : "—"}</td>
                               <td style={{ padding:"9px 10px" }}>

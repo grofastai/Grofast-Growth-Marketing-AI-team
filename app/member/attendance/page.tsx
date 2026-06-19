@@ -97,12 +97,11 @@ export default async function AttendancePage() {
       .select("*", { count: "exact", head: true })
       .eq("user_id", effectiveUserId)
       .eq("status", "pending"),
-    // Approved leaves this month (permissions excluded — they are not full leave days)
+    // Approved leaves this month
     admin.from("leaves")
-      .select("from_date, to_date")
+      .select("from_date, to_date, leave_type")
       .eq("user_id", effectiveUserId)
       .eq("status", "approved")
-      .neq("leave_type", "permission")
       .gte("from_date", monthStart)
       .lte("from_date", today),
   ])
@@ -118,7 +117,7 @@ export default async function AttendancePage() {
   type MonthAttLog = { work_type: string | null; status: string; clock_in: string | null; clock_out: string | null; break_total_mins: number }
   const monthAttLogs = (monthAttLogsRaw ?? []) as MonthAttLog[]
   const monthUpdates = (monthUpdatesRaw ?? []) as { working_hours: number | null; learning_hours: number | null }[]
-  const approvedLeaves = (approvedLeavesRaw ?? []) as { from_date: string; to_date: string }[]
+  const approvedLeaves = (approvedLeavesRaw ?? []) as { from_date: string; to_date: string; leave_type: string | null }[]
 
   const presentLogs = monthAttLogs.filter(l => l.status === "present")
   const monthOfficeDays  = presentLogs.filter(l => l.work_type === "office").length
@@ -137,9 +136,11 @@ export default async function AttendancePage() {
     ? Math.round((monthTotalHrs / monthPresentDays) * 10) / 10
     : 0
 
-  const monthLeaveDays = approvedLeaves.reduce((sum, l) => {
-    return sum + Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
-  }, 0)
+  const monthLeaveDays = approvedLeaves
+    .filter(l => l.leave_type !== "permission")
+    .reduce((sum, l) => {
+      return sum + Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
+    }, 0)
 
   // Elapsed calendar days this month (1st to today, inclusive)
   const monthStartDate = new Date(monthStart)

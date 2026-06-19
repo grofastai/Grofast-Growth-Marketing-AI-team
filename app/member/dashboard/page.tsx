@@ -52,7 +52,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   type AttLog        = { clock_in: string | null; clock_out: string | null }
   type MonthlyUpdate = { working_hours: number | null; attendance_status: string }
   type MonthlyAttLog = { work_type: string | null; status: string }
-  type LeaveRow      = { from_date: string; to_date: string }
+  type LeaveRow      = { from_date: string; to_date: string; leave_type: string | null }
 
   const [
     { data: profileRaw },
@@ -74,7 +74,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", effectiveUserId).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
     supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
     supabase.from("daily_updates").select("working_hours, attendance_status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
-    adminClient().from("leaves").select("from_date, to_date").eq("user_id", effectiveUserId).eq("status", "approved").neq("leave_type", "permission").gte("from_date", monthStart).lte("from_date", monthEnd),
+    adminClient().from("leaves").select("from_date, to_date, leave_type").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
     supabase.from("attendance_logs").select("work_type, status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
   ])
 
@@ -118,9 +118,11 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     const h = u.working_hours ?? 0; return h > OVERTIME_THRESHOLD ? sum + (h - OVERTIME_THRESHOLD) : sum
   }, 0) * 10) / 10 : 0
 
-  const leaveDays = approvedLeaves.reduce((sum, l) => {
-    return sum + Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
-  }, 0)
+  const leaveDays = approvedLeaves
+    .filter(l => l.leave_type !== "permission")
+    .reduce((sum, l) => {
+      return sum + Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
+    }, 0)
 
   const hour      = now.getHours()
   const greeting  = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"

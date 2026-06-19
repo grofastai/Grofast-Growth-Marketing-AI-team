@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useTransition } from "react"
+import { useState, useMemo, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
@@ -13,6 +13,7 @@ import {
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
 import { createFreelancer, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
+import { addManagerToAllFreelancers, removeManagerFromAllFreelancers } from "@/lib/actions/freelancer-manager"
 
 type FreelancerBasic = {
   id: string; name: string; type: string; phone: string | null; upi_id: string | null
@@ -891,35 +892,70 @@ const FL_VOICE_TYPES = ["Commercial Tone", "Emotional Tone", "High Pitch", "Base
 // ── Assign Manager Sheet ──────────────────────────────────────────────────────
 
 function AssignManagerSheet({
-  open, onClose, members,
+  open, onClose, members, assignedManagerIds: initialAssignedIds = [],
 }: {
   open: boolean
   onClose: () => void
   members: Member[]
+  assignedManagerIds?: string[]
 }) {
-  const [selectedMembers, setSelectedMembers] = useState<string[]>([])
-  const [saving, setSaving] = useState(false)
-  const [err, setErr] = useState("")
-  const [success, setSuccess] = useState(false)
+  const router = useRouter()
+  const [assigned, setAssigned]   = useState<string[]>(initialAssignedIds)
+  const [selected, setSelected]   = useState<string[]>([])
+  const [removing, setRemoving]   = useState<string | null>(null)
+  const [saving, setSaving]       = useState(false)
+  const [removeErr, setRemoveErr] = useState<string | null>(null)
+  const [assignErr, setAssignErr] = useState<string | null>(null)
 
-  function reset() { setSelectedMembers([]); setSaving(false); setErr(""); setSuccess(false) }
-  function close() { reset(); onClose() }
+  // Sync when modal opens with fresh server data
+  useEffect(() => {
+    if (open) {
+      setAssigned(initialAssignedIds)
+      setSelected([])
+      setRemoving(null)
+      setSaving(false)
+      setRemoveErr(null)
+      setAssignErr(null)
+    }
+  }, [open, initialAssignedIds.join(",")])
 
-  function toggleMember(id: string) {
-    setSelectedMembers(prev => prev.includes(id) ? prev.filter(m => m !== id) : [...prev, id])
-  }
+  function close() { onClose() }
 
   const idNum = (id: string) => { const m = id.match(/\d+/); return m ? parseInt(m[0]) : 99999 }
-  const sortedMembers = [...members]
+
+  const allMembers = [...members]
     .filter(m => m.role === "MEMBER")
     .sort((a, b) => idNum(a.employee_id) - idNum(b.employee_id))
 
-  async function handleSave() {
-    if (selectedMembers.length === 0) { setErr("Select at least one team member"); return }
-    setSaving(true); setErr("")
-    const res = await assignAllFreelancersToMembers(selectedMembers)
-    if (!res.success) { setErr(res.error ?? "Failed to assign"); setSaving(false); return }
-    setSuccess(true); setSaving(false)
+  const assignedMembers   = allMembers.filter(m => assigned.includes(m.id))
+  const availableMembers  = allMembers.filter(m => !assigned.includes(m.id))
+
+  function toggleSelect(id: string) {
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  async function handleRemove(userId: string) {
+    setRemoving(userId)
+    setRemoveErr(null)
+    const res = await removeManagerFromAllFreelancers(userId)
+    setRemoving(null)
+    if (!res.success) { setRemoveErr(res.error ?? "Failed to remove"); return }
+    setAssigned(prev => prev.filter(id => id !== userId))
+    router.refresh()
+  }
+
+  async function handleAssign() {
+    if (selected.length === 0) return
+    setSaving(true)
+    setAssignErr(null)
+    for (const userId of selected) {
+      const res = await addManagerToAllFreelancers(userId)
+      if (!res.success) { setAssignErr(res.error ?? "Failed to assign"); setSaving(false); return }
+    }
+    setAssigned(prev => [...prev, ...selected])
+    setSelected([])
+    setSaving(false)
+    router.refresh()
   }
 
   if (!open) return null
@@ -928,39 +964,79 @@ function AssignManagerSheet({
     <div className="fixed inset-0 z-50 flex">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={close} />
       <div className="relative ml-auto h-full w-full max-w-[420px] bg-white shadow-2xl flex flex-col overflow-hidden">
+
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
             <h2 className="text-[16px] font-bold text-gray-900">Assign Manager</h2>
             <p className="text-[12px] text-gray-500 mt-0.5">Select who manages all freelancers</p>
           </div>
-          <button onClick={close} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+          <button onClick={close}
+            className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
             <X size={16} />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
-          {success ? (
-            <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "rgba(16,185,129,0.1)" }}>
-                <CheckCircle2 size={32} style={{ color: "#10b981" }} />
-              </div>
-              <p className="text-[16px] font-bold text-gray-900">Done!</p>
-              <p className="text-[13px] text-gray-500">All freelancers assigned to {selectedMembers.length} member{selectedMembers.length > 1 ? "s" : ""}.</p>
-              <button onClick={close} className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white" style={{ background: "#F97316" }}>Close</button>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-4">
-              <p className="text-[13px] text-gray-500">All freelancers will be assigned to the selected member(s).</p>
-              <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500">
-                Team Members <span className="normal-case font-normal text-gray-400">({selectedMembers.length} selected)</span>
-              </label>
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+
+          {/* ── Currently Assigned ── */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">
+              Currently Assigned <span className="normal-case font-normal text-gray-400">({assignedMembers.length})</span>
+            </p>
+            {assignedMembers.length === 0 ? (
+              <p className="text-[12px] text-gray-400 italic px-1">No managers assigned yet.</p>
+            ) : (
               <div className="flex flex-col gap-1.5">
-                {sortedMembers.map(m => {
-                  const checked = selectedMembers.includes(m.id)
+                {assignedMembers.map(m => (
+                  <div key={m.id}
+                    className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl"
+                    style={{ border: "2px solid rgba(249,115,22,0.35)", background: "rgba(249,115,22,0.04)" }}>
+                    <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0"
+                      style={{ background: "#F97316" }}>
+                      <span style={{ color: "#fff", fontSize: 11, fontWeight: 800 }}>✓</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-gray-800 truncate">{m.name}</p>
+                      <p className="text-[11px] text-gray-400">{m.employee_id} · {m.role}</p>
+                    </div>
+                    <button
+                      onClick={() => handleRemove(m.id)}
+                      disabled={removing === m.id}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all disabled:opacity-50"
+                      style={{ background: "rgba(239,68,68,0.08)", color: "#EF4444", border: "1px solid rgba(239,68,68,0.2)" }}>
+                      {removing === m.id
+                        ? <Loader2 size={11} className="animate-spin" />
+                        : <X size={11} />}
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {removeErr && (
+              <p className="text-[11px] text-red-600 bg-red-50 px-3 py-2 rounded-xl mt-2">{removeErr}</p>
+            )}
+          </div>
+
+          {/* ── Add Manager ── */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">
+              Add Manager <span className="normal-case font-normal text-gray-400">({selected.length} selected)</span>
+            </p>
+            {availableMembers.length === 0 ? (
+              <p className="text-[12px] text-gray-400 italic px-1">All members are already assigned.</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {availableMembers.map(m => {
+                  const checked = selected.includes(m.id)
                   return (
-                    <button key={m.id} type="button" onClick={() => toggleMember(m.id)}
+                    <button key={m.id} type="button" onClick={() => toggleSelect(m.id)}
                       className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left transition-all"
-                      style={{ border: checked ? "2px solid #F97316" : "2px solid #E5E7EB", background: checked ? "rgba(249,115,22,0.05)" : "#FAFAFA" }}>
+                      style={{
+                        border: checked ? "2px solid #F97316" : "2px solid #E5E7EB",
+                        background: checked ? "rgba(249,115,22,0.05)" : "#FAFAFA",
+                      }}>
                       <div className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 transition-all"
                         style={{ background: checked ? "#F97316" : "#E5E7EB" }}>
                         {checked && <span style={{ color: "#fff", fontSize: 11, fontWeight: 800 }}>✓</span>}
@@ -972,23 +1048,28 @@ function AssignManagerSheet({
                     </button>
                   )
                 })}
-                {sortedMembers.length === 0 && <p className="text-[12px] text-gray-400 italic">No members found.</p>}
               </div>
-              {err && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-xl">{err}</p>}
-            </div>
-          )}
+            )}
+            {assignErr && (
+              <p className="text-[11px] text-red-600 bg-red-50 px-3 py-2 rounded-xl mt-2">{assignErr}</p>
+            )}
+          </div>
         </div>
 
-        {!success && (
-          <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
-            <button type="button" onClick={close} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all">Cancel</button>
-            <button type="button" onClick={handleSave} disabled={saving || selectedMembers.length === 0}
-              className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all disabled:opacity-40"
-              style={{ background: saving ? "#fdba74" : "#F97316" }}>
-              {saving ? "Saving…" : "Assign"}
-            </button>
-          </div>
-        )}
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+          <button type="button" onClick={close}
+            className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all">
+            Close
+          </button>
+          <button type="button" onClick={handleAssign}
+            disabled={saving || selected.length === 0}
+            className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all disabled:opacity-40 flex items-center justify-center gap-2"
+            style={{ background: saving ? "#fdba74" : "#F97316" }}>
+            {saving && <Loader2 size={13} className="animate-spin" />}
+            {saving ? "Assigning…" : "Assign"}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -996,7 +1077,7 @@ function AssignManagerSheet({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function TeamClient({ members, pastMembers, freelancers: initFreelancers = [], initialSearch = "" }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; initialSearch?: string }) {
+export default function TeamClient({ members, pastMembers, freelancers: initFreelancers = [], initialSearch = "", assignedManagerIds = [] }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; initialSearch?: string; assignedManagerIds?: string[] }) {
   const router = useRouter()
   const nextId = useMemo(() => computeNextEmployeeId(members), [members])
   const [search, setSearch] = useState(initialSearch)
@@ -1863,6 +1944,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
         open={assignSheetOpen}
         onClose={() => setAssignSheetOpen(false)}
         members={members}
+        assignedManagerIds={assignedManagerIds}
       />
     </div>
   )

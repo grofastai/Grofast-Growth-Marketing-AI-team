@@ -1012,14 +1012,15 @@ export default function DailyUpdateForm({
     const submittedEntries = Array.isArray((activeUpdate ?? existingUpdateRef.current ?? {})?.work_entries)
       ? ((activeUpdate ?? existingUpdateRef.current ?? {})?.work_entries as Record<string,unknown>[])
       : []
-    const totalSubmittedH = submittedEntries
-      .filter(e => e.task_type !== "break")
-      .reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+    const subActUpd0  = (activeUpdate ?? existingUpdateRef.current) as Record<string,unknown> | null
+    const totalSubmittedH = submittedEntries.length > 0
+      ? submittedEntries.filter(e => e.task_type !== "break").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+      : Number(subActUpd0?.working_hours) || 0
 
     // Media team stats from work_entries — fall back to summary columns when work_entries is empty
     const subShoots   = submittedEntries.filter(e => e.task_type === "shoot")
     const subEdits    = submittedEntries.filter(e => e.task_type === "edit")
-    const subActUpd   = (activeUpdate ?? existingUpdateRef.current) as Record<string,unknown> | null
+    const subActUpd   = subActUpd0
     const subShootLen = subShoots.length || Number(subActUpd?.shoot_count) || 0
     const subEditLen  = subEdits.length  || Number(subActUpd?.editing_count) || 0
     const subShootH   = subShoots.length > 0
@@ -1055,7 +1056,11 @@ export default function DailyUpdateForm({
               {isToday ? "Today's Update Submitted!" : `${dateLabel.split(",")[0]}'s Update`}
             </p>
             <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>
-              {totalSubmittedH > 0 ? `${totalSubmittedH.toFixed(1)}h logged · ${submittedEntries.filter(e => e.task_type !== "break").length} entries` : "No entries logged"}
+              {totalSubmittedH > 0
+                ? submittedEntries.length > 0
+                  ? `${totalSubmittedH.toFixed(1)}h logged · ${submittedEntries.filter(e => e.task_type !== "break").length} entries`
+                  : `${totalSubmittedH.toFixed(1)}h logged`
+                : "No entries logged"}
             </p>
           </div>
 

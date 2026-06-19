@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation"
 import { LogOut, FileText, AlertTriangle } from "lucide-react"
+import { logoutAction } from "@/lib/actions/auth"
 
 interface Props {
   forgotLogout: boolean
@@ -76,7 +77,20 @@ export default function MemberGate({ forgotLogout, missingUpdate, yesterdayDate 
             Go to Attendance
           </button>
 
-          <p style={{ fontSize: 11, color: "#D1D5DB", textAlign: "center", marginTop: 12 }}>
+          <form action={logoutAction} style={{ marginTop: 10 }}>
+            <button type="submit" style={{
+              width: "100%", padding: "11px 0", borderRadius: 12,
+              border: "1.5px solid #E5E7EB", background: "#fff",
+              color: "#6B7280", fontSize: 13, fontWeight: 600,
+              cursor: "pointer", display: "flex", alignItems: "center",
+              justifyContent: "center", gap: 8,
+            }}>
+              <LogOut size={13} />
+              Sign Out
+            </button>
+          </form>
+
+          <p style={{ fontSize: 11, color: "#D1D5DB", textAlign: "center", marginTop: 10 }}>
             All other sections are locked until this is resolved
           </p>
         </div>
@@ -135,7 +149,20 @@ export default function MemberGate({ forgotLogout, missingUpdate, yesterdayDate 
           Submit Yesterday&apos;s Update
         </button>
 
-        <p style={{ fontSize: 11, color: "#D1D5DB", textAlign: "center", marginTop: 12 }}>
+        <form action={logoutAction} style={{ marginTop: 10 }}>
+          <button type="submit" style={{
+            width: "100%", padding: "11px 0", borderRadius: 12,
+            border: "1.5px solid #E5E7EB", background: "#fff",
+            color: "#6B7280", fontSize: 13, fontWeight: 600,
+            cursor: "pointer", display: "flex", alignItems: "center",
+            justifyContent: "center", gap: 8,
+          }}>
+            <LogOut size={13} />
+            Sign Out
+          </button>
+        </form>
+
+        <p style={{ fontSize: 11, color: "#D1D5DB", textAlign: "center", marginTop: 10 }}>
           All other sections are locked until this is resolved
         </p>
       </div>

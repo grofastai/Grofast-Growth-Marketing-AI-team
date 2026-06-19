@@ -73,19 +73,16 @@ export default async function HistoryPage() {
 
   const companyId = profileResult.data?.company_id ?? ""
 
-  const ninetyDaysAgo = new Date()
-  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90)
-  const fromDateStr = ninetyDaysAgo.toISOString().split("T")[0]
-
-  const todayStr = new Date().toISOString().split("T")[0]
+  // Full year — one entry/day max, so ~170 rows at most; matches annual leave cycle
+  const fromDateStr = `${new Date().getFullYear()}-01-01`
 
   const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult, leavesResult, companyLeavesResult] = await Promise.all([
     supabase
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, learning_start_time, learning_end_time, shoot_count, editing_count, work_entries, created_at")
       .eq("user_id", effectiveUserId)
-      .order("date", { ascending: false })
-      .limit(90),
+      .gte("date", fromDateStr)
+      .order("date", { ascending: false }),
     // Active clients
     admin.from("clients").select("name").eq("company_id", companyId).eq("status", "active").order("name"),
     // Past clients (for edit dropdown — user may have old entries for these)
@@ -97,8 +94,8 @@ export default async function HistoryPage() {
           .eq("company_id", companyId)
           .contains("participant_ids", [effectiveUserId])
           .neq("user_id", effectiveUserId)
+          .gte("date", fromDateStr)
           .order("date", { ascending: false })
-          .limit(60)
       : Promise.resolve({ data: [] as ParticipatedUpdate[] }),
     companyId
       ? admin
@@ -107,15 +104,15 @@ export default async function HistoryPage() {
           .eq("company_id", companyId)
           .eq("status", "active")
       : Promise.resolve({ data: [] as MemberInfo[] }),
-    // Fetch attendance_logs to verify actual clock-in presence
+    // Attendance logs for the full year
     admin
       .from("attendance_logs")
       .select("date")
       .eq("user_id", effectiveUserId)
       .not("clock_in", "is", null)
-      .order("date", { ascending: false })
-      .limit(90),
-    // Approved leaves — used to show in history even if no daily_updates entry
+      .gte("date", fromDateStr)
+      .order("date", { ascending: false }),
+    // Approved leaves for the full year (client will cap at today)
     admin
       .from("leaves")
       .select("id, leave_type, from_date, to_date, reason, permission_time, permission_end_time, permission_hours, half_day_from_time, half_day_to_time, half_day_period")
@@ -123,7 +120,7 @@ export default async function HistoryPage() {
       .eq("status", "approved")
       .gte("from_date", fromDateStr)
       .order("from_date", { ascending: false }),
-    // Company holidays — show in timeline (fetch all, no upper bound, so upcoming holidays in current month also appear)
+    // Company holidays for the full year (client will cap at today)
     companyId
       ? admin.from("company_leaves").select("id, date, name").eq("company_id", companyId).gte("date", fromDateStr).order("date", { ascending: false })
       : Promise.resolve({ data: [] }),

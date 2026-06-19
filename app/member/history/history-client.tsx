@@ -625,21 +625,24 @@ export default function HistoryClient({
     | { type: "leave"; date: string; leave: ApprovedLeave }
     | { type: "company_holiday"; date: string; holiday: CompanyHoliday }
   const mergedList = useMemo((): MergedItem[] => {
+    // Cap at today in IST (UTC+5:30) — never show future dates in history
+    const todayIST = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().split("T")[0]
+
     const ownDates = new Set(filtered.map(u => u.date))
     const monthPrefix = selectedMonth && monthFiltered[0]?.date ? monthFiltered[0].date.slice(0, 7) : null
 
-    // Collab orphans
+    // Collab orphans — only past/today
     const orphans: { date: string; pus: ParticipatedUpdate[] }[] = []
     for (const [date, pus] of participatedByDate.entries()) {
+      if (date > todayIST) continue
       if (ownDates.has(date)) continue
       if (dateActive && date !== selectedDate) continue
       if (monthPrefix && !date.startsWith(monthPrefix)) continue
-      if (!selectedMonth && !dateActive && !filtered.some(u => u.date >= date.slice(0, 7))) continue
       orphans.push({ date, pus })
     }
     orphans.sort((a, b) => b.date.localeCompare(a.date))
 
-    // Approved leave dates that have no daily_updates entry
+    // Approved leave dates — only days that have already arrived (ds <= todayIST)
     const leaveItems: MergedItem[] = []
     const collabDates = new Set(orphans.map(o => o.date))
     for (const leave of approvedLeaves) {
@@ -648,6 +651,7 @@ export default function HistoryClient({
       const cur   = new Date(start)
       while (cur <= end) {
         const ds = cur.toISOString().split("T")[0]
+        if (ds > todayIST) { cur.setDate(cur.getDate() + 1); continue }
         if (!ownDates.has(ds) && !collabDates.has(ds)) {
           if (!monthPrefix || ds.startsWith(monthPrefix)) {
             leaveItems.push({ type: "leave", date: ds, leave })
@@ -657,19 +661,16 @@ export default function HistoryClient({
       }
     }
 
-    // Company holiday dates — only for days with no own work, no collab, no personal leave
+    // Company holidays — only days that have already arrived (date <= todayIST)
     const leaveDates = new Set(leaveItems.map(l => l.date))
     const holidayItems: MergedItem[] = []
     for (const holiday of companyLeaves) {
+      if (holiday.date > todayIST) continue
       if (ownDates.has(holiday.date)) continue
       if (collabDates.has(holiday.date)) continue
       if (leaveDates.has(holiday.date)) continue
       if (dateActive && holiday.date !== selectedDate) continue
       if (monthPrefix && !holiday.date.startsWith(monthPrefix)) continue
-      if (!monthPrefix && !dateActive) {
-        const hMonth = holiday.date.slice(0, 7)
-        if (!filtered.some(u => u.date.slice(0, 7) === hMonth) && selectedMonth === "") continue
-      }
       holidayItems.push({ type: "company_holiday", date: holiday.date, holiday })
     }
 

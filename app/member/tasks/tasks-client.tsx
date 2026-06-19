@@ -17,7 +17,7 @@ import {
   ChevronLeft, Check, FileText, Upload, ExternalLink,
   RotateCcw, Link2, Paperclip, Image as ImageIcon,
 } from "lucide-react"
-import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject, updateTask, updateTaskChecklist } from "@/lib/actions/tasks"
+import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject, updateTask, updateTaskChecklist, getTaskAttachments } from "@/lib/actions/tasks"
 import { getTaskComments, addTaskComment, type TaskComment } from "@/lib/actions/comments"
 import { createBrowserClient } from "@/lib/supabase/client"
 
@@ -751,6 +751,10 @@ export default function MemberTasksClient({
     setDetailNewLink("")
     setDetailAttachError(null)
     setDetailAttachSuccess(null)
+    // Fetch fresh attachments so receiver always sees latest even without page refresh
+    getTaskAttachments(task.id).then(fresh => {
+      setDetailAttachments(fresh)
+    }).catch(() => {/* keep local state on error */})
   }
 
   async function handleDetailChecklistToggle(idx: number) {

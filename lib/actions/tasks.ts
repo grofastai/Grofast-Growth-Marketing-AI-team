@@ -397,3 +397,20 @@ export async function updateTask(
   revalidatePath('/member/tasks')
   return { success: true }
 }
+
+export async function getTaskAttachments(
+  taskId: string
+): Promise<{ type: 'link' | 'file'; url: string; name: string }[]> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+  const admin = adminSupabase()
+  const { data } = await admin
+    .from('tasks')
+    .select('attachments')
+    .eq('id', taskId)
+    .single()
+  if (!data?.attachments) return []
+  return (data.attachments as { type: 'link' | 'file'; url: string; name?: string }[])
+    .map(a => ({ type: a.type ?? 'link', url: a.url ?? '', name: a.name ?? a.url ?? '' }))
+}

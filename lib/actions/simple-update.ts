@@ -46,6 +46,17 @@ export async function submitSimpleUpdate(
     notes: e.notes || null,
   }))
 
+  // Preserve auto-inserted leave entries (_is_leave: true)
+  const { data: existing } = await admin
+    .from('daily_updates')
+    .select('work_entries')
+    .eq('user_id', user.id)
+    .eq('date', date)
+    .maybeSingle()
+  const leaveEntries = (Array.isArray(existing?.work_entries) ? existing.work_entries as Record<string, unknown>[] : [])
+    .filter(e => e._is_leave === true)
+  const finalEntries = [...workEntries, ...leaveEntries]
+
   const { error } = await admin
     .from('daily_updates')
     .upsert(
@@ -54,7 +65,7 @@ export async function submitSimpleUpdate(
         user_id: user.id,
         date,
         attendance_status: 'present',
-        work_entries: workEntries,
+        work_entries: finalEntries,
         participant_ids: participantIds,
         working_hours: null,
       },

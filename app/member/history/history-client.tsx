@@ -1488,7 +1488,8 @@ export default function HistoryClient({
                                   )}
                                 </div>
                               </div>
-                              {/* Per-entry actions */}
+                              {/* Per-entry actions — locked for auto-inserted leave entries */}
+                              {!(e as unknown as Record<string, unknown>)._is_leave && (
                               <div style={{ display:"flex", gap:5, flexShrink:0 }}>
                                 <button
                                   onClick={() => isEditingEntry ? (setEditingKey(null), setEditDraft({})) : startEditEntry(u.id, ei, e, u.date)}
@@ -1504,6 +1505,7 @@ export default function HistoryClient({
                                   <Trash2 size={11} style={{ color:"#EF4444" }}/>
                                 </button>
                               </div>
+                              )}
                             </div>
 
                             {/* Inline edit form */}

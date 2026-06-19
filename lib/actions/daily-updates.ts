@@ -286,12 +286,18 @@ export async function updatePastDailyUpdate(
   const admin = adminSupabase()
   const { data: record } = await admin
     .from('daily_updates')
-    .select('date, company_id')
+    .select('date, company_id, work_entries')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
 
-  const totalHours = entries.reduce((s, e) => {
+  // Always preserve auto-inserted leave entries (_is_leave: true) — member cannot delete them
+  const existingLeaveEntries = (Array.isArray(record?.work_entries) ? record.work_entries as Record<string, unknown>[] : [])
+    .filter(e => e._is_leave === true)
+  const entriesWithoutLeave = entries.filter(e => !e._is_leave)
+  const finalEntries = [...entriesWithoutLeave, ...existingLeaveEntries]
+
+  const totalHours = finalEntries.reduce((s, e) => {
     const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
     return s + ((e.duration_hours as number) ?? 0) + travel
   }, 0)
@@ -299,10 +305,10 @@ export async function updatePastDailyUpdate(
   const { error } = await admin
     .from('daily_updates')
     .update({
-      work_entries: entries,
+      work_entries: finalEntries,
       working_hours: Math.round(totalHours * 10) / 10 || null,
-      shoot_count: entries.filter(e => e.task_type === 'shoot').length,
-      editing_count: entries.filter(e => e.task_type === 'edit').length,
+      shoot_count: finalEntries.filter(e => e.task_type === 'shoot').length,
+      editing_count: finalEntries.filter(e => e.task_type === 'edit').length,
     })
     .eq('id', id)
     .eq('user_id', user.id)
@@ -311,7 +317,7 @@ export async function updatePastDailyUpdate(
 
   // Sync break total to attendance_logs based on remaining entries
   if (record?.date) {
-    const breakEntries = entries.filter(e => e.task_type === 'break' && (e.duration_hours as number) > 0)
+    const breakEntries = finalEntries.filter(e => e.task_type === 'break' && (e.duration_hours as number) > 0)
     const breakSessions = breakEntries
       .filter(e => e.start_time && e.end_time)
       .map(e => ({

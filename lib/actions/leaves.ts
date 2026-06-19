@@ -352,6 +352,7 @@ async function autoInsertLeaveHistory(
       notes: leave.reason ?? '',
       start_time: startTime,
       end_time: endTime,
+      _is_leave: true,
     }
     await upsertWorkEntry(admin, leave.company_id, leave.user_id, leave.from_date, entry)
 
@@ -373,6 +374,7 @@ async function autoInsertLeaveHistory(
       notes: leave.reason ?? '',
       start_time: startTime,
       end_time: endTime,
+      _is_leave: true,
     }
     await upsertWorkEntry(admin, leave.company_id, leave.user_id, leave.from_date, entry)
 

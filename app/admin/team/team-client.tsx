@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
-import { createFreelancer, assignAllFreelancersToMembers } from "@/lib/actions/freelancers"
+import { createFreelancer, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
 
 type FreelancerBasic = {
   id: string; name: string; type: string; phone: string | null; upi_id: string | null
@@ -691,16 +691,20 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
   const [step, setStep] = useState<"type" | "details">("type")
   const [type, setType] = useState("")
   const [name, setName] = useState("")
+  const [title, setTitle] = useState("")
   const [phone, setPhone] = useState("")
   const [upi, setUpi] = useState("")
   const [rate, setRate] = useState("")
   const [gender, setGender] = useState("")
+  const [voiceTone, setVoiceTone] = useState("")
+  const [availability, setAvailability] = useState("")
+  const [rating, setRating] = useState(0)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
   const [success, setSuccess] = useState(false)
 
   function reset() {
-    setStep("type"); setType(""); setName(""); setPhone(""); setUpi(""); setRate(""); setGender(""); setSaving(false); setErr(""); setSuccess(false)
+    setStep("type"); setType(""); setName(""); setTitle(""); setPhone(""); setUpi(""); setRate(""); setGender(""); setVoiceTone(""); setAvailability(""); setRating(0); setSaving(false); setErr(""); setSuccess(false)
   }
   function close() { reset(); onClose() }
 
@@ -714,6 +718,8 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
     const res = await createFreelancer({
       name: name.trim(), type: type as "voice_over" | "video_editor" | "video_shooter" | "other",
       phone: phone || undefined, upi_id: upi || undefined, gender: gender || undefined,
+      title: title || undefined, voice_type: voiceTone || undefined,
+      availability_notes: availability || undefined, rating,
       cost_per_minute:  type === "voice_over"    ? rateNum : null,
       cost_per_video:   type === "video_editor" || type === "other" ? rateNum : null,
       cost_per_hour:    type === "video_shooter"  ? rateNum : null,
@@ -789,26 +795,40 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
                 <input className={FIELD_CLS} placeholder="e.g. Ravi Kumar" value={name} onChange={e => setName(e.target.value)} />
               </div>
 
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Title</label>
+                <input className={FIELD_CLS} placeholder="e.g. Voice Artist, Narrator" value={title} onChange={e => setTitle(e.target.value)} />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Gender</label>
+                <div className="flex gap-2">
+                  {["male","female"].map(g => (
+                    <button key={g} type="button"
+                      onClick={() => setGender(gender === g ? "" : g)}
+                      className="flex-1 py-2.5 rounded-xl text-[13px] font-bold capitalize transition-all"
+                      style={gender === g ? { background: "#F97316", color: "#fff", border: "2px solid #F97316" } : { background: "#F9FAFB", color: "#6B7280", border: "2px solid #E5E7EB" }}>
+                      {g === "male" ? "Male" : "Female"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {type === "voice_over" && (
                 <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Gender</label>
-                  <div className="flex gap-2">
-                    {["male","female"].map(g => (
-                      <button key={g} type="button"
-                        onClick={() => setGender(gender === g ? "" : g)}
-                        className="flex-1 py-2.5 rounded-xl text-[13px] font-bold capitalize transition-all"
-                        style={gender === g ? { background: "#8b5cf6", color: "#fff", border: "2px solid #8b5cf6" } : { background: "#F9FAFB", color: "#6B7280", border: "2px solid #E5E7EB" }}>
-                        {g === "male" ? "Male" : "Female"}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Voice Tone</label>
+                  <select className={SELECT_CLS} value={voiceTone} onChange={e => setVoiceTone(e.target.value)}>
+                    <option value="">Select voice tone</option>
+                    {FL_VOICE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Phone</label>
-                  <input className={FIELD_CLS} placeholder="+91 9876543210" value={phone} onChange={e => setPhone(e.target.value)} />
+                  <input className={FIELD_CLS} inputMode="numeric" placeholder="9876543210" value={phone}
+                    onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 15))} />
                 </div>
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">UPI ID</label>
@@ -822,6 +842,25 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
                   <input className={FIELD_CLS} type="number" min="0" step="0.5" placeholder={cfg.ratePlaceholder} value={rate} onChange={e => setRate(e.target.value)} />
                 </div>
               )}
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Free Time / Availability</label>
+                <input className={FIELD_CLS} placeholder="e.g. Weekdays 10am–6pm" value={availability} onChange={e => setAvailability(e.target.value)} />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Rating</label>
+                <div className="flex gap-1">
+                  {[1,2,3,4,5].map(n => (
+                    <button key={n} type="button" onClick={() => setRating(rating === n ? 0 : n)}
+                      className="p-1 transition-all">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill={n <= rating ? "#f59e0b" : "none"} stroke={n <= rating ? "#f59e0b" : "#d1d5db"} strokeWidth="1.5">
+                        <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               {err && (
                 <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-xl">{err}</p>
@@ -846,6 +885,8 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
 }
 
 const FIELD_CLS = "w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[13px] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] transition-all bg-white"
+const SELECT_CLS = FIELD_CLS + " appearance-none cursor-pointer"
+const FL_VOICE_TYPES = ["Commercial Tone", "Emotional Tone", "High Pitch", "Base Voice", "Warm & Friendly", "Deep & Authoritative", "Neutral", "Energetic", "Soft & Calm"]
 
 // ── Assign Manager Sheet ──────────────────────────────────────────────────────
 
@@ -955,12 +996,14 @@ function AssignManagerSheet({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function TeamClient({ members, pastMembers, freelancers = [], initialSearch = "" }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; initialSearch?: string }) {
+export default function TeamClient({ members, pastMembers, freelancers: initFreelancers = [], initialSearch = "" }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; initialSearch?: string }) {
   const router = useRouter()
   const nextId = useMemo(() => computeNextEmployeeId(members), [members])
   const [search, setSearch] = useState(initialSearch)
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
   const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER" | "FREELANCER">("ALL")
+  const [freelancers, setFreelancers] = useState(initFreelancers)
+  const [flTypeFilter, setFlTypeFilter] = useState<"all" | "voice_over" | "video_editor" | "video_shooter" | "other">("all")
   const [flSheetOpen, setFlSheetOpen] = useState(false)
   const [assignSheetOpen, setAssignSheetOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -997,6 +1040,28 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
     admins: members.filter((m) => ["ADMIN","FOUNDER","CEO"].includes(m.role)).length,
     teamMembers: members.filter((m) => m.role === "MEMBER").length,
     freelancers: freelancers.length,
+  }
+
+  const filteredFreelancers = useMemo(() =>
+    flTypeFilter === "all" ? freelancers : freelancers.filter(f => f.type === flTypeFilter),
+    [freelancers, flTypeFilter]
+  )
+
+  const flTypeCounts = useMemo(() => ({
+    all: freelancers.length,
+    voice_over: freelancers.filter(f => f.type === "voice_over").length,
+    video_editor: freelancers.filter(f => f.type === "video_editor").length,
+    video_shooter: freelancers.filter(f => f.type === "video_shooter").length,
+    other: freelancers.filter(f => f.type === "other").length,
+  }), [freelancers])
+
+  async function handleDeleteFreelancer(id: string, name: string) {
+    if (!confirm(`Delete freelancer "${name}"? This cannot be undone.`)) return
+    const res = await deleteFreelancer(id)
+    if (res.success) {
+      setFreelancers(prev => prev.filter(f => f.id !== id))
+      startTransition(() => router.refresh())
+    }
   }
 
   // Recent activity: last 6 members sorted by created_at desc
@@ -1159,10 +1224,11 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
 
           {roleFilter === "FREELANCER" ? (
             <>
+              {/* Header */}
               <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
                 <div>
                   <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Freelancers</h3>
-                  <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{freelancers.length} freelancer{freelancers.length !== 1 ? "s" : ""}</p>
+                  <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{filteredFreelancers.length} of {freelancers.length} freelancer{freelancers.length !== 1 ? "s" : ""}</p>
                 </div>
                 <button
                   onClick={() => setAssignSheetOpen(true)}
@@ -1171,26 +1237,47 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
                   <UserCheck size={13} /> Assign Manager
                 </button>
               </div>
+              {/* Type filter tabs */}
+              <div className="flex items-center gap-1 px-5 py-3 overflow-x-auto" style={{ borderBottom: "1px solid #F3F4F6" }}>
+                {([
+                  { key: "all",          label: `All (${flTypeCounts.all})` },
+                  { key: "voice_over",   label: `Voice Over (${flTypeCounts.voice_over})` },
+                  { key: "video_editor", label: `Video Editor (${flTypeCounts.video_editor})` },
+                  { key: "video_shooter",label: `Video Shooter (${flTypeCounts.video_shooter})` },
+                  { key: "other",        label: `Other (${flTypeCounts.other})` },
+                ] as const).map(({ key, label }) => (
+                  <button key={key} onClick={() => setFlTypeFilter(key)}
+                    className="whitespace-nowrap px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all flex-shrink-0"
+                    style={flTypeFilter === key
+                      ? { background: "#F97316", color: "#fff" }
+                      : { background: "#F3F4F6", color: "#6B7280" }
+                    }>
+                    {label}
+                  </button>
+                ))}
+              </div>
               <div style={{ overflowX: "auto" }}>
                 <table className="w-full" style={{ minWidth: 560 }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
-                      {["Name", "Type", "Phone", "Rate", "Status", ""].map(h => (
+                      {["Name", "Type", "Phone", "Rate", "Status", "Actions"].map(h => (
                         <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#9CA3AF" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {freelancers.length === 0 ? (
-                      <tr><td colSpan={5} className="px-5 py-10 text-center text-[13px]" style={{ color: "#9CA3AF" }}>No freelancers added yet</td></tr>
-                    ) : freelancers.map((f, i) => {
+                    {filteredFreelancers.length === 0 ? (
+                      <tr><td colSpan={6} className="px-5 py-10 text-center text-[13px]" style={{ color: "#9CA3AF" }}>
+                        {freelancers.length === 0 ? "No freelancers added yet" : "No freelancers match this filter"}
+                      </td></tr>
+                    ) : filteredFreelancers.map((f, i) => {
                       const typeCfg = FL_TYPE_CFG[f.type] ?? { label: f.type, color: "#6B7280", bg: "rgba(107,114,128,0.08)" }
                       const rate = f.cost_per_minute ? `₹${f.cost_per_minute}/min`
                         : f.cost_per_video ? `₹${f.cost_per_video}/video`
                         : f.cost_per_hour ? `₹${f.cost_per_hour}/hr`
                         : "—"
                       return (
-                        <tr key={f.id} style={{ borderBottom: i < freelancers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
+                        <tr key={f.id} style={{ borderBottom: i < filteredFreelancers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
                           <td className="px-5 py-3.5">
                             <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{f.name}</p>
                             {f.gender && <p className="text-[11px] capitalize" style={{ color: "#9CA3AF" }}>{f.gender}</p>}
@@ -1208,11 +1295,19 @@ export default function TeamClient({ members, pastMembers, freelancers = [], ini
                             </span>
                           </td>
                           <td className="px-5 py-3.5">
-                            <Link href={`/admin/freelancers/${f.id}`}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                              style={{ background: "rgba(249,115,22,0.08)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
-                              View <ArrowRight size={10} />
-                            </Link>
+                            <div className="flex items-center gap-2">
+                              <Link href={`/admin/freelancers/${f.id}`}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                                style={{ background: "rgba(249,115,22,0.08)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
+                                View <ArrowRight size={10} />
+                              </Link>
+                              <button
+                                onClick={() => handleDeleteFreelancer(f.id, f.name)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                                style={{ background: "rgba(222,26,26,0.07)", color: "#DE1A1A", border: "1px solid rgba(222,26,26,0.18)" }}>
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )

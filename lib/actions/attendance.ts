@@ -179,7 +179,7 @@ export async function markAbsent(): Promise<{ success: boolean; error?: string }
     company_id: ctx.companyId,
     user_id: ctx.userId,
     date: today,
-    status: 'absent',
+    status: 'leave',
   })
 
   if (error) return { success: false, error: error.message }
@@ -195,7 +195,7 @@ export async function markPastAbsent(date: string): Promise<{ success: boolean; 
   const ctx = ctxResult
 
   const today = new Date().toISOString().split('T')[0]
-  if (date > today) return { success: false, error: 'Cannot mark future dates as absent' }
+  if (date > today) return { success: false, error: 'Cannot mark future dates as on leave' }
 
   const admin = adminSupabase()
   const { data: existing } = await admin
@@ -212,7 +212,7 @@ export async function markPastAbsent(date: string): Promise<{ success: boolean; 
     company_id: ctx.companyId,
     user_id: ctx.userId,
     date,
-    status: 'absent',
+    status: 'leave',
   })
 
   if (error) return { success: false, error: error.message }
@@ -471,8 +471,8 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
   const workedByDate: Record<string, number> = {}
   const learnByDate: Record<string, number> = {}
   for (const r of (updatesResult.data ?? [])) {
-    workedByDate[r.date] = (workedByDate[r.date] ?? 0) + (r.working_hours ?? 0)
-    learnByDate[r.date]  = (learnByDate[r.date]  ?? 0) + (r.learning_hours ?? 0)
+    workedByDate[r.date] = Math.max(workedByDate[r.date] ?? 0, r.working_hours ?? 0)
+    learnByDate[r.date]  = Math.max(learnByDate[r.date]  ?? 0, r.learning_hours ?? 0)
   }
 
   const logs = (attResult.data ?? []).map(l => ({
@@ -523,9 +523,9 @@ export async function getYesterdayGateStatus(): Promise<{
       .maybeSingle(),
   ])
 
-  // Skip checks if on approved leave or marked absent yesterday
+  // Skip checks if on approved leave or marked on leave yesterday
   if (leave) return fallback
-  if (attLog?.status === 'absent') return fallback
+  if (attLog?.status === 'leave' || attLog?.status === 'absent') return fallback
 
   const hadClockIn = attLog?.status === 'present' && !!attLog?.clock_in
   const forgotLogout = hadClockIn && !attLog?.clock_out

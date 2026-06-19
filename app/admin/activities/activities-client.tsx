@@ -35,7 +35,8 @@ interface Member { id: string; name: string; employee_id: string }
 
 const ATTENDANCE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
   present: { bg: "rgba(222,26,26,0.1)",  color: "#de1a1a", label: "Present" },
-  absent:  { bg: "rgba(255,107,87,0.1)",  color: "#FF6B57", label: "Absent" },
+  absent:  { bg: "rgba(255,107,87,0.1)",  color: "#FF6B57", label: "On Leave" },
+  leave:   { bg: "rgba(255,107,87,0.1)",  color: "#FF6B57", label: "On Leave" },
   holiday: { bg: "rgba(245,158,11,0.1)",  color: "#F59E0B", label: "Holiday" },
   outside: { bg: "rgba(0,0,0,0.05)", color: "#4B5563", label: "Outside" },
 }
@@ -163,12 +164,11 @@ export default function ActivitiesClient({
         // Count as present if they submitted present OR actually clocked in
         map[user.id].present++
         map[user.id].days++
-      } else if (u.attendance_status === "absent") {
+      } else if (u.attendance_status === "leave" || u.attendance_status === "absent") {
         if (isLeaveDay) {
           map[user.id].onLeave++
           map[user.id].days++
         } else {
-          // Only count as absent if no clock-in and not on approved leave
           map[user.id].absent++
           map[user.id].days++
         }
@@ -185,7 +185,7 @@ export default function ActivitiesClient({
   const notUpdated = (memberFilter || !isSingleDay) ? [] : members.filter((m) => !submittedIds.has(m.id) && !onLeaveIds.has(m.id))
 
   const presentCount = updates.filter((u) => u.attendance_status === "present").length
-  const absentCount  = updates.filter((u) => u.attendance_status === "absent").length
+  const absentCount  = updates.filter((u) => u.attendance_status === "leave" || u.attendance_status === "absent").length
   const totalHours   = updates.reduce((sum, u) => sum + (u.working_hours ?? 0), 0)
   const lowHoursCount = updates.filter((u) => u.attendance_status === "present" && (u.working_hours ?? 0) < 6).length
 
@@ -204,7 +204,7 @@ export default function ActivitiesClient({
         {[
           { label: "Updates",    value: updates.length,          color: "#111111",  bg: "#FFFFFF", border: "#E5E7EB" },
           { label: "Present",    value: presentCount,            color: "#de1a1a",  bg: "rgba(222,26,26,0.06)",  border: "rgba(222,26,26,0.15)" },
-          { label: "Absent",     value: absentCount,             color: "#FF6B57",  bg: "rgba(255,107,87,0.06)",  border: "rgba(255,107,87,0.15)" },
+          { label: "On Leave",   value: absentCount,             color: "#FF6B57",  bg: "rgba(255,107,87,0.06)",  border: "rgba(255,107,87,0.15)" },
           { label: "Total Hours",value: `${totalHours.toFixed(1)}h`, color: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
           { label: "Not Updated",value: notUpdated.length,        color: notUpdated.length > 0 ? "#FF6B57" : "#6B7280", bg: notUpdated.length > 0 ? "rgba(255,107,87,0.06)" : "#FFFFFF", border: notUpdated.length > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB" },
         ].map((chip) => (
@@ -303,7 +303,7 @@ export default function ActivitiesClient({
             <table className="w-full">
               <thead>
                 <tr style={{ borderBottom: "1px solid #F3F4F6" }}>
-                  {["Member", "Days Updated", "Present", "Absent", "On Leave", "Total Hours", "Avg / Day", ""].map(h => (
+                  {["Member", "Days Updated", "Present", "Leave", "Total Hours", "Avg / Day", ""].map(h => (
                     <th key={h} className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
                   ))}
                 </tr>
@@ -332,14 +332,8 @@ export default function ActivitiesClient({
                         <span className="text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.08)", color: "#16a34a" }}>{m.present}</span>
                       </td>
                       <td className="px-4 py-3">
-                        {m.absent > 0
-                          ? <span className="text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(239,68,68,0.08)", color: "#dc2626" }}>{m.absent}</span>
-                          : <span className="text-[12px] text-gray-300">—</span>
-                        }
-                      </td>
-                      <td className="px-4 py-3">
-                        {m.onLeave > 0
-                          ? <span className="text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>{m.onLeave}</span>
+                        {(m.absent + m.onLeave) > 0
+                          ? <span className="text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(239,68,68,0.08)", color: "#dc2626" }}>{m.absent + m.onLeave}</span>
                           : <span className="text-[12px] text-gray-300">—</span>
                         }
                       </td>

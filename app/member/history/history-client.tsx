@@ -12,10 +12,11 @@ import {
   TrendingUp, Zap, BookOpen, Coffee, GraduationCap,
   CheckCircle2, Search, Trash2,
   ArrowRight, Flame, Star, X, Pencil, Check, ChevronDown,
+  Mic, ImageIcon,
 } from "lucide-react"
 
 interface WorkEntry {
-  id?: string; task_type: "shoot" | "edit" | "other" | "break" | "learning"
+  id?: string; task_type: "shoot" | "edit" | "other" | "break" | "learning" | "voiceover" | "poster"
   title: string; client_name: string; duration_hours: number
   notes: string; start_time?: string | null; end_time?: string | null
   screenshot_url?: string | null; video_link?: string | null
@@ -40,18 +41,20 @@ interface UpdateRow {
 }
 
 const STATUS_STYLE: Record<string, { label: string; color: string; bg: string; dot: string }> = {
-  present:  { label:"Present",   color:"#16A34A", bg:"rgba(22,163,74,0.12)",   dot:"#22C55E" },
-  absent:   { label:"Absent",    color:"#9CA3AF", bg:"rgba(0,0,0,0.06)",       dot:"#9CA3AF" },
-  holiday:  { label:"Holiday",   color:"#6B7280", bg:"rgba(0,0,0,0.06)",       dot:"#9CA3AF" },
-  wfh:      { label:"WFH",       color:"#6366F1", bg:"rgba(99,102,241,0.1)",   dot:"#6366F1" },
-  on_leave: { label:"On Leave",  color:"#10B981", bg:"rgba(16,185,129,0.12)",  dot:"#10B981" },
+  present: { label:"Present",  color:"#16A34A", bg:"rgba(22,163,74,0.12)",  dot:"#22C55E" },
+  absent:  { label:"On Leave", color:"#9CA3AF", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
+  leave:   { label:"On Leave", color:"#9CA3AF", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
+  holiday: { label:"Holiday",  color:"#6B7280", bg:"rgba(0,0,0,0.06)",      dot:"#9CA3AF" },
+  wfh:     { label:"WFH",      color:"#6366F1", bg:"rgba(99,102,241,0.1)",  dot:"#6366F1" },
 }
 const TASK_CFG = {
-  shoot:    { Icon: Camera,   color:"#EF4444", bg:"rgba(239,68,68,0.1)",    label:"Shoot"    },
-  edit:     { Icon: Film,     color:"#6366F1", bg:"rgba(99,102,241,0.1)",   label:"Editing"  },
-  other:    { Icon: BookOpen, color:"#F59E0B", bg:"rgba(245,158,11,0.1)",   label:"Work"     },
-  break:    { Icon: Coffee,   color:"#78716C", bg:"rgba(120,113,108,0.1)",  label:"Break"    },
-  learning: { Icon: GraduationCap, color:"#059669", bg:"rgba(5,150,105,0.12)", label:"Learning" },
+  shoot:     { Icon: Camera,       color:"#EF4444", bg:"rgba(239,68,68,0.1)",    label:"Shoot"     },
+  edit:      { Icon: Film,         color:"#6366F1", bg:"rgba(99,102,241,0.1)",   label:"Editing"   },
+  other:     { Icon: BookOpen,     color:"#F59E0B", bg:"rgba(245,158,11,0.1)",   label:"Work"      },
+  break:     { Icon: Coffee,       color:"#78716C", bg:"rgba(120,113,108,0.1)",  label:"Break"     },
+  learning:  { Icon: GraduationCap, color:"#059669", bg:"rgba(5,150,105,0.12)", label:"Learning"  },
+  voiceover: { Icon: Mic,          color:"#8B5CF6", bg:"rgba(139,92,246,0.1)",   label:"Voiceover" },
+  poster:    { Icon: ImageIcon,    color:"#EC4899", bg:"rgba(236,72,153,0.1)",   label:"Poster"    },
 }
 const DOT_COLORS = ["#22C55E","#F59E0B","#6366F1","#EF4444","#0EA5E9","#EC4899"]
 
@@ -79,19 +82,36 @@ function calcDur(start?: string | null, end?: string | null): number {
   return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 0
 }
 function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m }
-function calcEditNetHours(e: WorkEntry, shoots: WorkEntry[]): number {
-  if (e.start_time && e.end_time) {
-    const eS = toMins(e.start_time), eE = toMins(e.end_time)
-    if (eE <= eS) return e.duration_hours ?? 0
-    const overlapMins = shoots.reduce((acc, s) => {
-      if (!s.start_time || !s.end_time) return acc
-      const sS = toMins(s.start_time), sE = toMins(s.end_time)
-      if (sE <= sS) return acc
-      return acc + Math.max(0, Math.min(eE, sE) - Math.max(eS, sS))
-    }, 0)
-    return Math.max(0, (eE - eS - overlapMins)) / 60
+
+// Merges overlapping time intervals across ALL work entries so no minute is double-counted.
+// Works for media (shoot+edit overlap) and non-media (overlapping time blocks) alike.
+function calcNetWorkHours(entries: WorkEntry[]): number {
+  const workEntries = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning")
+  // Build intervals from entries that have start+end times
+  const intervals = workEntries
+    .filter(e => e.start_time && e.end_time)
+    .map(e => ({ start: toMins(e.start_time!), end: toMins(e.end_time!) }))
+    .filter(i => i.end > i.start)
+    .sort((a, b) => a.start - b.start)
+  // Merge overlapping intervals
+  let timedMins = 0
+  if (intervals.length > 0) {
+    let cs = intervals[0].start, ce = intervals[0].end
+    for (let i = 1; i < intervals.length; i++) {
+      if (intervals[i].start < ce) { ce = Math.max(ce, intervals[i].end) }
+      else { timedMins += ce - cs; cs = intervals[i].start; ce = intervals[i].end }
+    }
+    timedMins += ce - cs
   }
-  return e.duration_hours ?? 0
+  // Travel hours for shoots are always additive (travel happens outside shoot window)
+  const travelH = workEntries
+    .filter(e => e.task_type === "shoot")
+    .reduce((s, e) => s + (e._travel_hours ?? 0), 0)
+  // Entries with no time range — use their stored duration_hours directly
+  const untimedH = workEntries
+    .filter(e => !e.start_time || !e.end_time)
+    .reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+  return Math.round((timedMins / 60 + travelH + untimedH) * 10) / 10
 }
 
 function HTimePicker({ value, onChange, style: extra }: { value: string; onChange: (v: string) => void; style?: React.CSSProperties }) {
@@ -512,12 +532,7 @@ export default function HistoryClient({
     const dailyData: { day: string; hours: number }[] = []
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      const shootEntries = entries.filter(e => e.task_type === "shoot")
-      const workH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => {
-        if (e.task_type === "shoot") return sum + (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
-        if (e.task_type === "edit") return sum + calcEditNetHours(e, shootEntries)
-        return sum + (e.duration_hours ?? 0)
-      }, 0)
+      const workH = calcNetWorkHours(entries)
       const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
       const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
@@ -532,7 +547,7 @@ export default function HistoryClient({
       totalTasks += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
       for (const e of entries) {
         if (e.task_type === "shoot") shootH += (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
-        else if (e.task_type === "edit") editH += calcEditNetHours(e, shootEntries)
+        else if (e.task_type === "edit") editH += e.duration_hours ?? 0
         else if (e.task_type !== "break" && e.task_type !== "learning") otherH += e.duration_hours ?? 0
       }
     }
@@ -598,7 +613,6 @@ export default function HistoryClient({
     | { type: "own"; date: string; u: UpdateRow }
     | { type: "collab"; date: string; pus: ParticipatedUpdate[] }
     | { type: "leave"; date: string; leave: ApprovedLeave }
-
   const mergedList = useMemo((): MergedItem[] => {
     const ownDates = new Set(filtered.map(u => u.date))
     const monthPrefix = selectedMonth && monthFiltered[0]?.date ? monthFiltered[0].date.slice(0, 7) : null
@@ -607,8 +621,9 @@ export default function HistoryClient({
     const orphans: { date: string; pus: ParticipatedUpdate[] }[] = []
     for (const [date, pus] of participatedByDate.entries()) {
       if (ownDates.has(date)) continue
+      if (dateActive && date !== selectedDate) continue
       if (monthPrefix && !date.startsWith(monthPrefix)) continue
-      if (!selectedMonth && !filtered.some(u => u.date >= date.slice(0, 7))) continue
+      if (!selectedMonth && !dateActive && !filtered.some(u => u.date >= date.slice(0, 7))) continue
       orphans.push({ date, pus })
     }
     orphans.sort((a, b) => b.date.localeCompare(a.date))
@@ -851,6 +866,92 @@ export default function HistoryClient({
               )}
             </div>
 
+            {/* ── STATS ROW ───────────────────────────────────────────────── */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+
+              {/* Work Streak */}
+              <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 14px", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", position:"relative", overflow:"hidden" }}>
+                <div style={{ position:"absolute", top:-20, right:-20, width:100, height:100, borderRadius:"50%", background:"rgba(255,255,255,0.07)", pointerEvents:"none" }}/>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
+                  <Flame size={16} style={{ color:"#FCA5A5" }}/>
+                  <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Work Streak</span>
+                </div>
+                <p style={{ fontSize:24, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", position:"relative", zIndex:1 }}>{streak} Days</p>
+                <p style={{ fontSize:10, color:"#6EE7B7", fontWeight:600, margin:"0 0 12px", position:"relative", zIndex:1 }}>Keep it up!</p>
+                <div style={{ display:"flex", justifyContent:"space-between", position:"relative", zIndex:1 }}>
+                  {last7.map((d, i) => (
+                    <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
+                      <span style={{ fontSize:9, color:"rgba(255,255,255,0.55)", fontWeight:600 }}>{d.lbl}</span>
+                      <div style={{ width:22, height:22, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10,
+                        background: d.done ? "rgba(110,231,183,0.25)" : "rgba(255,255,255,0.1)",
+                        color:      d.done ? "#6EE7B7" : "rgba(255,255,255,0.35)",
+                      }}>
+                        {d.done ? "✓" : "×"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Top Activity */}
+              <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 0", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", overflow:"hidden", position:"relative" }}>
+                <div style={{ position:"absolute", bottom:-20, left:-20, width:90, height:90, borderRadius:"50%", background:"rgba(255,255,255,0.06)", pointerEvents:"none" }}/>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
+                  <Star size={15} style={{ color:"#FACC15" }}/>
+                  <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Top Activity</span>
+                </div>
+                <p style={{ fontSize:16, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", position:"relative", zIndex:1 }}>
+                  {topActivity?.name || "—"}
+                </p>
+                <p style={{ fontSize:10, color:"rgba(255,255,255,0.6)", fontWeight:600, margin:"0 0 8px", position:"relative", zIndex:1 }}>{fmtH(topActivity?.hours ?? 0)}</p>
+                <div style={{ position:"relative", zIndex:1 }}>
+                  <Sparkline data={stats.hoursPerDay} color="#FACC15"/>
+                </div>
+              </div>
+
+              {/* Overtime */}
+              <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 14px", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", position:"relative", overflow:"hidden" }}>
+                <div style={{ position:"absolute", top:-20, right:-20, width:100, height:100, borderRadius:"50%", background:"rgba(255,255,255,0.07)", pointerEvents:"none" }}/>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
+                  <Zap size={15} style={{ color:"#FACC15" }}/>
+                  <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Overtime</span>
+                </div>
+                <p style={{ fontSize:24, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", position:"relative", zIndex:1 }}>{fmtH(stats.totalOT)}</p>
+                <p style={{ fontSize:10, color:"rgba(255,255,255,0.6)", fontWeight:600, margin:"0 0 14px", position:"relative", zIndex:1 }}>{stats.totalOT > 0 ? "Extra hours logged" : "No overtime this period"}</p>
+                <div style={{ display:"flex", alignItems:"flex-end", gap:4, height:36, position:"relative", zIndex:1 }}>
+                  {stats.hoursPerDay.slice(-7).map((h, i) => {
+                    const ot = Math.max(0, h - 8.5)
+                    const max = Math.max(...stats.hoursPerDay.map(x => Math.max(0, x - 8.5)), 1)
+                    return (
+                      <div key={i} style={{ flex:1, borderRadius:3,
+                        background: ot > 0 ? "#FACC15" : "rgba(255,255,255,0.15)",
+                        height:`${Math.max(8, (ot / max) * 36)}px` }}/>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Updates Submitted */}
+              <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 14px", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", position:"relative", overflow:"hidden" }}>
+                <div style={{ position:"absolute", bottom:-20, right:-20, width:90, height:90, borderRadius:"50%", background:"rgba(255,255,255,0.06)", pointerEvents:"none" }}/>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
+                  <CheckCircle2 size={15} style={{ color:"#6EE7B7" }}/>
+                  <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Updates Submitted</span>
+                </div>
+                <p style={{ fontSize:24, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", position:"relative", zIndex:1 }}>
+                  {stats.presentDays} / {monthDays}
+                </p>
+                <p style={{ fontSize:10, color:"#6EE7B7", fontWeight:600, margin:"0 0 12px", position:"relative", zIndex:1 }}>
+                  {monthDays > 0 ? Math.round((stats.presentDays / monthDays) * 100) : 0}% Submitted
+                </p>
+                <div style={{ height:8, borderRadius:99, background:"rgba(255,255,255,0.2)", overflow:"hidden", position:"relative", zIndex:1 }}>
+                  <div style={{ height:"100%", borderRadius:99, background:"linear-gradient(90deg,#6EE7B7,#FACC15)",
+                    width:`${monthDays > 0 ? Math.round((stats.presentDays / monthDays) * 100) : 0}%`,
+                    transition:"width 0.6s ease" }}/>
+                </div>
+              </div>
+            </div>
+
             {/* ── ENTRIES LIST ────────────────────────────────────────────── */}
             {mergedList.length === 0 ? (
               <div style={{ background:"#fff", borderRadius:20, border:"1px solid #EBEDF2", padding:"48px 24px", textAlign:"center", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
@@ -1078,11 +1179,13 @@ export default function HistoryClient({
                         <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{dateLabel}</p>
                         <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
                           {(() => {
-                            const workCount = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
+                            const workCount  = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
                             const learnCount = entries.filter(e => e.task_type === "learning").length + (u.learning_topic && !entries.some(e => e.task_type === "learning") ? 1 : 0)
+                            const breakCount = entries.filter(e => e.task_type === "break").length
                             const parts = []
                             if (workCount > 0) parts.push(`${workCount} work ${workCount === 1 ? "entry" : "entries"}`)
                             if (learnCount > 0) parts.push(`${learnCount} learning`)
+                            if (breakCount > 0 && workCount === 0) parts.push(`${breakCount} break${breakCount > 1 ? "s" : ""} only`)
                             return parts.length > 0 ? parts.join(" + ") : "No entries"
                           })()}
                         </p>
@@ -1091,18 +1194,24 @@ export default function HistoryClient({
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(() => {
                         const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-                        const dayShoots = entries.filter(e => e.task_type === "shoot")
-                        const dayEntryH = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => {
-                          if (e.task_type === "shoot") return sum + (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
-                          if (e.task_type === "edit") return sum + calcEditNetHours(e, dayShoots)
-                          return sum + (e.duration_hours ?? 0)
-                        }, 0) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
-                        return dayEntryH > 0 ? (
-                          <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
-                            <Clock size={11} style={{ color:"#9CA3AF" }}/>
-                            {fmtH(dayEntryH)}
-                          </span>
-                        ) : null
+                        const entryCalcH = calcNetWorkHours(entries) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
+                        const dayEntryH = (u.working_hours ?? 0) > 0 ? u.working_hours! : entryCalcH
+                        const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+                        return (
+                          <>
+                            {dayEntryH > 0 && (
+                              <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
+                                <Clock size={11} style={{ color:"#9CA3AF" }}/>
+                                {fmtH(dayEntryH)}
+                              </span>
+                            )}
+                            {breakH > 0 && (
+                              <span style={{ fontSize:10, fontWeight:700, color:"#78716C", display:"flex", alignItems:"center", gap:3, background:"rgba(120,113,108,0.08)", border:"1px solid rgba(120,113,108,0.18)", borderRadius:99, padding:"2px 8px" }}>
+                                ☕ {fmtH(breakH)} break
+                              </span>
+                            )}
+                          </>
+                        )
                       })()}
                       <span style={{ fontSize:11, fontWeight:700, color:st.color, background:st.bg, padding:"3px 10px", borderRadius:99 }}>
                         {st.label}
@@ -1222,7 +1331,7 @@ export default function HistoryClient({
                     </div>
                   ) : entries.length === 0 ? (
                     <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>
-                      {u.attendance_status === "absent" ? "You didn't submit an update for this day." : "No work entries logged"}
+                      {(u.attendance_status === "leave" || u.attendance_status === "absent") ? "You were on leave this day." : "No work entries logged"}
                     </p>
                   ) : (
                     <div>
@@ -1371,6 +1480,11 @@ export default function HistoryClient({
                                     <a href={e.video_link} target="_blank" rel="noopener noreferrer" style={{ fontSize:10, fontWeight:700, color:"#6366F1", textDecoration:"none", display:"flex", alignItems:"center", gap:2 }}>
                                       🔗 Drive Link
                                     </a>
+                                  )}
+                                  {(e.participant_ids ?? []).length > 0 && (
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#6366F1", display:"flex", alignItems:"center", gap:3 }}>
+                                      👥 {(e.participant_ids ?? []).map(pid => members.find(m => m.id === pid)?.name ?? "Teammate").join(", ")}
+                                    </span>
                                   )}
                                 </div>
                               </div>
@@ -1859,7 +1973,7 @@ export default function HistoryClient({
                   { label:"Editing Hours",   value: fmtH(stats.editH),                   color:"#6366F1", dot:"#6366F1" },
                   { label:"Break Hours",     value: fmtH(stats.totalBreak),              color:"#78716C", dot:"#78716C" },
                   { label:"Present Days",    value: String(stats.presentDays),            color:"#059669", dot:"#059669" },
-                  { label:"Absent Days",     value: String(stats.absentDays),             color:"#EF4444", dot:"#EF4444" },
+                  { label:"Leave Days",      value: String(stats.absentDays),             color:"#EF4444", dot:"#EF4444" },
                   { label:"Overtime",        value: fmtH(stats.totalOT),                 color:"#F59E0B", dot:"#F59E0B" },
                 ] : [
                   { label:"Working Hours",   value: fmtH(stats.totalHours - stats.totalLearning), color:"#22C55E", dot:"#22C55E" },
@@ -1897,91 +2011,6 @@ export default function HistoryClient({
           </div>
         </div>
 
-        {/* ── BOTTOM STATS ROW ─────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
-
-          {/* Work Streak */}
-          <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 14px", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", position:"relative", overflow:"hidden" }}>
-            <div style={{ position:"absolute", top:-20, right:-20, width:100, height:100, borderRadius:"50%", background:"rgba(255,255,255,0.07)", pointerEvents:"none" }}/>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
-              <Flame size={16} style={{ color:"#FCA5A5" }}/>
-              <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Work Streak</span>
-            </div>
-            <p style={{ fontSize:24, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", position:"relative", zIndex:1 }}>{streak} Days</p>
-            <p style={{ fontSize:10, color:"#6EE7B7", fontWeight:600, margin:"0 0 12px", position:"relative", zIndex:1 }}>Keep it up!</p>
-            <div style={{ display:"flex", justifyContent:"space-between", position:"relative", zIndex:1 }}>
-              {last7.map((d, i) => (
-                <div key={i} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-                  <span style={{ fontSize:9, color:"rgba(255,255,255,0.55)", fontWeight:600 }}>{d.lbl}</span>
-                  <div style={{ width:22, height:22, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10,
-                    background: d.done ? "rgba(110,231,183,0.25)" : "rgba(255,255,255,0.1)",
-                    color:      d.done ? "#6EE7B7" : "rgba(255,255,255,0.35)",
-                  }}>
-                    {d.done ? "✓" : "×"}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Top Activity */}
-          <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 0", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", overflow:"hidden", position:"relative" }}>
-            <div style={{ position:"absolute", bottom:-20, left:-20, width:90, height:90, borderRadius:"50%", background:"rgba(255,255,255,0.06)", pointerEvents:"none" }}/>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
-              <Star size={15} style={{ color:"#FACC15" }}/>
-              <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Top Activity</span>
-            </div>
-            <p style={{ fontSize:16, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", position:"relative", zIndex:1 }}>
-              {topActivity?.name || "—"}
-            </p>
-            <p style={{ fontSize:10, color:"rgba(255,255,255,0.6)", fontWeight:600, margin:"0 0 8px", position:"relative", zIndex:1 }}>{fmtH(topActivity?.hours ?? 0)}</p>
-            <div style={{ position:"relative", zIndex:1 }}>
-              <Sparkline data={stats.hoursPerDay} color="#FACC15"/>
-            </div>
-          </div>
-
-          {/* Overtime */}
-          <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 14px", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", position:"relative", overflow:"hidden" }}>
-            <div style={{ position:"absolute", top:-20, right:-20, width:100, height:100, borderRadius:"50%", background:"rgba(255,255,255,0.07)", pointerEvents:"none" }}/>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
-              <Zap size={15} style={{ color:"#FACC15" }}/>
-              <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Overtime</span>
-            </div>
-            <p style={{ fontSize:24, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", position:"relative", zIndex:1 }}>{fmtH(stats.totalOT)}</p>
-            <p style={{ fontSize:10, color:"rgba(255,255,255,0.6)", fontWeight:600, margin:"0 0 14px", position:"relative", zIndex:1 }}>{stats.totalOT > 0 ? "Extra hours logged" : "No overtime this period"}</p>
-            <div style={{ display:"flex", alignItems:"flex-end", gap:4, height:36, position:"relative", zIndex:1 }}>
-              {stats.hoursPerDay.slice(-7).map((h, i) => {
-                const ot = Math.max(0, h - 9.5)
-                const max = Math.max(...stats.hoursPerDay.map(x => Math.max(0, x - 9.5)), 1)
-                return (
-                  <div key={i} style={{ flex:1, borderRadius:3,
-                    background: ot > 0 ? "#FACC15" : "rgba(255,255,255,0.15)",
-                    height:`${Math.max(8, (ot / max) * 36)}px` }}/>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Updates Submitted */}
-          <div style={{ background:"linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 55%, #3B82F6 100%)", borderRadius:18, padding:"18px 18px 14px", boxShadow:"0 6px 24px rgba(29,78,216,0.35)", position:"relative", overflow:"hidden" }}>
-            <div style={{ position:"absolute", bottom:-20, right:-20, width:90, height:90, borderRadius:"50%", background:"rgba(255,255,255,0.06)", pointerEvents:"none" }}/>
-            <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, position:"relative", zIndex:1 }}>
-              <CheckCircle2 size={15} style={{ color:"#6EE7B7" }}/>
-              <span style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.75)", textTransform:"uppercase", letterSpacing:"0.08em" }}>Updates Submitted</span>
-            </div>
-            <p style={{ fontSize:24, fontWeight:900, color:"#FFFFFF", margin:"0 0 2px", fontFamily:"var(--font-jakarta)", position:"relative", zIndex:1 }}>
-              {stats.presentDays} / {monthDays}
-            </p>
-            <p style={{ fontSize:10, color:"#6EE7B7", fontWeight:600, margin:"0 0 12px", position:"relative", zIndex:1 }}>
-              {monthDays > 0 ? Math.round((stats.presentDays / monthDays) * 100) : 0}% Submitted
-            </p>
-            <div style={{ height:8, borderRadius:99, background:"rgba(255,255,255,0.2)", overflow:"hidden", position:"relative", zIndex:1 }}>
-              <div style={{ height:"100%", borderRadius:99, background:"linear-gradient(90deg,#6EE7B7,#FACC15)",
-                width:`${monthDays > 0 ? Math.round((stats.presentDays / monthDays) * 100) : 0}%`,
-                transition:"width 0.6s ease" }}/>
-            </div>
-          </div>
-        </div>
 
       </div>
     </div>

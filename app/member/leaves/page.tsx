@@ -48,7 +48,7 @@ export default async function MemberLeavesPage() {
       .from("attendance_logs")
       .select("id, date")
       .eq("user_id", effectiveUserId)
-      .eq("status", "absent")
+      .in("status", ["absent", "leave"])
       .gte("date", yearStart)
       .order("date", { ascending: false }),
   ])

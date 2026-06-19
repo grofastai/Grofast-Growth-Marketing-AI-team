@@ -28,23 +28,27 @@ export default async function MemberFreelancersPage() {
 
   const { data: profile } = await admin
     .from("users")
-    .select("company_id")
+    .select("company_id, role")
     .eq("id", effectiveUserId)
     .single()
 
   if (!profile?.company_id) redirect("/login")
   const cid = profile.company_id
 
-  // Get freelancers assigned to this member
-  const { data: assignmentRows } = await admin
-    .from("freelancer_assignments")
-    .select("freelancer_id")
-    .eq("user_id", effectiveUserId)
-    .eq("company_id", cid)
+  // Elevated roles see all company freelancers; regular members see only assigned ones
+  const isElevated = ["ADMIN", "FOUNDER", "CEO", "FREELANCER_MGR"].includes(profile.role ?? "")
 
-  const assignedIds = (assignmentRows ?? []).map((r: { freelancer_id: string }) => r.freelancer_id)
+  let assignedIds: string[] = []
+  if (!isElevated) {
+    const { data: assignmentRows } = await admin
+      .from("freelancer_assignments")
+      .select("freelancer_id")
+      .eq("user_id", effectiveUserId)
+      .eq("company_id", cid)
+    assignedIds = (assignmentRows ?? []).map((r: { freelancer_id: string }) => r.freelancer_id)
+  }
 
-  if (assignedIds.length === 0) {
+  if (!isElevated && assignedIds.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8"
         style={{ background: "#F5F6FA" }}>
@@ -59,9 +63,17 @@ export default async function MemberFreelancersPage() {
     )
   }
 
+  const freelancersQuery = isElevated
+    ? admin.from("freelancers").select("*").eq("company_id", cid).order("name")
+    : admin.from("freelancers").select("*").eq("company_id", cid).in("id", assignedIds).order("name")
+
+  const workEntriesQuery = isElevated
+    ? admin.from("freelancer_work_entries").select("*").eq("company_id", cid).order("date", { ascending: false })
+    : admin.from("freelancer_work_entries").select("*").eq("company_id", cid).in("freelancer_id", assignedIds).order("date", { ascending: false })
+
   const [freelancersResult, workEntriesResult, clientsResult] = await Promise.all([
-    admin.from("freelancers").select("*").eq("company_id", cid).in("id", assignedIds).order("name"),
-    admin.from("freelancer_work_entries").select("*").eq("company_id", cid).in("freelancer_id", assignedIds).order("date", { ascending: false }),
+    freelancersQuery,
+    workEntriesQuery,
     admin.from("clients").select("name, status").eq("company_id", cid).order("name"),
   ])
 

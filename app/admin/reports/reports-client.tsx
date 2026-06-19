@@ -197,10 +197,10 @@ export default function ReportsClient({
           bg="#F0FDF4"
           border="#D1FAE5"
         />
-        {/* Absent */}
+        {/* On Leave */}
         <StatCard
           value={String(absentCount)}
-          label="Absent"
+          label="On Leave"
           img="/brand/report/absent.png"
           valueColor="#6B7280"
           bg="#F9FAFB"
@@ -433,7 +433,7 @@ export default function ReportsClient({
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {[
                 { label: "Members Present",    value: presentCount,               icon: "✅", color: "#10B981" },
-                { label: "Members Absent",     value: absentCount,                icon: "❌", color: "#EF4444" },
+                { label: "Members On Leave",   value: absentCount,                icon: "❌", color: "#EF4444" },
                 { label: "Not Submitted",      value: notUpdatedMembers.length,   icon: "⚠️", color: "#F59E0B" },
                 { label: "Active Tasks",       value: totalActiveTasks,           icon: "📋", color: "#3B82F6" },
                 { label: "Overdue Tasks",      value: overdueTasks.length,        icon: "🔴", color: "#DE1A1A" },

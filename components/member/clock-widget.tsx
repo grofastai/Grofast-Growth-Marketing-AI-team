@@ -8,7 +8,7 @@ interface Props {
   clockInTime: string | null
   clockOutTime: string | null
   workType: 'wfh' | 'office' | null
-  attendanceStatus: 'present' | 'absent' | null
+  attendanceStatus: 'present' | 'leave' | 'absent' | null
 }
 
 function fmtTime(iso: string | null) {
@@ -28,7 +28,7 @@ export default function ClockWidget({ clockInTime, clockOutTime, workType, atten
   const [selectedMode, setSelectedMode] = useState<'wfh' | 'office'>('office')
   const [error, setError] = useState<string | null>(null)
 
-  const isAbsent   = attendanceStatus === 'absent'
+  const isAbsent   = attendanceStatus === 'leave' || attendanceStatus === 'absent'
   const isIn       = !!clockInTime && !clockOutTime && attendanceStatus === 'present'
   const isDone     = !!clockInTime && !!clockOutTime && attendanceStatus === 'present'
   const notLogged  = !attendanceStatus

@@ -330,7 +330,9 @@ export async function updatePastDailyUpdate(
 
   revalidatePath('/member/update')
   revalidatePath('/member/history')
+  revalidatePath('/member/dashboard')
   revalidatePath('/admin/activities')
+  revalidatePath('/admin/dashboard')
   return { success: true }
 }
 
@@ -386,11 +388,28 @@ export async function addEntryToDate(
     .eq('company_id', profile.company_id)
     .maybeSingle()
 
+  // Merge new entry with any existing entries on the target date
+  const allEntries: Record<string, unknown>[] = [
+    ...(existing && Array.isArray(existing.work_entries) ? existing.work_entries : []),
+    entry,
+  ]
+
+  // Recalculate all aggregates (same logic as updatePastDailyUpdate)
+  const totalHours = allEntries.reduce((s, e) => {
+    const travel = e.task_type === 'shoot' ? (Number(e._travel_hours) || 0) : 0
+    return s + ((e.duration_hours as number) ?? 0) + travel
+  }, 0)
+  const aggregates = {
+    work_entries: allEntries,
+    working_hours: Math.round(totalHours * 10) / 10 || null,
+    shoot_count: allEntries.filter(e => e.task_type === 'shoot').length,
+    editing_count: allEntries.filter(e => e.task_type === 'edit').length,
+  }
+
   if (existing) {
-    const currentEntries = Array.isArray(existing.work_entries) ? existing.work_entries : []
     const { error } = await admin
       .from('daily_updates')
-      .update({ work_entries: [...currentEntries, entry] })
+      .update(aggregates)
       .eq('id', existing.id)
     if (error) return { success: false, error: error.message }
   } else {
@@ -401,14 +420,34 @@ export async function addEntryToDate(
         company_id: profile.company_id,
         date: newDate,
         attendance_status: 'present',
-        work_type: 'media',
-        work_entries: [entry],
+        ...aggregates,
       })
     if (error) return { success: false, error: error.message }
   }
 
+  // Sync break totals to attendance_logs for the new date
+  const breakEntries = allEntries.filter(e => e.task_type === 'break' && Number(e.duration_hours) > 0)
+  const breakSessions = breakEntries
+    .filter(e => e.start_time && e.end_time)
+    .map(e => ({
+      start: e.start_time,
+      end: e.end_time,
+      duration_mins: Math.round(Number(e.duration_hours) * 60),
+      label: (e.title as string) || 'Break',
+    }))
+  const totalBreakMins = breakEntries.reduce((s, e) => s + Math.round(Number(e.duration_hours) * 60), 0)
+  await admin
+    .from('attendance_logs')
+    .update({ break_sessions: breakSessions, break_total_mins: totalBreakMins })
+    .eq('user_id', user.id)
+    .eq('date', newDate)
+    .eq('company_id', profile.company_id)
+
+  revalidatePath('/member/update')
   revalidatePath('/member/history')
+  revalidatePath('/member/dashboard')
   revalidatePath('/admin/activities')
+  revalidatePath('/admin/dashboard')
   return { success: true }
 }
 

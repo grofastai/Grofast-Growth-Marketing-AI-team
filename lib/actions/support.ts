@@ -34,6 +34,7 @@ export async function createTicket(input: {
   category: string
   description: string
   priority: string
+  assigned_to?: string
 }): Promise<{ success: boolean; error?: string; ticketId?: string }> {
   const profile = await getProfile()
   if (!profile) return { success: false, error: 'Not authenticated' }
@@ -51,6 +52,7 @@ export async function createTicket(input: {
     category:    input.category,
     description: input.description.trim(),
     priority:    input.priority,
+    ...(input.assigned_to ? { assigned_to: input.assigned_to } : {}),
   }).select('id').single()
 
   if (error) return { success: false, error: error.message }
@@ -179,7 +181,7 @@ export async function getTickets(role: 'ADMIN' | 'MEMBER') {
   let query = admin
     .from('support_tickets')
     .select(`
-      id, title, category, description, status, priority, created_at, updated_at,
+      id, title, category, description, status, priority, assigned_to, created_at, updated_at,
       user_id,
       support_responses ( id, responder_id, responder_name, message, created_at )
     `)

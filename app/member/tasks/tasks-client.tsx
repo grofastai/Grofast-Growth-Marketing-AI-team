@@ -14,10 +14,19 @@ import {
   TrendingUp, CheckCircle2, ChevronDown, Zap,
   Flame, AlertCircle, GripVertical, Plus, X, User,
   Trash2, MessageSquare, Send, Loader2, Pencil, Layers,
-  ChevronLeft, Check, FileText,
+  ChevronLeft, Check, FileText, Upload, ExternalLink,
+  RotateCcw, Link2, Paperclip, Image as ImageIcon,
 } from "lucide-react"
-import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject, updateTask } from "@/lib/actions/tasks"
+import { updateTaskStatus, createMemberTask, deleteTask, deleteQuickProject, updateTask, updateTaskChecklist } from "@/lib/actions/tasks"
 import { getTaskComments, addTaskComment, type TaskComment } from "@/lib/actions/comments"
+import { createBrowserClient } from "@/lib/supabase/client"
+
+type TaskAttachment = { type: 'link' | 'file'; url: string; name?: string } | string
+
+function normalizeAttachment(a: TaskAttachment): { type: 'link' | 'file'; url: string; name: string } {
+  if (typeof a === 'string') return { type: 'link', url: a, name: a }
+  return { type: a.type ?? 'link', url: a.url ?? '', name: a.name ?? a.url ?? '' }
+}
 
 interface Task {
   id: string
@@ -32,7 +41,12 @@ interface Task {
   category: string | null
   manager_note: string | null
   checklist: Array<{ text: string; done: boolean }>
-  projects: { id: string; business_name: string } | null
+  attachments: TaskAttachment[]
+  expected_time: string | null
+  expected_deliverable: string | null
+  approval_required: boolean
+  recurring_task: string | null
+  projects: { id: string; business_name: string; client_name?: string | null } | null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   assignedBy: { id: string; name: string } | null | any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -274,7 +288,7 @@ function TaskCardInner({
         <div className="flex-1 min-w-0">
           <p className="text-[12px] font-semibold leading-snug line-clamp-2 cursor-pointer hover:text-[#de1a1a] transition-colors"
             style={{ color: "#111111" }}
-            onClick={e => { e.stopPropagation(); onDetail?.(task) }}>
+            onClick={e => { e.stopPropagation(); if (onDetail) onDetail(task) }}>
             {task.title}
           </p>
           {task.assignedBy && task.created_by !== currentUserId && (
@@ -351,7 +365,7 @@ function TaskCardInner({
       )}
 
       {/* Progress bar */}
-      {pct > 0 && (
+      {(checklistTotal > 0 || pct > 0) && (
         <div className="mb-2.5">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[8px]" style={{ color: "#9CA3AF" }}>
@@ -367,27 +381,57 @@ function TaskCardInner({
       )}
 
       {/* Footer */}
-      {dueLabel && (
-        <div className="flex items-center gap-1 mb-2">
-          <Calendar size={9} style={{ color: isOverdue ? "#de1a1a" : "#9CA3AF" }} />
-          <span className="text-[9px]" style={{ color: isOverdue ? "#de1a1a" : "#9CA3AF" }}>{dueLabel}</span>
-        </div>
-      )}
+      <div className="flex items-center gap-2 mb-2">
+        {dueLabel && (
+          <div className="flex items-center gap-1">
+            <Calendar size={9} style={{ color: isOverdue ? "#de1a1a" : "#9CA3AF" }} />
+            <span className="text-[9px]" style={{ color: isOverdue ? "#de1a1a" : "#9CA3AF" }}>{dueLabel}</span>
+          </div>
+        )}
+        {(task.attachments ?? []).length > 0 && (
+          <span className="flex items-center gap-1 text-[9px] font-bold" style={{ color: "#6366F1" }}>
+            <ExternalLink size={9} /> {(task.attachments ?? []).length} link{(task.attachments ?? []).length > 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
 
-      {/* Move button */}
-      {task.status !== "completed" && (
+      {/* Move button — approval restricted to task creator */}
+      {task.status !== "completed" && task.status !== "review" && (
         <button
           onClick={() => {
-            const next = task.status === "todo" ? "in_progress" : task.status === "in_progress" ? "review" : "completed"
+            const next = task.status === "todo" ? "in_progress" : "review"
             onMove(task.id, next)
           }}
           className="w-full mt-1.5 py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80"
           style={{
-            background: task.status === "todo" ? "rgba(245,158,11,0.08)" : task.status === "in_progress" ? "rgba(99,102,241,0.08)" : "rgba(34,197,94,0.08)",
-            color: task.status === "todo" ? "#D97706" : task.status === "in_progress" ? "#6366F1" : "#16A34A",
+            background: task.status === "todo" ? "rgba(245,158,11,0.08)" : "rgba(99,102,241,0.08)",
+            color: task.status === "todo" ? "#D97706" : "#6366F1",
           }}>
-          {task.status === "todo" ? "→ Start Task" : task.status === "in_progress" ? "→ Send for Review" : "✓ Approve"}
+          {task.status === "todo" ? "→ Start Task" : "→ Send for Review"}
         </button>
+      )}
+      {task.status === "review" && task.created_by === currentUserId && (
+        <div className="flex gap-1.5 mt-1.5">
+          <button
+            onClick={() => onMove(task.id, "completed")}
+            className="flex-1 py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80"
+            style={{ background: "rgba(34,197,94,0.08)", color: "#16A34A" }}>
+            ✓ Approve
+          </button>
+          <button
+            onClick={() => onMove(task.id, "in_progress")}
+            className="flex-1 py-1.5 rounded-xl text-[9px] font-bold transition-all hover:opacity-80"
+            style={{ background: "rgba(245,158,11,0.08)", color: "#D97706" }}>
+            ↩ Changes
+          </button>
+        </div>
+      )}
+      {task.status === "review" && task.created_by !== currentUserId && (
+        <div className="flex items-center justify-center gap-1 mt-1.5 py-1.5 rounded-xl"
+          style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)" }}>
+          <Clock size={9} style={{ color: "#6366F1" }} />
+          <span className="text-[9px] font-bold" style={{ color: "#6366F1" }}>Awaiting Review</span>
+        </div>
       )}
       {task.status === "completed" && (
         <div className="flex items-center justify-center gap-1 mt-1.5 py-1 rounded-xl"
@@ -484,13 +528,22 @@ export default function MemberTasksClient({
   // Rich form state
   const [checklistItems, setChecklistItems]     = useState<{id: string; text: string}[]>([])
   const [newCheckItem, setNewCheckItem]         = useState("")
-  const [attachmentLinks, setAttachmentLinks]   = useState<{id: string; url: string}[]>([])
+  const [attachmentLinks, setAttachmentLinks]   = useState<{id: string; url: string; name: string; type: 'link'|'file'}[]>([])
   const [newAttachUrl, setNewAttachUrl]         = useState("")
+  const [attachUploading, setAttachUploading]   = useState(false)
+  const assignFileRef                           = useRef<HTMLInputElement>(null)
   const [approvalRequired, setApprovalRequired] = useState(false)
   const [recurringTask, setRecurringTask]       = useState("none")
 
   // Detail modal
   const [detailTask, setDetailTask]     = useState<Task | null>(null)
+  const [detailChecklist, setDetailChecklist] = useState<Array<{ text: string; done: boolean }>>([])
+  const [detailChecklistSaving, setDetailChecklistSaving] = useState(false)
+  const [detailNewCheckItem, setDetailNewCheckItem] = useState("")
+  const [detailAttachments, setDetailAttachments] = useState<Array<{ type: 'link' | 'file'; url: string; name: string }>>([])
+  const [detailNewLink, setDetailNewLink] = useState("")
+  const [detailAttachUploading, setDetailAttachUploading] = useState(false)
+  const detailFileRef = useRef<HTMLInputElement>(null)
 
   // Edit task
   const [editTask, setEditTask]         = useState<Task | null>(null)
@@ -512,6 +565,22 @@ export default function MemberTasksClient({
     setAttachmentLinks([]); setNewAttachUrl("")
     setApprovalRequired(false); setRecurringTask("none")
     setAssignError(null)
+  }
+
+  async function handleAssignFileUpload(file: File) {
+    setAttachUploading(true)
+    try {
+      const supabase = createBrowserClient()
+      const ext = file.name.split('.').pop() ?? 'bin'
+      const path = `task-attachments/assign/${Date.now()}.${ext}`
+      const { data, error } = await supabase.storage.from('media-uploads').upload(path, file, { upsert: false })
+      if (!error && data) {
+        const { data: { publicUrl } } = supabase.storage.from('media-uploads').getPublicUrl(data.path)
+        setAttachmentLinks(p => [...p, { id: crypto.randomUUID(), url: publicUrl, name: file.name, type: 'file' }])
+      }
+    } finally {
+      setAttachUploading(false)
+    }
   }
 
   async function handleAssignSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -669,6 +738,77 @@ export default function MemberTasksClient({
       setEditError(res.error ?? "Failed to update task")
     }
     setEditLoading(false)
+  }
+
+  function openDetail(task: Task) {
+    setDetailTask(task)
+    setDetailChecklist((task.checklist ?? []).map(i => ({ ...i })))
+    setDetailAttachments((task.attachments ?? []).map(normalizeAttachment))
+    setDetailNewCheckItem("")
+    setDetailNewLink("")
+  }
+
+  async function handleDetailChecklistToggle(idx: number) {
+    if (!detailTask) return
+    const next = detailChecklist.map((item, i) => i === idx ? { ...item, done: !item.done } : item)
+    setDetailChecklist(next)
+    setDetailChecklistSaving(true)
+    const res = await updateTaskChecklist(detailTask.id, next)
+    setDetailChecklistSaving(false)
+    if (res.success) {
+      setTasks(prev => prev.map(t => t.id === detailTask.id ? { ...t, checklist: next } : t))
+    }
+  }
+
+  async function handleDetailChecklistAdd() {
+    if (!detailTask || !detailNewCheckItem.trim()) return
+    const next = [...detailChecklist, { text: detailNewCheckItem.trim(), done: false }]
+    setDetailChecklist(next)
+    setDetailNewCheckItem("")
+    setDetailChecklistSaving(true)
+    const res = await updateTaskChecklist(detailTask.id, next)
+    setDetailChecklistSaving(false)
+    if (res.success) setTasks(prev => prev.map(t => t.id === detailTask.id ? { ...t, checklist: next } : t))
+  }
+
+  async function handleDetailChecklistDelete(idx: number) {
+    if (!detailTask) return
+    const next = detailChecklist.filter((_, i) => i !== idx)
+    setDetailChecklist(next)
+    setDetailChecklistSaving(true)
+    const res = await updateTaskChecklist(detailTask.id, next)
+    setDetailChecklistSaving(false)
+    if (res.success) setTasks(prev => prev.map(t => t.id === detailTask.id ? { ...t, checklist: next } : t))
+  }
+
+  async function handleDetailLinkAdd() {
+    const url = detailNewLink.trim()
+    if (!url || !detailTask) return
+    const entry = { type: 'link' as const, url, name: url }
+    const next = [...detailAttachments, entry]
+    setDetailAttachments(next)
+    setDetailNewLink("")
+    await updateTask(detailTask.id, {})
+    setTasks(prev => prev.map(t => t.id === detailTask.id ? { ...t, attachments: next } : t))
+  }
+
+  async function handleDetailFileUpload(file: File) {
+    if (!detailTask) return
+    setDetailAttachUploading(true)
+    try {
+      const supabase = createBrowserClient()
+      const ext = file.name.split('.').pop() ?? 'bin'
+      const path = `task-attachments/${detailTask.id}/${Date.now()}.${ext}`
+      const { data, error } = await supabase.storage.from('media-uploads').upload(path, file, { upsert: false })
+      if (error) { setDetailAttachUploading(false); return }
+      const { data: { publicUrl } } = supabase.storage.from('media-uploads').getPublicUrl(data.path)
+      const entry = { type: 'file' as const, url: publicUrl, name: file.name }
+      const next = [...detailAttachments, entry]
+      setDetailAttachments(next)
+      setTasks(prev => prev.map(t => t.id === detailTask.id ? { ...t, attachments: next } : t))
+    } finally {
+      setDetailAttachUploading(false)
+    }
   }
 
   function handleFilterChange(key: string) {
@@ -1029,7 +1169,7 @@ export default function MemberTasksClient({
                         onDelete={handleDeleteTask}
                         onComment={id => setCommentTaskId(id)}
                         onEdit={setEditTask}
-                        onDetail={setDetailTask} />
+                        onDetail={openDetail} />
                     ))
                   )}
                 </div>
@@ -1127,7 +1267,7 @@ export default function MemberTasksClient({
                           onDelete={handleDeleteTask}
                           onComment={id => setCommentTaskId(id)}
                           onEdit={setEditTask}
-                          onDetail={setDetailTask}
+                          onDetail={openDetail}
                         />
                       ))}
                     </div>
@@ -1181,7 +1321,7 @@ export default function MemberTasksClient({
                             onDelete={handleDeleteTask}
                             onComment={id => setCommentTaskId(id)}
                             onEdit={setEditTask}
-                            onDetail={setDetailTask} />
+                            onDetail={openDetail} />
                         ))
                       )}
                     </div>
@@ -1481,63 +1621,115 @@ export default function MemberTasksClient({
     )}
 
     {/* ── Task Detail Modal ──────────────────────────────────────────────────── */}
-    {detailTask && (
+    {detailTask && (() => {
+      const proj = Array.isArray(detailTask.projects) ? detailTask.projects[0] : detailTask.projects
+      const clientName = proj?.client_name && proj.client_name !== '__member_quick__' ? proj.client_name : null
+      const pr = PRIORITY_STYLE[detailTask.priority]
+      const checkDone = detailChecklist.filter(i => i.done).length
+      const checkTotal = detailChecklist.length
+      const isAssignee = detailTask.assigned_to === currentUserId
+      const isCreator = detailTask.created_by === currentUserId
+      return (
       <>
         <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
           onClick={() => setDetailTask(null)} />
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
-          <div style={{ width: "100%", maxWidth: 500, maxHeight: "92vh", background: "#fff", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.28)" }}>
+          <div style={{ width: "100%", maxWidth: 580, maxHeight: "95vh", background: "#fff", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.28)" }}>
 
-            {/* Header */}
-            <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #7F1D1D 100%)", padding: "18px 20px", flexShrink: 0 }}>
+            {/* ── Header ── */}
+            <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #7F1D1D 100%)", padding: "16px 20px 18px", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                 <button onClick={() => setDetailTask(null)}
                   style={{ background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", borderRadius: "50%", width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <X size={14} style={{ color: "#fff" }} />
                 </button>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Task Details</span>
-              </div>
-              <p style={{ fontSize: 17, fontWeight: 900, color: "#fff", margin: "0 0 8px", lineHeight: 1.3 }}>{detailTask.title}</p>
-              {/* Assigned by */}
-              {detailTask.assignedBy && detailTask.created_by !== currentUserId && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff" }}>
-                    {detailTask.assignedBy.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
-                  </div>
-                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", fontWeight: 600 }}>Assigned by {detailTask.assignedBy.name}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.65)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Task Details</span>
+                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 6 }}>
+                  {/* Status badge */}
+                  {(() => {
+                    const s = detailTask.status
+                    const cfg = { todo: { bg: "rgba(255,255,255,0.15)", label: "To Do" }, in_progress: { bg: "rgba(245,158,11,0.3)", label: "In Progress" }, review: { bg: "rgba(99,102,241,0.3)", label: "In Review" }, completed: { bg: "rgba(34,197,94,0.3)", label: "Completed" } }[s]
+                    return <span style={{ fontSize: 9, fontWeight: 800, padding: "3px 9px", borderRadius: 99, background: cfg?.bg ?? "rgba(255,255,255,0.15)", color: "#fff", textTransform: "uppercase", letterSpacing: "0.08em" }}>{cfg?.label ?? s}</span>
+                  })()}
+                  {detailChecklistSaving && <Loader2 size={12} style={{ color: "rgba(255,255,255,0.6)" }} className="animate-spin" />}
                 </div>
-              )}
+              </div>
+              <p style={{ fontSize: 18, fontWeight: 900, color: "#fff", margin: "0 0 10px", lineHeight: 1.25 }}>{detailTask.title}</p>
+              {/* Meta row */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 9px", borderRadius: 99, background: pr.bg, color: pr.color }}>{pr.label} Priority</span>
+                {detailTask.category && <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 9px", borderRadius: 99, background: "rgba(16,185,129,0.25)", color: "#6EE7B7" }}>{detailTask.category}</span>}
+                {detailTask.due_date && <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 9px", borderRadius: 99, background: "rgba(245,158,11,0.25)", color: "#FCD34D", display: "flex", alignItems: "center", gap: 3 }}><Calendar size={9} />{new Date(detailTask.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>}
+                {detailTask.expected_time && <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 9px", borderRadius: 99, background: "rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.8)", display: "flex", alignItems: "center", gap: 3 }}><Clock size={9} />{detailTask.expected_time}</span>}
+              </div>
             </div>
 
-            {/* Body */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "18px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* ── Body ── */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
 
-              {/* Badges row */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                {(() => { const pr = PRIORITY_STYLE[detailTask.priority]; return (
-                  <span style={{ fontSize: 10, fontWeight: 800, padding: "3px 10px", borderRadius: 99, background: pr.bg, color: pr.color }}>{pr.label} Priority</span>
-                )})()}
-                {detailTask.projects && (() => { const proj = Array.isArray(detailTask.projects) ? detailTask.projects[0] : detailTask.projects; return proj ? (
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>{proj.business_name}</span>
-                ) : null })()}
-                {detailTask.due_date && (
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(245,158,11,0.1)", color: "#D97706", display: "flex", alignItems: "center", gap: 4 }}>
-                    <Calendar size={10} /> {new Date(detailTask.due_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                  </span>
+              {/* Client + Project info */}
+              {(clientName || proj) && (
+                <div style={{ display: "flex", gap: 10 }}>
+                  {clientName && (
+                    <div style={{ flex: 1, padding: "10px 14px", borderRadius: 12, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                      <p style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 3px" }}>Client</p>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#111", margin: 0 }}>{clientName}</p>
+                    </div>
+                  )}
+                  {proj && (
+                    <div style={{ flex: 1, padding: "10px 14px", borderRadius: 12, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                      <p style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 3px" }}>Project</p>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#6366F1", margin: 0 }}>{proj.business_name}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Assigned by / to */}
+              <div style={{ display: "flex", gap: 10 }}>
+                {detailTask.assignedBy && (
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, padding: "9px 13px", borderRadius: 12, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#DE1A1A,#7F1D1D)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#fff", flexShrink: 0 }}>
+                      {detailTask.assignedBy.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>Assigned By</p>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: "#111", margin: 0 }}>{detailTask.assignedBy.name}</p>
+                    </div>
+                  </div>
                 )}
-                {detailTask.category && (
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(16,185,129,0.1)", color: "#10B981" }}>{detailTask.category}</span>
+                {detailTask.assignedToUser && detailTask.assigned_to !== detailTask.created_by && (
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8, padding: "9px 13px", borderRadius: 12, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                    <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(99,102,241,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, color: "#6366F1", flexShrink: 0 }}>
+                      {detailTask.assignedToUser.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.06em" }}>Assigned To</p>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: "#111", margin: 0 }}>{detailTask.assignedToUser.name}</p>
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {/* Description */}
+              {/* Task Brief / Description */}
               {detailTask.description && (
                 <div style={{ padding: "12px 14px", borderRadius: 12, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                     <FileText size={12} style={{ color: "#6B7280" }} />
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Description</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Task Brief</span>
                   </div>
-                  <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, margin: 0 }}>{detailTask.description}</p>
+                  <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.65, margin: 0, whiteSpace: "pre-wrap" }}>{detailTask.description}</p>
+                </div>
+              )}
+
+              {/* Expected Deliverable / Instructions */}
+              {detailTask.expected_deliverable && (
+                <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(99,102,241,0.04)", border: "1.5px solid rgba(99,102,241,0.18)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                    <Target size={12} style={{ color: "#6366F1" }} />
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em" }}>Expected Deliverable</span>
+                  </div>
+                  <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.65, margin: 0, whiteSpace: "pre-wrap" }}>{detailTask.expected_deliverable}</p>
                 </div>
               )}
 
@@ -1545,67 +1737,181 @@ export default function MemberTasksClient({
               {detailTask.manager_note && (
                 <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(245,158,11,0.07)", border: "1.5px solid rgba(245,158,11,0.25)" }}>
                   <p style={{ fontSize: 10, fontWeight: 900, color: "#D97706", margin: "0 0 6px", textTransform: "uppercase", letterSpacing: "0.08em" }}>📌 Manager Note</p>
-                  <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.6, margin: 0 }}>{detailTask.manager_note}</p>
+                  <p style={{ fontSize: 13, color: "#374151", lineHeight: 1.65, margin: 0 }}>{detailTask.manager_note}</p>
                 </div>
               )}
 
-              {/* Checklist */}
-              {(detailTask.checklist ?? []).length > 0 && (
-                <div style={{ padding: "12px 14px", borderRadius: 12, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>☑ Checklist</span>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: "#DE1A1A" }}>
-                      {(detailTask.checklist ?? []).filter(i => i.done).length} / {(detailTask.checklist ?? []).length}
-                    </span>
+              {/* ── Checklist (interactive) ── */}
+              <div style={{ padding: "12px 14px", borderRadius: 12, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <CheckCircle2 size={12} style={{ color: "#6B7280" }} />
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Checklist</span>
                   </div>
-                  {/* Progress bar */}
+                  {checkTotal > 0 && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#DE1A1A" }}>{checkDone} / {checkTotal}</span>
+                  )}
+                </div>
+                {checkTotal > 0 && (
                   <div style={{ height: 4, borderRadius: 4, background: "#E5E7EB", marginBottom: 10, overflow: "hidden" }}>
-                    <div style={{ height: "100%", borderRadius: 4, background: "#DE1A1A", transition: "width 0.4s", width: `${Math.round(((detailTask.checklist ?? []).filter(i => i.done).length / (detailTask.checklist ?? []).length) * 100)}%` }} />
+                    <div style={{ height: "100%", borderRadius: 4, background: checkDone === checkTotal ? "#22C55E" : "#DE1A1A", transition: "width 0.4s", width: `${checkTotal > 0 ? Math.round((checkDone / checkTotal) * 100) : 0}%` }} />
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {(detailTask.checklist ?? []).map((item, idx) => (
-                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <div style={{ width: 18, height: 18, borderRadius: 5, border: `2px solid ${item.done ? "#DE1A1A" : "#D1D5DB"}`, background: item.done ? "#DE1A1A" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          {item.done && <Check size={10} style={{ color: "#fff" }} strokeWidth={3} />}
-                        </div>
-                        <span style={{ fontSize: 13, color: item.done ? "#9CA3AF" : "#111", textDecoration: item.done ? "line-through" : "none", lineHeight: 1.4 }}>{item.text}</span>
-                      </div>
-                    ))}
-                  </div>
+                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                  {detailChecklist.map((item, idx) => (
+                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <button type="button" onClick={() => handleDetailChecklistToggle(idx)}
+                        style={{ width: 20, height: 20, borderRadius: 6, border: `2px solid ${item.done ? "#DE1A1A" : "#D1D5DB"}`, background: item.done ? "#DE1A1A" : "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, cursor: "pointer", transition: "all 0.15s" }}>
+                        {item.done && <Check size={11} style={{ color: "#fff" }} strokeWidth={3} />}
+                      </button>
+                      <span style={{ flex: 1, fontSize: 13, color: item.done ? "#9CA3AF" : "#111", textDecoration: item.done ? "line-through" : "none", lineHeight: 1.4 }}>{item.text}</span>
+                      <button type="button" onClick={() => handleDetailChecklistDelete(idx)}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0, opacity: 0.4 }}
+                        onMouseEnter={e => (e.currentTarget.style.opacity = "1")} onMouseLeave={e => (e.currentTarget.style.opacity = "0.4")}>
+                        <X size={11} style={{ color: "#9CA3AF" }} />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              )}
+                {/* Add checklist item */}
+                <div style={{ display: "flex", gap: 7, marginTop: 10 }}>
+                  <input
+                    value={detailNewCheckItem}
+                    onChange={e => setDetailNewCheckItem(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleDetailChecklistAdd() } }}
+                    placeholder="Add checklist item…"
+                    style={{ flex: 1, padding: "7px 11px", borderRadius: 10, border: "1.5px solid #E5E7EB", fontSize: 12, outline: "none", color: "#374151" }}
+                  />
+                  <button type="button" onClick={handleDetailChecklistAdd}
+                    disabled={!detailNewCheckItem.trim()}
+                    style={{ padding: "7px 12px", borderRadius: 10, background: "rgba(222,26,26,0.08)", color: "#de1a1a", border: "1px solid rgba(222,26,26,0.15)", cursor: detailNewCheckItem.trim() ? "pointer" : "default", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4, opacity: detailNewCheckItem.trim() ? 1 : 0.5 }}>
+                    <Plus size={11} strokeWidth={3} /> Add
+                  </button>
+                </div>
+              </div>
 
-              {/* No description or note placeholder */}
-              {!detailTask.description && !detailTask.manager_note && (detailTask.checklist ?? []).length === 0 && (
-                <div style={{ textAlign: "center", padding: "16px 0", color: "#D1D5DB" }}>
-                  <p style={{ fontSize: 13, margin: 0 }}>No additional details added for this task.</p>
+              {/* ── Attachments ── */}
+              <div style={{ padding: "12px 14px", borderRadius: 12, background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Paperclip size={12} style={{ color: "#6B7280" }} />
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.08em" }}>Attachments</span>
+                  </div>
+                  {detailAttachments.length > 0 && <span style={{ fontSize: 10, color: "#9CA3AF" }}>{detailAttachments.length} file{detailAttachments.length !== 1 ? "s" : ""}</span>}
                 </div>
-              )}
+                {detailAttachments.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+                    {detailAttachments.map((att, idx) => {
+                      const isImage = att.type === 'file' && /\.(jpg|jpeg|png|gif|webp)$/i.test(att.url)
+                      return (
+                        <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 10, background: "#fff", border: "1px solid #E5E7EB" }}>
+                          {isImage
+                            ? <ImageIcon size={13} style={{ color: "#10B981", flexShrink: 0 }} />
+                            : att.type === 'file'
+                              ? <FileText size={13} style={{ color: "#6366F1", flexShrink: 0 }} />
+                              : <Link2 size={13} style={{ color: "#6366F1", flexShrink: 0 }} />}
+                          <a href={att.url} target="_blank" rel="noopener noreferrer"
+                            style={{ flex: 1, fontSize: 12, color: "#6366F1", textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                            title={att.name}>
+                            {att.name.length > 50 ? att.name.slice(0, 47) + "…" : att.name}
+                          </a>
+                          <a href={att.url} target="_blank" rel="noopener noreferrer" style={{ flexShrink: 0 }}>
+                            <ExternalLink size={11} style={{ color: "#9CA3AF" }} />
+                          </a>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                {/* Add link or upload file */}
+                <div style={{ display: "flex", gap: 7 }}>
+                  <input
+                    value={detailNewLink}
+                    onChange={e => setDetailNewLink(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleDetailLinkAdd() } }}
+                    placeholder="Paste link (Drive, Figma, URL…)"
+                    style={{ flex: 1, padding: "7px 11px", borderRadius: 10, border: "1.5px solid #E5E7EB", fontSize: 12, outline: "none", color: "#374151" }}
+                  />
+                  <button type="button" onClick={handleDetailLinkAdd} disabled={!detailNewLink.trim()}
+                    style={{ padding: "7px 11px", borderRadius: 10, background: "rgba(99,102,241,0.08)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.15)", cursor: detailNewLink.trim() ? "pointer" : "default", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4, opacity: detailNewLink.trim() ? 1 : 0.5 }}>
+                    <Plus size={11} strokeWidth={3} /> Add
+                  </button>
+                  <button type="button" onClick={() => detailFileRef.current?.click()}
+                    disabled={detailAttachUploading}
+                    style={{ padding: "7px 11px", borderRadius: 10, background: "rgba(16,185,129,0.08)", color: "#10B981", border: "1px solid rgba(16,185,129,0.15)", cursor: "pointer", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+                    {detailAttachUploading ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
+                    Upload
+                  </button>
+                  <input ref={detailFileRef} type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                    style={{ display: "none" }}
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleDetailFileUpload(f); e.target.value = "" }} />
+                </div>
+              </div>
+
             </div>
 
-            {/* Footer actions */}
-            <div style={{ padding: "12px 20px", borderTop: "1px solid #F3F4F6", display: "flex", gap: 10, flexShrink: 0 }}>
+            {/* ── Footer actions ── */}
+            <div style={{ padding: "12px 20px", borderTop: "1px solid #F3F4F6", display: "flex", gap: 8, flexShrink: 0, flexWrap: "wrap" }}>
               <button
                 onClick={() => { setDetailTask(null); setCommentTaskId(detailTask.id) }}
-                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px 0", borderRadius: 12, background: "#DE1A1A", color: "#fff", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+                style={{ flex: 1, minWidth: 110, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px 0", borderRadius: 12, background: "#DE1A1A", color: "#fff", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
                 <MessageSquare size={14} /> Open Chat
               </button>
-              {detailTask.status !== "completed" && (
+
+              {/* todo → in_progress */}
+              {detailTask.status === "todo" && (isAssignee || isCreator) && (
                 <button
-                  onClick={() => {
-                    const next = detailTask.status === "todo" ? "in_progress" : detailTask.status === "in_progress" ? "review" : "completed"
-                    moveTask(detailTask.id, next)
-                    setDetailTask(prev => prev ? { ...prev, status: next } : null)
-                  }}
-                  style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px 0", borderRadius: 12, background: "#F9FAFB", color: "#374151", border: "1.5px solid #E5E7EB", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
-                  {detailTask.status === "todo" ? "→ Start Task" : detailTask.status === "in_progress" ? "→ Send for Review" : "✓ Approve"}
+                  onClick={() => { moveTask(detailTask.id, "in_progress"); setDetailTask(prev => prev ? { ...prev, status: "in_progress" } : null) }}
+                  style={{ flex: 1, minWidth: 110, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px 0", borderRadius: 12, background: "#F9FAFB", color: "#D97706", border: "1.5px solid #FCD34D", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+                  → Start Task
                 </button>
+              )}
+
+              {/* in_progress → review */}
+              {detailTask.status === "in_progress" && (isAssignee || isCreator) && (
+                <button
+                  onClick={() => { moveTask(detailTask.id, "review"); setDetailTask(prev => prev ? { ...prev, status: "review" } : null) }}
+                  style={{ flex: 1, minWidth: 110, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px 0", borderRadius: 12, background: "rgba(99,102,241,0.08)", color: "#6366F1", border: "1.5px solid rgba(99,102,241,0.3)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+                  → Send for Review
+                </button>
+              )}
+
+              {/* review — creator: Approve + Request Changes */}
+              {detailTask.status === "review" && isCreator && (
+                <>
+                  <button
+                    onClick={() => { moveTask(detailTask.id, "completed"); setDetailTask(prev => prev ? { ...prev, status: "completed" } : null) }}
+                    style={{ flex: 1, minWidth: 100, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px 0", borderRadius: 12, background: "rgba(34,197,94,0.1)", color: "#16A34A", border: "1.5px solid rgba(34,197,94,0.3)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+                    <CheckCircle2 size={14} /> Approve
+                  </button>
+                  <button
+                    onClick={() => { moveTask(detailTask.id, "in_progress"); setDetailTask(prev => prev ? { ...prev, status: "in_progress" } : null) }}
+                    style={{ flex: 1, minWidth: 100, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px 0", borderRadius: 12, background: "rgba(245,158,11,0.08)", color: "#D97706", border: "1.5px solid rgba(245,158,11,0.3)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+                    <RotateCcw size={13} /> Request Changes
+                  </button>
+                </>
+              )}
+
+              {/* review — assignee sees waiting state */}
+              {detailTask.status === "review" && !isCreator && (
+                <div style={{ flex: 1, minWidth: 110, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px 0", borderRadius: 12, background: "rgba(99,102,241,0.06)", border: "1.5px solid rgba(99,102,241,0.2)" }}>
+                  <Clock size={14} style={{ color: "#6366F1" }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#6366F1" }}>Awaiting Review</span>
+                </div>
+              )}
+
+              {detailTask.status === "completed" && (
+                <div style={{ flex: 1, minWidth: 110, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "11px 0", borderRadius: 12, background: "rgba(34,197,94,0.06)", border: "1.5px solid rgba(34,197,94,0.2)" }}>
+                  <CheckCircle2 size={14} style={{ color: "#22C55E" }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#22C55E" }}>Completed</span>
+                </div>
               )}
             </div>
           </div>
         </div>
       </>
-    )}
+      )
+    })()}
 
     {/* ── Edit Task Modal ───────────────────────────────────────────────────── */}
     {editTask && (
@@ -1741,7 +2047,7 @@ export default function MemberTasksClient({
             <form onSubmit={handleAssignSubmit} className="flex flex-col flex-1 min-h-0">
               {/* Hidden rich-field payloads */}
               <input type="hidden" name="checklist_json"   value={JSON.stringify(checklistItems.map(i => ({ text: i.text, done: false })))} />
-              <input type="hidden" name="attachments_json" value={JSON.stringify(attachmentLinks.map(i => i.url).filter(Boolean))} />
+              <input type="hidden" name="attachments_json" value={JSON.stringify(attachmentLinks.map(i => ({ type: i.type, url: i.url, name: i.name })))} />
               <input type="hidden" name="approval_required" value={String(approvalRequired)} />
               {/* Hidden client/project routing fields */}
               <input type="hidden" name="project_id"
@@ -1942,7 +2248,10 @@ export default function MemberTasksClient({
                     {attachmentLinks.map(item => (
                       <div key={item.id} className="flex items-center gap-2 px-3 py-2 rounded-xl"
                         style={{ background: "#F9FAFB", border: "1px solid #E5E7EB" }}>
-                        <span className="flex-1 text-[12px] truncate" style={{ color: "#6366F1" }}>{item.url}</span>
+                        {item.type === 'file'
+                          ? <FileText size={11} style={{ color: "#6366F1", flexShrink: 0 }} />
+                          : <Link2 size={11} style={{ color: "#6366F1", flexShrink: 0 }} />}
+                        <span className="flex-1 text-[12px] truncate" style={{ color: "#6366F1" }}>{item.name || item.url}</span>
                         <button type="button" onClick={() => setAttachmentLinks(p => p.filter(i => i.id !== item.id))}
                           style={{ background: "none", border: "none", cursor: "pointer", padding: 2, flexShrink: 0 }}>
                           <X size={11} style={{ color: "#9CA3AF" }} />
@@ -1956,7 +2265,7 @@ export default function MemberTasksClient({
                         if (e.key === "Enter") {
                           e.preventDefault()
                           const u = newAttachUrl.trim()
-                          if (u) { setAttachmentLinks(p => [...p, { id: crypto.randomUUID(), url: u }]); setNewAttachUrl("") }
+                          if (u) { setAttachmentLinks(p => [...p, { id: crypto.randomUUID(), url: u, name: u, type: 'link' }]); setNewAttachUrl("") }
                         }
                       }}
                       placeholder="Paste Google Drive, Figma, or any link…"
@@ -1967,12 +2276,24 @@ export default function MemberTasksClient({
                       onClick={e => {
                         e.stopPropagation()
                         const u = newAttachUrl.trim()
-                        if (u) { setAttachmentLinks(p => [...p, { id: crypto.randomUUID(), url: u }]); setNewAttachUrl("") }
+                        if (u) { setAttachmentLinks(p => [...p, { id: crypto.randomUUID(), url: u, name: u, type: 'link' }]); setNewAttachUrl("") }
                       }}
                       className="px-3 py-2 rounded-xl text-[12px] font-bold flex items-center gap-1"
                       style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.15)" }}>
                       <Plus size={11} strokeWidth={3} /> Add
                     </button>
+                    <button type="button"
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={e => { e.stopPropagation(); assignFileRef.current?.click() }}
+                      disabled={attachUploading}
+                      className="px-3 py-2 rounded-xl text-[12px] font-bold flex items-center gap-1"
+                      style={{ background: "rgba(16,185,129,0.08)", color: "#10B981", border: "1px solid rgba(16,185,129,0.15)" }}>
+                      {attachUploading ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
+                      Upload
+                    </button>
+                    <input ref={assignFileRef} type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt"
+                      style={{ display: "none" }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleAssignFileUpload(f); e.target.value = "" }} />
                   </div>
                 </div>
 

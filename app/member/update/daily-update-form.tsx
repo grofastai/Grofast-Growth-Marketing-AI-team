@@ -316,6 +316,7 @@ function parseExistingPosters(existingUpdate: Record<string, unknown>): EditEntr
 type PastUpdate = {
   id: string; date: string; working_hours: number | null; learning_hours: number | null
   shoot_count: number | null; editing_count: number | null
+  shoot_time_hours: number | null; editing_time_hours: number | null
   work_entries: Record<string, unknown>[] | null; active_tab: string | null; learning_topic: string | null
 }
 
@@ -371,6 +372,8 @@ export default function DailyUpdateForm({
     setLearningParticipantIds(found?.active_tab === "learning" ? ((found?.participant_ids as string[]) ?? []) : [])
     setWorkingDone(!!(found && (found as Record<string, unknown>).working_hours))
     setLearningDone(!!(found && (found as Record<string, unknown>).learning_hours))
+    setMediaDone(isMediaTeam && existingHasMedia(found))
+    setBreaksDone(isMediaTeam && existingHasBreaks(found))
     setSubmitted(false)
     setEditMode(false)
     setError(null)
@@ -518,9 +521,24 @@ export default function DailyUpdateForm({
   const [error,         setError]         = useState<string | null>(null)
   const [workingError,  setWorkingError]  = useState<string | null>(null)
   const [learningError, setLearningError] = useState<string | null>(null)
+  const existingHasMedia = (u: Record<string, unknown> | null) =>
+    !!(u && (
+      (Array.isArray((u as Record<string,unknown>).work_entries) &&
+        ((u as Record<string,unknown>).work_entries as Record<string,unknown>[])
+          .some(e => ['shoot', 'edit', 'voiceover', 'poster'].includes(e.task_type as string)))
+      || Number((u as Record<string,unknown>).shoot_count) > 0
+      || Number((u as Record<string,unknown>).editing_count) > 0
+    ))
+  const existingHasBreaks = (u: Record<string, unknown> | null) =>
+    !!(u && Array.isArray((u as Record<string,unknown>).work_entries) &&
+      ((u as Record<string,unknown>).work_entries as Record<string,unknown>[])
+        .some(e => e.task_type === 'break' && Number(e.duration_hours) > 0))
+
   const [submitted,     setSubmitted]     = useState(false)
   const [workingDone,   setWorkingDone]   = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).working_hours))
   const [learningDone,  setLearningDone]  = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).learning_hours))
+  const [mediaDone,     setMediaDone]     = useState(() => isMediaTeam && existingHasMedia(existingUpdate as unknown as Record<string,unknown> | null))
+  const [breaksDone,    setBreaksDone]    = useState(() => isMediaTeam && existingHasBreaks(existingUpdate as unknown as Record<string,unknown> | null))
   const [editMode,      setEditMode]      = useState(false)
   const [savedIds,      setSavedIds]      = useState<Set<string>>(new Set())
   const [entryErrors,   setEntryErrors]   = useState<Record<string, string>>({})
@@ -544,6 +562,23 @@ export default function DailyUpdateForm({
   const filteredMembers = participantSearch.trim()
     ? teamMembers.filter(m => m.name.toLowerCase().includes(participantSearch.toLowerCase()) || m.employee_id.toLowerCase().includes(participantSearch.toLowerCase()))
     : teamMembers
+
+  // After router.refresh() updates pastUpdates, sync activeUpdate + tab-done states for current past date
+  useEffect(() => {
+    const isDone = isMediaTeam ? mediaDone : workingDone
+    if (isDone && isPastDate && !activeUpdate) {
+      const found = pastUpdates.find(u => u.date === selectedDate)
+      if (found) {
+        const rec = found as unknown as Record<string, unknown>
+        setActiveUpdate(rec)
+        if (isMediaTeam) {
+          setMediaDone(existingHasMedia(rec))
+          setBreaksDone(existingHasBreaks(rec))
+          setLearningDone(!!(rec.learning_hours))
+        }
+      }
+    }
+  }, [pastUpdates]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Autosave time blocks
   useEffect(() => {
@@ -728,7 +763,7 @@ export default function DailyUpdateForm({
         participant_ids: allMediaParticipantIds,
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
-      else { setSubmitted(true); router.refresh() }
+      else { setMediaDone(true); setEditMode(false); router.refresh() }
     })
   }
 
@@ -896,7 +931,7 @@ export default function DailyUpdateForm({
         }],
       })
       if (!res.success) setLearningError(res.error ?? "Submission failed.")
-      else { setLearningDone(true); router.refresh() }
+      else { setLearningDone(true); setEditMode(false); router.refresh() }
     })
   }
 
@@ -926,7 +961,7 @@ export default function DailyUpdateForm({
         participant_ids: [],
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
-      else { if (isMediaTeam) setSubmitted(true); else setWorkingDone(true); router.refresh() }
+      else { if (isMediaTeam) { setBreaksDone(true); setEditMode(false) } else setWorkingDone(true); router.refresh() }
     })
   }
 
@@ -958,7 +993,21 @@ export default function DailyUpdateForm({
   }
 
   // ── Already submitted screen ──────────────────────────────────────────────
-  const allDone = isMediaTeam ? (submitted || !!activeUpdate) : (workingDone && learningDone)
+  // Media team: all three tabs (media + learning + break) must be submitted.
+  // Non-media: working is enough; learning is optional.
+  const allDone = isMediaTeam ? (mediaDone && learningDone && breaksDone) : workingDone
+
+  // Past 14 days with no submission at all — shown in the submitted screen
+  const unsubmittedDates = useMemo(() => {
+    const done = new Set([...pastUpdates.map(u => u.date), todayStr])
+    const dates: string[] = []
+    for (let i = 1; i <= 14; i++) {
+      const d = new Date(); d.setDate(d.getDate() - i)
+      const ds = d.toLocaleDateString("en-CA")
+      if (!done.has(ds)) dates.push(ds)
+    }
+    return dates
+  }, [pastUpdates, todayStr]) // eslint-disable-line react-hooks/exhaustive-deps
   if (allDone && !editMode) {
     const submittedEntries = Array.isArray((activeUpdate ?? existingUpdateRef.current ?? {})?.work_entries)
       ? ((activeUpdate ?? existingUpdateRef.current ?? {})?.work_entries as Record<string,unknown>[])
@@ -966,6 +1015,21 @@ export default function DailyUpdateForm({
     const totalSubmittedH = submittedEntries
       .filter(e => e.task_type !== "break")
       .reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+
+    // Media team stats from work_entries — fall back to summary columns when work_entries is empty
+    const subShoots   = submittedEntries.filter(e => e.task_type === "shoot")
+    const subEdits    = submittedEntries.filter(e => e.task_type === "edit")
+    const subActUpd   = (activeUpdate ?? existingUpdateRef.current) as Record<string,unknown> | null
+    const subShootLen = subShoots.length || Number(subActUpd?.shoot_count) || 0
+    const subEditLen  = subEdits.length  || Number(subActUpd?.editing_count) || 0
+    const subShootH   = subShoots.length > 0
+      ? subShoots.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+      : (Number(subActUpd?.shoot_time_hours) || 0)
+    const subEditH    = subEdits.length > 0
+      ? subEdits.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+      : (Number(subActUpd?.editing_time_hours) || 0)
+    const subTravelH  = subShoots.reduce((s, e) => s + (Number((e as Record<string,unknown>)._travel_hours) || 0), 0)
+
     return (
       <div style={{ background:"#F5F6FA", minHeight:"100vh", padding:"24px 16px" }}>
         {/* Date selector strip */}
@@ -995,6 +1059,32 @@ export default function DailyUpdateForm({
             </p>
           </div>
 
+          {/* Media team stats tiles */}
+          {isMediaTeam && (subShootLen > 0 || subEditLen > 0) && (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:14 }}>
+              {[
+                { label:"SHOOTS",       value:`${subShootLen}`,              icon:"📸", color:"#DE1A1A", bg:"rgba(222,26,26,0.07)" },
+                { label:"HRS SHOOTING", value:`${subShootH}h`,               icon:"🎥", color:"#EF4444", bg:"rgba(239,68,68,0.07)" },
+                { label:"TRAVEL HRS",   value:`${subTravelH > 0 ? subTravelH.toFixed(1) : "0"}`, icon:"🚗", color:"#F59E0B", bg:"rgba(245,158,11,0.07)" },
+                { label:"EDITED",       value:`${subEditLen}`,               icon:"🎬", color:"#6366F1", bg:"rgba(99,102,241,0.07)" },
+              ].map(s => (
+                <div key={s.label} style={{ background:"#FFFFFF", borderRadius:12, padding:"10px 10px 8px", border:"1px solid #EBEDF2", textAlign:"center" }}>
+                  <span style={{ fontSize:18 }}>{s.icon}</span>
+                  <p style={{ fontSize:16, fontWeight:900, color:s.color, margin:"4px 0 2px" }}>{s.value}</p>
+                  <p style={{ fontSize:9, fontWeight:700, color:"#9CA3AF", margin:0, letterSpacing:"0.06em" }}>{s.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {isMediaTeam && subEditLen > 0 && (
+            <div style={{ background:"#FFFFFF", borderRadius:12, border:"1px solid #EBEDF2", padding:"10px 14px", marginBottom:14, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+              <span style={{ fontSize:11, color:"#6B7280", fontWeight:700 }}>Edit Hours</span>
+              <span style={{ fontSize:13, fontWeight:900, color:"#6366F1" }}>{subEditH.toFixed(1)}h</span>
+              <span style={{ fontSize:11, color:"#6B7280", fontWeight:700 }}>Total Hours</span>
+              <span style={{ fontSize:13, fontWeight:900, color: totalSubmittedH >= 8 ? "#22C55E" : "#111111" }}>{totalSubmittedH.toFixed(1)}h</span>
+            </div>
+          )}
+
           {/* Entries list */}
           {submittedEntries.length > 0 && (
             <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", overflow:"hidden", marginBottom:14, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
@@ -1022,6 +1112,27 @@ export default function DailyUpdateForm({
             </div>
           )}
 
+          {/* Missed dates — only show dates with no submission at all */}
+          {unsubmittedDates.length > 0 && (
+            <div style={{ background:"#FFF7ED", borderRadius:14, border:"1.5px solid #FED7AA", padding:"14px 16px", marginBottom:14 }}>
+              <p style={{ fontSize:11, fontWeight:800, color:"#D97706", margin:"0 0 10px", textTransform:"uppercase", letterSpacing:"0.06em" }}>
+                ⚠️ Missed Updates
+              </p>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {unsubmittedDates.slice(0, 5).map(date => {
+                  const lbl = new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday:"short", day:"numeric", month:"short" })
+                  return (
+                    <button key={date} onClick={() => handleDateChange(date)}
+                      style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"9px 12px", borderRadius:10, border:"1px solid #FED7AA", background:"#FFFFFF", cursor:"pointer" }}>
+                      <span style={{ fontSize:12, fontWeight:700, color:"#374151" }}>{lbl}</span>
+                      <span style={{ fontSize:11, fontWeight:700, color:"#D97706" }}>Submit →</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             <button onClick={() => {
@@ -1033,10 +1144,25 @@ export default function DailyUpdateForm({
               setEditMode(true)
               setSubmitted(false)
               if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
+              else { setMediaDone(false) }
             }}
               style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 24px", borderRadius:12, border:"1.5px solid #DE1A1A", background:"#FFFFFF", color:"#DE1A1A", fontSize:13, fontWeight:700, cursor:"pointer" }}>
               Edit {isToday ? "Today's" : dateLabel.split(",")[0] + "'s"} Update
             </button>
+
+            {/* Non-media: Add Learning as optional step from submitted screen */}
+            {!isMediaTeam && !learningDone && (
+              <button onClick={() => { setTab("learning"); setEditMode(true) }}
+                style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 24px", borderRadius:12, border:"1.5px solid #10B981", background:"rgba(16,185,129,0.06)", color:"#059669", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                📚 Also Submit Learning
+              </button>
+            )}
+            {!isMediaTeam && learningDone && (
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, padding:"11px 24px", borderRadius:12, border:"1px solid rgba(34,197,94,0.3)", background:"rgba(34,197,94,0.05)", color:"#16A34A", fontSize:13, fontWeight:700 }}>
+                <CheckCircle2 size={14} /> Learning Submitted ✓
+              </div>
+            )}
+
             <button onClick={() => {
               setTimeBlocks([])
               setShoots([])
@@ -1045,6 +1171,7 @@ export default function DailyUpdateForm({
               setEditMode(true)
               setSubmitted(false)
               if (!isMediaTeam) { setWorkingDone(false); setLearningDone(false) }
+              else { setMediaDone(false) }
             }}
               style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"11px 24px", borderRadius:12, border:"1.5px solid #E5E7EB", background:"#F9FAFB", color:"#374151", fontSize:13, fontWeight:700, cursor:"pointer" }}>
               ➕ Add Another Update
@@ -1056,7 +1183,7 @@ export default function DailyUpdateForm({
   }
 
   // day progress ring
-  const workStart = 9, workEnd = 18, totalWorkHours = workEnd - workStart
+  const workStart = 9, workEnd = 17.5, totalWorkHours = 8.5
   const elapsed = Math.max(0, Math.min(h - workStart, totalWorkHours))
   const dayPct = Math.round((elapsed / totalWorkHours) * 100)
   const ringR = 32, ringCirc = 2 * Math.PI * ringR
@@ -1164,137 +1291,30 @@ export default function DailyUpdateForm({
         </div>
       </div>
 
-      {/* ── TABS (media team only) ────────────────────────────────────────── */}
-      {isMediaTeam && (
-        <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
-          {TABS.map(t => (
+      {/* ── TABS (all teams) ─────────────────────────────────────────────── */}
+      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
+        {TABS.map(t => {
+          const isDone = t.id === "working" ? workingDone : t.id === "learning" ? learningDone : t.id === "media" ? mediaDone : t.id === "break" ? breaksDone : false
+          return (
             <button key={t.id} onClick={() => { setTab(t.id); setError(null) }}
               style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", padding:"12px 20px", borderRadius:14, cursor:"pointer", transition:"all 0.18s", flex:"1 1 120px",
-                background: tab === t.id ? "#DE1A1A" : "#FFFFFF",
-                color:      tab === t.id ? "#fff"    : "#6B7280",
+                background: tab === t.id ? "#DE1A1A" : isDone ? "rgba(34,197,94,0.07)" : "#FFFFFF",
+                color:      tab === t.id ? "#fff"    : isDone ? "#16A34A" : "#6B7280",
                 boxShadow:  tab === t.id ? "0 4px 18px rgba(222,26,26,0.4)" : "0 1px 4px rgba(0,0,0,0.06)",
-                border:     tab === t.id ? "none" : "1px solid #EBEDF2",
+                border:     tab === t.id ? "none" : isDone ? "1px solid rgba(34,197,94,0.25)" : "1px solid #EBEDF2",
               }}>
-              <span style={{ fontSize:14, fontWeight:800 }}>{t.label}</span>
-              <span style={{ fontSize:10, opacity:0.7, marginTop:2 }}>{t.desc}</span>
+              <span style={{ fontSize:14, fontWeight:800 }}>{t.label}{isDone && tab !== t.id ? " ✓" : ""}</span>
+              <span style={{ fontSize:10, opacity:0.7, marginTop:2 }}>{isDone && tab !== t.id ? "Submitted" : t.desc}</span>
             </button>
-          ))}
-        </div>
-      )}
+          )
+        })}
+      </div>
 
       {/* ── MAIN GRID ─────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-[18px] items-start">
 
         {/* ── LEFT ─────────────────────────────────────────────────────────── */}
         <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-
-          {/* Two-step progress indicator (non-media team) */}
-          {!isMediaTeam && (
-            <div style={{ background:"#FFFFFF", borderRadius:14, border:"1px solid #EBEDF2", padding:"12px 16px", boxShadow:"0 1px 4px rgba(0,0,0,0.05)", display:"flex", alignItems:"center", gap:8 }}>
-              {/* Step 1: Work Log */}
-              <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center",
-                  background: workingDone ? "#22C55E" : tab === "working" ? "#DE1A1A" : "#E5E7EB",
-                  border: workingDone ? "none" : tab === "working" ? "none" : "2px solid #D1D5DB",
-                }}>
-                  {workingDone
-                    ? <span style={{ fontSize:11, color:"#fff", fontWeight:900, lineHeight:1 }}>✓</span>
-                    : <span style={{ fontSize:10, color: tab === "working" ? "#fff" : "#9CA3AF", fontWeight:900, lineHeight:1 }}>1</span>
-                  }
-                </div>
-                <div>
-                  <p style={{ margin:0, fontSize:12, fontWeight:800, color: workingDone ? "#16A34A" : tab === "working" ? "#111827" : "#9CA3AF" }}>
-                    Work Log{workingDone ? " submitted" : ""}
-                  </p>
-                  <p style={{ margin:0, fontSize:10, color: workingDone ? "#16A34A" : tab === "working" ? "#6B7280" : "#C4C9D4" }}>
-                    {workingDone ? "Done ✓" : tab === "working" ? "Fill & submit below" : "Pending"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Connector line */}
-              <div style={{ width:24, height:2, borderRadius:99, flexShrink:0, background: workingDone ? "#22C55E" : "#E5E7EB" }} />
-
-              {/* Step 2: Learning */}
-              <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center",
-                  background: learningDone ? "#22C55E" : tab === "learning" ? "#DE1A1A" : "#E5E7EB",
-                  border: learningDone ? "none" : tab === "learning" ? "none" : "2px solid #D1D5DB",
-                }}>
-                  {learningDone
-                    ? <span style={{ fontSize:11, color:"#fff", fontWeight:900, lineHeight:1 }}>✓</span>
-                    : <span style={{ fontSize:10, color: tab === "learning" ? "#fff" : "#9CA3AF", fontWeight:900, lineHeight:1 }}>2</span>
-                  }
-                </div>
-                <div>
-                  <p style={{ margin:0, fontSize:12, fontWeight:800, color: learningDone ? "#16A34A" : tab === "learning" ? "#111827" : "#9CA3AF" }}>
-                    Learning{learningDone ? " submitted" : ""}
-                  </p>
-                  <p style={{ margin:0, fontSize:10, color: learningDone ? "#16A34A" : tab === "learning" ? "#6B7280" : "#C4C9D4" }}>
-                    {learningDone ? "Done ✓" : tab === "learning" ? "Fill & submit below" : "Pending"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Connector line */}
-              <div style={{ width:24, height:2, borderRadius:99, flexShrink:0, background: "#E5E7EB" }} />
-
-              {/* Step 3: Break */}
-              <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:24, height:24, borderRadius:"50%", flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center",
-                  background: tab === "break" ? "#D97706" : "#E5E7EB",
-                  border: tab === "break" ? "none" : "2px solid #D1D5DB",
-                }}>
-                  <span style={{ fontSize:10, color: tab === "break" ? "#fff" : "#9CA3AF", fontWeight:900, lineHeight:1 }}>3</span>
-                </div>
-                <div>
-                  <p style={{ margin:0, fontSize:12, fontWeight:800, color: tab === "break" ? "#111827" : "#9CA3AF" }}>Break</p>
-                  <p style={{ margin:0, fontSize:10, color: tab === "break" ? "#6B7280" : "#C4C9D4" }}>
-                    {tab === "break" ? "Log breaks below" : "Optional"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Tab switcher (non-media team) */}
-          {!isMediaTeam && (
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <button onClick={() => setTab("working")} style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 18px", borderRadius:12, flex:1, justifyContent:"center", cursor:"pointer", border:"none", transition:"all 0.18s",
-                background: tab === "working" ? "#DE1A1A" : workingDone ? "rgba(34,197,94,0.08)" : "#FFFFFF",
-                boxShadow: tab === "working" ? "0 4px 14px rgba(222,26,26,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
-                outline: tab === "working" ? "none" : workingDone ? "1.5px solid rgba(34,197,94,0.3)" : "1.5px solid #EBEDF2",
-              }}>
-                <div style={{ width:16, height:16, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
-                  background: tab === "working" ? "rgba(255,255,255,0.3)" : workingDone ? "#22C55E" : "#E5E7EB" }}>
-                  {workingDone && tab !== "working" && <span style={{ fontSize:9, color:"#fff", fontWeight:900 }}>✓</span>}
-                </div>
-                <span style={{ fontSize:12, fontWeight:800, color: tab === "working" ? "#fff" : workingDone ? "#16A34A" : "#6B7280" }}>
-                  Work Log{workingDone && tab !== "working" ? " ✓" : ""}
-                </span>
-              </button>
-              <button onClick={() => setTab("learning")} style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 18px", borderRadius:12, flex:1, justifyContent:"center", cursor:"pointer", border:"none", transition:"all 0.18s",
-                background: tab === "learning" ? "#DE1A1A" : learningDone ? "rgba(34,197,94,0.08)" : "#FFFFFF",
-                boxShadow: tab === "learning" ? "0 4px 14px rgba(222,26,26,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
-                outline: tab === "learning" ? "none" : learningDone ? "1.5px solid rgba(34,197,94,0.3)" : "1.5px solid #EBEDF2",
-              }}>
-                <div style={{ width:16, height:16, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0,
-                  background: tab === "learning" ? "rgba(255,255,255,0.3)" : learningDone ? "#22C55E" : "#E5E7EB" }}>
-                  {learningDone && tab !== "learning" && <span style={{ fontSize:9, color:"#fff", fontWeight:900 }}>✓</span>}
-                </div>
-                <span style={{ fontSize:12, fontWeight:800, color: tab === "learning" ? "#fff" : learningDone ? "#16A34A" : "#6B7280" }}>
-                  Learning{learningDone && tab !== "learning" ? " ✓" : ""}
-                </span>
-              </button>
-              <button onClick={() => setTab("break")} style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 18px", borderRadius:12, flex:1, justifyContent:"center", cursor:"pointer", border:"none", transition:"all 0.18s",
-                background: tab === "break" ? "#D97706" : "#FFFFFF",
-                boxShadow: tab === "break" ? "0 4px 14px rgba(217,119,6,0.35)" : "0 1px 4px rgba(0,0,0,0.06)",
-                outline: tab === "break" ? "none" : "1.5px solid #EBEDF2",
-              }}>
-                <span style={{ fontSize:12, fontWeight:800, color: tab === "break" ? "#fff" : "#6B7280" }}>☕ Break</span>
-              </button>
-            </div>
-          )}
 
           {/* ══ WORKING: Time Blocks ══════════════════════════════════════════ */}
           {tab === "working" && (
@@ -1308,15 +1328,6 @@ export default function DailyUpdateForm({
                     <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Today&apos;s Time Log</p>
                     <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{filledBlocks.length} {filledBlocks.length === 1 ? "block" : "blocks"} · {totalLoggedHours.toFixed(1)}h logged{nonMediaBreaks.length > 0 ? ` · ${nonMediaBreaks.length} break${nonMediaBreaks.length > 1 ? "s" : ""}` : ""}</p>
                   </div>
-                </div>
-                <div style={{ display:"flex", gap:8 }}>
-                  <button onClick={addTimeBlock}
-                    style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 16px", borderRadius:10, border:"none", background:"#DE1A1A", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                    <Plus size={13} /> Add Time Block
-                  </button>
-                  <button onClick={addBreakBlock} style={{ display:"none" }}>
-                    <Coffee size={13} /> Break
-                  </button>
                 </div>
               </div>
 
@@ -1465,15 +1476,18 @@ export default function DailyUpdateForm({
                           </div>
                         </>)}
                       </div>
-                      <div style={{ display:"flex", justifyContent:"center", marginTop:4 }}>
-                        <button type="button" onClick={addTimeBlock}
-                          style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 16px", borderRadius:10, border:"none", background:"#DE1A1A", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                          <Plus size={13} /> Add block
-                        </button>
-                      </div>
                       </Fragment>
                     )
                   })}
+                </div>
+              )}
+
+              {timeBlocks.filter(b => !b.isBreak).length > 0 && (
+                <div style={{ display:"flex", justifyContent:"center", marginTop:12 }}>
+                  <button type="button" onClick={addTimeBlock}
+                    style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 20px", borderRadius:10, border:"none", background:"#DE1A1A", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                    <Plus size={13} /> Add block
+                  </button>
                 </div>
               )}
 
@@ -1510,20 +1524,44 @@ export default function DailyUpdateForm({
           {tab === "media" && (<>
 
             {/* ── Media Stats Row ─────────────────────────────────────────── */}
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:10 }}>
-              {[
-                { label:"SHOOTS",       value:`${shoots.length}`,        color:"#DE1A1A", bg:"rgba(222,26,26,0.07)",   icon:"📸" },
-                { label:"HRS SHOOTING", value:`${totalShootHours}h`,    color:"#EF4444", bg:"rgba(239,68,68,0.07)",   icon:"🎥" },
-                { label:"TRAVEL HRS",   value: fmtTravel(totalTravelHours) ?? "0",   color:"#F59E0B", bg:"rgba(245,158,11,0.07)",  icon:"🚗" },
-                { label:"EDITED COUNT", value:`${edits.length}`,        color:"#6366F1", bg:"rgba(99,102,241,0.07)",  icon:"🎬" },
-              ].map(s => (
-                <div key={s.label} style={{ background:"#FFFFFF", borderRadius:16, border:`1.5px solid ${s.color}22`, padding:"14px 12px", textAlign:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
-                  <div style={{ fontSize:20, marginBottom:4 }}>{s.icon}</div>
-                  <p style={{ fontSize:20, fontWeight:900, color:s.color, margin:"0 0 3px", fontFamily:"var(--font-jakarta)", lineHeight:1 }}>{s.value}</p>
-                  <p style={{ fontSize:9, fontWeight:800, color:"#9CA3AF", margin:0, textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.label}</p>
+            {(() => {
+              // When past date selected, prefer activeUpdate.work_entries over live state
+              const actUpd = activeUpdate as Record<string,unknown> | null
+              const srEntries = Array.isArray(actUpd?.work_entries)
+                ? actUpd!.work_entries as Array<Record<string,unknown>>
+                : null
+              const srShoots     = srEntries ? srEntries.filter(e => e.task_type === "shoot") : null
+              const srEdits      = srEntries ? srEntries.filter(e => e.task_type === "edit")  : null
+              // Fallback chain: work_entries → summary columns → live state
+              const srShootCount = srShoots && srShoots.length > 0
+                ? srShoots.length
+                : (Number(actUpd?.shoot_count) || shoots.length)
+              const srEditCount  = srEdits && srEdits.length > 0
+                ? srEdits.length
+                : (Number(actUpd?.editing_count) || edits.length)
+              const srShootH = srShoots && srShoots.length > 0
+                ? srShoots.reduce((s,e) => s + (Number(e.duration_hours)||0), 0)
+                : (Number(actUpd?.shoot_time_hours) || totalShootHours)
+              const srTravelH = srShoots && srShoots.length > 0
+                ? srShoots.reduce((s,e) => s + (Number((e as Record<string,unknown>)._travel_hours)||0), 0)
+                : totalTravelHours
+              return (
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:10 }}>
+                  {[
+                    { label:"SHOOTS",       value:`${srShootCount}`,              color:"#DE1A1A", bg:"rgba(222,26,26,0.07)",   icon:"📸" },
+                    { label:"HRS SHOOTING", value:`${srShootH}h`,                 color:"#EF4444", bg:"rgba(239,68,68,0.07)",   icon:"🎥" },
+                    { label:"TRAVEL HRS",   value: fmtTravel(srTravelH) ?? "0",  color:"#F59E0B", bg:"rgba(245,158,11,0.07)",  icon:"🚗" },
+                    { label:"EDITED COUNT", value:`${srEditCount}`,               color:"#6366F1", bg:"rgba(99,102,241,0.07)",  icon:"🎬" },
+                  ].map(s => (
+                    <div key={s.label} style={{ background:"#FFFFFF", borderRadius:16, border:`1.5px solid ${s.color}22`, padding:"14px 12px", textAlign:"center", boxShadow:"0 2px 8px rgba(0,0,0,0.04)" }}>
+                      <div style={{ fontSize:20, marginBottom:4 }}>{s.icon}</div>
+                      <p style={{ fontSize:20, fontWeight:900, color:s.color, margin:"0 0 3px", fontFamily:"var(--font-jakarta)", lineHeight:1 }}>{s.value}</p>
+                      <p style={{ fontSize:9, fontWeight:800, color:"#9CA3AF", margin:0, textTransform:"uppercase", letterSpacing:"0.08em" }}>{s.label}</p>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )
+            })()}
 
             {/* Shoots */}
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
@@ -2402,52 +2440,121 @@ export default function DailyUpdateForm({
               </p>
 
               {/* Non-media team: stats based on active tab */}
-              {!isMediaTeam && tab === "working" && (
-                <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-                  <p style={{ fontSize:10, fontWeight:700, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>⏰ Work Log</p>
-                  {([
-                    { label:"Hours Logged",  value:`${totalLoggedHours.toFixed(1)}h`, color: totalLoggedHours >= 8 ? "#22C55E" : "#111111" },
-                    { label:"Blocks Filled", value:`${filledBlocks.length}`,           color:"#6366F1" },
-                    { label:"Productivity",  value:`${generalProductivity}%`,          color: generalProductivity >= 70 ? "#22C55E" : generalProductivity > 0 ? "#F59E0B" : "#9CA3AF" },
-                  ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
-                    <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                      <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
-                      <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
+              {!isMediaTeam && tab === "working" && (() => {
+                // Past date selected → show that date's data; else show today's submitted or live
+                const sourceUpdate = activeUpdate ?? (workingDone ? existingUpdate : null)
+                const srcEntries = Array.isArray((sourceUpdate as Record<string,unknown> | null)?.work_entries)
+                  ? (sourceUpdate as Record<string,unknown>).work_entries as Array<Record<string,unknown>>
+                  : null
+                if (srcEntries) {
+                  const workH  = srcEntries.filter(e => e.task_type === "other").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+                  const breakH = srcEntries.filter(e => e.task_type === "break").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+                  const voiceH = srcEntries.filter(e => e.task_type === "voiceover").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+                  const postH  = srcEntries.filter(e => e.task_type === "poster").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
+                  const rows = [
+                    { label:"Working",    value:`${workH.toFixed(1)}h`,  color: workH >= 8 ? "#22C55E" : workH > 0 ? "#111111" : "#9CA3AF" },
+                    { label:"Break",      value:`${breakH.toFixed(1)}h`, color: breakH > 0 ? "#F59E0B" : "#9CA3AF" },
+                    ...(voiceH > 0 ? [{ label:"Voiceover", value:`${voiceH.toFixed(1)}h`, color:"#8B5CF6" }] : []),
+                    ...(postH  > 0 ? [{ label:"Poster",    value:`${postH.toFixed(1)}h`,  color:"#EC4899" }] : []),
+                  ] as Array<{label:string;value:string;color:string}>
+                  return (
+                    <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                      <p style={{ fontSize:10, fontWeight:700, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>
+                        ⏰ Work Log {activeUpdate ? `· ${selectedDate}` : "✓"}
+                      </p>
+                      {rows.map((r,i) => (
+                        <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                          <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
+                          <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-              {!isMediaTeam && tab === "learning" && (
-                <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-                  <p style={{ fontSize:10, fontWeight:700, color:"#10B981", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>📚 Learning</p>
-                  {([
-                    { label:"Topic", value: learningTopic || "Not set", color:"#10B981" },
-                    { label:"Hours", value:`${learningHours}h`,          color:"#6366F1" },
-                  ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
-                    <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
-                      <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
-                      <span style={{ fontSize:11, fontWeight:700, color:r.color, maxWidth:130, textOverflow:"ellipsis", overflow:"hidden", whiteSpace:"nowrap" }}>{r.value}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+                  )
+                }
+                // No submitted data — show live form stats
+                return (
+                  <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                    <p style={{ fontSize:10, fontWeight:700, color:"#DE1A1A", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>⏰ Work Log</p>
+                    {((() => {
+                      const workH  = timeBlocks.filter(b => !b.isBreak).reduce((s, b) => s + b.durationHours, 0)
+                      const breakH = breakBlocks.reduce((s, b) => s + b.durationHours, 0)
+                      return [
+                        { label:"Working Hours", value:`${workH.toFixed(1)}h`,  color: workH >= 8 ? "#22C55E" : "#111111" },
+                        { label:"Break Hours",   value:`${breakH.toFixed(1)}h`, color:"#F59E0B" },
+                        { label:"Learning",      value: learningHours > 0 ? `${(learningHours as number).toFixed(1)}h` : "—", color:"#10B981" },
+                      ]
+                    })() as Array<{label:string;value:string;color:string}>).map((r,i) => (
+                      <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
+                        <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+              {!isMediaTeam && tab === "learning" && (() => {
+                const src = activeUpdate ?? (learningDone ? existingUpdate : null)
+                const srcTopic = (src as Record<string,unknown> | null)?.learning_topic as string | null
+                const srcHours = (src as Record<string,unknown> | null)?.learning_hours as number | null
+                return (
+                  <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                    <p style={{ fontSize:10, fontWeight:700, color:"#10B981", textTransform:"uppercase", letterSpacing:"0.08em", margin:"0 0 2px" }}>
+                      📚 Learning{src ? " ✓" : ""}
+                    </p>
+                    {([
+                      { label:"Topic", value: srcTopic || learningTopic || "Not set", color:"#10B981" },
+                      { label:"Hours", value:`${srcHours ?? learningHours}h`,          color:"#6366F1" },
+                    ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
+                      <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
+                        <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
+                        <span style={{ fontSize:11, fontWeight:700, color:r.color, maxWidth:130, textOverflow:"ellipsis", overflow:"hidden", whiteSpace:"nowrap" }}>{r.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
 
-              {(isMediaTeam && tab === "media") && (
-                <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-                  {([
-                    { label:"Shoots",      value:`${shoots.length}`,         color: shoots.length > 0 ? "#EF4444" : "#9CA3AF" },
-                    { label:"Edits",       value:`${edits.length}`,          color: edits.length > 0  ? "#6366F1" : "#9CA3AF" },
-                    { label:"Shoot Hours", value:`${totalShootHours}h`,      color:"#EF4444" },
-                    { label:"Edit Hours",  value:`${totalEditHours}h`,       color:"#6366F1" },
-                    { label:"Total Hours", value:`${totalMediaHours}h`,      color: totalMediaHours >= 8 ? "#22C55E" : "#111111" },
-                  ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
-                    <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                      <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
-                      <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {(isMediaTeam && tab === "media") && (() => {
+                // Read from activeUpdate.work_entries when a past date is selected (incl. edit mode)
+                const ovUpd = activeUpdate as Record<string,unknown> | null
+                const ovSrc = Array.isArray(ovUpd?.work_entries)
+                  ? ovUpd!.work_entries as Array<Record<string,unknown>>
+                  : null
+                const ovShoots    = ovSrc ? ovSrc.filter(e => e.task_type === "shoot") : null
+                const ovEdits     = ovSrc ? ovSrc.filter(e => e.task_type === "edit")  : null
+                // Fallback chain: work_entries → summary columns → live state
+                const ovShootLen  = ovShoots && ovShoots.length > 0
+                  ? ovShoots.length
+                  : (Number(ovUpd?.shoot_count) || shoots.length)
+                const ovEditLen   = ovEdits && ovEdits.length > 0
+                  ? ovEdits.length
+                  : (Number(ovUpd?.editing_count) || edits.length)
+                const ovShootH    = ovShoots && ovShoots.length > 0
+                  ? ovShoots.reduce((s,e) => s + (Number(e.duration_hours)||0), 0)
+                  : (Number(ovUpd?.shoot_time_hours) || totalShootHours)
+                const ovEditH     = ovEdits && ovEdits.length > 0
+                  ? ovEdits.reduce((s,e) => s + (Number(e.duration_hours)||0), 0)
+                  : (Number(ovUpd?.editing_time_hours) || totalEditHours)
+                const ovTotalH    = ovSrc && ovSrc.length > 0
+                  ? ovSrc.filter(e => e.task_type !== "break").reduce((s,e) => s + (Number(e.duration_hours)||0), 0)
+                  : ((Number(ovUpd?.shoot_time_hours) || totalShootHours) + (Number(ovUpd?.editing_time_hours) || totalEditHours))
+                return (
+                  <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                    {([
+                      { label:"Shoots",      value:`${ovShootLen}`,    color: ovShootLen > 0 ? "#EF4444" : "#9CA3AF" },
+                      { label:"Edits",       value:`${ovEditLen}`,     color: ovEditLen > 0  ? "#6366F1" : "#9CA3AF" },
+                      { label:"Shoot Hours", value:`${ovShootH}h`,     color:"#EF4444" },
+                      { label:"Edit Hours",  value:`${ovEditH}h`,      color:"#6366F1" },
+                      { label:"Total Hours", value:`${ovTotalH}h`,     color: ovTotalH >= 8 ? "#22C55E" : "#111111" },
+                    ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
+                      <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <span style={{ fontSize:11, color:"#9CA3AF" }}>{r.label}</span>
+                        <span style={{ fontSize:11, fontWeight:700, color:r.color }}>{r.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
 
               {(isMediaTeam && tab === "learning") && (
                 <div style={{ display:"flex", flexDirection:"column", gap:9 }}>

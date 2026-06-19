@@ -90,15 +90,23 @@ export async function submitLeaveRequest(
 
   const { data: overlapping } = await supabase
     .from('leaves')
-    .select('id')
+    .select('id, leave_type')
     .eq('user_id', session.user.id)
     .lte('from_date', parsed.data.to_date)
     .gte('to_date', parsed.data.from_date)
     .not('status', 'eq', 'rejected')
-    .limit(1)
 
   if (overlapping && overlapping.length > 0) {
-    return { error: 'You already have a leave request for those dates.' }
+    // Multiple permissions on the same day are allowed (e.g. morning + evening)
+    // Only block if there is a full_day or half_day leave already on that date
+    const blocking = parsed.data.leave_type === 'permission'
+      ? overlapping.filter(l => l.leave_type !== 'permission')
+      : overlapping
+    if (blocking.length > 0) {
+      return { error: parsed.data.leave_type === 'permission'
+        ? 'You already have a full-day or half-day leave on that date.'
+        : 'You already have a leave request for those dates.' }
+    }
   }
 
   const { data: inserted, error: insertError } = await (supabase.from('leaves') as any).insert({
@@ -475,31 +483,29 @@ export async function updateLeaveStatus(
 
   if (error) return { success: false, error: error.message }
 
-  if (status === 'approved' && leave) {
-    // Auto-update attendance_logs for full/half day leaves
-    if (leave.leave_type !== 'permission') {
-      const curr = new Date(leave.from_date + 'T12:00:00')
-      const end  = new Date(leave.to_date   + 'T12:00:00')
-      while (curr <= end) {
-        const dateStr = curr.toISOString().split('T')[0]
-        const { data: existing } = await admin
-          .from('attendance_logs')
-          .select('id, clock_in')
-          .eq('company_id', leave.company_id)
-          .eq('user_id', leave.user_id)
-          .eq('date', dateStr)
-          .maybeSingle()
-        if (!existing) {
-          const attStatus = leave.leave_type === 'half_day' ? 'half_day' : 'absent'
-          admin.from('attendance_logs').insert({
-            company_id: leave.company_id,
-            user_id:    leave.user_id,
-            date:       dateStr,
-            status:     attStatus,
-          }).then(({ error: e }) => { if (e) console.error('[leave approval] attendance insert:', e.message) })
-        }
-        curr.setDate(curr.getDate() + 1)
+  // Auto-update attendance when approved (skip permission leaves — they're still present)
+  if (status === 'approved' && leave && leave.leave_type !== 'permission') {
+    const curr = new Date(leave.from_date + 'T12:00:00')
+    const end  = new Date(leave.to_date   + 'T12:00:00')
+    while (curr <= end) {
+      const dateStr = curr.toISOString().split('T')[0]
+      const { data: existing } = await admin
+        .from('attendance_logs')
+        .select('id, clock_in')
+        .eq('company_id', leave.company_id)
+        .eq('user_id', leave.user_id)
+        .eq('date', dateStr)
+        .maybeSingle()
+      if (!existing) {
+        const attStatus = leave.leave_type === 'half_day' ? 'half_day' : 'leave'
+        admin.from('attendance_logs').insert({
+          company_id: leave.company_id,
+          user_id:    leave.user_id,
+          date:       dateStr,
+          status:     attStatus,
+        }).then(({ error: e }) => { if (e) console.error('[leave approval] attendance insert:', e.message) })
       }
+      curr.setDate(curr.getDate() + 1)
     }
     // Auto-insert history entry
     try {

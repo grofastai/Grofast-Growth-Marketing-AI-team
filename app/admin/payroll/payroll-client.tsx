@@ -169,8 +169,8 @@ function MiniCalendar({
       <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
         {[
           { color: "#15803D", label: `Present ${presentDays}` },
-          { color: "#DC2626", label: `Absent ${absentDays}` },
-          { color: "#D97706", label: `Leave ${paidLeaveDays}` },
+          { color: "#DC2626", label: `Leave ${absentDays}` },
+          { color: "#D97706", label: `Paid Leave ${paidLeaveDays}` },
           { color: "#9CA3AF", label: "Weekly Off 4" },
         ].map((item) => (
           <div key={item.label} style={{ display: "flex", alignItems: "center", gap: 4 }}>

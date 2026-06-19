@@ -3,7 +3,7 @@ export const revalidate = 0
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { insertNotification } from '@/lib/actions/notifications'
+import { insertManyNotifications } from '@/lib/actions/notifications'
 import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
 
 function adminSupabase() {
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
   const { data: dueNotes, error } = await admin
     .from('notes')
-    .select('id, user_id, company_id, title, content, reminder_at')
+    .select('id, user_id, company_id, title, content, reminder_at, reminder_recipients, reminder_message')
     .lte('reminder_at', now)
     .eq('reminded', false)
     .not('reminder_at', 'is', null)
@@ -50,12 +50,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ checked: 0, triggered: 0, checkedAt: now })
   }
 
-  // Fetch owner phones for WhatsApp
-  const userIds = [...new Set(dueNotes.map((n: any) => n.user_id))]
+  // Collect all unique user IDs across recipients + owners (for WhatsApp lookup)
+  const allUserIds = [...new Set(dueNotes.flatMap((n: any) => {
+    const rcpts: string[] = n.reminder_recipients?.length ? n.reminder_recipients : [n.user_id]
+    return rcpts
+  }))]
+
   const { data: users } = await admin
     .from('users')
     .select('id, phone')
-    .in('id', userIds)
+    .in('id', allUserIds)
 
   const phoneByUser = new Map((users ?? []).map((u: any) => [u.id, u.phone as string | null]))
 
@@ -63,27 +67,41 @@ export async function GET(request: NextRequest) {
   await Promise.all(
     dueNotes.map(async (note: any) => {
       const snippet = note.title || note.content.slice(0, 60)
+      const body    = note.reminder_message || snippet
       const reminderLabel = new Date(note.reminder_at).toLocaleString('en-IN', {
         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true,
         timeZone: 'Asia/Kolkata',
       })
 
-      await insertNotification({
-        companyId: note.company_id,
-        userId: note.user_id,
-        type: 'note_reminder',
-        title: '⏰ Note reminder',
-        body: snippet,
-        link: '/member/notes',
-      })
+      // Determine recipients: use reminder_recipients if set, else fall back to owner only
+      const recipientIds: string[] = note.reminder_recipients?.length
+        ? note.reminder_recipients
+        : [note.user_id]
 
-      const phone = phoneByUser.get(note.user_id)
-      if (phone) {
-        await sendWhatsAppTemplate(formatPhone(phone), 'grofast_note_reminder', [snippet, reminderLabel])
-          .catch(console.error)
-      }
+      // In-app bell notifications for all recipients
+      await insertManyNotifications(
+        recipientIds.map((uid: string) => ({
+          companyId: note.company_id,
+          userId: uid,
+          type: 'note_reminder',
+          title: `⏰ ${snippet}`,
+          body,
+          link: '/member/notes',
+        }))
+      )
 
-      triggered++
+      // WhatsApp for each recipient who has a phone
+      await Promise.all(
+        recipientIds.map(async (uid: string) => {
+          const phone = phoneByUser.get(uid)
+          if (phone) {
+            await sendWhatsAppTemplate(formatPhone(phone), 'grofast_note_reminder', [snippet, reminderLabel])
+              .catch(console.error)
+          }
+        })
+      )
+
+      triggered += recipientIds.length
     })
   )
 

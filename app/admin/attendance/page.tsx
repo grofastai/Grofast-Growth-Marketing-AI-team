@@ -120,8 +120,8 @@ export default async function AttendancePage({
   const lateEntries  = (lateLogs ?? [] as LateLog[]).map(l => ({ ...l, member: memberMap.get(l.user_id) })).filter(l => l.member)
   const totalMembers = (members ?? []).length
   const presentCount = (members ?? []).filter(m => { const l = logMap.get(m.id); return l?.clock_in || l?.status === "present" }).length
-  const absentCount  = (members ?? []).filter(m => (logMap.get(m.id)?.status === "absent" && !logMap.get(m.id)?.clock_in) || (!logMap.has(m.id) && onLeaveSet.has(m.id))).length
-  const notLogged    = (members ?? []).filter(m => !logMap.has(m.id) && !onLeaveSet.has(m.id)).length
+  const absentCount  = (members ?? []).filter(m => { const s = logMap.get(m.id)?.status; return (s === "leave" || s === "absent") && !logMap.get(m.id)?.clock_in }).length
+  const notLogged    = (members ?? []).filter(m => !logMap.has(m.id)).length
 
   const weekCountMap: Record<string, number> = {}
   for (const row of (weeklyRaw ?? [])) weekCountMap[(row as { date: string }).date] = (weekCountMap[(row as { date: string }).date] ?? 0) + 1
@@ -148,10 +148,10 @@ export default async function AttendancePage({
       icon: <UserCheck size={16} style={{ color: "#10B981" }} />,
     },
     {
-      label: "Absent Today", value: absentCount,
+      label: "On Leave Today", value: absentCount,
       img: "/brand/absent-girl.png",
       numColor: "#de1a1a", accent: "#de1a1a", accentBg: "rgba(222,26,26,0.06)",
-      pct: absentPct, sub: `${absentPct}% absent`,
+      pct: absentPct, sub: `${absentPct}% on leave`,
       icon: <XCircle size={16} style={{ color: "#de1a1a" }} />,
     },
     {
@@ -311,15 +311,14 @@ export default async function AttendancePage({
                 ) : (
                   (members ?? []).map((m, i) => {
                     const log       = logMap.get(m.id)
-                    const isAbsent  = log?.status === "absent" && !log?.clock_in
+                    const isAbsent  = (log?.status === "leave" || log?.status === "absent") && !log?.clock_in
                     const isWorking = !!(log?.clock_in && !log?.clock_out)
                     const isDone    = !!(log?.clock_in && log?.clock_out)
                     const dur       = calcDurationNet(log?.clock_in ?? null, log?.clock_out ?? null, m.id, log?.break_total_mins ?? null)
 
                     const isOnLeave = !log && onLeaveSet.has(m.id)
                     let statusLabel = "Not Logged"; let statusColor = "#9CA3AF"; let statusBg = "#F3F4F6"; let statusDot = "#D1D5DB"
-                    if (isOnLeave) { statusLabel = "On Leave"; statusColor = "#10B981"; statusBg = "rgba(16,185,129,0.09)"; statusDot = "#10B981" }
-                    if (isAbsent)  { statusLabel = "Absent";  statusColor = "#DE1A1A"; statusBg = "rgba(222,26,26,0.08)"; statusDot = "#DE1A1A" }
+                    if (isAbsent)  { statusLabel = "On Leave"; statusColor = "#DE1A1A"; statusBg = "rgba(222,26,26,0.08)"; statusDot = "#DE1A1A" }
                     if (isWorking) { statusLabel = "Working"; statusColor = "#10B981"; statusBg = "rgba(16,185,129,0.09)"; statusDot = "#10B981" }
                     if (isDone)    { statusLabel = "Done";    statusColor = "#6366F1"; statusBg = "rgba(99,102,241,0.09)"; statusDot = "#6366F1" }
 

@@ -19,30 +19,34 @@ export interface ChecklistItem {
 }
 
 export interface NoteRow {
-  id:          string
-  title:       string | null
-  content:     string
-  color:       string
-  pinned:      boolean
-  reminder_at: string | null
-  reminded:    boolean
-  note_type:   'text' | 'checklist'
-  items:       ChecklistItem[]
-  labels:      string[]
-  archived:    boolean
-  created_at:  string
-  updated_at:  string
+  id:                   string
+  title:                string | null
+  content:              string
+  color:                string
+  pinned:               boolean
+  reminder_at:          string | null
+  reminded:             boolean
+  reminder_recipients:  string[]
+  reminder_message:     string | null
+  note_type:            'text' | 'checklist'
+  items:                ChecklistItem[]
+  labels:               string[]
+  archived:             boolean
+  created_at:           string
+  updated_at:           string
 }
 
 export interface NoteInput {
-  title?:       string
-  content:      string
-  color?:       string
-  pinned?:      boolean
-  reminder_at?: string | null
-  note_type:    'text' | 'checklist'
-  items:        ChecklistItem[]
-  labels:       string[]
+  title?:                string
+  content:               string
+  color?:                string
+  pinned?:               boolean
+  reminder_at?:          string | null
+  reminder_recipients?:  string[]
+  reminder_message?:     string | null
+  note_type:             'text' | 'checklist'
+  items:                 ChecklistItem[]
+  labels:                string[]
 }
 
 export async function getNotes(archived = false): Promise<NoteRow[]> {
@@ -52,7 +56,7 @@ export async function getNotes(archived = false): Promise<NoteRow[]> {
 
   const { data } = await supabase
     .from('notes')
-    .select('id, title, content, color, pinned, reminder_at, reminded, note_type, items, labels, archived, created_at, updated_at')
+    .select('id, title, content, color, pinned, reminder_at, reminded, reminder_recipients, reminder_message, note_type, items, labels, archived, created_at, updated_at')
     .eq('user_id', user.id)
     .eq('archived', archived)
     .order('pinned', { ascending: false })
@@ -79,17 +83,19 @@ export async function createNote(
   if (!profile?.company_id) return { success: false, error: 'Profile not found' }
 
   const { data, error } = await admin.from('notes').insert({
-    company_id:  profile.company_id,
-    user_id:     user.id,
-    title:       input.title?.trim() || null,
-    content:     input.content.trim(),
-    color:       input.color ?? '#FFFFFF',
-    pinned:      input.pinned ?? false,
-    reminder_at: input.reminder_at ?? null,
-    note_type:   input.note_type ?? 'text',
-    items:       input.items ?? [],
-    labels:      input.labels ?? [],
-    archived:    false,
+    company_id:           profile.company_id,
+    user_id:              user.id,
+    title:                input.title?.trim() || null,
+    content:              input.content.trim(),
+    color:                input.color ?? '#FFFFFF',
+    pinned:               input.pinned ?? false,
+    reminder_at:          input.reminder_at ?? null,
+    reminder_recipients:  input.reminder_recipients ?? [],
+    reminder_message:     input.reminder_message ?? null,
+    note_type:            input.note_type ?? 'text',
+    items:                input.items ?? [],
+    labels:               input.labels ?? [],
+    archived:             false,
   }).select('id').single()
 
   if (error) return { success: false, error: error.message }
@@ -108,16 +114,18 @@ export async function updateNote(
 
   const admin = adminSupabase()
   const { error } = await admin.from('notes').update({
-    title:       input.title?.trim() || null,
-    content:     input.content.trim(),
-    color:       input.color ?? '#FFFFFF',
-    pinned:      input.pinned ?? false,
-    reminder_at: input.reminder_at ?? null,
-    reminded:    false,
-    note_type:   input.note_type ?? 'text',
-    items:       input.items ?? [],
-    labels:      input.labels ?? [],
-    updated_at:  new Date().toISOString(),
+    title:               input.title?.trim() || null,
+    content:             input.content.trim(),
+    color:               input.color ?? '#FFFFFF',
+    pinned:              input.pinned ?? false,
+    reminder_at:         input.reminder_at ?? null,
+    reminded:            false,
+    reminder_recipients: input.reminder_recipients ?? [],
+    reminder_message:    input.reminder_message ?? null,
+    note_type:           input.note_type ?? 'text',
+    items:               input.items ?? [],
+    labels:              input.labels ?? [],
+    updated_at:          new Date().toISOString(),
   }).eq('id', id).eq('user_id', user.id)
 
   if (error) return { success: false, error: error.message }

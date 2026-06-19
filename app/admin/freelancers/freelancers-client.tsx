@@ -29,7 +29,7 @@ const TYPE_CFG: Record<FreelancerType, { label: string; color: string; bg: strin
 
 const SOFTWARE_OPTS = ["Adobe Premiere Pro", "Final Cut Pro", "DaVinci Resolve", "After Effects", "Adobe Rush", "CapCut", "Vegas Pro"]
 const VIDEO_TYPES   = ["Reels", "YouTube", "Corporate", "Wedding", "Product", "Documentary", "Social Media", "Ad Film", "Testimonial"]
-const VOICE_TYPES   = ["Warm & Friendly", "Deep & Authoritative", "Neutral", "High-pitched", "Energetic", "Soft & Calm"]
+const VOICE_TYPES   = ["Commercial Tone", "Emotional Tone", "High Pitch", "Base Voice", "Warm & Friendly", "Deep & Authoritative", "Neutral", "Energetic", "Soft & Calm"]
 const WK_STATUSES   = ["pending", "in_progress", "completed", "cancelled"]
 
 function fmt(n: number | null) {
@@ -155,9 +155,12 @@ function FreelancerSheet({
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
 
-  // Sync form state when editing changes or sheet opens
+  // Reset form/step only when the sheet transitions from closed → open
+  const wasOpen = useRef(false)
   useEffect(() => {
-    if (open) {
+    const justOpened = open && !wasOpen.current
+    wasOpen.current = open
+    if (justOpened) {
       setStep(editing ? "details" : "type")
       setForm(editing ? freelancerToState(editing, initialAssignments) : BLANK_F)
       setErr("")
@@ -287,14 +290,20 @@ function FreelancerSheet({
                 </button>
               )}
 
-              {/* ── Voice Artist ── */}
-              {form.type === "voice_over" && (<>
+              {/* ── Common fields for all types ── */}
+              {form.type && (
                 <Field label="Full Name *">
-                  <input className={inputCls} placeholder="e.g. Ravi Kumar" value={form.name} onChange={e => set("name", e.target.value)} />
+                  <input className={inputCls}
+                    placeholder={form.type === "other" ? "e.g. Graphic Designer, Copywriter" : form.type === "voice_over" ? "e.g. Ravi Kumar" : form.type === "video_editor" ? "e.g. Priya S" : "e.g. Arjun M"}
+                    value={form.name} onChange={e => set("name", e.target.value)} />
                 </Field>
+              )}
+              {form.type && (
                 <Field label="Title">
-                  <input className={inputCls} placeholder="e.g. Voice Artist, Narrator" value={form.title} onChange={e => set("title", e.target.value)} />
+                  <input className={inputCls} placeholder="e.g. Voice Artist, Video Editor, Narrator" value={form.title} onChange={e => set("title", e.target.value)} />
                 </Field>
+              )}
+              {form.type && (
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Gender</label>
                   <div className="flex gap-2">
@@ -310,108 +319,58 @@ function FreelancerSheet({
                     ))}
                   </div>
                 </div>
+              )}
+              {form.type === "voice_over" && (
                 <Field label="Voice Tone">
                   <select className={selectCls} value={form.voice_type} onChange={e => set("voice_type", e.target.value)}>
                     <option value="">Select voice tone</option>
                     {VOICE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
                   </select>
                 </Field>
+              )}
+              {form.type && (
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Phone">
-                    <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
+                    <input className={inputCls} inputMode="numeric" placeholder="9876543210" value={form.phone}
+                      onChange={e => set("phone", e.target.value.replace(/\D/g, "").slice(0, 15))} />
                   </Field>
                   <Field label="UPI ID">
                     <input className={inputCls} placeholder="name@upi" value={form.upi_id} onChange={e => set("upi_id", e.target.value)} />
                   </Field>
                 </div>
+              )}
+
+              {/* ── Type-specific price ── */}
+              {form.type === "voice_over" && (
                 <Field label="Base Price / Min (₹)" hint="Used for auto-calculation">
                   <input className={inputCls} type="number" min="0" step="0.5" placeholder="e.g. 150" value={form.cost_per_minute} onChange={e => set("cost_per_minute", e.target.value)} />
                 </Field>
-                <Field label="Free Time / Availability">
-                  <input className={inputCls} placeholder="e.g. Weekdays 10am–6pm" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
-                </Field>
-                <Field label="Rating">
-                  <StarRating value={form.rating} onChange={v => set("rating", v)} />
-                </Field>
-              </>)}
-
-              {/* ── Video Editor ── */}
-              {form.type === "video_editor" && (<>
-                <Field label="Full Name *">
-                  <input className={inputCls} placeholder="e.g. Priya S" value={form.name} onChange={e => set("name", e.target.value)} />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Phone">
-                    <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
-                  </Field>
-                  <Field label="UPI ID">
-                    <input className={inputCls} placeholder="name@upi" value={form.upi_id} onChange={e => set("upi_id", e.target.value)} />
-                  </Field>
-                </div>
+              )}
+              {form.type === "video_editor" && (
                 <Field label="Base Pay / Video (₹)" hint="Flat rate per video">
                   <input className={inputCls} type="number" min="0" step="50" placeholder="e.g. 2000" value={form.cost_per_video} onChange={e => set("cost_per_video", e.target.value)} />
                 </Field>
-                <Field label="Free Time / Availability">
-                  <input className={inputCls} placeholder="e.g. Mon–Fri evenings" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
-                </Field>
-                <ChipSelect label="Editing Software" options={SOFTWARE_OPTS} selected={form.editing_software} onChange={v => set("editing_software", v)} />
-                <ChipSelect label="Video Types Offered" options={VIDEO_TYPES} selected={form.video_types_offered} onChange={v => set("video_types_offered", v)} />
-                <Field label="Rating">
-                  <StarRating value={form.rating} onChange={v => set("rating", v)} />
-                </Field>
-              </>)}
-
-              {/* ── Video Shooter ── */}
-              {form.type === "video_shooter" && (<>
-                <Field label="Full Name *">
-                  <input className={inputCls} placeholder="e.g. Arjun M" value={form.name} onChange={e => set("name", e.target.value)} />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Phone">
-                    <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
-                  </Field>
-                  <Field label="UPI ID">
-                    <input className={inputCls} placeholder="name@upi" value={form.upi_id} onChange={e => set("upi_id", e.target.value)} />
-                  </Field>
-                </div>
-                <Field label="Free Time / Availability">
-                  <input className={inputCls} placeholder="e.g. Weekends only" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
-                </Field>
+              )}
+              {form.type === "video_shooter" && (
                 <Field label="Base Pay / Hour (₹)" hint="Used for auto-calculation">
                   <input className={inputCls} type="number" min="0" step="50" placeholder="e.g. 800" value={form.cost_per_hour} onChange={e => set("cost_per_hour", e.target.value)} />
                 </Field>
-                <Field label="Rating">
-                  <StarRating value={form.rating} onChange={v => set("rating", v)} />
-                </Field>
-              </>)}
-
-              {/* ── Other Service ── */}
-              {form.type === "other" && (<>
-                <Field label="Service Name *">
-                  <input className={inputCls} placeholder="e.g. Graphic Designer, Copywriter" value={form.name} onChange={e => set("name", e.target.value)} />
-                </Field>
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="Phone">
-                    <input className={inputCls} placeholder="+91 9876543210" value={form.phone} onChange={e => set("phone", e.target.value)} />
-                  </Field>
-                  <Field label="UPI ID">
-                    <input className={inputCls} placeholder="name@upi" value={form.upi_id} onChange={e => set("upi_id", e.target.value)} />
-                  </Field>
-                </div>
-                <Field label="Service Type">
-                  <input className={inputCls} placeholder="e.g. Graphic Design, Content Writing" value={form.language} onChange={e => set("language", e.target.value)} />
-                </Field>
+              )}
+              {form.type === "other" && (
                 <Field label="Base Pay (₹)">
                   <input className={inputCls} type="number" min="0" step="50" placeholder="e.g. 5000" value={form.cost_per_video} onChange={e => set("cost_per_video", e.target.value)} />
                 </Field>
+              )}
+              {form.type && (
                 <Field label="Free Time / Availability">
-                  <input className={inputCls} placeholder="e.g. Available on weekdays" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
+                  <input className={inputCls} placeholder="e.g. Weekdays 10am–6pm" value={form.availability_notes} onChange={e => set("availability_notes", e.target.value)} />
                 </Field>
+              )}
+              {form.type && (
                 <Field label="Rating">
                   <StarRating value={form.rating} onChange={v => set("rating", v)} />
                 </Field>
-              </>)}
-
+              )}
               {/* Status — editing only */}
               {editing && (
                 <Field label="Status">
@@ -1380,6 +1339,11 @@ export default function FreelancersClient({
   const [entries, setEntries] = useState(initEntries)
   const [assignments, setAssignments] = useState(initAssignments)
 
+  // Sync state when server refreshes (router.refresh() sends updated props)
+  useEffect(() => { setFreelancers(initFreelancers) }, [initFreelancers])
+  useEffect(() => { setEntries(initEntries) }, [initEntries])
+  useEffect(() => { setAssignments(initAssignments) }, [initAssignments])
+
   // Sheet states
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editingFreelancer, setEditingFreelancer] = useState<Freelancer | null>(null)
@@ -1409,6 +1373,12 @@ export default function FreelancersClient({
       (filter === "all" || f.type === filter) &&
       f.name.toLowerCase().includes(search.toLowerCase())
     ), [freelancers, filter, search])
+
+  // Stable reference so FreelancerSheet's useEffect doesn't re-fire on every render
+  const sheetInitAssignments = useMemo(
+    () => editingFreelancer ? (assignments[editingFreelancer.id] ?? []) : [],
+    [editingFreelancer, assignments]
+  )
 
   function openAdd() { setEditingFreelancer(null); setSheetOpen(true) }
   function openEdit(f: Freelancer) { setEditingFreelancer(f); setSheetOpen(true) }
@@ -1522,7 +1492,7 @@ export default function FreelancersClient({
         onClose={() => { setSheetOpen(false); setEditingFreelancer(null) }}
         editing={editingFreelancer}
         teamMembers={teamMembers}
-        initialAssignments={editingFreelancer ? (assignments[editingFreelancer.id] ?? []) : []}
+        initialAssignments={sheetInitAssignments}
         onCreated={f => {
           setFreelancers(prev => [f, ...prev])
           startTransition(() => router.refresh())

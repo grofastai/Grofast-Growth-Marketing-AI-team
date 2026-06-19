@@ -78,12 +78,12 @@ export async function GET(request: Request) {
 
     if (toMarkAbsent.length === 0) continue
 
-    // Upsert absent records
+    // Upsert leave records for members who didn't submit
     const rows = toMarkAbsent.map((userId: string) => ({
       company_id: cid,
       user_id: userId,
       date: today,
-      attendance_status: "absent",
+      attendance_status: "leave",
       working_hours: 0,
     }))
 

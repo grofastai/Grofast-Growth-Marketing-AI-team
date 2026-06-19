@@ -30,7 +30,7 @@ const STATUS_CFG = {
   pending:  { color: "#F59E0B", bg: "rgba(245,158,11,0.12)",   label: "Pending",  icon: Clock        },
   approved: { color: "#10B981", bg: "rgba(16,185,129,0.12)",   label: "Approved", icon: CheckCircle2 },
   rejected: { color: "#EF4444", bg: "rgba(239,68,68,0.12)",    label: "Rejected", icon: XCircle      },
-  absent:   { color: "#6B7280", bg: "rgba(107,114,128,0.12)",  label: "Absent",   icon: XCircle      },
+  absent:   { color: "#6B7280", bg: "rgba(107,114,128,0.12)",  label: "On Leave", icon: XCircle      },
 }
 
 const TYPE_ILLUSTRATION: Record<string, { emoji: string; bg: string }> = {
@@ -149,7 +149,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
       id: `absent-${a.id}`,
       from_date: a.date,
       to_date: a.date,
-      reason: "Marked as absent",
+      reason: "Marked as on leave",
       status: "absent",
       created_at: a.date,
       leave_type: "absent",
@@ -331,7 +331,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
               { label: "Total Leaves\nThis Year",       val: allEntries.length,  color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: "up"   as const, sub: "↑ 10% from last year",   subColor: "#10B981" },
               { label: "Pending\nRequests",             val: pendingL.length, color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "⏳", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
               { label: "Approved\nLeaves",              val: approved.length, color: "#10B981", bg: "rgba(16,185,129,0.1)",  icon: "✅", trend: "up"   as const, sub: "↑ 22% from last week",   subColor: "#10B981" },
-              { label: "Absent\nDays",                  val: absentCount,     color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "🏠", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
+              { label: "Leave\nDays",                    val: absentCount,     color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "🏠", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
               { label: "Annual Leave\nRemaining",          val: Math.max(0, paidLeaveDays - usedLeaveDays), color: "#0EA5E9", bg: "rgba(14,165,233,0.1)", icon: "🏖️", trend: null, sub: null, subColor: "" },
               { label: "Upcoming\nHolidays",            val: HOLIDAYS.filter(h => h.date >= today).length, color: "#EC4899", bg: "rgba(236,72,153,0.1)", icon: "🎁", trend: null, sub: null, subColor: "" },
             ].map((s, i) => (
@@ -389,7 +389,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                   </button>
                   {filterOpen && (
                     <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", borderRadius: 12, border: "1px solid #EBEDF2", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 20, minWidth: 140, overflow: "hidden" }}>
-                      {["all", "pending", "approved", "rejected", "absent"].map(s => (
+                      {["all", "pending", "approved", "rejected", "absent"].map(s => ( // "absent" = system-marked leave days
                         <button key={s} onClick={() => { setFilter(s); setFilterOpen(false) }}
                           style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 12, fontWeight: 600, color: filterStatus === s ? "#DE1A1A" : "#374151", background: filterStatus === s ? "rgba(222,26,26,0.05)" : "none", border: "none", cursor: "pointer", textTransform: "capitalize" }}>
                           {s === "all" ? "All Status" : s}
@@ -433,8 +433,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     const yr      = dateObj.getFullYear()
                     const wd      = dateObj.toLocaleDateString("en-US", { weekday: "short" })
                     const StatusIcon = sc.icon
-                    const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : type === "permission" ? "Permission" : type === "absent" ? "Absent Day" : "Full Day Leave"
-                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}` : type === "permission" ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : type === "absent" ? "Absent" : "Full Day"
+                    const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : type === "permission" ? "Permission" : type === "absent" ? "On Leave" : "Full Day Leave"
+                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}` : type === "permission" ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : type === "absent" ? "Leave" : "Full Day"
                     const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : type === "absent" ? "rgba(107,114,128,0.12)" : "rgba(245,158,11,0.12)"
                     const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : type === "absent" ? "#6B7280" : "#F59E0B"
                     const duration  = isPerm ? `${leave.permission_hours}h session` : isHalf ? "1 Session" : `${days} Day${days && days > 1 ? "s" : ""}`
@@ -451,7 +451,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                           <span style={{ fontSize: 8, fontWeight: 900, color: sc.color, letterSpacing: "0.1em" }}>{mon}</span>
                           <span style={{ fontSize: 26, fontWeight: 900, color: sc.color, lineHeight: 1 }}>{day}</span>
                           <span style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600 }}>{yr}</span>
-                          <span style={{ fontSize: 8, color: "#9CA3AF" }}>{wd} · {isHalf ? (leave.half_day_period ?? "Morning") : isPerm ? "Session" : type === "absent" ? "Absent" : "Full Day"}</span>
+                          <span style={{ fontSize: 8, color: "#9CA3AF" }}>{wd} · {isHalf ? (leave.half_day_period ?? "Morning") : isPerm ? "Session" : type === "absent" ? "Leave" : "Full Day"}</span>
                         </div>
 
                         {/* Card */}

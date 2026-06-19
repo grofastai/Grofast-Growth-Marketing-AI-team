@@ -106,6 +106,19 @@ export async function clockIn(workType: 'wfh' | 'office' | 'shoot'): Promise<{ s
 
   if (isLateArrival(clockInTime)) {
     ;(async () => {
+      // Skip late alert if member has an approved permission for today
+      const { data: todayPermission } = await admin
+        .from('leaves')
+        .select('id')
+        .eq('company_id', ctx.companyId)
+        .eq('user_id', ctx.userId)
+        .eq('status', 'approved')
+        .eq('leave_type', 'permission')
+        .eq('from_date', today)
+        .maybeSingle()
+
+      if (todayPermission) return
+
       const [{ data: profile }, { data: adminUsers }] = await Promise.all([
         admin.from('users').select('name, employee_id').eq('id', ctx.userId).single(),
         admin.from('users').select('id, phone').eq('company_id', ctx.companyId).eq('role', 'ADMIN'),

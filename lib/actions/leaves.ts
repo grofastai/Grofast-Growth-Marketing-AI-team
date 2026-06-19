@@ -529,12 +529,13 @@ export async function updateLeaveStatus(
   }
 
   if (leave) {
+    const leaveLabel = leave.leave_type === 'permission' ? 'Permission' : leave.leave_type === 'half_day' ? 'Half Day Leave' : 'Full Day Leave'
     insertNotification({
       companyId: leave.company_id,
       userId: leave.user_id,
       type: 'leave_status',
-      title: status === 'approved' ? 'Leave Approved' : 'Leave Rejected',
-      body: `Your leave request has been ${status}.`,
+      title: status === 'approved' ? `${leaveLabel} Approved` : `${leaveLabel} Rejected`,
+      body: `Your ${leaveLabel.toLowerCase()} request has been ${status}.`,
       link: '/member/leaves',
     }).catch(console.error)
   }

@@ -96,7 +96,7 @@ export default function DashboardHeaderControls({
           .order("created_at", { ascending: false })
           .limit(8),
         supabase.from("leaves")
-          .select("id, status, from_date, to_date, created_at")
+          .select("id, status, from_date, to_date, leave_type, created_at")
           .eq("user_id", user.id)
           .in("status", ["approved", "rejected"])
           .order("created_at", { ascending: false })
@@ -120,11 +120,12 @@ export default function DashboardHeaderControls({
         })
       }
       for (const l of leaveRes.data ?? []) {
+        const lbl = l.leave_type === "permission" ? "Permission" : l.leave_type === "half_day" ? "Half Day Leave" : "Full Day Leave"
         all.push({
           id: `leave_${l.id}`,
           type: "leave",
-          title: l.status === "approved" ? "Leave Approved" : "Leave Rejected",
-          body: `Your leave from ${fmtDate(l.from_date)} to ${fmtDate(l.to_date)} was ${l.status}.`,
+          title: l.status === "approved" ? `${lbl} Approved` : `${lbl} Rejected`,
+          body: `Your ${lbl.toLowerCase()} request has been ${l.status}.`,
           time: l.created_at,
         })
       }
@@ -307,10 +308,10 @@ export default function DashboardHeaderControls({
             {/* Footer */}
             {notifs.length > 0 && (
               <div style={{ padding: "10px 18px", borderTop: "1px solid #F3F4F6", display: "flex", justifyContent: "center" }}>
-                <Link href="/member/announcements"
+                <Link href="/member/notifications"
                   style={{ fontSize: 12, fontWeight: 700, color: "#de1a1a", textDecoration: "none" }}
                   onClick={() => setNotifOpen(false)}>
-                  View all announcements →
+                  View all notifications →
                 </Link>
               </div>
             )}

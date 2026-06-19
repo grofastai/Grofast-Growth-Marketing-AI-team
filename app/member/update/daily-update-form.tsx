@@ -317,7 +317,7 @@ type PastUpdate = {
   id: string; date: string; working_hours: number | null; learning_hours: number | null
   shoot_count: number | null; editing_count: number | null
   shoot_time_hours: number | null; editing_time_hours: number | null
-  work_entries: Record<string, unknown>[] | null; active_tab: string | null; learning_topic: string | null
+  work_entries: Record<string, unknown>[] | null; active_tab?: string | null; learning_topic: string | null
 }
 
 export default function DailyUpdateForm({

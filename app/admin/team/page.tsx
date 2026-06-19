@@ -29,7 +29,12 @@ export default async function TeamPage({
 
   if (!profile) redirect('/login')
 
-  const [{ data: members, error: membersError }, { data: pastMembers }, { data: freelancersData }] = await Promise.all([
+  const [
+    { data: members, error: membersError },
+    { data: pastMembers },
+    { data: freelancersData },
+    { data: assignmentRows },
+  ] = await Promise.all([
     admin
       .from('users')
       .select('id, name, employee_id, role, email, phone, status, team, position, created_at, employment_type, monthly_salary, hourly_rate, paid_leave_days, deleted_at, date_of_birth, joined_at, gender, passport_photo_url')
@@ -48,11 +53,27 @@ export default async function TeamPage({
       .select('id, name, type, phone, upi_id, rating, status, cost_per_minute, cost_per_video, cost_per_hour, voice_type, editing_software, created_at, gender, title')
       .eq('company_id', profile.company_id)
       .order('name'),
+    admin
+      .from('freelancer_assignments')
+      .select('user_id')
+      .eq('company_id', profile.company_id),
   ])
 
   if (membersError) {
     console.error('[TeamPage] members query failed:', membersError.message)
   }
 
-  return <TeamClient members={members ?? []} pastMembers={pastMembers ?? []} freelancers={freelancersData ?? []} initialSearch={initialSearch ?? ""} />
+  const assignedManagerIds = [
+    ...new Set((assignmentRows ?? []).map((r: { user_id: string }) => r.user_id))
+  ]
+
+  return (
+    <TeamClient
+      members={members ?? []}
+      pastMembers={pastMembers ?? []}
+      freelancers={freelancersData ?? []}
+      initialSearch={initialSearch ?? ""}
+      assignedManagerIds={assignedManagerIds}
+    />
+  )
 }

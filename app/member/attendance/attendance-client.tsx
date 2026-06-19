@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useTransition, useCallback, Fragment } from "react"
 import Image from "next/image"
-import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch, RotateCcw } from "lucide-react"
+import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, Calendar, Target, Clock, LogIn, CalendarSearch, RotateCcw } from "lucide-react"
 import { clockIn, clockOut, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes } from "@/lib/actions/attendance"
 import { submitLeaveRequest } from "@/lib/actions/leaves"
 import { useRouter } from "next/navigation"
@@ -570,26 +570,15 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
                     </div>
                   </div>
-                  {/* Right: Resume button — Overtime when above threshold, Continue otherwise */}
-                  {isOvertime ? (
-                    <button
-                      onClick={() => handle(() => resumeAttendance(today))}
-                      disabled={isPending}
-                      className="flex-shrink-0 flex flex-col items-center justify-center gap-1.5 rounded-2xl transition-all"
-                      style={{ background: "rgba(245,158,11,0.1)", border: "1.5px solid rgba(245,158,11,0.35)", color: "#D97706", padding: "12px 16px", minWidth: 72 }}>
-                      {isPending ? <Loader2 size={18} className="animate-spin" /> : <TrendingUp size={18} />}
-                      <span className="text-[11px] font-bold leading-none">Overtime</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handle(() => resumeAttendance(today))}
-                      disabled={isPending}
-                      className="flex-shrink-0 flex flex-col items-center justify-center gap-1.5 rounded-2xl transition-all"
-                      style={{ background: "rgba(99,102,241,0.08)", border: "1.5px solid rgba(99,102,241,0.25)", color: "#6366F1", padding: "12px 16px", minWidth: 72 }}>
-                      {isPending ? <Loader2 size={18} className="animate-spin" /> : <RotateCcw size={18} />}
-                      <span className="text-[11px] font-bold leading-none">Continue</span>
-                    </button>
-                  )}
+                  {/* Right: Continue button — resumes session, gap added to paused_seconds */}
+                  <button
+                    onClick={() => handle(() => resumeAttendance(today))}
+                    disabled={isPending}
+                    className="flex-shrink-0 flex flex-col items-center justify-center gap-1.5 rounded-2xl transition-all"
+                    style={{ background: "rgba(99,102,241,0.08)", border: "1.5px solid rgba(99,102,241,0.25)", color: "#6366F1", padding: "12px 16px", minWidth: 72 }}>
+                    {isPending ? <Loader2 size={18} className="animate-spin" /> : <RotateCcw size={18} />}
+                    <span className="text-[11px] font-bold leading-none">Continue</span>
+                  </button>
                 </div>
               )}
 

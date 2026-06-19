@@ -2620,8 +2620,8 @@ export default function DailyUpdateForm({
             </div>
           </div>
 
-          {/* Past Updates */}
-          {pastUpdates.length > 0 && (
+          {/* Past Updates removed */}
+          {false && pastUpdates.length > 0 && (
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
               <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:14 }}>
                 <Clock size={14} style={{ color:"#6366F1" }} />

@@ -820,7 +820,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   {/* Monthly Working Insights */}
                   {monthlyPerf && (
                     <div className="rounded-2xl p-3 flex flex-col gap-2" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}>
-                      <p className="text-[11px] font-black uppercase tracking-widest text-center" style={{ color: "#6366F1" }}>Monthly Working Hrs</p>
+                      <p className="text-[11px] font-black uppercase tracking-widest text-center" style={{ color: "#111111" }}>Work Hours Summary</p>
                       <div className="rounded-xl px-3 py-2 flex items-center justify-between" style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.18)" }}>
                         <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#6366F1", opacity: 0.8 }}>Total</p>
                         <p className="text-[15px] font-black leading-none" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
@@ -828,19 +828,14 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                         </p>
                       </div>
                       <div className="rounded-xl px-3 py-2 flex items-center justify-between" style={{ background: "rgba(245,158,11,0.09)", border: "1px solid rgba(245,158,11,0.2)" }}>
-                        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#D97706", opacity: 0.8 }}>Target</p>
-                        <p className="text-[15px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>
-                          {fmtHoursShort(monthlyPerf.presentDays * 8.5)}
-                        </p>
+                        <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#D97706", opacity: 0.8 }}>Daily Target</p>
+                        <p className="text-[15px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
                       </div>
                       <div className="rounded-xl px-3 py-2 flex items-center justify-between" style={{ background: "rgba(34,197,94,0.09)", border: "1px solid rgba(34,197,94,0.2)" }}>
                         <p className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#16A34A", opacity: 0.8 }}>Avg / Day</p>
                         <p className="text-[15px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
                           {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgHours) : "0h"}
                         </p>
-                      </div>
-                      <div className="rounded-lg px-2.5 py-1.5 text-center" style={{ background: "rgba(6,182,212,0.1)", border: "1px solid rgba(6,182,212,0.25)" }}>
-                        <p className="text-[10px] font-bold" style={{ color: "#0891B2" }}>8h 30m shift · {monthlyPerf.presentDays} present days</p>
                       </div>
                     </div>
                   )}

@@ -220,7 +220,7 @@ function FreelancerSheet({
       const res = await createFreelancer(payload)
       if (!res.success) { setErr(res.error ?? "Failed"); setSaving(false); return }
       const fake: Freelancer = {
-        id: `new-${Date.now()}`, company_id: "",
+        id: res.id ?? `new-${Date.now()}`, company_id: "",
         name: payload.name, type: payload.type,
         phone: payload.phone ?? null, upi_id: payload.upi_id ?? null,
         gender: payload.gender ?? null, title: payload.title ?? null,

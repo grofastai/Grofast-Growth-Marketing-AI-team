@@ -196,7 +196,7 @@ function parseExistingNonMediaBreaks(existingUpdate: Record<string, unknown>): M
   const entries = existingUpdate?.work_entries as SavedEntry[] | null
   if (!Array.isArray(entries)) return []
   return entries
-    .filter(e => e.task_type === 'break' && !(e as Record<string, unknown>)._is_leave)
+    .filter(e => e.task_type === 'break')
     .map(e => ({
       id: e.id ?? crypto.randomUUID(),
       startTime: e.start_time ?? '13:00',
@@ -210,7 +210,7 @@ function parseExistingMediaBreaks(existingUpdate: Record<string, unknown>): Medi
   const entries = existingUpdate?.work_entries as SavedEntry[] | null
   if (!Array.isArray(entries)) return []
   return entries
-    .filter(e => e.task_type === 'break' && !(e as Record<string, unknown>)._is_leave)
+    .filter(e => e.task_type === 'break')
     .map(e => ({
       id: e.id ?? crypto.randomUUID(),
       startTime: e.start_time ?? '13:00',

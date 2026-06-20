@@ -819,7 +819,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     {[
                       { label: "Office",  value: monthlyPerf?.officeDays   ?? 0, color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
                       { label: "WFH",     value: monthlyPerf?.wfhDays      ?? 0, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
-                      { label: "Leave",   value: (monthlyPerf?.absentDays ?? 0) + (monthlyPerf?.leaveDays ?? 0), color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
+                      { label: "Leave",   value: monthlyPerf?.leaveDays ?? 0, color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
                     ].map(stat => (
                       <div key={stat.label} className="rounded-2xl p-3 text-center" style={{ background: stat.bg }}>
                         <p className="text-[22px] font-black leading-none mb-1" style={{ color: stat.color, fontFamily: "var(--font-jakarta)" }}>

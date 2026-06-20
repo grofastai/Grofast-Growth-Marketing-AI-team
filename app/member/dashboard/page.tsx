@@ -47,10 +47,10 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   }
 
   type ProfileRow    = { name: string; employee_id: string; phone: string | null; photo_url: string | null; blood_group: string | null; emergency_contact_name: string | null; team: string | null }
-  type UpdateRow     = { working_hours: number | null; shoot_count: number | null }
+  type UpdateRow     = { working_hours: number | null; shoot_count: number | null; learning_hours: number | null; work_entries: { editing_videos?: string[] }[] | null }
   type TaskRow       = { id: string; title: string; status: string; priority: string; due_date: string | null }
-  type AttLog        = { clock_in: string | null; clock_out: string | null }
-  type MonthlyUpdate = { working_hours: number | null; attendance_status: string }
+  type AttLog        = { clock_in: string | null; clock_out: string | null; break_total_mins: number | null }
+  type MonthlyUpdate = { working_hours: number | null; learning_hours: number | null; attendance_status: string }
   type MonthlyAttLog = { work_type: string | null; status: string; date: string }
   type LeaveRow      = { from_date: string; to_date: string; leave_type: string | null }
 
@@ -67,13 +67,13 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { data: monthlyAttLogsRaw },
   ] = await Promise.all([
     supabase.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name, team").eq("id", effectiveUserId).single(),
-    supabase.from("daily_updates").select("working_hours, shoot_count").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
+    supabase.from("daily_updates").select("working_hours, shoot_count, learning_hours, work_entries").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
     supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).neq("status", "completed"),
     supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).eq("status", "completed"),
     supabase.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", effectiveUserId).eq("status", "pending"),
     supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", effectiveUserId).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
-    supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
-    supabase.from("daily_updates").select("working_hours, attendance_status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
+    supabase.from("attendance_logs").select("clock_in, clock_out, break_total_mins").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
+    supabase.from("daily_updates").select("working_hours, learning_hours, attendance_status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
     adminClient().from("leaves").select("from_date, to_date, leave_type").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
     supabase.from("attendance_logs").select("work_type, status, date").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
   ])
@@ -96,11 +96,17 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     todayHours = todayUpdate.working_hours
   }
 
-  const shootCount     = todayUpdate?.shoot_count ?? 0
-  const activeTasks    = activeTasksCount ?? 0
-  const completedTasks = completedTasksCount ?? 0
-  const pendingLeaves  = pendingLeavesCount ?? 0
-  const todayOverdue   = myTasks.filter(t => t.due_date && t.due_date < today)
+  const shootCount       = todayUpdate?.shoot_count ?? 0
+  const activeTasks      = activeTasksCount ?? 0
+  const completedTasks   = completedTasksCount ?? 0
+  const pendingLeaves    = pendingLeavesCount ?? 0
+  const todayOverdue     = myTasks.filter(t => t.due_date && t.due_date < today)
+  const todayLearningHrs = todayUpdate?.learning_hours ?? 0
+  const editingCount     = (todayUpdate?.work_entries ?? []).reduce((sum, e) => sum + (Array.isArray(e.editing_videos) ? e.editing_videos.length : 0), 0)
+  const breakMins        = clockLog?.break_total_mins ?? 0
+  const breakDisplay     = breakMins >= 60
+    ? `${Math.floor(breakMins / 60)}h ${breakMins % 60 > 0 ? `${breakMins % 60}m` : ""}`.trim()
+    : breakMins > 0 ? `${breakMins}m` : "—"
 
   // Monthly calculations — use attendance_logs as source of truth for presence
   const presentAttLogs = monthlyAttLogs.filter(l => l.status === "present")
@@ -379,59 +385,97 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
         {/* RIGHT — quick stat cards + today summary */}
         <div className="space-y-3">
-          {/* Daily Update Status */}
-          <Link href="/member/update"
-            className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
-            style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: todayUpdate ? "rgba(22,163,74,0.1)" : "rgba(222,26,26,0.1)" }}>
-              <CheckCircle2 size={16} style={{ color: todayUpdate ? "#16A34A" : "#de1a1a" }} />
-            </div>
-            <div className="flex-1">
-              <p className="text-[13px] font-black leading-none"
-                style={{ fontFamily: "var(--font-jakarta)", color: todayUpdate ? "#16A34A" : "#de1a1a" }}>
-                {todayUpdate ? "Submitted" : "Not Submitted"}
-              </p>
-              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Today&apos;s Update</p>
-            </div>
-            <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
-          </Link>
+          {isMediaTeam ? (<>
+            {/* Media: Today Shoot Count */}
+            <Link href="/member/update"
+              className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
+              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(234,88,12,0.1)" }}>
+                <Camera size={16} style={{ color: "#EA580C" }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#EA580C" }}>{shootCount > 0 ? shootCount : "—"}</p>
+                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Today&apos;s Shoot Count</p>
+              </div>
+              <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
+            </Link>
 
-          {/* Monthly Attendance */}
-          <Link href="/member/attendance"
-            className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
-            style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(99,102,241,0.1)" }}>
-              <Calendar size={16} style={{ color: "#6366F1" }} />
-            </div>
-            <div className="flex-1">
-              <p className="text-[22px] font-black leading-none"
-                style={{ fontFamily: "var(--font-jakarta)", color: "#6366F1" }}>{workingDays}</p>
-              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Days Present This Month</p>
-            </div>
-            <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
-          </Link>
+            {/* Media: Today Editing Count */}
+            <Link href="/member/update"
+              className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
+              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(99,102,241,0.1)" }}>
+                <Zap size={16} style={{ color: "#6366F1" }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#6366F1" }}>{editingCount > 0 ? editingCount : "—"}</p>
+                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Editing Videos Today</p>
+              </div>
+              <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
+            </Link>
 
-          {/* Overdue Tasks */}
-          <Link href="/member/tasks"
-            className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
-            style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: todayOverdue.length > 0 ? "rgba(245,158,11,0.1)" : "rgba(22,163,74,0.1)" }}>
-              <AlertTriangle size={16} style={{ color: todayOverdue.length > 0 ? "#F59E0B" : "#16A34A" }} />
-            </div>
-            <div className="flex-1">
-              <p className="text-[22px] font-black leading-none"
-                style={{ fontFamily: "var(--font-jakarta)", color: todayOverdue.length > 0 ? "#F59E0B" : "#16A34A" }}>
-                {todayOverdue.length > 0 ? todayOverdue.length : "✓"}
-              </p>
-              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>
-                {todayOverdue.length > 0 ? "Overdue Tasks" : "No Overdue Tasks"}
-              </p>
-            </div>
-            <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
-          </Link>
+            {/* Media: Learning Hours */}
+            <Link href="/member/update"
+              className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
+              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(16,185,129,0.1)" }}>
+                <CheckCircle2 size={16} style={{ color: "#10B981" }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#10B981" }}>{todayLearningHrs > 0 ? `${todayLearningHrs}h` : "—"}</p>
+                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Learning Hours Today</p>
+              </div>
+              <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
+            </Link>
+          </>) : (<>
+            {/* Non-Media: Working Hours Today */}
+            <Link href="/member/update"
+              className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
+              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(99,102,241,0.1)" }}>
+                <Clock size={16} style={{ color: "#6366F1" }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#6366F1" }}>{todayHours > 0 ? `${todayHours}h` : "—"}</p>
+                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Working Hours Today</p>
+              </div>
+              <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
+            </Link>
+
+            {/* Non-Media: Learning Hours Today */}
+            <Link href="/member/update"
+              className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
+              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(16,185,129,0.1)" }}>
+                <CheckCircle2 size={16} style={{ color: "#10B981" }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#10B981" }}>{todayLearningHrs > 0 ? `${todayLearningHrs}h` : "—"}</p>
+                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Learning Hours Today</p>
+              </div>
+              <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
+            </Link>
+
+            {/* Non-Media: Break Time Today */}
+            <Link href="/member/attendance"
+              className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
+              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(245,158,11,0.1)" }}>
+                <AlertCircle size={16} style={{ color: "#F59E0B" }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#F59E0B" }}>{breakDisplay}</p>
+                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Break Time Today</p>
+              </div>
+              <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
+            </Link>
+          </>)}
 
           {/* Salary Date Card */}
           <div className="rounded-2xl p-4 flex items-center gap-3"

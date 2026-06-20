@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import AttendanceClient from "./attendance-client"
+import { calcNetWorkHours } from "@/lib/utils/work-hours"
 
 function adminSupabase() {
   return createClient(
@@ -46,6 +47,7 @@ export default async function AttendancePage() {
     work_type: string | null; status: string
     paused_seconds: number
   }
+  type WorkEntryLike = { task_type: string; start_time?: string | null; end_time?: string | null; duration_hours?: number | null; _travel_hours?: number | null }
   type DailyUpdate = {
     working_hours: number | null
     learning_hours: number | null
@@ -89,7 +91,7 @@ export default async function AttendancePage() {
       .lte("date", today),
     // Monthly daily_updates for worked hours
     admin.from("daily_updates")
-      .select("working_hours, learning_hours")
+      .select("working_hours, learning_hours, work_entries")
       .eq("user_id", effectiveUserId)
       .gte("date", monthStart)
       .lte("date", today),
@@ -107,18 +109,18 @@ export default async function AttendancePage() {
       .lte("from_date", today),
     // Weekly daily_updates — used to show accurate worked hours in weekly view
     admin.from("daily_updates")
-      .select("date, working_hours")
+      .select("date, working_hours, work_entries")
       .eq("user_id", effectiveUserId)
       .gte("date", weekStart)
       .lte("date", weekEnd),
   ])
 
-  // Work hours per day from daily_updates (for accurate weekly display)
+  // Work hours per day from daily_updates (for accurate weekly display) — computed from work_entries
   const weekUpdatesByDate: Record<string, number> = {}
-  for (const u of (weekUpdatesRaw ?? []) as { date: string; working_hours: number | null }[]) {
-    if (u.working_hours != null && u.working_hours > 0) {
-      weekUpdatesByDate[u.date] = u.working_hours
-    }
+  for (const u of (weekUpdatesRaw ?? []) as { date: string; working_hours: number | null; work_entries: WorkEntryLike[] | null }[]) {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+    const computedH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
+    if (computedH > 0) weekUpdatesByDate[u.date] = computedH
   }
 
   // Sum approved permission hours per date
@@ -141,8 +143,9 @@ export default async function AttendancePage() {
 
   // Monthly stats computation
   type MonthAttLog = { work_type: string | null; status: string; clock_in: string | null; clock_out: string | null; break_total_mins: number }
+  type MonthUpdate = { working_hours: number | null; learning_hours: number | null; work_entries: WorkEntryLike[] | null }
   const monthAttLogs = (monthAttLogsRaw ?? []) as MonthAttLog[]
-  const monthUpdates = (monthUpdatesRaw ?? []) as { working_hours: number | null; learning_hours: number | null }[]
+  const monthUpdates = (monthUpdatesRaw ?? []) as MonthUpdate[]
   const approvedLeaves = (approvedLeavesRaw ?? []) as { from_date: string; to_date: string; leave_type: string | null }[]
 
   const presentLogs = monthAttLogs.filter(l => l.status === "present")
@@ -160,9 +163,15 @@ export default async function AttendancePage() {
     ? Math.round((monthLoginHrs / monthPresentDays) * 10) / 10
     : 0
 
-  // Working hours from daily_updates (History submissions): working + learning, never from clock span
+  // Working hours from daily_updates (History submissions): computed from work_entries, never from clock span or stored field
   const monthTotalHrs = Math.round(
-    monthUpdates.reduce((s, u) => s + (u.working_hours ?? 0) + (u.learning_hours ?? 0), 0) * 10
+    monthUpdates.reduce((s, u) => {
+      const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
+      const workH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
+      const learnFromEntries = entries.filter(e => e.task_type === 'learning').reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+      const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
+      return s + workH + learnH
+    }, 0) * 10
   ) / 10
 
   const monthAvgHrs = monthPresentDays > 0

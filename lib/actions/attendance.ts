@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertManyNotifications } from './notifications'
+import { calcNetWorkHours } from '@/lib/utils/work-hours'
 
 // 9:30 AM IST = 04:00 UTC. Returns true if clock-in is after 9:30 AM IST.
 function isLateArrival(isoUtc: string): boolean {
@@ -458,45 +459,6 @@ export async function resumeAttendance(date: string): Promise<{ success: boolean
   return { success: true }
 }
 
-// Mirrors calcNetWorkHours in history-client — net work hours from work_entries
-function calcNetWorkHoursFromEntries(entries: { task_type: string; start_time?: string | null; end_time?: string | null; duration_hours?: number; _travel_hours?: number | null }[]): number {
-  function toMins(t: string) { const [h, m] = t.split(':').map(Number); return h * 60 + m }
-  const workEntries  = entries.filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
-  const breakEntries = entries.filter(e => e.task_type === 'break')
-  const workIntervals = workEntries
-    .filter(e => e.start_time && e.end_time)
-    .map(e => ({ start: toMins(e.start_time!), end: toMins(e.end_time!) }))
-    .filter(i => i.end > i.start)
-    .sort((a, b) => a.start - b.start)
-  let merged: { start: number; end: number }[] = []
-  if (workIntervals.length > 0) {
-    let cs = workIntervals[0].start, ce = workIntervals[0].end
-    for (let i = 1; i < workIntervals.length; i++) {
-      if (workIntervals[i].start < ce) { ce = Math.max(ce, workIntervals[i].end) }
-      else { merged.push({ start: cs, end: ce }); cs = workIntervals[i].start; ce = workIntervals[i].end }
-    }
-    merged.push({ start: cs, end: ce })
-  }
-  const breakIntervals = breakEntries
-    .filter(e => e.start_time && e.end_time)
-    .map(e => ({ start: toMins(e.start_time!), end: toMins(e.end_time!) }))
-    .filter(i => i.end > i.start)
-  for (const brk of breakIntervals) {
-    const next: { start: number; end: number }[] = []
-    for (const w of merged) {
-      if (brk.end <= w.start || brk.start >= w.end) { next.push(w) }
-      else {
-        if (brk.start > w.start) next.push({ start: w.start, end: brk.start })
-        if (brk.end < w.end)   next.push({ start: brk.end,  end: w.end   })
-      }
-    }
-    merged = next
-  }
-  const timedMins = merged.reduce((s, i) => s + (i.end - i.start), 0)
-  const travelH   = workEntries.filter(e => e.task_type === 'shoot').reduce((s, e) => s + (e._travel_hours ?? 0), 0)
-  const untimedH  = workEntries.filter(e => !e.start_time || !e.end_time).reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-  return Math.round((timedMins / 60 + travelH + untimedH) * 10) / 10
-}
 
 export async function getAttendanceRange(startDate: string, endDate: string): Promise<{
   success: boolean
@@ -548,7 +510,7 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
     const learnH = learnFromEntries > 0 ? learnFromEntries : (r.learning_hours ?? 0)
     learnByDate[r.date] = learnH
     // Worked: net work from entries; fallback to stored working_hours when no entries
-    const netWorkH = entries.length > 0 ? calcNetWorkHoursFromEntries(entries) : (r.working_hours ?? 0)
+    const netWorkH = entries.length > 0 ? calcNetWorkHours(entries) : (r.working_hours ?? 0)
     workedByDate[r.date] = netWorkH + learnH
     // Break: sum of break entries' duration_hours
     breakByDate[r.date] = entries.filter(e => e.task_type === 'break').reduce((s, e) => s + (e.duration_hours ?? 0), 0)

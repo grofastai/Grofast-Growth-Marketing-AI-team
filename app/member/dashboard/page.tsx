@@ -9,6 +9,7 @@ import Link from "next/link"
 import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
 import MonthFilterTabs from "@/components/member/MonthFilterTabs"
+import { calcNetWorkHours } from "@/lib/utils/work-hours"
 
 function adminClient() {
   return createClient(
@@ -67,7 +68,8 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   type UpdateRow     = { working_hours: number | null; shoot_count: number | null }
   type TaskRow       = { id: string; title: string; status: string; priority: string; due_date: string | null }
   type AttLog        = { clock_in: string | null; clock_out: string | null }
-  type MonthlyUpdate = { working_hours: number | null; attendance_status: string; learning_hours: number | null; shoot_count: number | null; editing_count: number | null }
+  type WorkEntryLike = { task_type: string; start_time?: string | null; end_time?: string | null; duration_hours?: number | null; _travel_hours?: number | null }
+  type MonthlyUpdate = { working_hours: number | null; attendance_status: string; learning_hours: number | null; shoot_count: number | null; editing_count: number | null; work_entries: WorkEntryLike[] | null }
   type MonthlyAttLog = { work_type: string | null; status: string; date: string; break_total_mins: number | null; clock_in: string | null; clock_out: string | null }
   type LeaveRow      = { from_date: string; to_date: string; leave_type: string | null }
 
@@ -90,7 +92,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     supabase.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", effectiveUserId).eq("status", "pending"),
     supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", effectiveUserId).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
     supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
-    supabase.from("daily_updates").select("working_hours, attendance_status, learning_hours, shoot_count, editing_count").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
+    supabase.from("daily_updates").select("working_hours, attendance_status, learning_hours, shoot_count, editing_count, work_entries").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
     adminClient().from("leaves").select("from_date, to_date, leave_type").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
     supabase.from("attendance_logs").select("work_type, status, date, break_total_mins, clock_in, clock_out").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
   ])
@@ -125,18 +127,20 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const presentDays    = presentAttLogs.length  // all present (office + wfh + shoot)
   const holidayDays    = monthlyUpdates.filter(u => u.attendance_status === "holiday").length
 
-  // Working hours from daily_updates (same as attendance page): working + learning for all
-  const totalMonthHrs  = Math.round(
-    monthlyUpdates.reduce((s, u) => s + (u.working_hours ?? 0) + (u.learning_hours ?? 0), 0) * 10
-  ) / 10
+  // Per-day working hours computed from work_entries (interval-merge algorithm — same as History/WORKED column)
+  const monthlyDayHours = monthlyUpdates.map(u => {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
+    const workH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
+    const learnFromEntries = entries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+    const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
+    return { totalH: workH + learnH, attendanceStatus: u.attendance_status }
+  })
+  const totalMonthHrs  = Math.round(monthlyDayHours.reduce((s, d) => s + d.totalH, 0) * 10) / 10
   const OVERTIME_THRESHOLD = 8.5
   const monthlyAvgHrs    = presentDays > 0 ? totalMonthHrs / presentDays : 0
   const overtimeEligible = monthlyAvgHrs >= OVERTIME_THRESHOLD
-  const overtimeDays     = overtimeEligible ? monthlyUpdates.filter(u => ((u.working_hours ?? 0) + (u.learning_hours ?? 0)) > OVERTIME_THRESHOLD).length : 0
-  const overtimeHrs      = overtimeEligible ? Math.round(monthlyUpdates.reduce((sum, u) => {
-    const h = (u.working_hours ?? 0) + (u.learning_hours ?? 0)
-    return h > OVERTIME_THRESHOLD ? sum + (h - OVERTIME_THRESHOLD) : sum
-  }, 0) * 10) / 10 : 0
+  const overtimeDays     = overtimeEligible ? monthlyDayHours.filter(d => d.totalH > OVERTIME_THRESHOLD).length : 0
+  const overtimeHrs      = overtimeEligible ? Math.round(monthlyDayHours.reduce((sum, d) => d.totalH > OVERTIME_THRESHOLD ? sum + (d.totalH - OVERTIME_THRESHOLD) : sum, 0) * 10) / 10 : 0
 
   // Union: approved leave dates + attendance_logs marked leave/absent
   const leaveDateSet = new Set<string>()

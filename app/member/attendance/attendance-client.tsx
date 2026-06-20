@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition, useCallback, Fragment } from "react"
 import Image from "next/image"
 import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch, RotateCcw } from "lucide-react"
-import { clockIn, clockOut, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes } from "@/lib/actions/attendance"
+import { clockIn, clockOut, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes, markAbsent } from "@/lib/actions/attendance"
 import { submitLeaveRequest } from "@/lib/actions/leaves"
 import { useRouter } from "next/navigation"
 
@@ -424,7 +424,12 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               {/* NOT LOGGED IN */}
               {notLogged && (
                 <div className="space-y-4">
-                  {!confirmAbsent ? (
+                  {absentDone ? (
+                    <div className="rounded-2xl p-4" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}>
+                      <p className="text-[14px] font-bold" style={{ color: "#059669" }}>Leave request submitted!</p>
+                      <p className="text-[12px] mt-1" style={{ color: "#6B7280" }}>Waiting for admin approval. It will appear in your Leaves page.</p>
+                    </div>
+                  ) : !confirmAbsent ? (
                     <>
                       <div>
                         <p className="text-[12px] font-semibold mb-2" style={{ color: "#9CA3AF" }}>Select Work Mode</p>
@@ -455,11 +460,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                         </button>
                       </div>
                     </>
-                  ) : absentDone ? (
-                    <div className="rounded-2xl p-4" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}>
-                      <p className="text-[14px] font-bold" style={{ color: "#059669" }}>Leave request submitted!</p>
-                      <p className="text-[12px] mt-1" style={{ color: "#6B7280" }}>Waiting for admin approval. It will appear in your Leaves page.</p>
-                    </div>
                   ) : (
                     <div className="rounded-2xl p-4" style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)" }}>
                       <p className="text-[14px] font-bold mb-1" style={{ color: "#111111" }}>Apply for today&apos;s leave?</p>
@@ -483,10 +483,11 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                             fd.set("to_date", today)
                             fd.set("reason", absentReason.trim())
                             await submitLeaveRequest(null, fd)
+                            await markAbsent()
                             setAbsentSubmitting(false)
-                            setConfirmAbsent(false)
                             setAbsentReason("")
                             setAbsentDone(true)
+                            router.refresh()
                           }}
                           className="px-5 py-2 rounded-xl text-[13px] font-bold disabled:opacity-50"
                           style={{ background: "#EF4444", color: "#FFFFFF" }}>

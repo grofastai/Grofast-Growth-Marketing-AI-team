@@ -307,10 +307,10 @@ export default function DashboardHeaderControls({
             {/* Footer */}
             {notifs.length > 0 && (
               <div style={{ padding: "10px 18px", borderTop: "1px solid #F3F4F6", display: "flex", justifyContent: "center" }}>
-                <Link href="/member/announcements"
+                <Link href="/member/notifications"
                   style={{ fontSize: 12, fontWeight: 700, color: "#de1a1a", textDecoration: "none" }}
                   onClick={() => setNotifOpen(false)}>
-                  View all announcements →
+                  View all notifications →
                 </Link>
               </div>
             )}

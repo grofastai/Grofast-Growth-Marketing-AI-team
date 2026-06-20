@@ -85,11 +85,20 @@ export async function submitDailyUpdate(
   let isFirstSubmission = false
 
   if (existingRecord) {
-    // Dedup by ID: new entries replace existing ones with same ID (prevents duplicates on re-save/re-submit)
     const prevEntries = Array.isArray(existingRecord.work_entries) ? existingRecord.work_entries as Array<Record<string, unknown>> : []
-    const newIds = new Set(d.work_entries.map(e => e.id).filter(Boolean))
-    const filteredPrev = prevEntries.filter(e => !newIds.has(e.id as string))
-    const combinedEntries = [...filteredPrev, ...d.work_entries]
+
+    let combinedEntries: Array<Record<string, unknown>>
+    if (isPastDate) {
+      // Past-date edit = full replace: preserve only auto-inserted leave entries, use exactly what the form sends
+      const leaveEntries = prevEntries.filter(e => e._is_leave === true)
+      const newWithoutLeave = d.work_entries.filter(e => !(e as Record<string, unknown>)._is_leave)
+      combinedEntries = [...newWithoutLeave, ...leaveEntries]
+    } else {
+      // Today = merge/append: dedup by ID so new entries replace same-ID ones without losing unrelated entries
+      const newIds = new Set(d.work_entries.map(e => e.id).filter(Boolean))
+      const filteredPrev = prevEntries.filter(e => !newIds.has(e.id as string))
+      combinedEntries = [...filteredPrev, ...d.work_entries]
+    }
 
     // Recalculate all aggregates from combined entries — never use incremental addition
     const calcWorkHours  = calcNetWorkHours(combinedEntries as Parameters<typeof calcNetWorkHours>[0])

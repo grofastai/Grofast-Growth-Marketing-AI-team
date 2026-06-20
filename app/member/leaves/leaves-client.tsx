@@ -13,7 +13,7 @@ import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest } from "@/li
 
 interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
-  created_at: string; leave_type?: string; permission_hours?: number | null; permission_time?: string | null; half_day_period?: string | null
+  created_at: string; leave_type?: string; permission_hours?: number | null; permission_time?: string | null; half_day_period?: string | null; half_day_from_time?: string | null
 }
 type LeaveType = "full_day" | "half_day" | "permission"
 
@@ -61,9 +61,9 @@ function canWithdraw(leave: Leave): boolean {
       return istMins < (h * 60 + m - 5)
     }
     if (leave.leave_type === "half_day") {
-      const period = leave.half_day_period ?? "morning"
-      const cutoff = period === "morning" ? (9 * 60 + 25) : (13 * 60 + 25)
-      return istMins < cutoff
+      const fromTime = leave.half_day_from_time ?? leave.permission_time ?? "09:30"
+      const [h, m] = fromTime.split(":").map(Number)
+      return istMins < (h * 60 + m - 5)
     }
     if (leave.leave_type === "full_day") {
       return istMins < (9 * 60 + 25)

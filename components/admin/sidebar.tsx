@@ -19,7 +19,7 @@ const navItems = [
   { label: "Attendance",    href: "/admin/attendance",    icon: Clock },
   { label: "Tasks",         href: "/admin/goals",         icon: Target },
   { label: "Clients",       href: "/admin/clients",       icon: Briefcase },
-  { label: "Insights",      href: "/admin/insights",      icon: TrendingUp },
+  { label: "Team Insights", href: "/admin/insights",      icon: TrendingUp },
   { label: "Leaves",        href: "/admin/leaves",           icon: CalendarOff },
   { label: "Content Cal",   href: "/admin/content-calendar", icon: CalendarDays },
   { label: "Announcements", href: "/admin/announcements",    icon: Megaphone },

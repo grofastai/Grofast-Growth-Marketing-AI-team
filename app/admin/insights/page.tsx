@@ -42,6 +42,7 @@ export default async function InsightsPage({
     { data: activitiesRaw },
     { data: usersRaw },
     { data: clientsRaw },
+    { data: tasksRaw },
   ] = await Promise.all([
     admin.from('work_logs')
       .select('user_id, activity_id, client_name, hours, unit_count, item_titles, cost, date')
@@ -59,17 +60,23 @@ export default async function InsightsPage({
       .select('name, monthly_fee')
       .eq('company_id', cid)
       .order('name'),
+    admin.from('tasks')
+      .select('assigned_to, status')
+      .eq('company_id', cid)
+      .eq('status', 'completed'),
   ])
 
   type LogRow  = { user_id: string; activity_id: string; client_name: string | null; hours: number; unit_count: number; item_titles: string[]; cost: number; date: string }
   type PostRow = { user_id: string; client_name: string | null; platform: string; post_type: string; date: string }
   type ActRow  = { id: string; name: string; team_category: string; unit_type: string; emoji: string }
   type UserRow = { id: string; name: string; employee_id: string; monthly_salary: number | null; hourly_rate: number | null }
+  type TaskRow = { assigned_to: string; status: string }
 
   const logs       = (workLogsRaw   ?? []) as LogRow[]
   const posts      = (postsRaw      ?? []) as PostRow[]
   const activities = (activitiesRaw ?? []) as ActRow[]
   const members    = (usersRaw      ?? []) as UserRow[]
+  const tasks      = (tasksRaw      ?? []) as TaskRow[]
 
   const actMap: Record<string, ActRow>  = {}
   for (const a of activities) actMap[a.id] = a
@@ -142,6 +149,30 @@ export default async function InsightsPage({
     }))
     .sort((a, b) => (b.fee ?? 0) - (a.fee ?? 0))
 
+  // ── Employee performance ─────────────────────────────────────────────────
+  const tasksCompletedMap: Record<string, number> = {}
+  for (const t of tasks) {
+    tasksCompletedMap[t.assigned_to] = (tasksCompletedMap[t.assigned_to] ?? 0) + 1
+  }
+
+  const memberClientsMap: Record<string, Set<string>> = {}
+  for (const l of logs) {
+    if (!l.client_name) continue
+    if (!memberClientsMap[l.user_id]) memberClientsMap[l.user_id] = new Set()
+    memberClientsMap[l.user_id].add(l.client_name)
+  }
+
+  const employeePerformance = members.map(u => ({
+    id:             u.id,
+    name:           u.name,
+    employee_id:    u.employee_id,
+    clients:        Array.from(memberClientsMap[u.id] ?? []),
+    tasksCompleted: tasksCompletedMap[u.id] ?? 0,
+    hours:          memberStats[u.id]?.hours ?? 0,
+    workValue:      memberStats[u.id]?.cost  ?? 0,
+    salary:         u.monthly_salary ?? 0,
+  })).sort((a, b) => b.workValue - a.workValue)
+
   // ── Post summary ─────────────────────────────────────────────────────────
   const postsByType: Record<string, number>     = {}
   const postsByPlatform: Record<string, number> = {}
@@ -175,6 +206,7 @@ export default async function InsightsPage({
       postsByPlatform={postsByPlatform}
       recentPosts={recentPosts}
       kpis={{ totalHours, totalCost, totalVideos, totalPosters, totalPosts }}
+      employeePerformance={employeePerformance}
     />
   )
 }

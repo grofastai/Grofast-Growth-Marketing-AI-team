@@ -39,11 +39,18 @@ type ProfitRow = {
   fee: number | null; profit: number | null; margin: number | null
 }
 
+type EmpPerf = {
+  id: string; name: string; employee_id: string
+  clients: string[]; tasksCompleted: number
+  hours: number; workValue: number; salary: number
+}
+
 export default function InsightsClient({
   month, today,
   teamHours, activityStats, memberStats, clientStats,
   profitability,
   postsByType, postsByPlatform, recentPosts, kpis,
+  employeePerformance,
 }: {
   month: string
   today: string
@@ -56,6 +63,7 @@ export default function InsightsClient({
   postsByPlatform: Record<string, number>
   recentPosts: Array<{ memberName: string; client_name: string | null; platform: string; post_type: string; date: string }>
   kpis: { totalHours: number; totalCost: number; totalVideos: number; totalPosters: number; totalPosts: number }
+  employeePerformance: EmpPerf[]
 }) {
   const router = useRouter()
   const [, startTransition] = useTransition()
@@ -87,7 +95,7 @@ export default function InsightsClient({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 26, fontWeight: 900, color: '#111827', margin: 0, fontFamily: 'var(--font-jakarta)' }}>
-            Work Insights
+            Team Insights
           </h1>
           <p style={{ fontSize: 12, color: '#9CA3AF', margin: '2px 0 0' }}>
             Activity-based breakdown · {new Date(month + '-01').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
@@ -133,6 +141,103 @@ export default function InsightsClient({
           </div>
         ))}
       </div>
+
+      {/* ── Employee Performance Tracking ──────────────────────────────────── */}
+      {employeePerformance.length > 0 && (
+        <div style={{ ...CARD, marginBottom: 18 }}>
+          <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid #F3F4F6' }}>
+            <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', margin: 0, fontFamily: 'var(--font-jakarta)' }}>
+              👥 Employee Performance Tracking
+            </p>
+            <p style={{ fontSize: 11, color: '#9CA3AF', margin: '3px 0 0' }}>
+              {new Date(month + '-01').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · Work value vs salary comparison
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
+              <thead>
+                <tr style={{ background: '#FAFAFA' }}>
+                  {['Employee', 'Clients Worked', 'Tasks Done', 'Hours', 'Work Value', 'Salary', 'Value vs Pay'].map(h => (
+                    <th key={h} style={{ fontSize: 10, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.08em', textAlign: 'left', padding: '10px 14px', borderBottom: '1px solid #F3F4F6', whiteSpace: 'nowrap' }}>{h.toUpperCase()}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {employeePerformance.map((emp, i) => {
+                  const ratio = emp.salary > 0 ? Math.round((emp.workValue / emp.salary) * 100) : null
+                  const ratioColor = ratio == null ? '#9CA3AF' : ratio >= 100 ? '#10B981' : ratio >= 60 ? '#F59E0B' : '#EF4444'
+                  const ratioBg   = ratio == null ? '#F3F4F6' : ratio >= 100 ? 'rgba(16,185,129,0.08)' : ratio >= 60 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)'
+                  const initials  = ini(emp.name)
+                  const colors    = ['#de1a1a','#6366F1','#10B981','#F59E0B','#8B5CF6','#06B6D4']
+                  const clr       = colors[i % colors.length]
+                  return (
+                    <tr key={emp.id} style={{ borderBottom: '1px solid #F9FAFB', background: i % 2 === 0 ? '#FFF' : '#FDFCFC' }}>
+                      {/* Employee */}
+                      <td style={{ padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 34, height: 34, borderRadius: 10, background: `${clr}18`, border: `1.5px solid ${clr}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <span style={{ fontSize: 12, fontWeight: 900, color: clr }}>{initials}</span>
+                          </div>
+                          <div>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: '#111827', margin: 0 }}>{emp.name}</p>
+                            <p style={{ fontSize: 10, color: '#C4C4C4', margin: 0 }}>#{emp.employee_id}</p>
+                          </div>
+                        </div>
+                      </td>
+                      {/* Clients */}
+                      <td style={{ padding: '12px 14px', maxWidth: 200 }}>
+                        {emp.clients.length === 0
+                          ? <span style={{ fontSize: 11, color: '#D1D5DB' }}>—</span>
+                          : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                              {emp.clients.slice(0, 3).map(c => (
+                                <span key={c} style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(99,102,241,0.08)', color: '#6366F1', whiteSpace: 'nowrap' }}>{c}</span>
+                              ))}
+                              {emp.clients.length > 3 && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F3F4F6', color: '#6B7280' }}>+{emp.clients.length - 3}</span>}
+                            </div>
+                        }
+                      </td>
+                      {/* Tasks */}
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: emp.tasksCompleted > 0 ? '#111827' : '#D1D5DB' }}>{emp.tasksCompleted}</span>
+                      </td>
+                      {/* Hours */}
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: emp.hours > 0 ? '#3B82F6' : '#D1D5DB' }}>{emp.hours > 0 ? fmtH(emp.hours) : '—'}</span>
+                      </td>
+                      {/* Work Value */}
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: emp.workValue > 0 ? '#10B981' : '#D1D5DB' }}>{emp.workValue > 0 ? fmtRupee(emp.workValue) : '—'}</span>
+                      </td>
+                      {/* Salary */}
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: emp.salary > 0 ? '#111827' : '#D1D5DB' }}>{emp.salary > 0 ? fmtRupee(emp.salary) : 'Not set'}</span>
+                      </td>
+                      {/* Value vs Pay */}
+                      <td style={{ padding: '12px 14px' }}>
+                        <span style={{ fontSize: 12, fontWeight: 800, padding: '4px 10px', borderRadius: 8, background: ratioBg, color: ratioColor, whiteSpace: 'nowrap' }}>
+                          {ratio != null ? `${ratio}%` : '—'}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ padding: '10px 18px', background: '#FAFAFA', borderTop: '1px solid #F3F4F6', display: 'flex', gap: 16 }}>
+            {[
+              { dot: '#10B981', label: '≥ 100%  Generating more value than salary' },
+              { dot: '#F59E0B', label: '60–99%  Moderate value' },
+              { dot: '#EF4444', label: '< 60%  Below expected value' },
+            ].map(l => (
+              <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: l.dot, flexShrink: 0 }} />
+                <span style={{ fontSize: 10, color: '#6B7280', fontWeight: 500 }}>{l.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── 2-col grid ─────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 16, marginBottom: 16 }}>

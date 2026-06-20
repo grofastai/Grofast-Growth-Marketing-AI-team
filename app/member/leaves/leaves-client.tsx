@@ -40,6 +40,39 @@ const TYPE_ILLUSTRATION: Record<string, { emoji: string; bg: string }> = {
 function daysBetween(from: string, to: string) {
   return Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / 86400000) + 1
 }
+
+function canWithdraw(leave: Leave): boolean {
+  // Get current IST time
+  const now = new Date()
+  const istNow = new Date(now.getTime() + 5.5 * 3600000 + now.getTimezoneOffset() * 60000)
+  const istTodayStr = `${istNow.getUTCFullYear()}-${String(istNow.getUTCMonth()+1).padStart(2,'0')}-${String(istNow.getUTCDate()).padStart(2,'0')}`
+  const istMins = istNow.getUTCHours() * 60 + istNow.getUTCMinutes()
+
+  // Past leave (ended before today) — never allow withdraw
+  if (leave.to_date < istTodayStr) return false
+
+  // Future leave (starts after today) — always allow withdraw
+  if (leave.from_date > istTodayStr) return true
+
+  // Leave starts today — time-based cutoff
+  if (leave.from_date === istTodayStr) {
+    if (leave.leave_type === "permission" && leave.permission_time) {
+      const [h, m] = leave.permission_time.split(":").map(Number)
+      return istMins < (h * 60 + m - 5)
+    }
+    if (leave.leave_type === "half_day") {
+      const period = leave.half_day_period ?? "morning"
+      const cutoff = period === "morning" ? (9 * 60 + 25) : (13 * 60 + 25)
+      return istMins < cutoff
+    }
+    if (leave.leave_type === "full_day") {
+      return istMins < (9 * 60 + 25)
+    }
+  }
+
+  // Multi-day full_day leave already started (from_date < today) — no withdraw
+  return false
+}
 function fmtShort(d: string) {
   return new Date(d).toLocaleDateString("en-US", { day: "numeric", month: "short" })
 }
@@ -530,7 +563,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                                   <X size={11} /> Cancel
                                 </button>
                               </div>
-                            ) : leave.status === "approved" && leave.to_date >= today ? (
+                            ) : leave.status === "approved" && canWithdraw(leave) ? (
                               <button onClick={() => setDeleteId(leave.id)}
                                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 8, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", fontSize: 11, fontWeight: 700, color: "#EF4444", cursor: "pointer" }}>
                                 <X size={11} /> Withdraw

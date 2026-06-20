@@ -24,6 +24,7 @@ export default async function AdminDocumentsPage() {
       .from("users")
       .select("id, name, employee_id, role, email, phone, status, team, employment_type, created_at, blood_group, address, emergency_contact_name, emergency_contact_phone, photo_url")
       .eq("company_id", profile.company_id)
+      .eq("role", "MEMBER")
       .eq("status", "active")
       .is("deleted_at", null)
       .order("name"),

@@ -46,8 +46,6 @@ export default async function UpdatePage() {
     { data: pastUpdates },
     { data: teamMembersRaw },
     { data: approvedLeavesRaw },
-    { data: absentLogsRaw },
-    { data: absentLeavesRaw },
   ] = await Promise.all([
     admin
       .from("projects")
@@ -94,20 +92,6 @@ export default async function UpdatePage() {
       .eq("user_id", effectiveUserId)
       .eq("status", "approved")
       .gte("to_date", thirtyDaysAgoStr),
-    admin
-      .from("attendance_logs")
-      .select("user_id")
-      .eq("company_id", companyId)
-      .eq("date", today)
-      .in("status", ["absent", "leave"]),
-    admin
-      .from("leaves")
-      .select("user_id")
-      .eq("company_id", companyId)
-      .eq("status", "approved")
-      .neq("leave_type", "permission")
-      .lte("from_date", today)
-      .gte("to_date", today),
   ])
 
   type Project = { id: string; business_name: string }
@@ -115,12 +99,6 @@ export default async function UpdatePage() {
   const projects = (projectsRaw ?? []) as unknown as Project[]
   const supabaseClientNames = (supabaseClientsRaw ?? []).map((c: { name: string }) => c.name)
   const teamMembers = (teamMembersRaw ?? []) as TeamMember[]
-  const absentMemberIds = [
-    ...new Set([
-      ...(absentLogsRaw ?? []).map((r: { user_id: string }) => r.user_id),
-      ...(absentLeavesRaw ?? []).map((r: { user_id: string }) => r.user_id),
-    ])
-  ]
 
   const clientNames = supabaseClientNames
   const pastClientNames = (pastClientsRaw ?? []).map((c: { name: string }) => c.name)
@@ -155,7 +133,6 @@ export default async function UpdatePage() {
         existingUpdate={existingUpdate ?? null}
         pastUpdates={pastUpdates ?? []}
         teamMembers={teamMembers}
-        absentMemberIds={absentMemberIds}
         approvedLeaveDates={approvedLeaveDates}
       />
     </Suspense>

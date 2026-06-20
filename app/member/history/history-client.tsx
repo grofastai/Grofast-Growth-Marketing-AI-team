@@ -557,7 +557,7 @@ export default function HistoryClient({
   // Stats always use the full month (not search-filtered)
   const stats = useMemo(() => {
     let totalHours = 0, totalTasks = 0, presentDays = 0, totalLearning = 0, totalBreak = 0
-    let shootH = 0, editH = 0, otherH = 0
+    let shootH = 0, editH = 0, otherH = 0, shootCount = 0, editCount = 0
     let isMedia = false
     const hoursPerDay: number[] = []
     const dailyData: { day: string; hours: number }[] = []
@@ -577,8 +577,8 @@ export default function HistoryClient({
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
       totalTasks += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
       for (const e of entries) {
-        if (e.task_type === "shoot") shootH += (e.duration_hours ?? 0) + (e._travel_hours ?? 0)
-        else if (e.task_type === "edit") editH += e.duration_hours ?? 0
+        if (e.task_type === "shoot") { shootH += (e.duration_hours ?? 0) + (e._travel_hours ?? 0); shootCount++ }
+        else if (e.task_type === "edit") { editH += e.duration_hours ?? 0; editCount++ }
         else if (e.task_type !== "break" && e.task_type !== "learning") otherH += e.duration_hours ?? 0
       }
     }
@@ -606,7 +606,7 @@ export default function HistoryClient({
     const productivity = filtered.length > 0
       ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9.5)) * 40) : 0)))
       : 0
-    return { totalHours, totalOT, totalTasks, presentDays, absentDays, totalLearning, totalBreak, shootH, editH, otherH, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
+    return { totalHours, totalOT, totalTasks, presentDays, absentDays, totalLearning, totalBreak, shootH, editH, otherH, shootCount, editCount, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
   }, [filtered, attendanceDates, selectedMonth, monthFiltered])
 
   // Streak calculation
@@ -2063,8 +2063,8 @@ export default function HistoryClient({
               <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
                 {(stats.isMedia ? [
                   { label:"Working Hours",   value: fmtH(stats.shootH + stats.editH),    color:"#22C55E", dot:"#22C55E" },
-                  { label:"Shooting Hours",  value: fmtH(stats.shootH),                  color:"#EF4444", dot:"#EF4444" },
-                  { label:"Editing Hours",   value: fmtH(stats.editH),                   color:"#6366F1", dot:"#6366F1" },
+                  { label:"Total Shoots",    value: String(stats.shootCount),             color:"#EF4444", dot:"#EF4444" },
+                  { label:"Videos Edited",   value: String(stats.editCount),              color:"#6366F1", dot:"#6366F1" },
                   { label:"Break Hours",     value: fmtH(stats.totalBreak),              color:"#78716C", dot:"#78716C" },
                   { label:"Present Days",    value: String(stats.presentDays),            color:"#059669", dot:"#059669" },
                   { label:"Leave Days",      value: String(stats.absentDays),             color:"#EF4444", dot:"#EF4444" },

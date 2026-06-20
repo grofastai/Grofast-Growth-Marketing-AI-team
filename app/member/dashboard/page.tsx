@@ -3,10 +3,12 @@ export const revalidate = 0
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
-import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap } from "lucide-react"
+import type React from "react"
+import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap, Camera, Film, Coffee, BookOpen } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
+import MonthFilterTabs from "@/components/member/MonthFilterTabs"
 
 function adminClient() {
   return createClient(
@@ -26,32 +28,47 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const effectiveUserId = impersonateId ?? user.id
 
   const params = await searchParams
-  const showLastMonth = params.month === "last"
+  const monthParam = params.month ?? ""
 
   const now   = new Date()
   const today = now.toISOString().split("T")[0]
 
-  // Month range based on toggle
+  // Month range based on filter
   let monthStart: string, monthEnd: string, monthName: string
-  if (showLastMonth) {
+  let monthMode: "this" | "last" | "all" | "custom"
+
+  if (monthParam === "last") {
+    monthMode = "last"
     const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
     const m = now.getMonth() === 0 ? 12 : now.getMonth()
     monthStart = `${y}-${String(m).padStart(2, "0")}-01`
     const lastDay = new Date(now.getFullYear(), now.getMonth(), 0)
     monthEnd  = lastDay.toISOString().split("T")[0]
     monthName = new Date(y, m - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" })
+  } else if (monthParam === "all") {
+    monthMode  = "all"
+    monthStart = "2020-01-01"
+    monthEnd   = today
+    monthName  = "All Time"
+  } else if (/^\d{4}-\d{2}$/.test(monthParam)) {
+    monthMode = "custom"
+    const [yr, mo] = monthParam.split("-").map(Number)
+    monthStart = `${yr}-${String(mo).padStart(2, "0")}-01`
+    monthEnd   = new Date(yr, mo, 0).toISOString().split("T")[0]
+    monthName  = new Date(yr, mo - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" })
   } else {
+    monthMode  = "this"
     monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
     monthEnd   = today
     monthName  = now.toLocaleString("en-US", { month: "long", year: "numeric" })
   }
 
-  type ProfileRow    = { name: string; employee_id: string; phone: string | null; photo_url: string | null; blood_group: string | null; emergency_contact_name: string | null }
+  type ProfileRow    = { name: string; employee_id: string; phone: string | null; photo_url: string | null; blood_group: string | null; emergency_contact_name: string | null; team: string | null }
   type UpdateRow     = { working_hours: number | null; shoot_count: number | null }
   type TaskRow       = { id: string; title: string; status: string; priority: string; due_date: string | null }
   type AttLog        = { clock_in: string | null; clock_out: string | null }
-  type MonthlyUpdate = { working_hours: number | null; attendance_status: string }
-  type MonthlyAttLog = { work_type: string | null; status: string; date: string }
+  type MonthlyUpdate = { working_hours: number | null; attendance_status: string; learning_hours: number | null; shoot_count: number | null; editing_count: number | null }
+  type MonthlyAttLog = { work_type: string | null; status: string; date: string; break_total_mins: number | null; clock_in: string | null; clock_out: string | null }
   type LeaveRow      = { from_date: string; to_date: string; leave_type: string | null }
 
   const [
@@ -66,16 +83,16 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { data: approvedLeavesRaw },
     { data: monthlyAttLogsRaw },
   ] = await Promise.all([
-    supabase.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name").eq("id", effectiveUserId).single(),
+    supabase.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name, team").eq("id", effectiveUserId).single(),
     supabase.from("daily_updates").select("working_hours, shoot_count").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
     supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).neq("status", "completed"),
     supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).eq("status", "completed"),
     supabase.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", effectiveUserId).eq("status", "pending"),
     supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", effectiveUserId).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
     supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
-    supabase.from("daily_updates").select("working_hours, attendance_status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
+    supabase.from("daily_updates").select("working_hours, attendance_status, learning_hours, shoot_count, editing_count").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
     adminClient().from("leaves").select("from_date, to_date, leave_type").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
-    supabase.from("attendance_logs").select("work_type, status, date").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
+    supabase.from("attendance_logs").select("work_type, status, date, break_total_mins, clock_in, clock_out").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
   ])
 
   const profile        = profileRaw as unknown as ProfileRow | null
@@ -131,6 +148,29 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   }
   const leaveDays = leaveDateSet.size
 
+  // Avg login hours — raw clock_in → clock_out span, no break deduction
+  const logsWithClockData = presentAttLogs.filter(l => l.clock_in && l.clock_out)
+  const avgLoginHrs = logsWithClockData.length > 0
+    ? Math.round((logsWithClockData.reduce((s, l) =>
+        s + (new Date(l.clock_out!).getTime() - new Date(l.clock_in!).getTime()) / 3600000, 0
+      ) / logsWithClockData.length) * 10) / 10
+    : 0
+
+  // Right-panel stats — media vs non-media
+  const isMedia        = profile?.team === "Media Team"
+  const totalShoots    = monthlyUpdates.reduce((s, u) => s + (u.shoot_count ?? 0), 0)
+  const totalEdited    = monthlyUpdates.reduce((s, u) => s + (u.editing_count ?? 0), 0)
+  const totalLearningHrs = Math.round(monthlyUpdates.reduce((s, u) => s + (u.learning_hours ?? 0), 0) * 10) / 10
+  const totalBreakHrs  = Math.round(monthlyAttLogs.reduce((s, l) => s + ((l.break_total_mins ?? 0) / 60), 0) * 10) / 10
+
+  // Avg working hours — media: shoot+edit avg; non-media: working+learning avg
+  const avgWorkingHrs = presentRows.length > 0
+    ? Math.round((isMedia
+        ? presentRows.reduce((s, u) => s + (u.working_hours ?? 0), 0)
+        : presentRows.reduce((s, u) => s + (u.working_hours ?? 0) + (u.learning_hours ?? 0), 0)
+      ) / presentRows.length * 10) / 10
+    : 0
+
   const hour      = now.getHours()
   const greeting  = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
   const dateStr   = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
@@ -167,8 +207,8 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
   // Monthly stats grid
   const monthlyStats = [
-    { label: "Monthly Avg Hrs",       value: monthlyAvgHrs > 0 ? `${Math.round(monthlyAvgHrs * 10) / 10}h` : "—", color: "#6366F1", sub: undefined },
-    { label: "Working Days",         value: workingDays,                                      color: "#111111",  sub: undefined },
+    { label: "Avg Login Hrs",        value: avgLoginHrs > 0 ? `${avgLoginHrs}h` : "—",       color: "#6366F1", sub: undefined },
+    { label: "Avg Working Hrs",      value: avgWorkingHrs > 0 ? `${avgWorkingHrs}h` : "—",   color: "#111111", sub: undefined },
     { label: "Office Days",          value: officeDays,                                       color: "#de1a1a",  sub: undefined },
     { label: "WFH Days",             value: wfhDays,                                          color: "#6366F1",  sub: undefined },
     { label: "Leave Days",           value: leaveDays,                                        color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: pendingLeaves > 0 ? `${pendingLeaves} pending` : undefined },
@@ -232,22 +272,12 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
             style={{ background: "rgba(222,26,26,0.08)" }}>
             <Calendar size={14} style={{ color: "#de1a1a" }} />
           </div>
-          <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>{showLastMonth ? "Last Month" : "This Month"}</h3>
+          <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>
+            {monthMode === "last" ? "Last Month" : monthMode === "all" ? "All Time" : monthMode === "custom" ? "Custom" : "This Month"}
+          </h3>
           <span className="text-[11px]" style={{ color: "#6B7280" }}>{monthName}</span>
 
-          {/* Month toggle */}
-          <div className="flex items-center gap-1 ml-2 rounded-xl overflow-hidden" style={{ border: "1px solid #E8E9EF" }}>
-            <Link href="/member/dashboard"
-              className="text-[10px] font-bold px-3 py-1.5 transition-colors"
-              style={{ background: !showLastMonth ? "#de1a1a" : "transparent", color: !showLastMonth ? "#fff" : "#6B7280" }}>
-              This Month
-            </Link>
-            <Link href="/member/dashboard?month=last"
-              className="text-[10px] font-bold px-3 py-1.5 transition-colors"
-              style={{ background: showLastMonth ? "#de1a1a" : "transparent", color: showLastMonth ? "#fff" : "#6B7280" }}>
-              Last Month
-            </Link>
-          </div>
+          <MonthFilterTabs mode={monthMode} customParam={monthMode === "custom" ? monthParam : undefined} />
 
           {holidayDays > 0 && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
@@ -373,49 +403,31 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
           )}
         </div>
 
-        {/* RIGHT — quick stat cards + today summary */}
+        {/* RIGHT — monthly quick stats (media/non-media) + salary + today summary */}
         <div className="space-y-3">
-          <Link href="/member/tasks"
-            className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
-            style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(222,26,26,0.1)" }}>
-              <Target size={16} style={{ color: "#de1a1a" }} />
-            </div>
-            <div className="flex-1">
-              <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>{activeTasks}</p>
-              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Active Tasks</p>
-            </div>
-            <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
-          </Link>
-
-          <Link href="/member/attendance"
-            className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
-            style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(222,26,26,0.1)" }}>
-              <Clock size={16} style={{ color: "#de1a1a" }} />
-            </div>
-            <div className="flex-1">
-              <div className="w-8 h-0.5 mb-1" style={{ background: "#de1a1a" }} />
-              <p className="text-[11px] font-medium" style={{ color: "#6B7280" }}>Today&apos;s Hours</p>
-            </div>
-            <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
-          </Link>
-
-          <Link href="/member/leaves"
-            className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
-            style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(222,26,26,0.1)" }}>
-              <CalendarOff size={16} style={{ color: "#de1a1a" }} />
-            </div>
-            <div className="flex-1">
-              <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>{Math.max(0, 5 - leaveDays)}</p>
-              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Leave Left{pendingLeaves > 0 ? ` · ${pendingLeaves} pending` : ""}</p>
-            </div>
-            <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
-          </Link>
+          {(isMedia ? [
+            { icon: Camera,    iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: totalShoots,                                          label: "Total Shoots", href: "/member/history" },
+            { icon: Film,      iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: totalEdited,                                          label: "Total Edited", href: "/member/history" },
+            { icon: Coffee,    iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", value: totalBreakHrs > 0 ? `${totalBreakHrs}h` : "—",       label: "Break Hours",  href: "/member/attendance" },
+          ] : [
+            { icon: BookOpen,  iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
+            { icon: Clock,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : "—",       label: "Working Hrs",  href: "/member/attendance" },
+            { icon: Coffee,    iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", value: totalBreakHrs > 0 ? `${totalBreakHrs}h` : "—",       label: "Break Hours",  href: "/member/attendance" },
+          ] as { icon: React.ElementType; iconBg: string; iconColor: string; value: string | number; label: string; href: string }[]).map(stat => (
+            <Link key={stat.label} href={stat.href}
+              className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
+              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: stat.iconBg }}>
+                <stat.icon size={16} style={{ color: stat.iconColor }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: stat.iconColor }}>{stat.value}</p>
+                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>{stat.label}</p>
+              </div>
+              <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
+            </Link>
+          ))}
 
           {/* Salary Date Card */}
           <div className="rounded-2xl p-4 flex items-center gap-3"

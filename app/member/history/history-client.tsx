@@ -404,7 +404,10 @@ export default function HistoryClient({
       video_link: entry.video_link ?? "",
       project_name: entry.project_name ?? "",
       is_multi_client: entry.is_multi_client ?? false,
-      client_names: entry.client_names ?? [],
+      client_names: (entry.client_names ?? []).map(cn => {
+        const allKnown = [...activeClientsForEdit, ...pastClients]
+        return allKnown.find(a => a.toLowerCase() === cn.toLowerCase()) ?? cn
+      }),
       video_type: entry.video_type ?? "",
       video_duration: entry.video_duration ?? "",
       revisions: entry.revisions ?? 0,
@@ -1904,12 +1907,12 @@ export default function HistoryClient({
                                     {editDraft.task_type==="other" && (
                                       <div>
                                         <label style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", fontSize:11, fontWeight:600, color:"#374151", marginBottom:6 }}>
-                                          <input type="checkbox" checked={editDraft.is_multi_client??false} onChange={ev=>setEditDraft(d=>({...d,is_multi_client:ev.target.checked,client_names:[]}))} style={{ accentColor:"#de1a1a" }} />
+                                          <input type="checkbox" checked={editDraft.is_multi_client??false} onChange={ev=>{const isMulti=ev.target.checked;const seed=isMulti&&editDraft.client_name&&editDraft.client_name!=="__custom__"?[editDraft.client_name]:[];setEditDraft(d=>({...d,is_multi_client:isMulti,client_names:seed}))}} style={{ accentColor:"#de1a1a" }} />
                                           Split cost across multiple clients
                                         </label>
                                         {editDraft.is_multi_client && activeClientsForEdit.length>0 && (
                                           <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                                            {activeClientsForEdit.map(name=>{const selected=(editDraft.client_names??[]).includes(name);return(<button key={name} type="button" onClick={()=>{const next=selected?(editDraft.client_names??[]).filter(n=>n!==name):[...(editDraft.client_names??[]),name];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name}))}} style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${selected?"#de1a1a":"#EBEDF2"}`, background:selected?"rgba(222,26,26,0.08)":"#F9FAFB", color:selected?"#de1a1a":"#6B7280" }}>{name}</button>)})}
+                                            {activeClientsForEdit.map(name=>{const selected=(editDraft.client_names??[]).some(n=>n.toLowerCase()===name.toLowerCase());return(<button key={name} type="button" onClick={()=>{const cur=editDraft.client_names??[];const idx=cur.findIndex(n=>n.toLowerCase()===name.toLowerCase());const next=idx>=0?cur.filter((_,i)=>i!==idx):[...cur,name];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name}))}} style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${selected?"#de1a1a":"#EBEDF2"}`, background:selected?"rgba(222,26,26,0.08)":"#F9FAFB", color:selected?"#de1a1a":"#6B7280" }}>{name}</button>)})}
                                           </div>
                                         )}
                                       </div>

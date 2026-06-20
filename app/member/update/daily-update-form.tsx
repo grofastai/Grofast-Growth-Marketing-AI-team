@@ -671,7 +671,7 @@ export default function DailyUpdateForm({
           is_multi_client: isMulti,
           task_type: "other" as const,
           title: t.description, start_time: t.startTime, end_time: t.endTime,
-          duration_hours: t.durationHours, notes: `[${t.status}]`,
+          duration_hours: t.durationHours, notes: "",
           video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
         }
       }),
@@ -686,6 +686,32 @@ export default function DailyUpdateForm({
         start_time: b.startTime, end_time: b.endTime,
         duration_hours: b.durationHours, notes: undefined,
         video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
+      })),
+      ...voiceovers.map(e => ({
+        id: e.id,
+        client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        client_names: [] as string[],
+        is_multi_client: false,
+        task_type: "voiceover" as const,
+        title: e.title || "Voiceover", start_time: e.startTime, end_time: e.endTime,
+        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
+        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
+        _client_type: e.clientName, _custom_client: e.customClient,
+        participant_ids: e.participantIds,
+      })),
+      ...posters.map(e => ({
+        id: e.id,
+        client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        client_names: [] as string[],
+        is_multi_client: false,
+        task_type: "poster" as const,
+        title: e.title || "Poster", start_time: e.startTime, end_time: e.endTime,
+        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
+        notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
+        _client_type: e.clientName, _custom_client: e.customClient,
+        participant_ids: e.participantIds,
       })),
     ]
     const allParticipantIds = [...new Set(filledBlocks.flatMap(b => b.participantIds))]
@@ -970,12 +996,36 @@ export default function DailyUpdateForm({
           video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
         }))
     if (breakEntries.length === 0) { setError("Add at least one break with a duration."); return }
+
+    // For non-media team: also include filled working entries so they're not lost
+    // when the user submits from the Break tab without having submitted Working first
+    const workingEntries = !isMediaTeam
+      ? filledBlocks.map(t => {
+          const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")
+            : t.projectName === "__custom__" ? (t.customClient || "Internal")
+            : (t.projectName || "Internal")
+          return {
+            id: t.id,
+            client_id: projects.find(p => p.business_name === (t.clientNames[0] || effClient))?.id ?? null,
+            client_name: t.clientNames.length > 0 ? t.clientNames[0] : effClient,
+            client_names: t.clientNames.length > 0 ? t.clientNames : (effClient !== "Internal" ? [effClient] : []),
+            is_multi_client: t.clientNames.length > 1,
+            task_type: "other" as const,
+            title: t.description, start_time: t.startTime, end_time: t.endTime,
+            duration_hours: t.durationHours, notes: `[${t.status}]`,
+            video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
+          }
+        })
+      : []
+    const allParticipantIds = !isMediaTeam ? [...new Set(filledBlocks.flatMap(b => b.participantIds))] : []
+    const work_entries = [...workingEntries, ...breakEntries]
+
     startTransition(async () => {
       const res = await submitDailyUpdate({
-        active_tab: "break", date: selectedDate, work_entries: breakEntries, links: [],
+        active_tab: "break", date: selectedDate, work_entries, links: [],
         shoot_count: 0, editing_count: 0,
         shoot_time_hours: 0, editing_time_hours: 0, learning_hours: 0,
-        participant_ids: [],
+        participant_ids: allParticipantIds,
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
       else { if (isMediaTeam) { setBreaksDone(true); setEditMode(false) } else setWorkingDone(true); router.refresh() }
@@ -1374,11 +1424,6 @@ export default function DailyUpdateForm({
                         .filter(b => b.id !== block.id)
                         .flatMap(b => [b.startTime, b.endTime])
                     )
-                    const statusCfg = block.status === "completed"
-                      ? { bg:"rgba(34,197,94,0.08)", color:"#16A34A", border:"rgba(34,197,94,0.25)" }
-                      : block.status === "in_progress"
-                      ? { bg:"rgba(245,158,11,0.08)", color:"#D97706", border:"rgba(245,158,11,0.25)" }
-                      : { bg:"#F9FAFB", color:"#9CA3AF", border:"#E5E7EB" }
                     return (
                       <Fragment key={block.id}>
                       <div style={{ background:"#F9FAFB", borderRadius:14, border:"1px solid #EBEDF2", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
@@ -1409,12 +1454,6 @@ export default function DailyUpdateForm({
                             <input value={block.description} onChange={e => patchBlock(block.id, { description: e.target.value })}
                               placeholder="What did you work on?"
                               style={{ flex:1, minWidth:140, background:"#FFFFFF", border:"1.5px solid #EBEDF2", borderRadius:8, padding:"7px 10px", fontSize:12, color:"#111827", outline:"none" }} />
-                            <select value={block.status} onChange={e => patchBlock(block.id, { status: e.target.value as TimeBlock["status"] })}
-                              style={{ fontSize:11, fontWeight:700, color:statusCfg.color, background:statusCfg.bg, border:`1.5px solid ${statusCfg.border}`, borderRadius:8, padding:"7px 10px", cursor:"pointer", outline:"none" }}>
-                              <option value="not_started">Not Started</option>
-                              <option value="in_progress">In Progress</option>
-                              <option value="completed">Completed ✓</option>
-                            </select>
                           </div>
                           {/* Client / Project multi-select */}
                           <div style={{ marginTop:4 }}>

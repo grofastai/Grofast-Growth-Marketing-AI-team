@@ -42,9 +42,8 @@ function daysBetween(from: string, to: string) {
 }
 
 function canWithdraw(leave: Leave): boolean {
-  // Get current IST time
-  const now = new Date()
-  const istNow = new Date(now.getTime() + 5.5 * 3600000 + now.getTimezoneOffset() * 60000)
+  // Get current IST time: UTC + 5:30 (always fixed offset, never use getTimezoneOffset)
+  const istNow = new Date(Date.now() + 5.5 * 3600000)
   const istTodayStr = `${istNow.getUTCFullYear()}-${String(istNow.getUTCMonth()+1).padStart(2,'0')}-${String(istNow.getUTCDate()).padStart(2,'0')}`
   const istMins = istNow.getUTCHours() * 60 + istNow.getUTCMinutes()
 

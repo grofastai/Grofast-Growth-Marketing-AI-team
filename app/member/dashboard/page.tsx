@@ -3,7 +3,7 @@ export const revalidate = 0
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
-import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap } from "lucide-react"
+import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap, Camera } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
@@ -196,10 +196,11 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
       </div>
 
       {/* ── 4 Stat Cards ─────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
         {([
           { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: workingDays || 0,   label: "Present Days"  },
           { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Total Hours"  },
+          { icon: Camera,       iconBg: "rgba(234,88,12,0.1)",   iconColor: "#EA580C", value: shootDays,          label: "Shoot Days"    },
           { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: Math.max(0, 5 - leaveDays), label: "Leave Left" },
           { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks"  },
         ] as const).map((s) => {

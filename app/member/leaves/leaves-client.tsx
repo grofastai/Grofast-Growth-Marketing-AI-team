@@ -322,10 +322,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
             </p>
           </div>
 
-          {/* Center: large illustration — anchored bottom */}
-          <div style={{ position: "absolute", left: "50%", transform: "translateX(-46%)", bottom: 0, zIndex: 1 }}>
+          {/* Illustration — right-anchored so it never overlaps left text */}
+          <div style={{ position: "absolute", right: -10, bottom: 0, zIndex: 1 }}>
             <Image src="/brand/leave-hero.png" alt="" width={500} height={260}
-              style={{ objectFit: "contain", objectPosition: "bottom center", display: "block" }} priority />
+              style={{ objectFit: "contain", objectPosition: "bottom right", display: "block", width: "clamp(150px, 48vw, 500px)", height: "auto" }} priority />
           </div>
 
           {/* Apply Leave CTA — desktop only (top-right corner) */}

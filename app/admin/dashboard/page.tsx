@@ -80,7 +80,7 @@ export default async function DashboardPage() {
         .eq("company_id", cid).eq("date", today).eq("status", "present"),
       admin.from("tasks").select("*", { count: "exact", head: true })
         .eq("company_id", cid).neq("status", "completed"),
-      admin.from("projects").select("*", { count: "exact", head: true })
+      admin.from("clients").select("*", { count: "exact", head: true })
         .eq("company_id", cid).eq("status", "active"),
       admin.from("leaves").select("*", { count: "exact", head: true })
         .eq("company_id", cid).eq("status", "approved")

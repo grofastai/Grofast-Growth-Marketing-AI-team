@@ -64,6 +64,7 @@ export default async function AttendancePage() {
     { count: pendingLeavesCount },
     { data: approvedLeavesRaw },
     { data: weekUpdatesRaw },
+    { data: profileRaw },
   ] = await Promise.all([
     supabase.from("attendance_logs")
       .select("id, date, clock_in, clock_out, break_in, break_out, break_total_mins, break_sessions, work_type, status, paused_seconds")
@@ -111,7 +112,11 @@ export default async function AttendancePage() {
       .eq("user_id", effectiveUserId)
       .gte("date", weekStart)
       .lte("date", weekEnd),
+    // User profile — for team check
+    supabase.from("users").select("team").eq("id", effectiveUserId).single(),
   ])
+
+  const isMediaTeam = (profileRaw as { team?: string | null } | null)?.team === "Media Team"
 
   // Work hours per day from daily_updates (for accurate weekly display)
   const weekUpdatesByDate: Record<string, number> = {}
@@ -207,6 +212,7 @@ export default async function AttendancePage() {
       weekUpdatesByDate={weekUpdatesByDate}
       monthlyPerf={monthlyPerf}
       todayHasApprovedLeave={todayHasApprovedLeave}
+      isMediaTeam={isMediaTeam}
     />
   )
 }

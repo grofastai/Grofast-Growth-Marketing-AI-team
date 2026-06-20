@@ -46,7 +46,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     monthName  = now.toLocaleString("en-US", { month: "long", year: "numeric" })
   }
 
-  type ProfileRow    = { name: string; employee_id: string; phone: string | null; photo_url: string | null; blood_group: string | null; emergency_contact_name: string | null }
+  type ProfileRow    = { name: string; employee_id: string; phone: string | null; photo_url: string | null; blood_group: string | null; emergency_contact_name: string | null; team: string | null }
   type UpdateRow     = { working_hours: number | null; shoot_count: number | null }
   type TaskRow       = { id: string; title: string; status: string; priority: string; due_date: string | null }
   type AttLog        = { clock_in: string | null; clock_out: string | null }
@@ -66,7 +66,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { data: approvedLeavesRaw },
     { data: monthlyAttLogsRaw },
   ] = await Promise.all([
-    supabase.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name").eq("id", effectiveUserId).single(),
+    supabase.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name, team").eq("id", effectiveUserId).single(),
     supabase.from("daily_updates").select("working_hours, shoot_count").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
     supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).neq("status", "completed"),
     supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).eq("status", "completed"),
@@ -85,6 +85,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const monthlyUpdates = (monthlyUpdatesRaw ?? []) as unknown as MonthlyUpdate[]
   const approvedLeaves = (approvedLeavesRaw ?? []) as unknown as LeaveRow[]
   const monthlyAttLogs = (monthlyAttLogsRaw ?? []) as unknown as MonthlyAttLog[]
+  const isMediaTeam    = profile?.team === "Media Team"
 
   // Today hours
   let todayHours = 0
@@ -172,7 +173,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { label: "Working Days",         value: workingDays,                                      color: "#111111",  sub: undefined },
     { label: "Office Days",          value: officeDays,                                       color: "#de1a1a",  sub: undefined },
     { label: "WFH Days",             value: wfhDays,                                          color: "#6366F1",  sub: undefined },
-    { label: "Shoot Days",           value: shootDays,                                        color: "#EA580C",  sub: undefined },
+    ...(isMediaTeam ? [{ label: "Shoot Days", value: shootDays, color: "#EA580C", sub: undefined }] : []),
     { label: "Leave Days",           value: leaveDays,                                        color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: pendingLeaves > 0 ? `${pendingLeaves} pending` : undefined },
     { label: "Overtime Hrs",         value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",       color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeDays > 0 ? `${overtimeDays} day${overtimeDays !== 1 ? "s" : ""}` : undefined },
   ]
@@ -196,11 +197,11 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
       </div>
 
       {/* ── 4 Stat Cards ─────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
+      <div className={`grid gap-4 mb-5 ${isMediaTeam ? "grid-cols-2 lg:grid-cols-5" : "grid-cols-2 lg:grid-cols-4"}`}>
         {([
           { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: workingDays || 0,   label: "Present Days"  },
           { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Total Hours"  },
-          { icon: Camera,       iconBg: "rgba(234,88,12,0.1)",   iconColor: "#EA580C", value: shootDays,          label: "Shoot Days"    },
+          ...(isMediaTeam ? [{ icon: Camera, iconBg: "rgba(234,88,12,0.1)", iconColor: "#EA580C", value: shootDays, label: "Shoot Days" }] : []),
           { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: Math.max(0, 5 - leaveDays), label: "Leave Left" },
           { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks"  },
         ] as const).map((s) => {

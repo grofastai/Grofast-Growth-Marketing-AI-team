@@ -40,6 +40,7 @@ interface Props {
   weekUpdatesByDate?: Record<string, number>
   monthlyPerf?: MonthlyPerf
   todayHasApprovedLeave?: boolean
+  isMediaTeam?: boolean
 }
 
 const SHIFT_HOURS = 8.5
@@ -121,7 +122,7 @@ function SegmentBar({ hoursWorked }: { hoursWorked: number }) {
   )
 }
 
-export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf, todayHasApprovedLeave = false }: Props) {
+export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf, todayHasApprovedLeave = false, isMediaTeam = false }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">("office")
@@ -820,7 +821,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     {[
                       { label: "Office",  value: monthlyPerf?.officeDays   ?? 0, color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
                       { label: "WFH",     value: monthlyPerf?.wfhDays      ?? 0, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
-                      { label: "Shoot",   value: monthlyPerf?.shootDays    ?? 0, color: "#de1a1a", bg: "rgba(222,26,26,0.07)" },
+                      ...(isMediaTeam ? [{ label: "Shoot", value: monthlyPerf?.shootDays ?? 0, color: "#de1a1a", bg: "rgba(222,26,26,0.07)" }] : []),
                       { label: "Leave",   value: monthlyPerf?.leaveDays    ?? 0, color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
                     ].map(stat => (
                       <div key={stat.label} className="rounded-2xl p-3 text-center" style={{ background: stat.bg }}>

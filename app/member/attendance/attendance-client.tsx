@@ -825,73 +825,90 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
       </div>
 
-      {/* ── Daily Insight — LOGIN + WORKING rows ── */}
-      <div className="rounded-3xl p-5 relative overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 w-20 h-20 opacity-70 pointer-events-none">
-          <Image src="/brand/tasks-complete.png" alt="" fill style={{ objectFit: "contain" }} />
+      {/* ── Daily Insight — 2 separate boxes in one line ── */}
+      <div className="rounded-3xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
+            <TrendingUp size={16} style={{ color: "#6366F1" }} />
+          </div>
+          <div>
+            <p className="text-[14px] font-bold" style={{ color: "#111111" }}>Daily Insight</p>
+            <p className="text-[12px]" style={{ color: "#9CA3AF" }}>
+              {hoursWorked >= SHIFT_HOURS ? "Great work! Target reached 🔥" : hoursWorked > 0 ? "Keep going! You're doing great." : "Log in to start your day."}
+            </p>
+          </div>
         </div>
 
-        {/* Header + two groups in one straight line */}
-        <div className="flex flex-col md:flex-row md:items-center gap-4 pr-24">
+        {/* Two boxes side by side */}
+        <div className="flex flex-col md:flex-row gap-3">
 
-          {/* Left label + icon */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
-              <TrendingUp size={16} style={{ color: "#6366F1" }} />
-            </div>
-            <div>
-              <p className="text-[14px] font-bold" style={{ color: "#111111" }}>Daily Insight</p>
-              <p className="text-[12px]" style={{ color: "#9CA3AF" }}>
-                {hoursWorked >= SHIFT_HOURS ? "Great work! Target reached 🔥" : hoursWorked > 0 ? "Keep going! You're doing great." : "Log in to start your day."}
-              </p>
-            </div>
-          </div>
+          {/* LOGIN box */}
+          {(() => {
+            const loginHrs = todayLog?.clock_in ? calcHours(todayLog.clock_in, todayLog.clock_out) : 0
+            const loginAchieved = loginHrs >= 9.5
+            return (
+              <div className="flex-1 rounded-2xl p-4" style={{
+                background: loginAchieved ? "rgba(22,163,74,0.05)" : "rgba(99,102,241,0.04)",
+                border: `1.5px solid ${loginAchieved ? "rgba(22,163,74,0.3)" : "rgba(99,102,241,0.15)"}`,
+              }}>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: loginAchieved ? "#16A34A" : "#6366F1" }}>Login</p>
+                  {loginAchieved && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A" }}>✓ Achieved</span>}
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: "rgba(99,102,241,0.08)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: "#6366F1" }}>Login Hrs</p>
+                    <p className="text-[18px] font-black leading-none" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
+                      {loginHrs > 0 ? fmtHoursShort(loginHrs) : "0h"}
+                    </p>
+                  </div>
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: "rgba(245,158,11,0.08)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Target</p>
+                    <p className="text-[18px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>9h 30m</p>
+                  </div>
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: loginAchieved ? "rgba(22,163,74,0.08)" : "rgba(222,26,26,0.06)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: loginAchieved ? "#16A34A" : "#de1a1a" }}>Remaining</p>
+                    <p className="text-[18px] font-black leading-none" style={{ color: loginAchieved ? "#16A34A" : "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+                      {loginAchieved ? "0h" : loginHrs > 0 ? fmtHoursShort(Math.max(0, 9.5 - loginHrs)) : "9h 30m"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
-          {/* LOGIN group */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest flex-shrink-0" style={{ color: "#9CA3AF" }}>Login</span>
-            <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#6366F1" }}>Login Hrs</p>
-              <p className="text-[20px] font-black leading-none" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
-                {todayLog?.clock_in ? fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out)) : "0h"}
-              </p>
-            </div>
-            <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Target</p>
-              <p className="text-[20px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>9h 30m</p>
-            </div>
-            <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Remaining</p>
-              <p className="text-[20px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-                {todayLog?.clock_in ? fmtHoursShort(Math.max(0, 9.5 - calcHours(todayLog.clock_in, todayLog.clock_out))) : "9h 30m"}
-              </p>
-            </div>
-          </div>
-
-          {/* Vertical divider */}
-          <div className="hidden md:block self-stretch" style={{ width: 1, background: "rgba(0,0,0,0.07)", margin: "4px 0" }} />
-
-          {/* WORKING group */}
+          {/* WORKING box */}
           {(() => {
             const todayWorkHrs = todayUpdate?.working_hours ?? 0
+            const workAchieved = todayWorkHrs >= 8.5
             return (
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase tracking-widest flex-shrink-0" style={{ color: "#9CA3AF" }}>Working</span>
-                <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.12)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Working Hrs</p>
-                  <p className="text-[20px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                    {todayWorkHrs > 0 ? fmtHoursShort(todayWorkHrs) : "0h"}
-                  </p>
+              <div className="flex-1 rounded-2xl p-4" style={{
+                background: workAchieved ? "rgba(22,163,74,0.05)" : "rgba(99,102,241,0.04)",
+                border: `1.5px solid ${workAchieved ? "rgba(22,163,74,0.3)" : "rgba(99,102,241,0.15)"}`,
+              }}>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: workAchieved ? "#16A34A" : "#6366F1" }}>Working</p>
+                  {workAchieved && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A" }}>✓ Achieved</span>}
                 </div>
-                <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Target</p>
-                  <p className="text-[20px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
-                </div>
-                <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Remaining</p>
-                  <p className="text-[20px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-                    {todayWorkHrs > 0 ? fmtHoursShort(Math.max(0, 8.5 - todayWorkHrs)) : "8h 30m"}
-                  </p>
+                <div className="flex gap-2">
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: "rgba(34,197,94,0.08)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Working Hrs</p>
+                    <p className="text-[18px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
+                      {todayWorkHrs > 0 ? fmtHoursShort(todayWorkHrs) : "0h"}
+                    </p>
+                  </div>
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: "rgba(245,158,11,0.08)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Target</p>
+                    <p className="text-[18px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
+                  </div>
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: workAchieved ? "rgba(22,163,74,0.08)" : "rgba(222,26,26,0.06)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: workAchieved ? "#16A34A" : "#de1a1a" }}>Remaining</p>
+                    <p className="text-[18px] font-black leading-none" style={{ color: workAchieved ? "#16A34A" : "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+                      {workAchieved ? "0h" : todayWorkHrs > 0 ? fmtHoursShort(Math.max(0, 8.5 - todayWorkHrs)) : "8h 30m"}
+                    </p>
+                  </div>
                 </div>
               </div>
             )
@@ -1020,7 +1037,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                                     <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
                                     <td style={{ padding:"9px 10px" }}>
                                       <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background: l.status==="present" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: l.status==="present" ? "#16A34A" : "#EF4444" }}>
-                                        {l.status === "present" ? "Present" : "Absent"}
+                                        {l.status === "present" ? "Present" : "On Leave"}
                                       </span>
                                     </td>
                                     <td style={{ padding:"9px 10px", color:"#6B7280", textTransform:"capitalize" }}>{l.work_type ?? "—"}</td>
@@ -1144,7 +1161,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
                               <td style={{ padding:"9px 10px" }}>
                                 <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background: l.status==="present" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: l.status==="present" ? "#16A34A" : "#EF4444" }}>
-                                  {l.status === "present" ? "Present" : "Absent"}
+                                  {l.status === "present" ? "Present" : "On Leave"}
                                 </span>
                               </td>
                               <td style={{ padding:"9px 10px", color:"#6B7280", textTransform:"capitalize" }}>{l.work_type ?? "—"}</td>

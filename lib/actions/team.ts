@@ -3,6 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { getOrCreateMemberFolder } from '@/lib/google/drive'
 
 function adminSupabase() {
   return createClient(
@@ -271,6 +272,11 @@ export async function createMember(input: {
     whatsappSent = notifyResult.sent
     whatsappError = notifyResult.errorDetail
   }
+
+  // Create Drive folder for this member (non-blocking — don't fail if Drive is down)
+  getOrCreateMemberFolder(input.name).then(folderId => {
+    admin.from('users').update({ drive_folder_id: folderId }).eq('id', authUserId).then(() => {})
+  }).catch(() => {})
 
   revalidatePath('/admin/team')
   return { success: true, whatsappSent, whatsappSkipped: skipNotification, whatsappError }

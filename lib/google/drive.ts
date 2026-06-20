@@ -182,6 +182,50 @@ export async function uploadFileToBackupFolder(
   return file.id
 }
 
+/** Creates (or finds) a member folder under GOOGLE_DRIVE_MEMBER_DOCS_FOLDER_ID */
+export async function getOrCreateMemberFolder(memberName: string): Promise<string> {
+  const parentId = process.env.GOOGLE_DRIVE_MEMBER_DOCS_FOLDER_ID
+  if (!parentId) throw new Error('GOOGLE_DRIVE_MEMBER_DOCS_FOLDER_ID env var is not set')
+  const t = await token()
+  return findOrCreate(memberName, parentId, t)
+}
+
+/** Uploads a file buffer to a member's Drive folder. Returns { fileId, webViewLink } */
+export async function uploadMemberDocument(
+  folderId: string,
+  fileName: string,
+  mimeType: string,
+  buffer: Buffer,
+): Promise<{ fileId: string; webViewLink: string }> {
+  const t = await token()
+  const BOUNDARY = 'gf_member_doc_boundary'
+  const metadata = JSON.stringify({ name: fileName, parents: [folderId] })
+
+  const bodyParts: (string | Buffer)[] = [
+    `--${BOUNDARY}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`,
+    metadata,
+    `\r\n--${BOUNDARY}\r\nContent-Type: ${mimeType}\r\n\r\n`,
+    buffer,
+    `\r\n--${BOUNDARY}--`,
+  ]
+  const body = Buffer.concat(bodyParts.map(p => typeof p === 'string' ? Buffer.from(p) : p))
+
+  const res = await fetch(
+    `${UPLOAD}/files?uploadType=multipart&supportsAllDrives=true&fields=id,webViewLink`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${t}`,
+        'Content-Type': `multipart/related; boundary=${BOUNDARY}`,
+      },
+      body,
+    }
+  )
+  if (!res.ok) throw new Error(`Drive member doc upload failed (${res.status}): ${await res.text()}`)
+  const file = await res.json() as { id: string; webViewLink: string }
+  return { fileId: file.id, webViewLink: file.webViewLink }
+}
+
 /** Makes a file publicly readable and returns its web view link */
 export async function makeFilePublic(fileId: string): Promise<string> {
   const t = await token()

@@ -8,7 +8,7 @@ import {
   Search, Plus, Shield, UserCheck,
   MoreVertical, Phone, CalendarDays, X, Pencil,
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
-  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight,
+  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen,
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
@@ -57,6 +57,7 @@ interface Member {
   joined_at?: string | null
   gender?: "male" | "female" | null
   passport_photo_url?: string | null
+  drive_folder_id?: string | null
 }
 
 function getInitials(name: string) {
@@ -1578,6 +1579,19 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                                     <LogIn size={12} /> Login as {member.name.split(" ")[0]}
                                   </button>
+                                  <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
+                                </>
+                              )}
+                              {member.drive_folder_id && (
+                                <>
+                                  <a href={`https://drive.google.com/drive/folders/${member.drive_folder_id}`} target="_blank" rel="noopener noreferrer"
+                                    onClick={() => setOpenDropdown(null)}
+                                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                    style={{ color: "#16A34A", textDecoration: "none", display: "flex" }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(22,163,74,0.06)"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                    <FolderOpen size={12} /> Open Drive Folder
+                                  </a>
                                   <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
                                 </>
                               )}

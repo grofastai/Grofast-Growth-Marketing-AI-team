@@ -1,10 +1,19 @@
 export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import ProfileClient from "./profile-client"
 import { getMyPayslipHistory } from "@/lib/actions/profile"
+
+function adminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 export default async function ProfilePage() {
   const supabase = await createServerClient()
@@ -42,7 +51,9 @@ export default async function ProfilePage() {
     address: string | null
     emergency_contact_name: string | null
     emergency_contact_phone: string | null
+    company_id: string
   }
+  type DocRow = { id: string; name: string; file_type: string; drive_url: string; uploaded_at: string }
   type KYCRow = {
     bank_name: string | null; bank_account: string | null; bank_ifsc: string | null
     aadhaar_number: string | null; pan_number: string | null
@@ -53,16 +64,19 @@ export default async function ProfilePage() {
   type UpdateRow  = { date: string; working_hours: number | null; shoot_count: number | null }
 
   // ── Parallel queries ──────────────────────────────────────────
+  const admin = adminClient()
+
   const [
     { data: profileRaw },
     { data: allUpdatesRaw },
     { count: totalCompleted },
     { count: totalLeaves },
     { data: kycRaw },
+    { data: docsRaw },
   ] = await Promise.all([
     supabase
       .from("users")
-      .select("name, employee_id, role, email, phone, status, created_at, photo_url, passport_photo_url, position, blood_group, address, emergency_contact_name, emergency_contact_phone")
+      .select("name, employee_id, role, email, phone, status, created_at, photo_url, passport_photo_url, position, blood_group, address, emergency_contact_name, emergency_contact_phone, company_id")
       .eq("id", effectiveUserId)
       .single(),
     supabase
@@ -85,12 +99,19 @@ export default async function ProfilePage() {
       .select("bank_name, bank_account, bank_ifsc, aadhaar_number, pan_number, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2")
       .eq("user_id", effectiveUserId)
       .maybeSingle(),
+    admin
+      .from("member_documents")
+      .select("id, name, file_type, drive_url, uploaded_at")
+      .eq("user_id", effectiveUserId)
+      .order("uploaded_at", { ascending: false }),
   ])
 
   const payslipHistory = await getMyPayslipHistory()
 
   const profile    = profileRaw as unknown as ProfileRow | null
   const kyc        = kycRaw as unknown as KYCRow | null
+  const documents  = (docsRaw ?? []) as unknown as DocRow[]
+  const companyId  = profile?.company_id ?? ""
   const allUpdates = (allUpdatesRaw ?? []) as unknown as UpdateRow[]
   // Derive recent activity from the same fetch — sorted desc, capped at 5
   const recentUpdates = [...allUpdates].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
@@ -148,6 +169,9 @@ export default async function ProfilePage() {
         emergency_contact_phone: profile.emergency_contact_phone ?? null,
       } : null}
       kyc={kyc}
+      documents={documents}
+      companyId={companyId}
+      userId={effectiveUserId}
       stats={{
         weekHours:    Math.round(weekHours * 10) / 10,
         weekMissed,

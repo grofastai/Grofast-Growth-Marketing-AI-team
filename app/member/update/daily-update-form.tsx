@@ -657,6 +657,30 @@ export default function DailyUpdateForm({
       }
     }
 
+    // Voiceover mandatory: client, title, start time, end time
+    for (let i = 0; i < voiceovers.length; i++) {
+      const v = voiceovers[i]
+      const label = voiceovers.length > 1 ? `Voiceover ${i + 1}: ` : "Voiceover: "
+      const client = v.clientName === "__custom__" ? v.customClient.trim() : v.clientName
+      if (!client) { setWorkingError(`${label}Select a client.`); return }
+      if (!v.title.trim()) { setWorkingError(`${label}Enter a title / project name.`); return }
+      if (!v.startTime) { setWorkingError(`${label}Enter start time.`); return }
+      if (!v.endTime)   { setWorkingError(`${label}Enter end time.`); return }
+      if (toMins(v.endTime) <= toMins(v.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+    }
+
+    // Poster mandatory: client, title, start time, end time
+    for (let i = 0; i < posters.length; i++) {
+      const p = posters[i]
+      const label = posters.length > 1 ? `Poster ${i + 1}: ` : "Poster: "
+      const client = p.clientName === "__custom__" ? p.customClient.trim() : p.clientName
+      if (!client) { setWorkingError(`${label}Select a client.`); return }
+      if (!p.title.trim()) { setWorkingError(`${label}Enter a poster name.`); return }
+      if (!p.startTime) { setWorkingError(`${label}Enter start time.`); return }
+      if (!p.endTime)   { setWorkingError(`${label}Enter end time.`); return }
+      if (toMins(p.endTime) <= toMins(p.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+    }
+
     const work_entries = [
       ...filledBlocks.map(t => {
         const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")

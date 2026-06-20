@@ -89,10 +89,8 @@ export async function submitDailyUpdate(
 
     let combinedEntries: Array<Record<string, unknown>>
     if (isPastDate) {
-      // Past-date edit = full replace: preserve only auto-inserted leave entries, use exactly what the form sends
-      const leaveEntries = prevEntries.filter(e => e._is_leave === true)
-      const newWithoutLeave = d.work_entries.filter(e => !(e as Record<string, unknown>)._is_leave)
-      combinedEntries = [...newWithoutLeave, ...leaveEntries]
+      // Past-date new entry = append to existing (History page handles editing/deleting old entries)
+      combinedEntries = [...prevEntries, ...d.work_entries]
     } else {
       // Today = merge/append: dedup by ID so new entries replace same-ID ones without losing unrelated entries
       const newIds = new Set(d.work_entries.map(e => e.id).filter(Boolean))

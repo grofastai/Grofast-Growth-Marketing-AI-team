@@ -362,30 +362,31 @@ export default function DailyUpdateForm({
     }
     setActiveUpdate(found)
 
-    setShoots(found ? parseExistingShoots(found) : [])
-    setEdits(found ? parseExistingEdits(found) : [])
-    setTimeBlocks(found ? parseExistingBlocks(found) : [])
-    setMediaBreaks(found ? parseExistingMediaBreaks(found) : [])
-    setLearningTopic((found?.learning_topic as string) ?? "")
+    const isPast = date !== todayStr
+    // Past date: always show clean empty form (existing entries viewable in History)
+    // Today: pre-fill with existing data so user can continue where they left off
+    setShoots(isPast ? [] : (found ? parseExistingShoots(found) : []))
+    setEdits(isPast ? [] : (found ? parseExistingEdits(found) : []))
+    setVoiceovers(isPast ? [] : (found ? parseExistingVoiceovers(found) : []))
+    setPosters(isPast ? [] : (found ? parseExistingPosters(found) : []))
+    setTimeBlocks(isPast ? [] : (found ? parseExistingBlocks(found) : []))
+    setMediaBreaks(isPast ? [] : (found ? parseExistingMediaBreaks(found) : []))
+    setLearningTopic(isPast ? "" : (found?.learning_topic as string) ?? "")
     setLearningFrom(""); setLearningTo("")
-    setLearningNotes((found?.learning_notes as string) ?? "")
-    setLearningParticipantIds(found?.active_tab === "learning" ? ((found?.participant_ids as string[]) ?? []) : [])
-    setWorkingDone(!!(found && (found as Record<string, unknown>).working_hours))
-    setLearningDone(!!(found && (found as Record<string, unknown>).learning_hours))
-    setMediaDone(isMediaTeam && existingHasMedia(found))
-    setBreaksDone(isMediaTeam && existingHasBreaks(found))
+    setLearningNotes(isPast ? "" : (found?.learning_notes as string) ?? "")
+    setLearningParticipantIds(isPast ? [] : (found?.active_tab === "learning" ? ((found?.participant_ids as string[]) ?? []) : []))
+    // Past date: never mark as done — always show fresh form regardless of existing data
+    setWorkingDone(isPast ? false : !!(found && (found as Record<string, unknown>).working_hours))
+    setLearningDone(isPast ? false : !!(found && (found as Record<string, unknown>).learning_hours))
+    setMediaDone(isPast ? false : (isMediaTeam && existingHasMedia(found)))
+    setBreaksDone(isPast ? false : (isMediaTeam && existingHasBreaks(found)))
     setSubmitted(false)
     setEditMode(false)
     setError(null)
     setWorkingError(null)
     setLearningError(null)
 
-    const foundTab = (found?.active_tab as string) ?? null
-    if (foundTab === "media" || foundTab === "learning" || foundTab === "working" || foundTab === "break") {
-      setTab(foundTab as "working" | "media" | "learning" | "break")
-    } else {
-      setTab(isMediaTeam ? "media" : "working")
-    }
+    setTab(isMediaTeam ? "media" : "working")
   }
 
   const [tab, setTab] = useState<"working" | "media" | "learning" | "break">(isMediaTeam ? "media" : "working")
@@ -657,6 +658,19 @@ export default function DailyUpdateForm({
       }
     }
 
+    // Past date: check new blocks don't overlap with already-saved entries
+    if (isPastDate && activeUpdate) {
+      const existingEntries = (activeUpdate.work_entries as Record<string,unknown>[] | null) ?? []
+      const savedTimes = existingEntries.filter(e => e.task_type !== "break" && e.start_time && e.end_time)
+      for (const b of filledBlocks) {
+        for (const ex of savedTimes) {
+          if (timesOverlap(b.startTime, b.endTime, ex.start_time as string, ex.end_time as string)) {
+            setWorkingError(`Time overlaps with existing entry "${ex.title}" already saved for this date.`); return
+          }
+        }
+      }
+    }
+
     // Voiceover mandatory: client, title, start time, end time
     for (let i = 0; i < voiceovers.length; i++) {
       const v = voiceovers[i]
@@ -747,7 +761,19 @@ export default function DailyUpdateForm({
         participant_ids: allParticipantIds,
       })
       if (!res.success) setWorkingError(res.error ?? "Submission failed.")
-      else { try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }; setWorkingDone(true); router.refresh() }
+      else {
+        try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
+        if (isPastDate) {
+          // Past date: show success banner, reset form for another entry, refresh data
+          setSubmitted(true)
+          setTimeBlocks([])
+          setVoiceovers([])
+          setPosters([])
+          router.refresh()
+        } else {
+          setWorkingDone(true); router.refresh()
+        }
+      }
     })
   }
 
@@ -755,6 +781,25 @@ export default function DailyUpdateForm({
   function handleMediaSubmit() {
     setError(null)
     if (tab !== "break" && shoots.length === 0 && edits.length === 0 && voiceovers.length === 0 && posters.length === 0) { setError("Add at least one shoot, edit, voiceover, or poster entry."); return }
+
+    // Past date: check new entries don't overlap with already-saved entries
+    if (isPastDate && activeUpdate) {
+      const existingEntries = (activeUpdate.work_entries as Record<string,unknown>[] | null) ?? []
+      const savedTimes = existingEntries.filter(e => e.task_type !== "break" && e.start_time && e.end_time)
+      const newEntries = [
+        ...shoots.map(s => ({ start: s.startTime, end: s.endTime, title: s.title || "Shoot" })),
+        ...edits.map(e => ({ start: e.startTime, end: e.endTime, title: e.title || "Edit" })),
+        ...voiceovers.map(e => ({ start: e.startTime, end: e.endTime, title: e.title || "Voiceover" })),
+        ...posters.map(e => ({ start: e.startTime, end: e.endTime, title: e.title || "Poster" })),
+      ]
+      for (const n of newEntries) {
+        for (const ex of savedTimes) {
+          if (timesOverlap(n.start, n.end, ex.start_time as string, ex.end_time as string)) {
+            setError(`Time overlaps with existing entry "${ex.title}" already saved for this date.`); return
+          }
+        }
+      }
+    }
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
@@ -830,7 +875,15 @@ export default function DailyUpdateForm({
         participant_ids: allMediaParticipantIds,
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
-      else { setMediaDone(true); setEditMode(false); router.refresh() }
+      else {
+        if (isPastDate) {
+          setSubmitted(true)
+          setShoots([]); setEdits([]); setVoiceovers([]); setPosters([])
+          router.refresh()
+        } else {
+          setMediaDone(true); setEditMode(false); router.refresh()
+        }
+      }
     })
   }
 
@@ -1086,7 +1139,8 @@ export default function DailyUpdateForm({
   // ── Already submitted screen ──────────────────────────────────────────────
   // Media team: all three tabs (media + learning + break) must be submitted.
   // Non-media: working is enough; learning is optional.
-  const allDone = isMediaTeam ? (mediaDone && learningDone && breaksDone) : workingDone
+  // Past dates always show the form (never the "done" screen) — user adds new entries, History handles editing
+  const allDone = !isPastDate && (isMediaTeam ? (mediaDone && learningDone && breaksDone) : workingDone)
 
   // Past 14 days with no submission and no approved leave — shown in the submitted screen
   const unsubmittedDates = useMemo(() => {
@@ -1389,6 +1443,17 @@ export default function DailyUpdateForm({
           </label>
         </div>
       </div>
+
+      {/* ── PAST DATE SUCCESS BANNER ─────────────────────────────────────── */}
+      {isPastDate && submitted && (
+        <div style={{ background:"#F0FDF4", border:"1.5px solid #22C55E", borderRadius:12, padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:16 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <CheckCircle2 size={18} style={{ color:"#22C55E", flexShrink:0 }} />
+            <p style={{ fontSize:13, fontWeight:700, color:"#15803D", margin:0 }}>Entry added to {dateLabel}! Add another entry below or go to History to edit.</p>
+          </div>
+          <button onClick={() => setSubmitted(false)} style={{ fontSize:18, lineHeight:1, color:"#15803D", background:"none", border:"none", cursor:"pointer", padding:"0 4px" }}>×</button>
+        </div>
+      )}
 
       {/* ── TABS (all teams) ─────────────────────────────────────────────── */}
       <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>

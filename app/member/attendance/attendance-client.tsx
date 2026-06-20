@@ -36,6 +36,7 @@ interface MonthlyPerf {
 interface Props {
   todayLog: AttLog | null; weekLogs: AttLog[]; todayUpdate: DailyUpdate | null; today: string; weekStart: string
   todayPermissionHours?: number; permHoursByDate?: Record<string, number>
+  weekUpdatesByDate?: Record<string, number>
   monthlyPerf?: MonthlyPerf
 }
 
@@ -118,7 +119,7 @@ function SegmentBar({ hoursWorked }: { hoursWorked: number }) {
   )
 }
 
-export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, monthlyPerf }: Props) {
+export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">("office")
@@ -739,11 +740,15 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 const isToday    = date === today
                 const present    = log?.status === "present"
                 const absent     = log?.status === "leave" || log?.status === "absent"
-                // Net hours = (clock_out - clock_in) minus breaks and permission deductions
+                // Prefer daily_updates.working_hours (accurate entry-based calc) for past days;
+                // fall back to clock_in/clock_out span minus breaks for today or when no update
+                const updateH = !isToday ? weekUpdatesByDate[date] : undefined
                 const rawH = log?.clock_in
                   ? (log.clock_out ? calcHours(log.clock_in, log.clock_out) : (isToday ? calcHours(log.clock_in, null) : 0))
                   : 0
-                const h = Math.max(0, rawH - (log?.break_total_mins ?? 0) / 60 - (permHoursByDate[date] ?? 0))
+                const h = (updateH != null && updateH > 0)
+                  ? updateH
+                  : Math.max(0, rawH - (log?.break_total_mins ?? 0) / 60 - (permHoursByDate[date] ?? 0))
 
                 let dot = "#D1D5DB"; let label = "No record"; let color = "#9CA3AF"
                 if (isFuture)    { dot = "#E5E7EB"; label = "—"; color = "rgba(0,0,0,0.1)" }

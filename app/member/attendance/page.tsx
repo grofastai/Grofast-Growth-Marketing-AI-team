@@ -63,6 +63,7 @@ export default async function AttendancePage() {
     { data: monthUpdatesRaw },
     { count: pendingLeavesCount },
     { data: approvedLeavesRaw },
+    { data: weekUpdatesRaw },
   ] = await Promise.all([
     supabase.from("attendance_logs")
       .select("id, date, clock_in, clock_out, break_in, break_out, break_total_mins, break_sessions, work_type, status, paused_seconds")
@@ -104,7 +105,21 @@ export default async function AttendancePage() {
       .eq("status", "approved")
       .gte("from_date", monthStart)
       .lte("from_date", today),
+    // Weekly daily_updates — used to show accurate worked hours in weekly view
+    admin.from("daily_updates")
+      .select("date, working_hours")
+      .eq("user_id", effectiveUserId)
+      .gte("date", weekStart)
+      .lte("date", weekEnd),
   ])
+
+  // Work hours per day from daily_updates (for accurate weekly display)
+  const weekUpdatesByDate: Record<string, number> = {}
+  for (const u of (weekUpdatesRaw ?? []) as { date: string; working_hours: number | null }[]) {
+    if (u.working_hours != null && u.working_hours > 0) {
+      weekUpdatesByDate[u.date] = u.working_hours
+    }
+  }
 
   // Sum approved permission hours per date
   const permHoursByDate: Record<string, number> = {}
@@ -182,6 +197,7 @@ export default async function AttendancePage() {
       weekStart={weekStart}
       todayPermissionHours={todayPermissionHours}
       permHoursByDate={permHoursByDate}
+      weekUpdatesByDate={weekUpdatesByDate}
       monthlyPerf={monthlyPerf}
     />
   )

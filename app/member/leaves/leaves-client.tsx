@@ -530,7 +530,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                                   <X size={11} /> Cancel
                                 </button>
                               </div>
-                            ) : leave.status === "approved" ? (
+                            ) : leave.status === "approved" && leave.to_date >= today ? (
                               <button onClick={() => setDeleteId(leave.id)}
                                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 8, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", fontSize: 11, fontWeight: 700, color: "#EF4444", cursor: "pointer" }}>
                                 <X size={11} /> Withdraw

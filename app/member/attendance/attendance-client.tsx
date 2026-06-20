@@ -831,73 +831,73 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
           <Image src="/brand/tasks-complete.png" alt="" fill style={{ objectFit: "contain" }} />
         </div>
 
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
-            <TrendingUp size={16} style={{ color: "#6366F1" }} />
-          </div>
-          <div>
-            <p className="text-[14px] font-bold" style={{ color: "#111111" }}>Daily Insight</p>
-            <p className="text-[12px]" style={{ color: "#9CA3AF" }}>
-              {hoursWorked >= SHIFT_HOURS ? "Great work! Target reached 🔥" : hoursWorked > 0 ? "Keep going! You're doing great." : "Log in to start your day."}
-            </p>
-          </div>
-        </div>
+        {/* Header + two groups in one straight line */}
+        <div className="flex flex-col md:flex-row md:items-center gap-4 pr-24">
 
-        {/* LOGIN row */}
-        <div className="flex flex-wrap items-center gap-2 mb-3 pr-24">
-          <span className="text-[10px] font-black uppercase tracking-widest w-16 flex-shrink-0" style={{ color: "#9CA3AF" }}>Login</span>
-          <div className="flex gap-2 flex-wrap">
-            <div className="rounded-xl px-4 py-2" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.12)" }}>
-              <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "#6366F1" }}>Login Hrs</p>
-              <p className="text-[18px] font-black leading-none" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
+          {/* Left label + icon */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
+              <TrendingUp size={16} style={{ color: "#6366F1" }} />
+            </div>
+            <div>
+              <p className="text-[14px] font-bold" style={{ color: "#111111" }}>Daily Insight</p>
+              <p className="text-[12px]" style={{ color: "#9CA3AF" }}>
+                {hoursWorked >= SHIFT_HOURS ? "Great work! Target reached 🔥" : hoursWorked > 0 ? "Keep going! You're doing great." : "Log in to start your day."}
+              </p>
+            </div>
+          </div>
+
+          {/* LOGIN group */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase tracking-widest flex-shrink-0" style={{ color: "#9CA3AF" }}>Login</span>
+            <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.12)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#6366F1" }}>Login Hrs</p>
+              <p className="text-[20px] font-black leading-none" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
                 {todayLog?.clock_in ? fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out)) : "0h"}
               </p>
             </div>
-            <div className="rounded-xl px-4 py-2" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
-              <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "#D97706" }}>Target</p>
-              <p className="text-[18px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>9h 30m</p>
+            <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Target</p>
+              <p className="text-[20px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>9h 30m</p>
             </div>
-            <div className="rounded-xl px-4 py-2" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-              <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "#de1a1a" }}>Remaining</p>
-              <p className="text-[18px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+            <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Remaining</p>
+              <p className="text-[20px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
                 {todayLog?.clock_in ? fmtHoursShort(Math.max(0, 9.5 - calcHours(todayLog.clock_in, todayLog.clock_out))) : "9h 30m"}
               </p>
             </div>
           </div>
-        </div>
 
-        {/* Divider */}
-        <div className="mb-3" style={{ height: 1, background: "rgba(0,0,0,0.05)" }} />
+          {/* Vertical divider */}
+          <div className="hidden md:block self-stretch" style={{ width: 1, background: "rgba(0,0,0,0.07)", margin: "4px 0" }} />
 
-        {/* WORKING row */}
-        {(() => {
-          const todayWorkHrs = todayUpdate?.working_hours ?? 0
-          const workRemaining = Math.max(0, 8.5 - todayWorkHrs)
-          return (
-            <div className="flex flex-wrap items-center gap-2 pr-24">
-              <span className="text-[10px] font-black uppercase tracking-widest w-16 flex-shrink-0" style={{ color: "#9CA3AF" }}>Working</span>
-              <div className="flex gap-2 flex-wrap">
-                <div className="rounded-xl px-4 py-2" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.12)" }}>
-                  <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "#16A34A" }}>Working Hrs</p>
-                  <p className="text-[18px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
+          {/* WORKING group */}
+          {(() => {
+            const todayWorkHrs = todayUpdate?.working_hours ?? 0
+            return (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest flex-shrink-0" style={{ color: "#9CA3AF" }}>Working</span>
+                <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.12)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Working Hrs</p>
+                  <p className="text-[20px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
                     {todayWorkHrs > 0 ? fmtHoursShort(todayWorkHrs) : "0h"}
                   </p>
                 </div>
-                <div className="rounded-xl px-4 py-2" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
-                  <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "#D97706" }}>Target</p>
-                  <p className="text-[18px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
+                <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Target</p>
+                  <p className="text-[20px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
                 </div>
-                <div className="rounded-xl px-4 py-2" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-                  <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "#de1a1a" }}>Remaining</p>
-                  <p className="text-[18px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-                    {todayWorkHrs > 0 ? fmtHoursShort(workRemaining) : "8h 30m"}
+                <div className="rounded-2xl px-4 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
+                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Remaining</p>
+                  <p className="text-[20px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+                    {todayWorkHrs > 0 ? fmtHoursShort(Math.max(0, 8.5 - todayWorkHrs)) : "8h 30m"}
                   </p>
                 </div>
               </div>
-            </div>
-          )
-        })()}
+            )
+          })()}
+
+        </div>
       </div>
 
       {/* ── View Past Attendance ─────────────────────────────────────── */}

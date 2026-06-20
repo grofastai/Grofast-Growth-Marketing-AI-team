@@ -639,7 +639,7 @@ export default function DailyUpdateForm({
   // ── Submit: working (time blocks) ────────────────────────────────────────
   function handleWorkingSubmit() {
     setWorkingError(null)
-    if (filledBlocks.length === 0) { setWorkingError("Add at least one time block with a description."); return }
+    if (filledBlocks.length === 0 && posters.length === 0 && voiceovers.length === 0) { setWorkingError("Add at least one time block, poster, or voiceover."); return }
 
     // Per-block validation: timings + description + client are all mandatory
     for (let i = 0; i < filledBlocks.length; i++) {

@@ -57,6 +57,7 @@ export default async function AttendancePage() {
   const admin = adminSupabase()
 
   const [
+    { data: profileRaw },
     { data: todayLogRaw },
     { data: weekLogsRaw },
     { data: todayUpdateRaw },
@@ -67,6 +68,7 @@ export default async function AttendancePage() {
     { data: approvedLeavesRaw },
     { data: weekUpdatesRaw },
   ] = await Promise.all([
+    supabase.from("users").select("team").eq("id", effectiveUserId).maybeSingle(),
     supabase.from("attendance_logs")
       .select("id, date, clock_in, clock_out, break_in, break_out, break_total_mins, break_sessions, work_type, status, paused_seconds")
       .eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
@@ -148,9 +150,12 @@ export default async function AttendancePage() {
   const monthUpdates = (monthUpdatesRaw ?? []) as MonthUpdate[]
   const approvedLeaves = (approvedLeavesRaw ?? []) as { from_date: string; to_date: string; leave_type: string | null }[]
 
+  const isMedia = (profileRaw as { team?: string | null } | null)?.team === "Media Team"
+
   const presentLogs = monthAttLogs.filter(l => l.status === "present")
   const monthOfficeDays  = presentLogs.filter(l => l.work_type === "office").length
   const monthWfhDays     = presentLogs.filter(l => l.work_type === "wfh").length
+  const monthShootDays   = presentLogs.filter(l => l.work_type === "shoot" || l.work_type === "outside").length
   const monthPresentDays = presentLogs.length
 
   // Login hours = raw span (no break deduction) — for Monthly Login Hrs / Avg Login Hrs
@@ -196,6 +201,7 @@ export default async function AttendancePage() {
     absentDays:   monthAbsentDays,
     officeDays:   monthOfficeDays,
     wfhDays:      monthWfhDays,
+    shootDays:    monthShootDays,
     leaveDays:    monthLeaveDays,
     pendingLeaves: pendingLeavesCount ?? 0,
     totalHours:   monthTotalHrs,
@@ -216,6 +222,7 @@ export default async function AttendancePage() {
       weekUpdatesByDate={weekUpdatesByDate}
       monthlyPerf={monthlyPerf}
       todayApprovedLeave={todayApprovedLeave}
+      isMedia={isMedia}
     />
   )
 }

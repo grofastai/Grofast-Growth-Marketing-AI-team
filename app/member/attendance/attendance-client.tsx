@@ -28,7 +28,7 @@ type RangeLog = { id: string; date: string; clock_in: string | null; clock_out: 
 type RangeMode = "date" | "last7" | "thisMonth" | "lastMonth"
 
 interface MonthlyPerf {
-  presentDays: number; absentDays: number; officeDays: number; wfhDays: number
+  presentDays: number; absentDays: number; officeDays: number; wfhDays: number; shootDays?: number
   leaveDays: number; pendingLeaves: number; totalHours: number; avgHours: number
   loginHours?: number; avgLoginHours?: number
 }
@@ -39,6 +39,7 @@ interface Props {
   weekUpdatesByDate?: Record<string, number>
   monthlyPerf?: MonthlyPerf
   todayApprovedLeave?: { leave_type: string; reason: string | null } | null
+  isMedia?: boolean
 }
 
 const SHIFT_HOURS = 8.5
@@ -120,7 +121,7 @@ function SegmentBar({ hoursWorked }: { hoursWorked: number }) {
   )
 }
 
-export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf, todayApprovedLeave }: Props) {
+export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf, todayApprovedLeave, isMedia = false }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">("office")
@@ -618,23 +619,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
             </div>{/* inner timer card */}
 
-            {/* Monthly Total Hrs + Monthly Avg Hrs — below day status card */}
-            {monthlyPerf && (
-              <div className="flex gap-3 mt-4">
-                <div className="flex-1 rounded-2xl px-4 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Monthly Login Hrs</p>
-                  <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-                    {(monthlyPerf.loginHours ?? 0) > 0 ? fmtHoursShort(monthlyPerf.loginHours ?? 0) : "0h"}
-                  </p>
-                </div>
-                <div className="flex-1 rounded-2xl px-4 py-3" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Avg Login Hrs</p>
-                  <p className="text-[22px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                    {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgLoginHours ?? 0) : "0h"}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>{/* px-5 pb-5 */}
         </div>{/* outer card */}
 
@@ -820,7 +804,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { label: "Office",  value: monthlyPerf?.officeDays   ?? 0, color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
-                      { label: "WFH",     value: monthlyPerf?.wfhDays      ?? 0, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+                      { label: isMedia ? "Shoot" : "WFH", value: isMedia ? (monthlyPerf?.shootDays ?? 0) : (monthlyPerf?.wfhDays ?? 0), color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
                       { label: "Leave",   value: (monthlyPerf?.absentDays ?? 0) + (monthlyPerf?.leaveDays ?? 0), color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
                     ].map(stat => (
                       <div key={stat.label} className="rounded-2xl p-3 text-center" style={{ background: stat.bg }}>
@@ -837,119 +821,83 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
           </div>
 
-          {/* Work Hours Summary — separate card */}
-          {monthlyPerf && (
-            <div className="rounded-3xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
-                  <Clock size={16} style={{ color: "#6366F1" }} />
-                </div>
-                <div>
-                  <h3 className="text-[15px] font-bold leading-none" style={{ color: "#111111" }}>Work Hours Summary</h3>
-                  <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>{new Date().toLocaleString("en-US", { month: "long", year: "numeric" })}</p>
-                </div>
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)" }}>
-                  <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
-                    {monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
-                  </p>
-                  <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#6366F1" }}>Total</p>
-                </div>
-                <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.15)" }}>
-                  <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
-                  <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#D97706" }}>Daily Target</p>
-                </div>
-                <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                  <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                    {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgHours) : "0h"}
-                  </p>
-                  <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#16A34A" }}>Avg / Day</p>
-                </div>
-              </div>
-            </div>
-          )}
-
         </div>{/* end third col */}
 
       </div>
 
-      {/* Work Hours Summary — mobile/tablet only (xl shows this in the third column sidebar) */}
-      {monthlyPerf && (
-        <div className="xl:hidden rounded-3xl p-5 mb-5" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
-              <Clock size={16} style={{ color: "#6366F1" }} />
-            </div>
-            <div>
-              <h3 className="text-[15px] font-bold leading-none" style={{ color: "#111111" }}>Work Hours Summary</h3>
-              <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>{new Date().toLocaleString("en-US", { month: "long", year: "numeric" })}</p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)" }}>
-              <p className="text-[18px] font-black leading-none mb-1" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
-                {monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
-              </p>
-              <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#6366F1" }}>Total</p>
-            </div>
-            <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.15)" }}>
-              <p className="text-[18px] font-black leading-none mb-1" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
-              <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#D97706" }}>Daily Target</p>
-            </div>
-            <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}>
-              <p className="text-[18px] font-black leading-none mb-1" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgHours) : "0h"}
-              </p>
-              <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#16A34A" }}>Avg / Day</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Daily Insight + Summary ── */}
+      {/* ── Daily Insight — LOGIN + WORKING rows ── */}
       <div className="rounded-3xl p-5 relative overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-        {/* Target illustration */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 w-24 h-24 opacity-90 pointer-events-none">
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 w-20 h-20 opacity-70 pointer-events-none">
           <Image src="/brand/tasks-complete.png" alt="" fill style={{ objectFit: "contain" }} />
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center gap-6 pr-28">
-          {/* Daily Insight label */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
-              <TrendingUp size={16} style={{ color: "#6366F1" }} />
-            </div>
-            <div>
-              <p className="text-[14px] font-bold" style={{ color: "#111111" }}>Daily Insight</p>
-              <p className="text-[12px]" style={{ color: "#9CA3AF" }}>
-                {hoursWorked >= SHIFT_HOURS ? "Great work! Target reached 🔥" : hoursWorked > 0 ? "Keep going! You're doing great." : "Log in to start your day."}
-              </p>
-            </div>
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
+            <TrendingUp size={16} style={{ color: "#6366F1" }} />
           </div>
+          <div>
+            <p className="text-[14px] font-bold" style={{ color: "#111111" }}>Daily Insight</p>
+            <p className="text-[12px]" style={{ color: "#9CA3AF" }}>
+              {hoursWorked >= SHIFT_HOURS ? "Great work! Target reached 🔥" : hoursWorked > 0 ? "Keep going! You're doing great." : "Log in to start your day."}
+            </p>
+          </div>
+        </div>
 
-          {/* Stats */}
-          <div className="flex gap-4 flex-wrap">
-            <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#6366F1" }}>Login Hrs</p>
-              <p className="text-[22px] font-black leading-none" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
+        {/* LOGIN row */}
+        <div className="flex flex-wrap items-center gap-2 mb-3 pr-24">
+          <span className="text-[10px] font-black uppercase tracking-widest w-16 flex-shrink-0" style={{ color: "#9CA3AF" }}>Login</span>
+          <div className="flex gap-2 flex-wrap">
+            <div className="rounded-xl px-4 py-2" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.12)" }}>
+              <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "#6366F1" }}>Login Hrs</p>
+              <p className="text-[18px] font-black leading-none" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
                 {todayLog?.clock_in ? fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out)) : "0h"}
               </p>
             </div>
-            <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Target</p>
-              <p className="text-[22px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>
-                9h 30m
-              </p>
+            <div className="rounded-xl px-4 py-2" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
+              <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "#D97706" }}>Target</p>
+              <p className="text-[18px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>9h 30m</p>
             </div>
-            <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Remaining</p>
-              <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+            <div className="rounded-xl px-4 py-2" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
+              <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "#de1a1a" }}>Remaining</p>
+              <p className="text-[18px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
                 {todayLog?.clock_in ? fmtHoursShort(Math.max(0, 9.5 - calcHours(todayLog.clock_in, todayLog.clock_out))) : "9h 30m"}
               </p>
             </div>
           </div>
         </div>
+
+        {/* Divider */}
+        <div className="mb-3" style={{ height: 1, background: "rgba(0,0,0,0.05)" }} />
+
+        {/* WORKING row */}
+        {(() => {
+          const todayWorkHrs = todayUpdate?.working_hours ?? 0
+          const workRemaining = Math.max(0, 8.5 - todayWorkHrs)
+          return (
+            <div className="flex flex-wrap items-center gap-2 pr-24">
+              <span className="text-[10px] font-black uppercase tracking-widest w-16 flex-shrink-0" style={{ color: "#9CA3AF" }}>Working</span>
+              <div className="flex gap-2 flex-wrap">
+                <div className="rounded-xl px-4 py-2" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.12)" }}>
+                  <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "#16A34A" }}>Working Hrs</p>
+                  <p className="text-[18px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
+                    {todayWorkHrs > 0 ? fmtHoursShort(todayWorkHrs) : "0h"}
+                  </p>
+                </div>
+                <div className="rounded-xl px-4 py-2" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
+                  <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "#D97706" }}>Target</p>
+                  <p className="text-[18px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
+                </div>
+                <div className="rounded-xl px-4 py-2" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
+                  <p className="text-[9px] font-bold uppercase tracking-wide mb-0.5" style={{ color: "#de1a1a" }}>Remaining</p>
+                  <p className="text-[18px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+                    {todayWorkHrs > 0 ? fmtHoursShort(workRemaining) : "8h 30m"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
       </div>
 
       {/* ── View Past Attendance ─────────────────────────────────────── */}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useTransition, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -1333,7 +1333,6 @@ export default function FreelancersClient({
   assignments?: Record<string, string[]>
 }) {
   const router = useRouter()
-  const [, startTransition] = useTransition()
 
   const [freelancers, setFreelancers] = useState(initFreelancers)
   const [entries, setEntries] = useState(initEntries)
@@ -1388,7 +1387,7 @@ export default function FreelancersClient({
     const res = await deleteFreelancer(id)
     if (res.success) {
       setFreelancers(prev => prev.filter(f => f.id !== id))
-      startTransition(() => router.refresh())
+      router.refresh()
     }
   }
 
@@ -1495,14 +1494,14 @@ export default function FreelancersClient({
         initialAssignments={sheetInitAssignments}
         onCreated={f => {
           setFreelancers(prev => [f, ...prev])
-          startTransition(() => router.refresh())
+          router.refresh()
         }}
         onUpdated={(f, newAssignedIds) => {
           setFreelancers(prev => prev.map(x => x.id === f.id ? { ...x, ...f } : x))
           if (newAssignedIds !== undefined) {
             setAssignments(prev => ({ ...prev, [f.id]: newAssignedIds }))
           }
-          startTransition(() => router.refresh())
+          router.refresh()
         }}
       />
 
@@ -1513,7 +1512,7 @@ export default function FreelancersClient({
         entries={entries}
         activeClientNames={activeClientNames}
         pastClientNames={pastClientNames}
-        onEntryAdded={e => { setEntries(prev => [e, ...prev]); startTransition(() => router.refresh()) }}
+        onEntryAdded={e => { setEntries(prev => [e, ...prev]); router.refresh() }}
         onEntryUpdated={(id, patch) => setEntries(prev => prev.map(e => e.id === id ? { ...e, ...patch } : e))}
         onEntryDeleted={id => setEntries(prev => prev.filter(e => e.id !== id))}
       />

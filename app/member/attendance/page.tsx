@@ -188,6 +188,11 @@ export default async function AttendancePage() {
     avgLoginHours: monthAvgLoginHrs,
   }
 
+  // True if member has an admin-approved non-permission leave covering today
+  const todayHasApprovedLeave = approvedLeaves.some(
+    l => l.leave_type !== "permission" && l.from_date <= today && l.to_date >= today
+  )
+
   return (
     <AttendanceClient
       todayLog={todayLogRaw as unknown as AttLog | null}
@@ -199,6 +204,7 @@ export default async function AttendancePage() {
       permHoursByDate={permHoursByDate}
       weekUpdatesByDate={weekUpdatesByDate}
       monthlyPerf={monthlyPerf}
+      todayHasApprovedLeave={todayHasApprovedLeave}
     />
   )
 }

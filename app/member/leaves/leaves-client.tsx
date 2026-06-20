@@ -15,6 +15,15 @@ interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
   created_at: string; leave_type?: string; permission_hours?: number | null; permission_time?: string | null; half_day_period?: string | null
 }
+
+// Returns true only if the leave hasn't started yet — before 9:30 AM IST on from_date
+function canModifyLeave(leave: Leave, today: string): boolean {
+  if (leave.from_date > today) return true
+  if (leave.from_date < today) return false
+  // Leave starts today — only allow before 9:30 AM IST
+  const ist = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }))
+  return ist.getHours() * 60 + ist.getMinutes() < 9 * 60 + 30
+}
 type LeaveType = "full_day" | "half_day" | "permission"
 
 interface CompanyLeave {
@@ -517,7 +526,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                               <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0 }}>Requested on {fmtShort(leave.created_at)}</p>
                             )}
                             {/* Actions: pending → Edit + Cancel; approved → Withdraw; absent/rejected → nothing */}
-                            {leave.status === "absent" || leave.status === "rejected" ? null : leave.status === "pending" ? (
+                            {/* Both Cancel and Withdraw are hidden after 9:30 AM IST on the leave's from_date */}
+                            {leave.status === "absent" || leave.status === "rejected" ? null : leave.status === "pending" && canModifyLeave(leave, today) ? (
                               <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
                                 <button
                                   onClick={() => { setEditingLeave(leave); setShowForm(true) }}
@@ -530,7 +540,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                                   <X size={11} /> Cancel
                                 </button>
                               </div>
-                            ) : leave.status === "approved" && leave.to_date >= today ? (
+                            ) : leave.status === "approved" && canModifyLeave(leave, today) ? (
                               <button onClick={() => setDeleteId(leave.id)}
                                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 8, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", fontSize: 11, fontWeight: 700, color: "#EF4444", cursor: "pointer" }}>
                                 <X size={11} /> Withdraw

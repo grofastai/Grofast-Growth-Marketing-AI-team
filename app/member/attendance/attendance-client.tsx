@@ -38,6 +38,7 @@ interface Props {
   todayPermissionHours?: number; permHoursByDate?: Record<string, number>
   weekUpdatesByDate?: Record<string, number>
   monthlyPerf?: MonthlyPerf
+  todayHasApprovedLeave?: boolean
 }
 
 const SHIFT_HOURS = 8.5
@@ -119,7 +120,7 @@ function SegmentBar({ hoursWorked }: { hoursWorked: number }) {
   )
 }
 
-export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf }: Props) {
+export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf, todayHasApprovedLeave = false }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">("office")
@@ -334,10 +335,16 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     setEditBrkIn(toHHMM(breakIn)); setEditBrkOut(toHHMM(breakOut))
   }
 
+  // After 9:30 AM IST on the leave day, hide the login UI even if no attendance record exists
+  const pastOfficeStart = (() => {
+    const ist = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }))
+    return ist.getHours() * 60 + ist.getMinutes() >= 9 * 60 + 30
+  })()
   const isAbsent  = todayLog?.status === "leave" || todayLog?.status === "absent"
+    || (todayHasApprovedLeave && pastOfficeStart)
   const isIn      = !!todayLog?.clock_in && !todayLog?.clock_out && todayLog?.status === "present"
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
-  const notLogged = !todayLog
+  const notLogged = !todayLog && !isAbsent
   const breakTotalMins  = todayLog?.break_total_mins ?? 0
   const spanMinsToday   = (todayLog?.clock_in && todayLog?.clock_out)
     ? Math.floor((new Date(todayLog.clock_out).getTime() - new Date(todayLog.clock_in).getTime()) / 60000)

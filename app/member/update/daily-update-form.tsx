@@ -672,6 +672,7 @@ export default function DailyUpdateForm({
           task_type: "other" as const,
           title: t.description, start_time: t.startTime, end_time: t.endTime,
           duration_hours: t.durationHours, notes: "",
+          participant_ids: t.participantIds ?? [],
           video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
         }
       }),
@@ -1013,6 +1014,7 @@ export default function DailyUpdateForm({
             task_type: "other" as const,
             title: t.description, start_time: t.startTime, end_time: t.endTime,
             duration_hours: t.durationHours, notes: `[${t.status}]`,
+            participant_ids: t.participantIds ?? [],
             video_uploaded: null, screenshot_url: "", video_link: "", editing_videos: [],
           }
         })

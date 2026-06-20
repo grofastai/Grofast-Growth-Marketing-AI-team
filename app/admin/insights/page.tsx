@@ -156,22 +156,37 @@ export default async function InsightsPage({
   }
 
   const memberClientsMap: Record<string, Set<string>> = {}
+  const memberClientHoursMap: Record<string, Record<string, number>> = {}
   for (const l of logs) {
-    if (!l.client_name) continue
-    if (!memberClientsMap[l.user_id]) memberClientsMap[l.user_id] = new Set()
-    memberClientsMap[l.user_id].add(l.client_name)
+    const cn = l.client_name ?? 'Unassigned'
+    if (l.client_name) {
+      if (!memberClientsMap[l.user_id]) memberClientsMap[l.user_id] = new Set()
+      memberClientsMap[l.user_id].add(l.client_name)
+    }
+    if (!memberClientHoursMap[l.user_id]) memberClientHoursMap[l.user_id] = {}
+    memberClientHoursMap[l.user_id][cn] = (memberClientHoursMap[l.user_id][cn] ?? 0) + l.hours
   }
 
-  const employeePerformance = members.map(u => ({
-    id:             u.id,
-    name:           u.name,
-    employee_id:    u.employee_id,
-    clients:        Array.from(memberClientsMap[u.id] ?? []),
-    tasksCompleted: tasksCompletedMap[u.id] ?? 0,
-    hours:          memberStats[u.id]?.hours ?? 0,
-    workValue:      memberStats[u.id]?.cost  ?? 0,
-    salary:         u.monthly_salary ?? 0,
-  })).sort((a, b) => b.workValue - a.workValue)
+  const maxTeamHours = Math.max(...members.map(u => memberStats[u.id]?.hours ?? 0), 1)
+
+  const employeePerformance = members.map(u => {
+    const hours          = memberStats[u.id]?.hours ?? 0
+    const workValue      = memberStats[u.id]?.cost  ?? 0
+    const salary         = u.monthly_salary ?? 0
+    const tasksCompleted = tasksCompletedMap[u.id] ?? 0
+    const clients        = Array.from(memberClientsMap[u.id] ?? [])
+    const hoursPerClient = Object.entries(memberClientHoursMap[u.id] ?? {})
+      .sort(([, a], [, b]) => b - a)
+      .map(([name, h]) => ({ name, hours: h }))
+
+    // Productivity score: 50pts from value/salary, 30pts from tasks (max 10), 20pts from hours (vs team max)
+    const valuePts = salary > 0 ? Math.min(50, (workValue / salary) * 50) : 0
+    const taskPts  = Math.min(30, tasksCompleted * 3)
+    const hoursPts = Math.min(20, (hours / maxTeamHours) * 20)
+    const productivityScore = Math.round(valuePts + taskPts + hoursPts)
+
+    return { id: u.id, name: u.name, employee_id: u.employee_id, clients, tasksCompleted, hours, workValue, salary, hoursPerClient, productivityScore }
+  }).sort((a, b) => b.productivityScore - a.productivityScore)
 
   // ── Post summary ─────────────────────────────────────────────────────────
   const postsByType: Record<string, number>     = {}

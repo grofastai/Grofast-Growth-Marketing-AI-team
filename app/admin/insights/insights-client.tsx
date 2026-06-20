@@ -43,6 +43,8 @@ type EmpPerf = {
   id: string; name: string; employee_id: string
   clients: string[]; tasksCompleted: number
   hours: number; workValue: number; salary: number
+  hoursPerClient: { name: string; hours: number }[]
+  productivityScore: number
 }
 
 export default function InsightsClient({
@@ -157,7 +159,7 @@ export default function InsightsClient({
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
               <thead>
                 <tr style={{ background: '#FAFAFA' }}>
-                  {['Employee', 'Clients Worked', 'Tasks Done', 'Hours', 'Work Value', 'Salary', 'Value vs Pay'].map(h => (
+                  {['Employee', 'Clients', 'Tasks Done', 'Hours', 'Work Value', 'Salary', 'Value vs Pay', 'Score'].map(h => (
                     <th key={h} style={{ fontSize: 10, fontWeight: 800, color: '#9CA3AF', letterSpacing: '0.08em', textAlign: 'left', padding: '10px 14px', borderBottom: '1px solid #F3F4F6', whiteSpace: 'nowrap' }}>{h.toUpperCase()}</th>
                   ))}
                 </tr>
@@ -218,6 +220,24 @@ export default function InsightsClient({
                           {ratio != null ? `${ratio}%` : '—'}
                         </span>
                       </td>
+                      {/* Productivity Score */}
+                      <td style={{ padding: '12px 14px' }}>
+                        {(() => {
+                          const s = emp.productivityScore
+                          const sc = s >= 70 ? '#10B981' : s >= 40 ? '#F59E0B' : '#EF4444'
+                          const sb = s >= 70 ? 'rgba(16,185,129,0.08)' : s >= 40 ? 'rgba(245,158,11,0.08)' : 'rgba(239,68,68,0.08)'
+                          return (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <div style={{ width: 36, height: 36, borderRadius: 10, background: sb, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <span style={{ fontSize: 13, fontWeight: 900, color: sc }}>{s}</span>
+                              </div>
+                              <div style={{ width: 50, height: 6, background: '#F3F4F6', borderRadius: 3, overflow: 'hidden' }}>
+                                <div style={{ width: `${s}%`, height: '100%', background: sc, borderRadius: 3 }} />
+                              </div>
+                            </div>
+                          )
+                        })()}
+                      </td>
                     </tr>
                   )
                 })}
@@ -235,6 +255,90 @@ export default function InsightsClient({
                 <span style={{ fontSize: 10, color: '#6B7280', fontWeight: 500 }}>{l.label}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Leaderboard + Hours per Client ─────────────────────────────────── */}
+      {employeePerformance.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 16, marginBottom: 18 }}>
+
+          {/* Leaderboard */}
+          <div style={CARD}>
+            <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid #F3F4F6' }}>
+              <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', margin: 0, fontFamily: 'var(--font-jakarta)' }}>🏆 Monthly Performance Ranking</p>
+              <p style={{ fontSize: 11, color: '#9CA3AF', margin: '3px 0 0' }}>Ranked by productivity score</p>
+            </div>
+            <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[...employeePerformance].sort((a, b) => b.productivityScore - a.productivityScore).map((emp, i) => {
+                const medal   = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}.`
+                const s       = emp.productivityScore
+                const sc      = s >= 70 ? '#10B981' : s >= 40 ? '#F59E0B' : '#EF4444'
+                const clrList = ['#de1a1a','#6366F1','#10B981','#F59E0B','#8B5CF6','#06B6D4']
+                const clr     = clrList[i % clrList.length]
+                return (
+                  <div key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12, background: i === 0 ? 'rgba(245,158,11,0.06)' : '#FAFAFA', border: i === 0 ? '1px solid rgba(245,158,11,0.2)' : '1px solid transparent' }}>
+                    <span style={{ fontSize: i < 3 ? 20 : 12, fontWeight: 700, color: '#6B7280', minWidth: 28, textAlign: 'center' }}>{medal}</span>
+                    <div style={{ width: 32, height: 32, borderRadius: 10, background: `${clr}18`, border: `1.5px solid ${clr}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <span style={{ fontSize: 11, fontWeight: 900, color: clr }}>{ini(emp.name)}</span>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: '#111827', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.name}</p>
+                      <p style={{ fontSize: 10, color: '#9CA3AF', margin: 0 }}>{emp.clients.length} clients · {emp.tasksCompleted} tasks · {fmtH(emp.hours)}</p>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                      <div style={{ width: 48, height: 5, background: '#F3F4F6', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ width: `${s}%`, height: '100%', background: sc, borderRadius: 3 }} />
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 900, color: sc, minWidth: 28, textAlign: 'right' }}>{s}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Hours per Client */}
+          <div style={CARD}>
+            <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid #F3F4F6' }}>
+              <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', margin: 0, fontFamily: 'var(--font-jakarta)' }}>⏱️ Hours per Client (by Employee)</p>
+              <p style={{ fontSize: 11, color: '#9CA3AF', margin: '3px 0 0' }}>Top 3 clients per team member</p>
+            </div>
+            <div style={{ padding: '12px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {employeePerformance.filter(e => e.hoursPerClient.length > 0).map((emp, i) => {
+                const clrList = ['#de1a1a','#6366F1','#10B981','#F59E0B','#8B5CF6','#06B6D4']
+                const clr = clrList[i % clrList.length]
+                const topClients = emp.hoursPerClient.slice(0, 3)
+                const maxH = topClients[0]?.hours ?? 1
+                return (
+                  <div key={emp.id}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: 7, background: `${clr}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span style={{ fontSize: 9, fontWeight: 900, color: clr }}>{ini(emp.name)}</span>
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{emp.name}</span>
+                      <span style={{ fontSize: 10, color: '#9CA3AF', marginLeft: 'auto' }}>{fmtH(emp.hours)} total</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingLeft: 32 }}>
+                      {topClients.map(c => (
+                        <div key={c.name}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                            <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>{c.name}</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: clr }}>{fmtH(c.hours)}</span>
+                          </div>
+                          <div style={{ height: 5, background: '#F3F4F6', borderRadius: 3, overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.round((c.hours / maxH) * 100)}%`, height: '100%', background: clr, borderRadius: 3 }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+              {employeePerformance.every(e => e.hoursPerClient.length === 0) && (
+                <EmptyState msg="No client hours logged yet" />
+              )}
+            </div>
           </div>
         </div>
       )}

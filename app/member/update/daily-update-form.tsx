@@ -1606,11 +1606,33 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client</label>
-                          <select value={e.clientName} onChange={ev => patchVoiceover(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
-                            <option value="">Select client…</option>
-                            {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                            <option value="__custom__">Other…</option>
-                          </select>
+                          <div style={{ position:"relative" }}>
+                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
+                              <div>
+                                <button type="button" onClick={() => { exitPastMode(e.id); patchVoiceover(e.id, { clientName:"", customClient:"" }) }}
+                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
+                                  ← Back to Active Clients
+                                </button>
+                                <div style={{ position:"relative" }}>
+                                  <select value={e.clientName}
+                                    onChange={ev => { patchVoiceover(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
+                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                    <option value="">Select past client…</option>
+                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                  </select>
+                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                </div>
+                              </div>
+                            ) : (
+                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchVoiceover(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                <option value="">Select client…</option>
+                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                <option value="__custom__">✏️ Other (type manually)</option>
+                              </select>
+                            )}
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
                           {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchVoiceover(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
                         </div>
                         <div>
@@ -1671,11 +1693,33 @@ export default function DailyUpdateForm({
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client</label>
-                          <select value={e.clientName} onChange={ev => patchPoster(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
-                            <option value="">Select client…</option>
-                            {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                            <option value="__custom__">Other…</option>
-                          </select>
+                          <div style={{ position:"relative" }}>
+                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
+                              <div>
+                                <button type="button" onClick={() => { exitPastMode(e.id); patchPoster(e.id, { clientName:"", customClient:"" }) }}
+                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
+                                  ← Back to Active Clients
+                                </button>
+                                <div style={{ position:"relative" }}>
+                                  <select value={e.clientName}
+                                    onChange={ev => { patchPoster(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
+                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                    <option value="">Select past client…</option>
+                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                  </select>
+                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                </div>
+                              </div>
+                            ) : (
+                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchPoster(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                <option value="">Select client…</option>
+                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                <option value="__custom__">✏️ Other (type manually)</option>
+                              </select>
+                            )}
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
                           {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchPoster(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
                         </div>
                         <div>

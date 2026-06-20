@@ -849,7 +849,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>{new Date().toLocaleString("en-US", { month: "long", year: "numeric" })}</p>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2 mb-2">
+              <div className="flex flex-col gap-2">
                 <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)" }}>
                   <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
                     {monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
@@ -860,12 +860,12 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
                   <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#D97706" }}>Daily Target</p>
                 </div>
-              </div>
-              <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                  {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgHours) : "0h"}
-                </p>
-                <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#16A34A" }}>Avg / Day</p>
+                <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}>
+                  <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
+                    {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgHours) : "0h"}
+                  </p>
+                  <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#16A34A" }}>Avg / Day</p>
+                </div>
               </div>
             </div>
           )}

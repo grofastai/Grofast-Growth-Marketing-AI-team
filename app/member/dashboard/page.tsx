@@ -3,7 +3,7 @@ export const revalidate = 0
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
-import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap, Camera } from "lucide-react"
+import { Target, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap, Camera } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
@@ -379,44 +379,56 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
         {/* RIGHT — quick stat cards + today summary */}
         <div className="space-y-3">
-          <Link href="/member/tasks"
+          {/* Daily Update Status */}
+          <Link href="/member/update"
             className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
             style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
             <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(222,26,26,0.1)" }}>
-              <Target size={16} style={{ color: "#de1a1a" }} />
+              style={{ background: todayUpdate ? "rgba(22,163,74,0.1)" : "rgba(222,26,26,0.1)" }}>
+              <CheckCircle2 size={16} style={{ color: todayUpdate ? "#16A34A" : "#de1a1a" }} />
             </div>
             <div className="flex-1">
-              <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>{activeTasks}</p>
-              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Active Tasks</p>
+              <p className="text-[13px] font-black leading-none"
+                style={{ fontFamily: "var(--font-jakarta)", color: todayUpdate ? "#16A34A" : "#de1a1a" }}>
+                {todayUpdate ? "Submitted" : "Not Submitted"}
+              </p>
+              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Today&apos;s Update</p>
             </div>
             <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
           </Link>
 
+          {/* Monthly Attendance */}
           <Link href="/member/attendance"
             className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
             style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
             <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(222,26,26,0.1)" }}>
-              <Clock size={16} style={{ color: "#de1a1a" }} />
+              style={{ background: "rgba(99,102,241,0.1)" }}>
+              <Calendar size={16} style={{ color: "#6366F1" }} />
             </div>
             <div className="flex-1">
-              <div className="w-8 h-0.5 mb-1" style={{ background: "#de1a1a" }} />
-              <p className="text-[11px] font-medium" style={{ color: "#6B7280" }}>Today&apos;s Hours</p>
+              <p className="text-[22px] font-black leading-none"
+                style={{ fontFamily: "var(--font-jakarta)", color: "#6366F1" }}>{workingDays}</p>
+              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Days Present This Month</p>
             </div>
             <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
           </Link>
 
-          <Link href="/member/leaves"
+          {/* Overdue Tasks */}
+          <Link href="/member/tasks"
             className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
             style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
             <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: "rgba(222,26,26,0.1)" }}>
-              <CalendarOff size={16} style={{ color: "#de1a1a" }} />
+              style={{ background: todayOverdue.length > 0 ? "rgba(245,158,11,0.1)" : "rgba(22,163,74,0.1)" }}>
+              <AlertTriangle size={16} style={{ color: todayOverdue.length > 0 ? "#F59E0B" : "#16A34A" }} />
             </div>
             <div className="flex-1">
-              <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#de1a1a" }}>{Math.max(0, 5 - leaveDays)}</p>
-              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Leave Left{pendingLeaves > 0 ? ` · ${pendingLeaves} pending` : ""}</p>
+              <p className="text-[22px] font-black leading-none"
+                style={{ fontFamily: "var(--font-jakarta)", color: todayOverdue.length > 0 ? "#F59E0B" : "#16A34A" }}>
+                {todayOverdue.length > 0 ? todayOverdue.length : "✓"}
+              </p>
+              <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>
+                {todayOverdue.length > 0 ? "Overdue Tasks" : "No Overdue Tasks"}
+              </p>
             </div>
             <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
           </Link>

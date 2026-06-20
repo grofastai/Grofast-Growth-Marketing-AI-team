@@ -321,11 +321,11 @@ type PastUpdate = {
 }
 
 export default function DailyUpdateForm({
-  projects, sheetClientNames = [], pastClientNames = [], userName, team, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
+  projects, sheetClientNames = [], pastClientNames = [], userName, team, existingUpdate, pastUpdates = [], teamMembers = [], absentMemberIds = [], approvedLeaveDates = [],
 }: {
   projects: Project[]; sheetClientNames?: string[]; pastClientNames?: string[]; userName: string; team?: string | null
   existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
-  teamMembers?: TeamMember[]; approvedLeaveDates?: string[]
+  teamMembers?: TeamMember[]; absentMemberIds?: string[]; approvedLeaveDates?: string[]
 }) {
   const router = useRouter()
   const existingUpdateRef = useRef(existingUpdate)
@@ -1513,7 +1513,7 @@ export default function DailyUpdateForm({
                                       patchBlock(block.id, { participantIds: [...block.participantIds, id] })
                                   }} style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
                                     <option value="">Add teammate…</option>
-                                    {teamMembers.filter(m => !block.participantIds.includes(m.id)).map(m => (
+                                    {teamMembers.filter(m => !block.participantIds.includes(m.id) && !absentMemberIds.includes(m.id)).map(m => (
                                       <option key={m.id} value={m.id}>{m.name}</option>
                                     ))}
                                   </select>

@@ -41,7 +41,7 @@ export default function MonthFilterTabs({
     setShowPicker(false)
   }
 
-  const yearRange = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i)
+  const yearRange = Array.from({ length: 10 }, (_, i) => now.getFullYear() + i)
 
   const customLabel = mode === "custom" && customParam
     ? `${MONTHS[Number(customParam.split("-")[1]) - 1]} ${customParam.split("-")[0]}`

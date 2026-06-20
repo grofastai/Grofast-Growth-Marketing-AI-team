@@ -323,7 +323,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
           </p>
           <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
             {todayUpdate
-              ? `${todayUpdate.working_hours ?? "—"}h logged · ${shootCount} shoot${shootCount !== 1 ? "s" : ""}`
+              ? isMedia ? `${todayUpdate.working_hours ?? "—"}h logged · ${shootCount} shoot${shootCount !== 1 ? "s" : ""}` : `${todayUpdate.working_hours ?? "—"}h logged`
               : "Submit before 9 PM to avoid alerts"}
           </p>
         </div>

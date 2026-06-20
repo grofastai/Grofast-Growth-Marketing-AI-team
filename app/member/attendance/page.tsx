@@ -137,6 +137,7 @@ export default async function AttendancePage() {
   const presentLogs = monthAttLogs.filter(l => l.status === "present")
   const monthOfficeDays  = presentLogs.filter(l => l.work_type === "office").length
   const monthWfhDays     = presentLogs.filter(l => l.work_type === "wfh").length
+  const monthShootDays   = presentLogs.filter(l => l.work_type === "shoot").length
   const monthPresentDays = presentLogs.length
 
   // Login hours = raw span (no break deduction) — for Monthly Login Hrs / Avg Login Hrs
@@ -180,6 +181,7 @@ export default async function AttendancePage() {
     absentDays:   monthAbsentDays,
     officeDays:   monthOfficeDays,
     wfhDays:      monthWfhDays,
+    shootDays:    monthShootDays,
     leaveDays:    monthLeaveDays,
     pendingLeaves: pendingLeavesCount ?? 0,
     totalHours:   monthTotalHrs,

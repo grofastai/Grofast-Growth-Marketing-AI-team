@@ -26,7 +26,9 @@ type Member = {
 type KYCRecord = {
   user_id: string; bank_name: string | null; bank_account: string | null
   bank_ifsc: string | null; govt_id_type: string | null
-  govt_id_url: string | null; ration_card_url: string | null
+  govt_id_url: string | null; aadhaar_back_url: string | null
+  pan_front_url: string | null; pan_back_url: string | null
+  ration_card_url: string | null; ration_card_url2: string | null
 }
 type Doc = {
   id: string; name: string; file_url: string; file_type: string | null
@@ -205,10 +207,12 @@ function DocCardGrid({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => v
                 style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 12, color: "#111", textDecoration: "none" }}>
                 <Download size={12} /> Download
               </a>
-              <button onClick={() => { setMenu(false); onDelete() }} disabled={isPending}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 12, color: "#de1a1a", background: "none", border: "none", cursor: "pointer", width: "100%" }}>
-                <Trash2 size={12} /> Delete
-              </button>
+              {!doc.id.startsWith("kyc__") && (
+                <button onClick={() => { setMenu(false); onDelete() }} disabled={isPending}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 12, color: "#de1a1a", background: "none", border: "none", cursor: "pointer", width: "100%" }}>
+                  <Trash2 size={12} /> Delete
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -280,10 +284,12 @@ function DocRowList({ doc, onDelete, isPending }: { doc: Doc; onDelete: () => vo
           style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(0,0,0,0.04)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Download size={13} style={{ color: "#6B7280" }} />
         </a>
-        <button onClick={onDelete} disabled={isPending}
-          style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(222,26,26,0.06)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <Trash2 size={13} style={{ color: "#de1a1a" }} />
-        </button>
+        {!doc.id.startsWith("kyc__") && (
+          <button onClick={onDelete} disabled={isPending}
+            style={{ width: 32, height: 32, borderRadius: 10, background: "rgba(222,26,26,0.06)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Trash2 size={13} style={{ color: "#de1a1a" }} />
+          </button>
+        )}
       </div>
     </div>
   )
@@ -336,7 +342,33 @@ export default function DocumentsClient({
 
   const selectedMember = members.find(m => m.id === selectedId) ?? null
   const selectedKYC    = kycRecords.find(k => k.user_id === selectedId) ?? null
-  const memberDocs     = selectedId ? documents.filter(d => d.user_id === selectedId) : documents
+
+  const memberDocs = useMemo(() => {
+    const fromTable = selectedId ? documents.filter(d => d.user_id === selectedId) : documents
+    if (!selectedKYC || !selectedMember) return fromTable
+    const kycFields: Array<{ url: string | null; name: string; docType: string }> = [
+      { url: selectedKYC.govt_id_url, name: selectedKYC.govt_id_type ? `${selectedKYC.govt_id_type} (Front)` : "Government ID", docType: "Govt ID Proof" },
+      { url: selectedKYC.aadhaar_back_url, name: "Aadhaar Back", docType: "Govt ID Proof" },
+      { url: selectedKYC.pan_front_url, name: "PAN Card Front", docType: "Govt ID Proof" },
+      { url: selectedKYC.pan_back_url, name: "PAN Card Back", docType: "Govt ID Proof" },
+      { url: selectedKYC.ration_card_url, name: "Ration Card", docType: "Ration Card" },
+      { url: selectedKYC.ration_card_url2, name: "Ration Card (Page 2)", docType: "Ration Card" },
+    ]
+    const kycDocs: Doc[] = kycFields
+      .filter(f => !!f.url)
+      .map((f, i) => ({
+        id: `kyc__${i}`,
+        name: f.name,
+        file_url: f.url!,
+        file_type: null,
+        file_size: null,
+        doc_type: f.docType,
+        created_at: new Date(0).toISOString(),
+        user_id: selectedId,
+        users: { name: selectedMember.name, employee_id: selectedMember.employee_id },
+      }))
+    return [...kycDocs, ...fromTable]
+  }, [selectedId, documents, selectedKYC, selectedMember])
 
   const filteredMembers = empSearch.trim()
     ? members.filter(m =>
@@ -427,6 +459,7 @@ export default function DocumentsClient({
   }
 
   function handleDelete(id: string) {
+    if (id.startsWith("kyc__")) return
     if (!confirm("Delete this document?")) return
     start(async () => { await deleteDocument(id); router.refresh() })
   }

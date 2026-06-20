@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
+import { autoInsertLeaveHistory } from '@/lib/leave-approval-effects'
 
 // GET — Meta webhook verification handshake
 export async function GET(req: NextRequest) {
@@ -119,15 +120,25 @@ async function handleLeaveAction(leaveId: string, action: 'approve' | 'reject') 
   )
 
   type LeaveRow = {
+    company_id: string
+    user_id: string
     from_date: string
     to_date: string
+    leave_type: string | null
+    reason: string | null
+    permission_time: string | null
+    permission_end_time: string | null
+    permission_hours: number | null
+    half_day_from_time: string | null
+    half_day_to_time: string | null
+    half_day_period: string | null
     status: string
     users: { name: string; phone: string | null } | null
   }
 
   const { data: leaveRaw, error: fetchErr } = await supabase
     .from('leaves')
-    .select('from_date, to_date, status, users(name, phone)')
+    .select('company_id, user_id, from_date, to_date, leave_type, reason, permission_time, permission_end_time, permission_hours, half_day_from_time, half_day_to_time, half_day_period, status, users(name, phone)')
     .eq('id', leaveId)
     .single()
 
@@ -157,7 +168,49 @@ async function handleLeaveAction(leaveId: string, action: 'approve' | 'reject') 
 
   console.log(`[whatsapp-webhook] leave ${leaveId} ${status}`)
 
-  // Notify employee
+  // Auto-update attendance + history when approved (skip permission — employee is still present)
+  if (status === 'approved' && leave.leave_type !== 'permission') {
+    const curr = new Date(leave.from_date + 'T12:00:00')
+    const end  = new Date(leave.to_date   + 'T12:00:00')
+    while (curr <= end) {
+      const dateStr = curr.toISOString().split('T')[0]
+      const { data: existing } = await supabase
+        .from('attendance_logs')
+        .select('id')
+        .eq('company_id', leave.company_id)
+        .eq('user_id', leave.user_id)
+        .eq('date', dateStr)
+        .maybeSingle()
+      if (!existing) {
+        const attStatus = leave.leave_type === 'half_day' ? 'half_day' : 'leave'
+        supabase.from('attendance_logs').insert({
+          company_id: leave.company_id,
+          user_id:    leave.user_id,
+          date:       dateStr,
+          status:     attStatus,
+        }).then(({ error: e }) => { if (e) console.error('[whatsapp-webhook] attendance insert:', e.message) })
+      }
+      curr.setDate(curr.getDate() + 1)
+    }
+    autoInsertLeaveHistory(supabase, leave).catch(e =>
+      console.error('[whatsapp-webhook] leave history insert failed:', e)
+    )
+  }
+
+  // In-app bell notification to member
+  const leaveLabel = leave.leave_type === 'permission' ? 'Permission'
+    : leave.leave_type === 'half_day' ? 'Half Day Leave'
+    : 'Full Day Leave'
+  supabase.from('notifications').insert({
+    company_id: leave.company_id,
+    user_id:    leave.user_id,
+    type:       'leave_status',
+    title:      status === 'approved' ? `${leaveLabel} Approved` : `${leaveLabel} Rejected`,
+    body:       `Your ${leaveLabel.toLowerCase()} request has been ${status}.`,
+    link:       '/member/leaves',
+  }).then(({ error: e }) => { if (e) console.error('[whatsapp-webhook] notification insert:', e.message) })
+
+  // WhatsApp message to employee
   const employeePhone = leave.users?.phone
   const employeeName  = leave.users?.name ?? 'Employee'
   if (employeePhone) {

@@ -1555,6 +1555,136 @@ export default function DailyUpdateForm({
                 </div>
               )}
 
+              {/* ── Optional Voiceover section ─────────────────────────────── */}
+              <div style={{ borderTop:"1px dashed #EBEDF2", paddingTop:14, marginTop:16 }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: voiceovers.length > 0 ? 12 : 0 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                    <span style={{ fontSize:16 }}>🎙️</span>
+                    <span style={{ fontSize:12, fontWeight:700, color:"#374151" }}>Voiceover</span>
+                    {voiceovers.length > 0 && <span style={{ fontSize:10, color:"#8B5CF6", fontWeight:600 }}>{voiceovers.length} added</span>}
+                  </div>
+                  <button onClick={addVoiceover} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", borderRadius:8, background:"rgba(139,92,246,0.08)", border:"1.5px solid rgba(139,92,246,0.3)", color:"#8B5CF6", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                    <Plus size={11}/> Add Voiceover
+                  </button>
+                </div>
+                {voiceovers.map((e, vi) => {
+                  const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
+                  const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                  const dur = calcDuration(e.startTime, e.endTime)
+                  return (
+                    <div key={e.id} style={{ borderRadius:12, border:"1.5px solid rgba(139,92,246,0.2)", padding:"12px", marginBottom:8, background:"rgba(139,92,246,0.02)" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                        <span style={{ fontSize:12, fontWeight:700, color:"#8B5CF6" }}>Voiceover #{vi+1}</span>
+                        <button onClick={() => removeVoiceover(e.id)} style={{ width:24, height:24, borderRadius:6, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <X size={11} style={{ color:"#EF4444" }} />
+                        </button>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Client</label>
+                          <select value={e.clientName} onChange={ev => patchVoiceover(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
+                            <option value="">Select client…</option>
+                            {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                            <option value="__custom__">Other…</option>
+                          </select>
+                          {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchVoiceover(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
+                        </div>
+                        <div>
+                          <label style={L}>Title / Project</label>
+                          <input value={e.title} onChange={ev => patchVoiceover(e.id, { title: ev.target.value })} placeholder="Script or project name" style={F} />
+                        </div>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:8, alignItems:"end", marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Start Time</label>
+                          <input type="time" value={e.startTime} onChange={ev => patchVoiceover(e.id, { startTime: ev.target.value })} style={F} />
+                        </div>
+                        <div>
+                          <label style={L}>End Time</label>
+                          <input type="time" value={e.endTime} onChange={ev => patchVoiceover(e.id, { endTime: ev.target.value })} style={F} />
+                        </div>
+                        {dur > 0 && <span style={{ fontSize:11, fontWeight:800, color:"#8B5CF6", padding:"8px 10px", borderRadius:8, background:"rgba(139,92,246,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                        <div>
+                          <label style={L}>Drive / Audio Link</label>
+                          <input value={e.videoLink} onChange={ev => patchVoiceover(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
+                        </div>
+                        <div>
+                          <label style={L}>Notes</label>
+                          <input value={e.notes} onChange={ev => patchVoiceover(e.id, { notes: ev.target.value })} placeholder="Script details, revisions…" style={F} />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* ── Optional Poster section ────────────────────────────────── */}
+              <div style={{ borderTop:"1px dashed #EBEDF2", paddingTop:14, marginTop:4 }}>
+                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: posters.length > 0 ? 12 : 0 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                    <span style={{ fontSize:16 }}>🖼️</span>
+                    <span style={{ fontSize:12, fontWeight:700, color:"#374151" }}>Poster</span>
+                    {posters.length > 0 && <span style={{ fontSize:10, color:"#EC4899", fontWeight:600 }}>{posters.length} added</span>}
+                  </div>
+                  <button onClick={addPoster} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", borderRadius:8, background:"rgba(236,72,153,0.08)", border:"1.5px solid rgba(236,72,153,0.3)", color:"#EC4899", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+                    <Plus size={11}/> Add Poster
+                  </button>
+                </div>
+                {posters.map((e, pi) => {
+                  const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
+                  const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                  const dur = calcDuration(e.startTime, e.endTime)
+                  return (
+                    <div key={e.id} style={{ borderRadius:12, border:"1.5px solid rgba(236,72,153,0.2)", padding:"12px", marginBottom:8, background:"rgba(236,72,153,0.02)" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                        <span style={{ fontSize:12, fontWeight:700, color:"#EC4899" }}>Poster #{pi+1}</span>
+                        <button onClick={() => removePoster(e.id)} style={{ width:24, height:24, borderRadius:6, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <X size={11} style={{ color:"#EF4444" }} />
+                        </button>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Client</label>
+                          <select value={e.clientName} onChange={ev => patchPoster(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
+                            <option value="">Select client…</option>
+                            {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                            <option value="__custom__">Other…</option>
+                          </select>
+                          {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchPoster(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
+                        </div>
+                        <div>
+                          <label style={L}>Poster Name</label>
+                          <input value={e.title} onChange={ev => patchPoster(e.id, { title: ev.target.value })} placeholder="Poster or design name" style={F} />
+                        </div>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:8, alignItems:"end", marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Start Time</label>
+                          <input type="time" value={e.startTime} onChange={ev => patchPoster(e.id, { startTime: ev.target.value })} style={F} />
+                        </div>
+                        <div>
+                          <label style={L}>End Time</label>
+                          <input type="time" value={e.endTime} onChange={ev => patchPoster(e.id, { endTime: ev.target.value })} style={F} />
+                        </div>
+                        {dur > 0 && <span style={{ fontSize:11, fontWeight:800, color:"#EC4899", padding:"8px 10px", borderRadius:8, background:"rgba(236,72,153,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                        <div>
+                          <label style={L}>Drive / File Link</label>
+                          <input value={e.videoLink} onChange={ev => patchPoster(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
+                        </div>
+                        <div>
+                          <label style={L}>Notes</label>
+                          <input value={e.notes} onChange={ev => patchPoster(e.id, { notes: ev.target.value })} placeholder="Design details, revisions…" style={F} />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
               {/* Submit button for non-media team */}
               {!isMediaTeam && (
                 <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>

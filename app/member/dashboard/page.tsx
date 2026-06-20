@@ -122,17 +122,20 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const presentAttLogs = monthlyAttLogs.filter(l => l.status === "present")
   const officeDays     = presentAttLogs.filter(l => l.work_type === "office").length
   const wfhDays        = presentAttLogs.filter(l => l.work_type === "wfh").length
-  const workingDays    = officeDays + wfhDays   // total present days from attendance
+  const presentDays    = presentAttLogs.length  // all present (office + wfh + shoot)
   const holidayDays    = monthlyUpdates.filter(u => u.attendance_status === "holiday").length
 
-  const presentRows    = monthlyUpdates.filter(u => u.attendance_status === "present")
-  const totalMonthHrs  = Math.round(presentRows.reduce((s, u) => s + (u.working_hours ?? 0), 0) * 10) / 10
+  // Working hours from daily_updates (same as attendance page): working + learning for all
+  const totalMonthHrs  = Math.round(
+    monthlyUpdates.reduce((s, u) => s + (u.working_hours ?? 0) + (u.learning_hours ?? 0), 0) * 10
+  ) / 10
   const OVERTIME_THRESHOLD = 8.5
-  const monthlyAvgHrs    = presentRows.length > 0 ? totalMonthHrs / presentRows.length : 0
+  const monthlyAvgHrs    = presentDays > 0 ? totalMonthHrs / presentDays : 0
   const overtimeEligible = monthlyAvgHrs >= OVERTIME_THRESHOLD
-  const overtimeDays     = overtimeEligible ? presentRows.filter(u => (u.working_hours ?? 0) > OVERTIME_THRESHOLD).length : 0
-  const overtimeHrs      = overtimeEligible ? Math.round(presentRows.reduce((sum, u) => {
-    const h = u.working_hours ?? 0; return h > OVERTIME_THRESHOLD ? sum + (h - OVERTIME_THRESHOLD) : sum
+  const overtimeDays     = overtimeEligible ? monthlyUpdates.filter(u => ((u.working_hours ?? 0) + (u.learning_hours ?? 0)) > OVERTIME_THRESHOLD).length : 0
+  const overtimeHrs      = overtimeEligible ? Math.round(monthlyUpdates.reduce((sum, u) => {
+    const h = (u.working_hours ?? 0) + (u.learning_hours ?? 0)
+    return h > OVERTIME_THRESHOLD ? sum + (h - OVERTIME_THRESHOLD) : sum
   }, 0) * 10) / 10 : 0
 
   // Union: approved leave dates + attendance_logs marked leave/absent
@@ -163,12 +166,9 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const totalLearningHrs = Math.round(monthlyUpdates.reduce((s, u) => s + (u.learning_hours ?? 0), 0) * 10) / 10
   const totalBreakHrs  = Math.round(monthlyAttLogs.reduce((s, l) => s + ((l.break_total_mins ?? 0) / 60), 0) * 10) / 10
 
-  // Avg working hours — media: shoot+edit avg; non-media: working+learning avg
-  const avgWorkingHrs = presentRows.length > 0
-    ? Math.round((isMedia
-        ? presentRows.reduce((s, u) => s + (u.working_hours ?? 0), 0)
-        : presentRows.reduce((s, u) => s + (u.working_hours ?? 0) + (u.learning_hours ?? 0), 0)
-      ) / presentRows.length * 10) / 10
+  // Avg working hrs = totalMonthHrs / presentDays — same formula for media and non-media
+  const avgWorkingHrs = presentDays > 0
+    ? Math.round((totalMonthHrs / presentDays) * 10) / 10
     : 0
 
   const hour      = now.getHours()
@@ -236,7 +236,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
       {/* ── 4 Stat Cards ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
         {([
-          { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: workingDays || 0,   label: "Present Days"  },
+          { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: presentDays || 0,   label: "Present Days"  },
           { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Total Hours"  },
           { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: Math.max(0, 5 - leaveDays), label: "Leave Left" },
           { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks"  },

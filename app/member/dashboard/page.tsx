@@ -155,12 +155,13 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   }
   const leaveDays = leaveDateSet.size
 
-  // Avg login hours — raw clock_in → clock_out span, no break deduction
+  // Login hours — raw clock_in → clock_out span, no break deduction
   const logsWithClockData = presentAttLogs.filter(l => l.clock_in && l.clock_out)
+  const totalLoginHrs = Math.round(logsWithClockData.reduce((s, l) =>
+    s + (new Date(l.clock_out!).getTime() - new Date(l.clock_in!).getTime()) / 3600000, 0
+  ) * 10) / 10
   const avgLoginHrs = logsWithClockData.length > 0
-    ? Math.round((logsWithClockData.reduce((s, l) =>
-        s + (new Date(l.clock_out!).getTime() - new Date(l.clock_in!).getTime()) / 3600000, 0
-      ) / logsWithClockData.length) * 10) / 10
+    ? Math.round((totalLoginHrs / logsWithClockData.length) * 10) / 10
     : 0
 
   // Right-panel stats — media vs non-media
@@ -237,11 +238,12 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
         />
       </div>
 
-      {/* ── 4 Stat Cards ─────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+      {/* ── 5 Stat Cards ─────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
         {([
           { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: presentDays || 0,   label: "Present Days"  },
-          { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Total Hours"  },
+          { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Monthly Working Hrs"  },
+          { icon: Target,       iconBg: "rgba(16,185,129,0.12)", iconColor: "#10B981", value: totalLoginHrs > 0 ? `${totalLoginHrs}h` : "—", label: "Monthly Login Hrs" },
           { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: Math.max(0, 5 - leaveDays), label: "Leave Left" },
           { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks"  },
         ] as const).map((s) => {

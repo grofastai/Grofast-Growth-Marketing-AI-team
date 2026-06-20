@@ -80,19 +80,21 @@ function getVacationTitle(reason: string, type: string) {
 }
 
 const LEAVE_STYLES: Record<string, { bg: string; color: string; border: string }> = {
-  "Vacation Leave": { bg: "#FEF9EC", color: "#D97706", border: "#FDE68A" },
-  "Sick Leave":     { bg: "#FFF0F0", color: "#EF4444", border: "#FECACA" },
-  "Casual Leave":   { bg: "#EFF6FF", color: "#3B82F6", border: "#BFDBFE" },
-  "Work From Home": { bg: "#F0FDF4", color: "#10B981", border: "#A7F3D0" },
-  "Permission":     { bg: "#F5F3FF", color: "#7C3AED", border: "#DDD6FE" },
+  "Vacation Leave":  { bg: "#FEF9EC", color: "#D97706", border: "#FDE68A" },
+  "Sick Leave":      { bg: "#FFF0F0", color: "#EF4444", border: "#FECACA" },
+  "Casual Leave":    { bg: "#EFF6FF", color: "#3B82F6", border: "#BFDBFE" },
+  "Work From Home":  { bg: "#F0FDF4", color: "#10B981", border: "#A7F3D0" },
+  "Permission":      { bg: "#F5F3FF", color: "#7C3AED", border: "#DDD6FE" },
+  "Half Day Leave":  { bg: "rgba(99,102,241,0.10)", color: "#6366F1", border: "#C7D2FE" },
 }
 
 const LEAVE_EMOJIS: Record<string, string> = {
-  "Vacation Leave": "🏖️",
-  "Sick Leave":     "🏥",
-  "Casual Leave":   "💼",
-  "Work From Home": "🏠",
-  "Permission":     "⏰",
+  "Vacation Leave":  "🏖️",
+  "Sick Leave":      "🏥",
+  "Casual Leave":    "💼",
+  "Work From Home":  "🏠",
+  "Permission":      "⏰",
+  "Half Day Leave":  "🌤️",
 }
 
 const AVATAR_COLORS = ["#DE1A1A","#F59E0B","#10B981","#3B82F6","#8B5CF6","#F97316","#EC4899"]
@@ -152,8 +154,9 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 }) {
   const user = Array.isArray(leave.users) ? leave.users[0] : leave.users
   const name = user?.name ?? "Unknown"
-  const isPerm = leave.leave_type === "permission"
-  const leaveType = isPerm ? "Permission" : getLeaveType(leave.reason)
+  const isPerm    = leave.leave_type === "permission"
+  const isHalfDay = leave.leave_type === "half_day"
+  const leaveType = isPerm ? "Permission" : isHalfDay ? "Half Day Leave" : getLeaveType(leave.reason)
   const typeStyle = LEAVE_STYLES[leaveType] ?? LEAVE_STYLES["Casual Leave"]
   const isLoading = actionId?.startsWith(leave.id)
   const days = daysBetween(leave.from_date, leave.to_date)
@@ -197,7 +200,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
           {LEAVE_EMOJIS[leaveType] ?? "📋"} {leaveType}
         </span>
         <span style={{ fontSize: 11, fontWeight: 700, color: "#374151", background: "#F9FAFB", padding: "3px 10px", borderRadius: 8 }}>
-          {isPerm ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : `${days} day${days !== 1 ? "s" : ""}`}
+          {isPerm ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : isHalfDay ? "Half Day" : `${days} day${days !== 1 ? "s" : ""}`}
         </span>
       </div>
 

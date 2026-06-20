@@ -124,6 +124,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const presentAttLogs = monthlyAttLogs.filter(l => l.status === "present")
   const officeDays     = presentAttLogs.filter(l => l.work_type === "office").length
   const wfhDays        = presentAttLogs.filter(l => l.work_type === "wfh").length
+  const shootDays      = presentAttLogs.filter(l => l.work_type === "shoot" || l.work_type === "outside").length
   const presentDays    = presentAttLogs.length  // all present (office + wfh + shoot)
   const holidayDays    = monthlyUpdates.filter(u => u.attendance_status === "holiday").length
 
@@ -215,7 +216,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { label: "Avg Login Hrs",        value: avgLoginHrs > 0 ? `${avgLoginHrs}h` : "—",       color: "#6366F1", sub: undefined },
     { label: "Avg Working Hrs",      value: avgWorkingHrs > 0 ? `${avgWorkingHrs}h` : "—",   color: "#111111", sub: undefined },
     { label: "Office Days",          value: officeDays,                                       color: "#de1a1a",  sub: undefined },
-    { label: "WFH Days",             value: wfhDays,                                          color: "#6366F1",  sub: undefined },
+    { label: isMedia ? "Shoot Days" : "WFH Days", value: isMedia ? shootDays : wfhDays,       color: "#6366F1",  sub: undefined },
     { label: "Leave Days",           value: leaveDays,                                        color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: pendingLeaves > 0 ? `${pendingLeaves} pending` : undefined },
     { label: "Overtime Hrs",         value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",       color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeDays > 0 ? `${overtimeDays} day${overtimeDays !== 1 ? "s" : ""}` : undefined },
   ]

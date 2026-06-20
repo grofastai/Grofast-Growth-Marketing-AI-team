@@ -84,7 +84,7 @@ export default async function AttendancePage() {
       .lte("from_date", weekEnd),
     // Monthly attendance logs
     admin.from("attendance_logs")
-      .select("work_type, status, clock_in, clock_out, break_total_mins")
+      .select("work_type, status, clock_in, clock_out, break_total_mins, date")
       .eq("user_id", effectiveUserId)
       .gte("date", monthStart)
       .lte("date", today),
@@ -134,7 +134,7 @@ export default async function AttendancePage() {
   const todayPermissionHours = permHoursByDate[today] ?? 0
 
   // Monthly stats computation
-  type MonthAttLog = { work_type: string | null; status: string; clock_in: string | null; clock_out: string | null; break_total_mins: number }
+  type MonthAttLog = { work_type: string | null; status: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; date: string }
   const monthAttLogs = (monthAttLogsRaw ?? []) as MonthAttLog[]
   const monthUpdates = (monthUpdatesRaw ?? []) as { working_hours: number | null; learning_hours: number | null }[]
   const approvedLeaves = (approvedLeavesRaw ?? []) as { from_date: string; to_date: string; leave_type: string | null }[]
@@ -168,11 +168,18 @@ export default async function AttendancePage() {
     ? Math.round((monthTotalHrs / monthPresentDays) * 10) / 10
     : 0
 
-  const monthLeaveDays = approvedLeaves
-    .filter(l => l.leave_type !== "permission")
-    .reduce((sum, l) => {
-      return sum + Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
-    }, 0)
+  // Union: attendance marked as leave + approved leave date ranges (no double-count)
+  const leaveDateSet = new Set<string>()
+  for (const l of monthAttLogs) {
+    if (l.status === "leave" || l.status === "absent") leaveDateSet.add(l.date)
+  }
+  for (const l of approvedLeaves) {
+    if (l.leave_type === "permission") continue
+    const cur = new Date(l.from_date + "T12:00:00")
+    const end = new Date(l.to_date + "T12:00:00")
+    while (cur <= end) { leaveDateSet.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
+  }
+  const monthLeaveDays = leaveDateSet.size
 
   // Elapsed calendar days this month (1st to today, inclusive)
   const monthStartDate = new Date(monthStart)

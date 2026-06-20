@@ -85,7 +85,7 @@ export default async function AttendancePage({
     admin.from("leaves")
       .select("user_id")
       .eq("company_id", cid)
-      .eq("leave_type", "full_day")
+      .neq("leave_type", "permission")
       .eq("status", "approved")
       .lte("from_date", selectedDate)
       .gte("to_date", selectedDate),
@@ -120,7 +120,12 @@ export default async function AttendancePage({
   const lateEntries  = (lateLogs ?? [] as LateLog[]).map(l => ({ ...l, member: memberMap.get(l.user_id) })).filter(l => l.member)
   const totalMembers = (members ?? []).length
   const presentCount = (members ?? []).filter(m => { const l = logMap.get(m.id); return l?.clock_in || l?.status === "present" }).length
-  const absentCount  = (members ?? []).filter(m => { const s = logMap.get(m.id)?.status; return (s === "leave" || s === "absent") && !logMap.get(m.id)?.clock_in }).length
+  const absentCount  = (members ?? []).filter(m => {
+    const log = logMap.get(m.id)
+    const hasLeaveLog = (log?.status === "leave" || log?.status === "absent") && !log?.clock_in
+    const hasApprovedLeave = !log && onLeaveSet.has(m.id)
+    return hasLeaveLog || hasApprovedLeave
+  }).length
   const notLogged    = (members ?? []).filter(m => !logMap.has(m.id)).length
 
   const weekCountMap: Record<string, number> = {}
@@ -318,7 +323,7 @@ export default async function AttendancePage({
 
                     const isOnLeave = !log && onLeaveSet.has(m.id)
                     let statusLabel = "Not Logged"; let statusColor = "#9CA3AF"; let statusBg = "#F3F4F6"; let statusDot = "#D1D5DB"
-                    if (isAbsent)  { statusLabel = "On Leave"; statusColor = "#DE1A1A"; statusBg = "rgba(222,26,26,0.08)"; statusDot = "#DE1A1A" }
+                    if (isAbsent || isOnLeave) { statusLabel = "On Leave"; statusColor = "#DE1A1A"; statusBg = "rgba(222,26,26,0.08)"; statusDot = "#DE1A1A" }
                     if (isWorking) { statusLabel = "Working"; statusColor = "#10B981"; statusBg = "rgba(16,185,129,0.09)"; statusDot = "#10B981" }
                     if (isDone)    { statusLabel = "Done";    statusColor = "#6366F1"; statusBg = "rgba(99,102,241,0.09)"; statusDot = "#6366F1" }
 

@@ -128,6 +128,17 @@ export default async function AttendancePage() {
   }
   const todayPermissionHours = permHoursByDate[today] ?? 0
 
+  // Check if today has an approved full-day or half-day leave (no login required)
+  const { data: todayLeaveRaw } = await admin.from("leaves")
+    .select("leave_type, reason")
+    .eq("user_id", effectiveUserId)
+    .eq("status", "approved")
+    .in("leave_type", ["full_day", "half_day"])
+    .lte("from_date", today)
+    .gte("to_date", today)
+    .maybeSingle()
+  const todayApprovedLeave = todayLeaveRaw as { leave_type: string; reason: string | null } | null
+
   // Monthly stats computation
   type MonthAttLog = { work_type: string | null; status: string; clock_in: string | null; clock_out: string | null; break_total_mins: number }
   const monthAttLogs = (monthAttLogsRaw ?? []) as MonthAttLog[]
@@ -199,6 +210,7 @@ export default async function AttendancePage() {
       permHoursByDate={permHoursByDate}
       weekUpdatesByDate={weekUpdatesByDate}
       monthlyPerf={monthlyPerf}
+      todayApprovedLeave={todayApprovedLeave}
     />
   )
 }

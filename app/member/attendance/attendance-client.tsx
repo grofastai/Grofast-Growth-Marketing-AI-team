@@ -38,6 +38,7 @@ interface Props {
   todayPermissionHours?: number; permHoursByDate?: Record<string, number>
   weekUpdatesByDate?: Record<string, number>
   monthlyPerf?: MonthlyPerf
+  todayApprovedLeave?: { leave_type: string; reason: string | null } | null
 }
 
 const SHIFT_HOURS = 8.5
@@ -119,7 +120,7 @@ function SegmentBar({ hoursWorked }: { hoursWorked: number }) {
   )
 }
 
-export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf }: Props) {
+export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf, todayApprovedLeave }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">("office")
@@ -425,7 +426,18 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               {/* NOT LOGGED IN */}
               {notLogged && (
                 <div className="space-y-4">
-                  {absentDone ? (
+                  {todayApprovedLeave ? (
+                    <div className="rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(239,68,68,0.02) 100%)", border: "1.5px solid rgba(239,68,68,0.2)" }}>
+                      <div className="text-3xl mb-2">🏖️</div>
+                      <p className="text-[15px] font-black mb-1" style={{ color: "#DC2626" }}>
+                        {todayApprovedLeave.leave_type === "half_day" ? "Half Day Leave" : "Full Day Leave"} Approved
+                      </p>
+                      <p className="text-[12px]" style={{ color: "#9CA3AF" }}>You have an approved leave today. No login required.</p>
+                      {todayApprovedLeave.reason && (
+                        <p className="text-[11px] mt-2 font-medium" style={{ color: "#6B7280" }}>Reason: {todayApprovedLeave.reason}</p>
+                      )}
+                    </div>
+                  ) : absentDone ? (
                     <div className="rounded-2xl p-4" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}>
                       <p className="text-[14px] font-bold" style={{ color: "#059669" }}>Leave request submitted!</p>
                       <p className="text-[12px] mt-1" style={{ color: "#6B7280" }}>Waiting for admin approval. It will appear in your Leaves page.</p>

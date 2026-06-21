@@ -8,40 +8,78 @@ import {
   Building2, Star, Target,
 } from 'lucide-react'
 
-// ── helpers ──────────────────────────────────────────────────────────────────
+// ── helpers ───────────────────────────────────────────────────────────────────
 function fmtRupee(n: number) { return `₹${Math.round(n).toLocaleString('en-IN')}` }
 function fmtH(h: number)     { return `${h.toFixed(1)}h` }
 function ini(n: string)      { return n.split(' ').map(w => w[0] ?? '').join('').slice(0, 2).toUpperCase() }
-function avatarColor(name: string) {
-  const colors = ['#DE1A1A','#6366F1','#10B981','#F59E0B','#8B5CF6','#06B6D4','#F97316','#EC4899']
-  let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % colors.length
-  return colors[h]
-}
 
-// ── SVG ring for productivity score ──────────────────────────────────────────
+const AVATAR_GRADIENTS = [
+  ['#FF6B6B','#EE2222'],
+  ['#6366F1','#818CF8'],
+  ['#10B981','#34D399'],
+  ['#F59E0B','#FBBF24'],
+  ['#8B5CF6','#A78BFA'],
+  ['#06B6D4','#22D3EE'],
+  ['#F97316','#FB923C'],
+  ['#EC4899','#F472B6'],
+]
+function avatarGrad(name: string) {
+  let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % AVATAR_GRADIENTS.length
+  return AVATAR_GRADIENTS[h]
+}
+function avatarColor(name: string) { return avatarGrad(name)[0] }
+
+// ── Score ring with gradient stroke ──────────────────────────────────────────
 function ScoreRing({ score, size = 44 }: { score: number; size?: number }) {
-  const r = size * 0.38, cx = size / 2, cy = size / 2
-  const circ = 2 * Math.PI * r
-  const filled = (Math.min(score, 100) / 100) * circ
-  const color = score >= 70 ? '#10B981' : score >= 40 ? '#F59E0B' : '#EF4444'
+  const r       = size * 0.38, cx = size / 2, cy = size / 2
+  const circ    = 2 * Math.PI * r
+  const filled  = (Math.min(score, 100) / 100) * circ
+  const [c1,c2] = score >= 70 ? ['#10B981','#34D399'] : score >= 40 ? ['#F59E0B','#FCD34D'] : ['#EF4444','#F87171']
+  const gid     = `sg${score}`
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <defs>
+        <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={c1} />
+          <stop offset="100%" stopColor={c2} />
+        </linearGradient>
+      </defs>
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F0F0F0" strokeWidth={size * 0.11} />
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={size * 0.11}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={`url(#${gid})`} strokeWidth={size * 0.11}
         strokeDasharray={`${filled} ${circ - filled}`} strokeLinecap="round"
         transform={`rotate(-90 ${cx} ${cy})`} />
       <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.24} fontWeight="900" fill="#111">{score}</text>
+        fontSize={size * 0.22} fontWeight="900" fill="#111">{score}</text>
     </svg>
   )
 }
 
-// ── mini bar ─────────────────────────────────────────────────────────────────
-function MiniBar({ pct, color }: { pct: number; color: string }) {
+// ── Gradient mini bar ─────────────────────────────────────────────────────────
+function MiniBar({ pct, g1, g2 }: { pct: number; g1: string; g2: string }) {
   return (
-    <div style={{ width: 60, height: 5, background: '#F3F4F6', borderRadius: 3, overflow: 'hidden' }}>
-      <div style={{ width: `${Math.max(4, pct)}%`, height: '100%', background: color, borderRadius: 3 }} />
+    <div style={{ width: 60, height: 5, background: '#EBEBF0', borderRadius: 3, overflow: 'hidden' }}>
+      <div style={{ width: `${Math.max(4, pct)}%`, height: '100%', background: `linear-gradient(90deg,${g1},${g2})`, borderRadius: 3 }} />
     </div>
+  )
+}
+
+// ── Avatar with gradient background ──────────────────────────────────────────
+function Avatar({ name, size = 36, radius = 11 }: { name: string; size?: number; radius?: number }) {
+  const [g1, g2] = avatarGrad(name)
+  const gid = `av${name.replace(/\s/g,'')}`
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+      <defs>
+        <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={g1} stopOpacity={0.18} />
+          <stop offset="100%" stopColor={g2} stopOpacity={0.28} />
+        </linearGradient>
+      </defs>
+      <rect width={size} height={size} rx={radius} fill={`url(#${gid})`} />
+      <rect width={size} height={size} rx={radius} fill="none" stroke={g1} strokeWidth={1.5} strokeOpacity={0.35} />
+      <text x={size/2} y={size/2+1} textAnchor="middle" dominantBaseline="middle"
+        fontSize={size * 0.3} fontWeight="900" fill={g1}>{ini(name)}</text>
+    </svg>
   )
 }
 
@@ -59,41 +97,49 @@ type EmpPerf = {
   productivityScore: number
 }
 
-const TEAM_CFG: Record<string, { label: string; color: string }> = {
-  MEDIA:    { label: 'Media & Video',    color: '#E53935' },
-  META:     { label: 'Meta & Marketing', color: '#F59E0B' },
-  CREATIVE: { label: 'Creative Design',  color: '#8B5CF6' },
-  AI:       { label: 'AI & Tech',        color: '#10B981' },
-  OPS:      { label: 'Operations',       color: '#3B82F6' },
+const TEAM_CFG: Record<string, { label: string; g1: string; g2: string }> = {
+  MEDIA:    { label: 'Media & Video',    g1: '#E53935', g2: '#FF6B6B' },
+  META:     { label: 'Meta & Marketing', g1: '#F59E0B', g2: '#FCD34D' },
+  CREATIVE: { label: 'Creative Design',  g1: '#8B5CF6', g2: '#C4B5FD' },
+  AI:       { label: 'AI & Tech',        g1: '#10B981', g2: '#6EE7B7' },
+  OPS:      { label: 'Operations',       g1: '#3B82F6', g2: '#93C5FD' },
 }
 const TEAM_ORDER = ['MEDIA', 'META', 'CREATIVE', 'AI', 'OPS']
 
-// ── shared card style ─────────────────────────────────────────────────────────
+// ── Card ──────────────────────────────────────────────────────────────────────
 const CARD: React.CSSProperties = {
-  background: '#FFFFFF',
+  background: 'linear-gradient(160deg,#FFFFFF 0%,#FAFBFF 100%)',
   borderRadius: 20,
-  border: '1px solid #EBEDF2',
+  border: '1px solid #E8EAF2',
   overflow: 'hidden',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.05)',
+  boxShadow: '0 4px 20px rgba(99,102,241,0.07)',
 }
 
-// ── section title row ──────────────────────────────────────────────────────────
-function SectionTitle({ icon, title, sub }: { icon: React.ReactNode; title: string; sub?: string }) {
+// ── Section title ─────────────────────────────────────────────────────────────
+function SectionTitle({ icon, title, sub, g1, g2 }: {
+  icon: React.ReactNode; title: string; sub?: string; g1: string; g2: string
+}) {
   return (
-    <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div style={{ width: 34, height: 34, borderRadius: 10, background: '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+    <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F0F1F8', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ width: 36, height: 36, borderRadius: 11, background: `linear-gradient(135deg,${g1}22,${g2}33)`, border: `1.5px solid ${g1}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         {icon}
       </div>
       <div>
         <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', margin: 0, fontFamily: 'var(--font-jakarta)' }}>{title}</p>
-        {sub && <p style={{ fontSize: 11, color: '#9CA3AF', margin: '1px 0 0' }}>{sub}</p>}
+        {sub && <p style={{ fontSize: 11, color: '#9CA3AF', margin: '2px 0 0' }}>{sub}</p>}
       </div>
     </div>
   )
 }
 
 function EmptyRow({ msg }: { msg: string }) {
-  return <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '32px 0', margin: 0 }}>{msg}</p>
+  return <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '36px 0', margin: 0 }}>{msg}</p>
+}
+
+const TH: React.CSSProperties = {
+  padding: '10px 16px', fontSize: 10, fontWeight: 800, color: '#8B93A7',
+  textAlign: 'left', borderBottom: '1px solid #F0F1F8',
+  textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap',
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -139,69 +185,57 @@ export default function InsightsClient({
   const drillTotalHours = filteredLogs.reduce((s, e) => s + e.hours, 0)
   const drillTotalCost  = filteredLogs.reduce((s, e) => s + e.cost,  0)
   const hasFilter       = !!(filterMember || filterClient)
-
-  const monthLabel = new Date(month + '-01').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+  const monthLabel      = new Date(month + '-01').toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
 
   return (
-    <div style={{ padding: '20px 16px 60px', background: '#F0F2F8', minHeight: '100vh' }} className="sm:px-7">
+    <div style={{ padding: '20px 16px 60px', background: 'linear-gradient(160deg,#EEF2FF 0%,#F0F4FF 50%,#F5F0FF 100%)', minHeight: '100vh' }} className="sm:px-7">
 
-      {/* ── Hero Banner ──────────────────────────────────────────────────────── */}
+      {/* ── Hero ─────────────────────────────────────────────────────────────── */}
       <div style={{
-        background: 'linear-gradient(135deg, #1E3A8A 0%, #1D4ED8 45%, #2563EB 100%)',
-        borderRadius: 24, marginBottom: 22,
-        position: 'relative', overflow: 'hidden',
-        padding: '28px 28px 26px 32px',
-        boxShadow: '0 16px 48px rgba(29,78,216,0.38)',
+        background: 'linear-gradient(135deg,#1E3A8A 0%,#2563EB 40%,#7C3AED 100%)',
+        borderRadius: 24, marginBottom: 22, position: 'relative', overflow: 'hidden',
+        padding: '30px 28px 28px 32px',
+        boxShadow: '0 20px 60px rgba(37,99,235,0.35), 0 4px 16px rgba(124,58,237,0.2)',
       }}>
-        {/* decorative orbs */}
-        <div style={{ position: 'absolute', top: -60, right: 180, width: 260, height: 260, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: -80, right: 40, width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', top: -20, left: -20, width: 140, height: 140, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+        {/* mesh orbs */}
+        <div style={{ position: 'absolute', top: -70, right: 160, width: 280, height: 280, borderRadius: '50%', background: 'radial-gradient(circle,rgba(129,140,248,0.25),transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -90, right: 20, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle,rgba(167,139,250,0.18),transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: -30, left: -30, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle,rgba(96,165,250,0.2),transparent 70%)', pointerEvents: 'none' }} />
 
         <div style={{ position: 'relative', zIndex: 1 }}>
-          {/* badge */}
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '4px 14px', marginBottom: 14, border: '1px solid rgba(255,255,255,0.2)' }}>
-            <BarChart3 size={12} style={{ color: '#93C5FD' }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#DBEAFE', letterSpacing: '0.04em' }}>TEAM ANALYTICS</span>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.14)', borderRadius: 20, padding: '4px 14px', marginBottom: 16, border: '1px solid rgba(255,255,255,0.22)', backdropFilter: 'blur(8px)' }}>
+            <BarChart3 size={12} style={{ color: '#BAC8FF' }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#BAC8FF', letterSpacing: '0.06em' }}>TEAM ANALYTICS</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
             <div>
-              <h1 style={{ fontSize: 28, fontWeight: 900, color: '#FFF', margin: '0 0 4px', fontFamily: 'var(--font-jakarta)', lineHeight: 1.2 }}>
+              <h1 style={{ fontSize: 30, fontWeight: 900, color: '#FFF', margin: '0 0 4px', fontFamily: 'var(--font-jakarta)', lineHeight: 1.15 }}>
                 Team Insights
               </h1>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: '0 0 20px' }}>{monthLabel}</p>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', margin: '0 0 22px' }}>{monthLabel}</p>
 
-              {/* hero quick stats */}
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {[
-                  { icon: <Clock size={13} />, label: `${kpis.totalHours.toFixed(1)}h logged` },
-                  { icon: <Users size={13} />, label: `${employeePerformance.length} members` },
+                  { icon: <Clock size={13} />,     label: `${kpis.totalHours.toFixed(1)}h logged` },
+                  { icon: <Users size={13} />,     label: `${employeePerformance.length} members` },
                   { icon: <Building2 size={13} />, label: `${clientStats.length} clients` },
-                  { icon: <DollarSign size={13} />, label: `${fmtRupee(kpis.totalCost)} value` },
+                  { icon: <DollarSign size={13} />,label: fmtRupee(kpis.totalCost) },
                 ].map(chip => (
-                  <div key={chip.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 10, padding: '5px 12px' }}>
-                    <span style={{ color: 'rgba(255,255,255,0.75)', display: 'flex' }}>{chip.icon}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#FFF' }}>{chip.label}</span>
+                  <div key={chip.label} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.11)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10, padding: '6px 13px', backdropFilter: 'blur(8px)' }}>
+                    <span style={{ color: 'rgba(255,255,255,0.7)', display: 'flex' }}>{chip.icon}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#FFF' }}>{chip.label}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* month picker */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignSelf: 'center' }}>
-              <label style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Month</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignSelf: 'center' }}>
+              <label style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.45)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Month</label>
               <input
-                type="month"
-                value={month}
-                max={today.slice(0, 7)}
+                type="month" value={month} max={today.slice(0, 7)}
                 onChange={e => router.push(`/admin/insights?month=${e.target.value}`)}
-                style={{
-                  padding: '9px 14px', borderRadius: 12, border: '1.5px solid rgba(255,255,255,0.25)',
-                  fontSize: 13, fontWeight: 700, color: '#FFF',
-                  background: 'rgba(255,255,255,0.12)', outline: 'none', cursor: 'pointer',
-                  colorScheme: 'dark',
-                }}
+                style={{ padding: '9px 14px', borderRadius: 12, border: '1.5px solid rgba(255,255,255,0.25)', fontSize: 13, fontWeight: 700, color: '#FFF', background: 'rgba(255,255,255,0.12)', outline: 'none', cursor: 'pointer', colorScheme: 'dark' }}
               />
             </div>
           </div>
@@ -210,9 +244,9 @@ export default function InsightsClient({
 
       {/* ── No data ──────────────────────────────────────────────────────────── */}
       {!hasData && (
-        <div style={{ ...CARD, padding: '60px 24px', textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ width: 64, height: 64, borderRadius: 20, background: 'rgba(29,78,216,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <BarChart3 size={28} style={{ color: '#1D4ED8' }} />
+        <div style={{ ...CARD, padding: '64px 24px', textAlign: 'center', marginBottom: 20 }}>
+          <div style={{ width: 68, height: 68, borderRadius: 20, background: 'linear-gradient(135deg,#EEF2FF,#E0E7FF)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 18px' }}>
+            <BarChart3 size={28} style={{ color: '#6366F1' }} />
           </div>
           <p style={{ fontSize: 15, fontWeight: 800, color: '#374151', margin: '0 0 6px', fontFamily: 'var(--font-jakarta)' }}>No data for {monthLabel}</p>
           <p style={{ fontSize: 13, color: '#9CA3AF', margin: 0 }}>Team members need to submit daily updates with the activity form.</p>
@@ -222,114 +256,90 @@ export default function InsightsClient({
       {/* ── KPI Cards ────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" style={{ gap: 12, marginBottom: 20 }}>
         {[
-          { label: 'Total Hours',     value: fmtH(kpis.totalHours),    icon: <Clock size={18} />,    color: '#1D4ED8', bg: '#EFF6FF', border: '#BFDBFE' },
-          { label: 'Videos Edited',   value: String(kpis.totalVideos),  icon: <Film size={18} />,     color: '#E53935', bg: '#FFF5F5', border: '#FECACA' },
-          { label: 'Posters Made',    value: String(kpis.totalPosters), icon: <ImageIcon size={18} />,color: '#8B5CF6', bg: '#F5F3FF', border: '#DDD6FE' },
-          { label: 'Posts Published', value: String(kpis.totalPosts),   icon: <Share2 size={18} />,   color: '#10B981', bg: '#F0FDF4', border: '#A7F3D0' },
-          { label: 'Team Value',      value: fmtRupee(kpis.totalCost),  icon: <TrendingUp size={18} />, color: '#F59E0B', bg: '#FFFBEB', border: '#FDE68A' },
+          { label: 'Total Hours',   value: fmtH(kpis.totalHours),    icon: <Clock size={17} />,      g1: '#2563EB', g2: '#60A5FA', bg: 'linear-gradient(135deg,#EFF6FF 0%,#DBEAFE 100%)', border: '#BFDBFE' },
+          { label: 'Videos Edited', value: String(kpis.totalVideos),  icon: <Film size={17} />,       g1: '#E53935', g2: '#FCA5A5', bg: 'linear-gradient(135deg,#FFF5F5 0%,#FEE2E2 100%)', border: '#FECACA' },
+          { label: 'Posters Made',  value: String(kpis.totalPosters), icon: <ImageIcon size={17} />,  g1: '#8B5CF6', g2: '#C4B5FD', bg: 'linear-gradient(135deg,#F5F3FF 0%,#EDE9FE 100%)', border: '#DDD6FE' },
+          { label: 'Posts',         value: String(kpis.totalPosts),   icon: <Share2 size={17} />,     g1: '#10B981', g2: '#6EE7B7', bg: 'linear-gradient(135deg,#F0FDF4 0%,#DCFCE7 100%)', border: '#A7F3D0' },
+          { label: 'Team Value',    value: fmtRupee(kpis.totalCost),  icon: <TrendingUp size={17} />, g1: '#F59E0B', g2: '#FCD34D', bg: 'linear-gradient(135deg,#FFFBEB 0%,#FEF3C7 100%)', border: '#FDE68A' },
         ].map(k => (
-          <div key={k.label} style={{ background: k.bg, borderRadius: 16, border: `1.5px solid ${k.border}`, padding: '16px 18px' }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 10, boxShadow: '0 1px 4px rgba(0,0,0,0.07)' }}>
-              <span style={{ color: k.color, display: 'flex' }}>{k.icon}</span>
+          <div key={k.label} style={{ background: k.bg, borderRadius: 18, border: `1.5px solid ${k.border}`, padding: '18px 18px 16px', boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}>
+            <div style={{ width: 38, height: 38, borderRadius: 12, background: `linear-gradient(135deg,${k.g1}18,${k.g2}28)`, border: `1.5px solid ${k.g1}25`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+              <span style={{ color: k.g1, display: 'flex' }}>{k.icon}</span>
             </div>
-            <p style={{ fontSize: 22, fontWeight: 900, color: k.color, margin: '0 0 2px', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>{k.value}</p>
+            <p style={{ fontSize: 22, fontWeight: 900, background: `linear-gradient(135deg,${k.g1},${k.g2})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: '0 0 3px', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>{k.value}</p>
             <p style={{ fontSize: 11, color: '#6B7280', margin: 0, fontWeight: 600 }}>{k.label}</p>
           </div>
         ))}
       </div>
 
-      {/* ── Work Drill-Down Filter ───────────────────────────────────────────── */}
+      {/* ── Work Drill-Down ──────────────────────────────────────────────────── */}
       <div style={{ ...CARD, marginBottom: 20 }}>
-        {/* header row — always visible */}
         <div
           style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}
           onClick={() => setDrillOpen(o => !o)}
         >
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: hasFilter ? 'rgba(29,78,216,0.1)' : '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Search size={16} style={{ color: hasFilter ? '#1D4ED8' : '#6B7280' }} />
+          <div style={{ width: 38, height: 38, borderRadius: 12, background: hasFilter ? 'linear-gradient(135deg,#2563EB22,#6366F133)' : 'linear-gradient(135deg,#F3F4F6,#E9EBF0)', border: `1.5px solid ${hasFilter ? '#6366F140' : '#E5E7EB'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Search size={16} style={{ color: hasFilter ? '#2563EB' : '#9CA3AF' }} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', margin: 0, fontFamily: 'var(--font-jakarta)' }}>Work Drill-Down</p>
             {hasFilter
-              ? <p style={{ fontSize: 11, color: '#1D4ED8', margin: '1px 0 0', fontWeight: 600 }}>
+              ? <p style={{ fontSize: 11, margin: '1px 0 0', fontWeight: 700, background: 'linear-gradient(90deg,#2563EB,#7C3AED)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                   {filterMember ? memberOptions.find(([id]) => id === filterMember)?.[1] : 'All Members'}
-                  {' · '}
-                  {filterClient || 'All Clients'}
+                  {' · '}{filterClient || 'All Clients'}
                   {' · '}{filteredLogs.length} entries
                 </p>
-              : <p style={{ fontSize: 11, color: '#9CA3AF', margin: '1px 0 0' }}>Filter by member, client, or both</p>
+              : <p style={{ fontSize: 11, color: '#9CA3AF', margin: '2px 0 0' }}>Filter by member, client, or both</p>
             }
           </div>
           {hasFilter && (
-            <button
-              onClick={e => { e.stopPropagation(); setFilterMember(''); setFilterClient('') }}
-              style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #E5E7EB', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}
-            >
+            <button onClick={e => { e.stopPropagation(); setFilterMember(''); setFilterClient('') }}
+              style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #E5E7EB', background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
               <X size={13} style={{ color: '#6B7280' }} />
             </button>
           )}
           <ChevronDown size={16} style={{ color: '#9CA3AF', flexShrink: 0, transform: drillOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
         </div>
 
-        {/* filter selectors */}
         {drillOpen && (
-          <div style={{ borderTop: '1px solid #F3F4F6' }}>
-            <div style={{ padding: '16px 20px', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {/* member select */}
-              <div style={{ flex: 1, minWidth: 180 }}>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: '#6B7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Team Member</label>
-                <div style={{ position: 'relative' }}>
-                  <select
-                    value={filterMember}
-                    onChange={e => setFilterMember(e.target.value)}
-                    style={{ width: '100%', appearance: 'none', padding: '10px 36px 10px 14px', borderRadius: 12, border: `1.5px solid ${filterMember ? '#1D4ED8' : '#E5E7EB'}`, fontSize: 13, fontWeight: 600, color: filterMember ? '#1D4ED8' : '#374151', background: filterMember ? '#EFF6FF' : '#FFF', outline: 'none', cursor: 'pointer' }}
-                  >
-                    <option value="">All Members</option>
-                    {memberOptions.map(([id, name]) => (
-                      <option key={id} value={id}>{name}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', pointerEvents: 'none' }} />
+          <div style={{ borderTop: '1px solid #F0F1F8' }}>
+            {/* selectors */}
+            <div style={{ padding: '16px 20px', display: 'flex', gap: 14, flexWrap: 'wrap', background: 'linear-gradient(135deg,#F8FAFF,#F5F3FF)' }}>
+              {[
+                { label: 'Team Member', val: filterMember, set: setFilterMember, opts: memberOptions.map(([id,n]) => ({ v: id, l: n })), g1: '#2563EB', g2: '#6366F1' },
+                { label: 'Client',      val: filterClient, set: setFilterClient, opts: clientOptions.map(c => ({ v: c, l: c })),          g1: '#7C3AED', g2: '#8B5CF6' },
+              ].map(f => (
+                <div key={f.label} style={{ flex: 1, minWidth: 180 }}>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: '#6B7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 7 }}>{f.label}</label>
+                  <div style={{ position: 'relative' }}>
+                    <select value={f.val} onChange={e => f.set(e.target.value)}
+                      style={{ width: '100%', appearance: 'none', padding: '10px 36px 10px 14px', borderRadius: 12, border: `1.5px solid ${f.val ? f.g1 : '#E5E7EB'}`, fontSize: 13, fontWeight: 600, color: f.val ? f.g1 : '#374151', background: f.val ? `linear-gradient(135deg,${f.g1}0A,${f.g2}14)` : '#FFF', outline: 'none', cursor: 'pointer' }}>
+                      <option value="">{f.label === 'Team Member' ? 'All Members' : 'All Clients'}</option>
+                      {f.opts.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                    </select>
+                    <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', pointerEvents: 'none' }} />
+                  </div>
                 </div>
-              </div>
-
-              {/* client select */}
-              <div style={{ flex: 1, minWidth: 180 }}>
-                <label style={{ display: 'block', fontSize: 10, fontWeight: 800, color: '#6B7280', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Client</label>
-                <div style={{ position: 'relative' }}>
-                  <select
-                    value={filterClient}
-                    onChange={e => setFilterClient(e.target.value)}
-                    style={{ width: '100%', appearance: 'none', padding: '10px 36px 10px 14px', borderRadius: 12, border: `1.5px solid ${filterClient ? '#6366F1' : '#E5E7EB'}`, fontSize: 13, fontWeight: 600, color: filterClient ? '#6366F1' : '#374151', background: filterClient ? '#EEF2FF' : '#FFF', outline: 'none', cursor: 'pointer' }}
-                  >
-                    <option value="">All Clients</option>
-                    {clientOptions.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF', pointerEvents: 'none' }} />
-                </div>
-              </div>
+              ))}
             </div>
 
             {/* results */}
             {hasFilter && (
-              <div style={{ borderTop: '1px solid #F3F4F6' }}>
-                {/* summary strip */}
-                <div style={{ padding: '10px 20px', background: '#F9FAFB', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ borderTop: '1px solid #F0F1F8' }}>
+                <div style={{ padding: '10px 20px', background: 'linear-gradient(90deg,#EFF6FF,#EEF2FF)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   {filterMember && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '3px 11px', borderRadius: 20, background: 'linear-gradient(90deg,#EFF6FF,#DBEAFE)', color: '#2563EB', border: '1px solid #BFDBFE' }}>
                       <Users size={10} /> {memberOptions.find(([id]) => id === filterMember)?.[1]}
                     </span>
                   )}
                   {filterClient && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: '#EEF2FF', color: '#6366F1', border: '1px solid #C7D2FE' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '3px 11px', borderRadius: 20, background: 'linear-gradient(90deg,#EEF2FF,#E0E7FF)', color: '#6366F1', border: '1px solid #C7D2FE' }}>
                       <Building2 size={10} /> {filterClient}
                     </span>
                   )}
-                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 14 }}>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: '#1D4ED8' }}>{fmtH(drillTotalHours)}</span>
-                    <span style={{ fontSize: 12, fontWeight: 800, color: '#16A34A' }}>{fmtRupee(drillTotalCost)}</span>
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: 14, alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 900, background: 'linear-gradient(90deg,#2563EB,#7C3AED)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{fmtH(drillTotalHours)}</span>
+                    <span style={{ fontSize: 13, fontWeight: 900, background: 'linear-gradient(90deg,#10B981,#34D399)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{fmtRupee(drillTotalCost)}</span>
                     <span style={{ fontSize: 11, color: '#9CA3AF' }}>{filteredLogs.length} entries</span>
                   </div>
                 </div>
@@ -340,52 +350,56 @@ export default function InsightsClient({
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
                         <thead>
-                          <tr style={{ background: '#F9FAFB' }}>
-                            {!filterMember && <th style={TH_STYLE}>Member</th>}
-                            {!filterClient  && <th style={TH_STYLE}>Client</th>}
-                            <th style={TH_STYLE}>Activity</th>
-                            <th style={TH_STYLE}>Work Done</th>
-                            <th style={{ ...TH_STYLE, textAlign: 'right' }}>Hours</th>
-                            <th style={{ ...TH_STYLE, textAlign: 'right' }}>Value</th>
+                          <tr style={{ background: 'linear-gradient(90deg,#F8FAFF,#F5F3FF)' }}>
+                            {!filterMember && <th style={TH}>Member</th>}
+                            {!filterClient  && <th style={TH}>Client</th>}
+                            <th style={TH}>Activity</th>
+                            <th style={TH}>Work Done</th>
+                            <th style={{ ...TH, textAlign: 'right' }}>Hours</th>
+                            <th style={{ ...TH, textAlign: 'right' }}>Value</th>
                           </tr>
                         </thead>
                         <tbody>
                           {filteredLogs.map((e, i) => (
-                            <tr key={i} style={{ borderBottom: '1px solid #F9FAFB', background: i % 2 === 0 ? '#FFF' : '#FAFBFF' }}>
+                            <tr key={i} style={{ borderBottom: '1px solid #F0F1F8', background: i % 2 === 0 ? '#FFF' : '#FAFBFF' }}>
                               {!filterMember && (
-                                <td style={{ padding: '10px 16px' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                                    <div style={{ width: 26, height: 26, borderRadius: 8, background: `${avatarColor(e.memberName)}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                      <span style={{ fontSize: 9, fontWeight: 900, color: avatarColor(e.memberName) }}>{ini(e.memberName)}</span>
-                                    </div>
+                                <td style={{ padding: '11px 16px' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <Avatar name={e.memberName} size={28} radius={8} />
                                     <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', whiteSpace: 'nowrap' }}>{e.memberName}</span>
                                   </div>
                                 </td>
                               )}
                               {!filterClient && (
-                                <td style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: '#6366F1', whiteSpace: 'nowrap', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.clientName}</td>
+                                <td style={{ padding: '11px 16px', fontSize: 11, fontWeight: 700, color: '#6366F1', whiteSpace: 'nowrap', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.clientName}</td>
                               )}
-                              <td style={{ padding: '10px 16px', fontSize: 12, color: '#374151', whiteSpace: 'nowrap' }}>
+                              <td style={{ padding: '11px 16px', fontSize: 12, color: '#374151', whiteSpace: 'nowrap' }}>
                                 <span style={{ marginRight: 5 }}>{e.activityEmoji}</span>{e.activityName}
                               </td>
-                              <td style={{ padding: '10px 16px', maxWidth: 240 }}>
+                              <td style={{ padding: '11px 16px', maxWidth: 240 }}>
                                 {e.titles.length > 0
                                   ? <span style={{ fontSize: 11, color: '#6B7280', lineHeight: 1.5 }}>{e.titles.join(', ')}</span>
                                   : <span style={{ fontSize: 11, color: '#D1D5DB', fontStyle: 'italic' }}>—</span>}
                               </td>
-                              <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 800, color: '#1D4ED8', textAlign: 'right', whiteSpace: 'nowrap', fontFamily: 'var(--font-jakarta)' }}>{fmtH(e.hours)}</td>
-                              <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 800, color: '#16A34A', textAlign: 'right', whiteSpace: 'nowrap', fontFamily: 'var(--font-jakarta)' }}>{fmtRupee(e.cost)}</td>
+                              <td style={{ padding: '11px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                <span style={{ fontSize: 13, fontWeight: 900, background: 'linear-gradient(135deg,#2563EB,#6366F1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'var(--font-jakarta)' }}>{fmtH(e.hours)}</span>
+                              </td>
+                              <td style={{ padding: '11px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                                <span style={{ fontSize: 13, fontWeight: 900, background: 'linear-gradient(135deg,#10B981,#34D399)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'var(--font-jakarta)' }}>{fmtRupee(e.cost)}</span>
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                         <tfoot>
-                          <tr style={{ background: '#F0F4FF', borderTop: '2px solid #C7D2FE' }}>
+                          <tr style={{ background: 'linear-gradient(90deg,#EFF6FF,#EEF2FF)', borderTop: '2px solid #C7D2FE' }}>
                             <td colSpan={(!filterMember ? 1 : 0) + (!filterClient ? 1 : 0) + 2}
-                              style={{ padding: '11px 16px', fontSize: 12, fontWeight: 800, color: '#1E3A8A' }}>
-                              Monthly Total
+                              style={{ padding: '12px 16px', fontSize: 12, fontWeight: 800, color: '#1E3A8A' }}>Monthly Total</td>
+                            <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                              <span style={{ fontSize: 15, fontWeight: 900, background: 'linear-gradient(135deg,#2563EB,#7C3AED)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'var(--font-jakarta)' }}>{fmtH(drillTotalHours)}</span>
                             </td>
-                            <td style={{ padding: '11px 16px', fontSize: 15, fontWeight: 900, color: '#1D4ED8', textAlign: 'right', fontFamily: 'var(--font-jakarta)' }}>{fmtH(drillTotalHours)}</td>
-                            <td style={{ padding: '11px 16px', fontSize: 15, fontWeight: 900, color: '#16A34A', textAlign: 'right', fontFamily: 'var(--font-jakarta)' }}>{fmtRupee(drillTotalCost)}</td>
+                            <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                              <span style={{ fontSize: 15, fontWeight: 900, background: 'linear-gradient(135deg,#10B981,#34D399)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'var(--font-jakarta)' }}>{fmtRupee(drillTotalCost)}</span>
+                            </td>
                           </tr>
                         </tfoot>
                       </table>
@@ -398,36 +412,31 @@ export default function InsightsClient({
         )}
       </div>
 
-      {/* ── Employee Performance Table ───────────────────────────────────────── */}
+      {/* ── Employee Performance ─────────────────────────────────────────────── */}
       {employeePerformance.length > 0 && (
         <div style={{ ...CARD, marginBottom: 20 }}>
-          <SectionTitle
-            icon={<Users size={17} style={{ color: '#1D4ED8' }} />}
-            title="Employee Performance"
-            sub={`${monthLabel} · Score = Value/Salary + Tasks + Hours`}
-          />
+          <SectionTitle icon={<Users size={17} style={{ color: '#2563EB' }} />} title="Employee Performance"
+            sub={`${monthLabel} · Score = Value/Salary + Tasks + Hours`} g1="#2563EB" g2="#6366F1" />
           <div className="overflow-x-auto">
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 780 }}>
               <thead>
-                <tr style={{ background: '#F8FAFF' }}>
-                  {['Employee', 'Clients', 'Tasks', 'Hours', 'Work Value', 'Salary', 'Value vs Pay', 'Score'].map(h => (
-                    <th key={h} style={TH_STYLE}>{h}</th>
+                <tr style={{ background: 'linear-gradient(90deg,#F8FAFF,#F5F3FF)' }}>
+                  {['Employee','Clients','Tasks','Hours','Work Value','Salary','Value vs Pay','Score'].map(h => (
+                    <th key={h} style={TH}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {employeePerformance.map((emp, i) => {
-                  const ratio      = emp.salary > 0 ? Math.round((emp.workValue / emp.salary) * 100) : null
-                  const ratioColor = ratio == null ? '#9CA3AF' : ratio >= 100 ? '#10B981' : ratio >= 60 ? '#F59E0B' : '#EF4444'
-                  const ratioBg    = ratio == null ? '#F3F4F6' : ratio >= 100 ? 'rgba(16,185,129,0.1)' : ratio >= 60 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)'
-                  const clr        = avatarColor(emp.name)
+                  const ratio = emp.salary > 0 ? Math.round((emp.workValue / emp.salary) * 100) : null
+                  const [rg1,rg2] = ratio == null ? ['#9CA3AF','#9CA3AF'] : ratio >= 100 ? ['#10B981','#34D399'] : ratio >= 60 ? ['#F59E0B','#FCD34D'] : ['#EF4444','#F87171']
+                  const [ag1,ag2] = avatarGrad(emp.name)
+                  const hPct      = Math.round((emp.hours / maxEmpHours) * 100)
                   return (
-                    <tr key={emp.id} style={{ borderBottom: '1px solid #F3F4F6', background: i % 2 === 0 ? '#FFF' : '#FAFBFF' }}>
+                    <tr key={emp.id} style={{ borderBottom: '1px solid #F0F1F8', background: i % 2 === 0 ? '#FFF' : '#FAFBFF' }}>
                       <td style={{ padding: '13px 16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 36, height: 36, borderRadius: 11, background: `${clr}18`, border: `1.5px solid ${clr}28`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <span style={{ fontSize: 12, fontWeight: 900, color: clr }}>{ini(emp.name)}</span>
-                          </div>
+                          <Avatar name={emp.name} size={38} radius={12} />
                           <div>
                             <p style={{ fontSize: 13, fontWeight: 800, color: '#111827', margin: 0 }}>{emp.name}</p>
                             <p style={{ fontSize: 10, color: '#B0B8C4', margin: 0 }}>#{emp.employee_id}</p>
@@ -439,36 +448,35 @@ export default function InsightsClient({
                           ? <span style={{ fontSize: 11, color: '#D1D5DB' }}>—</span>
                           : <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                               {emp.clients.slice(0, 2).map(c => (
-                                <span key={c} style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#EEF2FF', color: '#6366F1', whiteSpace: 'nowrap' }}>{c}</span>
+                                <span key={c} style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'linear-gradient(90deg,#EEF2FF,#E0E7FF)', color: '#6366F1', whiteSpace: 'nowrap' }}>{c}</span>
                               ))}
                               {emp.clients.length > 2 && <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F3F4F6', color: '#6B7280' }}>+{emp.clients.length - 2}</span>}
-                            </div>
-                        }
+                            </div>}
                       </td>
                       <td style={{ padding: '13px 16px' }}>
                         <span style={{ fontSize: 13, fontWeight: 800, color: emp.tasksCompleted > 0 ? '#111827' : '#D1D5DB' }}>{emp.tasksCompleted || '—'}</span>
                       </td>
                       <td style={{ padding: '13px 16px' }}>
-                        <div>
-                          <span style={{ fontSize: 13, fontWeight: 800, color: '#1D4ED8' }}>{emp.hours > 0 ? fmtH(emp.hours) : '—'}</span>
-                          <MiniBar pct={Math.round((emp.hours / maxEmpHours) * 100)} color="#1D4ED8" />
-                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 900, background: `linear-gradient(135deg,${ag1},${ag2})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                          {emp.hours > 0 ? fmtH(emp.hours) : '—'}
+                        </span>
+                        <MiniBar pct={hPct} g1={ag1} g2={ag2} />
                       </td>
                       <td style={{ padding: '13px 16px' }}>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: emp.workValue > 0 ? '#10B981' : '#D1D5DB' }}>{emp.workValue > 0 ? fmtRupee(emp.workValue) : '—'}</span>
-                      </td>
-                      <td style={{ padding: '13px 16px' }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: emp.salary > 0 ? '#374151' : '#D1D5DB' }}>{emp.salary > 0 ? fmtRupee(emp.salary) : 'Not set'}</span>
-                      </td>
-                      <td style={{ padding: '13px 16px' }}>
-                        <span style={{ fontSize: 12, fontWeight: 800, padding: '4px 12px', borderRadius: 8, background: ratioBg, color: ratioColor, whiteSpace: 'nowrap' }}>
-                          {ratio != null ? `${ratio}%` : '—'}
+                        <span style={{ fontSize: 13, fontWeight: 900, background: 'linear-gradient(135deg,#10B981,#34D399)', WebkitBackgroundClip: 'text', WebkitTextFillColor: emp.workValue > 0 ? 'transparent' : undefined, color: emp.workValue > 0 ? undefined : '#D1D5DB' }}>
+                          {emp.workValue > 0 ? fmtRupee(emp.workValue) : '—'}
                         </span>
                       </td>
+                      <td style={{ padding: '13px 16px', fontSize: 13, fontWeight: 700, color: emp.salary > 0 ? '#374151' : '#D1D5DB' }}>
+                        {emp.salary > 0 ? fmtRupee(emp.salary) : 'Not set'}
+                      </td>
                       <td style={{ padding: '13px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <ScoreRing score={emp.productivityScore} size={40} />
-                        </div>
+                        {ratio != null
+                          ? <span style={{ fontSize: 12, fontWeight: 800, padding: '4px 12px', borderRadius: 8, background: `linear-gradient(135deg,${rg1}18,${rg2}28)`, border: `1px solid ${rg1}30`, color: rg1, whiteSpace: 'nowrap' }}>{ratio}%</span>
+                          : <span style={{ fontSize: 11, color: '#D1D5DB' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '13px 16px' }}>
+                        <ScoreRing score={emp.productivityScore} size={42} />
                       </td>
                     </tr>
                   )
@@ -476,50 +484,45 @@ export default function InsightsClient({
               </tbody>
             </table>
           </div>
-          <div style={{ padding: '10px 20px', background: '#F8FAFF', borderTop: '1px solid #F3F4F6', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
-            {[
-              { color: '#10B981', label: '≥ 100% · generating more value than salary' },
-              { color: '#F59E0B', label: '60–99% · moderate value output' },
-              { color: '#EF4444', label: '< 60% · below expected value' },
-            ].map(l => (
-              <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: l.color }} />
-                <span style={{ fontSize: 10, color: '#6B7280', fontWeight: 500 }}>{l.label}</span>
+          <div style={{ padding: '10px 20px', background: 'linear-gradient(90deg,#F8FAFF,#F5F3FF)', borderTop: '1px solid #F0F1F8', display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+            {[['#10B981','#34D399','≥ 100% · generating more value than salary'],['#F59E0B','#FCD34D','60–99% · moderate value output'],['#EF4444','#F87171','< 60% · below expected value']].map(([c1,c2,l]) => (
+              <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: `linear-gradient(135deg,${c1},${c2})` }} />
+                <span style={{ fontSize: 10, color: '#6B7280', fontWeight: 500 }}>{l}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* ── Ranking + Hours per Client ────────────────────────────────────────── */}
+      {/* ── Rankings + Hours per Client ──────────────────────────────────────── */}
       {employeePerformance.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 16, marginBottom: 20 }}>
 
-          {/* Leaderboard */}
           <div style={CARD}>
-            <SectionTitle icon={<Trophy size={17} style={{ color: '#F59E0B' }} />} title="Monthly Rankings" sub="Ranked by productivity score" />
+            <SectionTitle icon={<Trophy size={17} style={{ color: '#F59E0B' }} />} title="Monthly Rankings" sub="Ranked by productivity score" g1="#F59E0B" g2="#FCD34D" />
             <div style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               {[...employeePerformance].sort((a, b) => b.productivityScore - a.productivityScore).map((emp, i) => {
-                const s   = emp.productivityScore
-                const sc  = s >= 70 ? '#10B981' : s >= 40 ? '#F59E0B' : '#EF4444'
-                const clr = avatarColor(emp.name)
-                const podium = i === 0 ? { bg: '#FFFBEB', border: '#FDE68A', badge: '🥇' }
-                             : i === 1 ? { bg: '#F8FAFF', border: '#E0E7FF', badge: '🥈' }
-                             : i === 2 ? { bg: '#FFF8F0', border: '#FED7AA', badge: '🥉' }
-                             : { bg: '#FAFAFA', border: 'transparent', badge: `${i + 1}` }
+                const s = emp.productivityScore
+                const [sg1,sg2] = s >= 70 ? ['#10B981','#34D399'] : s >= 40 ? ['#F59E0B','#FCD34D'] : ['#EF4444','#F87171']
+                const [ag1,ag2] = avatarGrad(emp.name)
+                const podiumBg = i === 0 ? 'linear-gradient(135deg,#FFFDE7,#FFF8C4)'
+                               : i === 1 ? 'linear-gradient(135deg,#F8FAFF,#EEF2FF)'
+                               : i === 2 ? 'linear-gradient(135deg,#FFF8F0,#FDEBD8)'
+                               : '#FAFAFA'
+                const podiumBorder = i === 0 ? '#FDE68A' : i === 1 ? '#C7D2FE' : i === 2 ? '#FED7AA' : 'transparent'
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`
                 return (
-                  <div key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 14, background: podium.bg, border: `1px solid ${podium.border}` }}>
-                    <span style={{ fontSize: i < 3 ? 18 : 11, fontWeight: 700, color: '#9CA3AF', width: 26, textAlign: 'center', flexShrink: 0 }}>{podium.badge}</span>
-                    <div style={{ width: 34, height: 34, borderRadius: 11, background: `${clr}18`, border: `1.5px solid ${clr}28`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ fontSize: 11, fontWeight: 900, color: clr }}>{ini(emp.name)}</span>
-                    </div>
+                  <div key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 14, background: podiumBg, border: `1px solid ${podiumBorder}` }}>
+                    <span style={{ fontSize: i < 3 ? 18 : 11, fontWeight: 700, color: '#9CA3AF', width: 26, textAlign: 'center', flexShrink: 0 }}>{medal}</span>
+                    <Avatar name={emp.name} size={34} radius={10} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 13, fontWeight: 800, color: '#111827', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{emp.name}</p>
                       <p style={{ fontSize: 10, color: '#9CA3AF', margin: '1px 0 0' }}>{emp.clients.length} clients · {emp.tasksCompleted} tasks · {fmtH(emp.hours)}</p>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
-                      <span style={{ fontSize: 15, fontWeight: 900, color: sc, fontFamily: 'var(--font-jakarta)' }}>{s}</span>
-                      <MiniBar pct={s} color={sc} />
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5, flexShrink: 0 }}>
+                      <span style={{ fontSize: 16, fontWeight: 900, background: `linear-gradient(135deg,${sg1},${sg2})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'var(--font-jakarta)' }}>{s}</span>
+                      <MiniBar pct={s} g1={sg1} g2={sg2} />
                     </div>
                   </div>
                 )
@@ -527,32 +530,29 @@ export default function InsightsClient({
             </div>
           </div>
 
-          {/* Hours per Client */}
           <div style={CARD}>
-            <SectionTitle icon={<Clock size={17} style={{ color: '#6366F1' }} />} title="Hours per Client" sub="Top 3 clients per team member" />
-            <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {employeePerformance.filter(e => e.hoursPerClient.length > 0).map((emp, i) => {
-                const clr = avatarColor(emp.name)
+            <SectionTitle icon={<Clock size={17} style={{ color: '#6366F1' }} />} title="Hours per Client" sub="Top 3 clients per team member" g1="#6366F1" g2="#818CF8" />
+            <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {employeePerformance.filter(e => e.hoursPerClient.length > 0).map((emp) => {
+                const [ag1,ag2] = avatarGrad(emp.name)
                 const top = emp.hoursPerClient.slice(0, 3)
                 const maxH = top[0]?.hours ?? 1
                 return (
                   <div key={emp.id}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <div style={{ width: 26, height: 26, borderRadius: 8, background: `${clr}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span style={{ fontSize: 9, fontWeight: 900, color: clr }}>{ini(emp.name)}</span>
-                      </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                      <Avatar name={emp.name} size={26} radius={8} />
                       <span style={{ fontSize: 12, fontWeight: 800, color: '#374151' }}>{emp.name}</span>
                       <span style={{ fontSize: 10, color: '#9CA3AF', marginLeft: 'auto' }}>{fmtH(emp.hours)} total</span>
                     </div>
-                    <div style={{ paddingLeft: 34, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ paddingLeft: 34, display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {top.map(c => (
                         <div key={c.name}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                            <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{c.name}</span>
-                            <span style={{ fontSize: 11, fontWeight: 800, color: clr, flexShrink: 0 }}>{fmtH(c.hours)}</span>
+                            <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 155 }}>{c.name}</span>
+                            <span style={{ fontSize: 11, fontWeight: 900, background: `linear-gradient(90deg,${ag1},${ag2})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', flexShrink: 0 }}>{fmtH(c.hours)}</span>
                           </div>
-                          <div style={{ height: 6, background: '#F3F4F6', borderRadius: 3, overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.round((c.hours / maxH) * 100)}%`, height: '100%', background: clr, borderRadius: 3 }} />
+                          <div style={{ height: 6, background: '#F0F1F8', borderRadius: 3, overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.round((c.hours / maxH) * 100)}%`, height: '100%', background: `linear-gradient(90deg,${ag1},${ag2})`, borderRadius: 3 }} />
                           </div>
                         </div>
                       ))}
@@ -569,25 +569,24 @@ export default function InsightsClient({
       {/* ── Team Hours + Activity Breakdown ──────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 16, marginBottom: 20 }}>
 
-        {/* Team Category Hours */}
         <div style={CARD}>
-          <SectionTitle icon={<Zap size={17} style={{ color: '#F59E0B' }} />} title="Team Hours by Category" />
-          <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <SectionTitle icon={<Zap size={17} style={{ color: '#F59E0B' }} />} title="Team Hours by Category" g1="#F59E0B" g2="#FCD34D" />
+          <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 18 }}>
             {TEAM_ORDER.map(tc => {
               const cfg = TEAM_CFG[tc]
               const hrs = teamHours[tc] ?? 0
               const pct = Math.max(4, Math.round((hrs / maxTeamHours) * 100))
               return (
                 <div key={tc}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 10, height: 10, borderRadius: 3, background: cfg.color, flexShrink: 0 }} />
+                      <div style={{ width: 10, height: 10, borderRadius: 3, background: `linear-gradient(135deg,${cfg.g1},${cfg.g2})`, flexShrink: 0 }} />
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#374151' }}>{cfg.label}</span>
                     </div>
-                    <span style={{ fontSize: 15, fontWeight: 900, color: cfg.color, fontFamily: 'var(--font-jakarta)' }}>{fmtH(hrs)}</span>
+                    <span style={{ fontSize: 15, fontWeight: 900, background: `linear-gradient(135deg,${cfg.g1},${cfg.g2})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'var(--font-jakarta)' }}>{fmtH(hrs)}</span>
                   </div>
-                  <div style={{ height: 8, background: '#F3F4F6', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ width: `${pct}%`, height: '100%', background: `linear-gradient(90deg, ${cfg.color}CC, ${cfg.color})`, borderRadius: 4, transition: 'width 0.4s ease' }} />
+                  <div style={{ height: 9, background: '#F0F1F8', borderRadius: 5, overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', background: `linear-gradient(90deg,${cfg.g1},${cfg.g2})`, borderRadius: 5 }} />
                   </div>
                 </div>
               )
@@ -595,34 +594,31 @@ export default function InsightsClient({
           </div>
         </div>
 
-        {/* Activity Breakdown */}
         <div style={CARD}>
-          <SectionTitle icon={<Target size={17} style={{ color: '#8B5CF6' }} />} title="Activity Breakdown" />
+          <SectionTitle icon={<Target size={17} style={{ color: '#8B5CF6' }} />} title="Activity Breakdown" g1="#8B5CF6" g2="#C4B5FD" />
           {activityStats.length === 0
             ? <EmptyRow msg="No activities logged" />
             : (
-              <div style={{ maxHeight: 340, overflowY: 'auto' }}>
+              <div style={{ maxHeight: 360, overflowY: 'auto' }}>
                 {activityStats.map((a, i) => {
                   const cfg = TEAM_CFG[a.team]
                   return (
-                    <div key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
+                    <div key={i} style={{ borderBottom: '1px solid #F0F1F8' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 20px' }}>
                         <span style={{ fontSize: 18, flexShrink: 0 }}>{a.emoji}</span>
                         <span style={{ fontSize: 13, fontWeight: 700, color: '#374151', flex: 1 }}>{a.name}</span>
                         {a.count > 0 && (
-                          <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 6, background: `${cfg.color}12`, color: cfg.color, flexShrink: 0 }}>{a.count} units</span>
+                          <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 9px', borderRadius: 6, background: `linear-gradient(90deg,${cfg.g1}14,${cfg.g2}22)`, color: cfg.g1, flexShrink: 0 }}>{a.count} units</span>
                         )}
                         <span style={{ fontSize: 12, color: '#6B7280', minWidth: 38, textAlign: 'right', flexShrink: 0 }}>{fmtH(a.hours)}</span>
-                        <span style={{ fontSize: 13, fontWeight: 900, color: '#111827', minWidth: 68, textAlign: 'right', fontFamily: 'var(--font-jakarta)', flexShrink: 0 }}>{fmtRupee(a.cost)}</span>
+                        <span style={{ fontSize: 13, fontWeight: 900, minWidth: 68, textAlign: 'right', fontFamily: 'var(--font-jakarta)', flexShrink: 0, background: `linear-gradient(90deg,${cfg.g1},${cfg.g2})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{fmtRupee(a.cost)}</span>
                       </div>
                       {a.titles.length > 0 && (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '0 20px 10px 48px' }}>
                           {a.titles.slice(0, 5).map((t, ti) => (
                             <span key={ti} style={{ fontSize: 10, fontWeight: 600, color: '#6B7280', background: '#F3F4F6', borderRadius: 6, padding: '2px 8px', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t}</span>
                           ))}
-                          {a.titles.length > 5 && (
-                            <span style={{ fontSize: 10, fontWeight: 600, color: '#9CA3AF', background: '#F3F4F6', borderRadius: 6, padding: '2px 8px' }}>+{a.titles.length - 5} more</span>
-                          )}
+                          {a.titles.length > 5 && <span style={{ fontSize: 10, fontWeight: 600, color: '#9CA3AF', background: '#F3F4F6', borderRadius: 6, padding: '2px 8px' }}>+{a.titles.length - 5} more</span>}
                         </div>
                       )}
                     </div>
@@ -633,33 +629,32 @@ export default function InsightsClient({
         </div>
       </div>
 
-      {/* ── Member Summary + Client Hours ─────────────────────────────────────── */}
+      {/* ── Member Hours + Client Hours ───────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-2" style={{ gap: 16, marginBottom: 20 }}>
 
-        {/* Member Working Hours */}
         <div style={CARD}>
-          <SectionTitle icon={<Clock size={17} style={{ color: '#10B981' }} />} title="Member Working Hours" sub="Hours × Hourly Rate = Total Value" />
-          {memberStats.length === 0
+          <SectionTitle icon={<Clock size={17} style={{ color: '#10B981' }} />} title="Member Working Hours" sub="Hours × Hourly Rate = Total Value" g1="#10B981" g2="#34D399" />
+          {employeePerformance.length === 0
             ? <EmptyRow msg="No member data yet" />
-            : employeePerformance.sort((a, b) => b.hours - a.hours).map((emp, i) => {
-                const clr    = avatarColor(emp.name)
-                const noRate = emp.hourlyRate === 0
-                const ms     = memberStats.find(m => m.employee_id === emp.employee_id)
+            : [...employeePerformance].sort((a, b) => b.hours - a.hours).map((emp, i) => {
+                const [ag1,ag2] = avatarGrad(emp.name)
+                const noRate    = emp.hourlyRate === 0
+                const ms        = memberStats.find(m => m.employee_id === emp.employee_id)
                 return (
-                  <div key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: '1px solid #F9FAFB' }}>
-                    <div style={{ width: 36, height: 36, borderRadius: 11, background: `${clr}15`, border: `1.5px solid ${clr}25`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <span style={{ fontSize: 11, fontWeight: 900, color: clr }}>{ini(emp.name)}</span>
-                    </div>
+                  <div key={emp.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: '1px solid #F0F1F8', background: i % 2 === 0 ? 'transparent' : 'linear-gradient(90deg,#FAFBFF,#F8FAFF)' }}>
+                    <Avatar name={emp.name} size={38} radius={12} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <p style={{ fontSize: 13, fontWeight: 800, color: '#111827', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{emp.name}</p>
                       <p style={{ fontSize: 10, color: '#9CA3AF', margin: '1px 0 0' }}>
                         {noRate ? 'Rate not set' : `${fmtRupee(emp.hourlyRate)}/hr`}
-                        {ms && ` · ${ms.entries} logs`}
+                        {ms ? ` · ${ms.entries} logs` : ''}
                       </p>
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <p style={{ fontSize: 15, fontWeight: 900, color: '#1D4ED8', margin: 0, fontFamily: 'var(--font-jakarta)' }}>{fmtH(emp.hours)}</p>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: noRate ? '#9CA3AF' : '#10B981', margin: '1px 0 0' }}>{noRate ? '—' : fmtRupee(emp.workValue)}</p>
+                      <p style={{ fontSize: 16, fontWeight: 900, margin: '0 0 2px', background: `linear-gradient(135deg,${ag1},${ag2})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontFamily: 'var(--font-jakarta)' }}>{fmtH(emp.hours)}</p>
+                      <p style={{ fontSize: 11, fontWeight: 700, margin: 0, background: noRate ? undefined : 'linear-gradient(135deg,#10B981,#34D399)', WebkitBackgroundClip: noRate ? undefined : 'text', WebkitTextFillColor: noRate ? undefined : 'transparent', color: noRate ? '#9CA3AF' : undefined }}>
+                        {noRate ? '—' : fmtRupee(emp.workValue)}
+                      </p>
                     </div>
                   </div>
                 )
@@ -667,25 +662,26 @@ export default function InsightsClient({
           }
         </div>
 
-        {/* Client Hours */}
         <div style={CARD}>
-          <SectionTitle icon={<Building2 size={17} style={{ color: '#6366F1' }} />} title="Client Hours & Cost" />
+          <SectionTitle icon={<Building2 size={17} style={{ color: '#6366F1' }} />} title="Client Hours & Cost" g1="#6366F1" g2="#818CF8" />
           {clientStats.length === 0
-            ? <EmptyRow msg="No client data yet — members must select a client" />
+            ? <EmptyRow msg="No client data yet" />
             : clientStats.slice(0, 10).map((c, i) => {
-                const pct = Math.round((c.hours / (clientStats[0]?.hours ?? 1)) * 100)
+                const pct   = Math.round((c.hours / (clientStats[0]?.hours ?? 1)) * 100)
+                const cidxG = [['#6366F1','#818CF8'],['#E53935','#FF6B6B'],['#10B981','#34D399'],['#F59E0B','#FCD34D'],['#8B5CF6','#C4B5FD'],['#06B6D4','#22D3EE']]
+                const [cg1,cg2] = cidxG[i % cidxG.length]
                 return (
-                  <div key={i} style={{ padding: '11px 20px', borderBottom: '1px solid #F9FAFB' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(99,102,241,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span style={{ fontSize: 9, fontWeight: 900, color: '#6366F1' }}>{ini(c.name)}</span>
+                  <div key={i} style={{ padding: '12px 20px', borderBottom: '1px solid #F0F1F8', background: i % 2 === 0 ? 'transparent' : 'linear-gradient(90deg,#FAFBFF,#F8FAFF)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: 10, background: `linear-gradient(135deg,${cg1}18,${cg2}28)`, border: `1.5px solid ${cg1}28`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span style={{ fontSize: 9, fontWeight: 900, background: `linear-gradient(135deg,${cg1},${cg2})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{ini(c.name)}</span>
                       </div>
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
                       <span style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', flexShrink: 0 }}>{fmtH(c.hours)}</span>
-                      <span style={{ fontSize: 13, fontWeight: 900, color: '#111827', fontFamily: 'var(--font-jakarta)', flexShrink: 0, minWidth: 68, textAlign: 'right' }}>{fmtRupee(c.cost)}</span>
+                      <span style={{ fontSize: 13, fontWeight: 900, fontFamily: 'var(--font-jakarta)', flexShrink: 0, minWidth: 68, textAlign: 'right', background: `linear-gradient(90deg,${cg1},${cg2})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{fmtRupee(c.cost)}</span>
                     </div>
-                    <div style={{ marginLeft: 42, height: 4, background: '#F3F4F6', borderRadius: 2, overflow: 'hidden' }}>
-                      <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #6366F1CC, #6366F1)', borderRadius: 2 }} />
+                    <div style={{ marginLeft: 42, height: 5, background: '#F0F1F8', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ width: `${pct}%`, height: '100%', background: `linear-gradient(90deg,${cg1},${cg2})`, borderRadius: 3 }} />
                     </div>
                   </div>
                 )
@@ -697,58 +693,52 @@ export default function InsightsClient({
       {/* ── Posts ────────────────────────────────────────────────────────────── */}
       {(Object.keys(postsByType).length > 0 || recentPosts.length > 0) && (
         <div style={CARD}>
-          <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 34, height: 34, borderRadius: 10, background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F0F1F8', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 11, background: 'linear-gradient(135deg,#10B98118,#34D39928)', border: '1.5px solid #10B98130', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Share2 size={16} style={{ color: '#10B981' }} />
               </div>
               <div>
                 <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', margin: 0, fontFamily: 'var(--font-jakarta)' }}>Posts Published</p>
-                <p style={{ fontSize: 11, color: '#9CA3AF', margin: '1px 0 0' }}>{monthLabel}</p>
+                <p style={{ fontSize: 11, color: '#9CA3AF', margin: '2px 0 0' }}>{monthLabel}</p>
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {Object.entries(postsByType).sort((a, b) => b[1] - a[1]).map(([type, count]) => (
-                <span key={type} style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 8, background: 'rgba(16,185,129,0.08)', color: '#10B981', border: '1px solid rgba(16,185,129,0.15)' }}>{type}: {count}</span>
+                <span key={type} style={{ fontSize: 11, fontWeight: 700, padding: '3px 11px', borderRadius: 8, background: 'linear-gradient(90deg,rgba(16,185,129,0.1),rgba(52,211,153,0.15))', color: '#10B981', border: '1px solid rgba(16,185,129,0.2)' }}>{type}: {count}</span>
               ))}
               {Object.entries(postsByPlatform).sort((a, b) => b[1] - a[1]).map(([plat, count]) => (
-                <span key={plat} style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 8, background: 'rgba(59,130,246,0.08)', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.15)' }}>{plat}: {count}</span>
+                <span key={plat} style={{ fontSize: 11, fontWeight: 700, padding: '3px 11px', borderRadius: 8, background: 'linear-gradient(90deg,rgba(59,130,246,0.1),rgba(96,165,250,0.15))', color: '#3B82F6', border: '1px solid rgba(59,130,246,0.2)' }}>{plat}: {count}</span>
               ))}
             </div>
           </div>
           <div style={{ maxHeight: 300, overflowY: 'auto' }}>
             {recentPosts.map((p, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 20px', borderBottom: '1px solid #F9FAFB', background: i % 2 === 0 ? '#FFF' : '#FAFBFF' }}>
-                <span style={{ fontSize: 11, color: '#9CA3AF', minWidth: 60, flexShrink: 0 }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 20px', borderBottom: '1px solid #F0F1F8', background: i % 2 === 0 ? '#FFF' : 'linear-gradient(90deg,#FAFBFF,#F8FAFF)' }}>
+                <span style={{ fontSize: 11, color: '#9CA3AF', minWidth: 58, flexShrink: 0 }}>
                   {new Date(p.date + 'T12:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                 </span>
-                <div style={{ width: 26, height: 26, borderRadius: 8, background: `${avatarColor(p.memberName)}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, fontWeight: 900, color: avatarColor(p.memberName) }}>{ini(p.memberName)}</span>
-                </div>
+                <Avatar name={p.memberName} size={26} radius={8} />
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#374151', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.memberName}</span>
                 {p.client_name && <span style={{ fontSize: 11, color: '#6B7280', flexShrink: 0, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.client_name}</span>}
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(59,130,246,0.08)', color: '#3B82F6', flexShrink: 0 }}>{p.platform}</span>
-                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'rgba(16,185,129,0.08)', color: '#10B981', flexShrink: 0 }}>{p.post_type}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'linear-gradient(90deg,rgba(59,130,246,0.1),rgba(96,165,250,0.15))', color: '#3B82F6', flexShrink: 0 }}>{p.platform}</span>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: 'linear-gradient(90deg,rgba(16,185,129,0.1),rgba(52,211,153,0.15))', color: '#10B981', flexShrink: 0 }}>{p.post_type}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* ── Star label ───────────────────────────────────────────────────────── */}
-      <div style={{ textAlign: 'center', marginTop: 32 }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#FFF', border: '1px solid #E5E7EB', borderRadius: 20, padding: '6px 16px' }}>
+      {/* ── Footer ───────────────────────────────────────────────────────────── */}
+      <div style={{ textAlign: 'center', marginTop: 36 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'linear-gradient(135deg,#FFFFFF,#F5F3FF)', border: '1.5px solid #E0E7FF', borderRadius: 20, padding: '6px 18px', boxShadow: '0 2px 8px rgba(99,102,241,0.08)' }}>
           <Star size={11} style={{ color: '#F59E0B' }} />
-          <span style={{ fontSize: 11, color: '#9CA3AF', fontWeight: 500 }}>GroFast Team Insights · {monthLabel}</span>
+          <span style={{ fontSize: 11, fontWeight: 600, background: 'linear-gradient(90deg,#2563EB,#7C3AED)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            GroFast Team Insights · {monthLabel}
+          </span>
         </div>
       </div>
 
     </div>
   )
-}
-
-const TH_STYLE: React.CSSProperties = {
-  padding: '10px 16px', fontSize: 10, fontWeight: 800, color: '#9CA3AF',
-  textAlign: 'left', borderBottom: '1px solid #F3F4F6',
-  textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap',
 }

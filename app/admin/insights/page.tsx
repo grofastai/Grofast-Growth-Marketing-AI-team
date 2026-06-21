@@ -162,6 +162,18 @@ export default async function InsightsPage({
     return { id: u.id, name: u.name, employee_id: u.employee_id, clients, tasksCompleted, hours, workValue, salary, hourlyRate, hoursPerClient, productivityScore }
   }).sort((a, b) => b.productivityScore - a.productivityScore)
 
+  // ── Drill-down log entries ───────────────────────────────────────────────
+  const logEntries = logs.map(l => ({
+    memberId:      l.user_id,
+    memberName:    userMap[l.user_id]?.name ?? 'Unknown',
+    clientName:    l.client_name ?? 'Unassigned',
+    activityName:  actMap[l.activity_id]?.name ?? 'Unknown',
+    activityEmoji: actMap[l.activity_id]?.emoji ?? '📝',
+    hours:         l.hours,
+    cost:          l.cost,
+    titles:        (l.item_titles ?? []).filter((t: string) => t.trim() !== ''),
+  }))
+
   // ── Post summary ─────────────────────────────────────────────────────────
   const postsByType: Record<string, number>     = {}
   const postsByPlatform: Record<string, number> = {}
@@ -195,6 +207,7 @@ export default async function InsightsPage({
       recentPosts={recentPosts}
       kpis={{ totalHours, totalCost, totalVideos, totalPosters, totalPosts }}
       employeePerformance={employeePerformance}
+      logEntries={logEntries}
     />
   )
 }

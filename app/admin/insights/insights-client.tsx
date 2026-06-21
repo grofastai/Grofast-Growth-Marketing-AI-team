@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const TEAM_CFG: Record<string, { label: string; color: string; emoji: string }> = {
@@ -20,6 +21,12 @@ const CARD: React.CSSProperties = {
   overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
 }
 
+const TH: React.CSSProperties = {
+  padding: '9px 16px', fontSize: 10, fontWeight: 700, color: '#9CA3AF',
+  textAlign: 'left', borderBottom: '1px solid #F3F4F6',
+  textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap',
+}
+
 function SectionHeader({ title }: { title: string }) {
   return (
     <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', margin: 0, padding: '16px 18px 12px', fontFamily: 'var(--font-jakarta)', borderBottom: '1px solid #F3F4F6' }}>
@@ -30,6 +37,12 @@ function SectionHeader({ title }: { title: string }) {
 
 function EmptyState({ msg }: { msg: string }) {
   return <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '28px 0', margin: 0 }}>{msg}</p>
+}
+
+type LogEntry = {
+  memberId: string; memberName: string; clientName: string
+  activityName: string; activityEmoji: string
+  hours: number; cost: number; titles: string[]
 }
 
 type EmpPerf = {
@@ -44,7 +57,7 @@ export default function InsightsClient({
   month, today,
   teamHours, activityStats, memberStats, clientStats,
   postsByType, postsByPlatform, recentPosts, kpis,
-  employeePerformance,
+  employeePerformance, logEntries,
 }: {
   month: string
   today: string
@@ -57,9 +70,26 @@ export default function InsightsClient({
   recentPosts: Array<{ memberName: string; client_name: string | null; platform: string; post_type: string; date: string }>
   kpis: { totalHours: number; totalCost: number; totalVideos: number; totalPosters: number; totalPosts: number }
   employeePerformance: EmpPerf[]
+  logEntries: LogEntry[]
 }) {
   const router = useRouter()
   const maxTeamHours = Math.max(...Object.values(teamHours), 1)
+
+  const [filterMember, setFilterMember] = useState('')
+  const [filterClient, setFilterClient] = useState('')
+
+  const memberOptions = Array.from(new Map(logEntries.map(e => [e.memberId, e.memberName])).entries())
+    .sort((a, b) => a[1].localeCompare(b[1]))
+  const clientOptions = Array.from(new Set(logEntries.map(e => e.clientName).filter(c => c !== 'Unassigned')))
+    .sort((a, b) => a.localeCompare(b))
+
+  const filteredLogs = logEntries.filter(e =>
+    (!filterMember || e.memberId === filterMember) &&
+    (!filterClient || e.clientName === filterClient)
+  )
+
+  const drillTotalHours = filteredLogs.reduce((s, e) => s + e.hours, 0)
+  const drillTotalCost  = filteredLogs.reduce((s, e) => s + e.cost,  0)
   const hasData = kpis.totalHours > 0 || kpis.totalPosts > 0
 
   return (
@@ -114,6 +144,124 @@ export default function InsightsClient({
             <p style={{ fontSize: 10, color: '#6B7280', margin: 0, fontWeight: 500 }}>{k.label}</p>
           </div>
         ))}
+      </div>
+
+      {/* ── Filter & Drill-down ────────────────────────────────────────────── */}
+      <div style={{ ...CARD, marginBottom: 18 }}>
+        <div style={{ padding: '16px 18px 14px', borderBottom: '1px solid #F3F4F6' }}>
+          <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', margin: '0 0 2px', fontFamily: 'var(--font-jakarta)' }}>
+            🔍 Work Drill-Down
+          </p>
+          <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>Filter by member, client, or both to see detailed work breakdown</p>
+        </div>
+        <div style={{ padding: '14px 18px', display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200, flex: 1 }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Team Member</label>
+            <select
+              value={filterMember}
+              onChange={e => setFilterMember(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E5E7EB', fontSize: 13, color: '#111827', background: '#FFF', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="">All Members</option>
+              {memberOptions.map(([id, name]) => (
+                <option key={id} value={id}>{name}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200, flex: 1 }}>
+            <label style={{ fontSize: 10, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Client</label>
+            <select
+              value={filterClient}
+              onChange={e => setFilterClient(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E5E7EB', fontSize: 13, color: '#111827', background: '#FFF', outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="">All Clients</option>
+              {clientOptions.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          {(filterMember || filterClient) && (
+            <button
+              onClick={() => { setFilterMember(''); setFilterClient('') }}
+              style={{ marginTop: 20, padding: '8px 14px', borderRadius: 8, border: '1px solid #E5E7EB', background: '#F9FAFB', fontSize: 12, fontWeight: 700, color: '#6B7280', cursor: 'pointer' }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        {(filterMember || filterClient) && (
+          <div style={{ borderTop: '1px solid #F3F4F6' }}>
+            {/* context line */}
+            <div style={{ padding: '10px 18px', background: '#F9FAFB', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {filterMember && (
+                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'rgba(229,57,53,0.08)', color: '#E53935' }}>
+                  👤 {memberOptions.find(([id]) => id === filterMember)?.[1]}
+                </span>
+              )}
+              {filterClient && (
+                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'rgba(99,102,241,0.08)', color: '#6366F1' }}>
+                  🏢 {filterClient}
+                </span>
+              )}
+              <span style={{ fontSize: 11, color: '#9CA3AF', marginLeft: 'auto' }}>
+                {filteredLogs.length} entries · {fmtH(drillTotalHours)} · {fmtRupee(drillTotalCost)}
+              </span>
+            </div>
+
+            {filteredLogs.length === 0 ? (
+              <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '28px 0', margin: 0 }}>No work logged for this combination</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 520 }}>
+                  <thead>
+                    <tr style={{ background: '#F9FAFB' }}>
+                      {(!filterMember) && <th style={TH}>Member</th>}
+                      {(!filterClient) && <th style={TH}>Client</th>}
+                      <th style={TH}>Activity</th>
+                      <th style={TH}>Work Done</th>
+                      <th style={{ ...TH, textAlign: 'right' }}>Hours</th>
+                      <th style={{ ...TH, textAlign: 'right' }}>Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLogs.map((e, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
+                        {(!filterMember) && (
+                          <td style={{ padding: '10px 16px', fontSize: 12, fontWeight: 600, color: '#374151', whiteSpace: 'nowrap' }}>{e.memberName}</td>
+                        )}
+                        {(!filterClient) && (
+                          <td style={{ padding: '10px 16px', fontSize: 12, color: '#6366F1', fontWeight: 600, whiteSpace: 'nowrap', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{e.clientName}</td>
+                        )}
+                        <td style={{ padding: '10px 16px', fontSize: 12, color: '#374151', whiteSpace: 'nowrap' }}>
+                          {e.activityEmoji} {e.activityName}
+                        </td>
+                        <td style={{ padding: '10px 16px', fontSize: 11, color: '#6B7280', maxWidth: 260 }}>
+                          {e.titles.length > 0
+                            ? e.titles.join(', ')
+                            : <span style={{ color: '#D1D5DB', fontStyle: 'italic' }}>—</span>}
+                        </td>
+                        <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 800, color: '#3B82F6', textAlign: 'right', whiteSpace: 'nowrap', fontFamily: 'var(--font-jakarta)' }}>{fmtH(e.hours)}</td>
+                        <td style={{ padding: '10px 16px', fontSize: 13, fontWeight: 800, color: '#16A34A', textAlign: 'right', whiteSpace: 'nowrap', fontFamily: 'var(--font-jakarta)' }}>{fmtRupee(e.cost)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{ background: '#F9FAFB', borderTop: '2px solid #E5E7EB' }}>
+                      <td colSpan={(!filterMember ? 1 : 0) + (!filterClient ? 1 : 0) + 2}
+                        style={{ padding: '10px 16px', fontSize: 12, fontWeight: 800, color: '#111827' }}>
+                        Total
+                      </td>
+                      <td style={{ padding: '10px 16px', fontSize: 14, fontWeight: 900, color: '#3B82F6', textAlign: 'right', fontFamily: 'var(--font-jakarta)' }}>{fmtH(drillTotalHours)}</td>
+                      <td style={{ padding: '10px 16px', fontSize: 14, fontWeight: 900, color: '#16A34A', textAlign: 'right', fontFamily: 'var(--font-jakarta)' }}>{fmtRupee(drillTotalCost)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Employee Performance Tracking ──────────────────────────────────── */}

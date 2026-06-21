@@ -551,9 +551,7 @@ export default function DailyUpdateForm({
   const [editError,     setEditError]     = useState<string | null>(null)
 
   // ── Participants (Worked With) ────────────────────────────────────────────────
-  const [participantIds,    setParticipantIds]    = useState<string[]>(
-    (existingUpdate?.participant_ids as string[]) ?? []
-  )
+  const [participantIds,    setParticipantIds]    = useState<string[]>([])
   const [participantSearch, setParticipantSearch] = useState("")
 
   function toggleParticipant(id: string) {
@@ -810,7 +808,7 @@ export default function DailyUpdateForm({
         duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
         _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours > 0 ? Math.max(0, s.durationHours - s.droneHours) : 0, _drone_hours: s.droneHours,
-        participant_ids: s.participantIds,
+        participant_ids: [...new Set([...participantIds, ...s.participantIds])],
       })),
       ...edits.map(e => {
         const overlapH = calcOverlapHours(e.startTime, e.endTime, shoots)
@@ -827,7 +825,7 @@ export default function DailyUpdateForm({
           date_given: e.dateGiven, date_finished: e.dateFinished,
           drive_updated: e.driveUpdated, revisions: e.revisions, hooks_completed: e.hooksCompleted || 0,
           _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient, _overlap_hours: overlapH,
-          participant_ids: e.participantIds,
+          participant_ids: [...new Set([...participantIds, ...e.participantIds])],
         }
       }),
       ...voiceovers.map(e => ({
@@ -838,7 +836,7 @@ export default function DailyUpdateForm({
         duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
         _client_type: e.clientName, _custom_client: e.customClient,
-        participant_ids: e.participantIds,
+        participant_ids: [...new Set([...participantIds, ...e.participantIds])],
       })),
       ...posters.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
@@ -848,7 +846,7 @@ export default function DailyUpdateForm({
         duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
         _client_type: e.clientName, _custom_client: e.customClient,
-        participant_ids: e.participantIds,
+        participant_ids: [...new Set([...participantIds, ...e.participantIds])],
       })),
       ...mediaBreaks.filter(b => b.durationHours > 0).map(b => ({
         id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
@@ -962,7 +960,7 @@ export default function DailyUpdateForm({
         duration_hours: s.durationHours, notes: [s.clientName === "Promotion" && s.brand ? `Brand: ${s.brand}` : "", (s.clientName === "Promotion" || s.clientName === "__custom__") && s.shopName ? `Shop: ${s.shopName}` : "", s.clientName === "__custom__" && s.customClient ? `Client: ${s.customClient}` : "", s.location ? `Location: ${s.location}` : "", s.notes, s.travelHours > 0 ? `Travel: ${s.travelHours}h` : ""].filter(Boolean).join(" | "), video_uploaded: s.videoUploaded,
         screenshot_url: "", video_link: s.driveLink, editing_videos: [],
         _client_type: s.clientName, _brand: s.brand, _shop_name: s.shopName, _custom_client: s.customClient, _location: s.location, _travel_hours: s.travelHours, _camera_hours: s.cameraHours > 0 ? Math.max(0, s.durationHours - s.droneHours) : 0, _drone_hours: s.droneHours,
-        participant_ids: s.participantIds,
+        participant_ids: [...new Set([...participantIds, ...s.participantIds])],
       })),
       ...edits.map(e => {
         const overlapH = calcOverlapHours(e.startTime, e.endTime, shoots)
@@ -979,7 +977,7 @@ export default function DailyUpdateForm({
           date_given: e.dateGiven, date_finished: e.dateFinished,
           drive_updated: e.driveUpdated, revisions: e.revisions, hooks_completed: e.hooksCompleted || 0,
           _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient, _overlap_hours: overlapH,
-          participant_ids: e.participantIds,
+          participant_ids: [...new Set([...participantIds, ...e.participantIds])],
         }
       }),
       ...voiceovers.map(e => ({
@@ -989,7 +987,8 @@ export default function DailyUpdateForm({
         title: e.title || "Voiceover", start_time: e.startTime, end_time: e.endTime,
         duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
-        _client_type: e.clientName, _custom_client: e.customClient, participant_ids: e.participantIds,
+        _client_type: e.clientName, _custom_client: e.customClient,
+        participant_ids: [...new Set([...participantIds, ...e.participantIds])],
       })),
       ...posters.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
@@ -998,7 +997,8 @@ export default function DailyUpdateForm({
         title: e.title || "Poster", start_time: e.startTime, end_time: e.endTime,
         duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
-        _client_type: e.clientName, _custom_client: e.customClient, participant_ids: e.participantIds,
+        _client_type: e.clientName, _custom_client: e.customClient,
+        participant_ids: [...new Set([...participantIds, ...e.participantIds])],
       })),
     ]
     const saveOverlapHours = edits.reduce((acc, e) => acc + calcOverlapHours(e.startTime, e.endTime, shoots), 0)
@@ -2939,6 +2939,49 @@ export default function DailyUpdateForm({
               )}
             </div>
           </div>
+
+          {/* ── Global "Worked With" (applies to ALL entries) ── */}
+          {isMediaTeam && teamMembers.length > 0 && (
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"16px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <p style={{ fontSize:12, fontWeight:800, color:"#111111", margin:"0 0 10px", display:"flex", alignItems:"center", gap:6 }}>
+                <span style={{ fontSize:14 }}>👥</span> Worked With Today
+              </p>
+              <p style={{ fontSize:10, color:"#9CA3AF", margin:"0 0 10px", lineHeight:1.5 }}>
+                Tag teammates who worked with you on ALL entries today. For specific entries, use the &ldquo;Shot/Edited With&rdquo; picker inside each card.
+              </p>
+              {participantIds.length > 0 && (
+                <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:8 }}>
+                  {participantIds.map(pid => {
+                    const tm = teamMembers.find(t => t.id === pid)
+                    if (!tm) return null
+                    const initials = tm.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                    return (
+                      <button key={pid} onClick={() => toggleParticipant(pid)}
+                        style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(99,102,241,0.1)", border:"1.5px solid rgba(99,102,241,0.3)", cursor:"pointer" }}>
+                        <div style={{ width:16, height:16, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                        <span style={{ fontSize:10, fontWeight:700, color:"#4338CA" }}>{tm.name.split(" ")[0]}</span>
+                        <span style={{ fontSize:8, color:"#6366F1" }}>✕</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+                {filteredMembers.slice(0, 20).map(tm => {
+                  const selected = participantIds.includes(tm.id)
+                  const initials = tm.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                  return (
+                    <button key={tm.id} onClick={() => toggleParticipant(tm.id)}
+                      style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, cursor:"pointer", background: selected ? "rgba(99,102,241,0.1)" : "#F9FAFB", border:`1.5px solid ${selected ? "rgba(99,102,241,0.4)" : "#EBEDF2"}` }}>
+                      <div style={{ width:16, height:16, borderRadius:"50%", background: selected ? "#6366F1" : "#E5E7EB", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color: selected ? "#fff" : "#9CA3AF" }}>{initials}</div>
+                      <span style={{ fontSize:10, fontWeight:700, color: selected ? "#4338CA" : "#374151" }}>{tm.name.split(" ")[0]}</span>
+                      {selected && <span style={{ fontSize:8, color:"#6366F1" }}>✓</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Past Updates removed */}
           {false && pastUpdates.length > 0 && (

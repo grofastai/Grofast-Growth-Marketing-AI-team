@@ -296,12 +296,12 @@ export default function ActivitiesClient({
           alt=""
           style={{
             position: "absolute",
-            left: "33%",
+            right: "21%",
             bottom: 0,
             height: "120%",
-            maxWidth: "46%",
+            maxWidth: "50%",
             objectFit: "contain",
-            objectPosition: "bottom center",
+            objectPosition: "bottom right",
             pointerEvents: "none",
             userSelect: "none",
           }}

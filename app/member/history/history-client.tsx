@@ -362,6 +362,17 @@ export default function HistoryClient({
     return m
   }, [collabConfirms])
 
+  // Sum of confirmed collaboration hours per date (confirmed + edited_confirmed)
+  const collabHoursByDate = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const c of collabConfirms) {
+      if ((c.status === 'confirmed' || c.status === 'edited_confirmed') && c.confirmed_hours) {
+        m.set(c.date, (m.get(c.date) ?? 0) + c.confirmed_hours)
+      }
+    }
+    return m
+  }, [collabConfirms])
+
   const pendingCount = useMemo(() => collabConfirms.filter(c => c.status === 'pending').length, [collabConfirms])
 
   // Per-entry edit state
@@ -1441,7 +1452,9 @@ export default function HistoryClient({
                       {(() => {
                         const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
                         const entryCalcH = calcNetWorkHours(entries) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
-                        const dayEntryH = entryCalcH > 0 ? entryCalcH : (u.working_hours ?? 0)
+                        const ownH = entryCalcH > 0 ? entryCalcH : (u.working_hours ?? 0)
+                        const collabH = collabHoursByDate.get(u.date) ?? 0
+                        const dayEntryH = ownH + collabH
                         const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
                         return (
                           <>
@@ -1449,6 +1462,7 @@ export default function HistoryClient({
                               <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
                                 <Clock size={11} style={{ color:"#9CA3AF" }}/>
                                 {fmtH(dayEntryH)}
+                                {collabH > 0 && <span style={{ fontSize:9, fontWeight:600, color:"#6366F1" }}>(+{fmtH(collabH)} collab)</span>}
                               </span>
                             )}
                             {breakH > 0 && (

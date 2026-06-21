@@ -43,6 +43,7 @@ export default async function InsightsPage({
     { data: usersRaw },
     { data: tasksRaw },
     { data: allClientsRaw },
+    { data: dailyUpdatesRaw },
   ] = await Promise.all([
     admin.from('work_logs')
       .select('user_id, activity_id, client_name, hours, unit_count, item_titles, cost, date')
@@ -65,19 +66,44 @@ export default async function InsightsPage({
       .eq('company_id', cid)
       .eq('status', 'active')
       .order('name'),
+    admin.from('daily_updates')
+      .select('user_id, working_hours, work_entries')
+      .eq('company_id', cid).gte('date', dateFrom).lte('date', dateTo),
   ])
 
-  type LogRow  = { user_id: string; activity_id: string; client_name: string | null; hours: number; unit_count: number; item_titles: string[]; cost: number; date: string }
-  type PostRow = { user_id: string; client_name: string | null; platform: string; post_type: string; date: string }
-  type ActRow  = { id: string; name: string; team_category: string; unit_type: string; emoji: string }
-  type UserRow = { id: string; name: string; employee_id: string; monthly_salary: number | null; hourly_rate: number | null }
-  type TaskRow = { assigned_to: string; status: string }
+  type LogRow    = { user_id: string; activity_id: string; client_name: string | null; hours: number; unit_count: number; item_titles: string[]; cost: number; date: string }
+  type PostRow   = { user_id: string; client_name: string | null; platform: string; post_type: string; date: string }
+  type ActRow    = { id: string; name: string; team_category: string; unit_type: string; emoji: string }
+  type UserRow   = { id: string; name: string; employee_id: string; monthly_salary: number | null; hourly_rate: number | null }
+  type TaskRow   = { assigned_to: string; status: string }
+  type DURow     = { user_id: string; working_hours: number | null; work_entries: { client_name?: string | null; client_names?: string[] | null; is_multi_client?: boolean; duration_hours?: number | null; task_type?: string }[] | null }
 
-  const logs       = (workLogsRaw   ?? []) as LogRow[]
-  const posts      = (postsRaw      ?? []) as PostRow[]
-  const activities = (activitiesRaw ?? []) as ActRow[]
-  const members    = (usersRaw      ?? []) as UserRow[]
-  const tasks      = (tasksRaw      ?? []) as TaskRow[]
+  const logs       = (workLogsRaw      ?? []) as LogRow[]
+  const posts      = (postsRaw         ?? []) as PostRow[]
+  const activities = (activitiesRaw    ?? []) as ActRow[]
+  const members    = (usersRaw         ?? []) as UserRow[]
+  const tasks      = (tasksRaw         ?? []) as TaskRow[]
+  const dailyUpdates = (dailyUpdatesRaw ?? []) as DURow[]
+
+  // Build per-member hours and clients from daily_updates (source of truth for non-media members)
+  const duHoursMap: Record<string, number>   = {}
+  const duClientsMap: Record<string, Set<string>> = {}
+  for (const du of dailyUpdates) {
+    const uid = du.user_id
+    const entries = Array.isArray(du.work_entries) ? du.work_entries : []
+    // Sum entry durations, fall back to working_hours field
+    const entryH = entries.reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+    duHoursMap[uid] = (duHoursMap[uid] ?? 0) + (entryH > 0 ? entryH : (du.working_hours ?? 0))
+    // Collect clients
+    if (!duClientsMap[uid]) duClientsMap[uid] = new Set()
+    for (const e of entries) {
+      if (e.is_multi_client && Array.isArray(e.client_names)) {
+        e.client_names.forEach(cn => { if (cn) duClientsMap[uid].add(cn) })
+      } else if (e.client_name) {
+        duClientsMap[uid].add(e.client_name)
+      }
+    }
+  }
 
   const actMap: Record<string, ActRow>  = {}
   for (const a of activities) actMap[a.id] = a
@@ -146,15 +172,33 @@ export default async function InsightsPage({
     memberClientHoursMap[l.user_id][cn] = (memberClientHoursMap[l.user_id][cn] ?? 0) + l.hours
   }
 
-  const maxTeamHours = Math.max(...members.map(u => memberStats[u.id]?.hours ?? 0), 1)
+  const maxTeamHours = Math.max(...members.map(u => (memberStats[u.id]?.hours ?? 0) + (duHoursMap[u.id] ?? 0)), 1)
 
   const employeePerformance = members.map(u => {
-    const hours          = memberStats[u.id]?.hours ?? 0
-    const workValue      = memberStats[u.id]?.cost  ?? 0
+    // Combine work_logs hours + daily_updates hours (work_logs for media team, daily_updates for everyone)
+    const wlHours        = memberStats[u.id]?.hours ?? 0
+    const duHours        = duHoursMap[u.id] ?? 0
+    const hours          = wlHours + duHours
+    // Work value: cost from work_logs + hourly_rate × daily_update hours
+    const wlCost         = memberStats[u.id]?.cost ?? 0
+    const duCost         = duHours * (u.hourly_rate ?? 0)
+    const workValue      = wlCost + duCost
     const salary         = u.monthly_salary ?? 0
     const tasksCompleted = tasksCompletedMap[u.id] ?? 0
-    const clients        = Array.from(memberClientsMap[u.id] ?? [])
-    const hoursPerClient = Object.entries(memberClientHoursMap[u.id] ?? {})
+    // Clients: union of work_logs clients and daily_updates clients
+    const wlClients      = memberClientsMap[u.id] ?? new Set<string>()
+    const duClients      = duClientsMap[u.id] ?? new Set<string>()
+    const allClientSet   = new Set([...wlClients, ...duClients])
+    const clients        = Array.from(allClientSet)
+    // Hours per client: work_logs breakdown + daily_updates breakdown merged
+    const combinedClientHours: Record<string, number> = { ...(memberClientHoursMap[u.id] ?? {}) }
+    for (const du of dailyUpdates.filter(d => d.user_id === u.id)) {
+      for (const e of (Array.isArray(du.work_entries) ? du.work_entries : [])) {
+        const cns = e.is_multi_client && Array.isArray(e.client_names) ? e.client_names : (e.client_name ? [e.client_name] : ['Unassigned'])
+        cns.forEach(cn => { if (cn) combinedClientHours[cn] = (combinedClientHours[cn] ?? 0) + (e.duration_hours ?? 0) })
+      }
+    }
+    const hoursPerClient = Object.entries(combinedClientHours)
       .sort(([, a], [, b]) => b - a)
       .map(([name, h]) => ({ name, hours: h }))
 

@@ -321,11 +321,11 @@ type PastUpdate = {
 }
 
 export default function DailyUpdateForm({
-  projects, sheetClientNames = [], pastClientNames = [], userName, team, existingUpdate, pastUpdates = [], teamMembers = [], shotWithMembers = [], approvedLeaveDates = [],
+  projects, sheetClientNames = [], pastClientNames = [], userName, team, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
 }: {
   projects: Project[]; sheetClientNames?: string[]; pastClientNames?: string[]; userName: string; team?: string | null
   existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
-  teamMembers?: TeamMember[]; shotWithMembers?: TeamMember[]; approvedLeaveDates?: string[]
+  teamMembers?: TeamMember[]; approvedLeaveDates?: string[]
 }) {
   const router = useRouter()
   const existingUpdateRef = useRef(existingUpdate)
@@ -2094,14 +2094,14 @@ export default function DailyUpdateForm({
                           </button>
                         </div>
                       </div>
-                      {/* Partner picker per shoot — same-team members only */}
-                      {shotWithMembers.length > 0 && (
+                      {/* Partner picker per shoot — all active MEMBER role users */}
+                      {teamMembers.length > 0 && (
                         <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #F0F1F5" }}>
                           <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Shot With</p>
                           {s.participantIds.length > 0 && (
                             <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginBottom:6 }}>
                               {s.participantIds.map(pid => {
-                                const m = shotWithMembers.find(t => t.id === pid)
+                                const m = teamMembers.find(t => t.id === pid)
                                 if (!m) return null
                                 const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
                                 return (
@@ -2116,7 +2116,7 @@ export default function DailyUpdateForm({
                             </div>
                           )}
                           <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
-                            {shotWithMembers.slice(0, 20).map(m => {
+                            {teamMembers.slice(0, 20).map(m => {
                               const selected = s.participantIds.includes(m.id)
                               const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
                               return (

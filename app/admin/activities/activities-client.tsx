@@ -247,8 +247,8 @@ export default function ActivitiesClient({
       {/* ── Hero Banner ── */}
       <div style={{
         position: "relative", borderRadius: 20, overflow: "hidden", marginBottom: 24,
-        background: "linear-gradient(135deg, #0A0A0A 0%, #1A0000 35%, #3B0000 65%, #8B0000 100%)",
-        minHeight: 200,
+        background: "linear-gradient(135deg, #080000 0%, #180000 28%, #4A0000 58%, #B80000 100%)",
+        minHeight: 220,
       }}>
         {/* Mesh orbs */}
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
@@ -290,16 +290,16 @@ export default function ActivitiesClient({
           </div>
         </div>
 
-        {/* 3D character image — exact same positioning as mockup */}
+        {/* 3D character image */}
         <img
           src="/brand/activities-hero.png"
           alt=""
           style={{
             position: "absolute",
-            right: "20%",
+            left: "30%",
+            right: "22%",
             bottom: 0,
-            height: "105%",
-            maxHeight: 220,
+            height: "100%",
             objectFit: "contain",
             objectPosition: "bottom center",
             pointerEvents: "none",

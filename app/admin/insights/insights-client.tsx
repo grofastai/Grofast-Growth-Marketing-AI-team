@@ -176,10 +176,17 @@ export default function InsightsClient({
   const memberOptions = [...employeePerformance]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(e => [e.id, e.name] as [string, string])
+  const PINNED_CLIENTS = ['GROFAST DIGITAL', 'KARTHICK BRANDS', 'GROFAST AI']
   const clientOptions = clientStats
     .map(c => c.name)
     .filter(n => n !== 'Unassigned')
-    .sort((a, b) => a.localeCompare(b))
+    .sort((a, b) => {
+      const pa = PINNED_CLIENTS.indexOf(a), pb = PINNED_CLIENTS.indexOf(b)
+      if (pa !== -1 && pb !== -1) return pa - pb
+      if (pa !== -1) return -1
+      if (pb !== -1) return 1
+      return a.localeCompare(b)
+    })
 
   const filteredLogs    = logEntries.filter(e =>
     (!filterMember || e.memberId === filterMember) &&

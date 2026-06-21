@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { dailyUpdateSchema, type DailyUpdateInput } from '@/lib/validations/daily-update'
 import { sendNotification } from '@/lib/notifications/send'
+import { calcNetWorkHours } from '@/lib/utils/work-hours'
 
 function adminSupabase() {
   return createClient(
@@ -57,14 +58,7 @@ export async function submitDailyUpdate(
     }
   }
 
-  // Working hours excludes break and learning entries; shoot entries add travel time on top of shoot duration
-  const totalWorkHours = d.work_entries
-    .filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
-    .reduce((sum, e) => {
-      const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
-      return sum + e.duration_hours + travel
-    }, 0)
-  const roundedHours = Math.round(totalWorkHours * 10) / 10
+  const roundedHours = calcNetWorkHours(d.work_entries)
   // Learning hours from entries (new approach — stored in work_entries)
   const newLearnHours = d.work_entries
     .filter(e => e.task_type === 'learning')
@@ -91,17 +85,21 @@ export async function submitDailyUpdate(
   let isFirstSubmission = false
 
   if (existingRecord) {
-    // Dedup by ID: new entries replace existing ones with same ID (prevents duplicates on re-save/re-submit)
     const prevEntries = Array.isArray(existingRecord.work_entries) ? existingRecord.work_entries as Array<Record<string, unknown>> : []
-    const newIds = new Set(d.work_entries.map(e => e.id).filter(Boolean))
-    const filteredPrev = prevEntries.filter(e => !newIds.has(e.id as string))
-    const combinedEntries = [...filteredPrev, ...d.work_entries]
+
+    let combinedEntries: Array<Record<string, unknown>>
+    if (isPastDate) {
+      // Past-date new entry = append to existing (History page handles editing/deleting old entries)
+      combinedEntries = [...prevEntries, ...d.work_entries]
+    } else {
+      // Today = merge/append: dedup by ID so new entries replace same-ID ones without losing unrelated entries
+      const newIds = new Set(d.work_entries.map(e => e.id).filter(Boolean))
+      const filteredPrev = prevEntries.filter(e => !newIds.has(e.id as string))
+      combinedEntries = [...filteredPrev, ...d.work_entries]
+    }
 
     // Recalculate all aggregates from combined entries — never use incremental addition
-    const calcWorkHours  = Math.round(combinedEntries.filter(e => e.task_type !== 'break' && e.task_type !== 'learning').reduce((s, e) => {
-      const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
-      return s + (Number(e.duration_hours) || 0) + travel
-    }, 0) * 10) / 10
+    const calcWorkHours  = calcNetWorkHours(combinedEntries as Parameters<typeof calcNetWorkHours>[0])
     const calcShootCount = combinedEntries.filter(e => e.task_type === 'shoot').length
     const calcEditCount  = combinedEntries.filter(e => e.task_type === 'edit').length
     const calcLearnHours = Math.round(combinedEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
@@ -297,18 +295,11 @@ export async function updatePastDailyUpdate(
   const entriesWithoutLeave = entries.filter(e => !e._is_leave)
   const finalEntries = [...entriesWithoutLeave, ...existingLeaveEntries]
 
-  const totalHours = finalEntries
-    .filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
-    .reduce((s, e) => {
-      const travel = e.task_type === 'shoot' ? (Number((e as Record<string, unknown>)._travel_hours) || 0) : 0
-      return s + ((e.duration_hours as number) ?? 0) + travel
-    }, 0)
-
   const { error } = await admin
     .from('daily_updates')
     .update({
       work_entries: finalEntries,
-      working_hours: Math.round(totalHours * 10) / 10 || null,
+      working_hours: calcNetWorkHours(finalEntries as Parameters<typeof calcNetWorkHours>[0]) || null,
       shoot_count: finalEntries.filter(e => e.task_type === 'shoot').length,
       editing_count: finalEntries.filter(e => e.task_type === 'edit').length,
     })
@@ -402,16 +393,9 @@ export async function addEntryToDate(
     entry,
   ]
 
-  // Recalculate all aggregates (same logic as updatePastDailyUpdate)
-  const totalHours = allEntries
-    .filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
-    .reduce((s, e) => {
-      const travel = e.task_type === 'shoot' ? (Number(e._travel_hours) || 0) : 0
-      return s + ((e.duration_hours as number) ?? 0) + travel
-    }, 0)
   const aggregates = {
     work_entries: allEntries,
-    working_hours: Math.round(totalHours * 10) / 10 || null,
+    working_hours: calcNetWorkHours(allEntries as Parameters<typeof calcNetWorkHours>[0]) || null,
     shoot_count: allEntries.filter(e => e.task_type === 'shoot').length,
     editing_count: allEntries.filter(e => e.task_type === 'edit').length,
   }

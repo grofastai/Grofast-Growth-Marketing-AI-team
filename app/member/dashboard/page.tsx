@@ -3,10 +3,13 @@ export const revalidate = 0
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
-import { Target, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap, Camera } from "lucide-react"
+import type React from "react"
+import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap, Camera, Film, Coffee, BookOpen } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
+import MonthFilterTabs from "@/components/member/MonthFilterTabs"
+import { calcNetWorkHours } from "@/lib/utils/work-hours"
 
 function adminClient() {
   return createClient(
@@ -26,32 +29,48 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const effectiveUserId = impersonateId ?? user.id
 
   const params = await searchParams
-  const showLastMonth = params.month === "last"
+  const monthParam = params.month ?? ""
 
   const now   = new Date()
   const today = now.toISOString().split("T")[0]
 
-  // Month range based on toggle
+  // Month range based on filter
   let monthStart: string, monthEnd: string, monthName: string
-  if (showLastMonth) {
+  let monthMode: "this" | "last" | "all" | "custom"
+
+  if (monthParam === "last") {
+    monthMode = "last"
     const y = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
     const m = now.getMonth() === 0 ? 12 : now.getMonth()
     monthStart = `${y}-${String(m).padStart(2, "0")}-01`
     const lastDay = new Date(now.getFullYear(), now.getMonth(), 0)
     monthEnd  = lastDay.toISOString().split("T")[0]
     monthName = new Date(y, m - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" })
+  } else if (monthParam === "all") {
+    monthMode  = "all"
+    monthStart = "2020-01-01"
+    monthEnd   = today
+    monthName  = "All Time"
+  } else if (/^\d{4}-\d{2}$/.test(monthParam)) {
+    monthMode = "custom"
+    const [yr, mo] = monthParam.split("-").map(Number)
+    monthStart = `${yr}-${String(mo).padStart(2, "0")}-01`
+    monthEnd   = new Date(yr, mo, 0).toISOString().split("T")[0]
+    monthName  = new Date(yr, mo - 1, 1).toLocaleString("en-US", { month: "long", year: "numeric" })
   } else {
+    monthMode  = "this"
     monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
     monthEnd   = today
     monthName  = now.toLocaleString("en-US", { month: "long", year: "numeric" })
   }
 
   type ProfileRow    = { name: string; employee_id: string; phone: string | null; photo_url: string | null; blood_group: string | null; emergency_contact_name: string | null; team: string | null }
-  type UpdateRow     = { working_hours: number | null; shoot_count: number | null; learning_hours: number | null; work_entries: { editing_videos?: string[] }[] | null }
+  type UpdateRow     = { working_hours: number | null; shoot_count: number | null }
   type TaskRow       = { id: string; title: string; status: string; priority: string; due_date: string | null }
-  type AttLog        = { clock_in: string | null; clock_out: string | null; break_total_mins: number | null }
-  type MonthlyUpdate = { working_hours: number | null; learning_hours: number | null; attendance_status: string }
-  type MonthlyAttLog = { work_type: string | null; status: string; date: string }
+  type AttLog        = { clock_in: string | null; clock_out: string | null }
+  type WorkEntryLike = { task_type: string; start_time?: string | null; end_time?: string | null; duration_hours?: number | null; _travel_hours?: number | null }
+  type MonthlyUpdate = { working_hours: number | null; attendance_status: string; learning_hours: number | null; shoot_count: number | null; editing_count: number | null; work_entries: WorkEntryLike[] | null }
+  type MonthlyAttLog = { work_type: string | null; status: string; date: string; break_total_mins: number | null; clock_in: string | null; clock_out: string | null }
   type LeaveRow      = { from_date: string; to_date: string; leave_type: string | null }
 
   const [
@@ -67,15 +86,15 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { data: monthlyAttLogsRaw },
   ] = await Promise.all([
     supabase.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name, team").eq("id", effectiveUserId).single(),
-    supabase.from("daily_updates").select("working_hours, shoot_count, learning_hours, work_entries").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
+    supabase.from("daily_updates").select("working_hours, shoot_count").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
     supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).neq("status", "completed"),
     supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).eq("status", "completed"),
     supabase.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", effectiveUserId).eq("status", "pending"),
     supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", effectiveUserId).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
-    supabase.from("attendance_logs").select("clock_in, clock_out, break_total_mins").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
-    supabase.from("daily_updates").select("working_hours, learning_hours, attendance_status").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
+    supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
+    supabase.from("daily_updates").select("working_hours, attendance_status, learning_hours, shoot_count, editing_count, work_entries").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
     adminClient().from("leaves").select("from_date, to_date, leave_type").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
-    supabase.from("attendance_logs").select("work_type, status, date").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
+    supabase.from("attendance_logs").select("work_type, status, date, break_total_mins, clock_in, clock_out").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
   ])
 
   const profile        = profileRaw as unknown as ProfileRow | null
@@ -85,7 +104,6 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const monthlyUpdates = (monthlyUpdatesRaw ?? []) as unknown as MonthlyUpdate[]
   const approvedLeaves = (approvedLeavesRaw ?? []) as unknown as LeaveRow[]
   const monthlyAttLogs = (monthlyAttLogsRaw ?? []) as unknown as MonthlyAttLog[]
-  const isMediaTeam    = profile?.team === "Media Team"
 
   // Today hours
   let todayHours = 0
@@ -96,35 +114,34 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     todayHours = todayUpdate.working_hours
   }
 
-  const shootCount       = todayUpdate?.shoot_count ?? 0
-  const activeTasks      = activeTasksCount ?? 0
-  const completedTasks   = completedTasksCount ?? 0
-  const pendingLeaves    = pendingLeavesCount ?? 0
-  const todayOverdue     = myTasks.filter(t => t.due_date && t.due_date < today)
-  const todayLearningHrs = todayUpdate?.learning_hours ?? 0
-  const editingCount     = (todayUpdate?.work_entries ?? []).reduce((sum, e) => sum + (Array.isArray(e.editing_videos) ? e.editing_videos.length : 0), 0)
-  const breakMins        = clockLog?.break_total_mins ?? 0
-  const breakDisplay     = breakMins >= 60
-    ? `${Math.floor(breakMins / 60)}h ${breakMins % 60 > 0 ? `${breakMins % 60}m` : ""}`.trim()
-    : breakMins > 0 ? `${breakMins}m` : "—"
+  const shootCount     = todayUpdate?.shoot_count ?? 0
+  const activeTasks    = activeTasksCount ?? 0
+  const completedTasks = completedTasksCount ?? 0
+  const pendingLeaves  = pendingLeavesCount ?? 0
+  const todayOverdue   = myTasks.filter(t => t.due_date && t.due_date < today)
 
   // Monthly calculations — use attendance_logs as source of truth for presence
   const presentAttLogs = monthlyAttLogs.filter(l => l.status === "present")
   const officeDays     = presentAttLogs.filter(l => l.work_type === "office").length
   const wfhDays        = presentAttLogs.filter(l => l.work_type === "wfh").length
-  const shootDays      = presentAttLogs.filter(l => l.work_type === "shoot").length
-  const workingDays    = presentAttLogs.length   // all present days regardless of mode
+  const shootDays      = presentAttLogs.filter(l => l.work_type === "shoot" || l.work_type === "outside").length
+  const presentDays    = presentAttLogs.length  // all present (office + wfh + shoot)
   const holidayDays    = monthlyUpdates.filter(u => u.attendance_status === "holiday").length
 
-  const presentRows    = monthlyUpdates.filter(u => u.attendance_status === "present")
-  const totalMonthHrs  = Math.round(presentRows.reduce((s, u) => s + (u.working_hours ?? 0), 0) * 10) / 10
+  // Per-day working hours computed from work_entries (interval-merge algorithm — same as History/WORKED column)
+  const monthlyDayHours = monthlyUpdates.map(u => {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
+    const workH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
+    const learnFromEntries = entries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+    const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
+    return { totalH: workH + learnH, attendanceStatus: u.attendance_status }
+  })
+  const totalMonthHrs  = Math.round(monthlyDayHours.reduce((s, d) => s + d.totalH, 0) * 10) / 10
   const OVERTIME_THRESHOLD = 8.5
-  const monthlyAvgHrs    = presentRows.length > 0 ? totalMonthHrs / presentRows.length : 0
+  const monthlyAvgHrs    = presentDays > 0 ? totalMonthHrs / presentDays : 0
   const overtimeEligible = monthlyAvgHrs >= OVERTIME_THRESHOLD
-  const overtimeDays     = overtimeEligible ? presentRows.filter(u => (u.working_hours ?? 0) > OVERTIME_THRESHOLD).length : 0
-  const overtimeHrs      = overtimeEligible ? Math.round(presentRows.reduce((sum, u) => {
-    const h = u.working_hours ?? 0; return h > OVERTIME_THRESHOLD ? sum + (h - OVERTIME_THRESHOLD) : sum
-  }, 0) * 10) / 10 : 0
+  const overtimeDays     = overtimeEligible ? monthlyDayHours.filter(d => d.totalH > OVERTIME_THRESHOLD).length : 0
+  const overtimeHrs      = overtimeEligible ? Math.round(monthlyDayHours.reduce((sum, d) => d.totalH > OVERTIME_THRESHOLD ? sum + (d.totalH - OVERTIME_THRESHOLD) : sum, 0) * 10) / 10 : 0
 
   // Union: approved leave dates + attendance_logs marked leave/absent
   const leaveDateSet = new Set<string>()
@@ -138,6 +155,27 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     if (l.status === "leave" || l.status === "absent") leaveDateSet.add(l.date)
   }
   const leaveDays = leaveDateSet.size
+
+  // Login hours — raw clock_in → clock_out span, no break deduction
+  const logsWithClockData = presentAttLogs.filter(l => l.clock_in && l.clock_out)
+  const totalLoginHrs = Math.round(logsWithClockData.reduce((s, l) =>
+    s + (new Date(l.clock_out!).getTime() - new Date(l.clock_in!).getTime()) / 3600000, 0
+  ) * 10) / 10
+  const avgLoginHrs = logsWithClockData.length > 0
+    ? Math.round((totalLoginHrs / logsWithClockData.length) * 10) / 10
+    : 0
+
+  // Right-panel stats — media vs non-media
+  const isMedia        = profile?.team === "Media Team"
+  const totalShoots    = monthlyUpdates.reduce((s, u) => s + (u.shoot_count ?? 0), 0)
+  const totalEdited    = monthlyUpdates.reduce((s, u) => s + (u.editing_count ?? 0), 0)
+  const totalLearningHrs = Math.round(monthlyUpdates.reduce((s, u) => s + (u.learning_hours ?? 0), 0) * 10) / 10
+  const totalBreakHrs  = Math.round(monthlyAttLogs.reduce((s, l) => s + ((l.break_total_mins ?? 0) / 60), 0) * 10) / 10
+
+  // Avg working hrs = totalMonthHrs / presentDays — same formula for media and non-media
+  const avgWorkingHrs = presentDays > 0
+    ? Math.round((totalMonthHrs / presentDays) * 10) / 10
+    : 0
 
   const hour      = now.getHours()
   const greeting  = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
@@ -175,11 +213,10 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
   // Monthly stats grid
   const monthlyStats = [
-    { label: "Monthly Avg Hrs",       value: monthlyAvgHrs > 0 ? `${Math.round(monthlyAvgHrs * 10) / 10}h` : "—", color: "#6366F1", sub: undefined },
-    { label: "Working Days",         value: workingDays,                                      color: "#111111",  sub: undefined },
+    { label: "Avg Login Hrs",        value: avgLoginHrs > 0 ? `${avgLoginHrs}h` : "—",       color: "#6366F1", sub: undefined },
+    { label: "Avg Working Hrs",      value: avgWorkingHrs > 0 ? `${avgWorkingHrs}h` : "—",   color: "#111111", sub: undefined },
     { label: "Office Days",          value: officeDays,                                       color: "#de1a1a",  sub: undefined },
-    { label: "WFH Days",             value: wfhDays,                                          color: "#6366F1",  sub: undefined },
-    ...(isMediaTeam ? [{ label: "Shoot Days", value: shootDays, color: "#EA580C", sub: undefined }] : []),
+    { label: isMedia ? "Shoot Days" : "WFH Days", value: isMedia ? shootDays : wfhDays,       color: "#6366F1",  sub: undefined },
     { label: "Leave Days",           value: leaveDays,                                        color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: pendingLeaves > 0 ? `${pendingLeaves} pending` : undefined },
     { label: "Overtime Hrs",         value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",       color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeDays > 0 ? `${overtimeDays} day${overtimeDays !== 1 ? "s" : ""}` : undefined },
   ]
@@ -202,12 +239,12 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
         />
       </div>
 
-      {/* ── 4 Stat Cards ─────────────────────────────────────── */}
-      <div className={`grid gap-4 mb-5 ${isMediaTeam ? "grid-cols-2 lg:grid-cols-5" : "grid-cols-2 lg:grid-cols-4"}`}>
+      {/* ── 5 Stat Cards ─────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
         {([
-          { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: workingDays || 0,   label: "Present Days"  },
-          { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Total Hours"  },
-          ...(isMediaTeam ? [{ icon: Camera, iconBg: "rgba(234,88,12,0.1)", iconColor: "#EA580C", value: shootDays, label: "Shoot Days" }] : []),
+          { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: presentDays || 0,   label: "Present Days"  },
+          { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Monthly Working Hrs"  },
+          { icon: Target,       iconBg: "rgba(16,185,129,0.12)", iconColor: "#10B981", value: totalLoginHrs > 0 ? `${totalLoginHrs}h` : "—", label: "Monthly Login Hrs" },
           { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: Math.max(0, 5 - leaveDays), label: "Leave Left" },
           { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks"  },
         ] as const).map((s) => {
@@ -242,22 +279,12 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
             style={{ background: "rgba(222,26,26,0.08)" }}>
             <Calendar size={14} style={{ color: "#de1a1a" }} />
           </div>
-          <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>{showLastMonth ? "Last Month" : "This Month"}</h3>
+          <h3 className="text-[13px] font-bold" style={{ color: "#111111" }}>
+            {monthMode === "last" ? "Last Month" : monthMode === "all" ? "All Time" : monthMode === "custom" ? "Custom" : "This Month"}
+          </h3>
           <span className="text-[11px]" style={{ color: "#6B7280" }}>{monthName}</span>
 
-          {/* Month toggle */}
-          <div className="flex items-center gap-1 ml-2 rounded-xl overflow-hidden" style={{ border: "1px solid #E8E9EF" }}>
-            <Link href="/member/dashboard"
-              className="text-[10px] font-bold px-3 py-1.5 transition-colors"
-              style={{ background: !showLastMonth ? "#de1a1a" : "transparent", color: !showLastMonth ? "#fff" : "#6B7280" }}>
-              This Month
-            </Link>
-            <Link href="/member/dashboard?month=last"
-              className="text-[10px] font-bold px-3 py-1.5 transition-colors"
-              style={{ background: showLastMonth ? "#de1a1a" : "transparent", color: showLastMonth ? "#fff" : "#6B7280" }}>
-              Last Month
-            </Link>
-          </div>
+          <MonthFilterTabs mode={monthMode} customParam={monthMode === "custom" ? monthParam : undefined} />
 
           {holidayDays > 0 && (
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
@@ -303,7 +330,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
           </p>
           <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
             {todayUpdate
-              ? `${todayUpdate.working_hours ?? "—"}h logged · ${shootCount} shoot${shootCount !== 1 ? "s" : ""}`
+              ? isMedia ? `${todayUpdate.working_hours ?? "—"}h logged · ${shootCount} shoot${shootCount !== 1 ? "s" : ""}` : `${todayUpdate.working_hours ?? "—"}h logged`
               : "Submit before 9 PM to avoid alerts"}
           </p>
         </div>
@@ -383,99 +410,31 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
           )}
         </div>
 
-        {/* RIGHT — quick stat cards + today summary */}
+        {/* RIGHT — monthly quick stats (media/non-media) + salary + today summary */}
         <div className="space-y-3">
-          {isMediaTeam ? (<>
-            {/* Media: Today Shoot Count */}
-            <Link href="/member/update"
+          {(isMedia ? [
+            { icon: Camera,    iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: totalShoots,                                          label: "Total Shoots", href: "/member/history" },
+            { icon: Film,      iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: totalEdited,                                          label: "Total Edited", href: "/member/history" },
+            { icon: Coffee,    iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", value: totalBreakHrs > 0 ? `${totalBreakHrs}h` : "—",       label: "Break Hours",  href: "/member/attendance" },
+          ] : [
+            { icon: BookOpen,  iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
+            { icon: Clock,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : "—",       label: "Working Hrs",  href: "/member/attendance" },
+            { icon: Coffee,    iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", value: totalBreakHrs > 0 ? `${totalBreakHrs}h` : "—",       label: "Break Hours",  href: "/member/attendance" },
+          ] as { icon: React.ElementType; iconBg: string; iconColor: string; value: string | number; label: string; href: string }[]).map(stat => (
+            <Link key={stat.label} href={stat.href}
               className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
               style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
               <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(234,88,12,0.1)" }}>
-                <Camera size={16} style={{ color: "#EA580C" }} />
+                style={{ background: stat.iconBg }}>
+                <stat.icon size={16} style={{ color: stat.iconColor }} />
               </div>
               <div className="flex-1">
-                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#EA580C" }}>{shootCount > 0 ? shootCount : "—"}</p>
-                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Today&apos;s Shoot Count</p>
+                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: stat.iconColor }}>{stat.value}</p>
+                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>{stat.label}</p>
               </div>
               <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
             </Link>
-
-            {/* Media: Today Editing Count */}
-            <Link href="/member/update"
-              className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
-              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(99,102,241,0.1)" }}>
-                <Zap size={16} style={{ color: "#6366F1" }} />
-              </div>
-              <div className="flex-1">
-                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#6366F1" }}>{editingCount > 0 ? editingCount : "—"}</p>
-                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Editing Videos Today</p>
-              </div>
-              <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
-            </Link>
-
-            {/* Media: Learning Hours */}
-            <Link href="/member/update"
-              className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
-              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(16,185,129,0.1)" }}>
-                <CheckCircle2 size={16} style={{ color: "#10B981" }} />
-              </div>
-              <div className="flex-1">
-                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#10B981" }}>{todayLearningHrs > 0 ? `${todayLearningHrs}h` : "—"}</p>
-                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Learning Hours Today</p>
-              </div>
-              <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
-            </Link>
-          </>) : (<>
-            {/* Non-Media: Working Hours Today */}
-            <Link href="/member/update"
-              className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
-              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(99,102,241,0.1)" }}>
-                <Clock size={16} style={{ color: "#6366F1" }} />
-              </div>
-              <div className="flex-1">
-                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#6366F1" }}>{todayHours > 0 ? `${todayHours}h` : "—"}</p>
-                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Working Hours Today</p>
-              </div>
-              <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
-            </Link>
-
-            {/* Non-Media: Learning Hours Today */}
-            <Link href="/member/update"
-              className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
-              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(16,185,129,0.1)" }}>
-                <CheckCircle2 size={16} style={{ color: "#10B981" }} />
-              </div>
-              <div className="flex-1">
-                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#10B981" }}>{todayLearningHrs > 0 ? `${todayLearningHrs}h` : "—"}</p>
-                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Learning Hours Today</p>
-              </div>
-              <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
-            </Link>
-
-            {/* Non-Media: Break Time Today */}
-            <Link href="/member/attendance"
-              className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
-              style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
-              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(245,158,11,0.1)" }}>
-                <AlertCircle size={16} style={{ color: "#F59E0B" }} />
-              </div>
-              <div className="flex-1">
-                <p className="text-[22px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: "#F59E0B" }}>{breakDisplay}</p>
-                <p className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>Break Time Today</p>
-              </div>
-              <ChevronRight size={16} style={{ color: "#D1D5DB" }} />
-            </Link>
-          </>)}
+          ))}
 
           {/* Salary Date Card */}
           <div className="rounded-2xl p-4 flex items-center gap-3"

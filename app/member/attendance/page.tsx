@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import AttendanceClient from "./attendance-client"
+import { calcNetWorkHours } from "@/lib/utils/work-hours"
 
 function adminSupabase() {
   return createClient(
@@ -46,6 +47,7 @@ export default async function AttendancePage() {
     work_type: string | null; status: string
     paused_seconds: number
   }
+  type WorkEntryLike = { task_type: string; start_time?: string | null; end_time?: string | null; duration_hours?: number | null; _travel_hours?: number | null }
   type DailyUpdate = {
     working_hours: number | null
     learning_hours: number | null
@@ -55,6 +57,7 @@ export default async function AttendancePage() {
   const admin = adminSupabase()
 
   const [
+    { data: profileRaw },
     { data: todayLogRaw },
     { data: weekLogsRaw },
     { data: todayUpdateRaw },
@@ -64,8 +67,8 @@ export default async function AttendancePage() {
     { count: pendingLeavesCount },
     { data: approvedLeavesRaw },
     { data: weekUpdatesRaw },
-    { data: profileRaw },
   ] = await Promise.all([
+    supabase.from("users").select("team").eq("id", effectiveUserId).maybeSingle(),
     supabase.from("attendance_logs")
       .select("id, date, clock_in, clock_out, break_in, break_out, break_total_mins, break_sessions, work_type, status, paused_seconds")
       .eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
@@ -84,13 +87,13 @@ export default async function AttendancePage() {
       .lte("from_date", weekEnd),
     // Monthly attendance logs
     admin.from("attendance_logs")
-      .select("work_type, status, clock_in, clock_out, break_total_mins, date")
+      .select("work_type, status, clock_in, clock_out, break_total_mins")
       .eq("user_id", effectiveUserId)
       .gte("date", monthStart)
       .lte("date", today),
     // Monthly daily_updates for worked hours
     admin.from("daily_updates")
-      .select("working_hours, learning_hours")
+      .select("working_hours, learning_hours, work_entries")
       .eq("user_id", effectiveUserId)
       .gte("date", monthStart)
       .lte("date", today),
@@ -108,22 +111,18 @@ export default async function AttendancePage() {
       .lte("from_date", today),
     // Weekly daily_updates — used to show accurate worked hours in weekly view
     admin.from("daily_updates")
-      .select("date, working_hours")
+      .select("date, working_hours, work_entries")
       .eq("user_id", effectiveUserId)
       .gte("date", weekStart)
       .lte("date", weekEnd),
-    // User profile — for team check
-    supabase.from("users").select("team").eq("id", effectiveUserId).single(),
   ])
 
-  const isMediaTeam = (profileRaw as { team?: string | null } | null)?.team === "Media Team"
-
-  // Work hours per day from daily_updates (for accurate weekly display)
+  // Work hours per day from daily_updates (for accurate weekly display) — computed from work_entries
   const weekUpdatesByDate: Record<string, number> = {}
-  for (const u of (weekUpdatesRaw ?? []) as { date: string; working_hours: number | null }[]) {
-    if (u.working_hours != null && u.working_hours > 0) {
-      weekUpdatesByDate[u.date] = u.working_hours
-    }
+  for (const u of (weekUpdatesRaw ?? []) as { date: string; working_hours: number | null; work_entries: WorkEntryLike[] | null }[]) {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+    const computedH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
+    if (computedH > 0) weekUpdatesByDate[u.date] = computedH
   }
 
   // Sum approved permission hours per date
@@ -133,16 +132,30 @@ export default async function AttendancePage() {
   }
   const todayPermissionHours = permHoursByDate[today] ?? 0
 
+  // Check if today has an approved full-day or half-day leave (no login required)
+  const { data: todayLeaveRaw } = await admin.from("leaves")
+    .select("leave_type, reason")
+    .eq("user_id", effectiveUserId)
+    .eq("status", "approved")
+    .in("leave_type", ["full_day", "half_day"])
+    .lte("from_date", today)
+    .gte("to_date", today)
+    .maybeSingle()
+  const todayApprovedLeave = todayLeaveRaw as { leave_type: string; reason: string | null } | null
+
   // Monthly stats computation
-  type MonthAttLog = { work_type: string | null; status: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; date: string }
+  type MonthAttLog = { work_type: string | null; status: string; clock_in: string | null; clock_out: string | null; break_total_mins: number }
+  type MonthUpdate = { working_hours: number | null; learning_hours: number | null; work_entries: WorkEntryLike[] | null }
   const monthAttLogs = (monthAttLogsRaw ?? []) as MonthAttLog[]
-  const monthUpdates = (monthUpdatesRaw ?? []) as { working_hours: number | null; learning_hours: number | null }[]
+  const monthUpdates = (monthUpdatesRaw ?? []) as MonthUpdate[]
   const approvedLeaves = (approvedLeavesRaw ?? []) as { from_date: string; to_date: string; leave_type: string | null }[]
+
+  const isMedia = (profileRaw as { team?: string | null } | null)?.team === "Media Team"
 
   const presentLogs = monthAttLogs.filter(l => l.status === "present")
   const monthOfficeDays  = presentLogs.filter(l => l.work_type === "office").length
   const monthWfhDays     = presentLogs.filter(l => l.work_type === "wfh").length
-  const monthShootDays   = presentLogs.filter(l => l.work_type === "shoot").length
+  const monthShootDays   = presentLogs.filter(l => l.work_type === "shoot" || l.work_type === "outside").length
   const monthPresentDays = presentLogs.length
 
   // Login hours = raw span (no break deduction) — for Monthly Login Hrs / Avg Login Hrs
@@ -155,31 +168,26 @@ export default async function AttendancePage() {
     ? Math.round((monthLoginHrs / monthPresentDays) * 10) / 10
     : 0
 
-  // Working hours = span minus breaks — for Monthly Working Insights
+  // Working hours from daily_updates (History submissions): computed from work_entries, never from clock span or stored field
   const monthTotalHrs = Math.round(
-    presentLogs
-      .filter(l => l.clock_in && l.clock_out)
-      .reduce((s, l) => s + Math.max(0,
-        (new Date(l.clock_out!).getTime() - new Date(l.clock_in!).getTime()) / 3600000 - (l.break_total_mins ?? 0) / 60
-      ), 0) * 10
+    monthUpdates.reduce((s, u) => {
+      const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
+      const workH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
+      const learnFromEntries = entries.filter(e => e.task_type === 'learning').reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+      const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
+      return s + workH + learnH
+    }, 0) * 10
   ) / 10
 
   const monthAvgHrs = monthPresentDays > 0
     ? Math.round((monthTotalHrs / monthPresentDays) * 10) / 10
     : 0
 
-  // Union: attendance marked as leave + approved leave date ranges (no double-count)
-  const leaveDateSet = new Set<string>()
-  for (const l of monthAttLogs) {
-    if (l.status === "leave" || l.status === "absent") leaveDateSet.add(l.date)
-  }
-  for (const l of approvedLeaves) {
-    if (l.leave_type === "permission") continue
-    const cur = new Date(l.from_date + "T12:00:00")
-    const end = new Date(l.to_date + "T12:00:00")
-    while (cur <= end) { leaveDateSet.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
-  }
-  const monthLeaveDays = leaveDateSet.size
+  const monthLeaveDays = approvedLeaves
+    .filter(l => l.leave_type !== "permission")
+    .reduce((sum, l) => {
+      return sum + Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
+    }, 0)
 
   // Elapsed calendar days this month (1st to today, inclusive)
   const monthStartDate = new Date(monthStart)
@@ -202,11 +210,6 @@ export default async function AttendancePage() {
     avgLoginHours: monthAvgLoginHrs,
   }
 
-  // True if member has an admin-approved non-permission leave covering today
-  const todayHasApprovedLeave = approvedLeaves.some(
-    l => l.leave_type !== "permission" && l.from_date <= today && l.to_date >= today
-  )
-
   return (
     <AttendanceClient
       todayLog={todayLogRaw as unknown as AttLog | null}
@@ -218,8 +221,8 @@ export default async function AttendancePage() {
       permHoursByDate={permHoursByDate}
       weekUpdatesByDate={weekUpdatesByDate}
       monthlyPerf={monthlyPerf}
-      todayHasApprovedLeave={todayHasApprovedLeave}
-      isMediaTeam={isMediaTeam}
+      todayApprovedLeave={todayApprovedLeave}
+      isMedia={isMedia}
     />
   )
 }

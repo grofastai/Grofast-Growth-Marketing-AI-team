@@ -13,16 +13,7 @@ import { submitLeaveRequest, deleteLeaveRequest, updateLeaveRequest } from "@/li
 
 interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
-  created_at: string; leave_type?: string; permission_hours?: number | null; permission_time?: string | null; half_day_period?: string | null
-}
-
-// Returns true only if the leave hasn't started yet — before 9:30 AM IST on from_date
-function canModifyLeave(leave: Leave, today: string): boolean {
-  if (leave.from_date > today) return true
-  if (leave.from_date < today) return false
-  // Leave starts today — only allow before 9:30 AM IST
-  const ist = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }))
-  return ist.getHours() * 60 + ist.getMinutes() < 9 * 60 + 30
+  created_at: string; leave_type?: string; permission_hours?: number | null; permission_time?: string | null; half_day_period?: string | null; half_day_from_time?: string | null
 }
 type LeaveType = "full_day" | "half_day" | "permission"
 
@@ -48,6 +39,38 @@ const TYPE_ILLUSTRATION: Record<string, { emoji: string; bg: string }> = {
 
 function daysBetween(from: string, to: string) {
   return Math.ceil((new Date(to).getTime() - new Date(from).getTime()) / 86400000) + 1
+}
+
+function canWithdraw(leave: Leave): boolean {
+  // Get current IST time: UTC + 5:30 (always fixed offset, never use getTimezoneOffset)
+  const istNow = new Date(Date.now() + 5.5 * 3600000)
+  const istTodayStr = `${istNow.getUTCFullYear()}-${String(istNow.getUTCMonth()+1).padStart(2,'0')}-${String(istNow.getUTCDate()).padStart(2,'0')}`
+  const istMins = istNow.getUTCHours() * 60 + istNow.getUTCMinutes()
+
+  // Past leave (ended before today) — never allow withdraw
+  if (leave.to_date < istTodayStr) return false
+
+  // Future leave (starts after today) — always allow withdraw
+  if (leave.from_date > istTodayStr) return true
+
+  // Leave starts today — time-based cutoff
+  if (leave.from_date === istTodayStr) {
+    if (leave.leave_type === "permission" && leave.permission_time) {
+      const [h, m] = leave.permission_time.split(":").map(Number)
+      return istMins < (h * 60 + m - 5)
+    }
+    if (leave.leave_type === "half_day") {
+      const fromTime = leave.half_day_from_time ?? leave.permission_time ?? "09:30"
+      const [h, m] = fromTime.split(":").map(Number)
+      return istMins < (h * 60 + m - 5)
+    }
+    if (leave.leave_type === "full_day") {
+      return istMins < (9 * 60 + 25)
+    }
+  }
+
+  // Multi-day full_day leave already started (from_date < today) — no withdraw
+  return false
 }
 function fmtShort(d: string) {
   return new Date(d).toLocaleDateString("en-US", { day: "numeric", month: "short" })
@@ -322,10 +345,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
             </p>
           </div>
 
-          {/* Illustration — right-anchored so it never overlaps left text */}
-          <div style={{ position: "absolute", right: -10, bottom: 0, zIndex: 1 }}>
+          {/* Center: large illustration — anchored bottom */}
+          <div style={{ position: "absolute", left: "50%", transform: "translateX(-46%)", bottom: 0, zIndex: 1 }}>
             <Image src="/brand/leave-hero.png" alt="" width={500} height={260}
-              style={{ objectFit: "contain", objectPosition: "bottom right", display: "block", width: "clamp(150px, 48vw, 500px)", height: "auto" }} priority />
+              style={{ objectFit: "contain", objectPosition: "bottom center", display: "block" }} priority />
           </div>
 
           {/* Apply Leave CTA — desktop only (top-right corner) */}
@@ -526,8 +549,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                               <p style={{ fontSize: 9, color: "#9CA3AF", margin: 0 }}>Requested on {fmtShort(leave.created_at)}</p>
                             )}
                             {/* Actions: pending → Edit + Cancel; approved → Withdraw; absent/rejected → nothing */}
-                            {/* Both Cancel and Withdraw are hidden after 9:30 AM IST on the leave's from_date */}
-                            {leave.status === "absent" || leave.status === "rejected" ? null : leave.status === "pending" && canModifyLeave(leave, today) ? (
+                            {leave.status === "absent" || leave.status === "rejected" ? null : leave.status === "pending" ? (
                               <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
                                 <button
                                   onClick={() => { setEditingLeave(leave); setShowForm(true) }}
@@ -540,7 +562,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                                   <X size={11} /> Cancel
                                 </button>
                               </div>
-                            ) : leave.status === "approved" && canModifyLeave(leave, today) ? (
+                            ) : leave.status === "approved" && canWithdraw(leave) ? (
                               <button onClick={() => setDeleteId(leave.id)}
                                 style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 11px", borderRadius: 8, background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.18)", fontSize: 11, fontWeight: 700, color: "#EF4444", cursor: "pointer" }}>
                                 <X size={11} /> Withdraw

@@ -362,30 +362,31 @@ export default function DailyUpdateForm({
     }
     setActiveUpdate(found)
 
-    setShoots(found ? parseExistingShoots(found) : [])
-    setEdits(found ? parseExistingEdits(found) : [])
-    setTimeBlocks(found ? parseExistingBlocks(found) : [])
-    setMediaBreaks(found ? parseExistingMediaBreaks(found) : [])
-    setLearningTopic((found?.learning_topic as string) ?? "")
+    const isPast = date !== todayStr
+    // Past date: always show clean empty form (existing entries viewable in History)
+    // Today: pre-fill with existing data so user can continue where they left off
+    setShoots(isPast ? [] : (found ? parseExistingShoots(found) : []))
+    setEdits(isPast ? [] : (found ? parseExistingEdits(found) : []))
+    setVoiceovers(isPast ? [] : (found ? parseExistingVoiceovers(found) : []))
+    setPosters(isPast ? [] : (found ? parseExistingPosters(found) : []))
+    setTimeBlocks(isPast ? [] : (found ? parseExistingBlocks(found) : []))
+    setMediaBreaks(isPast ? [] : (found ? parseExistingMediaBreaks(found) : []))
+    setLearningTopic(isPast ? "" : (found?.learning_topic as string) ?? "")
     setLearningFrom(""); setLearningTo("")
-    setLearningNotes((found?.learning_notes as string) ?? "")
-    setLearningParticipantIds(found?.active_tab === "learning" ? ((found?.participant_ids as string[]) ?? []) : [])
-    setWorkingDone(!!(found && (found as Record<string, unknown>).working_hours))
-    setLearningDone(!!(found && (found as Record<string, unknown>).learning_hours))
-    setMediaDone(isMediaTeam && existingHasMedia(found))
-    setBreaksDone(isMediaTeam && existingHasBreaks(found))
+    setLearningNotes(isPast ? "" : (found?.learning_notes as string) ?? "")
+    setLearningParticipantIds(isPast ? [] : (found?.active_tab === "learning" ? ((found?.participant_ids as string[]) ?? []) : []))
+    // Past date: never mark as done — always show fresh form regardless of existing data
+    setWorkingDone(isPast ? false : !!(found && (found as Record<string, unknown>).working_hours))
+    setLearningDone(isPast ? false : !!(found && (found as Record<string, unknown>).learning_hours))
+    setMediaDone(isPast ? false : (isMediaTeam && existingHasMedia(found)))
+    setBreaksDone(isPast ? false : (isMediaTeam && existingHasBreaks(found)))
     setSubmitted(false)
     setEditMode(false)
     setError(null)
     setWorkingError(null)
     setLearningError(null)
 
-    const foundTab = (found?.active_tab as string) ?? null
-    if (foundTab === "media" || foundTab === "learning" || foundTab === "working" || foundTab === "break") {
-      setTab(foundTab as "working" | "media" | "learning" | "break")
-    } else {
-      setTab(isMediaTeam ? "media" : "working")
-    }
+    setTab(isMediaTeam ? "media" : "working")
   }
 
   const [tab, setTab] = useState<"working" | "media" | "learning" | "break">(isMediaTeam ? "media" : "working")
@@ -657,6 +658,43 @@ export default function DailyUpdateForm({
       }
     }
 
+    // Past date: check new blocks don't overlap with already-saved entries
+    if (isPastDate && activeUpdate) {
+      const existingEntries = (activeUpdate.work_entries as Record<string,unknown>[] | null) ?? []
+      const savedTimes = existingEntries.filter(e => e.task_type !== "break" && e.start_time && e.end_time)
+      for (const b of filledBlocks) {
+        for (const ex of savedTimes) {
+          if (timesOverlap(b.startTime, b.endTime, ex.start_time as string, ex.end_time as string)) {
+            setWorkingError(`Time overlaps with existing entry "${ex.title}" already saved for this date.`); return
+          }
+        }
+      }
+    }
+
+    // Voiceover mandatory: client, title, start time, end time
+    for (let i = 0; i < voiceovers.length; i++) {
+      const v = voiceovers[i]
+      const label = voiceovers.length > 1 ? `Voiceover ${i + 1}: ` : "Voiceover: "
+      const client = v.clientName === "__custom__" ? v.customClient.trim() : v.clientName
+      if (!client) { setWorkingError(`${label}Select a client.`); return }
+      if (!v.title.trim()) { setWorkingError(`${label}Enter a title / project name.`); return }
+      if (!v.startTime) { setWorkingError(`${label}Enter start time.`); return }
+      if (!v.endTime)   { setWorkingError(`${label}Enter end time.`); return }
+      if (toMins(v.endTime) <= toMins(v.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+    }
+
+    // Poster mandatory: client, title, start time, end time
+    for (let i = 0; i < posters.length; i++) {
+      const p = posters[i]
+      const label = posters.length > 1 ? `Poster ${i + 1}: ` : "Poster: "
+      const client = p.clientName === "__custom__" ? p.customClient.trim() : p.clientName
+      if (!client) { setWorkingError(`${label}Select a client.`); return }
+      if (!p.title.trim()) { setWorkingError(`${label}Enter a poster name.`); return }
+      if (!p.startTime) { setWorkingError(`${label}Enter start time.`); return }
+      if (!p.endTime)   { setWorkingError(`${label}Enter end time.`); return }
+      if (toMins(p.endTime) <= toMins(p.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+    }
+
     const work_entries = [
       ...filledBlocks.map(t => {
         const effClient = t.projectName === "Promotion" ? (t.brand || "Our Brand")
@@ -724,7 +762,19 @@ export default function DailyUpdateForm({
         participant_ids: allParticipantIds,
       })
       if (!res.success) setWorkingError(res.error ?? "Submission failed.")
-      else { try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }; setWorkingDone(true); router.refresh() }
+      else {
+        try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ }
+        if (isPastDate) {
+          // Past date: show success banner, reset form for another entry, refresh data
+          setSubmitted(true)
+          setTimeBlocks([])
+          setVoiceovers([])
+          setPosters([])
+          router.refresh()
+        } else {
+          setWorkingDone(true); router.refresh()
+        }
+      }
     })
   }
 
@@ -732,6 +782,25 @@ export default function DailyUpdateForm({
   function handleMediaSubmit() {
     setError(null)
     if (tab !== "break" && shoots.length === 0 && edits.length === 0 && voiceovers.length === 0 && posters.length === 0) { setError("Add at least one shoot, edit, voiceover, or poster entry."); return }
+
+    // Past date: check new entries don't overlap with already-saved entries
+    if (isPastDate && activeUpdate) {
+      const existingEntries = (activeUpdate.work_entries as Record<string,unknown>[] | null) ?? []
+      const savedTimes = existingEntries.filter(e => e.task_type !== "break" && e.start_time && e.end_time)
+      const newEntries = [
+        ...shoots.map(s => ({ start: s.startTime, end: s.endTime, title: s.title || "Shoot" })),
+        ...edits.map(e => ({ start: e.startTime, end: e.endTime, title: e.title || "Edit" })),
+        ...voiceovers.map(e => ({ start: e.startTime, end: e.endTime, title: e.title || "Voiceover" })),
+        ...posters.map(e => ({ start: e.startTime, end: e.endTime, title: e.title || "Poster" })),
+      ]
+      for (const n of newEntries) {
+        for (const ex of savedTimes) {
+          if (timesOverlap(n.start, n.end, ex.start_time as string, ex.end_time as string)) {
+            setError(`Time overlaps with existing entry "${ex.title}" already saved for this date.`); return
+          }
+        }
+      }
+    }
     const work_entries = [
       ...shoots.map(s => ({
         id: s.id, client_id: projects.find(p => p.business_name === s.clientName)?.id ?? null,
@@ -807,7 +876,15 @@ export default function DailyUpdateForm({
         participant_ids: allMediaParticipantIds,
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
-      else { setMediaDone(true); setEditMode(false); router.refresh() }
+      else {
+        if (isPastDate) {
+          setSubmitted(true)
+          setShoots([]); setEdits([]); setVoiceovers([]); setPosters([])
+          router.refresh()
+        } else {
+          setMediaDone(true); setEditMode(false); router.refresh()
+        }
+      }
     })
   }
 
@@ -1064,7 +1141,8 @@ export default function DailyUpdateForm({
   // ── Already submitted screen ──────────────────────────────────────────────
   // Media team: all three tabs (media + learning + break) must be submitted.
   // Non-media: working is enough; learning is optional.
-  const allDone = isMediaTeam ? (mediaDone && learningDone && breaksDone) : workingDone
+  // Past dates always show the form (never the "done" screen) — user adds new entries, History handles editing
+  const allDone = !isPastDate && (isMediaTeam ? (mediaDone && learningDone && breaksDone) : workingDone)
 
   // Past 14 days with no submission and no approved leave — shown in the submitted screen
   const unsubmittedDates = useMemo(() => {
@@ -1368,6 +1446,17 @@ export default function DailyUpdateForm({
         </div>
       </div>
 
+      {/* ── PAST DATE SUCCESS BANNER ─────────────────────────────────────── */}
+      {isPastDate && submitted && (
+        <div style={{ background:"#F0FDF4", border:"1.5px solid #22C55E", borderRadius:12, padding:"12px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:16 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <CheckCircle2 size={18} style={{ color:"#22C55E", flexShrink:0 }} />
+            <p style={{ fontSize:13, fontWeight:700, color:"#15803D", margin:0 }}>Entry added to {dateLabel}! Add another entry below or go to History to edit.</p>
+          </div>
+          <button onClick={() => setSubmitted(false)} style={{ fontSize:18, lineHeight:1, color:"#15803D", background:"none", border:"none", cursor:"pointer", padding:"0 4px" }}>×</button>
+        </div>
+      )}
+
       {/* ── TABS (all teams) ─────────────────────────────────────────────── */}
       <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
         {TABS.map(t => {
@@ -1557,38 +1646,61 @@ export default function DailyUpdateForm({
                 </div>
               )}
 
-              {/* ── Optional Voiceover section ─────────────────────────────── */}
-              <div style={{ borderTop:"1px dashed #EBEDF2", paddingTop:14, marginTop:16 }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: voiceovers.length > 0 ? 12 : 0 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                    <span style={{ fontSize:16 }}>🎙️</span>
-                    <span style={{ fontSize:12, fontWeight:700, color:"#374151" }}>Voiceover</span>
-                    {voiceovers.length > 0 && <span style={{ fontSize:10, color:"#8B5CF6", fontWeight:600 }}>{voiceovers.length} added</span>}
+              {/* ── Voiceover Today section ─────────────────────────────── */}
+              <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                <SectionHead icon={<span style={{ fontSize:16 }}>🎙️</span>} label="Voiceover Today" count={voiceovers.length} color="#8B5CF6" />
+                {voiceovers.length === 0 ? (
+                  <div onClick={addVoiceover} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #DDD6FE", background:"rgba(139,92,246,0.02)", cursor:"pointer" }}>
+                    <div style={{ position:"relative", width:180, height:140 }}>
+                      <Image src="/brand/cinematic-boy.png" alt="Voiceover" fill style={{ objectFit:"contain" }} />
+                    </div>
+                    <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No voiceovers logged yet</p>
+                    <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#8B5CF6", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(139,92,246,0.35)" }}>+ Add Voiceover</span>
                   </div>
-                  <button onClick={addVoiceover} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", borderRadius:8, background:"rgba(139,92,246,0.08)", border:"1.5px solid rgba(139,92,246,0.3)", color:"#8B5CF6", fontSize:11, fontWeight:700, cursor:"pointer" }}>
-                    <Plus size={11}/> Add Voiceover
-                  </button>
-                </div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                 {voiceovers.map((e, vi) => {
                   const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
                   const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
                   const dur = calcDuration(e.startTime, e.endTime)
                   return (
-                    <div key={e.id} style={{ borderRadius:12, border:"1.5px solid rgba(139,92,246,0.2)", padding:"12px", marginBottom:8, background:"rgba(139,92,246,0.02)" }}>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                        <span style={{ fontSize:12, fontWeight:700, color:"#8B5CF6" }}>Voiceover #{vi+1}</span>
-                        <button onClick={() => removeVoiceover(e.id)} style={{ width:24, height:24, borderRadius:6, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          <X size={11} style={{ color:"#EF4444" }} />
+                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                        <span style={{ fontSize:11, fontWeight:800, color:"#8B5CF6", textTransform:"uppercase", letterSpacing:"0.1em" }}>Voiceover #{vi+1}</span>
+                        <button onClick={() => removeVoiceover(e.id)} style={{ width:26, height:26, borderRadius:8, background:"rgba(139,92,246,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Trash2 size={12} style={{ color:"#8B5CF6" }} />
                         </button>
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client</label>
-                          <select value={e.clientName} onChange={ev => patchVoiceover(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
-                            <option value="">Select client…</option>
-                            {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                            <option value="__custom__">Other…</option>
-                          </select>
+                          <div style={{ position:"relative" }}>
+                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
+                              <div>
+                                <button type="button" onClick={() => { exitPastMode(e.id); patchVoiceover(e.id, { clientName:"", customClient:"" }) }}
+                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
+                                  ← Back to Active Clients
+                                </button>
+                                <div style={{ position:"relative" }}>
+                                  <select value={e.clientName}
+                                    onChange={ev => { patchVoiceover(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
+                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                    <option value="">Select past client…</option>
+                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                  </select>
+                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                </div>
+                              </div>
+                            ) : (
+                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchVoiceover(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                <option value="">Select client…</option>
+                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                <option value="__custom__">✏️ Other (type manually)</option>
+                              </select>
+                            )}
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
                           {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchVoiceover(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
                         </div>
                         <div>
@@ -1620,40 +1732,70 @@ export default function DailyUpdateForm({
                     </div>
                   )
                 })}
+                  </div>
+                )}
+                {voiceovers.length > 0 && (
+                  <button onClick={addVoiceover} style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, padding:"9px 18px", borderRadius:10, border:"1.5px dashed rgba(139,92,246,0.4)", background:"rgba(139,92,246,0.04)", color:"#8B5CF6", fontSize:12, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                    <Plus size={13} /> Add Another Voiceover
+                  </button>
+                )}
               </div>
 
-              {/* ── Optional Poster section ────────────────────────────────── */}
-              <div style={{ borderTop:"1px dashed #EBEDF2", paddingTop:14, marginTop:4 }}>
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: posters.length > 0 ? 12 : 0 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                    <span style={{ fontSize:16 }}>🖼️</span>
-                    <span style={{ fontSize:12, fontWeight:700, color:"#374151" }}>Poster</span>
-                    {posters.length > 0 && <span style={{ fontSize:10, color:"#EC4899", fontWeight:600 }}>{posters.length} added</span>}
+              {/* ── Poster Today section ────────────────────────────────── */}
+              <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                <SectionHead icon={<span style={{ fontSize:16 }}>🖼️</span>} label="Poster Today" count={posters.length} color="#EC4899" />
+                {posters.length === 0 ? (
+                  <div onClick={addPoster} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #FBCFE8", background:"rgba(236,72,153,0.02)", cursor:"pointer" }}>
+                    <div style={{ position:"relative", width:180, height:140 }}>
+                      <Image src="/brand/daily-boy.png" alt="Poster" fill style={{ objectFit:"contain" }} />
+                    </div>
+                    <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No posters logged yet</p>
+                    <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#EC4899", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(236,72,153,0.35)" }}>+ Add Poster</span>
                   </div>
-                  <button onClick={addPoster} style={{ display:"flex", alignItems:"center", gap:5, padding:"6px 12px", borderRadius:8, background:"rgba(236,72,153,0.08)", border:"1.5px solid rgba(236,72,153,0.3)", color:"#EC4899", fontSize:11, fontWeight:700, cursor:"pointer" }}>
-                    <Plus size={11}/> Add Poster
-                  </button>
-                </div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                 {posters.map((e, pi) => {
                   const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
                   const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
                   const dur = calcDuration(e.startTime, e.endTime)
                   return (
-                    <div key={e.id} style={{ borderRadius:12, border:"1.5px solid rgba(236,72,153,0.2)", padding:"12px", marginBottom:8, background:"rgba(236,72,153,0.02)" }}>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-                        <span style={{ fontSize:12, fontWeight:700, color:"#EC4899" }}>Poster #{pi+1}</span>
-                        <button onClick={() => removePoster(e.id)} style={{ width:24, height:24, borderRadius:6, border:"none", background:"rgba(239,68,68,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          <X size={11} style={{ color:"#EF4444" }} />
+                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                        <span style={{ fontSize:11, fontWeight:800, color:"#EC4899", textTransform:"uppercase", letterSpacing:"0.1em" }}>Poster #{pi+1}</span>
+                        <button onClick={() => removePoster(e.id)} style={{ width:26, height:26, borderRadius:8, border:"none", background:"rgba(236,72,153,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Trash2 size={12} style={{ color:"#EC4899" }} />
                         </button>
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
                           <label style={L}>Client</label>
-                          <select value={e.clientName} onChange={ev => patchPoster(e.id, { clientName: ev.target.value })} style={{ ...F, appearance:"none" }}>
-                            <option value="">Select client…</option>
-                            {allClientOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                            <option value="__custom__">Other…</option>
-                          </select>
+                          <div style={{ position:"relative" }}>
+                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
+                              <div>
+                                <button type="button" onClick={() => { exitPastMode(e.id); patchPoster(e.id, { clientName:"", customClient:"" }) }}
+                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
+                                  ← Back to Active Clients
+                                </button>
+                                <div style={{ position:"relative" }}>
+                                  <select value={e.clientName}
+                                    onChange={ev => { patchPoster(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
+                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                    <option value="">Select past client…</option>
+                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                  </select>
+                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                </div>
+                              </div>
+                            ) : (
+                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchPoster(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                <option value="">Select client…</option>
+                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                <option value="__custom__">✏️ Other (type manually)</option>
+                              </select>
+                            )}
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
                           {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchPoster(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
                         </div>
                         <div>
@@ -1685,6 +1827,13 @@ export default function DailyUpdateForm({
                     </div>
                   )
                 })}
+                  </div>
+                )}
+                {posters.length > 0 && (
+                  <button onClick={addPoster} style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, padding:"9px 18px", borderRadius:10, border:"1.5px dashed rgba(236,72,153,0.4)", background:"rgba(236,72,153,0.04)", color:"#EC4899", fontSize:12, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                    <Plus size={13} /> Add Another Poster
+                  </button>
+                )}
               </div>
 
               {/* Submit button for non-media team */}

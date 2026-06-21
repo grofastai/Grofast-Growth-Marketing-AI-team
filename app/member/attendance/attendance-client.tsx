@@ -28,8 +28,7 @@ type RangeLog = { id: string; date: string; clock_in: string | null; clock_out: 
 type RangeMode = "date" | "last7" | "thisMonth" | "lastMonth"
 
 interface MonthlyPerf {
-  presentDays: number; absentDays: number; officeDays: number; wfhDays: number
-  shootDays?: number
+  presentDays: number; absentDays: number; officeDays: number; wfhDays: number; shootDays?: number
   leaveDays: number; pendingLeaves: number; totalHours: number; avgHours: number
   loginHours?: number; avgLoginHours?: number
 }
@@ -39,8 +38,8 @@ interface Props {
   todayPermissionHours?: number; permHoursByDate?: Record<string, number>
   weekUpdatesByDate?: Record<string, number>
   monthlyPerf?: MonthlyPerf
-  todayHasApprovedLeave?: boolean
-  isMediaTeam?: boolean
+  todayApprovedLeave?: { leave_type: string; reason: string | null } | null
+  isMedia?: boolean
 }
 
 const SHIFT_HOURS = 8.5
@@ -122,7 +121,7 @@ function SegmentBar({ hoursWorked }: { hoursWorked: number }) {
   )
 }
 
-export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf, todayHasApprovedLeave = false, isMediaTeam = false }: Props) {
+export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf, todayApprovedLeave, isMedia = false }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">("office")
@@ -337,16 +336,10 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
     setEditBrkIn(toHHMM(breakIn)); setEditBrkOut(toHHMM(breakOut))
   }
 
-  // After 9:30 AM IST on the leave day, hide the login UI even if no attendance record exists
-  const pastOfficeStart = (() => {
-    const ist = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }))
-    return ist.getHours() * 60 + ist.getMinutes() >= 9 * 60 + 30
-  })()
   const isAbsent  = todayLog?.status === "leave" || todayLog?.status === "absent"
-    || (todayHasApprovedLeave && pastOfficeStart)
   const isIn      = !!todayLog?.clock_in && !todayLog?.clock_out && todayLog?.status === "present"
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
-  const notLogged = !todayLog && !isAbsent
+  const notLogged = !todayLog
   const breakTotalMins  = todayLog?.break_total_mins ?? 0
   const spanMinsToday   = (todayLog?.clock_in && todayLog?.clock_out)
     ? Math.floor((new Date(todayLog.clock_out).getTime() - new Date(todayLog.clock_in).getTime()) / 60000)
@@ -434,7 +427,15 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               {/* NOT LOGGED IN */}
               {notLogged && (
                 <div className="space-y-4">
-                  {absentDone ? (
+                  {todayApprovedLeave ? (
+                    <div className="rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(239,68,68,0.02) 100%)", border: "1.5px solid rgba(239,68,68,0.2)" }}>
+                      <div className="text-3xl mb-2">🏖️</div>
+                      <p className="text-[15px] font-black mb-2" style={{ color: "#DC2626" }}>
+                        {todayApprovedLeave.leave_type === "half_day" ? "Half Day Leave" : "Full Day Leave"} Approved
+                      </p>
+                      <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: "#9CA3AF" }}>NO LOGIN REQUIRED.</p>
+                    </div>
+                  ) : absentDone ? (
                     <div className="rounded-2xl p-4" style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}>
                       <p className="text-[14px] font-bold" style={{ color: "#059669" }}>Leave request submitted!</p>
                       <p className="text-[12px] mt-1" style={{ color: "#6B7280" }}>Waiting for admin approval. It will appear in your Leaves page.</p>
@@ -629,23 +630,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
             </div>{/* inner timer card */}
 
-            {/* Monthly Total Hrs + Monthly Avg Hrs — below day status card */}
-            {monthlyPerf && (
-              <div className="flex gap-3 mt-4">
-                <div className="flex-1 rounded-2xl px-4 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Monthly Login Hrs</p>
-                  <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-                    {(monthlyPerf.loginHours ?? 0) > 0 ? fmtHoursShort(monthlyPerf.loginHours ?? 0) : "0h"}
-                  </p>
-                </div>
-                <div className="flex-1 rounded-2xl px-4 py-3" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                  <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Avg Login Hrs</p>
-                  <p className="text-[22px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                    {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgLoginHours ?? 0) : "0h"}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>{/* px-5 pb-5 */}
         </div>{/* outer card */}
 
@@ -831,9 +815,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                   <div className="grid grid-cols-2 gap-2">
                     {[
                       { label: "Office",  value: monthlyPerf?.officeDays   ?? 0, color: "#6366F1", bg: "rgba(99,102,241,0.08)" },
-                      { label: "WFH",     value: monthlyPerf?.wfhDays      ?? 0, color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
-                      ...(isMediaTeam ? [{ label: "Shoot", value: monthlyPerf?.shootDays ?? 0, color: "#de1a1a", bg: "rgba(222,26,26,0.07)" }] : []),
-                      { label: "Leave",   value: monthlyPerf?.leaveDays    ?? 0, color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
+                      { label: isMedia ? "Shoot" : "WFH", value: isMedia ? (monthlyPerf?.shootDays ?? 0) : (monthlyPerf?.wfhDays ?? 0), color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
+                      { label: "Leave",   value: (monthlyPerf?.absentDays ?? 0) + (monthlyPerf?.leaveDays ?? 0), color: "#EF4444", bg: "rgba(239,68,68,0.08)" },
                     ].map(stat => (
                       <div key={stat.label} className="rounded-2xl p-3 text-center" style={{ background: stat.bg }}>
                         <p className="text-[22px] font-black leading-none mb-1" style={{ color: stat.color, fontFamily: "var(--font-jakarta)" }}>
@@ -849,85 +832,99 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
           </div>
 
-          {/* Work Hours Summary — separate card */}
-          {monthlyPerf && (
-            <div className="rounded-3xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
-                  <Clock size={16} style={{ color: "#6366F1" }} />
-                </div>
-                <div>
-                  <h3 className="text-[15px] font-bold leading-none" style={{ color: "#111111" }}>Work Hours Summary</h3>
-                  <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>{new Date().toLocaleString("en-US", { month: "long", year: "numeric" })}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.15)" }}>
-                  <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
-                    {monthlyPerf.totalHours > 0 ? fmtHoursShort(monthlyPerf.totalHours) : "0h"}
-                  </p>
-                  <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#6366F1" }}>Total</p>
-                </div>
-                <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.15)" }}>
-                  <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
-                  <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#D97706" }}>Daily Target</p>
-                </div>
-              </div>
-              <div className="rounded-2xl p-3 text-center" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                <p className="text-[22px] font-black leading-none mb-1" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
-                  {monthlyPerf.presentDays > 0 ? fmtHoursShort(monthlyPerf.avgHours) : "0h"}
-                </p>
-                <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: "#16A34A" }}>Avg / Day</p>
-              </div>
-            </div>
-          )}
-
         </div>{/* end third col */}
 
       </div>
 
-      {/* ── Daily Insight + Summary ── */}
-      <div className="rounded-3xl p-5 relative overflow-hidden" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
-        {/* Target illustration */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 w-24 h-24 opacity-90 pointer-events-none">
-          <Image src="/brand/tasks-complete.png" alt="" fill style={{ objectFit: "contain" }} />
+      {/* ── Daily Insight — 2 separate boxes in one line ── */}
+      <div className="rounded-3xl p-5" style={{ background: "#FFFFFF", boxShadow: "0 4px 24px rgba(0,0,0,0.06)" }}>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
+            <TrendingUp size={16} style={{ color: "#6366F1" }} />
+          </div>
+          <div>
+            <p className="text-[14px] font-bold" style={{ color: "#111111" }}>Daily Insight</p>
+            <p className="text-[12px]" style={{ color: "#9CA3AF" }}>
+              {hoursWorked >= SHIFT_HOURS ? "Great work! Target reached 🔥" : hoursWorked > 0 ? "Keep going! You're doing great." : "Log in to start your day."}
+            </p>
+          </div>
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center gap-6 pr-28">
-          {/* Daily Insight label */}
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(99,102,241,0.1)" }}>
-              <TrendingUp size={16} style={{ color: "#6366F1" }} />
-            </div>
-            <div>
-              <p className="text-[14px] font-bold" style={{ color: "#111111" }}>Daily Insight</p>
-              <p className="text-[12px]" style={{ color: "#9CA3AF" }}>
-                {hoursWorked >= SHIFT_HOURS ? "Great work! Target reached 🔥" : hoursWorked > 0 ? "Keep going! You're doing great." : "Log in to start your day."}
-              </p>
-            </div>
-          </div>
+        {/* Two boxes side by side */}
+        <div className="flex flex-col md:flex-row gap-3">
 
-          {/* Stats */}
-          <div className="flex gap-4 flex-wrap">
-            <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#6366F1" }}>Login Hrs</p>
-              <p className="text-[22px] font-black leading-none" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
-                {todayLog?.clock_in ? fmtHoursShort(calcHours(todayLog.clock_in, todayLog.clock_out)) : "0h"}
-              </p>
-            </div>
-            <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Target</p>
-              <p className="text-[22px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>
-                9h 30m
-              </p>
-            </div>
-            <div className="rounded-2xl px-5 py-3" style={{ background: "rgba(222,26,26,0.06)", border: "1px solid rgba(222,26,26,0.12)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#de1a1a" }}>Remaining</p>
-              <p className="text-[22px] font-black leading-none" style={{ color: "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
-                {todayLog?.clock_in ? fmtHoursShort(Math.max(0, 9.5 - calcHours(todayLog.clock_in, todayLog.clock_out))) : "9h 30m"}
-              </p>
-            </div>
-          </div>
+          {/* LOGIN box */}
+          {(() => {
+            const loginHrs = todayLog?.clock_in ? calcHours(todayLog.clock_in, todayLog.clock_out) : 0
+            const loginAchieved = loginHrs >= 9.5
+            return (
+              <div className="flex-1 rounded-2xl p-4" style={{
+                background: loginAchieved ? "rgba(22,163,74,0.05)" : "rgba(99,102,241,0.04)",
+                border: `1.5px solid ${loginAchieved ? "rgba(22,163,74,0.3)" : "rgba(99,102,241,0.15)"}`,
+              }}>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: loginAchieved ? "#16A34A" : "#6366F1" }}>Login</p>
+                  {loginAchieved && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A" }}>✓ Achieved</span>}
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: "rgba(99,102,241,0.08)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: "#6366F1" }}>Login Hrs</p>
+                    <p className="text-[18px] font-black leading-none" style={{ color: "#6366F1", fontFamily: "var(--font-jakarta)" }}>
+                      {loginHrs > 0 ? fmtHoursShort(loginHrs) : "0h"}
+                    </p>
+                  </div>
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: "rgba(245,158,11,0.08)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Target</p>
+                    <p className="text-[18px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>9h 30m</p>
+                  </div>
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: loginAchieved ? "rgba(22,163,74,0.08)" : "rgba(222,26,26,0.06)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: loginAchieved ? "#16A34A" : "#de1a1a" }}>Remaining</p>
+                    <p className="text-[18px] font-black leading-none" style={{ color: loginAchieved ? "#16A34A" : "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+                      {loginAchieved ? "0h" : loginHrs > 0 ? fmtHoursShort(Math.max(0, 9.5 - loginHrs)) : "9h 30m"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* WORKING box */}
+          {(() => {
+            const todayWorkHrs = todayUpdate?.working_hours ?? 0
+            const workAchieved = todayWorkHrs >= 8.5
+            return (
+              <div className="flex-1 rounded-2xl p-4" style={{
+                background: workAchieved ? "rgba(22,163,74,0.05)" : "rgba(99,102,241,0.04)",
+                border: `1.5px solid ${workAchieved ? "rgba(22,163,74,0.3)" : "rgba(99,102,241,0.15)"}`,
+              }}>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: workAchieved ? "#16A34A" : "#6366F1" }}>Working</p>
+                  {workAchieved && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(22,163,74,0.12)", color: "#16A34A" }}>✓ Achieved</span>}
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: "rgba(34,197,94,0.08)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: "#16A34A" }}>Working Hrs</p>
+                    <p className="text-[18px] font-black leading-none" style={{ color: "#16A34A", fontFamily: "var(--font-jakarta)" }}>
+                      {todayWorkHrs > 0 ? fmtHoursShort(todayWorkHrs) : "0h"}
+                    </p>
+                  </div>
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: "rgba(245,158,11,0.08)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: "#D97706" }}>Target</p>
+                    <p className="text-[18px] font-black leading-none" style={{ color: "#D97706", fontFamily: "var(--font-jakarta)" }}>8h 30m</p>
+                  </div>
+                  <div className="flex-1 rounded-xl px-3 py-2" style={{ background: workAchieved ? "rgba(22,163,74,0.08)" : "rgba(222,26,26,0.06)" }}>
+                    <p className="text-[9px] font-bold uppercase tracking-wide mb-1" style={{ color: workAchieved ? "#16A34A" : "#de1a1a" }}>Remaining</p>
+                    <p className="text-[18px] font-black leading-none" style={{ color: workAchieved ? "#16A34A" : "#de1a1a", fontFamily: "var(--font-jakarta)" }}>
+                      {workAchieved ? "0h" : todayWorkHrs > 0 ? fmtHoursShort(Math.max(0, 8.5 - todayWorkHrs)) : "8h 30m"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
         </div>
       </div>
 
@@ -1051,7 +1048,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                                     <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
                                     <td style={{ padding:"9px 10px" }}>
                                       <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background: l.status==="present" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: l.status==="present" ? "#16A34A" : "#EF4444" }}>
-                                        {l.status === "present" ? "Present" : "Absent"}
+                                        {l.status === "present" ? "Present" : "On Leave"}
                                       </span>
                                     </td>
                                     <td style={{ padding:"9px 10px", color:"#6B7280", textTransform:"capitalize" }}>{l.work_type ?? "—"}</td>
@@ -1175,7 +1172,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                               <td style={{ padding:"9px 10px", color:"#9CA3AF" }}>{dayLabel}</td>
                               <td style={{ padding:"9px 10px" }}>
                                 <span style={{ fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:99, background: l.status==="present" ? "rgba(34,197,94,0.1)" : "rgba(239,68,68,0.1)", color: l.status==="present" ? "#16A34A" : "#EF4444" }}>
-                                  {l.status === "present" ? "Present" : "Absent"}
+                                  {l.status === "present" ? "Present" : "On Leave"}
                                 </span>
                               </td>
                               <td style={{ padding:"9px 10px", color:"#6B7280", textTransform:"capitalize" }}>{l.work_type ?? "—"}</td>

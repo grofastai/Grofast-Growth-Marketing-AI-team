@@ -404,7 +404,15 @@ export default function HistoryClient({
       video_link: entry.video_link ?? "",
       project_name: entry.project_name ?? "",
       is_multi_client: entry.is_multi_client ?? false,
-      client_names: entry.client_names ?? [],
+      client_names: (() => {
+        const allKnown = [...activeClientsForEdit, ...pastClients]
+        const normalize = (cn: string) => allKnown.find(a => a.toLowerCase() === cn.toLowerCase()) ?? cn
+        if (entry.is_multi_client && entry.client_names?.length) {
+          return entry.client_names.map(normalize)
+        }
+        // Seed from single client_name so chip grid shows it pre-selected
+        return entry.client_name ? [normalize(entry.client_name)] : []
+      })(),
       video_type: entry.video_type ?? "",
       video_duration: entry.video_duration ?? "",
       revisions: entry.revisions ?? 0,
@@ -1880,37 +1888,18 @@ export default function HistoryClient({
                                               <option value="GROFAST AI">GROFAST AI</option>
                                               <option value="KARTHICK BRANDS">KARTHICK BRANDS</option>
                                             </select>
-                                          : editDraft.is_multi_client
-                                          ? <p style={{ fontSize:11, fontWeight:700, color:"#374151", padding:"7px 0" }}>{(editDraft.client_names??[]).join(" · ")||"—"}</p>
-                                          : editClientShowPast
-                                          ? <div>
-                                              <button type="button" onClick={()=>setEditClientShowPast(false)} style={{ width:"100%", padding:"6px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#6366F1", fontWeight:700, background:"rgba(99,102,241,0.06)", cursor:"pointer", textAlign:"left", marginBottom:4 }}>← Back to Active Clients</button>
-                                              <select value="" onChange={ev=>{const v=ev.target.value;if(v){setEditDraft(d=>({...d,client_name:v}));setEditClientShowPast(false)}}} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                                <option value="">— Select past client —</option>
-                                                {pastClientsOnly.map(c=><option key={c} value={c}>{c}</option>)}
-                                              </select>
-                                            </div>
-                                          : <select value={editDraft.client_name??""} onChange={ev=>{const v=ev.target.value;if(v==="__past_clients__"){setEditClientShowPast(true)}else if(v==="__custom__"){setEditDraft(d=>({...d,client_name:""}))}else{setEditDraft(d=>({...d,client_name:v}))}}} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}>
-                                              <option value="">— Select client —</option>
-                                              {activeClientsForEdit.map(c=><option key={c} value={c}>{c}</option>)}
-                                              {editDraft.client_name && !activeClientsForEdit.includes(editDraft.client_name) && pastClientsOnly.includes(editDraft.client_name) && <option key={editDraft.client_name} value={editDraft.client_name}>{editDraft.client_name}</option>}
-                                              {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
-                                              <option value="__custom__">✏️ Other (type manually)</option>
-                                            </select>
-                                        }
+                                          : null}
                                       </div>
                                     </div>
                                     {editDraft.task_type==="other" && (
                                       <div>
-                                        <label style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", fontSize:11, fontWeight:600, color:"#374151", marginBottom:6 }}>
-                                          <input type="checkbox" checked={editDraft.is_multi_client??false} onChange={ev=>setEditDraft(d=>({...d,is_multi_client:ev.target.checked,client_names:[]}))} style={{ accentColor:"#de1a1a" }} />
-                                          Split cost across multiple clients
+                                        <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:6 }}>
+                                          Client {(editDraft.client_names??[]).length > 1 && <span style={{ color:"#de1a1a", fontWeight:700 }}>· Split cost ({(editDraft.client_names??[]).length} clients)</span>}
                                         </label>
-                                        {editDraft.is_multi_client && activeClientsForEdit.length>0 && (
-                                          <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                                            {activeClientsForEdit.map(name=>{const selected=(editDraft.client_names??[]).includes(name);return(<button key={name} type="button" onClick={()=>{const next=selected?(editDraft.client_names??[]).filter(n=>n!==name):[...(editDraft.client_names??[]),name];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name}))}} style={{ padding:"4px 10px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${selected?"#de1a1a":"#EBEDF2"}`, background:selected?"rgba(222,26,26,0.08)":"#F9FAFB", color:selected?"#de1a1a":"#6B7280" }}>{name}</button>)})}
-                                          </div>
-                                        )}
+                                        <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                                          {activeClientsForEdit.map(name=>{const selected=(editDraft.client_names??[]).some(n=>n.toLowerCase()===name.toLowerCase());return(<button key={name} type="button" onClick={()=>{const cur=editDraft.client_names??[];const idx=cur.findIndex(n=>n.toLowerCase()===name.toLowerCase());const next=idx>=0?cur.filter((_,i)=>i!==idx):[...cur,name];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name,is_multi_client:next.length>1}))}} style={{ padding:"5px 12px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${selected?"#de1a1a":"#EBEDF2"}`, background:selected?"rgba(222,26,26,0.08)":"#F9FAFB", color:selected?"#de1a1a":"#6B7280" }}>{name}</button>)})}
+                                        </div>
+                                        {pastClientsOnly.length>0 && <details style={{ marginTop:6 }}><summary style={{ fontSize:10, color:"#9CA3AF", cursor:"pointer", fontWeight:600 }}>📁 Past Clients</summary><div style={{ display:"flex", flexWrap:"wrap", gap:5, marginTop:6 }}>{pastClientsOnly.map(name=>{const selected=(editDraft.client_names??[]).some(n=>n.toLowerCase()===name.toLowerCase());return(<button key={name} type="button" onClick={()=>{const cur=editDraft.client_names??[];const idx=cur.findIndex(n=>n.toLowerCase()===name.toLowerCase());const next=idx>=0?cur.filter((_,i)=>i!==idx):[...cur,name];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name,is_multi_client:next.length>1}))}} style={{ padding:"5px 12px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${selected?"#de1a1a":"#EBEDF2"}`, background:selected?"rgba(222,26,26,0.08)":"#F9FAFB", color:selected?"#de1a1a":"#6B7280" }}>{name}</button>)})}</div></details>}
                                       </div>
                                     )}
                                     {(editDraft.task_type==="other"||editDraft.task_type==="learning") && (

@@ -25,6 +25,7 @@ export default async function LeavesPage({
 
   const statusFilter = params.status ?? "pending"
   const today = new Date().toISOString().split("T")[0]
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0]
 
   const admin = adminClient()
 
@@ -67,7 +68,7 @@ export default async function LeavesPage({
       .eq("company_id", cid)
       .in("status", ["pending", "approved"])
       .neq("leave_type", "permission")
-      .gte("from_date", today)
+      .gte("from_date", tomorrow)
       .order("from_date")
       .limit(4),
     admin

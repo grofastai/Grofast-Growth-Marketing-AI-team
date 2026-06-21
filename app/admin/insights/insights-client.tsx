@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Clock, TrendingUp, Film, ImageIcon, Share2, DollarSign,
+  Clock, TrendingUp, Film, ImageIcon, Share2,
   Users, BarChart3, ChevronDown, X, Search, Trophy, Zap,
   Building2, Star, Target,
 } from 'lucide-react'
@@ -202,20 +202,20 @@ export default function InsightsClient({
 
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
       <div style={{
-        background: 'linear-gradient(135deg,#1E3A8A 0%,#2563EB 40%,#7C3AED 100%)',
+        background: 'linear-gradient(135deg,#0A0A0A 0%,#3B0000 45%,#DC2626 100%)',
         borderRadius: 24, marginBottom: 22, position: 'relative', overflow: 'hidden',
         padding: '30px 28px 28px 32px',
-        boxShadow: '0 20px 60px rgba(37,99,235,0.35), 0 4px 16px rgba(124,58,237,0.2)',
+        boxShadow: '0 20px 60px rgba(220,38,38,0.35), 0 4px 16px rgba(0,0,0,0.4)',
       }}>
         {/* mesh orbs */}
-        <div style={{ position: 'absolute', top: -70, right: 160, width: 280, height: 280, borderRadius: '50%', background: 'radial-gradient(circle,rgba(129,140,248,0.25),transparent 70%)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: -90, right: 20, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle,rgba(167,139,250,0.18),transparent 70%)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', top: -30, left: -30, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle,rgba(96,165,250,0.2),transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: -70, right: 160, width: 280, height: 280, borderRadius: '50%', background: 'radial-gradient(circle,rgba(220,38,38,0.22),transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -90, right: 20, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle,rgba(185,28,28,0.18),transparent 70%)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', top: -30, left: -30, width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle,rgba(255,80,80,0.15),transparent 70%)', pointerEvents: 'none' }} />
 
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.14)', borderRadius: 20, padding: '4px 14px', marginBottom: 16, border: '1px solid rgba(255,255,255,0.22)', backdropFilter: 'blur(8px)' }}>
-            <BarChart3 size={12} style={{ color: '#BAC8FF' }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: '#BAC8FF', letterSpacing: '0.06em' }}>TEAM ANALYTICS</span>
+            <BarChart3 size={12} style={{ color: '#FCA5A5' }} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#FCA5A5', letterSpacing: '0.06em' }}>TEAM ANALYTICS</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
@@ -227,10 +227,10 @@ export default function InsightsClient({
 
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {[
-                  { icon: <Clock size={13} />,     label: `${kpis.totalHours.toFixed(1)}h logged` },
-                  { icon: <Users size={13} />,     label: `${employeePerformance.length} members` },
-                  { icon: <Building2 size={13} />, label: `${clientStats.length} clients` },
-                  { icon: <DollarSign size={13} />,label: fmtRupee(kpis.totalCost) },
+                  { icon: <Clock size={13} />,                                                   label: `${kpis.totalHours.toFixed(1)}h logged` },
+                  { icon: <Users size={13} />,                                                   label: `${employeePerformance.length} members` },
+                  { icon: <Building2 size={13} />,                                               label: `${clientStats.length} clients` },
+                  { icon: <span style={{ fontSize: 13, fontWeight: 800, lineHeight: 1 }}>₹</span>, label: fmtRupee(kpis.totalCost) },
                 ].map(chip => (
                   <div key={chip.label} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.11)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 10, padding: '6px 13px', backdropFilter: 'blur(8px)' }}>
                     <span style={{ color: 'rgba(255,255,255,0.7)', display: 'flex' }}>{chip.icon}</span>

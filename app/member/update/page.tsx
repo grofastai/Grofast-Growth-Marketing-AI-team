@@ -80,7 +80,7 @@ export default async function UpdatePage() {
       .limit(30),
     admin
       .from("users")
-      .select("id, name, employee_id, role")
+      .select("id, name, employee_id, role, team")
       .eq("company_id", companyId)
       .eq("status", "active")
       .eq("role", "MEMBER")
@@ -95,7 +95,7 @@ export default async function UpdatePage() {
   ])
 
   type Project = { id: string; business_name: string }
-  type TeamMember = { id: string; name: string; employee_id: string; role: string }
+  type TeamMember = { id: string; name: string; employee_id: string; role: string; team: string | null }
   const projects = (projectsRaw ?? []) as unknown as Project[]
   const supabaseClientNames = (supabaseClientsRaw ?? []).map((c: { name: string }) => c.name)
   const teamMembers = (teamMembersRaw ?? []) as TeamMember[]

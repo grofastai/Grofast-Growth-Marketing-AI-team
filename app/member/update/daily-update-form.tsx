@@ -11,7 +11,7 @@ import {
 import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
 
 interface Project { id: string; business_name: string }
-interface TeamMember { id: string; name: string; employee_id: string; role: string }
+interface TeamMember { id: string; name: string; employee_id: string; role: string; team?: string | null }
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 
@@ -2094,8 +2094,8 @@ export default function DailyUpdateForm({
                           </button>
                         </div>
                       </div>
-                      {/* Partner picker per shoot */}
-                      {teamMembers.length > 0 && (
+                      {/* Partner picker per shoot — Media Team members only */}
+                      {teamMembers.filter(m => m.team === "Media Team").length > 0 && (
                         <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #F0F1F5" }}>
                           <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Shot With</p>
                           {s.participantIds.length > 0 && (
@@ -2116,7 +2116,7 @@ export default function DailyUpdateForm({
                             </div>
                           )}
                           <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
-                            {teamMembers.slice(0, 20).map(m => {
+                            {teamMembers.filter(m => m.team === "Media Team").slice(0, 20).map(m => {
                               const selected = s.participantIds.includes(m.id)
                               const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
                               return (

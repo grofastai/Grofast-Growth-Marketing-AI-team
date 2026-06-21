@@ -296,7 +296,7 @@ export default function ActivitiesClient({
           alt=""
           style={{
             position: "absolute",
-            left: "30%",
+            left: "38%",
             right: "22%",
             bottom: 0,
             height: "100%",

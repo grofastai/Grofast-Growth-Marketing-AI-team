@@ -1048,11 +1048,18 @@ export default function HistoryClient({
                       // Fall back to all entries for old records that predate per-entry tagging
                       const puEntries = tagged.length > 0 ? tagged : allEnt
                       if (puEntries.length === 0) return null
+                      const collabHours = puEntries.reduce((s, e) => {
+                        const dur = calcDurationFromTimes(e.start_time, e.end_time) ?? (e.duration_hours ?? 0)
+                        return s + dur
+                      }, 0)
                       return (
                         <div key={pu.id} style={{ padding:"12px 18px", borderTop:"1px dashed rgba(99,102,241,0.15)" }}>
                           <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom: puEntries.length > 0 ? 10 : 0 }}>
                             <span style={{ fontSize:11, fontWeight:700, color:"#6366F1" }}>👥 Collaborated</span>
                             <span style={{ fontSize:11, color:"#9CA3AF" }}>· by <span style={{ fontWeight:700, color:"#6366F1" }}>{submitter?.name ?? "Teammate"}</span></span>
+                            {collabHours > 0 && (
+                              <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, color:"#6366F1" }}>{fmtH(collabHours)}</span>
+                            )}
                           </div>
                           {puEntries.map((pe, pi) => {
                             const cfg = TASK_CFG[pe.task_type] ?? TASK_CFG.other
@@ -1960,6 +1967,10 @@ export default function HistoryClient({
                   // Fall back to all entries for old records that predate per-entry tagging
                   const puEntries = tagged.length > 0 ? tagged : allEntries
                   if (puEntries.length === 0) return null
+                  const collabHours = puEntries.reduce((s, e) => {
+                    const dur = calcDurationFromTimes(e.start_time, e.end_time) ?? (e.duration_hours ?? 0)
+                    return s + dur
+                  }, 0)
                   return (
                     <div key={pu.id} style={{ borderTop: "1px dashed #E5E7EB", padding: "10px 18px", background: "rgba(99,102,241,0.03)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: puEntries.length > 0 ? 8 : 0 }}>
@@ -1967,9 +1978,9 @@ export default function HistoryClient({
                         <span style={{ fontSize: 11, color: "#9CA3AF" }}>
                           · by <span style={{ fontWeight: 700, color: "#6366F1" }}>{submitter?.name ?? "Teammate"}</span>
                         </span>
-                        {(pu.working_hours ?? 0) > 0 && (
+                        {collabHours > 0 && (
                           <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#6366F1" }}>
-                            {fmtH(pu.working_hours!)}
+                            {fmtH(collabHours)}
                           </span>
                         )}
                       </div>

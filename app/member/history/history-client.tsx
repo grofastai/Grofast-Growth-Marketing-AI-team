@@ -1691,6 +1691,114 @@ export default function HistoryClient({
                           )}
                         </div>
                       )}
+                      {/* ── Collaborated entries — rendered before own entries so earlier times appear first ── */}
+                      {(participatedByDate.get(u.date) ?? []).map(pu => {
+                        const submitter = members.find(m => m.id === pu.user_id)
+                        const allEntries = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
+                        const tagged = userId ? allEntries.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : []
+                        const puEntries = tagged.length > 0 ? tagged : allEntries
+                        if (puEntries.length === 0) return null
+                        return (
+                          <div key={pu.id} style={{ borderBottom: "1px dashed #E5E7EB", padding: "10px 18px 12px", background: "rgba(99,102,241,0.03)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "#6366F1" }}>👥 Collaborated</span>
+                              <span style={{ fontSize: 11, color: "#9CA3AF" }}>
+                                · by <span style={{ fontWeight: 700, color: "#6366F1" }}>{submitter?.name ?? "Teammate"}</span>
+                              </span>
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                              {puEntries.map((pe, pi) => {
+                                const cfg = TASK_CFG[pe.task_type] ?? TASK_CFG.other
+                                const { Icon } = cfg
+                                const displayTitle = pe.title || cfg.label
+                                const displayClient = (pe.is_multi_client && pe.client_names && pe.client_names.length > 0)
+                                  ? pe.client_names.join(" · ")
+                                  : pe.client_name || ""
+                                const tH = pe.task_type === "shoot" ? (pe._travel_hours ?? 0) : 0
+                                const entryConf = collabConfirms.find(c =>
+                                  c.daily_update_id === pu.id &&
+                                  (c.status === "confirmed" || c.status === "edited_confirmed") &&
+                                  (pe.id ? c.entry_id === pe.id : true)
+                                )
+                                const showStart = entryConf?.confirmed_start_time ?? pe.start_time
+                                const showEnd   = entryConf?.confirmed_end_time   ?? pe.end_time
+                                const dur = entryConf?.confirmed_hours ?? (calcDurationFromTimes(showStart, showEnd) ?? (pe.duration_hours ?? 0))
+                                const isEditingConf = entryConf && collabEditId === entryConf.id
+                                const loading = entryConf ? collabLoading === entryConf.id : false
+                                return (
+                                  <div key={pi} style={{ padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none" }}>
+                                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                                      <div style={{ width: 30, height: 30, borderRadius: 8, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                        <Icon size={13} style={{ color: cfg.color }}/>
+                                      </div>
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
+                                          <span style={{ fontSize: 12, fontWeight: 800, color: "#111111" }}>{displayTitle}</span>
+                                          <span style={{ fontSize: 9, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: "1px 6px", borderRadius: 99 }}>{cfg.label}</span>
+                                          {entryConf?.status === "edited_confirmed" && <span style={{ fontSize: 9, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.1)", padding: "1px 6px", borderRadius: 99 }}>✓ Your time</span>}
+                                          {entryConf?.status === "confirmed" && <span style={{ fontSize: 9, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.1)", padding: "1px 6px", borderRadius: 99 }}>✓ Confirmed</span>}
+                                        </div>
+                                        {displayClient && <p style={{ fontSize: 10, color: "#6B7280", margin: "0 0 2px", fontWeight: 600 }}>{displayClient}</p>}
+                                        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                          {dur + tH > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 3 }}><Clock size={9} style={{ color: "#9CA3AF" }}/>{fmtH(dur + tH)}</span>}
+                                          {showStart && showEnd && <span style={{ fontSize: 10, color: "#9CA3AF" }}>{fmt12(showStart)} – {fmt12(showEnd)}</span>}
+                                          {tH > 0 && <span style={{ fontSize: 10, color: "#F59E0B", fontWeight: 700 }}>🚗 {fmtTravel(tH)}</span>}
+                                        </div>
+                                      </div>
+                                      {/* Always-available edit button for confirmed collaborations */}
+                                      {entryConf && (
+                                        <button
+                                          title="Edit your collaboration time"
+                                          onClick={() => {
+                                            if (isEditingConf) { setCollabEditId(null) }
+                                            else { setCollabEditId(entryConf.id); setCollabEditStart(entryConf.confirmed_start_time ?? entryConf.original_start_time ?? ""); setCollabEditEnd(entryConf.confirmed_end_time ?? entryConf.original_end_time ?? "") }
+                                          }}
+                                          style={{ width: 26, height: 26, borderRadius: 7, background: isEditingConf ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}>
+                                          <Pencil size={11} style={{ color: "#6366F1" }}/>
+                                        </button>
+                                      )}
+                                    </div>
+                                    {/* Inline edit form for this collaboration */}
+                                    {isEditingConf && entryConf && (
+                                      <div style={{ marginTop: 10, padding: "12px", borderRadius: 10, background: "rgba(99,102,241,0.06)", border: "1.5px solid rgba(99,102,241,0.2)" }}>
+                                        <p style={{ fontSize: 11, fontWeight: 700, color: "#6366F1", margin: "0 0 8px" }}>Edit Your Collaboration Time</p>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+                                          <div>
+                                            <label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 3 }}>Your Start Time</label>
+                                            <input type="time" value={collabEditStart} onChange={e => setCollabEditStart(e.target.value)}
+                                              style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#111111", outline: "none", background: "#fff", boxSizing: "border-box" }} />
+                                          </div>
+                                          <div>
+                                            <label style={{ fontSize: 10, fontWeight: 600, color: "#6B7280", display: "block", marginBottom: 3 }}>Your End Time</label>
+                                            <input type="time" value={collabEditEnd} onChange={e => setCollabEditEnd(e.target.value)}
+                                              style={{ width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#111111", outline: "none", background: "#fff", boxSizing: "border-box" }} />
+                                          </div>
+                                        </div>
+                                        <div style={{ display: "flex", gap: 8 }}>
+                                          <button onClick={() => setCollabEditId(null)}
+                                            style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#F3F4F6", color: "#6B7280", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer" }}>
+                                            Cancel
+                                          </button>
+                                          <button disabled={loading} onClick={async () => {
+                                            setCollabLoading(entryConf.id)
+                                            const r = await editCollaborationTime(entryConf.id, collabEditStart, collabEditEnd)
+                                            if (r.success) setCollabConfirms(prev => prev.map(c => c.id === entryConf.id ? { ...c, status: 'edited_confirmed' as const, confirmed_start_time: collabEditStart, confirmed_end_time: collabEditEnd } : c))
+                                            setCollabLoading(null); setCollabEditId(null)
+                                          }}
+                                            style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#6366F1", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
+                                            {loading ? "Saving…" : "Save My Time"}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })}
+
                       {entries.map((e, ei) => {
                         const cfg = TASK_CFG[e.task_type] ?? TASK_CFG.other
                         const { Icon } = cfg
@@ -2221,74 +2329,7 @@ export default function HistoryClient({
                   )
                 })}
 
-                {/* ── Confirmed/old collaborated entries for this day ── */}
-                {(participatedByDate.get(u.date) ?? []).map(pu => {
-                  const submitter = members.find(m => m.id === pu.user_id)
-                  const allEntries = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
-                  const tagged = userId ? allEntries.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : []
-                  // Fall back to all entries for old records that predate per-entry tagging
-                  const puEntries = tagged.length > 0 ? tagged : allEntries
-                  if (puEntries.length === 0) return null
-                  return (
-                    <div key={pu.id} style={{ borderTop: "1px dashed #E5E7EB", padding: "10px 18px", background: "rgba(99,102,241,0.03)" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: puEntries.length > 0 ? 8 : 0 }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "#6366F1" }}>👥 Collaborated</span>
-                        <span style={{ fontSize: 11, color: "#9CA3AF" }}>
-                          · by <span style={{ fontWeight: 700, color: "#6366F1" }}>{submitter?.name ?? "Teammate"}</span>
-                        </span>
-                      </div>
-                      {puEntries.length > 0 && (
-                        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-                          {puEntries.map((pe, pi) => {
-                            const cfg = TASK_CFG[pe.task_type] ?? TASK_CFG.other
-                            const { Icon } = cfg
-                            const displayTitle = pe.title || cfg.label
-                            const displayClient = (pe.is_multi_client && pe.client_names && pe.client_names.length > 0)
-                              ? pe.client_names.join(" · ")
-                              : pe.client_name || ""
-                            const tH = pe.task_type === "shoot" ? (pe._travel_hours ?? 0) : 0
-                            // Overlay confirmed/edited time if user already confirmed this entry
-                            const entryConf = collabConfirms.find(c =>
-                              c.daily_update_id === pu.id &&
-                              (c.status === "confirmed" || c.status === "edited_confirmed") &&
-                              (pe.id ? c.entry_id === pe.id : true)
-                            )
-                            const showStart = entryConf?.confirmed_start_time ?? pe.start_time
-                            const showEnd   = entryConf?.confirmed_end_time   ?? pe.end_time
-                            const dur = entryConf?.confirmed_hours ?? (calcDurationFromTimes(showStart, showEnd) ?? (pe.duration_hours ?? 0))
-                            return (
-                              <div key={pi} style={{ display: "flex", gap: 10, padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none", alignItems: "flex-start" }}>
-                                <div style={{ width: 30, height: 30, borderRadius: 8, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                  <Icon size={13} style={{ color: cfg.color }}/>
-                                </div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
-                                    <span style={{ fontSize: 12, fontWeight: 800, color: "#111111" }}>{displayTitle}</span>
-                                    <span style={{ fontSize: 9, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: "1px 6px", borderRadius: 99 }}>{cfg.label}</span>
-                                    {entryConf?.status === "edited_confirmed" && <span style={{ fontSize: 9, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.1)", padding: "1px 6px", borderRadius: 99 }}>✓ Your time</span>}
-                                    {entryConf?.status === "confirmed" && <span style={{ fontSize: 9, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.1)", padding: "1px 6px", borderRadius: 99 }}>✓ Confirmed</span>}
-                                  </div>
-                                  {displayClient && <p style={{ fontSize: 10, color: "#6B7280", margin: "0 0 2px", fontWeight: 600 }}>{displayClient}</p>}
-                                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                                    {dur + tH > 0 && (
-                                      <span style={{ fontSize: 10, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 3 }}>
-                                        <Clock size={9} style={{ color: "#9CA3AF" }}/>{fmtH(dur + tH)}
-                                      </span>
-                                    )}
-                                    {showStart && showEnd && (
-                                      <span style={{ fontSize: 10, color: "#9CA3AF" }}>{fmt12(showStart)} – {fmt12(showEnd)}</span>
-                                    )}
-                                    {tH > 0 && <span style={{ fontSize: 10, color: "#F59E0B", fontWeight: 700 }}>🚗 {fmtTravel(tH)}</span>}
-                                  </div>
-                                </div>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+                {/* placeholder – collaborated section moved above own entries */}
               </div>
             )
             })}

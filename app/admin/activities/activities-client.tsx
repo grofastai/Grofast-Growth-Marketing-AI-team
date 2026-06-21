@@ -247,82 +247,85 @@ export default function ActivitiesClient({
       {/* ── Hero Banner ── */}
       <div style={{
         position: "relative", borderRadius: 20, overflow: "hidden", marginBottom: 24,
-        background: "linear-gradient(135deg, #080000 0%, #180000 28%, #4A0000 58%, #B80000 100%)",
-        minHeight: 220,
+        background: "linear-gradient(100deg, #080808 0%, #1A0000 25%, #420000 55%, #C10000 100%)",
+        height: 260,
       }}>
-        {/* Mesh orbs */}
-        <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
-          <div style={{ position: "absolute", top: -60, left: -40, width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle, rgba(227,30,36,0.2) 0%, transparent 70%)" }} />
-          <div style={{ position: "absolute", bottom: -40, left: 180, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(227,30,36,0.12) 0%, transparent 70%)" }} />
-        </div>
+        {/* Radial glow behind characters */}
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none",
+          background: "radial-gradient(ellipse 38% 70% at 55% 100%, rgba(220,0,0,0.45) 0%, transparent 70%)",
+        }} />
 
-        {/* Left text content */}
-        <div style={{ position: "relative", zIndex: 2, padding: "32px 0 32px 32px", maxWidth: 440 }}>
-          <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", lineHeight: 1.1, margin: "0 0 8px" }}>
-            Activities
-          </h1>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: "0 0 20px", lineHeight: 1.5 }}>
-            Track real-time updates and progress from your amazing team.
-          </p>
+        {/* 40 / 40 / 20 grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "40% 40% 20%", height: "100%", position: "relative", zIndex: 2 }}>
 
-          {/* Search bar */}
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <div style={{ position: "relative", flex: 1 }}>
-              <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.4)", pointerEvents: "none" }} />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search members, updates..."
-                style={{
-                  width: "100%", boxSizing: "border-box",
-                  padding: "10px 12px 10px 34px", border: "1px solid rgba(255,255,255,0.15)",
-                  borderRadius: 12, background: "rgba(255,255,255,0.08)", backdropFilter: "blur(8px)",
-                  color: "#fff", fontSize: 13, outline: "none",
-                }}
-              />
+          {/* ── Left 40%: title + subtitle + search ── */}
+          <div style={{ padding: "0 24px 0 32px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", lineHeight: 1.1, margin: "0 0 8px" }}>
+              Activities
+            </h1>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: "0 0 20px", lineHeight: 1.5 }}>
+              Track real-time updates and progress from your amazing team.
+            </p>
+            {/* Search bar — 280px wide, 52px tall, glassmorphism */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ position: "relative", width: 280 }}>
+                <Search size={14} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.45)", pointerEvents: "none" }} />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search members, updates..."
+                  style={{
+                    width: "100%", boxSizing: "border-box", height: 52,
+                    padding: "0 14px 0 38px", border: "1px solid rgba(255,255,255,0.18)",
+                    borderRadius: 14, background: "rgba(255,255,255,0.09)", backdropFilter: "blur(10px)",
+                    color: "#fff", fontSize: 13, outline: "none",
+                  }}
+                />
+              </div>
+              <button style={{
+                width: 52, height: 52, borderRadius: 14, background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.18)", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <Filter size={16} color="rgba(255,255,255,0.75)" />
+              </button>
             </div>
-            <button style={{
-              padding: "10px 14px", borderRadius: 12, background: "rgba(255,255,255,0.12)",
-              border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center",
-            }}>
-              <Filter size={15} color="rgba(255,255,255,0.7)" />
-            </button>
-          </div>
-        </div>
-
-        {/* 3D character image */}
-        <img
-          src="/brand/activities-hero.png"
-          alt=""
-          style={{
-            position: "absolute",
-            right: "21%",
-            bottom: 0,
-            height: "120%",
-            maxWidth: "50%",
-            objectFit: "contain",
-            objectPosition: "bottom right",
-            pointerEvents: "none",
-            userSelect: "none",
-          }}
-        />
-
-        {/* Top-right: date + motivation card */}
-        <div style={{ position: "absolute", top: 20, right: 20, zIndex: 3, display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-          {/* Date selector */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", cursor: "pointer" }}>
-            <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{displayDate}</span>
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
 
-          {/* Motivation card */}
-          <div style={{ padding: "10px 14px", borderRadius: 12, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", backdropFilter: "blur(8px)", maxWidth: 200 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Keep it up! 🚀</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>Your team&apos;s updates are on track today.</div>
-            {/* mini sparkline */}
-            <svg width="100%" height="24" style={{ marginTop: 4 }}>
-              <polyline points="0,18 20,12 40,15 60,8 80,10 100,5 120,8 140,4 160,6" fill="none" stroke="#E31E24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+          {/* ── Center 40%: 3D character illustration — bottom-anchored, fully visible ── */}
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", overflow: "hidden" }}>
+            <img
+              src="/brand/activities-hero.png"
+              alt=""
+              style={{
+                height: "100%",
+                width: "100%",
+                objectFit: "contain",
+                objectPosition: "bottom center",
+                display: "block",
+                pointerEvents: "none",
+                userSelect: "none",
+              }}
+            />
+          </div>
+
+          {/* ── Right 20%: date chip + motivation card ── */}
+          <div style={{ padding: "20px 20px 20px 0", display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end", justifyContent: "flex-start" }}>
+            {/* Date selector */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", cursor: "pointer", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{displayDate}</span>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+
+            {/* Motivation card */}
+            <div style={{ padding: "10px 14px", borderRadius: 12, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", width: "100%" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Keep it up! 🚀</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>Team updates are on track today.</div>
+              <svg width="100%" height="24" style={{ marginTop: 4 }}>
+                <polyline points="0,18 20,12 40,15 60,8 80,10 100,5 120,8 140,4 160,6" fill="none" stroke="#E31E24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
           </div>
         </div>
       </div>

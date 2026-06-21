@@ -363,12 +363,46 @@ export default function ActivitiesClient({
   return (
     <div style={{ padding: "24px 24px 64px", maxWidth: 1400, margin: "0 auto" }}>
 
-      {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <h1 className="gradient-heading" style={{ fontSize: 28, fontWeight: 900, lineHeight: 1.2, fontFamily: "var(--font-jakarta)" }}>
-          Activities
-        </h1>
-        <p style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>Daily operations monitor — attendance, work, clients &amp; performance.</p>
+      {/* Hero Banner */}
+      <div style={{
+        position: "relative", borderRadius: 20, overflow: "hidden", marginBottom: 24,
+        background: "linear-gradient(135deg, #0A0A0A 0%, #1A0000 40%, #3B0000 70%, #DC2626 100%)",
+        minHeight: 160,
+      }}>
+        {/* Mesh orbs */}
+        <div style={{ position: "absolute", inset: 0, overflow: "hidden", pointerEvents: "none" }}>
+          <div style={{ position: "absolute", top: -40, left: -40, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(220,38,38,0.25) 0%, transparent 70%)" }} />
+          <div style={{ position: "absolute", bottom: -30, left: 120, width: 150, height: 150, borderRadius: "50%", background: "radial-gradient(circle, rgba(220,38,38,0.15) 0%, transparent 70%)" }} />
+        </div>
+
+        {/* Left content */}
+        <div style={{ position: "relative", zIndex: 2, padding: "28px 28px 28px 28px", maxWidth: "60%" }}>
+          <h1 style={{ fontSize: 32, fontWeight: 900, color: "#FFFFFF", lineHeight: 1.1, fontFamily: "var(--font-jakarta)", margin: 0 }}>
+            Activities
+          </h1>
+          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", marginTop: 6, lineHeight: 1.5 }}>
+            Track real-time updates and progress from your amazing team.
+          </p>
+
+          {/* Motivational chip */}
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginTop: 14, padding: "6px 14px", borderRadius: 20, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.15)", backdropFilter: "blur(8px)" }}>
+            <span style={{ fontSize: 13 }}>🚀</span>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#FFFFFF" }}>Keep it up!</span>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.6)" }}>Your team&apos;s updates are on track today.</span>
+          </div>
+        </div>
+
+        {/* Hero image */}
+        <img
+          src="/brand/activities-hero.png"
+          alt=""
+          style={{
+            position: "absolute", right: 0, bottom: 0,
+            height: "100%", maxHeight: 190,
+            objectFit: "contain", objectPosition: "bottom right",
+            pointerEvents: "none", userSelect: "none",
+          }}
+        />
       </div>
 
       {/* Filters */}

@@ -256,6 +256,24 @@ export default function ActivitiesClient({
           background: "radial-gradient(ellipse 38% 70% at 55% 100%, rgba(220,0,0,0.45) 0%, transparent 70%)",
         }} />
 
+        {/* 3D characters — pinned to bottom of hero, centered in the middle zone */}
+        <img
+          src="/brand/activities-hero.png"
+          alt=""
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: "50%",
+            transform: "translateX(-50%)",
+            height: 230,
+            width: "auto",
+            objectFit: "contain",
+            pointerEvents: "none",
+            userSelect: "none",
+            zIndex: 1,
+          }}
+        />
+
         {/* 40 / 40 / 20 grid */}
         <div style={{ display: "grid", gridTemplateColumns: "40% 40% 20%", height: "100%", position: "relative", zIndex: 2 }}>
 
@@ -293,22 +311,8 @@ export default function ActivitiesClient({
             </div>
           </div>
 
-          {/* ── Center 40%: 3D character illustration — bottom-anchored, fully visible ── */}
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", overflow: "hidden" }}>
-            <img
-              src="/brand/activities-hero.png"
-              alt=""
-              style={{
-                height: "100%",
-                width: "100%",
-                objectFit: "contain",
-                objectPosition: "bottom center",
-                display: "block",
-                pointerEvents: "none",
-                userSelect: "none",
-              }}
-            />
-          </div>
+          {/* ── Center 40%: empty spacer — image positioned absolutely on hero ── */}
+          <div />
 
           {/* ── Right 20%: date chip + motivation card ── */}
           <div style={{ padding: "20px 20px 20px 0", display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end", justifyContent: "flex-start" }}>

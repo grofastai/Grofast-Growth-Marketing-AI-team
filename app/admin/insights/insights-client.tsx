@@ -148,7 +148,7 @@ export default function InsightsClient({
   month, today,
   teamHours, activityStats, memberStats, clientStats,
   postsByType, postsByPlatform, recentPosts, kpis,
-  employeePerformance, logEntries,
+  employeePerformance, logEntries, allClientNames,
 }: {
   month: string
   today: string
@@ -162,6 +162,7 @@ export default function InsightsClient({
   kpis: { totalHours: number; totalCost: number; totalVideos: number; totalPosters: number; totalPosts: number }
   employeePerformance: EmpPerf[]
   logEntries: LogEntry[]
+  allClientNames: string[]
 }) {
   const router = useRouter()
 
@@ -176,17 +177,7 @@ export default function InsightsClient({
   const memberOptions = [...employeePerformance]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(e => [e.id, e.name] as [string, string])
-  const PINNED_CLIENTS = ['GROFAST DIGITAL', 'KARTHICK BRANDS', 'GROFAST AI']
-  const clientOptions = clientStats
-    .map(c => c.name)
-    .filter(n => n !== 'Unassigned')
-    .sort((a, b) => {
-      const pa = PINNED_CLIENTS.indexOf(a), pb = PINNED_CLIENTS.indexOf(b)
-      if (pa !== -1 && pb !== -1) return pa - pb
-      if (pa !== -1) return -1
-      if (pb !== -1) return 1
-      return a.localeCompare(b)
-    })
+  const clientOptions = allClientNames
 
   const filteredLogs    = logEntries.filter(e =>
     (!filterMember || e.memberId === filterMember) &&

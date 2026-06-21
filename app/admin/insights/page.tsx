@@ -42,6 +42,7 @@ export default async function InsightsPage({
     { data: activitiesRaw },
     { data: usersRaw },
     { data: tasksRaw },
+    { data: allClientsRaw },
   ] = await Promise.all([
     admin.from('work_logs')
       .select('user_id, activity_id, client_name, hours, unit_count, item_titles, cost, date')
@@ -59,6 +60,11 @@ export default async function InsightsPage({
       .select('assigned_to, status')
       .eq('company_id', cid)
       .eq('status', 'completed'),
+    admin.from('clients')
+      .select('name')
+      .eq('company_id', cid)
+      .eq('status', 'active')
+      .order('name'),
   ])
 
   type LogRow  = { user_id: string; activity_id: string; client_name: string | null; hours: number; unit_count: number; item_titles: string[]; cost: number; date: string }
@@ -194,6 +200,15 @@ export default async function InsightsPage({
     memberName: userMap[p.user_id]?.name ?? 'Unknown',
   }))
 
+  const PINNED = ['GROFAST DIGITAL', 'KARTHICK BRANDS', 'GROFAST AI']
+  const allClientNames = [
+    ...PINNED,
+    ...((allClientsRaw ?? []) as { name: string }[])
+      .map(c => c.name)
+      .filter(n => !PINNED.includes(n))
+      .sort((a, b) => a.localeCompare(b)),
+  ]
+
   return (
     <InsightsClient
       month={month}
@@ -208,6 +223,7 @@ export default async function InsightsPage({
       kpis={{ totalHours, totalCost, totalVideos, totalPosters, totalPosts }}
       employeePerformance={employeePerformance}
       logEntries={logEntries}
+      allClientNames={allClientNames}
     />
   )
 }

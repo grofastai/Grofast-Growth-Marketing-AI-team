@@ -1215,7 +1215,15 @@ export default function HistoryClient({
                             const displayTitle = pe.title || cfg.label
                             const displayClient = (pe.is_multi_client && pe.client_names?.length) ? pe.client_names.join(" · ") : pe.client_name || ""
                             const tH = pe.task_type === "shoot" ? (pe._travel_hours ?? 0) : 0
-                            const dur = calcDurationFromTimes(pe.start_time, pe.end_time) ?? (pe.duration_hours ?? 0)
+                            // Overlay confirmed/edited time if user already confirmed this entry
+                            const entryConf = collabConfirms.find(c =>
+                              c.daily_update_id === pu.id &&
+                              (c.status === "confirmed" || c.status === "edited_confirmed") &&
+                              (pe.id ? c.entry_id === pe.id : true)
+                            )
+                            const showStart = entryConf?.confirmed_start_time ?? pe.start_time
+                            const showEnd   = entryConf?.confirmed_end_time   ?? pe.end_time
+                            const dur = entryConf?.confirmed_hours ?? (calcDurationFromTimes(showStart, showEnd) ?? (pe.duration_hours ?? 0))
                             return (
                               <div key={pi} style={{ display:"flex", gap:10, padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none", alignItems:"flex-start" }}>
                                 <div style={{ width:30, height:30, borderRadius:8, background:cfg.bg, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -1225,11 +1233,13 @@ export default function HistoryClient({
                                   <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap", marginBottom:2 }}>
                                     <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{displayTitle}</span>
                                     <span style={{ fontSize:9, fontWeight:700, color:cfg.color, background:cfg.bg, padding:"1px 6px", borderRadius:99 }}>{cfg.label}</span>
+                                    {entryConf?.status === "edited_confirmed" && <span style={{ fontSize:9, fontWeight:700, color:"#10B981", background:"rgba(16,185,129,0.1)", padding:"1px 6px", borderRadius:99 }}>✓ Your time</span>}
+                                    {entryConf?.status === "confirmed" && <span style={{ fontSize:9, fontWeight:700, color:"#10B981", background:"rgba(16,185,129,0.1)", padding:"1px 6px", borderRadius:99 }}>✓ Confirmed</span>}
                                   </div>
                                   {displayClient && <p style={{ fontSize:10, color:"#6B7280", margin:"0 0 2px", fontWeight:600 }}>{displayClient}</p>}
                                   <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
                                     {dur + tH > 0 && <span style={{ fontSize:10, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:3 }}><Clock size={9} style={{ color:"#9CA3AF" }}/>{fmtH(dur + tH)}</span>}
-                                    {pe.start_time && pe.end_time && <span style={{ fontSize:10, color:"#9CA3AF" }}>{fmt12(pe.start_time)} – {fmt12(pe.end_time)}</span>}
+                                    {showStart && showEnd && <span style={{ fontSize:10, color:"#9CA3AF" }}>{fmt12(showStart)} – {fmt12(showEnd)}</span>}
                                     {tH > 0 && <span style={{ fontSize:10, color:"#F59E0B", fontWeight:700 }}>🚗 {fmtTravel(tH)}</span>}
                                   </div>
                                 </div>
@@ -2237,7 +2247,15 @@ export default function HistoryClient({
                               ? pe.client_names.join(" · ")
                               : pe.client_name || ""
                             const tH = pe.task_type === "shoot" ? (pe._travel_hours ?? 0) : 0
-                            const dur = calcDurationFromTimes(pe.start_time, pe.end_time) ?? (pe.duration_hours ?? 0)
+                            // Overlay confirmed/edited time if user already confirmed this entry
+                            const entryConf = collabConfirms.find(c =>
+                              c.daily_update_id === pu.id &&
+                              (c.status === "confirmed" || c.status === "edited_confirmed") &&
+                              (pe.id ? c.entry_id === pe.id : true)
+                            )
+                            const showStart = entryConf?.confirmed_start_time ?? pe.start_time
+                            const showEnd   = entryConf?.confirmed_end_time   ?? pe.end_time
+                            const dur = entryConf?.confirmed_hours ?? (calcDurationFromTimes(showStart, showEnd) ?? (pe.duration_hours ?? 0))
                             return (
                               <div key={pi} style={{ display: "flex", gap: 10, padding: pi > 0 ? "10px 0 0" : "0", borderTop: pi > 0 ? "1px solid rgba(99,102,241,0.08)" : "none", alignItems: "flex-start" }}>
                                 <div style={{ width: 30, height: 30, borderRadius: 8, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -2247,6 +2265,8 @@ export default function HistoryClient({
                                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 2 }}>
                                     <span style={{ fontSize: 12, fontWeight: 800, color: "#111111" }}>{displayTitle}</span>
                                     <span style={{ fontSize: 9, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: "1px 6px", borderRadius: 99 }}>{cfg.label}</span>
+                                    {entryConf?.status === "edited_confirmed" && <span style={{ fontSize: 9, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.1)", padding: "1px 6px", borderRadius: 99 }}>✓ Your time</span>}
+                                    {entryConf?.status === "confirmed" && <span style={{ fontSize: 9, fontWeight: 700, color: "#10B981", background: "rgba(16,185,129,0.1)", padding: "1px 6px", borderRadius: 99 }}>✓ Confirmed</span>}
                                   </div>
                                   {displayClient && <p style={{ fontSize: 10, color: "#6B7280", margin: "0 0 2px", fontWeight: 600 }}>{displayClient}</p>}
                                   <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -2255,8 +2275,8 @@ export default function HistoryClient({
                                         <Clock size={9} style={{ color: "#9CA3AF" }}/>{fmtH(dur + tH)}
                                       </span>
                                     )}
-                                    {pe.start_time && pe.end_time && (
-                                      <span style={{ fontSize: 10, color: "#9CA3AF" }}>{fmt12(pe.start_time)} – {fmt12(pe.end_time)}</span>
+                                    {showStart && showEnd && (
+                                      <span style={{ fontSize: 10, color: "#9CA3AF" }}>{fmt12(showStart)} – {fmt12(showEnd)}</span>
                                     )}
                                     {tH > 0 && <span style={{ fontSize: 10, color: "#F59E0B", fontWeight: 700 }}>🚗 {fmtTravel(tH)}</span>}
                                   </div>

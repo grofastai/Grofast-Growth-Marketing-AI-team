@@ -179,9 +179,13 @@ export default async function InsightsPage({
     const wlHours        = memberStats[u.id]?.hours ?? 0
     const duHours        = duHoursMap[u.id] ?? 0
     const hours          = wlHours + duHours
-    // Work value: cost from work_logs + hourly_rate × daily_update hours
+    // Effective hourly rate: use hourly_rate if set, else derive from monthly_salary (22 days × 8h = 176h/month)
+    const effectiveRate  = u.hourly_rate && u.hourly_rate > 0
+      ? u.hourly_rate
+      : (u.monthly_salary ? Math.round(u.monthly_salary / 176) : 0)
+    // Work value: cost from work_logs + effective_rate × daily_update hours
     const wlCost         = memberStats[u.id]?.cost ?? 0
-    const duCost         = duHours * (u.hourly_rate ?? 0)
+    const duCost         = duHours * effectiveRate
     const workValue      = wlCost + duCost
     const salary         = u.monthly_salary ?? 0
     const tasksCompleted = tasksCompletedMap[u.id] ?? 0
@@ -208,8 +212,7 @@ export default async function InsightsPage({
     const hoursPts = Math.min(20, (hours / maxTeamHours) * 20)
     const productivityScore = Math.round(valuePts + taskPts + hoursPts)
 
-    const hourlyRate = u.hourly_rate ?? 0
-    return { id: u.id, name: u.name, employee_id: u.employee_id, clients, tasksCompleted, hours, workValue, salary, hourlyRate, hoursPerClient, productivityScore }
+    return { id: u.id, name: u.name, employee_id: u.employee_id, clients, tasksCompleted, hours, workValue, salary, hourlyRate: effectiveRate, hoursPerClient, productivityScore }
   }).sort((a, b) => b.productivityScore - a.productivityScore)
 
   // ── Drill-down log entries ───────────────────────────────────────────────

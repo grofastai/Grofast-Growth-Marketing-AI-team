@@ -487,14 +487,25 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                           disabled={!absentReason.trim() || absentSubmitting}
                           onClick={async () => {
                             setAbsentSubmitting(true)
+                            setError(null)
                             const fd = new FormData()
                             fd.set("leave_type", "full_day")
                             fd.set("from_date", today)
                             fd.set("to_date", today)
                             fd.set("reason", absentReason.trim())
-                            await submitLeaveRequest(null, fd)
-                            await markAbsent()
+                            const leaveRes = await submitLeaveRequest(null, fd)
+                            const alreadyHaveLeave = "error" in leaveRes && leaveRes.error.includes("already have a leave request")
+                            if ("error" in leaveRes && !alreadyHaveLeave) {
+                              setAbsentSubmitting(false)
+                              setError(leaveRes.error)
+                              return
+                            }
+                            const absRes = await markAbsent()
                             setAbsentSubmitting(false)
+                            if (!absRes.success && absRes.error !== "Already logged attendance today") {
+                              setError(absRes.error ?? "Failed to mark attendance. Please try again.")
+                              return
+                            }
                             setAbsentReason("")
                             setAbsentDone(true)
                             router.refresh()

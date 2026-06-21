@@ -1045,6 +1045,7 @@ export default function HistoryClient({
                       const submitter = members.find(m => m.id === pu.user_id)
                       const allEnt = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
                       const puEntries = userId ? allEnt.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : []
+                      if (puEntries.length === 0) return null
                       return (
                         <div key={pu.id} style={{ padding:"12px 18px", borderTop:"1px dashed rgba(99,102,241,0.15)" }}>
                           <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom: puEntries.length > 0 ? 10 : 0 }}>
@@ -1954,6 +1955,7 @@ export default function HistoryClient({
                   const submitter = members.find(m => m.id === pu.user_id)
                   const allEntries = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
                   const puEntries = userId ? allEntries.filter(e => Array.isArray(e.participant_ids) && e.participant_ids.includes(userId)) : []
+                  if (puEntries.length === 0) return null
                   return (
                     <div key={pu.id} style={{ borderTop: "1px dashed #E5E7EB", padding: "10px 18px", background: "rgba(99,102,241,0.03)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: puEntries.length > 0 ? 8 : 0 }}>

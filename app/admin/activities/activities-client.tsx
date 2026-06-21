@@ -93,6 +93,7 @@ export default function ActivitiesClient({
   onLeaveIds,
   leaveDays,
   clockInDays,
+  collabHoursMap = {},
 }: {
   updates: Update[]
   members: Member[]
@@ -102,6 +103,7 @@ export default function ActivitiesClient({
   onLeaveIds: Set<string>
   leaveDays?: Set<string>
   clockInDays?: Set<string>
+  collabHoursMap?: Record<string, number>
 }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -173,10 +175,11 @@ export default function ActivitiesClient({
           map[user.id].days++
         }
       }
-      map[user.id].totalHours = Math.round((map[user.id].totalHours + (u.working_hours ?? 0)) * 10) / 10
+      const collabH = collabHoursMap[`${user.id}:${u.date}`] ?? 0
+      map[user.id].totalHours = Math.round((map[user.id].totalHours + (u.working_hours ?? 0) + collabH) * 10) / 10
     }
     return Object.values(map).sort((a, b) => b.totalHours - a.totalHours)
-  }, [updates, isSingleDay, leaveDays, clockInDays])
+  }, [updates, isSingleDay, leaveDays, clockInDays, collabHoursMap])
 
   const submittedIds = new Set(updates.map((u) => {
     const user = Array.isArray(u.users) ? u.users[0] : u.users
@@ -186,8 +189,16 @@ export default function ActivitiesClient({
 
   const presentCount = updates.filter((u) => u.attendance_status === "present").length
   const absentCount  = updates.filter((u) => u.attendance_status === "leave" || u.attendance_status === "absent").length
-  const totalHours   = updates.reduce((sum, u) => sum + (u.working_hours ?? 0), 0)
-  const lowHoursCount = updates.filter((u) => u.attendance_status === "present" && (u.working_hours ?? 0) < 6).length
+  const totalHours   = updates.reduce((sum, u) => {
+    const user = Array.isArray(u.users) ? u.users[0] : u.users
+    const collabH = user ? (collabHoursMap[`${user.id}:${u.date}`] ?? 0) : 0
+    return sum + (u.working_hours ?? 0) + collabH
+  }, 0)
+  const lowHoursCount = updates.filter((u) => {
+    const user = Array.isArray(u.users) ? u.users[0] : u.users
+    const collabH = user ? (collabHoursMap[`${user.id}:${u.date}`] ?? 0) : 0
+    return u.attendance_status === "present" && ((u.working_hours ?? 0) + collabH) < 6
+  }).length
 
   return (
     <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
@@ -411,6 +422,7 @@ export default function ActivitiesClient({
               return s + Math.max(0, h - travel)
             }, 0) * 10) / 10
             const hasMedia = shootEntries.length > 0 || editEntries.length > 0
+            const collabH = user ? (collabHoursMap[`${user.id}:${u.date}`] ?? 0) : 0
             const tasksCompleted = u.tasks_completed ?? 0
             const tasksTotal = u.tasks_total ?? 0
             const tasksList = u.tasks_list ?? []
@@ -438,7 +450,12 @@ export default function ActivitiesClient({
                         <span className="text-[11px]" style={{ color: "#9CA3AF" }}>#{user?.employee_id}</span>
                         <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
                         {wt && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.04)", color: "#6B7280" }}>{wt}</span>}
-                        <ControlFlag hours={u.working_hours} attendance={u.attendance_status} />
+                        <ControlFlag hours={(u.working_hours ?? 0) + collabH} attendance={u.attendance_status} />
+                        {collabH > 0 && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
+                            +{collabH.toFixed(1)}h collab
+                          </span>
+                        )}
                       </div>
 
                       {/* Stat chips */}

@@ -38,7 +38,7 @@ export default async function ActivitiesPage({
 
   const companyId = profile?.company_id ?? ""
 
-  const [{ data: members }, updatesResult, { data: allTasks }, { data: approvedLeaves }, { data: clockIns }] = await Promise.all([
+  const [{ data: members }, updatesResult, { data: allTasks }, { data: approvedLeaves }, { data: clockIns }, { data: collabConfirmsRaw }] = await Promise.all([
     admin
       .from("users")
       .select("id, name, employee_id, role, team")
@@ -77,6 +77,13 @@ export default async function ActivitiesPage({
       .gte("date", from)
       .lte("date", to)
       .not("clock_in", "is", null),
+    admin
+      .from("collaboration_confirmations")
+      .select("collaborator_id, date, confirmed_hours, status")
+      .eq("company_id", companyId)
+      .in("status", ["confirmed", "edited_confirmed"])
+      .gte("date", from)
+      .lte("date", to),
   ])
 
   // Group tasks by user
@@ -96,6 +103,13 @@ export default async function ActivitiesPage({
     tasks_completed: (tasksByUser[u.user_id] ?? []).filter(t => t.status === "completed").length,
     tasks_total: (tasksByUser[u.user_id] ?? []).length,
   }))
+
+  // Build collab hours map: "userId:date" → total confirmed collab hours
+  const collabHoursMap: Record<string, number> = {}
+  for (const c of (collabConfirmsRaw ?? []) as { collaborator_id: string; date: string; confirmed_hours: number | null }[]) {
+    const key = `${c.collaborator_id}:${c.date}`
+    collabHoursMap[key] = (collabHoursMap[key] ?? 0) + (c.confirmed_hours ?? 0)
+  }
 
   const onLeaveIds = new Set((approvedLeaves ?? []).map((l: { user_id: string }) => l.user_id))
 
@@ -127,6 +141,7 @@ export default async function ActivitiesPage({
       onLeaveIds={onLeaveIds}
       leaveDays={leaveDaySet}
       clockInDays={clockInDaySet}
+      collabHoursMap={collabHoursMap}
     />
   )
 }

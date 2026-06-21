@@ -41,7 +41,6 @@ export default async function InsightsPage({
     { data: postsRaw },
     { data: activitiesRaw },
     { data: usersRaw },
-    { data: clientsRaw },
     { data: tasksRaw },
   ] = await Promise.all([
     admin.from('work_logs')
@@ -56,10 +55,6 @@ export default async function InsightsPage({
     admin.from('users')
       .select('id, name, employee_id, monthly_salary, hourly_rate')
       .eq('company_id', cid).eq('role', 'MEMBER').eq('status', 'active').order('name'),
-    admin.from('clients')
-      .select('name, monthly_fee')
-      .eq('company_id', cid)
-      .order('name'),
     admin.from('tasks')
       .select('assigned_to, status')
       .eq('company_id', cid)
@@ -127,28 +122,6 @@ export default async function InsightsPage({
     clientStats[cn].cost  += l.cost
   }
 
-  // Build fee map: client name → monthly_fee (null if not set)
-  type ClientFeeRow = { name: string; monthly_fee: number | null }
-  const clientFeeMap: Record<string, number | null> = {}
-  for (const c of ((clientsRaw ?? []) as ClientFeeRow[])) {
-    clientFeeMap[c.name] = c.monthly_fee
-  }
-
-  // Profitability: merge cost from work_logs with fee from clients table
-  const profitability = Object.values(clientStats)
-    .filter(c => c.name !== 'Unassigned')
-    .map(c => ({
-      name:    c.name,
-      hours:   c.hours,
-      cost:    c.cost,
-      fee:     clientFeeMap[c.name] ?? null,
-      profit:  clientFeeMap[c.name] != null ? clientFeeMap[c.name]! - c.cost : null,
-      margin:  clientFeeMap[c.name] != null && clientFeeMap[c.name]! > 0
-        ? Math.round(((clientFeeMap[c.name]! - c.cost) / clientFeeMap[c.name]!) * 100)
-        : null,
-    }))
-    .sort((a, b) => (b.fee ?? 0) - (a.fee ?? 0))
-
   // ── Employee performance ─────────────────────────────────────────────────
   const tasksCompletedMap: Record<string, number> = {}
   for (const t of tasks) {
@@ -185,7 +158,8 @@ export default async function InsightsPage({
     const hoursPts = Math.min(20, (hours / maxTeamHours) * 20)
     const productivityScore = Math.round(valuePts + taskPts + hoursPts)
 
-    return { id: u.id, name: u.name, employee_id: u.employee_id, clients, tasksCompleted, hours, workValue, salary, hoursPerClient, productivityScore }
+    const hourlyRate = u.hourly_rate ?? 0
+    return { id: u.id, name: u.name, employee_id: u.employee_id, clients, tasksCompleted, hours, workValue, salary, hourlyRate, hoursPerClient, productivityScore }
   }).sort((a, b) => b.productivityScore - a.productivityScore)
 
   // ── Post summary ─────────────────────────────────────────────────────────
@@ -216,7 +190,6 @@ export default async function InsightsPage({
       activityStats={Object.values(activityStats).sort((a, b) => b.hours - a.hours)}
       memberStats={Object.values(memberStats).sort((a, b) => b.hours - a.hours)}
       clientStats={Object.values(clientStats).filter(c => c.name !== 'Unassigned').sort((a, b) => b.hours - a.hours)}
-      profitability={profitability}
       postsByType={postsByType}
       postsByPlatform={postsByPlatform}
       recentPosts={recentPosts}

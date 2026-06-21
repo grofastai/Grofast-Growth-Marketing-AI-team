@@ -1,8 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { updateClientMonthlyFee } from '@/lib/actions/clients'
 
 const TEAM_CFG: Record<string, { label: string; color: string; emoji: string }> = {
   MEDIA:    { label: 'Media & Video',    color: '#E53935', emoji: '🎬' },
@@ -34,15 +32,10 @@ function EmptyState({ msg }: { msg: string }) {
   return <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '28px 0', margin: 0 }}>{msg}</p>
 }
 
-type ProfitRow = {
-  name: string; hours: number; cost: number
-  fee: number | null; profit: number | null; margin: number | null
-}
-
 type EmpPerf = {
   id: string; name: string; employee_id: string
   clients: string[]; tasksCompleted: number
-  hours: number; workValue: number; salary: number
+  hours: number; workValue: number; salary: number; hourlyRate: number
   hoursPerClient: { name: string; hours: number }[]
   productivityScore: number
 }
@@ -50,7 +43,6 @@ type EmpPerf = {
 export default function InsightsClient({
   month, today,
   teamHours, activityStats, memberStats, clientStats,
-  profitability,
   postsByType, postsByPlatform, recentPosts, kpis,
   employeePerformance,
 }: {
@@ -60,7 +52,6 @@ export default function InsightsClient({
   activityStats: Array<{ name: string; emoji: string; team: string; hours: number; count: number; cost: number; titles: string[] }>
   memberStats: Array<{ name: string; employee_id: string; hours: number; cost: number; entries: number }>
   clientStats: Array<{ name: string; hours: number; cost: number }>
-  profitability: ProfitRow[]
   postsByType: Record<string, number>
   postsByPlatform: Record<string, number>
   recentPosts: Array<{ memberName: string; client_name: string | null; platform: string; post_type: string; date: string }>
@@ -68,26 +59,7 @@ export default function InsightsClient({
   employeePerformance: EmpPerf[]
 }) {
   const router = useRouter()
-  const [, startTransition] = useTransition()
-  const [editingFee, setEditingFee] = useState<string | null>(null)
-  const [feeInput, setFeeInput]     = useState('')
-  const [savingFee, setSavingFee]   = useState<string | null>(null)
   const maxTeamHours = Math.max(...Object.values(teamHours), 1)
-
-  function saveFee(clientName: string) {
-    const fee = parseFloat(feeInput.replace(/[^\d.]/g, ''))
-    setSavingFee(clientName)
-    startTransition(async () => {
-      const res = await updateClientMonthlyFee(clientName, isNaN(fee) ? null : fee)
-      setSavingFee(null)
-      if (!res.success) {
-        alert(res.error ?? 'Failed to save fee')
-        return
-      }
-      setEditingFee(null)
-      router.refresh()
-    })
-  }
   const hasData = kpis.totalHours > 0 || kpis.totalPosts > 0
 
   return (
@@ -453,24 +425,22 @@ export default function InsightsClient({
 
       </div>
 
-      {/* ── Client Profitability ───────────────────────────────────────────── */}
-      <div style={{ ...CARD, marginTop: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 18px 12px', borderBottom: '1px solid #F3F4F6' }}>
-          <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', margin: 0, fontFamily: 'var(--font-jakarta)' }}>
-            💰 Client Profitability
-          </p>
-          <p style={{ fontSize: 11, color: '#9CA3AF', margin: 0 }}>Click fee to edit · Cost = team hours × salary rate</p>
-        </div>
-        {profitability.length === 0 ? (
-          <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '28px 0', margin: 0 }}>
-            No client work logged this month
-          </p>
-        ) : (
+      {/* ── Member Working Hours ──────────────────────────────────────────── */}
+      {employeePerformance.length > 0 && (
+        <div style={{ ...CARD, marginTop: 16 }}>
+          <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid #F3F4F6' }}>
+            <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', margin: 0, fontFamily: 'var(--font-jakarta)' }}>
+              ⏱️ Member Working Hours
+            </p>
+            <p style={{ fontSize: 11, color: '#9CA3AF', margin: '3px 0 0' }}>
+              Hours logged this month · Total Value = Hours × Hourly Rate
+            </p>
+          </div>
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 560 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 500 }}>
               <thead>
                 <tr style={{ background: '#F9FAFB' }}>
-                  {['Client', 'Hours', 'Team Cost', 'Monthly Fee', 'Profit', 'Margin'].map(h => (
+                  {['Member', 'Hourly Rate', 'Hours Logged', 'Total Value', 'Entries'].map(h => (
                     <th key={h} style={{ padding: '9px 16px', fontSize: 10, fontWeight: 700, color: '#9CA3AF', textAlign: 'left', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                       {h}
                     </th>
@@ -478,79 +448,52 @@ export default function InsightsClient({
                 </tr>
               </thead>
               <tbody>
-                {profitability.map((c, i) => {
-                  const isProfit  = c.profit != null && c.profit >= 0
-                  const noFee     = c.fee == null
-                  const isEditing = editingFee === c.name
+                {[...employeePerformance].sort((a, b) => b.hours - a.hours).map((emp, i) => {
+                  const clr = ['#E53935','#F59E0B','#8B5CF6','#10B981','#3B82F6'][i % 5]
+                  const noRate = emp.hourlyRate === 0
                   return (
-                    <tr key={c.name} style={{ borderBottom: '1px solid #F9FAFB' }}>
-                      {/* Client */}
+                    <tr key={emp.id} style={{ borderBottom: '1px solid #F9FAFB' }}>
+                      {/* Member */}
                       <td style={{ padding: '12px 16px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(99,102,241,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <span style={{ fontSize: 9, fontWeight: 800, color: '#6366F1' }}>{ini(c.name)}</span>
+                          <div style={{ width: 32, height: 32, borderRadius: 9, background: `${clr}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <span style={{ fontSize: 10, fontWeight: 900, color: clr }}>{ini(emp.name)}</span>
                           </div>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{c.name}</span>
+                          <div>
+                            <p style={{ fontSize: 13, fontWeight: 700, color: '#111827', margin: 0 }}>{emp.name}</p>
+                            <p style={{ fontSize: 10, color: '#9CA3AF', margin: 0 }}>#{emp.employee_id}</p>
+                          </div>
                         </div>
                       </td>
-                      {/* Hours */}
-                      <td style={{ padding: '12px 16px', fontSize: 12, color: '#6B7280' }}>{fmtH(c.hours)}</td>
-                      {/* Cost */}
-                      <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#374151', fontFamily: 'var(--font-jakarta)' }}>{fmtRupee(c.cost)}</td>
-                      {/* Monthly Fee — click to edit */}
+                      {/* Hourly Rate */}
                       <td style={{ padding: '12px 16px' }}>
-                        {isEditing ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <input
-                              autoFocus
-                              type="number"
-                              value={feeInput}
-                              onChange={e => setFeeInput(e.target.value)}
-                              onKeyDown={e => { if (e.key === 'Enter') saveFee(c.name); if (e.key === 'Escape') setEditingFee(null) }}
-                              placeholder="₹ monthly fee"
-                              style={{ width: 110, padding: '5px 8px', borderRadius: 7, border: '1.5px solid #DE1A1A', fontSize: 12, color: '#111827', background: '#FFF', outline: 'none' }}
-                            />
-                            <button onClick={() => saveFee(c.name)} disabled={savingFee === c.name}
-                              style={{ padding: '5px 10px', borderRadius: 7, background: '#DE1A1A', color: '#FFF', fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
-                              {savingFee === c.name ? '…' : 'Save'}
-                            </button>
-                            <button onClick={() => setEditingFee(null)}
-                              style={{ padding: '5px 8px', borderRadius: 7, background: '#F3F4F6', color: '#6B7280', fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
-                              ✕
-                            </button>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: noRate ? '#D1D5DB' : '#6366F1', fontFamily: 'var(--font-jakarta)' }}>
+                          {noRate ? '—' : `${fmtRupee(emp.hourlyRate)}/hr`}
+                        </span>
+                      </td>
+                      {/* Hours Logged */}
+                      <td style={{ padding: '12px 16px' }}>
+                        <div>
+                          <span style={{ fontSize: 14, fontWeight: 900, color: '#3B82F6', fontFamily: 'var(--font-jakarta)' }}>{fmtH(emp.hours)}</span>
+                          <div style={{ marginTop: 4, width: 80, height: 4, background: '#F3F4F6', borderRadius: 2, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${Math.round((emp.hours / Math.max(...employeePerformance.map(e => e.hours), 1)) * 100)}%`, background: '#3B82F6', borderRadius: 2 }} />
                           </div>
-                        ) : (
-                          <button
-                            onClick={() => { setEditingFee(c.name); setFeeInput(c.fee != null ? String(c.fee) : '') }}
-                            style={{ fontSize: 13, fontWeight: 700, color: noFee ? '#D1D5DB' : '#111827', background: 'none', border: noFee ? '1px dashed #E5E7EB' : 'none', borderRadius: 6, padding: noFee ? '3px 8px' : 0, cursor: 'pointer', fontFamily: 'var(--font-jakarta)' }}
-                            title="Click to set monthly fee">
-                            {noFee ? '+ Set fee' : fmtRupee(c.fee!)}
-                          </button>
+                        </div>
+                      </td>
+                      {/* Total Value */}
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ fontSize: 14, fontWeight: 900, color: noRate ? '#9CA3AF' : '#16A34A', fontFamily: 'var(--font-jakarta)' }}>
+                          {noRate ? fmtH(emp.hours) : fmtRupee(emp.workValue)}
+                        </span>
+                        {!noRate && (
+                          <p style={{ fontSize: 10, color: '#9CA3AF', margin: '2px 0 0' }}>
+                            {fmtH(emp.hours)} × {fmtRupee(emp.hourlyRate)}/hr
+                          </p>
                         )}
                       </td>
-                      {/* Profit */}
-                      <td style={{ padding: '12px 16px' }}>
-                        {noFee ? (
-                          <span style={{ fontSize: 11, color: '#D1D5DB' }}>—</span>
-                        ) : (
-                          <span style={{ fontSize: 13, fontWeight: 800, color: isProfit ? '#16A34A' : '#DC2626', fontFamily: 'var(--font-jakarta)' }}>
-                            {isProfit ? '+' : ''}{fmtRupee(c.profit!)}
-                          </span>
-                        )}
-                      </td>
-                      {/* Margin */}
-                      <td style={{ padding: '12px 16px' }}>
-                        {noFee ? (
-                          <span style={{ fontSize: 11, color: '#D1D5DB' }}>—</span>
-                        ) : (
-                          <span style={{
-                            fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 20,
-                            background: isProfit ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)',
-                            color: isProfit ? '#16A34A' : '#DC2626',
-                          }}>
-                            {c.margin != null ? `${c.margin}%` : '—'}
-                          </span>
-                        )}
+                      {/* Entries */}
+                      <td style={{ padding: '12px 16px', fontSize: 12, color: '#6B7280' }}>
+                        {(memberStats.find(m => m.employee_id === emp.employee_id)?.entries ?? 0)} logs
                       </td>
                     </tr>
                   )
@@ -558,8 +501,8 @@ export default function InsightsClient({
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ── Posts Section ──────────────────────────────────────────────────── */}
       {(Object.keys(postsByType).length > 0 || recentPosts.length > 0) && (

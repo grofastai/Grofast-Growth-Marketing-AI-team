@@ -256,16 +256,16 @@ export default function ActivitiesClient({
           background: "radial-gradient(ellipse 38% 70% at 55% 100%, rgba(220,0,0,0.45) 0%, transparent 70%)",
         }} />
 
-        {/* 3D characters — pinned to bottom of hero, centered in the middle zone */}
+        {/* 3D characters — negative bottom hides transparent PNG padding below hero edge */}
         <img
           src="/brand/activities-hero.png"
           alt=""
           style={{
             position: "absolute",
-            bottom: 0,
+            bottom: -45,
             left: "50%",
             transform: "translateX(-50%)",
-            height: 230,
+            height: 260,
             width: "auto",
             objectFit: "contain",
             pointerEvents: "none",

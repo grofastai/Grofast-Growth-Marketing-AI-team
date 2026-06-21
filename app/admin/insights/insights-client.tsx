@@ -173,9 +173,12 @@ export default function InsightsClient({
   const maxEmpHours  = Math.max(...employeePerformance.map(e => e.hours), 1)
   const hasData      = kpis.totalHours > 0 || kpis.totalPosts > 0
 
-  const memberOptions = Array.from(new Map(logEntries.map(e => [e.memberId, e.memberName])).entries())
-    .sort((a, b) => a[1].localeCompare(b[1]))
-  const clientOptions = Array.from(new Set(logEntries.map(e => e.clientName).filter(c => c !== 'Unassigned')))
+  const memberOptions = [...employeePerformance]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(e => [e.id, e.name] as [string, string])
+  const clientOptions = clientStats
+    .map(c => c.name)
+    .filter(n => n !== 'Unassigned')
     .sort((a, b) => a.localeCompare(b))
 
   const filteredLogs    = logEntries.filter(e =>
@@ -285,7 +288,7 @@ export default function InsightsClient({
             <p style={{ fontSize: 14, fontWeight: 800, color: '#111827', margin: 0, fontFamily: 'var(--font-jakarta)' }}>Work Drill-Down</p>
             {hasFilter
               ? <p style={{ fontSize: 11, margin: '1px 0 0', fontWeight: 700, background: 'linear-gradient(90deg,#2563EB,#7C3AED)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                  {filterMember ? memberOptions.find(([id]) => id === filterMember)?.[1] : 'All Members'}
+                  {filterMember ? employeePerformance.find(e => e.id === filterMember)?.name : 'All Members'}
                   {' · '}{filterClient || 'All Clients'}
                   {' · '}{filteredLogs.length} entries
                 </p>
@@ -329,7 +332,7 @@ export default function InsightsClient({
                 <div style={{ padding: '10px 20px', background: 'linear-gradient(90deg,#EFF6FF,#EEF2FF)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   {filterMember && (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, padding: '3px 11px', borderRadius: 20, background: 'linear-gradient(90deg,#EFF6FF,#DBEAFE)', color: '#2563EB', border: '1px solid #BFDBFE' }}>
-                      <Users size={10} /> {memberOptions.find(([id]) => id === filterMember)?.[1]}
+                      <Users size={10} /> {employeePerformance.find(e => e.id === filterMember)?.name}
                     </span>
                   )}
                   {filterClient && (

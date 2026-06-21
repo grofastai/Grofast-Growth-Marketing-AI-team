@@ -4,6 +4,7 @@ import { useState, useMemo, useRef } from "react"
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts"
 import { useRouter } from "next/navigation"
 import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning, addEntryToDate } from "@/lib/actions/daily-updates"
+import { confirmCollaboration, editCollaborationTime, rejectCollaboration } from "@/lib/actions/collaboration"
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 import Image from "next/image"
@@ -282,8 +283,25 @@ interface CompanyHoliday {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+type CollaborationConfirmation = {
+  id: string
+  date: string
+  status: 'pending' | 'confirmed' | 'edited_confirmed' | 'rejected'
+  submitter_id: string
+  entry_id: string
+  daily_update_id: string
+  original_start_time: string | null
+  original_end_time: string | null
+  original_duration_hours: number | null
+  confirmed_start_time: string | null
+  confirmed_end_time: string | null
+  confirmed_hours: number | null
+  rejection_reason: string | null
+  entry_snapshot: { title?: string; task_type?: string; client_name?: string } | null
+}
+
 export default function HistoryClient({
-  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [], companyLeaves = [], defaultDate = "",
+  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [], companyLeaves = [], defaultDate = "", collaborationConfirmations = [],
 }: {
   updates: UpdateRow[]
   userName: string
@@ -296,6 +314,7 @@ export default function HistoryClient({
   approvedLeaves?: ApprovedLeave[]
   companyLeaves?: CompanyHoliday[]
   defaultDate?: string
+  collaborationConfirmations?: CollaborationConfirmation[]
 }) {
 
   const months = useMemo(() => {
@@ -324,6 +343,26 @@ export default function HistoryClient({
   const router = useRouter()
   const [deletingId, setDeletingId]       = useState<string | null>(null)
   const [infoDismissed, setInfoDismissed] = useState(false)
+
+  // Collaboration confirmation state
+  const [collabConfirms, setCollabConfirms] = useState<CollaborationConfirmation[]>(collaborationConfirmations)
+  const [collabLoading, setCollabLoading] = useState<string | null>(null)
+  const [collabEditId, setCollabEditId] = useState<string | null>(null)
+  const [collabEditStart, setCollabEditStart] = useState("")
+  const [collabEditEnd, setCollabEditEnd] = useState("")
+  const [collabRejectId, setCollabRejectId] = useState<string | null>(null)
+  const [collabRejectReason, setCollabRejectReason] = useState("")
+
+  const confirmsByDate = useMemo(() => {
+    const m = new Map<string, CollaborationConfirmation[]>()
+    for (const c of collabConfirms) {
+      if (!m.has(c.date)) m.set(c.date, [])
+      m.get(c.date)!.push(c)
+    }
+    return m
+  }, [collabConfirms])
+
+  const pendingCount = useMemo(() => collabConfirms.filter(c => c.status === 'pending').length, [collabConfirms])
 
   // Per-entry edit state
   const [editingKey, setEditingKey]   = useState<string | null>(null) // "updateId:entryIdx"
@@ -783,6 +822,18 @@ export default function HistoryClient({
         </div>
       </div>
 
+      {/* ── PENDING COLLABORATION BANNER ─────────────────────────────────── */}
+      {pendingCount > 0 && (
+        <div style={{ background:"rgba(99,102,241,0.08)", borderBottom:"1px solid rgba(99,102,241,0.15)", padding:"10px 20px", display:"flex", alignItems:"center", gap:10 }}>
+          <div style={{ width:28, height:28, borderRadius:"50%", background:"#6366F1", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+            <span style={{ fontSize:12, fontWeight:900, color:"#fff" }}>{pendingCount}</span>
+          </div>
+          <span style={{ fontSize:13, fontWeight:700, color:"#4338CA" }}>
+            You have {pendingCount} collaboration {pendingCount === 1 ? "request" : "requests"} pending confirmation — scroll down to review
+          </span>
+        </div>
+      )}
+
       {/* ── MONTH PILLS ───────────────────────────────────────────────────── */}
       <div style={{ background:"#fff", borderBottom:"1px solid #EBEDF2" }} className="px-4 md:px-7 py-2.5">
         <div style={{ display:"flex", alignItems:"center", gap:8, overflowX:"auto", paddingBottom:2 }}>
@@ -1041,6 +1092,99 @@ export default function HistoryClient({
                         </div>
                       </div>
                     </div>
+                    {/* Pending confirmations for collab-only day */}
+                    {(confirmsByDate.get(item.date) ?? []).filter(c => c.status === 'pending').map(conf => {
+                      const submitter = members.find(m => m.id === conf.submitter_id)
+                      const snap = conf.entry_snapshot
+                      const taskType = (snap?.task_type ?? 'other') as keyof typeof TASK_CFG
+                      const cfg = TASK_CFG[taskType] ?? TASK_CFG.other
+                      const { Icon } = cfg
+                      const isEditing = collabEditId === conf.id
+                      const isRejecting = collabRejectId === conf.id
+                      const loading = collabLoading === conf.id
+                      return (
+                        <div key={conf.id} style={{ borderTop: "2px solid rgba(99,102,241,0.2)", background: "rgba(99,102,241,0.04)", padding: "12px 18px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                            <span style={{ fontSize: 10, fontWeight: 800, color: "#6366F1", background: "rgba(99,102,241,0.12)", padding: "2px 8px", borderRadius: 99 }}>⏳ PENDING CONFIRMATION</span>
+                            <span style={{ fontSize: 11, color: "#9CA3AF" }}>· by <span style={{ fontWeight: 700, color: "#6366F1" }}>{submitter?.name ?? "Teammate"}</span></span>
+                          </div>
+                          <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                            <div style={{ width: 30, height: 30, borderRadius: 8, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <Icon size={13} style={{ color: cfg.color }}/>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 12, fontWeight: 800, color: "#111111", marginBottom: 2 }}>{snap?.title || cfg.label}</div>
+                              {snap?.client_name && <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 600, marginBottom: 3 }}>{snap.client_name}</div>}
+                              {conf.original_start_time && conf.original_end_time && (
+                                <div style={{ fontSize: 11, fontWeight: 700, color: "#6366F1" }}>
+                                  🕐 {fmt12(conf.original_start_time)} – {fmt12(conf.original_end_time)}
+                                  {conf.original_duration_hours ? ` · ${fmtH(conf.original_duration_hours)}` : ""}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {isEditing ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "10px", background: "#fff", borderRadius: 10, border: "1px solid rgba(99,102,241,0.2)" }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: "#374151" }}>My actual time:</div>
+                              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                <div><div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 2 }}>Start</div>
+                                  <input type="time" value={collabEditStart} onChange={e => setCollabEditStart(e.target.value)} style={{ border: "1px solid #EBEDF2", borderRadius: 8, padding: "6px 8px", fontSize: 12, outline: "none" }}/></div>
+                                <div style={{ marginTop: 14, color: "#9CA3AF" }}>–</div>
+                                <div><div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 2 }}>End</div>
+                                  <input type="time" value={collabEditEnd} onChange={e => setCollabEditEnd(e.target.value)} style={{ border: "1px solid #EBEDF2", borderRadius: 8, padding: "6px 8px", fontSize: 12, outline: "none" }}/></div>
+                              </div>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button disabled={loading} onClick={async () => {
+                                  if (!collabEditStart || !collabEditEnd) return
+                                  setCollabLoading(conf.id)
+                                  const r = await editCollaborationTime(conf.id, collabEditStart, collabEditEnd)
+                                  if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'edited_confirmed', confirmed_start_time: collabEditStart, confirmed_end_time: collabEditEnd } : c))
+                                  setCollabLoading(null); setCollabEditId(null)
+                                }} style={{ flex: 1, padding: "7px", borderRadius: 8, background: "#6366F1", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                                  {loading ? "Saving…" : "Save My Time"}
+                                </button>
+                                <button onClick={() => setCollabEditId(null)} style={{ padding: "7px 12px", borderRadius: 8, background: "#F5F6FA", color: "#374151", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>Cancel</button>
+                              </div>
+                            </div>
+                          ) : isRejecting ? (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "10px", background: "#fff", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)" }}>
+                              <input value={collabRejectReason} onChange={e => setCollabRejectReason(e.target.value)} placeholder="I was not involved in this task"
+                                style={{ border: "1px solid #EBEDF2", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none" }}/>
+                              <div style={{ display: "flex", gap: 6 }}>
+                                <button disabled={loading} onClick={async () => {
+                                  setCollabLoading(conf.id)
+                                  const r = await rejectCollaboration(conf.id, collabRejectReason)
+                                  if (r.success) setCollabConfirms(prev => prev.filter(c => c.id !== conf.id))
+                                  setCollabLoading(null); setCollabRejectId(null); setCollabRejectReason("")
+                                }} style={{ flex: 1, padding: "7px", borderRadius: 8, background: "#EF4444", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                                  {loading ? "Rejecting…" : "Reject"}
+                                </button>
+                                <button onClick={() => setCollabRejectId(null)} style={{ padding: "7px 12px", borderRadius: 8, background: "#F5F6FA", color: "#374151", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>Cancel</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button disabled={loading} onClick={async () => {
+                                setCollabLoading(conf.id)
+                                const r = await confirmCollaboration(conf.id)
+                                if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'confirmed' } : c))
+                                setCollabLoading(null)
+                              }} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#22C55E", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                                {loading ? "…" : "✓ Confirm"}
+                              </button>
+                              <button disabled={loading} onClick={() => { setCollabEditId(conf.id); setCollabEditStart(conf.original_start_time ?? ""); setCollabEditEnd(conf.original_end_time ?? "") }}
+                                style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#6366F1", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                                ✏ Edit Time
+                              </button>
+                              <button disabled={loading} onClick={() => setCollabRejectId(conf.id)}
+                                style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#FEE2E2", color: "#DC2626", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                                ✗ Reject
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
                     {item.pus.map(pu => {
                       const submitter = members.find(m => m.id === pu.user_id)
                       const allEnt = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
@@ -1048,18 +1192,11 @@ export default function HistoryClient({
                       // Fall back to all entries for old records that predate per-entry tagging
                       const puEntries = tagged.length > 0 ? tagged : allEnt
                       if (puEntries.length === 0) return null
-                      const collabHours = puEntries.reduce((s, e) => {
-                        const dur = calcDurationFromTimes(e.start_time, e.end_time) ?? (e.duration_hours ?? 0)
-                        return s + dur
-                      }, 0)
                       return (
                         <div key={pu.id} style={{ padding:"12px 18px", borderTop:"1px dashed rgba(99,102,241,0.15)" }}>
                           <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom: puEntries.length > 0 ? 10 : 0 }}>
                             <span style={{ fontSize:11, fontWeight:700, color:"#6366F1" }}>👥 Collaborated</span>
                             <span style={{ fontSize:11, color:"#9CA3AF" }}>· by <span style={{ fontWeight:700, color:"#6366F1" }}>{submitter?.name ?? "Teammate"}</span></span>
-                            {collabHours > 0 && (
-                              <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, color:"#6366F1" }}>{fmtH(collabHours)}</span>
-                            )}
                           </div>
                           {puEntries.map((pe, pi) => {
                             const cfg = TASK_CFG[pe.task_type] ?? TASK_CFG.other
@@ -1959,7 +2096,108 @@ export default function HistoryClient({
                     </div>
                   )}
 
-                {/* ── Collaborated entries for this day ── */}
+                {/* ── Pending collaboration confirmations for this day ── */}
+                {(confirmsByDate.get(u.date) ?? []).filter(c => c.status === 'pending').map(conf => {
+                  const submitter = members.find(m => m.id === conf.submitter_id)
+                  const snap = conf.entry_snapshot
+                  const taskType = (snap?.task_type ?? 'other') as keyof typeof TASK_CFG
+                  const cfg = TASK_CFG[taskType] ?? TASK_CFG.other
+                  const { Icon } = cfg
+                  const isEditing = collabEditId === conf.id
+                  const isRejecting = collabRejectId === conf.id
+                  const loading = collabLoading === conf.id
+                  return (
+                    <div key={conf.id} style={{ borderTop: "2px solid rgba(99,102,241,0.2)", background: "rgba(99,102,241,0.04)", padding: "12px 18px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                        <span style={{ fontSize: 10, fontWeight: 800, color: "#6366F1", background: "rgba(99,102,241,0.12)", padding: "2px 8px", borderRadius: 99 }}>⏳ PENDING CONFIRMATION</span>
+                        <span style={{ fontSize: 11, color: "#9CA3AF" }}>· by <span style={{ fontWeight: 700, color: "#6366F1" }}>{submitter?.name ?? "Teammate"}</span></span>
+                      </div>
+                      <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                        <div style={{ width: 30, height: 30, borderRadius: 8, background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <Icon size={13} style={{ color: cfg.color }}/>
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 800, color: "#111111", marginBottom: 2 }}>{snap?.title || cfg.label}</div>
+                          {snap?.client_name && <div style={{ fontSize: 10, color: "#6B7280", fontWeight: 600, marginBottom: 3 }}>{snap.client_name}</div>}
+                          {conf.original_start_time && conf.original_end_time && (
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#6366F1" }}>
+                              🕐 {fmt12(conf.original_start_time)} – {fmt12(conf.original_end_time)}
+                              {conf.original_duration_hours ? ` · ${fmtH(conf.original_duration_hours)}` : ""}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      {isEditing ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "10px", background: "#fff", borderRadius: 10, border: "1px solid rgba(99,102,241,0.2)" }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#374151" }}>My actual time for this task:</div>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <div>
+                              <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 2 }}>Start</div>
+                              <input type="time" value={collabEditStart} onChange={e => setCollabEditStart(e.target.value)}
+                                style={{ border: "1px solid #EBEDF2", borderRadius: 8, padding: "6px 8px", fontSize: 12, outline: "none" }}/>
+                            </div>
+                            <div style={{ marginTop: 14, color: "#9CA3AF" }}>–</div>
+                            <div>
+                              <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 2 }}>End</div>
+                              <input type="time" value={collabEditEnd} onChange={e => setCollabEditEnd(e.target.value)}
+                                style={{ border: "1px solid #EBEDF2", borderRadius: 8, padding: "6px 8px", fontSize: 12, outline: "none" }}/>
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button disabled={loading} onClick={async () => {
+                              if (!collabEditStart || !collabEditEnd) return
+                              setCollabLoading(conf.id)
+                              const r = await editCollaborationTime(conf.id, collabEditStart, collabEditEnd)
+                              if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'edited_confirmed', confirmed_start_time: collabEditStart, confirmed_end_time: collabEditEnd } : c))
+                              setCollabLoading(null); setCollabEditId(null)
+                            }} style={{ flex: 1, padding: "7px", borderRadius: 8, background: "#6366F1", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                              {loading ? "Saving…" : "Save My Time"}
+                            </button>
+                            <button onClick={() => setCollabEditId(null)} style={{ padding: "7px 12px", borderRadius: 8, background: "#F5F6FA", color: "#374151", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : isRejecting ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "10px", background: "#fff", borderRadius: 10, border: "1px solid rgba(239,68,68,0.2)" }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, color: "#374151" }}>Reason (optional):</div>
+                          <input value={collabRejectReason} onChange={e => setCollabRejectReason(e.target.value)} placeholder="I was not involved in this task"
+                            style={{ border: "1px solid #EBEDF2", borderRadius: 8, padding: "7px 10px", fontSize: 12, outline: "none" }}/>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button disabled={loading} onClick={async () => {
+                              setCollabLoading(conf.id)
+                              const r = await rejectCollaboration(conf.id, collabRejectReason)
+                              if (r.success) setCollabConfirms(prev => prev.filter(c => c.id !== conf.id))
+                              setCollabLoading(null); setCollabRejectId(null); setCollabRejectReason("")
+                            }} style={{ flex: 1, padding: "7px", borderRadius: 8, background: "#EF4444", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                              {loading ? "Rejecting…" : "Reject"}
+                            </button>
+                            <button onClick={() => setCollabRejectId(null)} style={{ padding: "7px 12px", borderRadius: 8, background: "#F5F6FA", color: "#374151", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button disabled={loading} onClick={async () => {
+                            setCollabLoading(conf.id)
+                            const r = await confirmCollaboration(conf.id)
+                            if (r.success) setCollabConfirms(prev => prev.map(c => c.id === conf.id ? { ...c, status: 'confirmed', confirmed_start_time: c.original_start_time, confirmed_end_time: c.original_end_time, confirmed_hours: c.original_duration_hours } : c))
+                            setCollabLoading(null)
+                          }} style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#22C55E", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                            {loading ? "…" : "✓ Confirm"}
+                          </button>
+                          <button disabled={loading} onClick={() => { setCollabEditId(conf.id); setCollabEditStart(conf.original_start_time ?? ""); setCollabEditEnd(conf.original_end_time ?? "") }}
+                            style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#6366F1", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                            ✏ Edit Time
+                          </button>
+                          <button disabled={loading} onClick={() => setCollabRejectId(conf.id)}
+                            style={{ flex: 1, padding: "8px", borderRadius: 8, background: "#FEE2E2", color: "#DC2626", fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer" }}>
+                            ✗ Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+
+                {/* ── Confirmed/old collaborated entries for this day ── */}
                 {(participatedByDate.get(u.date) ?? []).map(pu => {
                   const submitter = members.find(m => m.id === pu.user_id)
                   const allEntries = (Array.isArray(pu.work_entries) ? pu.work_entries : []) as WorkEntry[]
@@ -1967,10 +2205,6 @@ export default function HistoryClient({
                   // Fall back to all entries for old records that predate per-entry tagging
                   const puEntries = tagged.length > 0 ? tagged : allEntries
                   if (puEntries.length === 0) return null
-                  const collabHours = puEntries.reduce((s, e) => {
-                    const dur = calcDurationFromTimes(e.start_time, e.end_time) ?? (e.duration_hours ?? 0)
-                    return s + dur
-                  }, 0)
                   return (
                     <div key={pu.id} style={{ borderTop: "1px dashed #E5E7EB", padding: "10px 18px", background: "rgba(99,102,241,0.03)" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: puEntries.length > 0 ? 8 : 0 }}>
@@ -1978,11 +2212,6 @@ export default function HistoryClient({
                         <span style={{ fontSize: 11, color: "#9CA3AF" }}>
                           · by <span style={{ fontWeight: 700, color: "#6366F1" }}>{submitter?.name ?? "Teammate"}</span>
                         </span>
-                        {collabHours > 0 && (
-                          <span style={{ marginLeft: "auto", fontSize: 11, fontWeight: 700, color: "#6366F1" }}>
-                            {fmtH(collabHours)}
-                          </span>
-                        )}
                       </div>
                       {puEntries.length > 0 && (
                         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>

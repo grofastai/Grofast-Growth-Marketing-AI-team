@@ -43,6 +43,23 @@ type ParticipatedUpdate = {
   work_entries: WorkEntry[] | null
 }
 
+type CollaborationConfirmation = {
+  id: string
+  date: string
+  status: 'pending' | 'confirmed' | 'edited_confirmed' | 'rejected'
+  submitter_id: string
+  entry_id: string
+  daily_update_id: string
+  original_start_time: string | null
+  original_end_time: string | null
+  original_duration_hours: number | null
+  confirmed_start_time: string | null
+  confirmed_end_time: string | null
+  confirmed_hours: number | null
+  rejection_reason: string | null
+  entry_snapshot: { title?: string; task_type?: string; client_name?: string } | null
+}
+
 type MemberInfo = { id: string; name: string }
 
 function adminSupabase() {
@@ -77,7 +94,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   // Full year — one entry/day max, so ~170 rows at most; matches annual leave cycle
   const fromDateStr = `${new Date().getFullYear()}-01-01`
 
-  const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult, leavesResult, companyLeavesResult] = await Promise.all([
+  const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult, leavesResult, companyLeavesResult, confirmationsResult] = await Promise.all([
     supabase
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, learning_start_time, learning_end_time, shoot_count, editing_count, work_entries, created_at")
@@ -125,6 +142,16 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
     companyId
       ? admin.from("company_leaves").select("id, date, name").eq("company_id", companyId).gte("date", fromDateStr).order("date", { ascending: false })
       : Promise.resolve({ data: [] }),
+    companyId
+      ? admin
+          .from("collaboration_confirmations")
+          .select("id, date, status, submitter_id, entry_id, daily_update_id, original_start_time, original_end_time, original_duration_hours, confirmed_start_time, confirmed_end_time, confirmed_hours, rejection_reason, entry_snapshot")
+          .eq("collaborator_id", effectiveUserId)
+          .eq("company_id", companyId)
+          .neq("status", "rejected")
+          .gte("date", fromDateStr)
+          .order("date", { ascending: false })
+      : Promise.resolve({ data: [] as CollaborationConfirmation[] }),
   ])
 
   // Build a set of dates where the member actually clocked in
@@ -153,6 +180,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   }
   const approvedLeaves = (leavesResult.data ?? []) as ApprovedLeave[]
   const companyLeaves  = (companyLeavesResult.data ?? []) as { id: string; date: string; name: string }[]
+  const collaborationConfirmations = (confirmationsResult.data ?? []) as CollaborationConfirmation[]
 
   return (
     <HistoryClient
@@ -167,6 +195,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
       approvedLeaves={approvedLeaves}
       companyLeaves={companyLeaves}
       defaultDate={defaultDate}
+      collaborationConfirmations={collaborationConfirmations}
     />
   )
 }

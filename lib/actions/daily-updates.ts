@@ -15,6 +15,49 @@ function adminSupabase() {
   )
 }
 
+async function syncCollaborationConfirmations(
+  admin: ReturnType<typeof adminSupabase>,
+  recordId: string,
+  submitterId: string,
+  companyId: string,
+  date: string,
+  entries: Record<string, unknown>[]
+) {
+  try {
+    const tagged = entries.filter(e => {
+      const pids = e.participant_ids as string[] | undefined
+      return Array.isArray(pids) && pids.some(pid => pid !== submitterId)
+    })
+    for (const e of tagged) {
+      const entryId = (e.id as string) || ''
+      if (!entryId) continue
+      const collaborators = ((e.participant_ids as string[]) || []).filter(pid => pid !== submitterId)
+      for (const collaboratorId of collaborators) {
+        await admin.from('collaboration_confirmations').upsert({
+          company_id:               companyId,
+          daily_update_id:          recordId,
+          entry_id:                 entryId,
+          submitter_id:             submitterId,
+          collaborator_id:          collaboratorId,
+          date,
+          status:                   'pending',
+          original_start_time:      (e.start_time as string) || null,
+          original_end_time:        (e.end_time as string) || null,
+          original_duration_hours:  (e.duration_hours as number) || null,
+          entry_snapshot:           {
+            title:       e.title,
+            task_type:   e.task_type,
+            client_name: e.client_name,
+          },
+        }, {
+          onConflict:       'daily_update_id,entry_id,collaborator_id',
+          ignoreDuplicates: true, // preserve existing confirmed/rejected status
+        })
+      }
+    }
+  } catch { /* non-blocking */ }
+}
+
 export async function submitDailyUpdate(
   input: DailyUpdateInput
 ): Promise<{ success: boolean; error?: string }> {
@@ -132,9 +175,12 @@ export async function submitDailyUpdate(
       .eq('id', existingRecord.id)
 
     if (updateError) return { success: false, error: updateError.message }
+
+    // Sync collaboration confirmations for updated record
+    await syncCollaborationConfirmations(admin, existingRecord.id, user.id, profile.company_id, today, d.work_entries as Record<string, unknown>[])
   } else {
     isFirstSubmission = true
-    const { error: insertError } = await admin
+    const { data: inserted, error: insertError } = await admin
       .from('daily_updates')
       .insert({
         company_id:          profile.company_id,
@@ -157,8 +203,15 @@ export async function submitDailyUpdate(
         editing_time_hours:  d.editing_time_hours ?? null,
         participant_ids:     [...new Set([...(d.participant_ids ?? []), ...d.work_entries.flatMap(e => (e as Record<string, unknown>).participant_ids as string[] ?? []).filter(Boolean)])],
       })
+      .select('id')
+      .single()
 
     if (insertError) return { success: false, error: insertError.message }
+
+    // Sync collaboration confirmations for newly inserted record
+    if (inserted?.id) {
+      await syncCollaborationConfirmations(admin, inserted.id, user.id, profile.company_id, today, d.work_entries as Record<string, unknown>[])
+    }
   }
 
   // Sync break entries to attendance_logs — dedup by ID same as main entries

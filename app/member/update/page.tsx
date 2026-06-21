@@ -46,6 +46,7 @@ export default async function UpdatePage() {
     { data: pastUpdates },
     { data: teamMembersRaw },
     { data: approvedLeavesRaw },
+    { data: shotWithMembersRaw },
   ] = await Promise.all([
     admin
       .from("projects")
@@ -92,6 +93,18 @@ export default async function UpdatePage() {
       .eq("user_id", effectiveUserId)
       .eq("status", "approved")
       .gte("to_date", thirtyDaysAgoStr),
+    // Shot With: only members of the same team as the logged-in user
+    profile?.team
+      ? admin
+          .from("users")
+          .select("id, name, employee_id, role, team")
+          .eq("company_id", companyId)
+          .eq("status", "active")
+          .eq("role", "MEMBER")
+          .eq("team", profile.team)
+          .neq("id", effectiveUserId)
+          .order("name")
+      : Promise.resolve({ data: [] }),
   ])
 
   type Project = { id: string; business_name: string }
@@ -99,6 +112,7 @@ export default async function UpdatePage() {
   const projects = (projectsRaw ?? []) as unknown as Project[]
   const supabaseClientNames = (supabaseClientsRaw ?? []).map((c: { name: string }) => c.name)
   const teamMembers = (teamMembersRaw ?? []) as TeamMember[]
+  const shotWithMembers = (shotWithMembersRaw ?? []) as TeamMember[]
 
   const clientNames = supabaseClientNames
   const pastClientNames = (pastClientsRaw ?? []).map((c: { name: string }) => c.name)
@@ -133,6 +147,7 @@ export default async function UpdatePage() {
         existingUpdate={existingUpdate ?? null}
         pastUpdates={pastUpdates ?? []}
         teamMembers={teamMembers}
+        shotWithMembers={shotWithMembers}
         approvedLeaveDates={approvedLeaveDates}
       />
     </Suspense>

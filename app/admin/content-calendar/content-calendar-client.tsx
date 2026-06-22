@@ -924,11 +924,13 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={LABEL}>Post Time <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
-                  <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={FIELD} />
-                </div>
+              <div style={{ display: "grid", gridTemplateColumns: (isEdit ? contentType !== "shoot" : schedType !== "shoot") ? "1fr 1fr" : "1fr", gap: 12 }}>
+                {(isEdit ? contentType !== "shoot" : schedType !== "shoot") && (
+                  <div>
+                    <label style={LABEL}>Post Time <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
+                    <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={FIELD} />
+                  </div>
+                )}
                 <div>
                   <label style={LABEL}>Assign To</label>
                   <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={{ ...FIELD, appearance: "none" }}>

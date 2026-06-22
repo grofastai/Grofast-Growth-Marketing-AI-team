@@ -1001,15 +1001,17 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: schedType === "shoot" ? "1fr" : "1fr 1fr", gap: 12 }}>
                 <div>
                   <label style={L}>Date *</label>
                   <input type="date" value={schedDate} onChange={e => setSchedDate(e.target.value)} required style={F} />
                 </div>
-                <div>
-                  <label style={L}>Time <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optional)</span></label>
-                  <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={F} />
-                </div>
+                {schedType !== "shoot" && (
+                  <div>
+                    <label style={L}>Time <span style={{ color: "#9CA3AF", fontWeight: 400 }}>(optional)</span></label>
+                    <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={F} />
+                  </div>
+                )}
               </div>
               <div>
                 <ClientSelector

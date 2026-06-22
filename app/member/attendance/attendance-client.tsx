@@ -767,7 +767,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               ))}
               {/* Time breakdown */}
               {todayLog?.clock_in && (() => {
-                const spanH      = calcHours(todayLog.clock_in, todayLog.clock_out)
+                const spanH      = Math.max(0, calcHours(todayLog.clock_in, todayLog.clock_out))
                 const totalBreakMins = breakTotalMins
                 const breakH     = totalBreakMins / 60
                 return (

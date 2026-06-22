@@ -29,7 +29,7 @@ interface Props {
   members: Member[]
   clientNames: string[]
   pastClientNames?: string[]
-  userId: string; initialYear: number; initialMonth: number
+  userId: string; role?: string; initialYear: number; initialMonth: number
 }
 
 const PLATFORMS = [
@@ -123,14 +123,15 @@ function DonutChart({ total, posted, inProgress, ready, pending }: {
   )
 }
 
-export default function MemberContentCalendarClient({ posts: initial, shoots, tasks, members, clientNames, pastClientNames = [], userId, initialYear, initialMonth }: Props) {
+export default function MemberContentCalendarClient({ posts: initial, shoots, tasks, members, clientNames, pastClientNames = [], userId, role = "MEMBER", initialYear, initialMonth }: Props) {
+  const isAdmin = role === "ADMIN"
   const router = useRouter()
   const [posts, setPosts] = useState(initial)
   useEffect(() => { setPosts(initial) }, [initial])
   const [year, setYear]   = useState(initialYear)
   const [month, setMonth] = useState(initialMonth)
   const [view, setView]   = useState<"calendar" | "list">("calendar")
-  const [filter] = useState<"all" | "mine">("mine")
+  const [filter, setFilter] = useState<"all" | "mine">(isAdmin ? "all" : "mine")
   const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().split("T")[0])
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
@@ -490,6 +491,18 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                     <ChevronDown size={10} style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
                   </div>
                 )}
+                {isAdmin && (
+                  <div style={{ display: "flex", background: "#F3F4F6", borderRadius: 9, padding: 2, gap: 1 }}>
+                    {([{ v: "all" as const, label: "All Posts" }, { v: "mine" as const, label: "My Posts" }]).map(({ v, label }) => (
+                      <button key={v} onClick={() => setFilter(v)} style={{
+                        padding: "5px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700,
+                        background: filter === v ? "linear-gradient(135deg,#6366F1,#4F46E5)" : "transparent",
+                        color: filter === v ? "#FFF" : "#6B7280",
+                        boxShadow: filter === v ? "0 2px 8px rgba(99,102,241,0.3)" : "none",
+                      }}>{label}</button>
+                    ))}
+                  </div>
+                )}
                 <div style={{ display: "flex", background: "#F3F4F6", borderRadius: 9, padding: 2, gap: 1 }}>
                   {([{ v: "calendar" as const, label: "📅 Calendar" }, { v: "list" as const, label: "☰ List" }]).map(({ v, label }) => (
                     <button key={v} onClick={() => setView(v)} style={{
@@ -568,7 +581,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             ) : (
               <div>
                 <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6" }}>
-                  <h2 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>My Content — {MONTHS[month]} {year}</h2>
+                  <h2 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>{isAdmin && filter === "all" ? "All Content" : "My Content"} — {MONTHS[month]} {year}</h2>
                 </div>
                 {filteredPosts.length === 0 ? (
                   <div style={{ padding: "60px 24px", textAlign: "center" }}>

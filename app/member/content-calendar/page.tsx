@@ -24,7 +24,7 @@ export default async function MemberContentCalendarPage() {
 
   const admin = adminSupabase()
   const { data: profile } = await admin
-    .from("users").select("company_id, name").eq("id", effectiveUserId).single()
+    .from("users").select("company_id, name, role").eq("id", effectiveUserId).single()
   if (!profile) redirect("/login")
 
   const cid = profile.company_id
@@ -95,6 +95,7 @@ export default async function MemberContentCalendarPage() {
       clientNames={allActiveNames}
       pastClientNames={(pastClients ?? []).map(c => c.name).filter(Boolean) as string[]}
       userId={effectiveUserId}
+      role={profile.role ?? "MEMBER"}
       initialYear={now.getFullYear()}
       initialMonth={now.getMonth()}
     />

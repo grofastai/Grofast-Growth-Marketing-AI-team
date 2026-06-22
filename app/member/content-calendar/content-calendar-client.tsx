@@ -130,6 +130,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   useEffect(() => { setPosts(initial) }, [initial])
   const [year, setYear]   = useState(initialYear)
   const [month, setMonth] = useState(initialMonth)
+  const [showMonthPicker, setShowMonthPicker] = useState(false)
+  const [pickerYear, setPickerYear] = useState(initialYear)
   const [view, setView]   = useState<"calendar" | "list">("calendar")
   const [filter, setFilter] = useState<"all" | "mine">(isAdmin ? "all" : "mine")
   const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().split("T")[0])
@@ -140,6 +142,15 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
     window.addEventListener("resize", check)
     return () => window.removeEventListener("resize", check)
   }, [])
+  useEffect(() => {
+    if (!showMonthPicker) return
+    const close = (e: MouseEvent) => {
+      const t = e.target as HTMLElement
+      if (!t.closest("[data-month-picker]")) setShowMonthPicker(false)
+    }
+    document.addEventListener("mousedown", close)
+    return () => document.removeEventListener("mousedown", close)
+  }, [showMonthPicker])
   const [, start]           = useTransition()
   const [isPending, startCreate] = useTransition()
 
@@ -495,7 +506,37 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   <ChevronRight size={13} color="#6B7280" />
                 </button>
               </div>
-              <h2 style={{ fontSize: 15, fontWeight: 800, color: "#111827", margin: 0 }}>{MONTHS[month]} {year}</h2>
+              <div style={{ position: "relative" }} data-month-picker>
+                <button onClick={() => { setPickerYear(year); setShowMonthPicker(v => !v) }}
+                  style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                  <h2 style={{ fontSize: 15, fontWeight: 800, color: "#111827", margin: 0 }}>{MONTHS[month]} {year}</h2>
+                  <ChevronDown size={14} color="#6B7280" />
+                </button>
+                {showMonthPicker && (
+                  <div style={{ position: "absolute", top: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", background: "#FFF", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.14)", padding: 16, zIndex: 100, minWidth: 260, border: "1px solid #F0F0F0" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                      <button onClick={() => setPickerYear(y => y - 1)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <ChevronLeft size={12} color="#6B7280" />
+                      </button>
+                      <span style={{ fontWeight: 800, fontSize: 14, color: "#111827" }}>{pickerYear}</span>
+                      <button onClick={() => setPickerYear(y => y + 1)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <ChevronRight size={12} color="#6B7280" />
+                      </button>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                      {MONTHS.map((m, i) => {
+                        const isActive = i === month && pickerYear === year
+                        return (
+                          <button key={i} onClick={() => { setYear(pickerYear); setMonth(i); setShowMonthPicker(false) }}
+                            style={{ padding: "8px 4px", borderRadius: 10, border: isActive ? "2px solid #DE1A1A" : "1.5px solid #F0F0F0", background: isActive ? "rgba(222,26,26,0.07)" : "#FAFAFA", fontWeight: isActive ? 800 : 600, fontSize: 12, color: isActive ? "#DE1A1A" : "#374151", cursor: "pointer" }}>
+                            {m.slice(0, 3)}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {clientOptions.length > 0 && (
                   <div style={{ position: "relative" }}>

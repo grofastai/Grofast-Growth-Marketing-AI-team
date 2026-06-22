@@ -528,23 +528,31 @@ export async function updateLeaveStatus(
         .eq('user_id', leave.user_id)
         .eq('date', todayIst)
         .maybeSingle()
-      if (!existing?.clock_in) {
-        const appliedHourIst = parseInt(
-          new Date(leave.created_at).toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false })
-        )
-        // Before 9 AM → shift start 9:30 AM IST (= 04:00 UTC); after 9 AM → actual apply time
-        const clockInTime = appliedHourIst < 9
-          ? new Date(todayIst + 'T04:00:00.000Z').toISOString()
-          : leave.created_at
-        const workType = leave.leave_type === 'shoot_day' ? 'shoot' : 'wfh'
-        await admin.from('attendance_logs').upsert({
+      const appliedHourIst = parseInt(
+        new Date(leave.created_at).toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false })
+      )
+      // Before 9 AM → shift start 9:30 AM IST (= 04:00 UTC); after 9 AM → actual apply time
+      const clockInTime = appliedHourIst < 9
+        ? new Date(todayIst + 'T04:00:00.000Z').toISOString()
+        : leave.created_at
+      const workType = leave.leave_type === 'shoot_day' ? 'shoot' : 'wfh'
+      if (!existing) {
+        // No record yet — plain insert (avoids onConflict key mismatch issues)
+        await admin.from('attendance_logs').insert({
           company_id: leave.company_id,
           user_id:    leave.user_id,
           date:       todayIst,
           clock_in:   clockInTime,
           work_type:  workType,
           status:     'present',
-        }, { onConflict: 'user_id,date' })
+        })
+      } else if (!existing.clock_in) {
+        // Record exists but no clock_in yet — update it
+        await admin.from('attendance_logs').update({
+          clock_in:  clockInTime,
+          work_type: workType,
+          status:    'present',
+        }).eq('id', existing.id)
       }
     }
     // Auto-insert history entry

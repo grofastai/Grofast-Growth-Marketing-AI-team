@@ -197,7 +197,7 @@ export default async function AttendancePage() {
     : 0
 
   const monthLeaveDays = approvedLeaves
-    .filter(l => l.leave_type !== "permission")
+    .filter(l => l.leave_type !== "permission" && l.leave_type !== "wfh" && l.leave_type !== "shoot_day")
     .reduce((sum, l) => {
       return sum + Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
     }, 0)

@@ -595,7 +595,12 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                                 <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
                                 {isMine && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", flexShrink: 0 }}>MINE</span>}
                               </div>
-                              <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>{platformLabel(p.platform)} · {p.client_name} · {p.scheduled_date}</p>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>{platformLabel(p.platform)} · {p.client_name} · {p.scheduled_date}</p>
+                                {p.scheduled_time && (
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: "#DE1A1A", background: "rgba(222,26,26,0.08)", padding: "2px 8px", borderRadius: 6, whiteSpace: "nowrap" }}>🕐 {formatTime(p.scheduled_time)}</span>
+                                )}
+                              </div>
                             </div>
                             <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{priCfg.label}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{cfg.label}</span>
@@ -865,9 +870,16 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   <span style={{ fontSize: 20, flexShrink: 0 }}>{platformEmoji(p.platform)}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                    <p style={{ fontSize: 11, color: isOverdue ? "#EF4444" : "#6B7280", margin: "2px 0 0", fontWeight: isOverdue ? 700 : 400 }}>
-                      {isOverdue ? "⚠ Overdue · " : ""}{p.scheduled_date} · {platformLabel(p.platform)}
-                    </p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2, flexWrap: "wrap" }}>
+                      <p style={{ fontSize: 11, color: isOverdue ? "#EF4444" : "#6B7280", margin: 0, fontWeight: isOverdue ? 700 : 400 }}>
+                        {isOverdue ? "⚠ Overdue · " : ""}{p.scheduled_date} · {platformLabel(p.platform)}
+                      </p>
+                      {p.scheduled_time && (
+                        <span style={{ fontSize: 11, fontWeight: 800, color: "#DE1A1A", background: "rgba(222,26,26,0.08)", padding: "2px 8px", borderRadius: 6, whiteSpace: "nowrap" }}>
+                          🕐 {formatTime(p.scheduled_time)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <button onClick={() => handleStatusChange(p.id, "posted")}
                     style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>

@@ -627,7 +627,12 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                               {p.content_pillar && <span style={{ marginLeft: 6, padding: "1px 7px", borderRadius: 10, background: "rgba(155,107,255,0.1)", color: "#9B6BFF", fontWeight: 600 }}>{p.content_pillar}</span>}
                             </p>
                           </div>
-                          <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap" }}>{p.scheduled_date}{formatTime(p.scheduled_time) ? ` · ${formatTime(p.scheduled_time)}` : ""}</span>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3, flexShrink: 0 }}>
+                            <span style={{ fontSize: 11, color: "#6B7280", whiteSpace: "nowrap" }}>{p.scheduled_date}</span>
+                            {formatTime(p.scheduled_time) && (
+                              <span style={{ fontSize: 11, fontWeight: 800, color: "#DE1A1A", whiteSpace: "nowrap", background: "rgba(222,26,26,0.08)", padding: "2px 8px", borderRadius: 6 }}>🕐 {formatTime(p.scheduled_time)}</span>
+                            )}
+                          </div>
                           <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap" }}>{priCfg.label}</span>
                           <select value={p.status} onChange={e => handleStatusChange(p.id, e.target.value)}
                             style={{ fontSize: 11, fontWeight: 700, padding: "4px 8px", borderRadius: 8, border: `1.5px solid ${cfg.color}`, background: cfg.bg, color: cfg.color, cursor: "pointer", outline: "none" }}>

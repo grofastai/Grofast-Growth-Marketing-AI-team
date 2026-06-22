@@ -612,6 +612,7 @@ export default function HistoryClient({
   const stats = useMemo(() => {
     let totalHours = 0, totalTasks = 0, presentDays = 0, totalLearning = 0, totalBreak = 0
     let shootH = 0, editH = 0, otherH = 0, shootCount = 0, editCount = 0
+    let travelH = 0, worklogCount = 0, voiceoverCount = 0, posterCount = 0, totalEntries = 0
     let isMedia = false
     const hoursPerDay: number[] = []
     const dailyData: { day: string; hours: number }[] = []
@@ -631,10 +632,15 @@ export default function HistoryClient({
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
       totalTasks += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
       for (const e of entries) {
-        if (e.task_type === "shoot") { shootH += (e.duration_hours ?? 0); shootCount++ }
-        else if (e.task_type === "edit") { editH += e.duration_hours ?? 0; editCount++ }
-        else if (e.task_type !== "break" && e.task_type !== "learning") otherH += e.duration_hours ?? 0
+        if (e.task_type === "shoot") {
+          shootH += (e.duration_hours ?? 0); shootCount++
+          travelH += (e._travel_hours ?? 0)
+        } else if (e.task_type === "edit") { editH += e.duration_hours ?? 0; editCount++ }
+        else if (e.task_type === "other") { otherH += e.duration_hours ?? 0; worklogCount++ }
+        else if (e.task_type === "voiceover") { voiceoverCount++ }
+        else if (e.task_type === "poster") { posterCount++ }
       }
+      totalEntries += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
     }
     // Also count clock-in dates in the selected month that have no daily_update record
     const updateDates = new Set(monthFiltered.map(u => u.date))
@@ -647,8 +653,29 @@ export default function HistoryClient({
       presentDays++
     }
 
-    // Absent days: elapsed calendar days in period minus present days
+    // Leave days: count approved leave days in the selected month period
     const todayStr = new Date().toISOString().split("T")[0]
+    let leaveDays = 0
+    for (const leave of approvedLeaves) {
+      const start = new Date(leave.from_date + "T12:00:00")
+      const end = new Date(leave.to_date + "T12:00:00")
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        const ds = d.toISOString().split("T")[0]
+        if (ds > todayStr) continue
+        if (monthPrefix && !ds.startsWith(monthPrefix)) continue
+        leaveDays++
+      }
+    }
+
+    // Office holiday days in the selected month period
+    let holidayDays = 0
+    for (const h of companyLeaves) {
+      if (h.date > todayStr) continue
+      if (monthPrefix && !h.date.startsWith(monthPrefix)) continue
+      holidayDays++
+    }
+
+    // Absent days: elapsed calendar days in period minus present days
     const firstDate = monthFiltered.length > 0 ? monthFiltered[monthFiltered.length - 1].date : todayStr
     const elapsedDays = Math.floor((new Date(todayStr + "T12:00:00").getTime() - new Date(firstDate + "T12:00:00").getTime()) / 86400000) + 1
     const absentDays = Math.max(0, elapsedDays - presentDays)
@@ -660,8 +687,8 @@ export default function HistoryClient({
     const productivity = filtered.length > 0
       ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9.5)) * 40) : 0)))
       : 0
-    return { totalHours, totalOT, totalTasks, presentDays, absentDays, totalLearning, totalBreak, shootH, editH, otherH, shootCount, editCount, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
-  }, [filtered, attendanceDates, selectedMonth, monthFiltered])
+    return { totalHours, totalOT, totalTasks, presentDays, absentDays, leaveDays, holidayDays, totalLearning, totalBreak, travelH, shootH, editH, otherH, shootCount, editCount, worklogCount, voiceoverCount, posterCount, totalEntries, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
+  }, [filtered, attendanceDates, selectedMonth, monthFiltered, approvedLeaves, companyLeaves])
 
   // Streak calculation
   const { streak, last7 } = useMemo(() => {
@@ -2375,20 +2402,28 @@ export default function HistoryClient({
               {/* Stats rows */}
               <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
                 {(stats.isMedia ? [
-                  { label:"Working Hours",   value: fmtH(stats.shootH + stats.editH),    color:"#22C55E", dot:"#22C55E" },
-                  { label:"Total Shoots",    value: String(stats.shootCount),             color:"#EF4444", dot:"#EF4444" },
-                  { label:"Videos Edited",   value: String(stats.editCount),              color:"#6366F1", dot:"#6366F1" },
-                  { label:"Break Hours",     value: fmtH(stats.totalBreak),              color:"#78716C", dot:"#78716C" },
-                  { label:"Present Days",    value: String(stats.presentDays),            color:"#059669", dot:"#059669" },
-                  { label:"Leave Days",      value: String(stats.absentDays),             color:"#EF4444", dot:"#EF4444" },
-                  { label:"Overtime",        value: fmtH(stats.totalOT),                 color:"#F59E0B", dot:"#F59E0B" },
+                  { label:"Working Hours",    value: fmtH(stats.shootH + stats.editH),    dot:"#22C55E" },
+                  { label:"Total Shoots",     value: String(stats.shootCount),             dot:"#EF4444" },
+                  { label:"Videos Edited",    value: String(stats.editCount),              dot:"#6366F1" },
+                  { label:"Travel Hours",     value: fmtH(stats.travelH),                 dot:"#F59E0B" },
+                  { label:"Break Hours",      value: fmtH(stats.totalBreak),              dot:"#78716C" },
+                  { label:"Present Days",     value: String(stats.presentDays),            dot:"#059669" },
+                  { label:"Leave Days",       value: String(stats.leaveDays),              dot:"#F97316" },
+                  { label:"Office Holidays",  value: String(stats.holidayDays),            dot:"#9CA3AF" },
+                  { label:"Overtime",         value: fmtH(stats.totalOT),                 dot:"#FACC15" },
+                  { label:"Total Entries",    value: String(stats.totalEntries),           dot:"#A78BFA" },
                 ] : [
-                  { label:"Working Hours",   value: fmtH(stats.totalHours - stats.totalLearning), color:"#22C55E", dot:"#22C55E" },
-                  { label:"Learning Hours",  value: fmtH(stats.totalLearning),                    color:"#6366F1", dot:"#6366F1" },
-                  { label:"Break Hours",     value: fmtH(stats.totalBreak),                       color:"#78716C", dot:"#78716C" },
-                  { label:"Overtime",        value: fmtH(stats.totalOT),                          color:"#F59E0B", dot:"#F59E0B" },
-                  { label:"Present Days",    value: String(stats.presentDays),                     color:"#059669", dot:"#059669" },
-                  { label:"Absent Days",     value: String(stats.absentDays),                      color:"#EF4444", dot:"#EF4444" },
+                  { label:"Working Hours",    value: fmtH(stats.totalHours - stats.totalLearning), dot:"#22C55E" },
+                  { label:"Work Logs",        value: String(stats.worklogCount),                    dot:"#3B82F6" },
+                  { label:"Posters",          value: String(stats.posterCount),                     dot:"#EC4899" },
+                  { label:"Voiceovers",       value: String(stats.voiceoverCount),                  dot:"#8B5CF6" },
+                  { label:"Learning Hours",   value: fmtH(stats.totalLearning),                     dot:"#6366F1" },
+                  { label:"Break Hours",      value: fmtH(stats.totalBreak),                        dot:"#78716C" },
+                  { label:"Present Days",     value: String(stats.presentDays),                      dot:"#059669" },
+                  { label:"Leave Days",       value: String(stats.leaveDays),                        dot:"#F97316" },
+                  { label:"Office Holidays",  value: String(stats.holidayDays),                      dot:"#9CA3AF" },
+                  { label:"Overtime",         value: fmtH(stats.totalOT),                            dot:"#FACC15" },
+                  { label:"Total Entries",    value: String(stats.totalEntries),                      dot:"#A78BFA" },
                 ]).map((r, i, arr) => (
                   <div key={r.label} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"9px 0", borderBottom: i < arr.length - 1 ? "1px solid #F5F6FA" : "none" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:7 }}>

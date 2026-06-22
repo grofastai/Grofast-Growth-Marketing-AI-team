@@ -174,6 +174,14 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [wfhSubmitting, setWfhSubmitting] = useState(false)
   const [wfhPendingAt, setWfhPendingAt] = useState<string | null>(todayWfhLeave?.status === "pending" ? todayWfhLeave.created_at : null)
 
+  // Auto-refresh every 15s while WFH/Shoot approval is pending — stops once approved and clock-in appears
+  useEffect(() => {
+    const inPendingState = wfhPendingAt !== null || todayWfhLeave?.status === "pending"
+    if (!inPendingState) return
+    const id = setInterval(() => router.refresh(), 15000)
+    return () => clearInterval(id)
+  }, [wfhPendingAt, todayWfhLeave?.status, router])
+
   const handleLogIn = useCallback(() => {
     setError(null)
     if (selectedMode === "office" && OFFICE_CHECK_ENABLED) {

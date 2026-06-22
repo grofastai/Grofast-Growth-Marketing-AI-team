@@ -963,7 +963,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
       {/* ── Full-day prompt popup (2 half days = 1 full day) ────────────── */}
       {showFullDayPrompt && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-          <div style={{ background:"#fff", borderRadius:20, padding:"28px 24px", maxWidth:360, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
+          <div style={{ background:"#fff", borderRadius:20, padding:"28px 24px", maxWidth:360, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.2)", position:"relative" }}>
+            <button onClick={() => setShowFullDayPrompt(false)} style={{ position:"absolute", top:14, right:14, width:28, height:28, borderRadius:8, border:"1px solid #EBEDF2", background:"#F6F7FA", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, color:"#6B7280", lineHeight:1 }}>✕</button>
             <div style={{ width:52, height:52, borderRadius:14, background:"rgba(16,185,129,0.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
               <span style={{ fontSize:26 }}>🌴</span>
             </div>
@@ -988,7 +989,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
       {/* ── Half-day prompt popup ─────────────────────────────────────── */}
       {showHalfDayPrompt && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-          <div style={{ background:"#fff", borderRadius:20, padding:"28px 24px", maxWidth:360, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
+          <div style={{ background:"#fff", borderRadius:20, padding:"28px 24px", maxWidth:360, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.2)", position:"relative" }}>
+            <button onClick={() => setShowHalfDayPrompt(false)} style={{ position:"absolute", top:14, right:14, width:28, height:28, borderRadius:8, border:"1px solid #EBEDF2", background:"#F6F7FA", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, color:"#6B7280", lineHeight:1 }}>✕</button>
             <div style={{ width:52, height:52, borderRadius:14, background:"rgba(245,158,11,0.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
               <span style={{ fontSize:26 }}>⚠️</span>
             </div>

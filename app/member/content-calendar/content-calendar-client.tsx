@@ -15,6 +15,7 @@ interface Post {
   id: string; title: string; platform: string; content_type: string
   client_name: string; scheduled_date: string; status: string
   assigned_to: string | null; drive_link: string | null
+  shoot_team?: string[] | null
   content_pillar?: string | null; priority?: string | null
   scheduled_time?: string | null; notes?: string | null
   assignee?: { name: string } | null
@@ -160,6 +161,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [clientBrand, setClientBrand] = useState("")
   const [clientCustom, setClientCustom] = useState("")
   const [assignedTo, setAssignedTo]   = useState("")
+  const [shootTeam, setShootTeam]     = useState<string[]>([])
   const [instructions, setInstructions] = useState("")
   const [contentPillar, setContentPillar] = useState("")
   const [priority, setPriority]       = useState("medium")
@@ -225,7 +227,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
     setSchedDate(date ?? new Date().toISOString().split("T")[0])
     setSchedTime("")
     setTitle(""); setPlatform("instagram"); setContentType("post")
-    setClientName(""); setAssignedTo(""); setInstructions("")
+    setClientName(""); setAssignedTo(""); setShootTeam([]); setInstructions("")
     setContentPillar(""); setPriority("medium")
     setFormError(""); setFormSuccess(false)
     setSchedType(""); setShootFrom(""); setShootTo(""); setShootLocation("")
@@ -239,6 +241,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
     setSchedTime(post.scheduled_time ?? "")
     setTitle(post.title); setPlatform(post.platform); setContentType(post.content_type)
     setClientName(post.client_name ?? ""); setAssignedTo(post.assigned_to ?? "")
+    setShootTeam(post.shoot_team ?? [])
     setInstructions(post.notes ?? ""); setContentPillar(post.content_pillar ?? "")
     setPriority(post.priority ?? "medium")
     setFormError(""); setFormSuccess(false)
@@ -267,7 +270,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           client_name: resolveClientName(clientName, clientBrand, clientCustom) || clientName || "Internal",
           scheduled_date: schedDate,
           scheduled_time: schedTime || null,
-          assigned_to: assignedTo || userId,
+          assigned_to: (schedType === "shoot" ? (shootTeam[0] || userId) : (assignedTo || userId)),
+          shoot_team: schedType === "shoot" ? shootTeam : [],
           notes: instructions || undefined,
           content_pillar: contentPillar || null,
           priority: priority || "medium",
@@ -295,8 +299,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
         title, platform, content_type: contentType,
         client_name: resolveClientName(clientName, clientBrand, clientCustom) || "Internal",
         scheduled_date: schedDate,
-        scheduled_time: schedTime || null,
-        assigned_to: assignedTo || userId,
+        scheduled_time: schedType !== "shoot" ? (schedTime || null) : null,
+        assigned_to: schedType === "shoot" ? (shootTeam[0] || userId) : (assignedTo || userId),
+        shoot_team: schedType === "shoot" ? shootTeam : [],
         notes: (instructions + shootMeta).trim() || undefined,
         content_pillar: contentPillar || null,
         priority: priority || "medium",
@@ -1043,15 +1048,41 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </>
               )}
 
-              <div>
-                <label style={L}>Assign To</label>
-                <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={F}>
-                  <option value="">— Myself —</option>
-                  {members.filter(m => m.id !== userId).map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
-              </div>
+              {schedType === "shoot" ? (
+                <div>
+                  <label style={L}>Assign To <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(select all crew members)</span></label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                    {members.map(m => {
+                      const sel = shootTeam.includes(m.id)
+                      return (
+                        <button key={m.id} type="button"
+                          onClick={() => setShootTeam(prev => sel ? prev.filter(id => id !== m.id) : [...prev, m.id])}
+                          style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${sel ? "#DE1A1A" : "#E2E8F0"}`, background: sel ? "rgba(222,26,26,0.08)" : "#FAFAFA", color: sel ? "#DE1A1A" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.15s" }}>
+                          {sel ? "✓ " : ""}{m.id === userId ? `${m.name} (me)` : m.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {shootTeam.length > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(37,211,102,0.07)", borderRadius: 8, border: "1px solid rgba(37,211,102,0.2)", marginTop: 8 }}>
+                      <Send size={13} color="#25D366" />
+                      <span style={{ fontSize: 12, color: "#25D366", fontWeight: 600 }}>
+                        WhatsApp will be sent to {shootTeam.map(id => members.find(m => m.id === id)?.name ?? "").filter(Boolean).join(", ")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <label style={L}>Assign To</label>
+                  <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={F}>
+                    <option value="">— Myself —</option>
+                    {members.filter(m => m.id !== userId).map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label style={L}>Instructions / Keep Remember Points <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
@@ -1060,12 +1091,14 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   style={{ ...F, resize: "vertical", lineHeight: 1.5 }} />
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(37,211,102,0.07)", borderRadius: 8, border: "1px solid rgba(37,211,102,0.2)" }}>
-                <Send size={13} color="#25D366" />
-                <span style={{ fontSize: 12, color: "#25D366", fontWeight: 600 }}>
-                  {assignedTo ? `WhatsApp notification will be sent to ${members.find(m => m.id === assignedTo)?.name ?? "assignee"}` : "This post will be assigned to you"}
-                </span>
-              </div>
+              {schedType !== "shoot" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(37,211,102,0.07)", borderRadius: 8, border: "1px solid rgba(37,211,102,0.2)" }}>
+                  <Send size={13} color="#25D366" />
+                  <span style={{ fontSize: 12, color: "#25D366", fontWeight: 600 }}>
+                    {assignedTo ? `WhatsApp notification will be sent to ${members.find(m => m.id === assignedTo)?.name ?? "assignee"}` : "This post will be assigned to you"}
+                  </span>
+                </div>
+              )}
 
               {formError && <p style={{ fontSize: 12, color: "#EF4444", background: "rgba(239,68,68,0.07)", padding: "10px 14px", borderRadius: 8, margin: 0 }}>{formError}</p>}
               {formSuccess && (

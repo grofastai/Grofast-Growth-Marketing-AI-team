@@ -191,6 +191,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   const [clientBrand,   setClientBrand]   = useState("")
   const [clientCustom,  setClientCustom]  = useState("")
   const [assignedTo,    setAssignedTo]    = useState("")
+  const [shootTeam,     setShootTeam]     = useState<string[]>([])
   const [instructions,  setInstructions]  = useState("")
   const [contentPillar, setContentPillar] = useState("")
   const [priority,      setPriority]      = useState("medium")
@@ -229,7 +230,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
 
   function resetForm() {
     setTitle(""); setPlatform("instagram"); setContentType("post")
-    setClientId(""); setClientName(""); setAssignedTo("")
+    setClientId(""); setClientName(""); setAssignedTo(""); setShootTeam([])
     setInstructions(""); setContentPillar(""); setPriority("medium")
     setSchedTime(""); setSchedDates([]); setSchedDateInput("")
     setFormError(""); setFormSuccess(false); setSchedType("")
@@ -244,7 +245,8 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     setTitle(post.title); setPlatform(post.platform); setContentType(post.content_type)
     const cl = clients.find(c => c.name === post.client_name)
     setClientId(cl?.id ?? ""); setClientName(post.client_name)
-    setAssignedTo(post.assigned_to ?? ""); setInstructions(post.notes ?? "")
+    setAssignedTo(post.assigned_to ?? ""); setShootTeam((post as Post & { shoot_team?: string[] }).shoot_team ?? [])
+    setInstructions(post.notes ?? "")
     setContentPillar(post.content_pillar ?? ""); setPriority(post.priority ?? "medium")
     setSchedDates([post.scheduled_date]); setSchedDateInput("")
     setSchedTime(post.scheduled_time ?? "")
@@ -266,8 +268,10 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         createContentPost({
           title, platform, content_type: contentType,
           client_id: clientId || null, client_name: resolvedName,
-          scheduled_date: date, scheduled_time: schedTime || null,
-          assigned_to: assignedTo || null,
+          scheduled_date: date,
+          scheduled_time: schedType !== "shoot" ? (schedTime || null) : null,
+          assigned_to: schedType === "shoot" ? (shootTeam[0] || null) : (assignedTo || null),
+          shoot_team: schedType === "shoot" ? shootTeam : [],
           notes: (instructions + shootMeta).trim() || undefined,
           content_pillar: contentPillar || null,
           priority: priority || "medium",
@@ -292,7 +296,9 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         title, platform, content_type: contentType,
         client_id: clientId || null, client_name: resolvedName,
         scheduled_date: schedDates[0], scheduled_time: schedTime || null,
-        assigned_to: assignedTo || null, notes: instructions || undefined,
+        assigned_to: (contentType === "shoot" ? (shootTeam[0] || null) : (assignedTo || null)),
+        shoot_team: contentType === "shoot" ? shootTeam : [],
+        notes: instructions || undefined,
         content_pillar: contentPillar || null, priority: priority || "medium",
       })
       if (!res.success) { setFormError(res.error ?? "Something went wrong") }
@@ -924,13 +930,30 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: (isEdit ? contentType !== "shoot" : schedType !== "shoot") ? "1fr 1fr" : "1fr", gap: 12 }}>
-                {(isEdit ? contentType !== "shoot" : schedType !== "shoot") && (
-                  <div>
-                    <label style={LABEL}>Post Time <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
-                    <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={FIELD} />
+              {(isEdit ? contentType !== "shoot" : schedType !== "shoot") && (
+                <div>
+                  <label style={LABEL}>Post Time <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>
+                  <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={FIELD} />
+                </div>
+              )}
+
+              {(isEdit ? contentType === "shoot" : schedType === "shoot") ? (
+                <div>
+                  <label style={LABEL}>Assign To <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(select all crew members)</span></label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                    {members.map(m => {
+                      const sel = shootTeam.includes(m.id)
+                      return (
+                        <button key={m.id} type="button"
+                          onClick={() => setShootTeam(prev => sel ? prev.filter(id => id !== m.id) : [...prev, m.id])}
+                          style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${sel ? "#DE1A1A" : "#E2E8F0"}`, background: sel ? "rgba(222,26,26,0.08)" : "#FAFAFA", color: sel ? "#DE1A1A" : "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                          {sel ? "✓ " : ""}{m.name}
+                        </button>
+                      )
+                    })}
                   </div>
-                )}
+                </div>
+              ) : (
                 <div>
                   <label style={LABEL}>Assign To</label>
                   <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={{ ...FIELD, appearance: "none" }}>
@@ -938,7 +961,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
                 </div>
-              </div>
+              )}
 
               <ClientSelector
                 clientOptions={[...INTERNAL_BRANDS, ...clients.map(c => c.name).filter(n => !INTERNAL_BRANDS.includes(n))]}

@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react"
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts"
 import { useRouter } from "next/navigation"
 import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning, addEntryToDate } from "@/lib/actions/daily-updates"
-import { confirmCollaboration, editCollaborationTime, rejectCollaboration } from "@/lib/actions/collaboration"
+import { confirmCollaboration, editCollaborationTime, rejectCollaboration, deleteCollaborationsByEntry } from "@/lib/actions/collaboration"
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 import Image from "next/image"
@@ -528,9 +528,19 @@ export default function HistoryClient({
     if (!confirm("Remove this entry? This cannot be undone.")) return
     const key = `${updateId}:${entryIdx}`
     setDeletingKey(key)
+    const deletedEntry = allEntries[entryIdx]
     const updated = (allEntries as unknown as Record<string, unknown>[]).filter((_, i) => i !== entryIdx)
     const result = await updatePastDailyUpdate(updateId, updated)
     if (result.success) {
+      // Remove collab confirmations for the deleted entry so hours update immediately
+      if ((deletedEntry?.participant_ids ?? []).length > 0) {
+        deleteCollaborationsByEntry(updateId, deletedEntry?.id).catch(console.error)
+        if (deletedEntry?.id) {
+          setCollabConfirms(prev => prev.filter(c => !(c.daily_update_id === updateId && c.entry_id === deletedEntry.id)))
+        } else {
+          setCollabConfirms(prev => prev.filter(c => c.daily_update_id !== updateId))
+        }
+      }
       router.refresh()
     } else {
       alert("Failed to delete entry: " + result.error)

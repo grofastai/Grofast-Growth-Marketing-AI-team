@@ -115,6 +115,18 @@ export async function rejectCollaboration(
   return { success: true }
 }
 
+export async function deleteCollaborationsByEntry(updateId: string, entryId?: string) {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false }
+
+  const admin = adminSupabase()
+  let q = admin.from('collaboration_confirmations').delete().eq('daily_update_id', updateId)
+  if (entryId) q = q.eq('entry_id', entryId)
+  await q
+  return { success: true }
+}
+
 export async function getPendingCollaborationCount(): Promise<number> {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()

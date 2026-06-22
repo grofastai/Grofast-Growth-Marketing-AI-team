@@ -132,6 +132,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [month, setMonth] = useState(initialMonth)
   const [showMonthPicker, setShowMonthPicker] = useState(false)
   const [pickerYear, setPickerYear] = useState(initialYear)
+  const [pickerMonth, setPickerMonth] = useState(initialMonth)
+  const [pickerStep, setPickerStep] = useState<"month" | "date">("month")
   const [view, setView]   = useState<"calendar" | "list">("calendar")
   const [filter, setFilter] = useState<"all" | "mine">(isAdmin ? "all" : "mine")
   const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().split("T")[0])
@@ -507,38 +509,77 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 <button onClick={nextMonth} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <ChevronRight size={13} color="#6B7280" />
                 </button>
-              </div>
-              <div style={{ position: "relative" }} data-month-picker>
-                <button onClick={() => { setPickerYear(year); setShowMonthPicker(v => !v) }}
-                  style={{ display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                  <h2 style={{ fontSize: 15, fontWeight: 800, color: "#111827", margin: 0 }}>{MONTHS[month]} {year}</h2>
-                  <ChevronDown size={14} color="#6B7280" />
-                </button>
-                {showMonthPicker && (
-                  <div style={{ position: "absolute", top: "calc(100% + 8px)", left: "50%", transform: "translateX(-50%)", background: "#FFF", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.14)", padding: 16, zIndex: 100, minWidth: 260, border: "1px solid #F0F0F0" }}>
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                      <button onClick={() => setPickerYear(y => y - 1)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <ChevronLeft size={12} color="#6B7280" />
-                      </button>
-                      <span style={{ fontWeight: 800, fontSize: 14, color: "#111827" }}>{pickerYear}</span>
-                      <button onClick={() => setPickerYear(y => y + 1)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <ChevronRight size={12} color="#6B7280" />
-                      </button>
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
-                      {MONTHS.map((m, i) => {
-                        const isActive = i === month && pickerYear === year
-                        return (
-                          <button key={i} onClick={() => { setYear(pickerYear); setMonth(i); setShowMonthPicker(false) }}
-                            style={{ padding: "8px 4px", borderRadius: 10, border: isActive ? "2px solid #DE1A1A" : "1.5px solid #F0F0F0", background: isActive ? "rgba(222,26,26,0.07)" : "#FAFAFA", fontWeight: isActive ? 800 : 600, fontSize: 12, color: isActive ? "#DE1A1A" : "#374151", cursor: "pointer" }}>
-                            {m.slice(0, 3)}
+                {/* Small date picker button */}
+                <div style={{ position: "relative" }} data-month-picker>
+                  <button onClick={() => { setPickerYear(year); setPickerMonth(month); setPickerStep("month"); setShowMonthPicker(v => !v) }}
+                    style={{ width: 30, height: 30, borderRadius: 8, border: showMonthPicker ? "1.5px solid #DE1A1A" : "1px solid #E5E7EB", background: showMonthPicker ? "rgba(222,26,26,0.07)" : "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                    title="Go to date">
+                    <Clock size={13} color={showMonthPicker ? "#DE1A1A" : "#6B7280"} />
+                  </button>
+                  {showMonthPicker && (
+                    <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, background: "#FFF", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.14)", padding: 16, zIndex: 100, minWidth: 260, border: "1px solid #F0F0F0" }}>
+                      {pickerStep === "month" ? (
+                        <>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+                            <button onClick={() => setPickerYear(y => y - 1)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <ChevronLeft size={12} color="#6B7280" />
+                            </button>
+                            <span style={{ fontWeight: 800, fontSize: 14, color: "#111827" }}>{pickerYear}</span>
+                            <button onClick={() => setPickerYear(y => y + 1)} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <ChevronRight size={12} color="#6B7280" />
+                            </button>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+                            {MONTHS.map((m, i) => {
+                              const isActive = i === month && pickerYear === year
+                              return (
+                                <button key={i} onClick={() => { setPickerMonth(i); setPickerStep("date") }}
+                                  style={{ padding: "8px 4px", borderRadius: 10, border: isActive ? "2px solid #DE1A1A" : "1.5px solid #F0F0F0", background: isActive ? "rgba(222,26,26,0.07)" : "#FAFAFA", fontWeight: isActive ? 800 : 600, fontSize: 12, color: isActive ? "#DE1A1A" : "#374151", cursor: "pointer" }}>
+                                  {m.slice(0, 3)}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                            <button onClick={() => setPickerStep("month")} style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <ChevronLeft size={12} color="#6B7280" />
+                            </button>
+                            <span style={{ fontWeight: 800, fontSize: 14, color: "#111827", flex: 1 }}>{MONTHS[pickerMonth]} {pickerYear}</span>
+                          </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3, marginBottom: 10 }}>
+                            {DAYS.map(d => <div key={d} style={{ textAlign: "center", fontSize: 9, fontWeight: 700, color: "#9CA3AF", padding: "2px 0" }}>{d}</div>)}
+                            {(() => {
+                              const firstDay = new Date(pickerYear, pickerMonth, 1).getDay()
+                              const daysInMonth = new Date(pickerYear, pickerMonth + 1, 0).getDate()
+                              const cells = []
+                              for (let i = 0; i < firstDay; i++) cells.push(<div key={`e${i}`} />)
+                              for (let d = 1; d <= daysInMonth; d++) {
+                                const ds = `${pickerYear}-${String(pickerMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`
+                                const isToday = ds === today
+                                cells.push(
+                                  <button key={d} onClick={() => { setYear(pickerYear); setMonth(pickerMonth); setSelectedDay(ds); setView("calendar"); setShowMonthPicker(false) }}
+                                    style={{ width: "100%", aspectRatio: "1", borderRadius: 6, border: "none", background: isToday ? "#DE1A1A" : "transparent", fontWeight: isToday ? 800 : 500, fontSize: 11, color: isToday ? "#FFF" : "#374151", cursor: "pointer" }}>
+                                    {d}
+                                  </button>
+                                )
+                              }
+                              return cells
+                            })()}
+                          </div>
+                          <button onClick={() => { setYear(pickerYear); setMonth(pickerMonth); setShowMonthPicker(false) }}
+                            style={{ width: "100%", padding: "8px 0", borderRadius: 10, border: "1.5px solid #DE1A1A", background: "rgba(222,26,26,0.06)", fontWeight: 700, fontSize: 12, color: "#DE1A1A", cursor: "pointer" }}>
+                            Show Month Only
                           </button>
-                        )
-                      })}
+                        </>
+                      )}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
+              <h2 style={{ fontSize: 15, fontWeight: 800, color: "#111827", margin: 0 }}>{MONTHS[month]} {year}</h2>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {clientOptions.length > 0 && (
                   <div style={{ position: "relative" }}>

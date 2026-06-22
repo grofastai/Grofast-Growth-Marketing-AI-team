@@ -293,6 +293,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const monthlyBalance  = Math.max(0, MONTHLY_LIMIT - monthlyUsed)
   const balancePct      = Math.round((monthlyBalance / MONTHLY_LIMIT) * 100)
   const nextHoliday = companyLeaves.find(h => h.date >= today) ?? null
+  const thisMonthHolidays = companyLeaves.filter(h => h.date.startsWith(currentMonth))
   const wlbScore    = Math.min(100, Math.max(30, Math.round(72 - pendingL.length * 3 + approved.length * 2)))
 
   function handleDelete(id: string) {
@@ -377,12 +378,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
           {/* ── Stats Cards ──────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
             {[
-              { label: "Total Leaves\nThis Year",       val: allEntries.length,  color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: "up"   as const, sub: "↑ 10% from last year",   subColor: "#10B981" },
-              { label: "Pending\nRequests",             val: pendingL.length, color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "⏳", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
+              { label: "Total Leaves\nThis Year",        val: allEntries.filter(l => l.status === "approved" || l.status === "absent").length, color: "#EF4444", bg: "rgba(239,68,68,0.1)",   icon: "📋", trend: null, sub: null, subColor: "" },
+              { label: "Leave Taken\nThis Month",       val: monthlyUsed,     color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  icon: "📅", trend: null, sub: `of ${MONTHLY_LIMIT} days allowed`, subColor: "#9CA3AF" },
               { label: "Approved\nLeaves",              val: approved.length, color: "#10B981", bg: "rgba(16,185,129,0.1)",  icon: "✅", trend: "up"   as const, sub: "↑ 22% from last week",   subColor: "#10B981" },
-              { label: "Leave\nDays",                    val: absentCount,     color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "🏠", trend: "flat" as const, sub: "— Same as last week",     subColor: "#9CA3AF" },
-              { label: "Annual Leave\nRemaining",          val: Math.max(0, paidLeaveDays - usedLeaveDays), color: "#0EA5E9", bg: "rgba(14,165,233,0.1)", icon: "🏖️", trend: null, sub: null, subColor: "" },
-              { label: "Upcoming\nHolidays",            val: companyLeaves.filter(h => h.date >= today).length, color: "#EC4899", bg: "rgba(236,72,153,0.1)", icon: "🎁", trend: null, sub: null, subColor: "" },
+              { label: "Leave Left\nThis Month",        val: monthlyBalance,  color: "#8B5CF6", bg: "rgba(139,92,246,0.1)", icon: "🗓️", trend: null, sub: `${monthlyUsed} of ${MONTHLY_LIMIT} used`, subColor: "#9CA3AF" },
+              { label: "Annual Leave\nRemaining",       val: Math.max(0, paidLeaveDays - usedLeaveDays), color: "#0EA5E9", bg: "rgba(14,165,233,0.1)", icon: "🏖️", trend: null, sub: null, subColor: "" },
+              { label: "This Month's\nHolidays",        val: thisMonthHolidays.length, color: "#EC4899", bg: "rgba(236,72,153,0.1)", icon: "🎉", trend: null, sub: thisMonthHolidays.length > 0 ? thisMonthHolidays[0].name : "No holidays", subColor: "#EC4899" },
             ].map((s, i) => (
               <div key={i} style={{ background: "#fff", borderRadius: 18, padding: "18px 16px 14px", border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", gap: 0, position: "relative", overflow: "hidden" }}>
                 {/* Icon badge */}
@@ -407,6 +408,8 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     </div>
                     <p style={{ fontSize: 10, color: "#0EA5E9", fontWeight: 700 }}>{usedLeaveDays} of {paidLeaveDays} days used</p>
                   </div>
+                ) : s.sub ? (
+                  <p style={{ fontSize: 9, color: s.subColor || "#9CA3AF", fontWeight: 600, marginTop: "auto" }}>{s.sub}</p>
                 ) : null}
               </div>
             ))}
@@ -592,40 +595,83 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
             )}
           </div>
 
-          {/* ── Company Holidays ─────────────────────────────────────────── */}
+          {/* ── This Month's Holidays + Collapsible All Holidays ─────────── */}
           {companyLeaves.length > 0 && (
-            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-              <div style={{ padding:"16px 20px", borderBottom:"1px solid #F0F1F5", background:"linear-gradient(135deg,rgba(30,64,175,0.06) 0%,rgba(30,64,175,0.02) 100%)", display:"flex", alignItems:"center", gap:10 }}>
-                <div style={{ width:34, height:34, borderRadius:10, background:"rgba(30,64,175,0.1)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>🏢</div>
-                <div>
-                  <p style={{ fontSize:13, fontWeight:800, color:"#111827", margin:0 }}>Company Holidays 2026</p>
-                  <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{companyLeaves.length} holidays this year</p>
+            <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", overflow:"hidden", boxShadow:"0 2px 10px rgba(0,0,0,0.05)", marginBottom:16 }}>
+              <div style={{ padding:"16px 20px", borderBottom:"1px solid #F0F1F5", background:"linear-gradient(135deg,rgba(236,72,153,0.06) 0%,rgba(236,72,153,0.02) 100%)", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background:"rgba(236,72,153,0.1)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>🎉</div>
+                  <div>
+                    <p style={{ fontSize:13, fontWeight:800, color:"#111827", margin:0 }}>
+                      {thisMonthHolidays.length > 0 ? `Holidays in ${new Date(today + "T12:00:00").toLocaleDateString("en-IN",{month:"long",year:"numeric"})}` : "Company Holidays"}
+                    </p>
+                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
+                      {thisMonthHolidays.length > 0 ? `${thisMonthHolidays.length} holiday${thisMonthHolidays.length !== 1 ? "s" : ""} this month` : "No holidays this month"}
+                    </p>
+                  </div>
                 </div>
               </div>
-              <div style={{ display:"flex", flexDirection:"column" }}>
-                {companyLeaves.map((h, i) => {
-                  const d = new Date(h.date + "T12:00:00")
-                  const dayName   = d.toLocaleDateString("en-IN", { weekday:"short" })
-                  const dateFmt   = d.toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })
-                  const isPast    = h.date < today
-                  const isToday2  = h.date === today
-                  return (
-                    <div key={h.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 20px", borderBottom: i < companyLeaves.length - 1 ? "1px solid #F5F6FA" : "none", opacity: isPast ? 0.5 : 1 }}>
-                      <div style={{ width:40, height:40, borderRadius:10, background: isToday2 ? "rgba(30,64,175,0.15)" : isPast ? "#F3F4F6" : "rgba(30,64,175,0.08)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                        <span style={{ fontSize:13, fontWeight:900, color: isPast ? "#9CA3AF" : "#1E40AF", lineHeight:1 }}>{d.getDate()}</span>
-                        <span style={{ fontSize:7, fontWeight:700, color: isPast ? "#9CA3AF" : "#1E40AF", textTransform:"uppercase" }}>{d.toLocaleDateString("en-IN",{month:"short"})}</span>
+              {/* This month's holidays */}
+              {thisMonthHolidays.length > 0 ? (
+                <div style={{ display:"flex", flexDirection:"column" }}>
+                  {thisMonthHolidays.map((h, i) => {
+                    const d = new Date(h.date + "T12:00:00")
+                    const dayName = d.toLocaleDateString("en-IN", { weekday:"short" })
+                    const dateFmt = d.toLocaleDateString("en-IN", { day:"numeric", month:"short" })
+                    const isPast  = h.date < today
+                    const isToday2 = h.date === today
+                    return (
+                      <div key={h.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 20px", borderBottom: i < thisMonthHolidays.length - 1 ? "1px solid #F5F6FA" : "none", opacity: isPast ? 0.6 : 1 }}>
+                        <div style={{ width:40, height:40, borderRadius:10, background: isToday2 ? "rgba(236,72,153,0.15)" : isPast ? "#F3F4F6" : "rgba(236,72,153,0.08)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <span style={{ fontSize:13, fontWeight:900, color: isPast ? "#9CA3AF" : "#EC4899", lineHeight:1 }}>{d.getDate()}</span>
+                          <span style={{ fontSize:7, fontWeight:700, color: isPast ? "#9CA3AF" : "#EC4899", textTransform:"uppercase" }}>{d.toLocaleDateString("en-IN",{month:"short"})}</span>
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <p style={{ fontSize:12, fontWeight:700, color:"#111827", margin:0 }}>{h.name}</p>
+                          <p style={{ fontSize:10, color:"#9CA3AF", margin:"2px 0 0" }}>{dayName} · {dateFmt}</p>
+                        </div>
+                        {isToday2 && <span style={{ fontSize:10, fontWeight:700, color:"#EC4899", background:"rgba(236,72,153,0.1)", padding:"2px 8px", borderRadius:99, flexShrink:0 }}>Today</span>}
+                        {!isPast && !isToday2 && <span style={{ fontSize:10, fontWeight:700, color:"#6B7280", background:"#F3F4F6", padding:"2px 8px", borderRadius:99, flexShrink:0 }}>Upcoming</span>}
+                        {isPast && <span style={{ fontSize:10, color:"#9CA3AF", flexShrink:0 }}>Done</span>}
                       </div>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <p style={{ fontSize:12, fontWeight:700, color:"#111827", margin:0 }}>{h.name}</p>
-                        <p style={{ fontSize:10, color:"#9CA3AF", margin:"2px 0 0" }}>{dayName} · {dateFmt}</p>
-                      </div>
-                      {isToday2 && <span style={{ fontSize:10, fontWeight:700, color:"#1E40AF", background:"rgba(30,64,175,0.1)", padding:"2px 8px", borderRadius:99, flexShrink:0 }}>Today</span>}
-                      {!isPast && !isToday2 && <span style={{ fontSize:10, fontWeight:700, color:"#6B7280", background:"#F3F4F6", padding:"2px 8px", borderRadius:99, flexShrink:0 }}>Upcoming</span>}
-                      {isPast && <span style={{ fontSize:10, color:"#9CA3AF", flexShrink:0 }}>Done</span>}
-                    </div>
-                  )
-                })}
-              </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p style={{ padding:"16px 20px", fontSize:12, color:"#9CA3AF", margin:0 }}>No holidays this month.</p>
+              )}
+              {/* Collapsible All Holidays */}
+              {companyLeaves.length > thisMonthHolidays.length && (
+                <details style={{ borderTop:"1px solid #F0F1F5" }}>
+                  <summary style={{ padding:"10px 20px", fontSize:11, fontWeight:700, color:"#6B7280", cursor:"pointer", listStyle:"none", display:"flex", alignItems:"center", gap:6, userSelect:"none" }}>
+                    <span>▶</span> View all {companyLeaves.length} holidays this year
+                  </summary>
+                  <div style={{ display:"flex", flexDirection:"column" }}>
+                    {companyLeaves.filter(h => !h.date.startsWith(currentMonth)).map((h, i, arr) => {
+                      const d = new Date(h.date + "T12:00:00")
+                      const dayName  = d.toLocaleDateString("en-IN", { weekday:"short" })
+                      const dateFmt  = d.toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })
+                      const isPast   = h.date < today
+                      const isToday2 = h.date === today
+                      return (
+                        <div key={h.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"10px 20px", borderBottom: i < arr.length - 1 ? "1px solid #F9FAFB" : "none", opacity: isPast ? 0.45 : 1 }}>
+                          <div style={{ width:36, height:36, borderRadius:9, background: isPast ? "#F3F4F6" : "rgba(30,64,175,0.08)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <span style={{ fontSize:11, fontWeight:900, color: isPast ? "#9CA3AF" : "#1E40AF", lineHeight:1 }}>{d.getDate()}</span>
+                            <span style={{ fontSize:6, fontWeight:700, color: isPast ? "#9CA3AF" : "#1E40AF", textTransform:"uppercase" }}>{d.toLocaleDateString("en-IN",{month:"short"})}</span>
+                          </div>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <p style={{ fontSize:12, fontWeight:700, color:"#111827", margin:0 }}>{h.name}</p>
+                            <p style={{ fontSize:10, color:"#9CA3AF", margin:"2px 0 0" }}>{dayName} · {dateFmt}</p>
+                          </div>
+                          {isToday2 && <span style={{ fontSize:10, fontWeight:700, color:"#1E40AF", background:"rgba(30,64,175,0.1)", padding:"2px 8px", borderRadius:99, flexShrink:0 }}>Today</span>}
+                          {!isPast && !isToday2 && <span style={{ fontSize:10, fontWeight:700, color:"#6B7280", background:"#F3F4F6", padding:"2px 8px", borderRadius:99, flexShrink:0 }}>Upcoming</span>}
+                          {isPast && <span style={{ fontSize:10, color:"#9CA3AF", flexShrink:0 }}>Done</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </details>
+              )}
             </div>
           )}
 

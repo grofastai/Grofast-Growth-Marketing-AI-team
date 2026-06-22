@@ -40,6 +40,7 @@ export default async function NotesPage({
           .select('id, name, employee_id')
           .eq('company_id', profile.company_id)
           .eq('status', 'active')
+          .eq('role', 'MEMBER')
           .order('name')
       : Promise.resolve({ data: [] }),
   ])

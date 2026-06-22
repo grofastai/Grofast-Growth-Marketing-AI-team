@@ -51,6 +51,8 @@ export default async function ActivitiesPage({
       .from("users")
       .select("id, name, employee_id, role, team")
       .eq("company_id", companyId)
+      .eq("role", "MEMBER")
+      .eq("status", "active")
       .order("name"),
     (async () => {
       let q = admin

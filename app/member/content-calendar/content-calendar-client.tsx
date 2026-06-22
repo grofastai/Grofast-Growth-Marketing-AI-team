@@ -210,7 +210,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   }, [clientNames])
 
   const filteredPosts = useMemo(() => {
-    let p = filter === "mine" ? posts.filter(p => p.assigned_to === userId) : posts
+    let p = filter === "mine"
+      ? posts.filter(p => p.assigned_to === userId || (p.shoot_team ?? []).includes(userId))
+      : posts
     if (clientFilter !== "all") p = p.filter(p => p.client_name === clientFilter)
     return p
   }, [posts, filter, clientFilter, userId])

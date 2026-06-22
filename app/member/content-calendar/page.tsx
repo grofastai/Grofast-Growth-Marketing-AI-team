@@ -14,7 +14,7 @@ function adminSupabase() {
   )
 }
 
-export default async function MemberContentCalendarPage() {
+export default async function MemberContentCalendarPage({ searchParams }: { searchParams: Promise<{ year?: string; month?: string }> }) {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")
@@ -29,8 +29,11 @@ export default async function MemberContentCalendarPage() {
 
   const cid = profile.company_id
   const now = new Date()
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
-  const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString().split("T")[0]
+  const sp = await searchParams
+  const year  = sp.year  ? parseInt(sp.year)  : now.getFullYear()
+  const month = sp.month ? parseInt(sp.month) : now.getMonth() // 0-based
+  const monthStart = `${year}-${String(month + 1).padStart(2, "0")}-01`
+  const monthEnd   = new Date(year, month + 1, 0).toISOString().split("T")[0]
 
   const [
     { data: posts },
@@ -96,8 +99,8 @@ export default async function MemberContentCalendarPage() {
       pastClientNames={(pastClients ?? []).map(c => c.name).filter(Boolean) as string[]}
       userId={effectiveUserId}
       role={profile.role ?? "MEMBER"}
-      initialYear={now.getFullYear()}
-      initialMonth={now.getMonth()}
+      initialYear={year}
+      initialMonth={month}
     />
   )
 }

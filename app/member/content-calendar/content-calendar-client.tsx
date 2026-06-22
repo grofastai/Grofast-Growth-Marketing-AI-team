@@ -179,8 +179,18 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const cells     = Array.from({ length: firstDay + daysCount }, (_, i) => i < firstDay ? null : i - firstDay + 1)
   while (cells.length % 7 !== 0) cells.push(null)
 
-  function prevMonth() { if (month === 0) { setYear(y => y - 1); setMonth(11) } else setMonth(m => m - 1) }
-  function nextMonth() { if (month === 11) { setYear(y => y + 1); setMonth(0) } else setMonth(m => m + 1) }
+  function prevMonth() {
+    const newYear = month === 0 ? year - 1 : year
+    const newMonth = month === 0 ? 11 : month - 1
+    setYear(newYear); setMonth(newMonth)
+    router.push(`/member/content-calendar?year=${newYear}&month=${newMonth}`)
+  }
+  function nextMonth() {
+    const newYear = month === 11 ? year + 1 : year
+    const newMonth = month === 11 ? 0 : month + 1
+    setYear(newYear); setMonth(newMonth)
+    router.push(`/member/content-calendar?year=${newYear}&month=${newMonth}`)
+  }
   function dateStr(d: number) { return `${year}-${String(month + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}` }
 
   const clientOptions = useMemo(() => {

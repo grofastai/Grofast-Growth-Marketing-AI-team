@@ -441,50 +441,20 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
                     <input className="sheet-input" value={form.position} onChange={set("position")} placeholder="e.g. Social Media Executive, Videographer…" style={FIELD} />
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Employment Type *</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {([
-                        { value: "regular", label: "Regular" },
-                        { value: "part_time", label: "Part Time" },
-                        { value: "freelancer", label: "Freelancer" },
-                      ] as const).map(({ value, label }) => (
-                        <button key={value} type="button"
-                          onClick={() => setForm((prev) => ({ ...prev, employment_type: value, monthly_salary: "", hourly_rate: "", paid_leave_days: value === "regular" ? "5" : "0" }))}
-                          className="py-2.5 rounded-xl text-[13px] font-semibold transition-all"
-                          style={form.employment_type === value
-                            ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
-                            : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }
-                          }>
-                          {label}
-                        </button>
-                      ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Monthly Salary (₹)</label>
+                      <input type="number" min="0" step="500" className="sheet-input" style={FIELD}
+                        placeholder="e.g. 15000" value={form.monthly_salary}
+                        onChange={(e) => setForm((prev) => ({ ...prev, monthly_salary: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Paid Leave/Month</label>
+                      <input type="number" min="0" max="30" step="1" className="sheet-input" style={FIELD}
+                        placeholder="5" value={form.paid_leave_days}
+                        onChange={(e) => setForm((prev) => ({ ...prev, paid_leave_days: e.target.value }))} />
                     </div>
                   </div>
-
-                  {form.employment_type === "regular" ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Monthly Salary (₹)</label>
-                        <input type="number" min="0" step="500" className="sheet-input" style={FIELD}
-                          placeholder="e.g. 15000" value={form.monthly_salary}
-                          onChange={(e) => setForm((prev) => ({ ...prev, monthly_salary: e.target.value }))} />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Paid Leave/Month</label>
-                        <input type="number" min="0" max="30" step="1" className="sheet-input" style={FIELD}
-                          placeholder="5" value={form.paid_leave_days}
-                          onChange={(e) => setForm((prev) => ({ ...prev, paid_leave_days: e.target.value }))} />
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Hourly Rate (₹)</label>
-                      <input type="number" min="0" step="10" className="sheet-input" style={FIELD}
-                        placeholder="e.g. 150" value={form.hourly_rate}
-                        onChange={(e) => setForm((prev) => ({ ...prev, hourly_rate: e.target.value }))} />
-                    </div>
-                  )}
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>

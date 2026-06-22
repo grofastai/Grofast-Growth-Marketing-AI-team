@@ -795,18 +795,38 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
               </button>
             </div>
 
-            {/* ── Monthly limit block (new leave only, non-exceptional) ── */}
-            {!editingLeave && monthlyLimitHit && !isExceptional && (
+            {/* ── Monthly limit block (only for full_day / half_day) ── */}
+            {!editingLeave && monthlyLimitHit && !isExceptional && (leaveType === "full_day" || leaveType === "half_day") && (
               <div style={{ padding: "24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center" }}>
                 <div style={{ width: 56, height: 56, borderRadius: 16, background: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🚫</div>
                 <div>
                   <p style={{ fontSize: 16, fontWeight: 900, color: "#111111", margin: "0 0 8px" }}>Monthly Leave Limit Reached</p>
                   <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.6, margin: 0 }}>
-                    You have used <strong>{monthlyUsed}/{MONTHLY_LIMIT} days</strong> allowed this month.<br />You cannot apply for more leaves this month.
+                    You have used <strong>{monthlyUsed}/{MONTHLY_LIMIT} days</strong> this month.<br />Full Day &amp; Half Day leaves are blocked.
                   </p>
                 </div>
+
+                {/* Bypass types — no limit applies */}
+                <div style={{ width: "100%", background: "#F0FDF4", borderRadius: 12, padding: "14px 16px", border: "1px solid #BBF7D0" }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "#166534", margin: "0 0 10px" }}>Still available this month:</p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {([
+                      { type: "permission" as LeaveType, emoji: "⏰", label: "Permission" },
+                      { type: "wfh"        as LeaveType, emoji: "🏠", label: "WFH"        },
+                      ...(isMedia ? [{ type: "shoot_day" as LeaveType, emoji: "📷", label: "Shoot Day" }] : []),
+                    ]).map(({ type, emoji, label }) => (
+                      <button key={type} type="button"
+                        onClick={() => setLeaveType(type)}
+                        style={{ flex: 1, padding: "10px 0", borderRadius: 10, fontSize: 12, fontWeight: 700, background: "#fff", color: "#166534", border: "1.5px solid #86EFAC", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                        <span style={{ fontSize: 18 }}>{emoji}</span>{label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Exceptional leave for full/half day */}
                 <div style={{ width: "100%", background: "#F5F6FA", borderRadius: 12, padding: "14px 16px", border: "1px solid #EBEDF2" }}>
-                  <p style={{ fontSize: 12, fontWeight: 700, color: "#374151", margin: "0 0 4px" }}>Need leave urgently?</p>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "#374151", margin: "0 0 4px" }}>Need Full Day / Half Day urgently?</p>
                   <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 12px", lineHeight: 1.5 }}>Apply as Exceptional Leave — admin will review and decide.</p>
                   <button type="button" onClick={() => setIsExceptional(true)}
                     style={{ width: "100%", padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#F59E0B,#D97706)", color: "#fff", border: "none", cursor: "pointer", boxShadow: "0 4px 12px rgba(245,158,11,0.3)" }}>
@@ -816,7 +836,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
               </div>
             )}
 
-            <div style={{ padding: 24, display: !editingLeave && monthlyLimitHit && !isExceptional ? "none" : undefined }}>
+            <div style={{ padding: 24, display: (!editingLeave && monthlyLimitHit && !isExceptional && (leaveType === "full_day" || leaveType === "half_day")) ? "none" : undefined }}>
               {isExceptional && !editingLeave && (
                 <div style={{ background: "rgba(245,158,11,0.08)", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 12, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 16 }}>⚠️</span>

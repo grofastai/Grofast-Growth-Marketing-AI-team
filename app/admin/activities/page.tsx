@@ -26,7 +26,6 @@ export default async function ActivitiesPage({
   const admin = adminSupabase()
   const today = new Date().toISOString().split("T")[0]
 
-  // Support both legacy ?date= and new ?from=&to= params
   const from = params.from ?? params.date ?? today
   const to   = params.to   ?? params.from ?? params.date ?? today
 
@@ -38,7 +37,16 @@ export default async function ActivitiesPage({
 
   const companyId = profile?.company_id ?? ""
 
-  const [{ data: members }, updatesResult, { data: allTasks }, { data: approvedLeaves }, { data: clockIns }, { data: collabConfirmsRaw }] = await Promise.all([
+  const [
+    { data: members },
+    updatesResult,
+    { data: allTasks },
+    { data: approvedLeaves },
+    { data: clockIns },
+    { data: collabConfirmsRaw },
+    { data: pendingLeavesRaw },
+    { data: pendingCollabsRaw },
+  ] = await Promise.all([
     admin
       .from("users")
       .select("id, name, employee_id, role, team")
@@ -69,7 +77,6 @@ export default async function ActivitiesPage({
       .eq("status", "approved")
       .lte("from_date", to)
       .gte("to_date", from),
-    // Actual clock-in records — used to correct auto-absent misclassifications
     admin
       .from("attendance_logs")
       .select("user_id, date")
@@ -84,6 +91,18 @@ export default async function ActivitiesPage({
       .in("status", ["confirmed", "edited_confirmed"])
       .gte("date", from)
       .lte("date", to),
+    // Pending leave requests (all — for global count in summary card)
+    admin
+      .from("leaves")
+      .select("id, user_id, from_date, to_date, reason")
+      .eq("company_id", companyId)
+      .eq("status", "pending"),
+    // Pending collab confirmations (all — for attention required section)
+    admin
+      .from("collaboration_confirmations")
+      .select("collaborator_id, date, status")
+      .eq("company_id", companyId)
+      .eq("status", "pending"),
   ])
 
   // Group tasks by user
@@ -113,7 +132,6 @@ export default async function ActivitiesPage({
 
   const onLeaveIds = new Set((approvedLeaves ?? []).map((l: { user_id: string }) => l.user_id))
 
-  // Build a set of "userId:date" for every day covered by an approved leave
   const leaveDaySet = new Set<string>()
   for (const leave of (approvedLeaves ?? []) as { user_id: string; from_date: string; to_date: string }[]) {
     const start = new Date(leave.from_date + "T12:00:00")
@@ -125,7 +143,6 @@ export default async function ActivitiesPage({
     }
   }
 
-  // Build a set of "userId:date" for every actual clock-in (source of truth for presence)
   const clockInDaySet = new Set<string>()
   for (const log of (clockIns ?? []) as { user_id: string; date: string }[]) {
     clockInDaySet.add(`${log.user_id}:${log.date}`)
@@ -142,6 +159,8 @@ export default async function ActivitiesPage({
       leaveDays={leaveDaySet}
       clockInDays={clockInDaySet}
       collabHoursMap={collabHoursMap}
+      pendingLeaves={pendingLeavesRaw ?? []}
+      pendingCollabs={pendingCollabsRaw ?? []}
     />
   )
 }

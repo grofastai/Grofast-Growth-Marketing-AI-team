@@ -25,7 +25,6 @@ const navItems = [
   { label: "Announcements", href: "/admin/announcements",    icon: Megaphone },
   { label: "Expenses",      href: "/admin/expenses",         icon: Receipt },
   { label: "Payroll",       href: "/admin/payroll",          icon: IndianRupee },
-  { label: "Admins",        href: "/admin/admins",           icon: Shield },
   { label: "Documents",     href: "/admin/documents",        icon: FolderOpen },
   { label: "Support",       href: "/admin/support",          icon: LifeBuoy },
   { label: "Profile",       href: "/admin/profile",          icon: UserCircle2 },
@@ -46,7 +45,6 @@ const moreNavItems = [
   { label: "Announcements", href: "/admin/announcements",    icon: Megaphone },
   { label: "Expenses",      href: "/admin/expenses",         icon: Receipt },
   { label: "Payroll",       href: "/admin/payroll",          icon: IndianRupee },
-  { label: "Admins",        href: "/admin/admins",           icon: Shield },
   { label: "Documents",     href: "/admin/documents",        icon: FolderOpen },
   { label: "Support",       href: "/admin/support",          icon: LifeBuoy },
 ]

@@ -2,66 +2,36 @@
 
 import { useState, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Activity, Clock, Camera, BookOpen, Filter, AlertTriangle, UserX, Target, Edit2, MapPin, ChevronDown, ChevronUp, Calendar } from "lucide-react"
+import { Search, Filter, Clock, Users, AlertCircle, TrendingUp, Bell, Star } from "lucide-react"
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 
 type WorkEntry = Record<string, unknown>
-
-interface TaskItem { id: string; title: string; status: string; priority: string | null }
 
 interface Update {
   id: string
   date: string
+  created_at?: string
   attendance_status: string
   work_type: string | null
   working_hours: number | null
   learning_hours: number
   learning_topic: string | null
-  learning_notes: string | null
-  shoot_count: number
-  editing_count: number | null
-  active_tab: string | null
   notes: string | null
   task_id: string | null
   work_entries: WorkEntry[] | null
   participant_ids: string[] | null
-  users: { id: string; name: string; employee_id: string; role: string } | null
-  tasks: { title: string } | null
-  tasks_list: TaskItem[]
+  users: { id: string; name: string; employee_id: string; role: string; team?: string | null } | null
+  tasks_list: { id: string; title: string; status: string; priority: string | null }[]
   tasks_completed: number
   tasks_total: number
 }
 
-interface Member { id: string; name: string; employee_id: string }
-
-const ATTENDANCE_STYLE: Record<string, { bg: string; color: string; label: string }> = {
-  present: { bg: "rgba(222,26,26,0.1)",  color: "#de1a1a", label: "Present" },
-  absent:  { bg: "rgba(255,107,87,0.1)",  color: "#FF6B57", label: "On Leave" },
-  leave:   { bg: "rgba(255,107,87,0.1)",  color: "#FF6B57", label: "On Leave" },
-  holiday: { bg: "rgba(245,158,11,0.1)",  color: "#F59E0B", label: "Holiday" },
-  outside: { bg: "rgba(0,0,0,0.05)", color: "#4B5563", label: "Outside" },
-}
-
-const WORK_TYPE: Record<string, string> = { office: "Office", outside: "Outside", wfh: "WFH" }
+interface Member { id: string; name: string; employee_id: string; team?: string | null; role?: string }
+interface PendingLeave { id: string; user_id: string; from_date: string; to_date: string; reason: string | null }
+interface PendingCollab { collaborator_id: string; date: string; status: string }
 
 function getInitials(name: string) {
-  return name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
-}
-
-function ControlFlag({ hours, attendance }: { hours: number | null; attendance: string }) {
-  if (attendance !== "present") return null
-  if (hours == null) return (
-    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-      style={{ background: "rgba(255,107,87,0.1)", color: "#FF6B57" }}>
-      No hours logged
-    </span>
-  )
-  if (hours < 6) return (
-    <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
-      style={{ background: "rgba(245,158,11,0.1)", color: "#F59E0B" }}>
-      <AlertTriangle size={9} /> Low ({hours}h)
-    </span>
-  )
-  return null
+  return name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
 }
 
 function fmtHours(h: unknown): string {
@@ -74,14 +44,48 @@ function fmtHours(h: unknown): string {
   return `${mins}m`
 }
 
-function clientLabel(entry: WorkEntry): string {
-  const ct = entry._client_type as string | undefined
-  const brand = entry._brand as string | undefined
-  const custom = entry._custom_client as string | undefined
-  const client = entry.client as string | undefined
-  if (ct === "Promotion" && brand) return `📣 ${brand}`
-  if (ct === "__custom__" && custom) return `✏️ ${custom}`
-  return client || "—"
+function getDescription(u: Update): string {
+  const entries = (Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
+  const first = entries.find(e => e.task_type !== "break")
+  if (first) {
+    const title = (first.title || first.task_name || first.description) as string | undefined
+    if (title) return title
+    const client = (first.client_name || first._brand || first._custom_client || first.client) as string | undefined
+    if (client) return `Worked on ${client}`
+  }
+  if (u.notes) return u.notes
+  if (u.attendance_status === "leave") return "On approved leave"
+  return "Submitted daily update"
+}
+
+function getTeamBadge(team: string | null | undefined): { label: string; bg: string; color: string } {
+  const t = (team ?? "").toLowerCase()
+  if (t.includes("media")) return { label: "Media & Tech", bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
+  if (t.includes("meta") || t.includes("ads")) return { label: "Meta Ads", bg: "rgba(245,158,11,0.1)", color: "#d97706" }
+  if (t.includes("creative") || t.includes("design")) return { label: "Creative", bg: "rgba(236,72,153,0.1)", color: "#ec4899" }
+  if (t.includes("ai")) return { label: "AI", bg: "rgba(34,197,94,0.1)", color: "#16a34a" }
+  if (t.includes("content")) return { label: "Content", bg: "rgba(34,197,94,0.1)", color: "#16a34a" }
+  if (t.includes("analytics") || t.includes("ops")) return { label: "Analytics", bg: "rgba(245,158,11,0.1)", color: "#d97706" }
+  return { label: team ?? "Team", bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
+}
+
+function fmtTime(isoOrDate: string | undefined): string {
+  if (!isoOrDate) return ""
+  try {
+    const d = new Date(isoOrDate)
+    return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
+  } catch { return "" }
+}
+
+const AVATAR_COLORS = [
+  ["#E31E24","#fff"], ["#7C3AED","#fff"], ["#0EA5E9","#fff"],
+  ["#16A34A","#fff"], ["#D97706","#fff"], ["#EC4899","#fff"],
+  ["#6366F1","#fff"], ["#14B8A6","#fff"],
+]
+
+function avatarColor(name: string) {
+  let h = 0; for (const c of name) h += c.charCodeAt(0)
+  return AVATAR_COLORS[h % AVATAR_COLORS.length]
 }
 
 export default function ActivitiesClient({
@@ -89,11 +93,12 @@ export default function ActivitiesClient({
   members,
   from,
   to,
-  memberFilter,
   onLeaveIds,
   leaveDays,
   clockInDays,
   collabHoursMap = {},
+  pendingLeaves = [],
+  pendingCollabs = [],
 }: {
   updates: Update[]
   members: Member[]
@@ -104,580 +109,489 @@ export default function ActivitiesClient({
   leaveDays?: Set<string>
   clockInDays?: Set<string>
   collabHoursMap?: Record<string, number>
+  pendingLeaves?: PendingLeave[]
+  pendingCollabs?: PendingCollab[]
 }) {
   const router = useRouter()
   const pathname = usePathname()
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [search, setSearch] = useState("")
   const [customFrom, setCustomFrom] = useState(from)
-  const [customTo, setCustomTo] = useState(to)
+  const [customTo, setCustomTo]     = useState(to)
   const [showCustom, setShowCustom] = useState(false)
 
-  const isSingleDay = from === to
+  // suppress unused-var lint for these required props
+  void onLeaveIds; void leaveDays; void clockInDays; void pendingLeaves; void pendingCollabs
 
-  // Date preset helpers
-  const todayDate = new Date()
-  const todayStr = todayDate.toISOString().split("T")[0]
-  const yesterdayStr = new Date(todayDate.getTime() - 86400000).toISOString().split("T")[0]
-  const weekStartDate = new Date(todayDate)
-  weekStartDate.setDate(todayDate.getDate() - (todayDate.getDay() || 7) + 1)
-  const weekStartStr = weekStartDate.toISOString().split("T")[0]
-  const monthStartStr = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-01`
-  const prevMonthDate = new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1)
-  const prevMonthStartStr = prevMonthDate.toISOString().split("T")[0]
-  const prevMonthEndStr = new Date(todayDate.getFullYear(), todayDate.getMonth(), 0).toISOString().split("T")[0]
+  const todayDate        = new Date()
+  const todayStr         = todayDate.toISOString().split("T")[0]
+  const yesterdayStr     = new Date(todayDate.getTime() - 86400000).toISOString().split("T")[0]
+  const weekStart        = new Date(todayDate); weekStart.setDate(todayDate.getDate() - (todayDate.getDay() || 7) + 1)
+  const weekStartStr     = weekStart.toISOString().split("T")[0]
+  const monthStartStr    = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, "0")}-01`
+  const prevMonthStart   = new Date(todayDate.getFullYear(), todayDate.getMonth() - 1, 1)
+  const prevMonthStartStr = prevMonthStart.toISOString().split("T")[0]
+  const prevMonthEndStr  = new Date(todayDate.getFullYear(), todayDate.getMonth(), 0).toISOString().split("T")[0]
 
   const DATE_PRESETS = [
-    { label: "Today",      from: todayStr,         to: todayStr },
-    { label: "Yesterday",  from: yesterdayStr,     to: yesterdayStr },
-    { label: "This Week",  from: weekStartStr,     to: todayStr },
-    { label: "This Month", from: monthStartStr,    to: todayStr },
+    { label: "Today",      from: todayStr,          to: todayStr },
+    { label: "Yesterday",  from: yesterdayStr,      to: yesterdayStr },
+    { label: "This Week",  from: weekStartStr,      to: todayStr },
+    { label: "This Month", from: monthStartStr,     to: todayStr },
     { label: "Last Month", from: prevMonthStartStr, to: prevMonthEndStr },
   ]
 
-  function toggleExpand(id: string) {
-    setExpandedIds(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
+  function activePreset() {
+    return DATE_PRESETS.find(p => p.from === from && p.to === to)?.label ?? "Custom"
   }
 
-  function navigate(f: string, t: string, member: string) {
-    const params = new URLSearchParams()
-    if (f === t) params.set("date", f)
-    else { params.set("from", f); params.set("to", t) }
-    if (member) params.set("member", member)
-    router.push(`${pathname}?${params.toString()}`)
+  function navigate(f: string, t: string) {
+    const p = new URLSearchParams()
+    if (f === t) p.set("date", f)
+    else { p.set("from", f); p.set("to", t) }
+    router.push(`${pathname}?${p.toString()}`)
   }
 
-  // Per-member summary for multi-day range view
-  const memberSummary = useMemo(() => {
-    if (isSingleDay) return []
-    const map: Record<string, { id: string; name: string; employee_id: string; days: number; present: number; absent: number; onLeave: number; totalHours: number }> = {}
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  const stats = useMemo(() => {
+    const presentSet = new Set<string>()
+    const onLeaveSet = new Set<string>()
+    let totalHours = 0
+
     for (const u of updates) {
       const user = Array.isArray(u.users) ? u.users[0] : u.users
       if (!user) continue
-      if (!map[user.id]) map[user.id] = { id: user.id, name: user.name, employee_id: user.employee_id, days: 0, present: 0, absent: 0, onLeave: 0, totalHours: 0 }
-      const key = `${user.id}:${u.date}`
-      const isLeaveDay  = leaveDays?.has(key)   ?? false
-      const clockedIn   = clockInDays?.has(key) ?? false
-
-      if (u.attendance_status === "present" || clockedIn) {
-        // Count as present if they submitted present OR actually clocked in
-        map[user.id].present++
-        map[user.id].days++
-      } else if (u.attendance_status === "leave" || u.attendance_status === "absent") {
-        if (isLeaveDay) {
-          map[user.id].onLeave++
-          map[user.id].days++
-        } else {
-          map[user.id].absent++
-          map[user.id].days++
-        }
-      }
       const collabH = collabHoursMap[`${user.id}:${u.date}`] ?? 0
-      map[user.id].totalHours = Math.round((map[user.id].totalHours + (u.working_hours ?? 0) + collabH) * 10) / 10
+      const hrs = (u.working_hours ?? 0) + collabH
+      if (u.attendance_status === "present") {
+        presentSet.add(user.id)
+        totalHours += hrs
+      } else if (u.attendance_status === "leave" || u.attendance_status === "absent") {
+        onLeaveSet.add(user.id)
+      }
     }
-    return Object.values(map).sort((a, b) => b.totalHours - a.totalHours)
-  }, [updates, isSingleDay, leaveDays, clockInDays, collabHoursMap])
 
-  const submittedIds = new Set(updates.map((u) => {
-    const user = Array.isArray(u.users) ? u.users[0] : u.users
-    return user?.id
-  }))
-  const notUpdated = (memberFilter || !isSingleDay) ? [] : members.filter((m) => !submittedIds.has(m.id) && !onLeaveIds.has(m.id))
+    const activeMembers = members.filter(m => m.role !== "ADMIN")
+    const updatedIds = new Set(updates.map(u => {
+      const user = Array.isArray(u.users) ? u.users[0] : u.users
+      return user?.id
+    }).filter(Boolean))
+    const notUpdated = activeMembers.filter(m => !updatedIds.has(m.id))
 
-  const presentCount = updates.filter((u) => u.attendance_status === "present").length
-  const absentCount  = updates.filter((u) => u.attendance_status === "leave" || u.attendance_status === "absent").length
-  const totalHours   = updates.reduce((sum, u) => {
-    const user = Array.isArray(u.users) ? u.users[0] : u.users
-    const collabH = user ? (collabHoursMap[`${user.id}:${u.date}`] ?? 0) : 0
-    return sum + (u.working_hours ?? 0) + collabH
-  }, 0)
-  const lowHoursCount = updates.filter((u) => {
-    const user = Array.isArray(u.users) ? u.users[0] : u.users
-    const collabH = user ? (collabHoursMap[`${user.id}:${u.date}`] ?? 0) : 0
-    return u.attendance_status === "present" && ((u.working_hours ?? 0) + collabH) < 6
-  }).length
+    return {
+      totalUpdates: updates.length,
+      present: presentSet.size,
+      onLeave: onLeaveSet.size,
+      totalHours,
+      notUpdated: notUpdated.length,
+      notUpdatedMembers: notUpdated,
+    }
+  }, [updates, members, collabHoursMap])
 
+  // ── Donut chart data ────────────────────────────────────────────────────────
+  const donutData = useMemo(() => {
+    const total = members.filter(m => m.role !== "ADMIN").length || 1
+    const completed = stats.present
+    const onLeave   = stats.onLeave
+    const notUpd    = Math.max(0, total - completed - onLeave)
+    const pct = (n: number) => Math.round((n / total) * 100)
+    return [
+      { name: "Completed",   value: completed, pct: pct(completed), color: "#16A34A" },
+      { name: "On Leave",    value: onLeave,   pct: pct(onLeave),   color: "#F59E0B" },
+      { name: "Not Updated", value: notUpd,    pct: pct(notUpd),    color: "#E31E24" },
+    ]
+  }, [stats, members])
+
+  const completionPct = donutData[0].pct
+
+  // ── Top contributor ─────────────────────────────────────────────────────────
+  const topContributor = useMemo(() => {
+    const map: Record<string, { name: string; count: number; hours: number }> = {}
+    for (const u of updates) {
+      if (u.attendance_status !== "present") continue
+      const user = Array.isArray(u.users) ? u.users[0] : u.users
+      if (!user) continue
+      if (!map[user.id]) map[user.id] = { name: user.name, count: 0, hours: 0 }
+      map[user.id].count++
+      map[user.id].hours += u.working_hours ?? 0
+    }
+    const sorted = Object.values(map).sort((a, b) => b.hours - a.hours || b.count - a.count)
+    return sorted[0] ?? null
+  }, [updates])
+
+  // ── Filtered activities for timeline ────────────────────────────────────────
+  const filteredActivities = useMemo(() => {
+    const q = search.toLowerCase()
+    return updates
+      .filter(u => {
+        if (!q) return true
+        const user = Array.isArray(u.users) ? u.users[0] : u.users
+        return user?.name.toLowerCase().includes(q) || getDescription(u).toLowerCase().includes(q)
+      })
+      .slice(0, 20)
+  }, [updates, search])
+
+  // ── Format display date ──────────────────────────────────────────────────────
+  const displayDate = useMemo(() => {
+    try {
+      const d = new Date(to + "T12:00:00")
+      return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+    } catch { return to }
+  }, [to])
+
+  const curPreset = activePreset()
+
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="p-4 md:p-6 xl:p-8 max-w-[1400px]">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="gradient-heading text-[30px] font-black leading-tight" style={{ fontFamily: "var(--font-jakarta)" }}>
-          Activities
-        </h1>
-        <p className="text-sm mt-1" style={{ color: "#6B7280" }}>Daily updates from all team members.</p>
+    <div style={{ padding: "24px 24px 64px", maxWidth: 1400, margin: "0 auto", fontFamily: "var(--font-jakarta, Inter, sans-serif)" }}>
+
+      {/* ── Hero Banner ── */}
+      <div style={{
+        position: "relative", borderRadius: 20, overflow: "hidden", marginBottom: 24,
+        background: "linear-gradient(100deg, #080808 0%, #1A0000 25%, #420000 55%, #C10000 100%)",
+        height: 260,
+      }}>
+        {/* Radial glow behind characters */}
+        <div style={{
+          position: "absolute", inset: 0, pointerEvents: "none",
+          background: "radial-gradient(ellipse 38% 70% at 55% 100%, rgba(220,0,0,0.45) 0%, transparent 70%)",
+        }} />
+
+        {/* 3D characters — negative bottom hides transparent PNG padding below hero edge */}
+        <img
+          src="/brand/activities-hero.png"
+          alt=""
+          style={{
+            position: "absolute",
+            bottom: -85,
+            left: "50%",
+            transform: "translateX(-50%)",
+            height: 300,
+            width: "auto",
+            objectFit: "contain",
+            pointerEvents: "none",
+            userSelect: "none",
+            zIndex: 1,
+          }}
+        />
+
+        {/* 40 / 40 / 20 grid */}
+        <div style={{ display: "grid", gridTemplateColumns: "40% 40% 20%", height: "100%", position: "relative", zIndex: 2 }}>
+
+          {/* ── Left 40%: title + subtitle + search ── */}
+          <div style={{ padding: "0 24px 0 32px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", lineHeight: 1.1, margin: "0 0 8px" }}>
+              Activities
+            </h1>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: "0 0 20px", lineHeight: 1.5 }}>
+              Track real-time updates and progress from your amazing team.
+            </p>
+            {/* Search bar — 280px wide, 52px tall, glassmorphism */}
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ position: "relative", width: 280 }}>
+                <Search size={14} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.45)", pointerEvents: "none" }} />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search members, updates..."
+                  style={{
+                    width: "100%", boxSizing: "border-box", height: 52,
+                    padding: "0 14px 0 38px", border: "1px solid rgba(255,255,255,0.18)",
+                    borderRadius: 14, background: "rgba(255,255,255,0.09)", backdropFilter: "blur(10px)",
+                    color: "#fff", fontSize: 13, outline: "none",
+                  }}
+                />
+              </div>
+              <button style={{
+                width: 52, height: 52, borderRadius: 14, background: "rgba(255,255,255,0.12)",
+                border: "1px solid rgba(255,255,255,0.18)", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <Filter size={16} color="rgba(255,255,255,0.75)" />
+              </button>
+            </div>
+          </div>
+
+          {/* ── Center 40%: empty spacer — image positioned absolutely on hero ── */}
+          <div />
+
+          {/* ── Right 20%: date chip + motivation card ── */}
+          <div style={{ padding: "20px 20px 20px 0", display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end", justifyContent: "flex-start" }}>
+            {/* Date selector */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", cursor: "pointer", whiteSpace: "nowrap" }}>
+              <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{displayDate}</span>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            </div>
+
+            {/* Motivation card */}
+            <div style={{ padding: "10px 14px", borderRadius: 12, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", width: "100%" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Keep it up! 🚀</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>Team updates are on track today.</div>
+              <svg width="100%" height="24" style={{ marginTop: 4 }}>
+                <polyline points="0,18 20,12 40,15 60,8 80,10 100,5 120,8 140,4 160,6" fill="none" stroke="#E31E24" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Summary chips */}
-      <div className="flex flex-wrap gap-2 md:gap-3 mb-5 md:mb-6">
+      {/* ── 5 KPI Cards ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 20 }}>
         {[
-          { label: "Updates",    value: updates.length,          color: "#111111",  bg: "#FFFFFF", border: "#E5E7EB" },
-          { label: "Present",    value: presentCount,            color: "#de1a1a",  bg: "rgba(222,26,26,0.06)",  border: "rgba(222,26,26,0.15)" },
-          { label: "On Leave",   value: absentCount,             color: "#FF6B57",  bg: "rgba(255,107,87,0.06)",  border: "rgba(255,107,87,0.15)" },
-          { label: "Total Hours",value: `${totalHours.toFixed(1)}h`, color: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
-          { label: "Not Updated",value: notUpdated.length,        color: notUpdated.length > 0 ? "#FF6B57" : "#6B7280", bg: notUpdated.length > 0 ? "rgba(255,107,87,0.06)" : "#FFFFFF", border: notUpdated.length > 0 ? "rgba(255,107,87,0.15)" : "#E5E7EB" },
-        ].map((chip) => (
-          <div key={chip.label} className="flex items-center gap-2 px-4 py-2 rounded-lg"
-            style={{ background: chip.bg, border: `1px solid ${chip.border}` }}>
-            <span className="text-[15px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: chip.color }}>{chip.value}</span>
-            <span className="text-[11px] font-medium" style={{ color: "#6B7280" }}>{chip.label}</span>
+          { label: "Total Updates", value: stats.totalUpdates, sub: "Today", icon: <TrendingUp size={18} color="#E31E24" />, iconBg: "rgba(227,30,36,0.1)" },
+          { label: "Present",       value: stats.present,      sub: "Members", icon: <Users size={18} color="#16A34A" />, iconBg: "rgba(22,163,74,0.1)" },
+          { label: "On Leave",      value: stats.onLeave,      sub: "Member",  icon: <AlertCircle size={18} color="#F59E0B" />, iconBg: "rgba(245,158,11,0.1)" },
+          { label: "Total Hours",   value: fmtHours(stats.totalHours), sub: "Logged", icon: <Clock size={18} color="#6366F1" />, iconBg: "rgba(99,102,241,0.1)" },
+          { label: "Not Updated",   value: stats.notUpdated,   sub: "Members", icon: <Bell size={18} color="#E31E24" />, iconBg: "rgba(227,30,36,0.1)" },
+        ].map(card => (
+          <div key={card.label} style={{
+            background: "#fff", borderRadius: 16, padding: "18px 20px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
+            <div>
+              <div style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 500, marginBottom: 4 }}>{card.label}</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: "#111827", lineHeight: 1 }}>{card.value}</div>
+              <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 3 }}>{card.sub}</div>
+            </div>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: card.iconBg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {card.icon}
+            </div>
           </div>
         ))}
-        {lowHoursCount > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2 rounded-lg"
-            style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.15)" }}>
-            <AlertTriangle size={13} style={{ color: "#F59E0B" }} />
-            <span className="text-[11px] font-bold" style={{ color: "#F59E0B" }}>{lowHoursCount} low productivity</span>
-          </div>
-        )}
       </div>
 
-      {/* Date range filters */}
-      <div className="flex flex-col gap-3 mb-6">
-        {/* Preset buttons */}
-        <div className="flex flex-wrap items-center gap-2">
-          {DATE_PRESETS.map(preset => {
-            const isActive = from === preset.from && to === preset.to
-            return (
-              <button key={preset.label}
-                onClick={() => { setShowCustom(false); navigate(preset.from, preset.to, memberFilter) }}
-                className="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all flex-shrink-0"
-                style={isActive
-                  ? { background: "#111111", color: "#FFFFFF" }
-                  : { background: "#FFFFFF", color: "#6B7280", border: "1px solid #E5E7EB" }
-                }>
-                {preset.label}
-              </button>
-            )
-          })}
+      {/* ── Filter Tabs ── */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
+        {DATE_PRESETS.map(p => (
           <button
-            onClick={() => setShowCustom(s => !s)}
-            className="px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all flex-shrink-0 flex items-center gap-1.5"
-            style={showCustom
-              ? { background: "#111111", color: "#FFFFFF" }
-              : { background: "#FFFFFF", color: "#6B7280", border: "1px solid #E5E7EB" }
-            }>
-            <Filter size={11} /> Custom
+            key={p.label}
+            onClick={() => { setShowCustom(false); navigate(p.from, p.to) }}
+            style={{
+              padding: "8px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
+              background: curPreset === p.label ? "#E31E24" : "#F3F4F6",
+              color: curPreset === p.label ? "#fff" : "#374151",
+              transition: "all 0.15s",
+            }}
+          >
+            {p.label}
           </button>
-        </div>
-
-        {/* Custom range picker */}
+        ))}
+        <button
+          onClick={() => setShowCustom(v => !v)}
+          style={{
+            padding: "8px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
+            background: curPreset === "Custom" ? "#E31E24" : "#F3F4F6",
+            color: curPreset === "Custom" ? "#fff" : "#374151",
+          }}
+        >
+          Custom
+        </button>
         {showCustom && (
-          <div className="flex flex-wrap items-center gap-2 px-4 py-3 rounded-xl"
-            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-            <span className="text-[12px] font-semibold text-gray-500">From</span>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-              className="text-[13px] outline-none border border-gray-200 rounded-lg px-2.5 py-1.5"
-              style={{ colorScheme: "light" }} />
-            <span className="text-[12px] font-semibold text-gray-500">To</span>
+              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#374151" }} />
+            <span style={{ fontSize: 12, color: "#9CA3AF" }}>to</span>
             <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
-              className="text-[13px] outline-none border border-gray-200 rounded-lg px-2.5 py-1.5"
-              style={{ colorScheme: "light" }} />
-            <button onClick={() => navigate(customFrom, customTo, memberFilter)}
-              className="px-3 py-1.5 rounded-lg text-[12px] font-bold text-white"
-              style={{ background: "#DE1A1A" }}>
+              style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 12, color: "#374151" }} />
+            <button onClick={() => { navigate(customFrom, customTo); setShowCustom(false) }}
+              style={{ padding: "6px 14px", borderRadius: 8, background: "#E31E24", color: "#fff", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
               Apply
             </button>
           </div>
         )}
+      </div>
 
-        {/* Member + date display */}
-        <div className="flex flex-wrap gap-2">
-          <select value={memberFilter} onChange={(e) => navigate(from, to, e.target.value)}
-            className="px-3 py-2 rounded-lg text-[13px] outline-none flex-1 min-w-[160px]"
-            style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", color: "#111111" }}>
-            <option value="">All Members</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>{m.name} ({m.employee_id})</option>
-            ))}
-          </select>
-          {!isSingleDay && (
-            <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium text-gray-500"
-              style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-              <Calendar size={12} />
-              {from} → {to}
+      {/* ── Main content ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20 }}>
+
+        {/* ── Left: Recent Activities Timeline ── */}
+        <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.04)", overflow: "hidden" }}>
+          {/* Header */}
+          <div style={{ padding: "20px 24px 0", borderBottom: "1px solid #F3F4F6", paddingBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(227,30,36,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <TrendingUp size={16} color="#E31E24" />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>Recent Activities</div>
+              <div style={{ fontSize: 11, color: "#9CA3AF" }}>{filteredActivities.length} updates</div>
+            </div>
+          </div>
+
+          {/* Timeline */}
+          <div style={{ padding: "8px 0 16px" }}>
+            {filteredActivities.length === 0 && (
+              <div style={{ textAlign: "center", padding: "48px 24px", color: "#9CA3AF", fontSize: 13 }}>
+                No activities found
+              </div>
+            )}
+            {filteredActivities.map((u, idx) => {
+              const user    = Array.isArray(u.users) ? u.users[0] : u.users
+              if (!user) return null
+              const desc    = getDescription(u)
+              const badge   = getTeamBadge(user.team)
+              const [bg, fg] = avatarColor(user.name)
+              const initials = getInitials(user.name)
+              const time    = fmtTime(u.created_at ?? u.date)
+              const isLast  = idx === filteredActivities.length - 1
+
+              return (
+                <div key={u.id} style={{ display: "flex", padding: "0 24px", gap: 16 }}>
+                  {/* Timeline line */}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#E31E24", marginTop: 18, flexShrink: 0, boxShadow: "0 0 0 3px rgba(227,30,36,0.15)" }} />
+                    {!isLast && <div style={{ width: 1.5, flex: 1, background: "rgba(227,30,36,0.15)", minHeight: 20 }} />}
+                  </div>
+
+                  {/* Content */}
+                  <div style={{ flex: 1, padding: "10px 0", borderBottom: isLast ? "none" : "1px solid #F9FAFB", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
+                      {/* Avatar */}
+                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: bg, color: fg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                        {initials}
+                      </div>
+                      {/* Text */}
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{user.name}</div>
+                        <div style={{ fontSize: 12, color: "#6B7280", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{desc}</div>
+                      </div>
+                    </div>
+
+                    {/* Right: badge + time */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                      <span style={{ padding: "3px 10px", borderRadius: 8, background: badge.bg, color: badge.color, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
+                        {badge.label}
+                      </span>
+                      <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap" }}>{time}</span>
+                      <button style={{ width: 24, height: 24, border: "none", background: "transparent", cursor: "pointer", color: "#D1D5DB", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {updates.length > 20 && (
+            <div style={{ padding: "0 24px 20px", textAlign: "center" }}>
+              <button style={{ padding: "8px 20px", borderRadius: 10, background: "transparent", border: "1px solid #E5E7EB", color: "#E31E24", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                View all updates →
+              </button>
             </div>
           )}
         </div>
-      </div>
 
-      {/* Multi-day summary table */}
-      {!isSingleDay && memberSummary.length > 0 && (
-        <div className="rounded-xl overflow-hidden mb-6" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-          <div className="px-5 py-3 flex items-center gap-2" style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
-            <Activity size={13} style={{ color: "#6B7280" }} />
-            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Member Summary — {from} to {to}</span>
+        {/* ── Right Sidebar ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+          {/* Team Update Overview */}
+          <div style={{ background: "#fff", borderRadius: 20, padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.04)" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 16 }}>Team Update Overview</div>
+            <div style={{ position: "relative", height: 160 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={donutData} cx="50%" cy="50%" innerRadius={52} outerRadius={72} dataKey="value" startAngle={90} endAngle={-270} strokeWidth={0}>
+                    {donutData.map((d, i) => <Cell key={i} fill={d.color} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              {/* Center text */}
+              <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
+                <div style={{ fontSize: 22, fontWeight: 800, color: "#111827" }}>{completionPct}%</div>
+                <div style={{ fontSize: 10, color: "#9CA3AF", lineHeight: 1.2 }}>Update<br/>Completion</div>
+              </div>
+            </div>
+            {/* Legend */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+              {donutData.map(d => (
+                <div key={d.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: d.color }} />
+                    <span style={{ fontSize: 12, color: "#374151" }}>{d.name}</span>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{d.pct}% ({d.value})</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr style={{ borderBottom: "1px solid #F3F4F6" }}>
-                  {["Member", "Days Updated", "Present", "Leave", "Total Hours", "Avg / Day", ""].map(h => (
-                    <th key={h} className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-gray-400">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {memberSummary.map((m, i) => {
-                  const avg = m.days > 0 ? Math.round(m.totalHours / m.days * 10) / 10 : 0
-                  const lowAvg = avg < 6 && m.present > 0
+
+          {/* Members Awaiting Update */}
+          <div style={{ background: "#fff", borderRadius: 20, padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.04)", position: "relative", overflow: "hidden" }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 4 }}>Members Awaiting Update</div>
+            <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 16 }}>{stats.notUpdated} member{stats.notUpdated !== 1 ? "s" : ""} haven&apos;t updated yet</div>
+
+            {/* Avatar group */}
+            {stats.notUpdatedMembers.length > 0 ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 16 }}>
+                {stats.notUpdatedMembers.slice(0, 5).map((m, i) => {
+                  const [bg, fg] = avatarColor(m.name)
                   return (
-                    <tr key={m.id} style={{ borderBottom: i < memberSummary.length - 1 ? "1px solid #F9FAFB" : "none" }}
-                      className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold"
-                            style={{ background: "rgba(222,26,26,0.08)", color: "#de1a1a" }}>
-                            {getInitials(m.name)}
-                          </div>
-                          <div>
-                            <p className="text-[13px] font-semibold text-gray-800">{m.name}</p>
-                            <p className="text-[10px] text-gray-400">#{m.employee_id}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-[13px] font-semibold text-gray-700">{m.days}</td>
-                      <td className="px-4 py-3">
-                        <span className="text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(34,197,94,0.08)", color: "#16a34a" }}>{m.present}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {(m.absent + m.onLeave) > 0
-                          ? <span className="text-[12px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(239,68,68,0.08)", color: "#dc2626" }}>{m.absent + m.onLeave}</span>
-                          : <span className="text-[12px] text-gray-300">—</span>
-                        }
-                      </td>
-                      <td className="px-4 py-3 text-[13px] font-bold text-gray-800">{m.totalHours}h</td>
-                      <td className="px-4 py-3">
-                        <span className="text-[12px] font-semibold" style={{ color: lowAvg ? "#f59e0b" : "#374151" }}>
-                          {avg}h {lowAvg ? "⚠" : ""}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button onClick={() => navigate(from, to, m.id)}
-                          className="text-[11px] font-semibold text-gray-400 hover:text-gray-700 transition-colors">
-                          Filter →
-                        </button>
-                      </td>
-                    </tr>
+                    <div key={m.id} title={m.name} style={{
+                      width: 32, height: 32, borderRadius: "50%", background: bg, color: fg,
+                      fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
+                      border: "2px solid #fff", marginLeft: i === 0 ? 0 : -8,
+                    }}>
+                      {getInitials(m.name)}
+                    </div>
                   )
                 })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Not updated members */}
-      {notUpdated.length > 0 && (
-        <div className="rounded-xl p-4 mb-5" style={{ background: "rgba(255,107,87,0.04)", border: "1px solid rgba(255,107,87,0.15)" }}>
-          <div className="flex items-center gap-2 mb-3">
-            <UserX size={13} style={{ color: "#FF6B57" }} />
-            <span className="text-[12px] font-bold uppercase tracking-wider" style={{ color: "#FF6B57" }}>
-              Not Updated ({notUpdated.length})
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {notUpdated.map((m) => (
-              <span key={m.id} className="text-[12px] font-semibold px-3 py-1 rounded-full"
-                style={{ background: "rgba(255,107,87,0.1)", color: "#FF6B57" }}>
-                {m.name} <span style={{ opacity: 0.6 }}>#{m.employee_id}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Updates list */}
-      {updates.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-24 rounded-xl"
-          style={{ background: "#FFFFFF", border: "1px solid #2A2A2A" }}>
-          <Activity size={36} style={{ color: "rgba(0,0,0,0.06)" }} className="mb-3" />
-          <p className="text-[14px] font-semibold" style={{ color: "#6B7280" }}>No updates for this date</p>
-          <p className="text-[12px] mt-1" style={{ color: "rgba(0,0,0,0.08)" }}>Team members haven&apos;t submitted yet.</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {updates.map((u) => {
-            const sc = ATTENDANCE_STYLE[u.attendance_status] ?? ATTENDANCE_STYLE.present
-            const wt = u.work_type ? WORK_TYPE[u.work_type] : null
-            const user = Array.isArray(u.users) ? u.users[0] : u.users
-            const isExpanded = expandedIds.has(u.id)
-            const entries = (Array.isArray(u.work_entries) ? [...(u.work_entries as { task_type: string; start_time?: string | null; [k: string]: unknown }[])] : []).sort((a, b) => {
-              const ta = (a.start_time as string | null | undefined) ?? ""
-              const tb = (b.start_time as string | null | undefined) ?? ""
-              if (!ta && !tb) return 0; if (!ta) return 1; if (!tb) return -1
-              return ta.localeCompare(tb)
-            })
-            const workEntries  = entries.filter(e => e.task_type === "work")
-            const shootEntries = entries.filter(e => e.task_type === "shoot")
-            const editEntries  = entries.filter(e => e.task_type === "edit")
-            const otherEntries = entries.filter(e => !["work","shoot","edit"].includes(String(e.task_type ?? "")))
-            const allWorkLike  = [...workEntries, ...otherEntries]
-            const workHrs  = Math.round(allWorkLike.reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
-            const mediaHrs = Math.round([...shootEntries,...editEntries].reduce((s, e) => {
-              const h = Number(e.duration_hours) || 0
-              const travel = e.task_type === "shoot" ? (Number(e._travel_hours) || 0) : 0
-              return s + Math.max(0, h - travel)
-            }, 0) * 10) / 10
-            const hasMedia = shootEntries.length > 0 || editEntries.length > 0
-            const collabH = user ? (collabHoursMap[`${user.id}:${u.date}`] ?? 0) : 0
-            const tasksCompleted = u.tasks_completed ?? 0
-            const tasksTotal = u.tasks_total ?? 0
-            const tasksList = u.tasks_list ?? []
-            const hasDetails = entries.length > 0 || u.active_tab === "learning" || tasksList.length > 0
-
-            return (
-              <div key={u.id} className="rounded-xl overflow-hidden"
-                style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-
-                {/* ── Compact header row ── */}
-                <div className="p-4 md:p-5">
-                  <div className="flex items-center gap-3">
-                    {/* Avatar */}
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-                      style={{ background: "rgba(222,26,26,0.08)", border: "1px solid rgba(222,26,26,0.15)" }}>
-                      <span className="text-[11px] font-bold" style={{ color: "#de1a1a" }}>
-                        {user?.name ? getInitials(user.name) : "?"}
-                      </span>
-                    </div>
-
-                    {/* Name + badges */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center flex-wrap gap-2 mb-2">
-                        <p className="text-[14px] font-bold" style={{ color: "#111111" }}>{user?.name ?? "Unknown"}</p>
-                        <span className="text-[11px]" style={{ color: "#9CA3AF" }}>#{user?.employee_id}</span>
-                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
-                        {wt && <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.04)", color: "#6B7280" }}>{wt}</span>}
-                        <ControlFlag hours={(u.working_hours ?? 0) + collabH} attendance={u.attendance_status} />
-                        {collabH > 0 && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.1)", color: "#6366F1" }}>
-                            +{collabH.toFixed(1)}h collab
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Stat chips */}
-                      <div className="flex flex-wrap gap-2">
-                        {allWorkLike.length > 0 ? (
-                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold"
-                            style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #F0F1F5", color: "#374151" }}>
-                            <Clock size={10} style={{ color: "#6B7280" }} />
-                            Work · {fmtHours(workHrs)}
-                          </span>
-                        ) : u.working_hours != null ? (
-                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px]"
-                            style={{ background: "rgba(0,0,0,0.03)", border: "1px solid #F0F1F5", color: "#6B7280" }}>
-                            <Clock size={10} /> {u.working_hours}h
-                          </span>
-                        ) : null}
-                        {hasMedia && (
-                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold"
-                            style={{ background: "rgba(222,26,26,0.04)", border: "1px solid rgba(222,26,26,0.12)", color: "#de1a1a" }}>
-                            <Camera size={10} />
-                            Media · {fmtHours(mediaHrs)}
-                            <span style={{ opacity: 0.6, fontWeight: 400 }}>
-                              {shootEntries.length > 0 ? ` ${shootEntries.length}S` : ""}
-                              {editEntries.length > 0 ? ` ${editEntries.length}E` : ""}
-                            </span>
-                          </span>
-                        )}
-                        {(u.learning_hours ?? 0) > 0 && (
-                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold"
-                            style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)", color: "#6366F1" }}>
-                            <BookOpen size={10} />
-                            Learning · {fmtHours(u.learning_hours)}
-                          </span>
-                        )}
-                        {tasksTotal > 0 && (
-                          <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold"
-                            style={{
-                              background: tasksCompleted === tasksTotal ? "rgba(34,197,94,0.06)" : "rgba(245,158,11,0.06)",
-                              border: `1px solid ${tasksCompleted === tasksTotal ? "rgba(34,197,94,0.2)" : "rgba(245,158,11,0.2)"}`,
-                              color: tasksCompleted === tasksTotal ? "#22C55E" : "#F59E0B",
-                            }}>
-                            <Target size={10} />
-                            Tasks · {tasksCompleted}/{tasksTotal}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Clients worked on */}
-                      {(() => {
-                        const clientsWorked = [...new Set(entries.flatMap(e => {
-                          if (e.task_type === "break") return []
-                          const names: string[] = []
-                          if (Array.isArray(e.client_names) && (e.client_names as string[]).length > 0)
-                            names.push(...(e.client_names as string[]))
-                          else if (e.client_name && e.client_name !== "Break" && e.client_name !== "Internal")
-                            names.push(e.client_name as string)
-                          if (e._brand) names.push(e._brand as string)
-                          else if (e._custom_client) names.push(e._custom_client as string)
-                          else if (e.client && !names.length) names.push(e.client as string)
-                          return names
-                        }).filter(Boolean))]
-                        if (clientsWorked.length === 0) return null
-                        return (
-                          <div className="flex items-center gap-2 flex-wrap mt-1.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>🏢 Client</span>
-                            {clientsWorked.map(c => (
-                              <span key={c} className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                                style={{ background: "rgba(222,26,26,0.07)", border: "1px solid rgba(222,26,26,0.15)", color: "#de1a1a" }}>
-                                {c}
-                              </span>
-                            ))}
-                          </div>
-                        )
-                      })()}
-
-                      {/* Participants */}
-                      {(u.participant_ids ?? []).length > 0 && (() => {
-                        const participants = (u.participant_ids ?? [])
-                          .map(pid => members.find(m => m.id === pid))
-                          .filter(Boolean)
-                        if (participants.length === 0) return null
-                        return (
-                          <div className="flex items-center gap-2 flex-wrap mt-1.5">
-                            <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>👥 With</span>
-                            {participants.map(p => (
-                              <span key={p!.id} className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                                style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.2)", color: "#6366F1" }}>
-                                <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#6366F1", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 900, color: "#fff" }}>
-                                  {p!.name.split(" ").map((n: string) => n[0]).join("").slice(0,2)}
-                                </span>
-                                {p!.name.split(" ")[0]}
-                              </span>
-                            ))}
-                          </div>
-                        )
-                      })()}
-                    </div>
-
-                    {/* View Details button */}
-                    {hasDetails && (
-                      <button onClick={() => toggleExpand(u.id)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-semibold flex-shrink-0 transition-all"
-                        style={{
-                          background: isExpanded ? "rgba(222,26,26,0.08)" : "#F9FAFB",
-                          color: isExpanded ? "#de1a1a" : "#374151",
-                          border: `1px solid ${isExpanded ? "rgba(222,26,26,0.2)" : "#E5E7EB"}`,
-                        }}>
-                        {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                        {isExpanded ? "Hide" : "View Details"}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* ── Expanded Details ── */}
-                {isExpanded && (
-                  <div className="border-t px-4 md:px-5 py-4 space-y-4" style={{ borderColor: "#F3F4F6", background: "#FAFAFA" }}>
-
-                    {/* Work entries */}
-                    {allWorkLike.length > 0 && (
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Work · {fmtHours(workHrs)}</p>
-                        <div className="space-y-1.5">
-                          {allWorkLike.map((e, i) => (
-                            <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white"
-                              style={{ border: "1px solid #F3F4F6" }}>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[12px] font-semibold" style={{ color: "#111827" }}>{String(e.title || e.task_title || "—")}</p>
-                                {!!(e.client || e._custom_client) && (
-                                  <p className="text-[11px] mt-0.5" style={{ color: "#de1a1a" }}>{String(e.client || e._custom_client)}</p>
-                                )}
-                              </div>
-                              <div className="flex-shrink-0 text-right">
-                                {!!(e.start_time || e.end_time) && <p className="text-[10px]" style={{ color: "#9CA3AF" }}>{String(e.start_time ?? "")} – {String(e.end_time ?? "")}</p>}
-                                <p className="text-[12px] font-bold" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Media entries */}
-                    {hasMedia && (
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>
-                          Media · {fmtHours(mediaHrs)} · {shootEntries.length} shoot{shootEntries.length !== 1 ? "s" : ""} {editEntries.length > 0 ? `· ${editEntries.length} edit${editEntries.length !== 1 ? "s" : ""}` : ""}
-                        </p>
-                        <div className="space-y-1.5">
-                          {[...shootEntries, ...editEntries].map((e, i) => {
-                            const isShoot = e.task_type === "shoot"
-                            return (
-                              <div key={i} className="flex items-center gap-3 px-3 py-2.5 rounded-lg"
-                                style={{ background: isShoot ? "rgba(222,26,26,0.03)" : "rgba(99,102,241,0.03)", border: `1px solid ${isShoot ? "rgba(222,26,26,0.1)" : "rgba(99,102,241,0.1)"}` }}>
-                                {isShoot ? <Camera size={12} style={{ color: "#de1a1a", flexShrink: 0 }} /> : <Edit2 size={12} style={{ color: "#6366F1", flexShrink: 0 }} />}
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[12px] font-semibold" style={{ color: "#111827" }}>{String(e.title || "—")}</p>
-                                  {!!(e._brand || e._custom_client || e.client) && (
-                                    <p className="text-[11px]" style={{ color: isShoot ? "#de1a1a" : "#6366F1" }}>{String(e._brand || e._custom_client || e.client)}</p>
-                                  )}
-                                  {!!e._location && <p className="text-[10px] flex items-center gap-1 mt-0.5" style={{ color: "#9CA3AF" }}><MapPin size={9} />{String(e._location)}</p>}
-                                </div>
-                                <p className="text-[12px] font-bold flex-shrink-0" style={{ color: "#374151" }}>{fmtHours(e.duration_hours)}</p>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Learning */}
-                    {u.active_tab === "learning" && (
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Learning · {fmtHours(u.learning_hours)}</p>
-                        <div className="px-3 py-2.5 rounded-lg" style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <BookOpen size={12} style={{ color: "#6366F1" }} />
-                            <span className="text-[12px] font-semibold" style={{ color: "#6366F1" }}>{u.learning_topic ?? "—"}</span>
-                          </div>
-                          {u.learning_notes && <p className="text-[11px] ml-5" style={{ color: "#6B7280" }}>{u.learning_notes}</p>}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Tasks list */}
-                    {tasksList.length > 0 && (
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: "#9CA3AF" }}>Tasks · {tasksCompleted}/{tasksTotal} completed</p>
-                        <div className="space-y-1.5">
-                          {tasksList.map((t) => {
-                            const done = t.status === "completed"
-                            const inProg = t.status === "in_progress"
-                            return (
-                              <div key={t.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white"
-                                style={{ border: `1px solid ${done ? "rgba(34,197,94,0.15)" : "#F3F4F6"}` }}>
-                                <div className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center"
-                                  style={{ background: done ? "#22C55E" : inProg ? "#F59E0B" : "#E5E7EB" }}>
-                                  {done && <span style={{ color: "#fff", fontSize: 9 }}>✓</span>}
-                                  {inProg && <span style={{ color: "#fff", fontSize: 9 }}>→</span>}
-                                </div>
-                                <span className="flex-1 text-[12px] font-medium" style={{ color: done ? "#9CA3AF" : "#111827", textDecoration: done ? "line-through" : "none" }}>{t.title}</span>
-                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full flex-shrink-0"
-                                  style={{ background: done ? "rgba(34,197,94,0.1)" : inProg ? "rgba(245,158,11,0.1)" : "rgba(0,0,0,0.05)", color: done ? "#22C55E" : inProg ? "#F59E0B" : "#9CA3AF" }}>
-                                  {done ? "Done" : inProg ? "In Progress" : "To Do"}
-                                </span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {entries.length === 0 && u.active_tab !== "learning" && (
-                      <p className="text-[12px] italic" style={{ color: "#D1D5DB" }}>No detailed work entries recorded for this day.</p>
-                    )}
+                {stats.notUpdatedMembers.length > 5 && (
+                  <div style={{
+                    width: 32, height: 32, borderRadius: "50%", background: "#F3F4F6", color: "#6B7280",
+                    fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
+                    border: "2px solid #fff", marginLeft: -8,
+                  }}>
+                    +{stats.notUpdatedMembers.length - 5}
                   </div>
                 )}
               </div>
-            )
-          })}
+            ) : (
+              <div style={{ fontSize: 12, color: "#16A34A", fontWeight: 600, marginBottom: 16 }}>All members updated ✓</div>
+            )}
+
+            <button style={{
+              width: "100%", padding: "10px", borderRadius: 10, background: "#E31E24", color: "#fff",
+              border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            }}>
+              <Bell size={14} />
+              Send Reminder
+            </button>
+
+            {/* Notification bell illustration */}
+            <div style={{ position: "absolute", right: -8, bottom: -8, opacity: 0.06 }}>
+              <Bell size={100} color="#E31E24" />
+            </div>
+          </div>
+
+          {/* Top Contributor */}
+          {topContributor && (
+            <div style={{ background: "#fff", borderRadius: 20, padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.04)" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 16 }}>Top Contributor Today</div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  {(() => {
+                    const [bg, fg] = avatarColor(topContributor.name)
+                    return (
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: bg, color: fg, fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {getInitials(topContributor.name)}
+                      </div>
+                    )
+                  })()}
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>{topContributor.name}</div>
+                    <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>{topContributor.count} Update{topContributor.count !== 1 ? "s" : ""}</div>
+                  </div>
+                </div>
+                <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(227,30,36,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Star size={20} color="#E31E24" fill="#E31E24" />
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
-      )}
+      </div>
     </div>
   )
 }

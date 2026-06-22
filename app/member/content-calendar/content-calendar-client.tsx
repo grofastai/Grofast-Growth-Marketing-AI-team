@@ -319,10 +319,11 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
 
   const today        = new Date().toISOString().split("T")[0]
   const myPosts      = posts.filter(p => p.assigned_to === userId)
-  const totalContent = filteredPosts.length
+  const todayPosts   = filteredPosts.filter(p => p.scheduled_date === today)
+  const totalContent = todayPosts.length
   const readyCount   = filteredPosts.filter(p => p.status === "ready").length
   const inProgCount  = filteredPosts.filter(p => p.status === "in_progress").length
-  const postedCount  = filteredPosts.filter(p => p.status === "posted").length
+  const postedCount  = todayPosts.filter(p => p.status === "posted").length
   const pendingCount = filteredPosts.filter(p => p.status === "pending").length
 
   const upcomingPosts = useMemo(() =>

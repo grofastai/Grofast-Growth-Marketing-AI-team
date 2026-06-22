@@ -1462,6 +1462,7 @@ export default function HistoryClient({
                         const collabH = collabHoursByDate.get(u.date) ?? 0
                         const dayEntryH = ownH + collabH
                         const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+                        const travelH = entries.filter(e => e.task_type === "shoot").reduce((sum, e) => sum + (e._travel_hours ?? 0), 0)
                         return (
                           <>
                             {dayEntryH > 0 && (
@@ -1469,6 +1470,11 @@ export default function HistoryClient({
                                 <Clock size={11} style={{ color:"#9CA3AF" }}/>
                                 {fmtH(dayEntryH)}
                                 {collabH > 0 && <span style={{ fontSize:9, fontWeight:600, color:"#6366F1" }}>(+{fmtH(collabH)} collab)</span>}
+                              </span>
+                            )}
+                            {travelH > 0 && (
+                              <span style={{ fontSize:10, fontWeight:700, color:"#D97706", display:"flex", alignItems:"center", gap:3, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:99, padding:"2px 8px" }}>
+                                🚗 {fmtH(travelH)} travel
                               </span>
                             )}
                             {breakH > 0 && (

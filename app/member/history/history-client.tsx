@@ -666,10 +666,9 @@ export default function HistoryClient({
       }
     }
 
-    // Office holiday days in the selected month period
+    // Office holiday days in the selected month period (include future holidays in the month)
     let holidayDays = 0
     for (const h of companyLeaves) {
-      if (h.date > todayStr) continue
       if (monthPrefix && !h.date.startsWith(monthPrefix)) continue
       holidayDays++
     }

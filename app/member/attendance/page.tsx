@@ -145,7 +145,7 @@ export default async function AttendancePage() {
 
   // Check WFH / Shoot Day leave status for today (pending or approved)
   const { data: todayWfhLeaveRaw } = await admin.from("leaves")
-    .select("leave_type, status")
+    .select("leave_type, status, created_at")
     .eq("user_id", effectiveUserId)
     .eq("from_date", today)
     .in("leave_type", ["wfh", "shoot_day"])
@@ -153,7 +153,7 @@ export default async function AttendancePage() {
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle()
-  const todayWfhLeave = todayWfhLeaveRaw as { leave_type: string; status: string } | null
+  const todayWfhLeave = todayWfhLeaveRaw as { leave_type: string; status: string; created_at: string } | null
 
   // Monthly stats computation
   type MonthAttLog = { work_type: string | null; status: string; clock_in: string | null; clock_out: string | null; break_total_mins: number }

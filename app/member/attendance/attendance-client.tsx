@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, useCallback, Fragment } from "react
 import Image from "next/image"
 import { LogOut, Loader2, Home, Building2, Camera, CheckCircle2, AlertTriangle, MapPin, TrendingUp, Calendar, Target, Clock, LogIn, CalendarSearch, RotateCcw } from "lucide-react"
 import { clockIn, clockOut, resumeAttendance, getAttendanceByDate, manualClockOut, getAttendanceRange, editAttendanceTimes, markAbsent } from "@/lib/actions/attendance"
-import { submitLeaveRequest } from "@/lib/actions/leaves"
+import { submitLeaveRequest, submitWfhAttendanceRequest } from "@/lib/actions/leaves"
 import { useRouter } from "next/navigation"
 
 const OFFICE_LAT     = parseFloat(process.env.NEXT_PUBLIC_OFFICE_LAT     ?? "12.415145713024462")
@@ -39,7 +39,7 @@ interface Props {
   weekUpdatesByDate?: Record<string, number>
   monthlyPerf?: MonthlyPerf
   todayApprovedLeave?: { leave_type: string; reason: string | null } | null
-  todayWfhLeave?: { leave_type: string; status: string } | null
+  todayWfhLeave?: { leave_type: string; status: string; created_at: string } | null
   isMedia?: boolean
 }
 
@@ -168,6 +168,11 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [weekOff, setWeekOff]           = useState(0)
   const [navLogs, setNavLogs]           = useState<AttLog[] | null>(null)
   const [navLoading, setNavLoading]     = useState(false)
+  // WFH / Shoot popup (same-day request from attendance page)
+  const [wfhPopup, setWfhPopup]         = useState<"wfh" | "shoot_day" | null>(null)
+  const [wfhReason, setWfhReason]       = useState("")
+  const [wfhSubmitting, setWfhSubmitting] = useState(false)
+  const [wfhPendingAt, setWfhPendingAt] = useState<string | null>(todayWfhLeave?.status === "pending" ? todayWfhLeave.created_at : null)
 
   const handleLogIn = useCallback(() => {
     setError(null)
@@ -445,46 +450,97 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     </div>
                   ) : !confirmAbsent ? (
                     <>
-                      {/* WFH pending approval state */}
-                      {todayWfhLeave?.status === "pending" ? (
-                        <div className="rounded-2xl p-4" style={{ background: "rgba(99,102,241,0.06)", border: "1.5px solid rgba(99,102,241,0.2)" }}>
-                          <div className="flex items-center gap-2 mb-1">
-                            <Home size={16} style={{ color: "#6366F1" }} />
-                            <p className="text-[14px] font-bold" style={{ color: "#6366F1" }}>
-                              {todayWfhLeave.leave_type === "shoot_day" ? "Shoot Day" : "WFH"} Request Pending
+                      {/* WFH/Shoot pending — show running timer from click time */}
+                      {(wfhPendingAt || todayWfhLeave?.status === "pending") ? (
+                        <div className="rounded-2xl p-4 space-y-2" style={{ background: "rgba(99,102,241,0.06)", border: "1.5px solid rgba(99,102,241,0.2)" }}>
+                          <div className="flex items-center gap-2">
+                            {todayWfhLeave?.leave_type === "shoot_day" ? <Camera size={15} style={{ color: "#6366F1" }} /> : <Home size={15} style={{ color: "#6366F1" }} />}
+                            <p className="text-[13px] font-bold" style={{ color: "#6366F1" }}>
+                              {todayWfhLeave?.leave_type === "shoot_day" ? "Shoot Day" : "WFH"} — Waiting for Approval
                             </p>
                           </div>
-                          <p className="text-[12px]" style={{ color: "#6B7280" }}>Waiting for admin approval. Check your Leaves page for status.</p>
-                          <a href="/member/leaves" className="inline-block mt-2 text-[12px] font-semibold underline underline-offset-2" style={{ color: "#6366F1" }}>View in Leaves →</a>
+                          <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
+                            Applied at {fmtTimeFromIso(wfhPendingAt ?? todayWfhLeave?.created_at ?? null)}
+                          </p>
+                          <p className="text-[11px] font-semibold" style={{ color: "#6B7280" }}>Working for</p>
+                          <LiveTimer clockInIso={wfhPendingAt ?? todayWfhLeave!.created_at} pausedSeconds={0} breakTotalMins={0} />
+                          <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Clock-in will be set to your applied time once admin approves.</p>
+                          <a href="/member/leaves" className="inline-block text-[11px] font-semibold underline underline-offset-2" style={{ color: "#6366F1" }}>View in Leaves →</a>
+                        </div>
+                      ) : wfhPopup ? (
+                        /* WFH/Shoot reason popup */
+                        <div className="rounded-2xl p-4 space-y-3" style={{ background: "rgba(99,102,241,0.05)", border: "1.5px solid rgba(99,102,241,0.2)" }}>
+                          <div className="flex items-center gap-2">
+                            {wfhPopup === "shoot_day" ? <Camera size={15} style={{ color: "#6366F1" }} /> : <Home size={15} style={{ color: "#6366F1" }} />}
+                            <p className="text-[13px] font-bold" style={{ color: "#6366F1" }}>
+                              {wfhPopup === "shoot_day" ? "Request Shoot Day" : "Request Work From Home"}
+                            </p>
+                          </div>
+                          <textarea
+                            value={wfhReason}
+                            onChange={e => setWfhReason(e.target.value)}
+                            placeholder="Reason (optional)"
+                            rows={2}
+                            className="w-full text-[13px] rounded-xl p-3 resize-none outline-none"
+                            style={{ border: "1px solid #E5E7EB", color: "#111", background: "#fff" }}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              disabled={wfhSubmitting}
+                              onClick={async () => {
+                                setWfhSubmitting(true)
+                                const res = await submitWfhAttendanceRequest(wfhPopup, wfhReason.trim())
+                                setWfhSubmitting(false)
+                                if (!res.success) { setError(res.error ?? "Failed"); return }
+                                setWfhPendingAt(res.created_at ?? null)
+                                setWfhPopup(null)
+                                setWfhReason("")
+                                router.refresh()
+                              }}
+                              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold"
+                              style={{ background: "#6366F1", color: "#fff" }}>
+                              {wfhSubmitting ? <Loader2 size={13} className="animate-spin" /> : "Submit Request"}
+                            </button>
+                            <button onClick={() => { setWfhPopup(null); setWfhReason("") }}
+                              className="px-4 py-2.5 rounded-xl text-[13px] font-semibold"
+                              style={{ background: "#F3F4F6", color: "#6B7280" }}>
+                              Cancel
+                            </button>
+                          </div>
                         </div>
                       ) : (
                         <>
                           <div>
-                            <p className="text-[12px] font-semibold mb-2" style={{ color: "#9CA3AF" }}>Select Work Mode</p>
+                            <p className="text-[12px] font-semibold mb-3" style={{ color: "#9CA3AF" }}>Select Work Mode</p>
                             <div className="flex gap-2 flex-wrap">
                               {(isMedia ? ["office", "wfh", "shoot"] as const : ["office", "wfh"] as const).map((mode) => {
                                 const Icon = mode === "wfh" ? Home : mode === "shoot" ? Camera : Building2
                                 const label = mode === "wfh" ? "Work From Home" : mode === "shoot" ? "Shoot" : "Office"
+                                const isWfhMode = mode === "wfh" || mode === "shoot"
+                                const wfhApproved = todayWfhLeave?.status === "approved"
+                                const wfhApprovedType = todayWfhLeave?.leave_type
                                 const active = selectedMode === mode
-                                // WFH/Shoot requires approval — disable if no approved leave today
-                                const needsApproval = (mode === "wfh" || mode === "shoot") && todayWfhLeave?.status !== "approved"
+                                const clickHandler = () => {
+                                  if (mode === "office") { setSelectedMode("office"); return }
+                                  // WFH/Shoot: if pre-approved for this type, just select it
+                                  if (isWfhMode && wfhApproved && ((mode === "wfh" && wfhApprovedType !== "shoot_day") || (mode === "shoot" && wfhApprovedType === "shoot_day"))) {
+                                    setSelectedMode(mode); return
+                                  }
+                                  // Otherwise open popup for same-day request
+                                  if (isWfhMode) setWfhPopup(mode === "shoot" ? "shoot_day" : "wfh")
+                                }
                                 return (
-                                  <div key={mode} className="relative">
-                                    <button onClick={() => !needsApproval && setSelectedMode(mode)} disabled={isPending}
-                                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
-                                      style={{ background: active ? "#de1a1a" : needsApproval ? "#F3F4F6" : "#F9FAFB", color: active ? "#FFFFFF" : needsApproval ? "#D1D5DB" : "#6B7280", border: active ? "none" : "1px solid #E5E7EB", cursor: needsApproval ? "default" : "pointer" }}>
-                                      <Icon size={14} />{label}
-                                    </button>
-                                    {needsApproval && (
-                                      <a href="/member/leaves" className="absolute -bottom-5 left-0 text-[10px] font-semibold whitespace-nowrap" style={{ color: "#6366F1" }}>Apply via Leaves →</a>
-                                    )}
-                                  </div>
+                                  <button key={mode} onClick={clickHandler} disabled={isPending}
+                                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
+                                    style={{ background: active ? "#de1a1a" : "#F9FAFB", color: active ? "#FFFFFF" : "#6B7280", border: active ? "none" : "1px solid #E5E7EB" }}>
+                                    <Icon size={14} />{label}
+                                  </button>
                                 )
                               })}
                             </div>
                           </div>
                           <div className="flex items-center gap-3 mt-2">
-                            <button onClick={handleLogIn} disabled={isPending || geoLoading}
+                            <button onClick={handleLogIn} disabled={isPending || geoLoading || (selectedMode !== "office" && todayWfhLeave?.status !== "approved")}
                               className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
                               style={{ background: "#de1a1a", color: "#FFFFFF" }}>
                               {geoLoading ? <><MapPin size={14} className="animate-pulse" />Verifying…</> : isPending ? <Loader2 size={14} className="animate-spin" /> : <><LogIn size={14} />Log In</>}

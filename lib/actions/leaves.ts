@@ -88,6 +88,26 @@ export async function submitLeaveRequest(
     .eq('id', session.user.id)
     .single()
 
+  // Monthly limit check (full_day + half_day only; permission/wfh/shoot_day excluded)
+  const isExceptional = formData.get('is_exceptional') === 'true'
+  if (!isExceptional && (parsed.data.leave_type === 'full_day' || parsed.data.leave_type === 'half_day')) {
+    const currentMonth = parsed.data.from_date.slice(0, 7)
+    const { data: monthLeaves } = await supabase
+      .from('leaves')
+      .select('from_date, to_date, leave_type')
+      .eq('user_id', session.user.id)
+      .gte('from_date', `${currentMonth}-01`)
+      .lte('from_date', `${currentMonth}-31`)
+      .in('status', ['approved', 'pending'])
+    const used = (monthLeaves ?? []).reduce((s, l) => {
+      const t = l.leave_type ?? 'full_day'
+      if (t === 'full_day') return s + (Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1)
+      if (t === 'half_day') return s + 0.5
+      return s
+    }, 0)
+    if (used >= 5) return { error: 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.' }
+  }
+
   const { data: overlapping } = await supabase
     .from('leaves')
     .select('id, leave_type')
@@ -114,7 +134,7 @@ export async function submitLeaveRequest(
     user_id:             session.user.id,
     from_date:           parsed.data.from_date,
     to_date:             parsed.data.to_date,
-    reason:              parsed.data.reason,
+    reason:              isExceptional ? `[EXCEPTIONAL] ${parsed.data.reason}` : parsed.data.reason,
     leave_type:          parsed.data.leave_type,
     permission_hours:    parsed.data.permission_hours ?? null,
     permission_time:     parsed.data.permission_time ?? null,

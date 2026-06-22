@@ -206,6 +206,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [deleting, startDelete]     = useTransition()
   const [editing, startEdit]        = useTransition()
   const [editError, setEditError]   = useState<string | null>(null)
+  const [isExceptional, setIsExceptional] = useState(false)
   const [newFormError, setNewFormError] = useState<string | null>(null)
   const [dateError, setDateError]       = useState<string | null>(null)
   const [state, action, pending]    = useActionState(submitLeaveRequest, null)
@@ -284,14 +285,18 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
   const MONTHLY_LIMIT = 5
   const currentMonth  = today.slice(0, 7) // "YYYY-MM"
-  const monthlyUsed   = approved
-    .filter(l => l.from_date.startsWith(currentMonth))
-    .reduce((s, l) => {
-      const type = l.leave_type ?? "full_day"
-      if (type === "full_day") return s + daysBetween(l.from_date, l.to_date)
-      if (type === "half_day") return s + 0.5
-      return s
-    }, 0)
+  function calcMonthlyDays(entries: Leave[]) {
+    return entries
+      .filter(l => l.from_date.startsWith(currentMonth) && (l.status === "approved" || l.status === "pending"))
+      .reduce((s, l) => {
+        const type = l.leave_type ?? "full_day"
+        if (type === "full_day") return s + daysBetween(l.from_date, l.to_date)
+        if (type === "half_day") return s + 0.5
+        return s
+      }, 0)
+  }
+  const monthlyUsed     = calcMonthlyDays(leaves)
+  const monthlyLimitHit = monthlyUsed >= MONTHLY_LIMIT
   const monthlyBalance  = Math.max(0, MONTHLY_LIMIT - monthlyUsed)
   const balancePct      = Math.round((monthlyBalance / MONTHLY_LIMIT) * 100)
   const nextHoliday = companyLeaves.find(h => h.date >= today) ?? null
@@ -360,7 +365,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
           {/* Apply Leave CTA — desktop only (top-right corner) */}
           <div className="hidden md:flex" style={{ position: "absolute", right: 28, top: 20, zIndex: 3, flexDirection: "column", alignItems: "flex-end", gap: 18 }}>
-            <button onClick={() => setShowForm(true)}
+            <button onClick={() => { setIsExceptional(false); setShowForm(true) }}
               style={{ display: "flex", alignItems: "center", gap: 8, padding: "13px 28px", borderRadius: 14, background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)", color: "#FFFFFF", fontSize: 14, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 6px 24px rgba(222,26,26,0.35)", whiteSpace: "nowrap" }}>
               <Plus size={16} strokeWidth={2.5} /> Apply Leave
             </button>
@@ -369,7 +374,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
 
         {/* Mobile Apply Leave button — shown only on mobile, below hero */}
         <div className="md:hidden px-4 pt-4 pb-2">
-          <button onClick={() => setShowForm(true)}
+          <button onClick={() => { setIsExceptional(false); setShowForm(true) }}
             style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "14px", borderRadius: 14, background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)", color: "#FFFFFF", fontSize: 15, fontWeight: 800, border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(222,26,26,0.35)" }}>
             <Plus size={18} strokeWidth={2.5} /> Apply Leave
           </button>
@@ -784,13 +789,43 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: "0 0 2px" }}>{editingLeave ? "Edit Leave Request" : "Apply for Leave"}</p>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0 }}>Fill in the details below</p>
               </div>
-              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null) }}
+              <button onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null); setIsExceptional(false) }}
                 style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(255,255,255,0.15)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <X size={16} color="#fff" />
               </button>
             </div>
 
-            <div style={{ padding: 24 }}>
+            {/* ── Monthly limit block (new leave only, non-exceptional) ── */}
+            {!editingLeave && monthlyLimitHit && !isExceptional && (
+              <div style={{ padding: "24px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center" }}>
+                <div style={{ width: 56, height: 56, borderRadius: 16, background: "rgba(239,68,68,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28 }}>🚫</div>
+                <div>
+                  <p style={{ fontSize: 16, fontWeight: 900, color: "#111111", margin: "0 0 8px" }}>Monthly Leave Limit Reached</p>
+                  <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.6, margin: 0 }}>
+                    You have used <strong>{monthlyUsed}/{MONTHLY_LIMIT} days</strong> allowed this month.<br />You cannot apply for more leaves this month.
+                  </p>
+                </div>
+                <div style={{ width: "100%", background: "#F5F6FA", borderRadius: 12, padding: "14px 16px", border: "1px solid #EBEDF2" }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "#374151", margin: "0 0 4px" }}>Need leave urgently?</p>
+                  <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 12px", lineHeight: 1.5 }}>Apply as Exceptional Leave — admin will review and decide.</p>
+                  <button type="button" onClick={() => setIsExceptional(true)}
+                    style={{ width: "100%", padding: "11px 0", borderRadius: 12, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#F59E0B,#D97706)", color: "#fff", border: "none", cursor: "pointer", boxShadow: "0 4px 12px rgba(245,158,11,0.3)" }}>
+                    Apply as Exceptional Leave
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ padding: 24, display: !editingLeave && monthlyLimitHit && !isExceptional ? "none" : undefined }}>
+              {isExceptional && !editingLeave && (
+                <div style={{ background: "rgba(245,158,11,0.08)", border: "1.5px solid rgba(245,158,11,0.3)", borderRadius: 12, padding: "10px 14px", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>⚠️</span>
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: "#92400E", margin: 0 }}>Exceptional Leave Request</p>
+                    <p style={{ fontSize: 11, color: "#B45309", margin: 0 }}>Monthly limit exceeded. Admin approval required.</p>
+                  </div>
+                </div>
+              )}
               <form
                 action={editingLeave ? undefined : action}
                 onSubmit={editingLeave ? (e) => {
@@ -959,6 +994,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     </div>
                   </>
                 )}
+                {isExceptional && <input type="hidden" name="is_exceptional" value="true" />}
                 <div>
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Reason *</label>
                   <textarea name="reason" required rows={3} placeholder="Explain the reason…" className="resize-none" style={FIELD} defaultValue={editingLeave?.reason ?? ""} />
@@ -975,7 +1011,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                 )}
 
                 <div style={{ display: "flex", gap: 10 }}>
-                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null) }}
+                  <button type="button" onClick={() => { setShowForm(false); setEditingLeave(null); setLeaveType("full_day"); setHalfPeriod("morning"); setPermFrom(""); setPermTo(""); setHalfFrom(""); setHalfTo(""); setEditError(null); setIsExceptional(false) }}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 600, background: "#F6F7FA", color: "#6B7280", border: "1px solid #EBEDF2", cursor: "pointer" }}>Cancel</button>
                   <button type="submit" disabled={pending || editing}
                     style={{ flex: 1, padding: "12px 0", borderRadius: 14, fontSize: 13, fontWeight: 700, background: "linear-gradient(135deg,#DE1A1A,#991B1B)", color: "#fff", border: "none", cursor: "pointer", opacity: (pending || editing) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 4px 12px rgba(222,26,26,0.3)" }}>

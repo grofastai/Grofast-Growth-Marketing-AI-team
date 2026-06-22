@@ -346,6 +346,7 @@ export default function HistoryClient({
 
   // Collaboration confirmation state
   const [collabConfirms, setCollabConfirms] = useState<CollaborationConfirmation[]>(collaborationConfirmations)
+  useEffect(() => { setCollabConfirms(collaborationConfirmations) }, [collaborationConfirmations])
   const [collabLoading, setCollabLoading] = useState<string | null>(null)
   const [collabEditId, setCollabEditId] = useState<string | null>(null)
   const [collabEditStart, setCollabEditStart] = useState("")

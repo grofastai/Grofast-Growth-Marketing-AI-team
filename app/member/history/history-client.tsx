@@ -612,7 +612,7 @@ export default function HistoryClient({
   const stats = useMemo(() => {
     let totalHours = 0, totalTasks = 0, presentDays = 0, totalLearning = 0, totalBreak = 0
     let shootH = 0, editH = 0, otherH = 0, shootCount = 0, editCount = 0
-    let travelH = 0, worklogCount = 0, voiceoverCount = 0, posterCount = 0, totalEntries = 0
+    let travelH = 0, worklogCount = 0, voiceoverCount = 0, voiceoverH = 0, posterCount = 0, posterH = 0
     let isMedia = false
     const hoursPerDay: number[] = []
     const dailyData: { day: string; hours: number }[] = []
@@ -637,10 +637,9 @@ export default function HistoryClient({
           travelH += (e._travel_hours ?? 0)
         } else if (e.task_type === "edit") { editH += e.duration_hours ?? 0; editCount++ }
         else if (e.task_type === "other") { otherH += e.duration_hours ?? 0; worklogCount++ }
-        else if (e.task_type === "voiceover") { voiceoverCount++ }
-        else if (e.task_type === "poster") { posterCount++ }
+        else if (e.task_type === "voiceover") { voiceoverH += e.duration_hours ?? 0; voiceoverCount++ }
+        else if (e.task_type === "poster") { posterH += e.duration_hours ?? 0; posterCount++ }
       }
-      totalEntries += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
     }
     // Also count clock-in dates in the selected month that have no daily_update record
     const updateDates = new Set(monthFiltered.map(u => u.date))
@@ -682,12 +681,17 @@ export default function HistoryClient({
 
     // Overtime = total monthly hours above (8.5h × presentDays). Zero if avg < 8.5h.
     const totalOT = Math.round(Math.max(0, totalHours - 8.5 * presentDays) * 10) / 10
-    const avgH = presentDays > 0 ? Math.round((totalHours / presentDays) * 10) / 10 : 0
 
     const productivity = filtered.length > 0
       ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9.5)) * 40) : 0)))
       : 0
-    return { totalHours, totalOT, totalTasks, presentDays, absentDays, leaveDays, holidayDays, totalLearning, totalBreak, travelH, shootH, editH, otherH, shootCount, editCount, worklogCount, voiceoverCount, posterCount, totalEntries, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
+    // Media working = shoot + edit + learning (travel already inside shoot window)
+    const mediaWorkH = shootH + editH + totalLearning
+    // Non-media working = worklogs + voiceovers + posters + learning
+    const nonMediaWorkH = otherH + voiceoverH + posterH + totalLearning
+    const workForAvg = isMedia ? mediaWorkH : nonMediaWorkH
+    const avgH = presentDays > 0 ? Math.round((workForAvg / presentDays) * 10) / 10 : 0
+    return { totalHours, totalOT, totalTasks, presentDays, absentDays, leaveDays, holidayDays, totalLearning, totalBreak, travelH, shootH, editH, otherH, shootCount, editCount, worklogCount, voiceoverCount, voiceoverH, posterCount, posterH, mediaWorkH, nonMediaWorkH, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
   }, [filtered, attendanceDates, selectedMonth, monthFiltered, approvedLeaves, companyLeaves])
 
   // Streak calculation
@@ -2402,51 +2406,45 @@ export default function HistoryClient({
               {/* Stats rows */}
               <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
                 {(stats.isMedia ? [
-                  { label:"Working Hours",    value: fmtH(stats.shootH + stats.editH),    dot:"#22C55E" },
+                  { label:"Working Hours",    value: fmtH(stats.mediaWorkH),              dot:"#22C55E" },
+                  { label:"Avg Working Hrs",  value: fmtH(stats.avgH),                    dot: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", isAvg: true },
                   { label:"Total Shoots",     value: String(stats.shootCount),             dot:"#EF4444" },
                   { label:"Videos Edited",    value: String(stats.editCount),              dot:"#6366F1" },
+                  { label:"Learning Hours",   value: fmtH(stats.totalLearning),           dot:"#A78BFA" },
                   { label:"Travel Hours",     value: fmtH(stats.travelH),                 dot:"#F59E0B" },
                   { label:"Break Hours",      value: fmtH(stats.totalBreak),              dot:"#78716C" },
                   { label:"Present Days",     value: String(stats.presentDays),            dot:"#059669" },
                   { label:"Leave Days",       value: String(stats.leaveDays),              dot:"#F97316" },
                   { label:"Office Holidays",  value: String(stats.holidayDays),            dot:"#9CA3AF" },
                   { label:"Overtime",         value: fmtH(stats.totalOT),                 dot:"#FACC15" },
-                  { label:"Total Entries",    value: String(stats.totalEntries),           dot:"#A78BFA" },
                 ] : [
-                  { label:"Working Hours",    value: fmtH(stats.totalHours - stats.totalLearning), dot:"#22C55E" },
-                  { label:"Work Logs",        value: String(stats.worklogCount),                    dot:"#3B82F6" },
-                  { label:"Posters",          value: String(stats.posterCount),                     dot:"#EC4899" },
-                  { label:"Voiceovers",       value: String(stats.voiceoverCount),                  dot:"#8B5CF6" },
-                  { label:"Learning Hours",   value: fmtH(stats.totalLearning),                     dot:"#6366F1" },
-                  { label:"Break Hours",      value: fmtH(stats.totalBreak),                        dot:"#78716C" },
-                  { label:"Present Days",     value: String(stats.presentDays),                      dot:"#059669" },
-                  { label:"Leave Days",       value: String(stats.leaveDays),                        dot:"#F97316" },
-                  { label:"Office Holidays",  value: String(stats.holidayDays),                      dot:"#9CA3AF" },
-                  { label:"Overtime",         value: fmtH(stats.totalOT),                            dot:"#FACC15" },
-                  { label:"Total Entries",    value: String(stats.totalEntries),                      dot:"#A78BFA" },
-                ]).map((r, i, arr) => (
+                  { label:"Working Hours",    value: fmtH(stats.nonMediaWorkH),                        dot:"#22C55E" },
+                  { label:"Avg Working Hrs",  value: fmtH(stats.avgH),                                 dot: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", isAvg: true },
+                  { label:"Work Logs",        value: String(stats.worklogCount),                        dot:"#3B82F6" },
+                  { label:"Posters",          value: String(stats.posterCount),                         dot:"#EC4899" },
+                  { label:"Voiceovers",       value: String(stats.voiceoverCount),                      dot:"#8B5CF6" },
+                  { label:"Learning Hours",   value: fmtH(stats.totalLearning),                         dot:"#6366F1" },
+                  { label:"Break Hours",      value: fmtH(stats.totalBreak),                            dot:"#78716C" },
+                  { label:"Present Days",     value: String(stats.presentDays),                          dot:"#059669" },
+                  { label:"Leave Days",       value: String(stats.leaveDays),                            dot:"#F97316" },
+                  { label:"Office Holidays",  value: String(stats.holidayDays),                          dot:"#9CA3AF" },
+                  { label:"Overtime",         value: fmtH(stats.totalOT),                                dot:"#FACC15" },
+                ] as { label: string; value: string; dot: string; isAvg?: boolean }[]).map((r, i, arr) => (
                   <div key={r.label} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"9px 0", borderBottom: i < arr.length - 1 ? "1px solid #F5F6FA" : "none" }}>
                     <div style={{ display:"flex", alignItems:"center", gap:7 }}>
                       <div style={{ width:8, height:8, borderRadius:"50%", background:r.dot, flexShrink:0 }}/>
                       <span style={{ fontSize:11, color:"#6B7280" }}>{r.label}</span>
                     </div>
-                    <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{r.value}</span>
+                    {r.isAvg ? (
+                      <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                        <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{r.value}</span>
+                        <span style={{ fontSize:14, fontWeight:900, color: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444" }}>{stats.avgH >= 8.5 ? "↑" : "↓"}</span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{r.value}</span>
+                    )}
                   </div>
                 ))}
-
-                {/* Avg Working Hours with up/down indicator */}
-                <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", paddingTop:9 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                    <div style={{ width:8, height:8, borderRadius:"50%", background: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", flexShrink:0 }}/>
-                    <span style={{ fontSize:11, color:"#6B7280" }}>Avg Working Hrs</span>
-                  </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:12, fontWeight:800, color:"#111111" }}>{fmtH(stats.avgH)}</span>
-                    <span style={{ fontSize:14, fontWeight:900, color: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444" }}>
-                      {stats.avgH >= 8.5 ? "↑" : "↓"}
-                    </span>
-                  </div>
-                </div>
               </div>
             </div>
 

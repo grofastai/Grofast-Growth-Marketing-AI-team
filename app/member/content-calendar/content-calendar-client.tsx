@@ -3,7 +3,7 @@
 import { useState, useTransition, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
-  ChevronLeft, ChevronRight, ChevronDown, Camera, Clock,
+  ChevronLeft, ChevronRight, ChevronDown, Camera, CalendarDays,
   CheckCircle2, Plus, X, Loader2, Send, Pencil, Trash2,
 } from "lucide-react"
 import { updateContentPostStatus, createContentPost, updateContentPost, deleteContentPost } from "@/lib/actions/content-calendar"
@@ -504,7 +504,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </button>
                 <button onClick={() => { setYear(initialYear); setMonth(initialMonth); setSelectedDay(today) }}
                   style={{ padding: "6px 13px", fontSize: 11, fontWeight: 700, color: "#374151", background: "#F3F4F6", borderRadius: 8, border: "none", cursor: "pointer" }}>
-                  Today
+                  {MONTHS[month].slice(0, 3)} {year}
                 </button>
                 <button onClick={nextMonth} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E5E7EB", background: "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <ChevronRight size={13} color="#6B7280" />
@@ -514,7 +514,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   <button onClick={() => { setPickerYear(year); setPickerMonth(month); setPickerStep("month"); setShowMonthPicker(v => !v) }}
                     style={{ width: 30, height: 30, borderRadius: 8, border: showMonthPicker ? "1.5px solid #DE1A1A" : "1px solid #E5E7EB", background: showMonthPicker ? "rgba(222,26,26,0.07)" : "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                     title="Go to date">
-                    <Clock size={13} color={showMonthPicker ? "#DE1A1A" : "#6B7280"} />
+                    <CalendarDays size={13} color={showMonthPicker ? "#DE1A1A" : "#6B7280"} />
                   </button>
                   {showMonthPicker && (
                     <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, background: "#FFF", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.14)", padding: 16, zIndex: 100, minWidth: 260, border: "1px solid #F0F0F0" }}>

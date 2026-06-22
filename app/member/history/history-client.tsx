@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useRef } from "react"
+import { useState, useMemo, useRef, useEffect } from "react"
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts"
 import { useRouter } from "next/navigation"
 import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning, addEntryToDate } from "@/lib/actions/daily-updates"

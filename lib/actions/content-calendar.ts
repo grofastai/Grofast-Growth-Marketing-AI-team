@@ -186,10 +186,13 @@ export async function deleteContentPost(postId: string) {
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users').select('company_id, role').eq('id', user.id).single()
-  if (!profile || profile.role !== 'ADMIN') return { success: false, error: 'Admin only' }
+  if (!profile) return { success: false, error: 'Profile not found' }
 
-  const { error } = await admin.from('content_posts')
-    .delete().eq('id', postId).eq('company_id', profile.company_id)
+  // Admins can delete any post; members can only delete posts assigned to them
+  const query = admin.from('content_posts').delete().eq('id', postId).eq('company_id', profile.company_id)
+  const { error } = profile.role === 'ADMIN'
+    ? await query
+    : await query.eq('assigned_to', user.id)
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/content-calendar')

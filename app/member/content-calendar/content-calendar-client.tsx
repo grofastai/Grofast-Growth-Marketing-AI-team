@@ -253,8 +253,13 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
 
   function handleDelete(postId: string) {
     start(async () => {
-      await deleteContentPost(postId)
-      setPosts(prev => prev.filter(p => p.id !== postId))
+      const res = await deleteContentPost(postId)
+      if (res?.success) {
+        setPosts(prev => prev.filter(p => p.id !== postId))
+        router.refresh()
+      } else {
+        alert(res?.error ?? "Failed to delete. Please try again.")
+      }
     })
   }
 

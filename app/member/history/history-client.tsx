@@ -1456,25 +1456,33 @@ export default function HistoryClient({
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(() => {
-                        const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-                        const entryCalcH = calcNetWorkHours(entries) + (learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0))
-                        const ownH = entryCalcH > 0 ? entryCalcH : (u.working_hours ?? 0)
+                        const isMediaDay = entries.some(e => e.task_type === "shoot" || e.task_type === "edit")
+                        const shootH  = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+                        const editH   = entries.filter(e => e.task_type === "edit").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+                        const otherH  = entries.filter(e => e.task_type !== "shoot" && e.task_type !== "edit" && e.task_type !== "break" && e.task_type !== "learning").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+                        const workH   = isMediaDay ? (shootH + editH) : otherH
+                        const travelH = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + (e._travel_hours ?? 0), 0)
+                        const learnH  = entries.filter(e => e.task_type === "learning").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+                        const breakH  = entries.filter(e => e.task_type === "break").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
                         const collabH = collabHoursByDate.get(u.date) ?? 0
-                        const dayEntryH = ownH + collabH
-                        const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-                        const travelH = entries.filter(e => e.task_type === "shoot").reduce((sum, e) => sum + (e._travel_hours ?? 0), 0)
+                        const displayH = workH + collabH || (u.working_hours ?? 0)
                         return (
                           <>
-                            {dayEntryH > 0 && (
+                            {displayH > 0 && (
                               <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
                                 <Clock size={11} style={{ color:"#9CA3AF" }}/>
-                                {fmtH(dayEntryH)}
+                                {fmtH(displayH)}
                                 {collabH > 0 && <span style={{ fontSize:9, fontWeight:600, color:"#6366F1" }}>(+{fmtH(collabH)} collab)</span>}
                               </span>
                             )}
                             {travelH > 0 && (
                               <span style={{ fontSize:10, fontWeight:700, color:"#D97706", display:"flex", alignItems:"center", gap:3, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:99, padding:"2px 8px" }}>
                                 🚗 {fmtH(travelH)} travel
+                              </span>
+                            )}
+                            {learnH > 0 && (
+                              <span style={{ fontSize:10, fontWeight:700, color:"#6366F1", display:"flex", alignItems:"center", gap:3, background:"rgba(99,102,241,0.08)", border:"1px solid rgba(99,102,241,0.2)", borderRadius:99, padding:"2px 8px" }}>
+                                📚 {fmtH(learnH)} learn
                               </span>
                             )}
                             {breakH > 0 && (

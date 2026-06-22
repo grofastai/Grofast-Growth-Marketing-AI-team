@@ -191,6 +191,7 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [halfPeriod, setHalfPeriod]     = useState<"morning" | "afternoon">("morning")
   const [permFrom, setPermFrom]         = useState("")
   const [permTo, setPermTo]             = useState("")
+  const [showHalfDayPrompt, setShowHalfDayPrompt] = useState(false)
   const [halfFrom, setHalfFrom]         = useState("")
   const [halfTo, setHalfTo]             = useState("")
   const [filterStatus, setFilter]   = useState("all")
@@ -879,7 +880,15 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                         </div>
                         <div>
                           <label style={{ display: "block", fontSize: 10, color: "#9CA3AF", marginBottom: 5 }}>Return By</label>
-                          <input type="time" required style={FIELD} value={permTo} onChange={e => setPermTo(e.target.value)} />
+                          <input type="time" required style={FIELD} value={permTo} onChange={e => {
+                            setPermTo(e.target.value)
+                            if (permFrom && e.target.value) {
+                              const [fh, fm] = permFrom.split(":").map(Number)
+                              const [th, tm] = e.target.value.split(":").map(Number)
+                              const diff = (th * 60 + tm) - (fh * 60 + fm)
+                              if (diff > 240) setShowHalfDayPrompt(true)
+                            }
+                          }} />
                         </div>
                       </div>
                       {permFrom && permTo && (() => {
@@ -917,6 +926,31 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Half-day prompt popup ─────────────────────────────────────── */}
+      {showHalfDayPrompt && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#fff", borderRadius:20, padding:"28px 24px", maxWidth:360, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ width:52, height:52, borderRadius:14, background:"rgba(245,158,11,0.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
+              <span style={{ fontSize:26 }}>⚠️</span>
+            </div>
+            <p style={{ fontSize:16, fontWeight:800, color:"#111111", margin:"0 0 8px", textAlign:"center" }}>More than 4 Hours</p>
+            <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 22px", textAlign:"center", lineHeight:1.6 }}>
+              You are applying permission for more than <strong>4 hours</strong>. This will be counted as a <strong>Half Day</strong> leave. Please apply as Half Day instead.
+            </p>
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              <button onClick={() => { setLeaveType("half_day"); setPermFrom(""); setPermTo(""); setShowHalfDayPrompt(false) }}
+                style={{ padding:"12px 0", borderRadius:12, fontSize:13, fontWeight:700, background:"linear-gradient(135deg,#DE1A1A,#991B1B)", color:"#fff", border:"none", cursor:"pointer", boxShadow:"0 4px 12px rgba(222,26,26,0.3)" }}>
+                Switch to Half Day
+              </button>
+              <button onClick={() => setShowHalfDayPrompt(false)}
+                style={{ padding:"12px 0", borderRadius:12, fontSize:13, fontWeight:600, background:"#F6F7FA", color:"#6B7280", border:"1px solid #EBEDF2", cursor:"pointer" }}>
+                Keep as Permission
+              </button>
             </div>
           </div>
         </div>

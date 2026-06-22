@@ -538,6 +538,7 @@ export default function DailyUpdateForm({
   const [submitted,     setSubmitted]     = useState(false)
   const [workingDone,   setWorkingDone]   = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).working_hours))
   const [learningDone,  setLearningDone]  = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).learning_hours))
+  const [learningStarted, setLearningStarted] = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).learning_hours))
   const [mediaDone,     setMediaDone]     = useState(() => isMediaTeam && existingHasMedia(existingUpdate as unknown as Record<string,unknown> | null))
   const [breaksDone,    setBreaksDone]    = useState(() => isMediaTeam && existingHasBreaks(existingUpdate as unknown as Record<string,unknown> | null))
   const [editMode,      setEditMode]      = useState(false)
@@ -2540,17 +2541,24 @@ export default function DailyUpdateForm({
                     </p>
                   </div>
                 </div>
-                <button onClick={isMediaTeam ? addMediaBreak : addNonMediaBreak}
-                  style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, border:"1.5px solid rgba(245,158,11,0.4)", background:"#FEF3C7", color:"#D97706", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                  <Plus size={13} /> Add Break
-                </button>
+                {(isMediaTeam ? mediaBreaks.length : nonMediaBreaks.length) > 0 && (
+                  <button onClick={isMediaTeam ? addMediaBreak : addNonMediaBreak}
+                    style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 14px", borderRadius:10, border:"1.5px solid rgba(245,158,11,0.4)", background:"#FEF3C7", color:"#D97706", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                    <Plus size={13} /> Add Break
+                  </button>
+                )}
               </div>
 
               {/* Media breaks */}
               {isMediaTeam && (mediaBreaks.length === 0 ? (
-                <div onClick={addMediaBreak} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, padding:"24px 0", borderRadius:14, border:"2px dashed rgba(245,158,11,0.3)", background:"rgba(245,158,11,0.03)", cursor:"pointer" }}>
-                  <Coffee size={28} style={{ color:"#FCD34D" }} />
-                  <p style={{ fontSize:12, fontWeight:600, color:"#9CA3AF", margin:0 }}>No breaks logged — tap to add one</p>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 24px", border:"2px dashed rgba(245,158,11,0.3)", borderRadius:16, background:"#FFFBEB" }}>
+                  <span style={{ fontSize:36, marginBottom:12 }}>☕</span>
+                  <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No breaks logged yet</p>
+                  <p style={{ fontSize:12, color:"#9CA3AF", margin:"0 0 16px", textAlign:"center" }}>Click &quot;Add First Break&quot; to log a break.</p>
+                  <button onClick={addMediaBreak}
+                    style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 22px", borderRadius:12, border:"none", background:"#D97706", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                    <Plus size={13} /> Add First Break
+                  </button>
                 </div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -2582,9 +2590,14 @@ export default function DailyUpdateForm({
 
               {/* Non-media breaks — own state, same pattern as media breaks */}
               {!isMediaTeam && (nonMediaBreaks.length === 0 ? (
-                <div onClick={addNonMediaBreak} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, padding:"24px 0", borderRadius:14, border:"2px dashed rgba(245,158,11,0.3)", background:"rgba(245,158,11,0.03)", cursor:"pointer" }}>
-                  <Coffee size={28} style={{ color:"#FCD34D" }} />
-                  <p style={{ fontSize:12, fontWeight:600, color:"#9CA3AF", margin:0 }}>No breaks logged — tap to add one</p>
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 24px", border:"2px dashed rgba(245,158,11,0.3)", borderRadius:16, background:"#FFFBEB" }}>
+                  <span style={{ fontSize:36, marginBottom:12 }}>☕</span>
+                  <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No breaks logged yet</p>
+                  <p style={{ fontSize:12, color:"#9CA3AF", margin:"0 0 16px", textAlign:"center" }}>Click &quot;Add First Break&quot; to log a break.</p>
+                  <button onClick={addNonMediaBreak}
+                    style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 22px", borderRadius:12, border:"none", background:"#D97706", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                    <Plus size={13} /> Add First Break
+                  </button>
                 </div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -2619,7 +2632,28 @@ export default function DailyUpdateForm({
           {/* ══ LEARNING ══════════════════════════════════════════════════════ */}
           {tab === "learning" && (
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-              <SectionHead icon={<BookOpen size={16} style={{ color:"#10B981" }} />} label="What did you learn today?" count={0} color="#10B981" />
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:34, height:34, borderRadius:10, background:"rgba(16,185,129,0.1)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                    <BookOpen size={16} style={{ color:"#10B981" }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize:14, fontWeight:800, color:"#111111", margin:0 }}>Learning Today</p>
+                    <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>{learningDone ? `${learningHours}h logged` : "Skills & growth"}</p>
+                  </div>
+                </div>
+              </div>
+              {!learningStarted && !learningDone ? (
+                <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"48px 24px", border:"2px dashed #D1FAE5", borderRadius:16, background:"#F0FDF4" }}>
+                  <span style={{ fontSize:36, marginBottom:12 }}>📚</span>
+                  <p style={{ fontSize:13, fontWeight:700, color:"#374151", margin:"0 0 4px" }}>No learning logged yet</p>
+                  <p style={{ fontSize:12, color:"#9CA3AF", margin:"0 0 16px", textAlign:"center" }}>Click &quot;Add Learning&quot; to log what you learned today.</p>
+                  <button onClick={() => setLearningStarted(true)}
+                    style={{ display:"flex", alignItems:"center", gap:6, padding:"10px 22px", borderRadius:12, border:"none", background:"#10B981", color:"#FFFFFF", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                    <Plus size={13} /> Add Learning
+                  </button>
+                </div>
+              ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
                 <div>
                   <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>For Client *</label>
@@ -2700,9 +2734,10 @@ export default function DailyUpdateForm({
                   </div>
                 )}
               </div>
+              )}
 
-              {/* Submit button for non-media team */}
-              {!isMediaTeam && (
+              {/* Submit button for non-media team — only when form is open */}
+              {!isMediaTeam && (learningStarted || learningDone) && (
                 <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
                   <div>
                     {learningError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{learningError}</p>}
@@ -2721,7 +2756,7 @@ export default function DailyUpdateForm({
                   )}
                 </div>
               )}
-              {!isMediaTeam && (
+              {!isMediaTeam && (learningStarted || learningDone) && (
                 <p style={{ fontSize:11, marginTop:6, color:"#9CA3AF" }}>
                   Saved entries appear in your{" "}
                   <a href="/member/history" style={{ color:"#6366F1", fontWeight:600 }}>History tab ↗</a>

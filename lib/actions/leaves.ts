@@ -56,7 +56,7 @@ export async function submitLeaveRequest(
   const raw = {
     leave_type:          leaveType,
     from_date:           formData.get('from_date') as string,
-    to_date:             leaveType === 'full_day' ? (formData.get('to_date') as string) : (formData.get('from_date') as string),
+    to_date:             (leaveType === 'full_day' || leaveType === 'wfh') ? (formData.get('to_date') as string) : (formData.get('from_date') as string),
     half_day_period:     formData.get('half_day_period') || undefined,
     half_day_from_time:  (formData.get('half_day_from_time') as string) || undefined,
     half_day_to_time:    (formData.get('half_day_to_time') as string) || undefined,
@@ -259,7 +259,7 @@ export async function updateLeaveRequest(
   const raw = {
     leave_type:          leaveType,
     from_date:           formData.get('from_date') as string,
-    to_date:             leaveType === 'full_day' ? (formData.get('to_date') as string) : (formData.get('from_date') as string),
+    to_date:             (leaveType === 'full_day' || leaveType === 'wfh') ? (formData.get('to_date') as string) : (formData.get('from_date') as string),
     half_day_period:     formData.get('half_day_period') || undefined,
     half_day_from_time:  (formData.get('half_day_from_time') as string) || undefined,
     half_day_to_time:    (formData.get('half_day_to_time') as string) || undefined,
@@ -519,7 +519,8 @@ export async function updateLeaveStatus(
   // Rule: if applied before 9 AM → use 9:30 AM (shift start) as clock-in; after 9 AM → use actual apply time
   } else if (status === 'approved' && leave && (leave.leave_type === 'wfh' || leave.leave_type === 'shoot_day')) {
     const todayIst = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
-    if (leave.from_date === todayIst) {
+    // Only auto-clock-in for same-day single-day requests (from attendance button, not multi-day pre-planned)
+    if (leave.from_date === todayIst && leave.to_date === todayIst) {
       const { data: existing } = await admin
         .from('attendance_logs')
         .select('id, clock_in')

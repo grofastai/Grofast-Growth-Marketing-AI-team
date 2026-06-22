@@ -940,18 +940,12 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
             </div>
             <p style={{ fontSize:16, fontWeight:800, color:"#111111", margin:"0 0 8px", textAlign:"center" }}>More than 4 Hours</p>
             <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 22px", textAlign:"center", lineHeight:1.6 }}>
-              You are applying permission for more than <strong>4 hours</strong>. This will be counted as a <strong>Half Day</strong> leave. Please apply as Half Day instead.
+              Permission cannot exceed <strong>4 hours</strong>. Please apply as <strong>Half Day</strong> instead.
             </p>
-            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              <button onClick={() => { setLeaveType("half_day"); setPermFrom(""); setPermTo(""); setShowHalfDayPrompt(false) }}
-                style={{ padding:"12px 0", borderRadius:12, fontSize:13, fontWeight:700, background:"linear-gradient(135deg,#DE1A1A,#991B1B)", color:"#fff", border:"none", cursor:"pointer", boxShadow:"0 4px 12px rgba(222,26,26,0.3)" }}>
-                Switch to Half Day
-              </button>
-              <button onClick={() => setShowHalfDayPrompt(false)}
-                style={{ padding:"12px 0", borderRadius:12, fontSize:13, fontWeight:600, background:"#F6F7FA", color:"#6B7280", border:"1px solid #EBEDF2", cursor:"pointer" }}>
-                Keep as Permission
-              </button>
-            </div>
+            <button onClick={() => { setLeaveType("half_day"); setPermFrom(""); setPermTo(""); setShowHalfDayPrompt(false) }}
+              style={{ width:"100%", padding:"12px 0", borderRadius:12, fontSize:13, fontWeight:700, background:"linear-gradient(135deg,#DE1A1A,#991B1B)", color:"#fff", border:"none", cursor:"pointer", boxShadow:"0 4px 12px rgba(222,26,26,0.3)" }}>
+              Switch to Half Day
+            </button>
           </div>
         </div>
       )}

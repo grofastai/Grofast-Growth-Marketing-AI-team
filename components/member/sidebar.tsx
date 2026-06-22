@@ -102,7 +102,7 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
     <>
       {/* ── Desktop Sidebar (lg+) ─────────────────────────── */}
       <aside
-        className="hidden lg:flex fixed left-0 top-0 h-screen w-[240px] flex-col z-50 select-none overflow-hidden"
+        className="hidden lg:flex fixed left-0 top-0 h-screen w-[240px] flex-col z-[60] select-none overflow-hidden"
         style={{ background: "#080808", borderRight: "1px solid rgba(255,255,255,0.06)" }}
       >
         {/* ── Red wave background art ── */}
@@ -294,7 +294,7 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
 
       {/* ── Tablet Sidebar (md–lg) ────────────────────────── */}
       <aside
-        className="hidden md:flex lg:hidden fixed left-0 top-0 h-screen w-[64px] flex-col z-50 select-none overflow-hidden"
+        className="hidden md:flex lg:hidden fixed left-0 top-0 h-screen w-[64px] flex-col z-[60] select-none overflow-hidden"
         style={{ background: "#080808", borderRight: "1px solid rgba(255,255,255,0.06)" }}
       >
         {/* wave bg */}
@@ -363,7 +363,7 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
 
       {/* ── Mobile Top Bar ────────────────────────────────── */}
       <header
-        className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 h-14"
+        className="md:hidden fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 h-14"
         style={{ background: MOBILE_BG, borderBottom: `1px solid ${DIVIDER}` }}
       >
         <div className="flex items-center gap-2.5">
@@ -397,7 +397,7 @@ export default function MemberSidebar({ name, employeeId, unreadCount = 0, photo
 
       {/* ── Mobile Bottom Nav ─────────────────────────────── */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-[60] flex items-center justify-around px-2"
         style={{
           background: "#0a0a0a",
           borderTop: `1px solid ${DIVIDER}`,

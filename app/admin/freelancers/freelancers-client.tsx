@@ -245,7 +245,7 @@ function FreelancerSheet({
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={close} />
+      <div className="absolute inset-0 bg-black/40" onClick={close} />
       <div className="relative ml-auto h-full w-full max-w-[480px] bg-white shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -675,7 +675,7 @@ function WorkSheet({
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative ml-auto h-full w-full max-w-[700px] bg-white shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex-shrink-0">

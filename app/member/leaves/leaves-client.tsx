@@ -192,6 +192,9 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
   const [permFrom, setPermFrom]         = useState("")
   const [permTo, setPermTo]             = useState("")
   const [showHalfDayPrompt, setShowHalfDayPrompt] = useState(false)
+  const [showFullDayPrompt, setShowFullDayPrompt] = useState(false)
+  const [existingHalfDayPeriod, setExistingHalfDayPeriod] = useState<string>("morning")
+  const [halfDaySelectedDate, setHalfDaySelectedDate] = useState("")
   const [halfFrom, setHalfFrom]         = useState("")
   const [halfTo, setHalfTo]             = useState("")
   const [filterStatus, setFilter]   = useState("all")
@@ -808,7 +811,15 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                   <>
                     <input type="hidden" name="half_day_from_time" value={halfFrom} />
                     <input type="hidden" name="half_day_to_time" value={halfTo} />
-                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={() => setDateError(null)} />
+                    <div><label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label><input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} min={editingLeave ? undefined : today} onInvalid={e => { e.preventDefault(); setDateError("Leave requests must be for a future date.") }} onChange={e => {
+                      setDateError(null)
+                      const d = e.target.value
+                      setHalfDaySelectedDate(d)
+                      if (d) {
+                        const existing = leaves.find(l => l.leave_type === "half_day" && l.from_date === d && (l.status === "pending" || l.status === "approved") && (!editingLeave || l.id !== editingLeave.id))
+                        if (existing) { setExistingHalfDayPeriod(existing.half_day_period ?? "morning"); setShowFullDayPrompt(true) }
+                      }
+                    }} />
                     {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}</div>
                     <div>
                       <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Time Period *</label>
@@ -926,6 +937,31 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Full-day prompt popup (2 half days = 1 full day) ────────────── */}
+      {showFullDayPrompt && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div style={{ background:"#fff", borderRadius:20, padding:"28px 24px", maxWidth:360, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ width:52, height:52, borderRadius:14, background:"rgba(16,185,129,0.12)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
+              <span style={{ fontSize:26 }}>🌴</span>
+            </div>
+            <p style={{ fontSize:16, fontWeight:800, color:"#111111", margin:"0 0 8px", textAlign:"center" }}>2 Half Days = 1 Full Day</p>
+            <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 22px", textAlign:"center", lineHeight:1.6 }}>
+              You already have a <strong>{existingHalfDayPeriod === "morning" ? "Morning" : "Afternoon"} Half Day</strong> applied for this date. Two half days count as <strong>1 Full Day</strong> leave. Switch to Full Day instead?
+            </p>
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              <button onClick={() => { setLeaveType("full_day"); setHalfFrom(""); setHalfTo(""); setShowFullDayPrompt(false) }}
+                style={{ padding:"12px 0", borderRadius:12, fontSize:13, fontWeight:700, background:"linear-gradient(135deg,#10B981,#059669)", color:"#fff", border:"none", cursor:"pointer", boxShadow:"0 4px 12px rgba(16,185,129,0.3)" }}>
+                Switch to Full Day
+              </button>
+              <button onClick={() => setShowFullDayPrompt(false)}
+                style={{ padding:"12px 0", borderRadius:12, fontSize:13, fontWeight:600, background:"#F6F7FA", color:"#6B7280", border:"1px solid #EBEDF2", cursor:"pointer" }}>
+                Keep as Half Day
+              </button>
             </div>
           </div>
         </div>

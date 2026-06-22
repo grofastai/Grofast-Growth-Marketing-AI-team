@@ -631,7 +631,7 @@ export default function HistoryClient({
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
       totalTasks += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
       for (const e of entries) {
-        if (e.task_type === "shoot") { shootH += (e.duration_hours ?? 0) + (e._travel_hours ?? 0); shootCount++ }
+        if (e.task_type === "shoot") { shootH += (e.duration_hours ?? 0); shootCount++ }
         else if (e.task_type === "edit") { editH += e.duration_hours ?? 0; editCount++ }
         else if (e.task_type !== "break" && e.task_type !== "learning") otherH += e.duration_hours ?? 0
       }

@@ -63,6 +63,7 @@ export default async function MemberContentCalendarPage() {
       .select("id, name")
       .eq("company_id", cid)
       .eq("status", "active")
+      .eq("role", "MEMBER")
       .order("name"),
     admin.from("projects")
       .select("business_name")

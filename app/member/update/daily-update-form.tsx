@@ -2573,23 +2573,13 @@ export default function DailyUpdateForm({
                       )}
                       <select value={b.label} onChange={e => patchMediaBreak(b.id, { label: e.target.value, customLabel: "" })}
                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
-                        <option value="Permission">🙋 Permission</option>
                         <option value="Tea">☕ Tea</option>
                         <option value="Lunch Break">🍱 Lunch Break</option>
                         <option value="Personal">🏠 Personal</option>
                         <option value="Short Break">🚶 Short Break</option>
                         <option value="Early Logoff">🌙 Early Logoff</option>
                         <option value="Late Login">⏰ Late Login</option>
-                        <option value="__other__">✏️ Other</option>
                       </select>
-                      {b.label === "__other__" && (
-                        <input
-                          value={b.customLabel ?? ""}
-                          onChange={e => patchMediaBreak(b.id, { customLabel: e.target.value })}
-                          placeholder="Type break name…"
-                          style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", outline:"none", width:130 }}
-                        />
-                      )}
                       <button onClick={() => removeMediaBreak(b.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
                         <Trash2 size={13} style={{ color:"#EF4444" }} />
                       </button>
@@ -2622,23 +2612,13 @@ export default function DailyUpdateForm({
                       )}
                       <select value={b.label} onChange={e => patchNonMediaBreak(b.id, { label: e.target.value, customLabel: "" })}
                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
-                        <option value="Permission">🙋 Permission</option>
                         <option value="Tea">☕ Tea</option>
                         <option value="Lunch Break">🍱 Lunch Break</option>
                         <option value="Personal">🏠 Personal</option>
                         <option value="Short Break">🚶 Short Break</option>
                         <option value="Early Logoff">🌙 Early Logoff</option>
                         <option value="Late Login">⏰ Late Login</option>
-                        <option value="__other__">✏️ Other</option>
                       </select>
-                      {b.label === "__other__" && (
-                        <input
-                          value={b.customLabel ?? ""}
-                          onChange={e => patchNonMediaBreak(b.id, { customLabel: e.target.value })}
-                          placeholder="Type break name…"
-                          style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", outline:"none", width:130 }}
-                        />
-                      )}
                       <button onClick={() => removeNonMediaBreak(b.id)} style={{ marginLeft:"auto", background:"none", border:"none", cursor:"pointer", padding:4, borderRadius:8, display:"flex", flexShrink:0 }}>
                         <Trash2 size={13} style={{ color:"#EF4444" }} />
                       </button>

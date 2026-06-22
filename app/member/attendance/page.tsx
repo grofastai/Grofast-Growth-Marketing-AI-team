@@ -143,6 +143,19 @@ export default async function AttendancePage() {
     .maybeSingle()
   const todayApprovedLeave = todayLeaveRaw as { leave_type: string; reason: string | null } | null
 
+  // Check WFH / Shoot Day leave status for today (pending or approved)
+  const { data: todayWfhLeaveRaw } = await admin.from("leaves")
+    .select("leave_type, status, created_at")
+    .eq("user_id", effectiveUserId)
+    .lte("from_date", today)
+    .gte("to_date", today)
+    .in("leave_type", ["wfh", "shoot_day"])
+    .not("status", "eq", "rejected")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const todayWfhLeave = todayWfhLeaveRaw as { leave_type: string; status: string; created_at: string } | null
+
   // Monthly stats computation
   type MonthAttLog = { work_type: string | null; status: string; clock_in: string | null; clock_out: string | null; break_total_mins: number }
   type MonthUpdate = { working_hours: number | null; learning_hours: number | null; work_entries: WorkEntryLike[] | null }
@@ -184,7 +197,7 @@ export default async function AttendancePage() {
     : 0
 
   const monthLeaveDays = approvedLeaves
-    .filter(l => l.leave_type !== "permission")
+    .filter(l => l.leave_type !== "permission" && l.leave_type !== "wfh" && l.leave_type !== "shoot_day")
     .reduce((sum, l) => {
       return sum + Math.ceil((new Date(l.to_date).getTime() - new Date(l.from_date).getTime()) / 86400000) + 1
     }, 0)
@@ -222,6 +235,7 @@ export default async function AttendancePage() {
       weekUpdatesByDate={weekUpdatesByDate}
       monthlyPerf={monthlyPerf}
       todayApprovedLeave={todayApprovedLeave}
+      todayWfhLeave={todayWfhLeave}
       isMedia={isMedia}
     />
   )

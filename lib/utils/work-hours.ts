@@ -9,8 +9,8 @@ type WorkEntryForCalc = {
 // Net work hours from work_entries using interval-merge algorithm:
 // 1. Merge overlapping work intervals
 // 2. Carve out break intervals that overlap work
-// 3. Add _travel_hours for shoot entries (travel has no separate timeline entry)
-// 4. Add duration_hours for entries with no start/end time
+// 3. Add duration_hours for entries with no start/end time
+// NOTE: _travel_hours is NOT added here — travel is already inside the shoot window the employee entered
 export function calcNetWorkHours(entries: WorkEntryForCalc[]): number {
   function toMins(t: string) { const [h, m] = t.split(':').map(Number); return h * 60 + m }
 
@@ -51,12 +51,9 @@ export function calcNetWorkHours(entries: WorkEntryForCalc[]): number {
   }
 
   const timedMins = merged.reduce((s, i) => s + (i.end - i.start), 0)
-  const travelH   = workEntries
-    .filter(e => e.task_type === 'shoot')
-    .reduce((s, e) => s + Number(e._travel_hours ?? 0), 0)
   const untimedH  = workEntries
     .filter(e => !e.start_time || !e.end_time)
     .reduce((s, e) => s + (e.duration_hours ?? 0), 0)
 
-  return Math.round((timedMins / 60 + travelH + untimedH) * 10) / 10
+  return Math.round((timedMins / 60 + untimedH) * 10) / 10
 }

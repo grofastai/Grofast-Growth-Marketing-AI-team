@@ -2754,9 +2754,10 @@ export default function DailyUpdateForm({
                   </div>
                 )}
               </div>
+              )}
 
-              {/* Submit button for non-media team */}
-              {!isMediaTeam && (
+              {/* Submit button for non-media team — only when form is open */}
+              {!isMediaTeam && (learningStarted || learningDone) && (
                 <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
                   <div>
                     {learningError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{learningError}</p>}
@@ -2775,12 +2776,11 @@ export default function DailyUpdateForm({
                   )}
                 </div>
               )}
-              {!isMediaTeam && (
+              {!isMediaTeam && (learningStarted || learningDone) && (
                 <p style={{ fontSize:11, marginTop:6, color:"#9CA3AF" }}>
                   Saved entries appear in your{" "}
                   <a href="/member/history" style={{ color:"#6366F1", fontWeight:600 }}>History tab ↗</a>
                 </p>
-              )}
               )}
             </div>
           )}

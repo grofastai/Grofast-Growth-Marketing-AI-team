@@ -31,6 +31,19 @@ export default async function MemberLayout({ children }: { children: React.React
     getYesterdayGateStatus(),
   ])
 
+  // Check if this user has any freelancers assigned
+  const elevatedRoles = ["ADMIN", "FOUNDER", "CEO", "FREELANCER_MGR"]
+  const isElevated = elevatedRoles.includes(profile?.role ?? "")
+  let hasFreelancers = isElevated
+  if (!isElevated && profile?.company_id) {
+    const { count } = await admin
+      .from("freelancer_assignments")
+      .select("freelancer_id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("company_id", profile.company_id)
+    hasFreelancers = (count ?? 0) > 0
+  }
+
   // Admin impersonation — allowed through member layout
   if (profile?.role === "ADMIN" && impersonateId) {
     const { data: impProfile } = await admin
@@ -46,12 +59,13 @@ export default async function MemberLayout({ children }: { children: React.React
       redirect("/admin/team")
     }
 
-    // Check if impersonated user can manage freelancers
-    const { data: impUserProfile } = await admin
-      .from("users")
-      .select("can_manage_freelancers")
-      .eq("id", impersonateId)
-      .single()
+    // Check if impersonated user has freelancers assigned
+    const { count: impFreelancerCount } = await admin
+      .from("freelancer_assignments")
+      .select("freelancer_id", { count: "exact", head: true })
+      .eq("user_id", impersonateId)
+      .eq("company_id", profile.company_id ?? "")
+    const impHasFreelancers = (impFreelancerCount ?? 0) > 0
 
     return (
       <div className="flex min-h-screen" style={{ background: "#EDEEF2" }}>
@@ -61,7 +75,7 @@ export default async function MemberLayout({ children }: { children: React.React
           employeeId={impProfile.employee_id ?? ""}
           unreadCount={unreadCount}
           photoUrl={impProfile.photo_url ?? null}
-          canManageFreelancers={true}
+          canManageFreelancers={impHasFreelancers}
         />
         <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0" style={{ marginTop: 38 }}>
           {children}

@@ -1652,7 +1652,7 @@ export default function DailyUpdateForm({
                 {voiceovers.length === 0 ? (
                   <div onClick={addVoiceover} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #DDD6FE", background:"rgba(139,92,246,0.02)", cursor:"pointer" }}>
                     <div style={{ position:"relative", width:180, height:140 }}>
-                      <Image src="/brand/cinematic-boy.png" alt="Voiceover" fill style={{ objectFit:"contain" }} />
+                      <Image src="/brand/voiceover-girl.png" alt="Voiceover" fill style={{ objectFit:"contain" }} />
                     </div>
                     <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No voiceovers logged yet</p>
                     <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#8B5CF6", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(139,92,246,0.35)" }}>+ Add Voiceover</span>
@@ -1747,7 +1747,7 @@ export default function DailyUpdateForm({
                 {posters.length === 0 ? (
                   <div onClick={addPoster} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #FBCFE8", background:"rgba(236,72,153,0.02)", cursor:"pointer" }}>
                     <div style={{ position:"relative", width:180, height:140 }}>
-                      <Image src="/brand/daily-boy.png" alt="Poster" fill style={{ objectFit:"contain" }} />
+                      <Image src="/brand/poster-girl.png" alt="Poster" fill style={{ objectFit:"contain" }} />
                     </div>
                     <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No posters logged yet</p>
                     <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#EC4899", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(236,72,153,0.35)" }}>+ Add Poster</span>

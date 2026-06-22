@@ -174,13 +174,15 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const [wfhSubmitting, setWfhSubmitting] = useState(false)
   const [wfhPendingAt, setWfhPendingAt] = useState<string | null>(todayWfhLeave?.status === "pending" ? todayWfhLeave.created_at : null)
 
-  // Auto-refresh every 15s while WFH/Shoot approval is pending — stops once approved and clock-in appears
+  // Poll while WFH is pending (15s) or approved-but-no-clock-in yet (3s race window)
   useEffect(() => {
-    const inPendingState = wfhPendingAt !== null || todayWfhLeave?.status === "pending"
-    if (!inPendingState) return
-    const id = setInterval(() => router.refresh(), 15000)
+    const isPending = wfhPendingAt !== null || todayWfhLeave?.status === "pending"
+    const isApprovedTransition = todayWfhLeave?.status === "approved" && !todayLog?.clock_in
+    if (!isPending && !isApprovedTransition) return
+    const interval = isApprovedTransition ? 3000 : 15000
+    const id = setInterval(() => router.refresh(), interval)
     return () => clearInterval(id)
-  }, [wfhPendingAt, todayWfhLeave?.status, router])
+  }, [wfhPendingAt, todayWfhLeave?.status, todayLog?.clock_in, router])
 
   const handleLogIn = useCallback(() => {
     setError(null)
@@ -356,6 +358,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   const isIn      = !!todayLog?.clock_in && !todayLog?.clock_out && todayLog?.status === "present"
   const isDone    = !!todayLog?.clock_in && !!todayLog?.clock_out && todayLog?.status === "present"
   const notLogged = !todayLog
+  // WFH approved but auto-clock-in not yet reflected — computed here before JSX narrows todayLog to null
+  const isWfhApprovedNoClockIn = todayWfhLeave?.status === "approved" && !todayLog?.clock_in
   const breakTotalMins  = todayLog?.break_total_mins ?? 0
   const spanMinsToday   = (todayLog?.clock_in && todayLog?.clock_out)
     ? Math.floor((new Date(todayLog.clock_out).getTime() - new Date(todayLog.clock_in).getTime()) / 60000)
@@ -458,24 +462,39 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     </div>
                   ) : !confirmAbsent ? (
                     <>
-                      {/* WFH/Shoot pending — show running timer from click time */}
-                      {(wfhPendingAt || todayWfhLeave?.status === "pending") ? (
-                        <div className="rounded-2xl p-4 space-y-2" style={{ background: "rgba(99,102,241,0.06)", border: "1.5px solid rgba(99,102,241,0.2)" }}>
-                          <div className="flex items-center gap-2">
-                            {todayWfhLeave?.leave_type === "shoot_day" ? <Camera size={15} style={{ color: "#6366F1" }} /> : <Home size={15} style={{ color: "#6366F1" }} />}
-                            <p className="text-[13px] font-bold" style={{ color: "#6366F1" }}>
-                              {todayWfhLeave?.leave_type === "shoot_day" ? "Shoot Day" : "WFH"} — Waiting for Approval
-                            </p>
+                      {/* WFH/Shoot pending or just-approved-setting-up */}
+                      {(() => {
+                        const isApprovedTransition = isWfhApprovedNoClockIn
+                        const showPendingBlock = wfhPendingAt || todayWfhLeave?.status === "pending" || isApprovedTransition
+                        if (!showPendingBlock) return null
+                        return (
+                          <div className="rounded-2xl p-4 space-y-2" style={{ background: isApprovedTransition ? "rgba(16,185,129,0.06)" : "rgba(99,102,241,0.06)", border: `1.5px solid ${isApprovedTransition ? "rgba(16,185,129,0.2)" : "rgba(99,102,241,0.2)"}` }}>
+                            <div className="flex items-center gap-2">
+                              {todayWfhLeave?.leave_type === "shoot_day" ? <Camera size={15} style={{ color: isApprovedTransition ? "#059669" : "#6366F1" }} /> : <Home size={15} style={{ color: isApprovedTransition ? "#059669" : "#6366F1" }} />}
+                              <p className="text-[13px] font-bold" style={{ color: isApprovedTransition ? "#059669" : "#6366F1" }}>
+                                {isApprovedTransition
+                                  ? `${todayWfhLeave?.leave_type === "shoot_day" ? "Shoot Day" : "WFH"} Approved — Logging you in...`
+                                  : `${todayWfhLeave?.leave_type === "shoot_day" ? "Shoot Day" : "WFH"} — Waiting for Approval`}
+                              </p>
+                            </div>
+                            {!isApprovedTransition && (
+                              <>
+                                <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
+                                  Applied at {fmtTimeFromIso(wfhPendingAt ?? todayWfhLeave?.created_at ?? null)}
+                                </p>
+                                <p className="text-[11px] font-semibold" style={{ color: "#6B7280" }}>Working for</p>
+                                <LiveTimer clockInIso={wfhPendingAt ?? todayWfhLeave!.created_at} pausedSeconds={0} breakTotalMins={0} />
+                                <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Clock-in will be set to your applied time once admin approves.</p>
+                                <a href="/member/leaves" className="inline-block text-[11px] font-semibold underline underline-offset-2" style={{ color: "#6366F1" }}>View in Leaves →</a>
+                              </>
+                            )}
+                            {isApprovedTransition && (
+                              <p className="text-[11px]" style={{ color: "#6B7280" }}>Setting up your session, please wait a moment...</p>
+                            )}
                           </div>
-                          <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
-                            Applied at {fmtTimeFromIso(wfhPendingAt ?? todayWfhLeave?.created_at ?? null)}
-                          </p>
-                          <p className="text-[11px] font-semibold" style={{ color: "#6B7280" }}>Working for</p>
-                          <LiveTimer clockInIso={wfhPendingAt ?? todayWfhLeave!.created_at} pausedSeconds={0} breakTotalMins={0} />
-                          <p className="text-[10px]" style={{ color: "#9CA3AF" }}>Clock-in will be set to your applied time once admin approves.</p>
-                          <a href="/member/leaves" className="inline-block text-[11px] font-semibold underline underline-offset-2" style={{ color: "#6366F1" }}>View in Leaves →</a>
-                        </div>
-                      ) : wfhPopup ? (
+                        )
+                      })()}
+                      {!(wfhPendingAt || todayWfhLeave?.status === "pending" || isWfhApprovedNoClockIn) && (wfhPopup ? (
                         /* WFH/Shoot reason popup */
                         <div className="rounded-2xl p-4 space-y-3" style={{ background: "rgba(99,102,241,0.05)", border: "1.5px solid rgba(99,102,241,0.2)" }}>
                           <div className="flex items-center gap-2">
@@ -559,7 +578,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                             </button>
                           </div>
                         </>
-                      )}
+                      ))}
                     </>
                   ) : (
                     <div className="rounded-2xl p-4" style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)" }}>

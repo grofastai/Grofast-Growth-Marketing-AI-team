@@ -22,6 +22,7 @@ export interface ContentPostInput {
   scheduled_date: string
   scheduled_time?: string | null
   assigned_to?: string | null
+  shoot_team?: string[]
   drive_link?: string
   caption?: string
   notes?: string
@@ -52,6 +53,7 @@ export async function createContentPost(input: ContentPostInput) {
     scheduled_date: input.scheduled_date,
     post_type:      input.content_type,
     assigned_to:    input.assigned_to || null,
+    shoot_team:     input.shoot_team ?? [],
     drive_link:     input.drive_link || null,
     caption:        input.caption || null,
     notes:          input.notes || null,
@@ -62,17 +64,30 @@ export async function createContentPost(input: ContentPostInput) {
 
   if (error) return { success: false, error: error.message }
 
-  // WhatsApp notification to assigned member
-  if (input.assigned_to) {
-    const { data: assignee } = await admin
-      .from('users').select('name, phone').eq('id', input.assigned_to).single()
-    if (assignee?.phone) {
-      const dateLabel = new Date(input.scheduled_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
-      sendWhatsAppTemplate(
-        formatPhone(assignee.phone),
-        'grofast_content_assigned',
-        [assignee.name, input.title, input.platform, dateLabel]
-      ).catch(console.error)
+  // WhatsApp notification — shoot_team members or single assignee
+  const notifyIds = (input.shoot_team && input.shoot_team.length > 0)
+    ? input.shoot_team
+    : input.assigned_to ? [input.assigned_to] : []
+  if (notifyIds.length > 0) {
+    const { data: assignees } = await admin
+      .from('users').select('name, phone').in('id', notifyIds)
+    const dateLabel = new Date(input.scheduled_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+    let timeLabel = ''
+    if (input.scheduled_time) {
+      const [h, m] = (input.scheduled_time as string).split(':').map(Number)
+      const ampm = h >= 12 ? 'PM' : 'AM'
+      const hour12 = h % 12 || 12
+      timeLabel = ` at ${hour12}:${String(m).padStart(2, '0')} ${ampm}`
+    }
+    const dateTimeLabel = dateLabel + timeLabel
+    for (const assignee of (assignees ?? [])) {
+      if (assignee?.phone) {
+        sendWhatsAppTemplate(
+          formatPhone(assignee.phone),
+          'grofast_content_assigned',
+          [assignee.name, input.title, input.platform, dateTimeLabel]
+        ).catch(console.error)
+      }
     }
   }
 
@@ -151,6 +166,7 @@ export async function updateContentPost(
     ...(input.scheduled_date !== undefined && { scheduled_date: input.scheduled_date, date: input.scheduled_date }),
     ...(input.scheduled_time !== undefined && { scheduled_time: input.scheduled_time || null, reminder_sent: false }),
     ...(input.assigned_to    !== undefined && { assigned_to: input.assigned_to || null }),
+    ...(input.shoot_team     !== undefined && { shoot_team: input.shoot_team }),
     ...(input.notes          !== undefined && { notes: input.notes || null }),
     ...(input.content_pillar !== undefined && { content_pillar: input.content_pillar || null }),
     ...(input.priority       !== undefined && { priority: input.priority || 'medium' }),

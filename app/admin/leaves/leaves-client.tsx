@@ -156,8 +156,10 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 }) {
   const user = Array.isArray(leave.users) ? leave.users[0] : leave.users
   const name = user?.name ?? "Unknown"
-  const isPerm    = leave.leave_type === "permission"
-  const isHalfDay = leave.leave_type === "half_day"
+  const isPerm       = leave.leave_type === "permission"
+  const isHalfDay    = leave.leave_type === "half_day"
+  const isExceptional = leave.reason?.startsWith("[EXCEPTIONAL]")
+  const displayReason = isExceptional ? leave.reason.replace(/^\[EXCEPTIONAL\]\s*/, "") : leave.reason
   const leaveType = isPerm ? "Permission"
     : isHalfDay ? "Half Day Leave"
     : leave.leave_type === "wfh" ? "Work From Home"
@@ -197,6 +199,17 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
       {/* Divider */}
       <div style={{ height: 1, background: "#F3F4F6" }} />
 
+      {/* Exceptional leave banner */}
+      {isExceptional && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(245,158,11,0.1)", border: "1.5px solid rgba(245,158,11,0.35)", borderRadius: 10, padding: "8px 12px" }}>
+          <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 800, color: "#92400E", margin: 0 }}>Exceptional Leave</p>
+            <p style={{ fontSize: 10, color: "#B45309", margin: 0 }}>Monthly limit exceeded — needs special approval</p>
+          </div>
+        </div>
+      )}
+
       {/* Leave type + duration */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{
@@ -223,7 +236,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
           fontSize: 12, color: "#6B7280", margin: 0, lineHeight: 1.45,
           display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
         } as React.CSSProperties}>
-          {leave.reason}
+          {displayReason}
         </p>
       </div>
 

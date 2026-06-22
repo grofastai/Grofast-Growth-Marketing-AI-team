@@ -127,15 +127,11 @@ function calcNetWorkHours(entries: WorkEntry[]): number {
 
   const timedMins = merged.reduce((s, i) => s + (i.end - i.start), 0)
 
-  // Travel hours for shoots are always additive (travel happens outside shoot window)
-  const travelH = workEntries
-    .filter(e => e.task_type === "shoot")
-    .reduce((s, e) => s + (e._travel_hours ?? 0), 0)
-  // Entries with no time range — use their stored duration_hours directly
+  // NOTE: _travel_hours is NOT added — travel is already inside the shoot window the employee entered
   const untimedH = workEntries
     .filter(e => !e.start_time || !e.end_time)
     .reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-  return Math.round((timedMins / 60 + travelH + untimedH) * 10) / 10
+  return Math.round((timedMins / 60 + untimedH) * 10) / 10
 }
 
 function HTimePicker({ value, onChange, style: extra }: { value: string; onChange: (v: string) => void; style?: React.CSSProperties }) {

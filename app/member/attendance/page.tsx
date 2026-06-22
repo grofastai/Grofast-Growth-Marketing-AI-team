@@ -143,6 +143,18 @@ export default async function AttendancePage() {
     .maybeSingle()
   const todayApprovedLeave = todayLeaveRaw as { leave_type: string; reason: string | null } | null
 
+  // Check WFH / Shoot Day leave status for today (pending or approved)
+  const { data: todayWfhLeaveRaw } = await admin.from("leaves")
+    .select("leave_type, status")
+    .eq("user_id", effectiveUserId)
+    .eq("from_date", today)
+    .in("leave_type", ["wfh", "shoot_day"])
+    .not("status", "eq", "rejected")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const todayWfhLeave = todayWfhLeaveRaw as { leave_type: string; status: string } | null
+
   // Monthly stats computation
   type MonthAttLog = { work_type: string | null; status: string; clock_in: string | null; clock_out: string | null; break_total_mins: number }
   type MonthUpdate = { working_hours: number | null; learning_hours: number | null; work_entries: WorkEntryLike[] | null }
@@ -222,6 +234,7 @@ export default async function AttendancePage() {
       weekUpdatesByDate={weekUpdatesByDate}
       monthlyPerf={monthlyPerf}
       todayApprovedLeave={todayApprovedLeave}
+      todayWfhLeave={todayWfhLeave}
       isMedia={isMedia}
     />
   )

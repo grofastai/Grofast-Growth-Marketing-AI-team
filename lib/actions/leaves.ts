@@ -16,7 +16,7 @@ function createAdminClient() {
 }
 
 const leaveSchema = z.object({
-  leave_type:          z.enum(['full_day', 'half_day', 'permission']).default('full_day'),
+  leave_type:          z.enum(['full_day', 'half_day', 'permission', 'wfh', 'shoot_day']).default('full_day'),
   from_date:           z.string().min(1, 'Date required'),
   to_date:             z.string().min(1, 'End date required'),
   half_day_period:     z.enum(['morning', 'afternoon']).optional(),
@@ -153,7 +153,10 @@ export async function submitLeaveRequest(
     if (adminUsers?.length) {
       const leaveLabel = parsed.data.leave_type === 'full_day'
         ? `${parsed.data.from_date} → ${parsed.data.to_date}`
-        : parsed.data.leave_type === 'half_day' ? `Half-day on ${parsed.data.from_date}` : `Permission on ${parsed.data.from_date}`
+        : parsed.data.leave_type === 'half_day' ? `Half-day on ${parsed.data.from_date}`
+        : parsed.data.leave_type === 'wfh' ? `WFH on ${parsed.data.from_date}`
+        : parsed.data.leave_type === 'shoot_day' ? `Shoot Day on ${parsed.data.from_date}`
+        : `Permission on ${parsed.data.from_date}`
       await insertManyNotifications(adminUsers.map(a => ({
         companyId: company_id,
         userId: a.id,

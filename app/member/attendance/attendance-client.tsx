@@ -39,6 +39,7 @@ interface Props {
   weekUpdatesByDate?: Record<string, number>
   monthlyPerf?: MonthlyPerf
   todayApprovedLeave?: { leave_type: string; reason: string | null } | null
+  todayWfhLeave?: { leave_type: string; status: string } | null
   isMedia?: boolean
 }
 
@@ -121,10 +122,12 @@ function SegmentBar({ hoursWorked }: { hoursWorked: number }) {
   )
 }
 
-export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf, todayApprovedLeave, isMedia = false }: Props) {
+export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf, todayApprovedLeave, todayWfhLeave, isMedia = false }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">("office")
+  const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">(
+    todayWfhLeave?.status === "approved" ? (todayWfhLeave.leave_type === "shoot_day" ? "shoot" : "wfh") : "office"
+  )
   const [confirmAbsent, setConfirmAbsent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [geoLoading, setGeoLoading] = useState(false)
@@ -442,34 +445,57 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     </div>
                   ) : !confirmAbsent ? (
                     <>
-                      <div>
-                        <p className="text-[12px] font-semibold mb-2" style={{ color: "#9CA3AF" }}>Select Work Mode</p>
-                        <div className="flex gap-2 flex-wrap">
-                          {(["office", "wfh", "shoot"] as const).map((mode) => {
-                            const Icon = mode === "wfh" ? Home : mode === "shoot" ? Camera : Building2
-                            const label = mode === "wfh" ? "Work From Home" : mode === "shoot" ? "Shoot" : "Office"
-                            const active = selectedMode === mode
-                            return (
-                              <button key={mode} onClick={() => setSelectedMode(mode)} disabled={isPending}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
-                                style={{ background: active ? "#de1a1a" : "#F9FAFB", color: active ? "#FFFFFF" : "#6B7280", border: active ? "none" : "1px solid #E5E7EB" }}>
-                                <Icon size={14} />{label}
-                              </button>
-                            )
-                          })}
+                      {/* WFH pending approval state */}
+                      {todayWfhLeave?.status === "pending" ? (
+                        <div className="rounded-2xl p-4" style={{ background: "rgba(99,102,241,0.06)", border: "1.5px solid rgba(99,102,241,0.2)" }}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <Home size={16} style={{ color: "#6366F1" }} />
+                            <p className="text-[14px] font-bold" style={{ color: "#6366F1" }}>
+                              {todayWfhLeave.leave_type === "shoot_day" ? "Shoot Day" : "WFH"} Request Pending
+                            </p>
+                          </div>
+                          <p className="text-[12px]" style={{ color: "#6B7280" }}>Waiting for admin approval. Check your Leaves page for status.</p>
+                          <a href="/member/leaves" className="inline-block mt-2 text-[12px] font-semibold underline underline-offset-2" style={{ color: "#6366F1" }}>View in Leaves →</a>
                         </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <button onClick={handleLogIn} disabled={isPending || geoLoading}
-                          className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
-                          style={{ background: "#de1a1a", color: "#FFFFFF" }}>
-                          {geoLoading ? <><MapPin size={14} className="animate-pulse" />Verifying…</> : isPending ? <Loader2 size={14} className="animate-spin" /> : <><LogIn size={14} />Log In</>}
-                        </button>
-                        <button onClick={() => setConfirmAbsent(true)} disabled={isPending}
-                          className="text-[12px] font-medium underline underline-offset-2" style={{ color: "#EF4444" }}>
-                          Mark as Leave
-                        </button>
-                      </div>
+                      ) : (
+                        <>
+                          <div>
+                            <p className="text-[12px] font-semibold mb-2" style={{ color: "#9CA3AF" }}>Select Work Mode</p>
+                            <div className="flex gap-2 flex-wrap">
+                              {(isMedia ? ["office", "wfh", "shoot"] as const : ["office", "wfh"] as const).map((mode) => {
+                                const Icon = mode === "wfh" ? Home : mode === "shoot" ? Camera : Building2
+                                const label = mode === "wfh" ? "Work From Home" : mode === "shoot" ? "Shoot" : "Office"
+                                const active = selectedMode === mode
+                                // WFH/Shoot requires approval — disable if no approved leave today
+                                const needsApproval = (mode === "wfh" || mode === "shoot") && todayWfhLeave?.status !== "approved"
+                                return (
+                                  <div key={mode} className="relative">
+                                    <button onClick={() => !needsApproval && setSelectedMode(mode)} disabled={isPending}
+                                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold transition-all"
+                                      style={{ background: active ? "#de1a1a" : needsApproval ? "#F3F4F6" : "#F9FAFB", color: active ? "#FFFFFF" : needsApproval ? "#D1D5DB" : "#6B7280", border: active ? "none" : "1px solid #E5E7EB", cursor: needsApproval ? "default" : "pointer" }}>
+                                      <Icon size={14} />{label}
+                                    </button>
+                                    {needsApproval && (
+                                      <a href="/member/leaves" className="absolute -bottom-5 left-0 text-[10px] font-semibold whitespace-nowrap" style={{ color: "#6366F1" }}>Apply via Leaves →</a>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 mt-2">
+                            <button onClick={handleLogIn} disabled={isPending || geoLoading}
+                              className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
+                              style={{ background: "#de1a1a", color: "#FFFFFF" }}>
+                              {geoLoading ? <><MapPin size={14} className="animate-pulse" />Verifying…</> : isPending ? <Loader2 size={14} className="animate-spin" /> : <><LogIn size={14} />Log In</>}
+                            </button>
+                            <button onClick={() => setConfirmAbsent(true)} disabled={isPending}
+                              className="text-[12px] font-medium underline underline-offset-2" style={{ color: "#EF4444" }}>
+                              Mark as Leave
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </>
                   ) : (
                     <div className="rounded-2xl p-4" style={{ background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.2)" }}>

@@ -15,7 +15,7 @@ interface Leave {
   id: string; from_date: string; to_date: string; reason: string; status: string
   created_at: string; leave_type?: string; permission_hours?: number | null; permission_time?: string | null; half_day_period?: string | null; half_day_from_time?: string | null
 }
-type LeaveType = "full_day" | "half_day" | "permission"
+type LeaveType = "full_day" | "half_day" | "permission" | "wfh" | "shoot_day"
 
 interface CompanyLeave {
   id: string
@@ -35,6 +35,8 @@ const TYPE_ILLUSTRATION: Record<string, { emoji: string; bg: string }> = {
   full_day:   { emoji: "🌴", bg: "rgba(16,185,129,0.12)"   },
   permission: { emoji: "⏰", bg: "rgba(99,102,241,0.12)"   },
   absent:     { emoji: "🏠", bg: "rgba(107,114,128,0.1)"   },
+  wfh:        { emoji: "🏠", bg: "rgba(99,102,241,0.12)"   },
+  shoot_day:  { emoji: "📷", bg: "rgba(245,158,11,0.12)"   },
 }
 
 function daysBetween(from: string, to: string) {
@@ -166,7 +168,7 @@ function BalanceRing({ pct }: { pct: number }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-export default function MemberLeavesClient({ leaves: initialLeaves, userName, paidLeaveDays = 0, usedLeaveDays = 0, absentDays = [], companyLeaves = [] }: { leaves: Leave[]; userName: string; paidLeaveDays?: number; usedLeaveDays?: number; absentDays?: { id: string; date: string }[]; companyLeaves?: CompanyLeave[] }) {
+export default function MemberLeavesClient({ leaves: initialLeaves, userName, paidLeaveDays = 0, usedLeaveDays = 0, absentDays = [], companyLeaves = [], isMedia = false }: { leaves: Leave[]; userName: string; paidLeaveDays?: number; usedLeaveDays?: number; absentDays?: { id: string; date: string }[]; companyLeaves?: CompanyLeave[]; isMedia?: boolean }) {
   const router = useRouter()
   const [leaves, setLeaves]         = useState(initialLeaves)
   useEffect(() => { setLeaves(initialLeaves) }, [initialLeaves])
@@ -478,10 +480,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                     const yr      = dateObj.getFullYear()
                     const wd      = dateObj.toLocaleDateString("en-US", { weekday: "short" })
                     const StatusIcon = sc.icon
-                    const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : type === "permission" ? "Permission" : type === "absent" ? "On Leave" : "Full Day Leave"
-                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}` : type === "permission" ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : type === "absent" ? "Leave" : "Full Day"
-                    const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : type === "absent" ? "rgba(107,114,128,0.12)" : "rgba(245,158,11,0.12)"
-                    const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : type === "absent" ? "#6B7280" : "#F59E0B"
+                    const typeName = type === "full_day" ? "Full Day Leave" : type === "half_day" ? "Half Day Leave" : type === "permission" ? "Permission" : type === "absent" ? "On Leave" : type === "wfh" ? "Work From Home" : type === "shoot_day" ? "Shoot Day" : "Full Day Leave"
+                    const badgeText = type === "full_day" ? "Full Day" : type === "half_day" ? `Half Day · ${leave.half_day_period ?? "morning"}` : type === "permission" ? `${leave.permission_hours ?? 1}h${leave.permission_time ? ` · ${leave.permission_time}` : ""}` : type === "absent" ? "Leave" : type === "wfh" ? "WFH" : type === "shoot_day" ? "Shoot Day" : "Full Day"
+                    const badgeBg   = type === "full_day" ? "rgba(16,185,129,0.12)" : type === "half_day" ? "rgba(99,102,241,0.12)" : type === "absent" ? "rgba(107,114,128,0.12)" : type === "wfh" ? "rgba(99,102,241,0.12)" : type === "shoot_day" ? "rgba(245,158,11,0.12)" : "rgba(245,158,11,0.12)"
+                    const badgeCol  = type === "full_day" ? "#10B981" : type === "half_day" ? "#6366F1" : type === "absent" ? "#6B7280" : type === "wfh" ? "#6366F1" : type === "shoot_day" ? "#F59E0B" : "#F59E0B"
                     const duration  = isPerm ? `${leave.permission_hours}h session` : isHalf ? "1 Session" : `${days} Day${days && days > 1 ? "s" : ""}`
 
                     return (
@@ -778,9 +780,11 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                   <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 8 }}>Leave Type *</label>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                     {([
-                      { key: "full_day", label: "Full Day", emoji: "☀️" },
-                      { key: "half_day", label: "Half Day", emoji: "🌤️" },
+                      { key: "full_day",   label: "Full Day",   emoji: "☀️" },
+                      { key: "half_day",   label: "Half Day",   emoji: "🌤️" },
                       { key: "permission", label: "Permission", emoji: "⏰" },
+                      { key: "wfh",        label: "Work From Home", emoji: "🏠" },
+                      ...(isMedia ? [{ key: "shoot_day", label: "Shoot Day", emoji: "📷" }] : []),
                     ] as { key: LeaveType; label: string; emoji: string }[]).map(({ key, label, emoji }) => (
                       <button key={key} type="button" onClick={() => setLeaveType(key)}
                         style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 0", borderRadius: 14, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", ...(leaveType === key ? { background: "#DE1A1A", color: "#fff", boxShadow: "0 4px 12px rgba(222,26,26,0.35)" } : { background: "#F6F7FA", color: "#6B7280" }) }}>
@@ -827,6 +831,16 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
                       })()}
                     </div>
                   </>
+                )}
+                {(leaveType === "wfh" || leaveType === "shoot_day") && (
+                  <div>
+                    <label style={{ display: "block", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.14em", color: "#374151", marginBottom: 6 }}>Date *</label>
+                    <input name="from_date" type="date" required style={FIELD} defaultValue={editingLeave?.from_date ?? ""} onInvalid={e => { e.preventDefault(); setDateError("Please select a valid date.") }} onChange={() => setDateError(null)} />
+                    {dateError && <p style={{ fontSize: 11, color: "#DE1A1A", margin: "4px 0 0" }}>{dateError}</p>}
+                    <p style={{ fontSize: 11, color: "#6366F1", margin: "6px 0 0", fontWeight: 600 }}>
+                      {leaveType === "wfh" ? "🏠 Admin approval required before login" : "📷 Admin approval required for shoot day login"}
+                    </p>
+                  </div>
                 )}
                 {leaveType === "permission" && (
                   <>

@@ -27,7 +27,7 @@ export default async function ContentCalendarPage({ searchParams }: { searchPara
   const year  = sp.year  ? parseInt(sp.year)  : now.getFullYear()
   const month = sp.month ? parseInt(sp.month) : now.getMonth()
   const monthStart = `${year}-${String(month + 1).padStart(2, "0")}-01`
-  const monthEnd   = new Date(year, month + 1, 0).toISOString().split("T")[0]
+  const monthEnd   = new Date(year, month + 2, 0).toISOString().split("T")[0]
 
   const [
     { data: posts },

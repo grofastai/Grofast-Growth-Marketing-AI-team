@@ -20,6 +20,7 @@ interface Post {
   content_pillar?: string | null; priority?: string | null
   notes?: string | null; scheduled_time?: string | null
   assignee?: { name: string } | null
+  shoot_team?: string[] | null
 }
 interface Shoot  { id: string; title: string; start_time: string; client: string; status: string }
 interface Task   { id: string; title: string; due_date: string; status: string }
@@ -82,6 +83,7 @@ function formatTime(t: string | null | undefined): string | null {
   const hr = h % 12 || 12
   return `${hr}:${String(m).padStart(2, "0")} ${period}`
 }
+function isShootPost(p: Post) { return (p.shoot_team?.length ?? 0) > 0 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 function Sparkline({ color }: { color: string }) {
@@ -550,7 +552,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                     const isToday    = ds === today
                     const isSelected = ds === selectedDate
                     const total      = dayPosts.length + dayShoots.length + dayTasks.length
-                    const visible    = [...dayShoots.map(s => ({ type: "shoot" as const, id: s.id, color: "#9B6BFF", label: s.title || s.client })), ...dayTasks.map(t => ({ type: "task" as const, id: t.id, color: "#FFA53A", label: t.title })), ...dayPosts.map(p => ({ type: "post" as const, id: p.id, color: platformColor(p.platform), label: p.title }))]
+                    const visible    = [...dayShoots.map(s => ({ type: "shoot" as const, id: s.id, color: "#9B6BFF", label: s.title || s.client })), ...dayTasks.map(t => ({ type: "task" as const, id: t.id, color: "#FFA53A", label: t.title })), ...dayPosts.map(p => ({ type: isShootPost(p) ? "shoot" as const : "post" as const, id: p.id, color: isShootPost(p) ? "#9B6BFF" : platformColor(p.platform), label: p.title }))]
                     const shown      = visible.slice(0, 2)
                     const more       = total - shown.length
                     return (
@@ -728,7 +730,8 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                       </div>
                     ))}
                     {dayPosts.map(p => {
-                      const pColor = platformColor(p.platform)
+                      const shoot  = isShootPost(p)
+                      const pColor = shoot ? "#9B6BFF" : platformColor(p.platform)
                       const cfg    = STATUS_CFG[p.status] ?? STATUS_CFG.pending
                       const time   = formatTime(p.scheduled_time)
                       return (
@@ -736,12 +739,12 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                           {/* Top: icon + info + status */}
                           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
                             <div style={{ width: 36, height: 36, borderRadius: 10, background: `${pColor}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>
-                              {platformEmoji(p.platform)}
+                              {shoot ? <Camera size={16} color="#9B6BFF" /> : platformEmoji(p.platform)}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                {platformLabel(p.platform)}{p.client_name ? ` · ${p.client_name}` : ""}{time ? ` · ${time}` : ""}
+                              <p style={{ fontSize: 11, color: shoot ? "#9B6BFF" : "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: shoot ? 600 : 400 }}>
+                                {shoot ? "📹 Video Shoot" : platformLabel(p.platform)}{p.client_name ? ` · ${p.client_name}` : ""}{time ? ` · ${time}` : ""}
                               </p>
                             </div>
                             <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{cfg.label}</span>
@@ -776,15 +779,16 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               ) : (
                 <div>
                   {upcomingPosts.slice(0, 5).map(p => {
-                    const pColor = platformColor(p.platform)
+                    const shoot  = isShootPost(p)
+                    const pColor = shoot ? "#9B6BFF" : platformColor(p.platform)
                     return (
                       <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 18px", borderBottom: "1px solid #F9FAFB", cursor: "pointer" }} onClick={() => openEdit(p)}>
                         <div style={{ width: 30, height: 30, borderRadius: 8, background: `${pColor}18`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>
-                          {platformEmoji(p.platform)}
+                          {shoot ? <Camera size={13} color="#9B6BFF" /> : platformEmoji(p.platform)}
                         </div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: 12, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                          <p style={{ fontSize: 10, color: "#9CA3AF", margin: "1px 0 0" }}>{p.scheduled_date === today ? "Today" : p.scheduled_date.slice(5)}</p>
+                          <p style={{ fontSize: 10, color: shoot ? "#9B6BFF" : "#9CA3AF", margin: "1px 0 0", fontWeight: shoot ? 600 : 400 }}>{shoot ? "📹 Shoot · " : ""}{p.scheduled_date === today ? "Today" : p.scheduled_date.slice(5)}</p>
                         </div>
                         <span style={{ width: 7, height: 7, borderRadius: "50%", background: pColor, flexShrink: 0 }} />
                       </div>

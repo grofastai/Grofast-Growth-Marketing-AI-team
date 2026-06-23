@@ -483,7 +483,35 @@ function WorkEntrySheet({ freelancer, activeClients, pastClients, onClose, onSav
   )
 }
 
-// ── Freelancer list item (left panel) ────────────────────────────────────────
+
+// ── Sparkline ─────────────────────────────────────────────────────────────────
+
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  const pts = data.length > 1 ? data : [1, 2, 1, 3, 2, 4, 3, 5]
+  const max = Math.max(...pts, 1), min = Math.min(...pts)
+  const W = 80, H = 28
+  const coords = pts.map((v, i) => {
+    const x = (i / (pts.length - 1)) * W
+    const y = H - 4 - ((v - min) / (max - min || 1)) * (H - 8)
+    return `${x},${y}`
+  })
+  const d = `M${coords.join(" L")}`
+  const id = `sg${color.replace("#", "")}`
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: "100%", height: 28 }} preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={`${d} L${W},${H} L0,${H} Z`} fill={`url(#${id})`} />
+      <path d={d} stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+// ── Freelancer list item ──────────────────────────────────────────────────────
 
 function FreelancerListItem({ freelancer, works, total, unpaid, isSelected, onClick }: {
   freelancer: Freelancer; works: number; total: number; unpaid: number
@@ -491,25 +519,25 @@ function FreelancerListItem({ freelancer, works, total, unpaid, isSelected, onCl
 }) {
   const cfg = TEAM_CFG[freelancer.team]
   return (
-    <button onClick={onClick} style={{ width: "100%", textAlign: "left", padding: 0, background: "transparent", border: "none", borderBottom: "1px solid #F3F4F6", cursor: "pointer" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", borderLeft: `3px solid ${isSelected ? cfg.color : "transparent"}`, background: isSelected ? cfg.bg : "transparent", transition: "all 0.15s" }}>
-        <div style={{ width: 38, height: 38, borderRadius: 11, flexShrink: 0, background: isSelected ? cfg.color : cfg.bg, border: `1.5px solid ${cfg.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: 13, fontWeight: 800, color: isSelected ? "#fff" : cfg.color }}>{getInitials(freelancer.name)}</span>
+    <button onClick={onClick} style={{ width: "100%", textAlign: "left", padding: "10px 14px", background: "transparent", border: "none", borderBottom: "1px solid #F5F5F7", cursor: "pointer", transition: "all 0.15s", borderLeft: `3px solid ${isSelected ? cfg.color : "transparent"}`, backgroundColor: isSelected ? `${cfg.color}0D` : "transparent" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 13, flexShrink: 0, background: isSelected ? `linear-gradient(135deg, ${cfg.color}, ${cfg.color}CC)` : cfg.bg, border: `1.5px solid ${isSelected ? "transparent" : cfg.border}`, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: isSelected ? `0 4px 12px ${cfg.color}40` : "none" }}>
+          <span style={{ fontSize: 13, fontWeight: 900, color: isSelected ? "#fff" : cfg.color }}>{getInitials(freelancer.name)}</span>
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{freelancer.name}</p>
-          <p style={{ fontSize: 11, color: cfg.color, margin: "2px 0 0", fontWeight: 600 }}>{cfg.emoji} {cfg.shortLabel}</p>
+          <p style={{ fontSize: 13, fontWeight: 800, color: isSelected ? "#111" : "#374151", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{freelancer.name}</p>
+          <p style={{ fontSize: 10, color: cfg.color, margin: "2px 0 0", fontWeight: 700 }}>{cfg.emoji} {cfg.shortLabel}</p>
         </div>
         <div style={{ textAlign: "right", flexShrink: 0 }}>
-          <p style={{ fontSize: 12, fontWeight: 800, color: "#111", margin: 0 }}>{total > 0 ? fmt(total) : "—"}</p>
-          <p style={{ fontSize: 10, margin: "2px 0 0", fontWeight: 600, color: unpaid > 0 ? "#EF4444" : "#9CA3AF" }}>{works > 0 ? `${works} work${works > 1 ? "s" : ""}` : "No work"}</p>
+          <p style={{ fontSize: 12, fontWeight: 900, color: "#111", margin: 0 }}>{total > 0 ? fmt(total) : "—"}</p>
+          <p style={{ fontSize: 9, margin: "2px 0 0", fontWeight: 700, color: unpaid > 0 ? "#EF4444" : "#10B981", textTransform: "uppercase", letterSpacing: "0.05em" }}>{works > 0 ? `${works}w` : "no work"}</p>
         </div>
       </div>
     </button>
   )
 }
 
-// ── Detail history row (edit + delete + paid toggle) ──────────────────────────
+// ── Premium work history card ─────────────────────────────────────────────────
 
 function DetailHistoryRow({ entry, onEdit, onDelete, onTogglePaid }: {
   entry: WorkEntry; onEdit: () => void; onDelete: () => void; onTogglePaid: () => void
@@ -521,31 +549,36 @@ function DetailHistoryRow({ entry, onEdit, onDelete, onTogglePaid }: {
   const durDisplay = durMins > 0 ? `${Math.floor(durMins)}m ${Math.round((durMins % 1) * 60)}s` : null
 
   return (
-    <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 20px", borderBottom: "1px solid #F5F6FA" }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: cfg.bg, border: `1.5px solid ${cfg.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
-        <span style={{ fontSize: 15 }}>{cfg.emoji}</span>
+    <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F0F5", padding: "16px 18px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)", display: "flex", alignItems: "flex-start", gap: 14, transition: "box-shadow 0.15s" }}
+      onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 24px rgba(0,0,0,0.09)"}
+      onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.04)"}>
+      <div style={{ width: 46, height: 46, borderRadius: 14, flexShrink: 0, background: `linear-gradient(135deg, ${cfg.color}18 0%, ${cfg.color}08 100%)`, border: `1.5px solid ${cfg.color}25`, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}>
+        <span style={{ fontSize: 22 }}>{cfg.emoji}</span>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 13, fontWeight: 700, color: "#111", margin: 0 }}>{entry.title}</p>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 8px", marginTop: 4 }}>
-          <span style={{ fontSize: 11, color: "#6B7280" }}>{entry.client_name}</span>
-          <span style={{ fontSize: 11, color: "#D1D5DB" }}>·</span>
-          <span style={{ fontSize: 11, color: "#6B7280" }}>{date}</span>
-          {entry.language && <><span style={{ fontSize: 11, color: "#D1D5DB" }}>·</span><span style={{ fontSize: 11, color: "#6B7280" }}>{entry.language}</span></>}
-          {durDisplay && <><span style={{ fontSize: 11, color: "#D1D5DB" }}>·</span><span style={{ fontSize: 11, color: "#6B7280" }}>{durDisplay}</span></>}
+        <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, lineHeight: 1.3 }}>{entry.title}</p>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px", marginTop: 5 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color, background: `${cfg.color}12`, padding: "1px 8px", borderRadius: 6 }}>{entry.client_name}</span>
+          <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 500 }}>{date}</span>
+          {entry.language && <span style={{ fontSize: 11, color: "#6B7280" }}>· {entry.language}</span>}
+          {durDisplay && <span style={{ fontSize: 11, color: "#6B7280" }}>· {durDisplay}</span>}
         </div>
-        {entry.notes && <p style={{ fontSize: 11, color: "#9CA3AF", margin: "3px 0 0", fontStyle: "italic" }}>{entry.notes}</p>}
+        {entry.notes && <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", fontStyle: "italic", lineHeight: 1.5 }}>{entry.notes}</p>}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
-        <p style={{ fontSize: 14, fontWeight: 800, color: "#111", margin: 0 }}>{entry.amount ? fmt(entry.amount) : "—"}</p>
-        <button onClick={onTogglePaid} title="Toggle payment status" style={{ padding: "3px 10px", borderRadius: 20, fontSize: 10, fontWeight: 700, cursor: "pointer", border: "1.5px solid", background: isPaid ? "rgba(16,185,129,0.08)" : "rgba(245,158,11,0.08)", borderColor: isPaid ? "#10B981" : "#F59E0B", color: isPaid ? "#059669" : "#D97706", transition: "all 0.15s" }}>
-          {isPaid ? "✓ Paid" : "⏳ Unpaid"}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 7, flexShrink: 0 }}>
+        <p style={{ fontSize: 18, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)", letterSpacing: "-0.02em" }}>{entry.amount ? fmt(entry.amount) : "—"}</p>
+        <button onClick={onTogglePaid} style={{ padding: "4px 12px", borderRadius: 99, fontSize: 10, fontWeight: 800, cursor: "pointer", border: "none", background: isPaid ? "rgba(16,185,129,0.1)" : "rgba(245,158,11,0.1)", color: isPaid ? "#059669" : "#D97706", letterSpacing: "0.04em" }}>
+          {isPaid ? "✓ PAID" : "⏳ UNPAID"}
         </button>
-        <div style={{ display: "flex", gap: 4 }}>
-          <button onClick={onEdit} title="Edit entry" style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ display: "flex", gap: 5 }}>
+          <button onClick={onEdit} title="Edit" style={{ width: 30, height: 30, borderRadius: 9, border: "1.5px solid #EEF0FF", background: "#F8F9FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#EEF0FF"; (e.currentTarget as HTMLElement).style.borderColor = "#6366F1" }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#F8F9FF"; (e.currentTarget as HTMLElement).style.borderColor = "#EEF0FF" }}>
             <Pencil size={12} color="#6366F1" />
           </button>
-          <button onClick={onDelete} title="Delete entry" style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <button onClick={onDelete} title="Delete" style={{ width: 30, height: 30, borderRadius: 9, border: "1.5px solid #FEE2E2", background: "#FFF8F8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#FEE2E2"; (e.currentTarget as HTMLElement).style.borderColor = "#EF4444" }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#FFF8F8"; (e.currentTarget as HTMLElement).style.borderColor = "#FEE2E2" }}>
             <Trash2 size={12} color="#EF4444" />
           </button>
         </div>
@@ -564,14 +597,10 @@ function EditEntrySheet({ entry, activeClients, pastClients, onClose, onSaved }:
   const [dateFinished, setDateFinished] = useState(entry.date_finished)
   const [formEntry, setFormEntry] = useState<EntryItem>({
     date_given: entry.date_given ?? entry.date_finished,
-    client_name: entry.client_name,
-    title: entry.title,
-    amount: entry.amount?.toString() ?? "",
-    drive_link: entry.drive_link ?? "",
-    notes: entry.notes ?? "",
-    duration_mins: entry.duration_mins?.toString() ?? "",
-    language: entry.language ?? "",
-    task_description: entry.task_description ?? "",
+    client_name: entry.client_name, title: entry.title,
+    amount: entry.amount?.toString() ?? "", drive_link: entry.drive_link ?? "",
+    notes: entry.notes ?? "", duration_mins: entry.duration_mins?.toString() ?? "",
+    language: entry.language ?? "", task_description: entry.task_description ?? "",
     payment_status: entry.payment_status,
   })
   const [error, setError] = useState("")
@@ -584,16 +613,12 @@ function EditEntrySheet({ entry, activeClients, pastClients, onClose, onSaved }:
     if (!formEntry.amount) { setError("Amount is required"); return }
     startTransition(async () => {
       const result = await updateFreelancerWorkEntry(entry.id, {
-        date_finished: dateFinished,
-        date_given: formEntry.date_given || null,
-        client_name: formEntry.client_name,
-        title: formEntry.title.trim(),
-        amount: parseFloat(formEntry.amount),
-        drive_link: formEntry.drive_link || null,
+        date_finished: dateFinished, date_given: formEntry.date_given || null,
+        client_name: formEntry.client_name, title: formEntry.title.trim(),
+        amount: parseFloat(formEntry.amount), drive_link: formEntry.drive_link || null,
         notes: formEntry.notes || null,
         duration_mins: formEntry.duration_mins ? parseFloat(formEntry.duration_mins) : null,
-        language: formEntry.language || null,
-        task_description: formEntry.task_description || null,
+        language: formEntry.language || null, task_description: formEntry.task_description || null,
         payment_status: formEntry.payment_status,
       })
       if (!result.success) { setError(result.error ?? "Failed to save"); return }
@@ -605,19 +630,19 @@ function EditEntrySheet({ entry, activeClients, pastClients, onClose, onSaved }:
   return (
     <>
       <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }} onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-full sm:w-[460px] z-50 flex flex-col" style={{ background: "#FFFFFF", borderLeft: "1px solid #E5E7EB", boxShadow: "-4px 0 40px rgba(0,0,0,0.1)" }}>
-        <div style={{ padding: "18px 22px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+      <div className="fixed right-0 top-0 h-full w-full sm:w-[460px] z-50 flex flex-col" style={{ background: "#FFFFFF", borderLeft: "1px solid #E5E7EB", boxShadow: "-8px 0 48px rgba(0,0,0,0.12)" }}>
+        <div style={{ background: `linear-gradient(135deg, ${cfg.color}, ${cfg.color}BB)`, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: cfg.bg, border: `1.5px solid ${cfg.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 17 }}>{cfg.emoji}</span>
+            <div style={{ width: 38, height: 38, borderRadius: 11, background: "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ fontSize: 18 }}>{cfg.emoji}</span>
             </div>
             <div>
-              <p style={{ fontSize: 15, fontWeight: 800, color: "#111", margin: 0 }}>Edit Entry</p>
-              <p style={{ fontSize: 11, color: cfg.color, margin: 0, fontWeight: 600 }}>{cfg.shortLabel}</p>
+              <p style={{ fontSize: 15, fontWeight: 900, color: "#fff", margin: 0 }}>Edit Entry</p>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.75)", margin: 0, fontWeight: 600 }}>{cfg.shortLabel}</p>
             </div>
           </div>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <X size={14} color="#6B7280" />
+          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <X size={14} color="#fff" />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto" style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -645,19 +670,12 @@ function EditEntrySheet({ entry, activeClients, pastClients, onClose, onSaved }:
 // ── Main Page Client ──────────────────────────────────────────────────────────
 
 export default function FreelancersMemberClient({
-  freelancers,
-  workEntries: initialEntries,
-  clientNames,
-  pastClientNames = [],
+  freelancers, workEntries: initialEntries, clientNames, pastClientNames = [],
 }: {
-  freelancers: Freelancer[]
-  workEntries: WorkEntry[]
-  clientNames: string[]
-  pastClientNames?: string[]
+  freelancers: Freelancer[]; workEntries: WorkEntry[]; clientNames: string[]; pastClientNames?: string[]
 }) {
   const { activeOptions: activeClients, pastOptions: pastClients } = useMemo(
-    () => buildClientOptions(clientNames, pastClientNames),
-    [clientNames, pastClientNames]
+    () => buildClientOptions(clientNames, pastClientNames), [clientNames, pastClientNames]
   )
   const [workEntries, setWorkEntries] = useState(initialEntries)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -669,8 +687,6 @@ export default function FreelancersMemberClient({
   const [, startTransition] = useTransition()
 
   const activeFreelancers = useMemo(() => freelancers.filter(f => f.status === "active"), [freelancers])
-
-  // Auto-select first freelancer
   const effectiveSelectedId = selectedId ?? activeFreelancers[0]?.id ?? null
   const selectedFreelancer = activeFreelancers.find(f => f.id === effectiveSelectedId) ?? null
 
@@ -708,11 +724,23 @@ export default function FreelancersMemberClient({
     return c
   }, [activeFreelancers])
 
-  function handleSaved(newEntries: WorkEntry[]) { setWorkEntries(prev => [...newEntries, ...prev]) }
+  const sparkData = useMemo(() => {
+    const result: Record<string, number[]> = {}
+    for (const f of activeFreelancers) {
+      const months: number[] = []
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(); d.setMonth(d.getMonth() - i)
+        const ym = d.toISOString().slice(0, 7)
+        const total = workEntries.filter(e => e.freelancer_id === f.id && e.date_finished.startsWith(ym)).reduce((s, e) => s + (e.amount ?? 0), 0)
+        months.push(total)
+      }
+      result[f.id] = months
+    }
+    return result
+  }, [activeFreelancers, workEntries])
 
-  function handleEntryUpdated(updated: WorkEntry) {
-    setWorkEntries(prev => prev.map(e => e.id === updated.id ? updated : e))
-  }
+  function handleSaved(newEntries: WorkEntry[]) { setWorkEntries(prev => [...newEntries, ...prev]) }
+  function handleEntryUpdated(updated: WorkEntry) { setWorkEntries(prev => prev.map(e => e.id === updated.id ? updated : e)) }
 
   async function handleTogglePaid(entry: WorkEntry) {
     const newStatus = entry.payment_status === "paid" ? "unpaid" : "paid"
@@ -730,10 +758,8 @@ export default function FreelancersMemberClient({
     return (
       <div style={{ minHeight: "100vh", background: "#F5F6FA", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 32 }}>
         <div style={{ width: 64, height: 64, borderRadius: 20, background: "rgba(222,26,26,0.07)", display: "flex", alignItems: "center", justifyContent: "center" }}><Users size={28} color="#DE1A1A" /></div>
-        <div style={{ textAlign: "center" }}>
-          <p style={{ fontSize: 18, fontWeight: 800, color: "#111827", margin: 0 }}>No freelancers assigned</p>
-          <p style={{ fontSize: 13, color: "#6B7280", marginTop: 6 }}>Ask your admin to add freelancers under the no-login teams.</p>
-        </div>
+        <p style={{ fontSize: 18, fontWeight: 800, color: "#111827", margin: 0 }}>No freelancers assigned</p>
+        <p style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>Ask your admin to add freelancers under the no-login teams.</p>
       </div>
     )
   }
@@ -741,30 +767,28 @@ export default function FreelancersMemberClient({
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#F5F6FA", overflow: "hidden" }}>
 
-      {/* ── Top header bar ── */}
-      <div style={{ background: "#FFFFFF", borderBottom: "1px solid #EBEBEB", padding: "14px 20px", flexShrink: 0 }}>
+      {/* Top header */}
+      <div style={{ background: "#FFFFFF", borderBottom: "1px solid #EBEBEB", padding: "12px 20px", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 900, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>Freelancers</h1>
-            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{activeFreelancers.length} total · {monthLabel(globalMonth)}</p>
+            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{activeFreelancers.length} active · {new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
           </div>
-          {/* Global stats */}
-          <div style={{ display: "flex", gap: 0, background: "#F9FAFB", borderRadius: 12, border: "1px solid #EBEBEB", overflow: "hidden" }}>
-            {[
+          <div style={{ display: "flex", background: "#F9FAFB", borderRadius: 14, border: "1px solid #EBEBEB", overflow: "hidden" }}>
+            {([
               { label: "Freelancers", value: String(globalStats.total), color: "#6366F1" },
               { label: "Works", value: String(globalStats.totalWorks), color: "#0EA5E9" },
               { label: "Total", value: fmt(globalStats.totalCost), color: "#111" },
               { label: "Paid", value: fmt(globalStats.paidCost), color: "#10B981" },
               { label: "Unpaid", value: fmt(globalStats.unpaidCost), color: "#EF4444" },
-            ].map((s, i) => (
+            ] as const).map((s, i) => (
               <div key={s.label} style={{ padding: "8px 14px", borderRight: i < 4 ? "1px solid #EBEBEB" : "none", textAlign: "center" }}>
-                <p style={{ fontSize: 14, fontWeight: 800, color: s.color, margin: 0 }}>{s.value}</p>
-                <p style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600, margin: "1px 0 0", textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>{s.label}</p>
+                <p style={{ fontSize: 14, fontWeight: 900, color: s.color, margin: 0, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
+                <p style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700, margin: "1px 0 0", textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>{s.label}</p>
               </div>
             ))}
           </div>
-          {/* Month nav */}
-          <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#F9FAFB", border: "1px solid #EBEBEB", borderRadius: 10, padding: "5px 8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#F9FAFB", border: "1px solid #EBEBEB", borderRadius: 10, padding: "4px 7px" }}>
             <button onClick={() => setGlobalMonth(prevMonth(globalMonth))} style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ChevronLeft size={13} color="#6B7280" /></button>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#374151", minWidth: 85, textAlign: "center" }}>{new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</span>
             <button onClick={() => setGlobalMonth(nextMonth(globalMonth))} disabled={globalMonth >= currentYM()} style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "transparent", cursor: globalMonth >= currentYM() ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: globalMonth >= currentYM() ? 0.3 : 1 }}><ChevronRight size={13} color="#6B7280" /></button>
@@ -772,45 +796,48 @@ export default function FreelancersMemberClient({
         </div>
       </div>
 
-      {/* ── Two-panel body ── */}
+      {/* Two-panel body */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-        {/* ── LEFT: Freelancer list ── */}
-        <div style={{ width: 280, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {/* Team filter tabs */}
-          <div style={{ borderBottom: "1px solid #F3F4F6", padding: "0 8px", overflowX: "auto", display: "flex", gap: 0, flexShrink: 0 }}>
-            <button onClick={() => setTeamFilter("all")} style={{ padding: "10px 8px", fontSize: 11, fontWeight: 700, border: "none", background: "transparent", borderBottom: teamFilter === "all" ? "2px solid #DE1A1A" : "2px solid transparent", color: teamFilter === "all" ? "#DE1A1A" : "#9CA3AF", cursor: "pointer", whiteSpace: "nowrap" }}>
-              All ({activeFreelancers.length})
+        {/* LEFT panel */}
+        <div style={{ width: 260, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ borderBottom: "1px solid #F5F5F7", padding: "8px 12px", display: "flex", gap: 4, flexWrap: "wrap", flexShrink: 0 }}>
+            <button onClick={() => setTeamFilter("all")} style={{ padding: "5px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", background: teamFilter === "all" ? "#111" : "#F5F5F7", color: teamFilter === "all" ? "#fff" : "#6B7280", transition: "all 0.15s" }}>
+              All {activeFreelancers.length}
             </button>
             {NO_LOGIN_TEAMS.filter(t => (teamCounts[t] ?? 0) > 0).map(t => {
-              const c = TEAM_CFG[t]
+              const c = TEAM_CFG[t]; const active = teamFilter === t
               return (
-                <button key={t} onClick={() => setTeamFilter(t)} style={{ padding: "10px 8px", fontSize: 11, fontWeight: 700, border: "none", background: "transparent", borderBottom: teamFilter === t ? `2px solid ${c.color}` : "2px solid transparent", color: teamFilter === t ? c.color : "#9CA3AF", cursor: "pointer", whiteSpace: "nowrap" }}>
-                  {c.emoji}
+                <button key={t} onClick={() => setTeamFilter(t)} title={c.shortLabel} style={{ width: 30, height: 30, borderRadius: 10, border: "none", cursor: "pointer", background: active ? c.color : "#F5F5F7", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", boxShadow: active ? `0 3px 10px ${c.color}50` : "none" }}>
+                  <span style={{ fontSize: 14 }}>{c.emoji}</span>
                 </button>
               )
             })}
           </div>
-          {/* List */}
           <div style={{ flex: 1, overflowY: "auto" }}>
             {filteredFreelancers.map(f => {
               const fEntries = entriesByFreelancer[f.id] ?? []
               const fTotal = fEntries.reduce((s, e) => s + (e.amount ?? 0), 0)
               const fUnpaid = fEntries.filter(e => e.payment_status === "unpaid").reduce((s, e) => s + (e.amount ?? 0), 0)
               return (
-                <FreelancerListItem key={f.id} freelancer={f} works={fEntries.length} total={fTotal} unpaid={fUnpaid}
-                  isSelected={f.id === effectiveSelectedId} onClick={() => setSelectedId(f.id)} />
+                <div key={f.id}>
+                  <FreelancerListItem freelancer={f} works={fEntries.length} total={fTotal} unpaid={fUnpaid}
+                    isSelected={f.id === effectiveSelectedId} onClick={() => setSelectedId(f.id)} />
+                  <div style={{ padding: "0 14px 6px", opacity: 0.45 }}>
+                    <Sparkline data={sparkData[f.id] ?? []} color={TEAM_CFG[f.team].color} />
+                  </div>
+                </div>
               )
             })}
           </div>
         </div>
 
-        {/* ── RIGHT: Detail panel ── */}
-        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+        {/* RIGHT panel */}
+        <div style={{ flex: 1, overflowY: "auto" }}>
           {!selectedFreelancer ? (
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: "#9CA3AF" }}>
-              <Users size={36} />
-              <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>Select a freelancer</p>
+            <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: "#9CA3AF" }}>
+              <Users size={40} />
+              <p style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Select a freelancer</p>
             </div>
           ) : (() => {
             const cfg = TEAM_CFG[selectedFreelancer.team]
@@ -818,94 +845,98 @@ export default function FreelancersMemberClient({
               ? new Date(selectedFreelancer.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
               : null
             return (
-              <div style={{ flex: 1 }}>
-                {/* Profile header */}
-                <div style={{ background: "#FFFFFF", borderBottom: "1px solid #EBEBEB", padding: "20px 24px" }}>
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                      {/* Avatar */}
-                      <div style={{ width: 56, height: 56, borderRadius: 16, background: cfg.bg, border: `2px solid ${cfg.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <span style={{ fontSize: 20, fontWeight: 900, color: cfg.color }}>{getInitials(selectedFreelancer.name)}</span>
-                      </div>
-                      <div>
-                        <h2 style={{ fontSize: 18, fontWeight: 900, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>{selectedFreelancer.name}</h2>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 10px", borderRadius: 20, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}>{cfg.emoji} {cfg.shortLabel}</span>
-                          <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                            <Star size={11} fill="#F59E0B" color="#F59E0B" />
-                            <span style={{ fontSize: 11, fontWeight: 700, color: "#111" }}>{selectedFreelancer.rating.toFixed(1)}</span>
+              <div>
+                {/* HERO BANNER */}
+                <div style={{ margin: "16px 16px 0", borderRadius: 24, overflow: "hidden", background: `linear-gradient(135deg, ${cfg.color} 0%, ${cfg.color}CC 55%, ${cfg.color}66 100%)`, boxShadow: `0 8px 32px ${cfg.color}45`, position: "relative", minHeight: 210 }}>
+                  <div style={{ position: "absolute", top: -50, right: -50, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.07)", pointerEvents: "none" }} />
+                  <div style={{ position: "absolute", bottom: -30, left: 140, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+                  <div style={{ position: "absolute", top: 20, left: 220, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
+                  <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                        <div style={{ width: 64, height: 64, borderRadius: 20, background: "rgba(255,255,255,0.25)", border: "2.5px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
+                          <span style={{ fontSize: 24, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)" }}>{getInitials(selectedFreelancer.name)}</span>
+                        </div>
+                        <div>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", marginBottom: 6 }}>
+                            {cfg.emoji} {cfg.shortLabel}
+                          </span>
+                          <h2 style={{ fontSize: 24, fontWeight: 900, color: "#fff", margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{selectedFreelancer.name}</h2>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                              <Star size={12} fill="#FACC15" color="#FACC15" />
+                              <span style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.9)" }}>{selectedFreelancer.rating.toFixed(1)}</span>
+                            </div>
+                            {joinedDate && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.65)" }}>Since {joinedDate}</span>}
                           </div>
-                          {joinedDate && <span style={{ fontSize: 11, color: "#9CA3AF" }}>Since {joinedDate}</span>}
                         </div>
                       </div>
+                      <button onClick={() => setAddWorkFor(selectedFreelancer)} style={{ padding: "10px 20px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0, transition: "all 0.15s" }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.3)"}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.2)"}>
+                        <Plus size={15} /> Add Work Entry
+                      </button>
                     </div>
-                    <button onClick={() => setAddWorkFor(selectedFreelancer)} style={{ padding: "9px 18px", borderRadius: 10, border: "none", background: cfg.color, color: "#FFFFFF", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, boxShadow: `0 4px 12px ${cfg.color}40`, flexShrink: 0 }}>
-                      <Plus size={14} /> Add Work Entry
-                    </button>
-                  </div>
-
-                  {/* KPI row */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10, marginTop: 18 }}>
-                    {[
-                      { label: "Works", value: String(detailStats.works), color: cfg.color },
-                      { label: "Total Cost", value: detailStats.total > 0 ? fmt(detailStats.total) : "—", color: "#111" },
-                      { label: "Paid", value: detailStats.paid > 0 ? fmt(detailStats.paid) : "—", color: "#10B981" },
-                      { label: "Unpaid", value: detailStats.unpaid > 0 ? fmt(detailStats.unpaid) : "—", color: detailStats.unpaid > 0 ? "#EF4444" : "#9CA3AF" },
-                      { label: "Avg / Work", value: detailStats.avg > 0 ? fmt(detailStats.avg) : "—", color: "#6366F1" },
-                    ].map(k => (
-                      <div key={k.label} style={{ background: "#F9FAFB", borderRadius: 12, padding: "12px 14px", border: "1px solid #F0F0F0" }}>
-                        <p style={{ fontSize: 15, fontWeight: 900, color: k.color, margin: 0 }}>{k.value}</p>
-                        <p style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600, margin: "3px 0 0", textTransform: "uppercase", letterSpacing: "0.08em" }}>{k.label}</p>
-                      </div>
-                    ))}
+                    {/* KPI glass strip */}
+                    <div style={{ display: "flex", gap: 10, marginTop: 22, paddingBottom: 24, flexWrap: "wrap" }}>
+                      {[
+                        { label: "Works", value: String(detailStats.works) },
+                        { label: "Total Cost", value: detailStats.total > 0 ? fmt(detailStats.total) : "—" },
+                        { label: "Paid", value: detailStats.paid > 0 ? fmt(detailStats.paid) : "—" },
+                        { label: "Unpaid", value: detailStats.unpaid > 0 ? fmt(detailStats.unpaid) : "—" },
+                        { label: "Avg / Work", value: detailStats.avg > 0 ? fmt(detailStats.avg) : "—" },
+                      ].map(k => (
+                        <div key={k.label} style={{ background: "rgba(255,255,255,0.15)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.25)", padding: "10px 16px", backdropFilter: "blur(8px)", minWidth: 90 }}>
+                          <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: 0, fontFamily: "var(--font-jakarta)" }}>{k.value}</p>
+                          <p style={{ fontSize: 9, color: "rgba(255,255,255,0.7)", margin: "3px 0 0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{k.label}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* Work history */}
-                <div style={{ background: "#FFFFFF", margin: "14px 16px", borderRadius: 16, border: "1px solid #EBEBEB", overflow: "hidden", boxShadow: "0 1px 8px rgba(0,0,0,0.04)" }}>
-                  {/* History header */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderBottom: "1px solid #F3F4F6" }}>
+                {/* WORK HISTORY */}
+                <div style={{ margin: "14px 16px 0", background: "#FFFFFF", borderRadius: 20, border: "1px solid #F0F0F5", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #F5F5F7" }}>
                     <div>
-                      <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: 0 }}>Work History</p>
-                      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{monthLabel(detailMonth)} · {detailEntries.length} entries</p>
+                      <p style={{ fontSize: 14, fontWeight: 900, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>Work History</p>
+                      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{new Date(detailMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })} · {detailEntries.length} {detailEntries.length === 1 ? "entry" : "entries"}</p>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#F9FAFB", border: "1px solid #EBEBEB", borderRadius: 9, padding: "4px 6px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#F9FAFB", border: "1px solid #EBEBEB", borderRadius: 10, padding: "4px 7px" }}>
                       <button onClick={() => setDetailMonth(prevMonth(detailMonth))} style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ChevronLeft size={12} color="#6B7280" /></button>
                       <span style={{ fontSize: 11, fontWeight: 700, color: "#374151", minWidth: 80, textAlign: "center" }}>{new Date(detailMonth + "-01").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</span>
                       <button onClick={() => setDetailMonth(nextMonth(detailMonth))} disabled={detailMonth >= currentYM()} style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "transparent", cursor: detailMonth >= currentYM() ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: detailMonth >= currentYM() ? 0.3 : 1 }}><ChevronRight size={12} color="#6B7280" /></button>
                     </div>
                   </div>
-
-                  {/* Rows */}
                   {detailEntries.length === 0 ? (
-                    <div style={{ padding: "36px 20px", textAlign: "center" }}>
-                      <p style={{ fontSize: 30, margin: "0 0 10px" }}>📋</p>
-                      <p style={{ fontSize: 14, fontWeight: 700, color: "#374151", margin: 0 }}>No work entries for {monthLabel(detailMonth)}</p>
-                      <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 6 }}>Click "Add Work Entry" above to add work for {selectedFreelancer.name}.</p>
+                    <div style={{ padding: "48px 20px", textAlign: "center" }}>
+                      <p style={{ fontSize: 36, margin: "0 0 12px" }}>📋</p>
+                      <p style={{ fontSize: 14, fontWeight: 800, color: "#374151", margin: 0 }}>No entries for {new Date(detailMonth + "-01").toLocaleDateString("en-IN", { month: "long" })}</p>
+                      <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 6 }}>Click &quot;Add Work Entry&quot; to log work for {selectedFreelancer.name}.</p>
                     </div>
                   ) : (
-                    detailEntries.map(e => (
-                      <DetailHistoryRow key={e.id} entry={e}
-                        onEdit={() => setEditEntry(e)}
-                        onDelete={() => handleDelete(e.id)}
-                        onTogglePaid={() => handleTogglePaid(e)}
-                      />
-                    ))
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px" }}>
+                      {detailEntries.map(e => (
+                        <DetailHistoryRow key={e.id} entry={e}
+                          onEdit={() => setEditEntry(e)}
+                          onDelete={() => handleDelete(e.id)}
+                          onTogglePaid={() => handleTogglePaid(e)}
+                        />
+                      ))}
+                    </div>
                   )}
                 </div>
+                <div style={{ height: 24 }} />
               </div>
             )
           })()}
         </div>
       </div>
 
-      {/* Add Work Entry Sheet */}
       {addWorkFor && (
         <WorkEntrySheet freelancer={addWorkFor} activeClients={activeClients} pastClients={pastClients}
           onClose={() => setAddWorkFor(null)} onSaved={handleSaved} />
       )}
-
-      {/* Edit Entry Sheet */}
       {editEntry && (
         <EditEntrySheet entry={editEntry} activeClients={activeClients} pastClients={pastClients}
           onClose={() => setEditEntry(null)} onSaved={handleEntryUpdated} />

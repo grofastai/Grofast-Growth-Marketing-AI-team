@@ -134,7 +134,7 @@ function formatDuration(mins: string): string {
   const h = Math.floor(m / 60)
   const rem = Math.round(m % 60)
   if (h === 0) return `${rem}m`
-  return rem === 0 ? `${h}h` : `${h}h ${rem}m`
+  return `${h}h ${rem}m`
 }
 
 function blankEntry(today: string): EntryItem {

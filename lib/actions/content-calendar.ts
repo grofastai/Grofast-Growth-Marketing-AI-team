@@ -40,8 +40,8 @@ export async function createContentPost(input: ContentPostInput) {
     .from('users').select('company_id, role, name').eq('id', user.id).single()
   if (!profile) return { success: false, error: 'Profile not found' }
 
-  // Any member can assign to others — no restriction on assignment
-  const effectiveAssignedTo = input.assigned_to || null
+  // Any member can assign to others; if no assignee selected, default to self
+  const effectiveAssignedTo = input.assigned_to || user.id
   const effectiveShootTeam  = input.shoot_team ?? []
 
   const { data: post, error } = await admin.from('content_posts').insert({

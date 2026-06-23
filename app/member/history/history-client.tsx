@@ -683,6 +683,7 @@ export default function HistoryClient({
     }
 
     // Absent days: elapsed calendar days in period minus present days
+    const todayStr = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().split("T")[0]
     const firstDate = monthFiltered.length > 0 ? monthFiltered[monthFiltered.length - 1].date : todayStr
     const elapsedDays = Math.floor((new Date(todayStr + "T12:00:00").getTime() - new Date(firstDate + "T12:00:00").getTime()) / 86400000) + 1
     const absentDays = Math.max(0, elapsedDays - presentDays)

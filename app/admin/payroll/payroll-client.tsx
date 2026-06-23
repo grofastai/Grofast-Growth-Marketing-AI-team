@@ -199,6 +199,8 @@ const TEAM_CLR: Record<string, { bg: string; color: string }> = {
   "Freelance Development & Automation":{ bg: "#EEF2FF", color: "#6366F1" },
   "Freelance Marketing & Operations":  { bg: "#F0FDF4", color: "#10B981" },
   "Freelance IT Technology & Media":   { bg: "#F5F3FF", color: "#8B5CF6" },
+  "Freelance Video Editing":           { bg: "#EEF2FF", color: "#6366F1" },
+  "Freelance Videography":             { bg: "#FFF1F2", color: "#EF4444" },
   "Media Team":                        { bg: "#FFF1F2", color: "#EC4899" },
   "Media & Technology Team":           { bg: "#F5F3FF", color: "#8B5CF6" },
   "Technology & Operation Team":       { bg: "#F0FDF4", color: "#10B981" },

@@ -232,6 +232,10 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
           team: form.team,
           phone: form.phone || undefined,
           gender: form.gender || undefined,
+          position: form.position || undefined,
+          email: form.email || undefined,
+          date_of_birth: form.date_of_birth || null,
+          joined_at: form.joined_at || null,
           rating: 0,
         })
         if (result.success) { router.refresh(); onClose() }
@@ -505,15 +509,14 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                     {!isNoLoginTeam && <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Credentials will be sent here after account creation.</p>}
                   </div>
 
-                  {/* Login-only fields — hidden for no-login freelancers */}
-                  {!isNoLoginTeam && (
-                    <>
+                  {/* Position — shown for all (full time + login + no-login) */}
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Position / Designation</label>
-                    <input className="sheet-input" value={form.position} onChange={set("position")} placeholder="e.g. Social Media Executive, Videographer…" style={FIELD} />
+                    <input className="sheet-input" value={form.position} onChange={set("position")} placeholder="e.g. Voice Artist, Video Editor…" style={FIELD} />
                   </div>
 
-                  {!isEdit && (
+                  {/* Employee ID — full time + login freelancers only */}
+                  {!isNoLoginTeam && !isEdit && (
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
                         Employee ID * <span style={{ color: "#22C55E", fontWeight: 700, textTransform: "none", letterSpacing: 0 }}>· Auto-generated</span>
@@ -523,12 +526,13 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                     </div>
                   )}
 
+                  {/* Email — shown for all */}
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Email Address *</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
+                      Email Address {!isNoLoginTeam ? "*" : ""}
+                    </label>
                     <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com" style={FIELD} />
                   </div>
-                    </>
-                  )}
 
                   {/* Salary fields — Full Time only */}
                   {!isNoLoginTeam && form.employment_type === "regular" && (
@@ -548,8 +552,7 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                     </div>
                   )}
 
-                  {!isNoLoginTeam && (
-                    <>
+                  {/* DOB + Work Start — shown for all */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Date of Birth</label>
@@ -561,7 +564,8 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                     </div>
                   </div>
 
-                  {!isEdit && (
+                  {/* Password — login accounts only */}
+                  {!isNoLoginTeam && !isEdit && (
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
                         {isAdmin ? "Password *" : "Temporary Password *"}
@@ -569,8 +573,6 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                       <input type="text" className="sheet-input" value={form.password} onChange={set("password")} placeholder="Min 6 characters" style={FIELD} />
                       {!isAdmin && <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Will be sent via WhatsApp.</p>}
                     </div>
-                  )}
-                    </>
                   )}
                 </>
               )}

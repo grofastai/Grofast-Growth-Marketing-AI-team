@@ -50,6 +50,10 @@ export type FreelancerInput = {
   gender?: string
   title?: string
   team?: string
+  position?: string
+  email?: string
+  date_of_birth?: string | null
+  joined_at?: string | null
   availability_notes?: string
   rating?: number
   status?: "active" | "inactive"
@@ -114,6 +118,10 @@ export async function createFreelancer(input: FreelancerInput): Promise<{ succes
     name: input.name,
     type: input.type,
     team: input.team || null,
+    position: input.position || null,
+    email: input.email || null,
+    date_of_birth: input.date_of_birth || null,
+    joined_at: input.joined_at || null,
     phone: input.phone || null,
     upi_id: input.upi_id || null,
     gender: input.gender || null,

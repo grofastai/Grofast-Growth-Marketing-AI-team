@@ -55,6 +55,10 @@ export default async function AttendancePage() {
   }
 
   const admin = adminSupabase()
+  // When impersonating, the RLS-bound `supabase` client is still authenticated as
+  // the admin, so member-scoped queries return zero rows. Read through the
+  // service-role client instead, still scoped to effectiveUserId.
+  const db = impersonateId ? admin : supabase
 
   const [
     { data: profileRaw },
@@ -68,17 +72,17 @@ export default async function AttendancePage() {
     { data: approvedLeavesRaw },
     { data: weekUpdatesRaw },
   ] = await Promise.all([
-    supabase.from("users").select("team").eq("id", effectiveUserId).maybeSingle(),
-    supabase.from("attendance_logs")
+    db.from("users").select("team").eq("id", effectiveUserId).maybeSingle(),
+    db.from("attendance_logs")
       .select("id, date, clock_in, clock_out, break_in, break_out, break_total_mins, break_sessions, work_type, status, paused_seconds")
       .eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
-    supabase.from("attendance_logs")
+    db.from("attendance_logs")
       .select("id, date, clock_in, clock_out, break_in, break_out, break_total_mins, break_sessions, work_type, status, paused_seconds")
       .eq("user_id", effectiveUserId).gte("date", weekStart).lte("date", weekEnd),
-    supabase.from("daily_updates")
+    db.from("daily_updates")
       .select("working_hours, learning_hours, shoot_count")
       .eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
-    supabase.from("leaves")
+    db.from("leaves")
       .select("from_date, permission_hours")
       .eq("user_id", effectiveUserId)
       .eq("leave_type", "permission")

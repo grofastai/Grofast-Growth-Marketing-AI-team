@@ -28,6 +28,13 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const impersonateId = cookieStore.get("gf_impersonate")?.value
   const effectiveUserId = impersonateId ?? user.id
 
+  // When an admin is impersonating, the RLS-bound `supabase` client is still
+  // authenticated as the admin, so member-scoped policies (user_id = auth.uid())
+  // would return zero rows. Read through the service-role client instead — still
+  // explicitly scoped to effectiveUserId. The member layout already verified the
+  // admin may impersonate this same-company user.
+  const db = impersonateId ? adminClient() : supabase
+
   const params = await searchParams
   const monthParam = params.month ?? ""
 
@@ -86,17 +93,17 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { data: monthlyAttLogsRaw },
     { data: collabConfirmsRaw },
   ] = await Promise.all([
-    supabase.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name, team").eq("id", effectiveUserId).single(),
-    supabase.from("daily_updates").select("working_hours, shoot_count").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
-    supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).neq("status", "completed"),
-    supabase.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).eq("status", "completed"),
-    supabase.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", effectiveUserId).eq("status", "pending"),
-    supabase.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", effectiveUserId).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
-    supabase.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
-    supabase.from("daily_updates").select("date, working_hours, attendance_status, learning_hours, shoot_count, editing_count, work_entries").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
+    db.from("users").select("name, employee_id, phone, photo_url, blood_group, emergency_contact_name, team").eq("id", effectiveUserId).single(),
+    db.from("daily_updates").select("working_hours, shoot_count").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
+    db.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).neq("status", "completed"),
+    db.from("tasks").select("*", { count: "exact", head: true }).eq("assigned_to", effectiveUserId).eq("status", "completed"),
+    db.from("leaves").select("*", { count: "exact", head: true }).eq("user_id", effectiveUserId).eq("status", "pending"),
+    db.from("tasks").select("id, title, status, priority, due_date").eq("assigned_to", effectiveUserId).neq("status", "completed").order("due_date", { ascending: true }).limit(8),
+    db.from("attendance_logs").select("clock_in, clock_out").eq("user_id", effectiveUserId).eq("date", today).maybeSingle(),
+    db.from("daily_updates").select("date, working_hours, attendance_status, learning_hours, shoot_count, editing_count, work_entries").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
     adminClient().from("leaves").select("from_date, to_date, leave_type").eq("user_id", effectiveUserId).eq("status", "approved").gte("from_date", monthStart).lte("from_date", monthEnd),
-    supabase.from("attendance_logs").select("work_type, status, date, break_total_mins, clock_in, clock_out").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
-    supabase.from("collaboration_confirmations").select("date, confirmed_hours").eq("collaborator_id", effectiveUserId).in("status", ["confirmed", "edited_confirmed"]).gte("date", monthStart).lte("date", monthEnd),
+    db.from("attendance_logs").select("work_type, status, date, break_total_mins, clock_in, clock_out").eq("user_id", effectiveUserId).gte("date", monthStart).lte("date", monthEnd),
+    db.from("collaboration_confirmations").select("date, confirmed_hours").eq("collaborator_id", effectiveUserId).in("status", ["confirmed", "edited_confirmed"]).gte("date", monthStart).lte("date", monthEnd),
   ])
 
   const profile        = profileRaw as unknown as ProfileRow | null

@@ -135,7 +135,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [pickerYear, setPickerYear] = useState(initialYear)
   const [pickerMonth, setPickerMonth] = useState(initialMonth)
   const [pickerStep, setPickerStep] = useState<"month" | "date">("month")
-  const [view, setView]   = useState<"calendar" | "list">("calendar")
+  const [view, setView]         = useState<"calendar" | "list">("calendar")
+  const [contentMode, setContentMode] = useState<"post" | "shoot">("post")
   const [filter, setFilter] = useState<"all" | "mine">(isAdmin ? "all" : "mine")
   const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().split("T")[0])
   const [listDayFilter, setListDayFilter] = useState<string | null>(null)
@@ -219,11 +220,19 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
       ? posts.filter(p => p.assigned_to === userId || (p.shoot_team ?? []).includes(userId))
       : posts
     if (clientFilter !== "all") p = p.filter(p => p.client_name === clientFilter)
-    return p.filter(p => p.scheduled_date.startsWith(monthPrefix))
-  }, [posts, filter, clientFilter, userId, year, month])
+    p = p.filter(p => p.scheduled_date.startsWith(monthPrefix))
+    // Tab filter: "other" platform = shoot, everything else = post
+    if (contentMode === "shoot") p = p.filter(p => p.platform === "other")
+    else p = p.filter(p => p.platform !== "other")
+    return p
+  }, [posts, filter, clientFilter, userId, year, month, contentMode])
 
   function postsOnDay(d: number)  { const ds = dateStr(d); return filteredPosts.filter(p => p.scheduled_date === ds) }
-  function shootsOnDay(d: number) { const ds = dateStr(d); return shoots.filter(s => s.start_time.split("T")[0] === ds) }
+  function shootsOnDay(d: number) {
+    if (contentMode !== "shoot") return []
+    const ds = dateStr(d)
+    return shoots.filter(s => s.start_time.split("T")[0] === ds)
+  }
   function tasksOnDay(d: number)  { const ds = dateStr(d); return tasks.filter(t => t.due_date === ds) }
 
   function handleStatusChange(postId: string, status: string) {
@@ -255,11 +264,14 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
     setEditingPost(null)
     setSchedDate(date ?? new Date().toISOString().split("T")[0])
     setSchedTime("")
-    setTitle(""); setPlatform("instagram"); setContentType("post")
+    setTitle("")
+    setPlatform(contentMode === "shoot" ? "other" : "instagram")
+    setContentType(contentMode === "shoot" ? "video" : "post")
     setClientName(""); setAssignedTo(""); setShootTeam([]); setInstructions("")
     setContentPillar(""); setPriority("medium")
     setFormError(""); setFormSuccess(false)
-    setSchedType(""); setShootFrom(""); setShootTo(""); setShootLocation("")
+    setSchedType(contentMode === "shoot" ? "shoot" : "post")
+    setShootFrom(""); setShootTo(""); setShootLocation("")
     setClientBrand(""); setClientCustom("")
     setShowAdd(true)
   }
@@ -353,10 +365,10 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const today        = new Date().toISOString().split("T")[0]
   const myPosts      = posts.filter(p => p.assigned_to === userId || (p.shoot_team ?? []).includes(userId))
   const todayPosts   = filteredPosts.filter(p => p.scheduled_date === today)
-  const totalContent = todayPosts.length
+  const totalContent = filteredPosts.length
   const readyCount   = filteredPosts.filter(p => p.status === "ready").length
   const inProgCount  = filteredPosts.filter(p => p.status === "in_progress").length
-  const postedCount  = todayPosts.filter(p => p.status === "posted").length
+  const postedCount  = filteredPosts.filter(p => p.status === "posted").length
   const pendingCount = filteredPosts.filter(p => p.status === "pending").length
 
   const upcomingPosts = useMemo(() =>
@@ -399,7 +411,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button onClick={() => openAdd()}
               style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 20px", background: "rgba(255,255,255,0.22)", backdropFilter: "blur(8px)", color: "#FFF", borderRadius: 12, border: "1.5px solid rgba(255,255,255,0.35)", cursor: "pointer", fontSize: 12, fontWeight: 800, whiteSpace: "nowrap" }}>
-              <Plus size={14} strokeWidth={3} /> Add Content
+              <Plus size={14} strokeWidth={3} /> {contentMode === "shoot" ? "Add Shoot" : "Add Post"}
             </button>
             <div style={{ display: "flex", background: "rgba(0,0,0,0.25)", backdropFilter: "blur(8px)", borderRadius: 10, padding: 3, gap: 2, border: "1px solid rgba(255,255,255,0.12)" }}>
               {([
@@ -458,13 +470,34 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
         </div>
       </div>
 
+      {/* ── Mode Tabs: Post / Shoot ── */}
+      <div style={{ display: "flex", gap: 4, marginBottom: isMobile ? 14 : 20, background: "#FFFFFF", borderRadius: 18, padding: 4, border: "1px solid #E5E7EB", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+        {([
+          { mode: "post"  as const, icon: "📄", label: "Post Schedule",  desc: "Reels, posters, stories", grad: "linear-gradient(135deg, #C41230 0%, #8B0000 100%)", shadow: "rgba(139,0,0,0.35)" },
+          { mode: "shoot" as const, icon: "📹", label: "Shoot Schedule", desc: "Video shoots & locations",  grad: "linear-gradient(135deg, #1D4ED8 0%, #4D8CFF 100%)", shadow: "rgba(29,78,216,0.35)" },
+        ]).map(({ mode, icon, label, desc, grad, shadow }) => (
+          <button key={mode} onClick={() => setContentMode(mode)} style={{
+            flex: 1, padding: isMobile ? "12px 14px" : "18px 24px", borderRadius: 14, border: "none", cursor: "pointer",
+            background: contentMode === mode ? grad : "transparent",
+            color: contentMode === mode ? "#FFF" : "#6B7280",
+            textAlign: "left", transition: "all 0.18s",
+            boxShadow: contentMode === mode ? `0 4px 20px ${shadow}` : "none",
+          }}>
+            <p style={{ fontSize: isMobile ? 14 : 16, fontWeight: 800, margin: "0 0 3px", display: "flex", alignItems: "center", gap: 7 }}>
+              <span>{icon}</span> {label}
+            </p>
+            <p style={{ fontSize: isMobile ? 10 : 12, opacity: contentMode === mode ? 0.75 : 0.6, margin: 0, fontWeight: 500 }}>{desc}</p>
+          </button>
+        ))}
+      </div>
+
       {/* ── Stats ── */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 14 : 24 }}>
         {[
-          { label: "Total Content", value: totalContent, sub: "All time",  icon: "📄", headerBg: "linear-gradient(135deg,#8B0000 0%,#C41230 100%)", accent: "#DE1A1A", shadow: "rgba(139,0,0,0.22)" },
+          { label: contentMode === "shoot" ? "Total Shoots" : "Total Posts", value: totalContent, sub: "This month", icon: contentMode === "shoot" ? "📹" : "📄", headerBg: "linear-gradient(135deg,#8B0000 0%,#C41230 100%)", accent: "#DE1A1A", shadow: "rgba(139,0,0,0.22)" },
           { label: "Ready To Post", value: readyCount,   sub: "Scheduled", icon: "📤", headerBg: "linear-gradient(135deg,#1E3A8A 0%,#3B82F6 100%)", accent: "#3B82F6", shadow: "rgba(37,99,235,0.2)"  },
           { label: "In Progress",   value: inProgCount,  sub: "Creating",  icon: "⏳", headerBg: "linear-gradient(135deg,#92400E 0%,#F59E0B 100%)", accent: "#F59E0B", shadow: "rgba(146,64,14,0.2)"  },
-          { label: "Posted",        value: postedCount,  sub: "Published", icon: "✅", headerBg: "linear-gradient(135deg,#14532D 0%,#22C55E 100%)", accent: "#22C55E", shadow: "rgba(20,83,45,0.2)"   },
+          { label: contentMode === "shoot" ? "Completed" : "Posted", value: postedCount, sub: contentMode === "shoot" ? "Shot ✓" : "Published", icon: "✅", headerBg: "linear-gradient(135deg,#14532D 0%,#22C55E 100%)", accent: "#22C55E", shadow: "rgba(20,83,45,0.2)" },
         ].map(s => (
           <div key={s.label} style={{
             background: "#FFFFFF", borderRadius: 22, overflow: "hidden",
@@ -851,7 +884,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </h3>
                 <button onClick={() => openAdd(selectedDay)}
                   style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "rgba(255,255,255,0.18)", backdropFilter: "blur(6px)", color: "#FFF", borderRadius: 10, border: "1px solid rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>
-                  <Plus size={12} strokeWidth={3} /> Add Post
+                  <Plus size={12} strokeWidth={3} /> {contentMode === "shoot" ? "Add Shoot" : "Add Post"}
                 </button>
               </div>
 
@@ -859,8 +892,8 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 const selectedDateNum = new Date(selectedDay + "T12:00:00").getDate()
                 const isInCurrentMonth = selectedDay.startsWith(`${year}-${String(month + 1).padStart(2, "0")}`)
                 const dayPosts   = isInCurrentMonth ? postsOnDay(selectedDateNum) : filteredPosts.filter(p => p.scheduled_date === selectedDay)
-                const dayShoots  = shoots.filter(s => s.start_time.split("T")[0] === selectedDay)
-                const dayTasks   = tasks.filter(t => t.due_date === selectedDay)
+                const dayShoots  = contentMode === "shoot" ? shoots.filter(s => s.start_time.split("T")[0] === selectedDay) : []
+                const dayTasks   = contentMode === "post" ? tasks.filter(t => t.due_date === selectedDay) : []
                 const total      = dayPosts.length + dayShoots.length + dayTasks.length
 
                 if (total === 0) return (
@@ -949,7 +982,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             {/* Upcoming posts */}
             <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #E5E7EB", overflow: "hidden" }}>
               <div style={{ padding: "13px 18px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: 0 }}>Upcoming Posts</h3>
+                <h3 style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: 0 }}>{contentMode === "shoot" ? "Upcoming Shoots" : "Upcoming Posts"}</h3>
                 <button onClick={() => setView("list")} style={{ fontSize: 11, fontWeight: 700, color: "#DE1A1A", background: "none", border: "none", cursor: "pointer" }}>View All →</button>
               </div>
               {upcomingPosts.length === 0 ? (
@@ -994,14 +1027,14 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
       </div>
 
       {/* ── My Pending Content ── */}
-      {myPosts.filter(p => p.status !== "posted" && p.status !== "cancelled" && p.status !== "missed").length > 0 && (
+      {myPosts.filter(p => p.status !== "posted" && p.status !== "cancelled" && p.status !== "missed" && (contentMode === "shoot" ? p.platform === "other" : p.platform !== "other")).length > 0 && (
         <div style={{ marginTop: 20, background: "#FFFFFF", borderRadius: 20, border: "1px solid #E5E7EB", overflow: "hidden" }}>
           <div style={{ padding: "16px 24px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", gap: 8 }}>
             <CheckCircle2 size={16} style={{ color: "#DE1A1A" }} />
             <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>My Pending Content</h3>
           </div>
           <div>
-            {myPosts.filter(p => p.status !== "posted" && p.status !== "cancelled" && p.status !== "missed").map((p, i, arr) => {
+            {myPosts.filter(p => p.status !== "posted" && p.status !== "cancelled" && p.status !== "missed" && (contentMode === "shoot" ? p.platform === "other" : p.platform !== "other")).map((p, i, arr) => {
               const cfg = STATUS_CFG[p.status] ?? STATUS_CFG.pending
               const isOverdue = p.scheduled_date < today
               return (
@@ -1098,10 +1131,12 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               </div>
             )}
 
-            {schedType && !editingPost && <button type="button" onClick={() => setSchedType("")}
-              style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", background: "none", border: "none", cursor: "pointer", padding: "0 0 10px", textAlign: "left" }}>
-              ← Change type
-            </button>}
+            {schedType && !editingPost && (
+              <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 12px", borderRadius: 20, background: contentMode === "shoot" ? "rgba(29,78,216,0.08)" : "rgba(222,26,26,0.07)", marginBottom: 2 }}>
+                <span style={{ fontSize: 12 }}>{contentMode === "shoot" ? "📹" : "📄"}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: contentMode === "shoot" ? "#1D4ED8" : "#DE1A1A" }}>{contentMode === "shoot" ? "Shoot Schedule" : "Post Schedule"}</span>
+              </div>
+            )}
 
             <form onSubmit={handleCreate} style={{ display: (schedType || editingPost) ? "flex" : "none", flexDirection: "column", gap: 14 }}>
               <div>

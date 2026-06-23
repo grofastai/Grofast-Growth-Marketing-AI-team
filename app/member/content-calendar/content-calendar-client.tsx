@@ -836,7 +836,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                             ) : (
                               <button onClick={() => handleStatusChange(p.id, "posted")}
                                 style={{ fontSize: 11, fontWeight: 800, padding: "6px 14px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-                                <CheckCircle2 size={12} /> Mark as Posted
+                                <CheckCircle2 size={12} /> {p.platform === "other" ? "Mark as Shot ✓" : "Mark as Posted"}
                               </button>
                             )}
                           </div>
@@ -1011,12 +1011,12 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                           {!isPosted ? (
                             <button onClick={() => handleStatusChange(p.id, "posted")}
                               style={{ width: "100%", padding: "8px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                              <CheckCircle2 size={13} /> Mark as Posted
+                              <CheckCircle2 size={13} /> {p.platform === "other" ? "Mark as Shot ✓" : "Mark as Posted"}
                             </button>
                           ) : (
                             <div style={{ display: "flex", gap: 8 }}>
                               <div style={{ flex: 1, padding: "8px 0", borderRadius: 10, background: "rgba(50,210,122,0.1)", border: "1.5px solid rgba(50,210,122,0.3)", color: "#32D27A", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                                <CheckCircle2 size={13} /> Posted ✓
+                                <CheckCircle2 size={13} /> {p.platform === "other" ? "Shot ✓" : "Posted ✓"}
                               </div>
                               <button onClick={() => handleStatusChange(p.id, "pending")} style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Undo</button>
                             </div>
@@ -1109,7 +1109,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   </div>
                   <button onClick={() => handleStatusChange(p.id, "posted")}
                     style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-                    <CheckCircle2 size={13} /> Mark as Posted
+                    <CheckCircle2 size={13} /> {p.platform === "other" ? "Mark as Shot ✓" : "Mark as Posted"}
                   </button>
                 </div>
               )

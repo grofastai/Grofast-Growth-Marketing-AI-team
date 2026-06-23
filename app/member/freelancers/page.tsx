@@ -4,8 +4,8 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import FreelancersClient from "@/app/admin/freelancers/freelancers-client"
-import type { Freelancer, WorkEntry, FreelancerStats } from "@/app/admin/freelancers/types"
+import FreelancersMemberClient from "./freelancers-member-client"
+import type { Freelancer, WorkEntry } from "./freelancers-member-client"
 
 function adminSupabase() {
   return createClient(
@@ -35,77 +35,51 @@ export default async function MemberFreelancersPage() {
   if (!profile?.company_id) redirect("/login")
   const cid = profile.company_id
 
-  // Elevated roles see all company freelancers; regular members see only assigned ones
   const isElevated = ["ADMIN", "FOUNDER", "CEO", "FREELANCER_MGR"].includes(profile.role ?? "")
 
+  // Get assigned freelancer IDs for non-elevated members
   let assignedIds: string[] = []
   if (!isElevated) {
-    const { data: assignmentRows } = await admin
+    const { data: rows } = await admin
       .from("freelancer_assignments")
       .select("freelancer_id")
       .eq("user_id", effectiveUserId)
       .eq("company_id", cid)
-    assignedIds = (assignmentRows ?? []).map((r: { freelancer_id: string }) => r.freelancer_id)
+    assignedIds = (rows ?? []).map((r: { freelancer_id: string }) => r.freelancer_id)
   }
 
-  if (!isElevated && assignedIds.length === 0) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-8"
-        style={{ background: "#F5F6FA" }}>
-        <div style={{ width: 64, height: 64, borderRadius: 20, background: "rgba(222,26,26,0.07)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#DE1A1A" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-        </div>
-        <div style={{ textAlign: "center" }}>
-          <p style={{ fontSize: 18, fontWeight: 800, color: "#111827" }}>No freelancers assigned</p>
-          <p style={{ fontSize: 13, color: "#6B7280", marginTop: 6 }}>Ask your admin to assign freelancers to you.</p>
-        </div>
-      </div>
-    )
-  }
-
-  const freelancersQuery = isElevated
-    ? admin.from("freelancers").select("*").eq("company_id", cid).order("name")
-    : admin.from("freelancers").select("*").eq("company_id", cid).in("id", assignedIds).order("name")
-
-  const workEntriesQuery = isElevated
-    ? admin.from("freelancer_work_entries").select("*").eq("company_id", cid).order("date", { ascending: false })
-    : admin.from("freelancer_work_entries").select("*").eq("company_id", cid).in("freelancer_id", assignedIds).order("date", { ascending: false })
+  // Fetch freelancers from new system (team-based, no-login)
+  const flQuery = isElevated
+    ? admin.from("freelancers").select("id, name, team, phone, rating, status, created_at").eq("company_id", cid).not("team", "is", null).order("name")
+    : assignedIds.length > 0
+      ? admin.from("freelancers").select("id, name, team, phone, rating, status, created_at").eq("company_id", cid).not("team", "is", null).in("id", assignedIds).order("name")
+      : null
 
   const [freelancersResult, workEntriesResult, clientsResult] = await Promise.all([
-    freelancersQuery,
-    workEntriesQuery,
+    flQuery ? flQuery : Promise.resolve({ data: [] }),
+    isElevated
+      ? admin.from("freelancer_work_entries_v2").select("*").eq("company_id", cid).order("date_finished", { ascending: false })
+      : assignedIds.length > 0
+        ? admin.from("freelancer_work_entries_v2").select("*").eq("company_id", cid).in("freelancer_id", assignedIds).order("date_finished", { ascending: false })
+        : Promise.resolve({ data: [] }),
     admin.from("clients").select("name, status").eq("company_id", cid).order("name"),
   ])
 
   const freelancers = (freelancersResult.data ?? []) as Freelancer[]
   const workEntries = (workEntriesResult.data ?? []) as WorkEntry[]
-  const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
-  const allClients = (clientsResult.data ?? []) as { name: string; status: string }[]
-  const activeClientNames = allClients.filter(c => c.status === "active" && !INTERNAL_BRANDS.includes(c.name)).map(c => c.name).filter(Boolean)
-  const pastClientNames = allClients.filter(c => c.status === "past").map(c => c.name).filter(Boolean)
 
-  const stats: FreelancerStats = {
-    total: freelancers.length,
-    voiceOver: freelancers.filter(f => f.type === "voice_over").length,
-    videoEditor: freelancers.filter(f => f.type === "video_editor").length,
-    videoShooter: freelancers.filter(f => f.type === "video_shooter").length,
-    other: freelancers.filter(f => f.type === "other").length,
-    totalWorks: workEntries.length,
-    completedWorks: workEntries.filter(e => e.status === "completed").length,
-    totalCost: workEntries.reduce((s, e) => s + (e.amount ?? 0), 0),
-    paidAmount: workEntries.filter(e => e.payment_status === "paid").reduce((s, e) => s + (e.amount ?? 0), 0),
-    pendingAmount: workEntries
-      .filter(e => e.payment_status === "unpaid" && e.status === "completed")
-      .reduce((s, e) => s + (e.amount ?? 0), 0),
-  }
+  const INTERNAL = new Set(["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"])
+  const allClients = (clientsResult.data ?? []) as { name: string; status: string }[]
+  const clientNames = allClients
+    .filter(c => c.status === "active" && !INTERNAL.has(c.name))
+    .map(c => c.name)
+    .filter(Boolean)
 
   return (
-    <FreelancersClient
+    <FreelancersMemberClient
       freelancers={freelancers}
       workEntries={workEntries}
-      activeClientNames={activeClientNames}
-      pastClientNames={pastClientNames}
-      stats={stats}
+      clientNames={clientNames}
     />
   )
 }

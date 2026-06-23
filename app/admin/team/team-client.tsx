@@ -711,30 +711,28 @@ function AssignTaskModal({ member, onClose }: AssignTaskModalProps) {
 // ── Freelancer Quick-Create Sheet ─────────────────────────────────────────────
 
 const FL_TYPES = [
-  { key: "voice_over",    label: "Voice Artist",   color: "#8b5cf6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.3)", rateLabel: "Base Price / Min (₹)", ratePlaceholder: "e.g. 150" },
-  { key: "video_editor",  label: "Video Editor",   color: "#0ea5e9", bg: "rgba(14,165,233,0.08)",  border: "rgba(14,165,233,0.3)",  rateLabel: "Base Pay / Video (₹)", ratePlaceholder: "e.g. 2000" },
-  { key: "video_shooter", label: "Video Shooter",  color: "#10b981", bg: "rgba(16,185,129,0.08)",  border: "rgba(16,185,129,0.3)",  rateLabel: "Base Pay / Hour (₹)",  ratePlaceholder: "e.g. 800" },
-  { key: "other",         label: "Other Service",  color: "#f97316", bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.3)",  rateLabel: "Base Pay (₹)",         ratePlaceholder: "e.g. 5000" },
+  { key: "Freelance RJ Voiceover",            label: "RJ Voiceover",    emoji: "🎙️", color: "#A855F7", bg: "rgba(168,85,247,0.08)", border: "rgba(168,85,247,0.3)" },
+  { key: "Freelance Graphics Designer",        label: "Graphics Design", emoji: "🎨", color: "#F97316", bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.3)" },
+  { key: "Freelance Content Writer",           label: "Content Writer",  emoji: "✍️", color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  border: "rgba(20,184,166,0.3)" },
+  { key: "Freelance Development & Automation", label: "Dev & Automation",emoji: "💻", color: "#6366F1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.3)" },
+  { key: "Freelance Marketing & Operations",   label: "Marketing & Ops", emoji: "📊", color: "#10B981", bg: "rgba(16,185,129,0.08)",  border: "rgba(16,185,129,0.3)" },
+  { key: "Freelance IT Technology & Media",    label: "IT & Media",      emoji: "🖥️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  border: "rgba(139,92,246,0.3)" },
 ]
 
 function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
   const [step, setStep] = useState<"type" | "details">("type")
   const [type, setType] = useState("")
   const [name, setName] = useState("")
-  const [title, setTitle] = useState("")
   const [phone, setPhone] = useState("")
   const [upi, setUpi] = useState("")
-  const [rate, setRate] = useState("")
   const [gender, setGender] = useState("")
-  const [voiceTone, setVoiceTone] = useState("")
-  const [availability, setAvailability] = useState("")
   const [rating, setRating] = useState(0)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
   const [success, setSuccess] = useState(false)
 
   function reset() {
-    setStep("type"); setType(""); setName(""); setTitle(""); setPhone(""); setUpi(""); setRate(""); setGender(""); setVoiceTone(""); setAvailability(""); setRating(0); setSaving(false); setErr(""); setSuccess(false)
+    setStep("type"); setType(""); setName(""); setPhone(""); setUpi(""); setGender(""); setRating(0); setSaving(false); setErr(""); setSuccess(false)
   }
   function close() { reset(); onClose() }
 
@@ -744,15 +742,10 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
     e.preventDefault()
     if (!name.trim()) { setErr("Name is required"); return }
     setSaving(true); setErr("")
-    const rateNum = rate ? parseFloat(rate) : null
     const res = await createFreelancer({
-      name: name.trim(), type: type as "voice_over" | "video_editor" | "video_shooter" | "other",
+      name: name.trim(), type: "other",
       phone: phone || undefined, upi_id: upi || undefined, gender: gender || undefined,
-      title: title || undefined, voice_type: voiceTone || undefined,
-      availability_notes: availability || undefined, rating,
-      cost_per_minute:  type === "voice_over"    ? rateNum : null,
-      cost_per_video:   type === "video_editor" || type === "other" ? rateNum : null,
-      cost_per_hour:    type === "video_shooter"  ? rateNum : null,
+      rating, availability_notes: type,
     })
     if (!res.success) { setErr(res.error ?? "Failed to create"); setSaving(false); return }
     setSuccess(true); setSaving(false)
@@ -768,8 +761,8 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <h2 className="text-[16px] font-bold text-gray-900">Add Freelancer</h2>
-            {cfg && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block" style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>}
+            <h2 className="text-[16px] font-bold text-gray-900">Add No-Login Freelancer</h2>
+            {cfg && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block" style={{ background: cfg.bg, color: cfg.color }}>{cfg.emoji} {cfg.label}</span>}
           </div>
           <button onClick={close} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
             <X size={16} />
@@ -783,18 +776,10 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
                 <CheckCircle2 size={32} style={{ color: "#10b981" }} />
               </div>
               <p className="text-[16px] font-bold text-gray-900">Freelancer Added!</p>
-              <p className="text-[13px] text-gray-500">{name} has been added successfully.</p>
-              <div className="flex gap-3 mt-2">
-                <button onClick={reset}
-                  className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white"
-                  style={{ background: "#F97316" }}>
-                  Add Another
-                </button>
-                <Link href="/admin/freelancers" onClick={close}
-                  className="px-4 py-2.5 rounded-xl text-[13px] font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all">
-                  View All
-                </Link>
-              </div>
+              <p className="text-[13px] text-gray-500">{name} has been added. Manager can now enter their work.</p>
+              <button onClick={reset} className="px-4 py-2.5 rounded-xl text-[13px] font-bold text-white" style={{ background: "#F97316" }}>
+                Add Another
+              </button>
             </div>
           ) : step === "type" ? (
             <div className="flex flex-col gap-4">
@@ -805,10 +790,8 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
                     onClick={() => { setType(t.key); setStep("details") }}
                     className="flex flex-col items-center gap-3 p-5 rounded-2xl text-center transition-all hover:scale-[1.02] active:scale-[0.98]"
                     style={{ border: `2px solid ${t.border}`, background: t.bg }}>
-                    <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: t.color }}>
-                      <Clapperboard size={20} strokeWidth={2} style={{ color: "#fff" }} />
-                    </div>
-                    <span className="text-[13px] font-bold text-gray-800 leading-tight">{t.label}</span>
+                    <span style={{ fontSize: 28 }}>{t.emoji}</span>
+                    <span className="text-[12px] font-bold text-gray-800 leading-tight">{t.label}</span>
                   </button>
                 ))}
               </div>
@@ -826,11 +809,6 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
               </div>
 
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Title</label>
-                <input className={FIELD_CLS} placeholder="e.g. Voice Artist, Narrator" value={title} onChange={e => setTitle(e.target.value)} />
-              </div>
-
-              <div>
                 <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Gender</label>
                 <div className="flex gap-2">
                   {["male","female"].map(g => (
@@ -844,16 +822,6 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
                 </div>
               </div>
 
-              {type === "voice_over" && (
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Voice Tone</label>
-                  <select className={SELECT_CLS} value={voiceTone} onChange={e => setVoiceTone(e.target.value)}>
-                    <option value="">Select voice tone</option>
-                    {FL_VOICE_TYPES.map(v => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                </div>
-              )}
-
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Phone</label>
@@ -864,18 +832,6 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
                   <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">UPI ID</label>
                   <input className={FIELD_CLS} placeholder="name@upi" value={upi} onChange={e => setUpi(e.target.value)} />
                 </div>
-              </div>
-
-              {cfg && (
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">{cfg.rateLabel}</label>
-                  <input className={FIELD_CLS} type="number" min="0" step="0.5" placeholder={cfg.ratePlaceholder} value={rate} onChange={e => setRate(e.target.value)} />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Free Time / Availability</label>
-                <input className={FIELD_CLS} placeholder="e.g. Weekdays 10am–6pm" value={availability} onChange={e => setAvailability(e.target.value)} />
               </div>
 
               <div>

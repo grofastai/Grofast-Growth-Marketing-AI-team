@@ -170,6 +170,8 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
   const [year,  setYear]      = useState(initialYear)
   const [month, setMonth]     = useState(initialMonth)
   const [view,  setView]        = useState<"calendar" | "list">("calendar")
+  const [contentMode, setContentMode] = useState<"post" | "shoot">("post")
+  const [memberFilter, setMemberFilter] = useState<string>("all")
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split("T")[0])
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
@@ -231,13 +233,20 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     return [...INTERNAL_BRANDS, ...others]
   }, [posts])
 
-  const filteredPosts = useMemo(() =>
-    clientFilter === "all" ? posts : posts.filter(p => p.client_name === clientFilter),
-    [posts, clientFilter]
-  )
+  const filteredPosts = useMemo(() => {
+    let p = clientFilter === "all" ? posts : posts.filter(p => p.client_name === clientFilter)
+    if (memberFilter !== "all") p = p.filter(p => p.assigned_to === memberFilter || (p.shoot_team ?? []).includes(memberFilter))
+    if (contentMode === "shoot") p = p.filter(p => p.platform === "other")
+    else p = p.filter(p => p.platform !== "other")
+    return p
+  }, [posts, clientFilter, memberFilter, contentMode])
 
   function postsOnDay(d: number)  { const ds = dateStr(d); return filteredPosts.filter(p => p.scheduled_date === ds) }
-  function shootsOnDay(d: number) { const ds = dateStr(d); return shoots.filter(s => s.start_time.split("T")[0] === ds) }
+  function shootsOnDay(d: number) {
+    if (contentMode !== "shoot") return []
+    const ds = dateStr(d)
+    return shoots.filter(s => s.start_time.split("T")[0] === ds)
+  }
   function tasksOnDay(d: number)  { const ds = dateStr(d); return tasks.filter(t => t.due_date === ds) }
 
   function resetForm() {
@@ -250,7 +259,13 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
     setClientBrand(""); setClientCustom("")
   }
 
-  function openAdd(d: number) { resetForm(); setSchedDates([dateStr(d)]); setModalMode("add") }
+  function openAdd(d: number) {
+    resetForm()
+    setSchedDates([dateStr(d)])
+    if (contentMode === "shoot") { setSchedType("shoot"); setContentType("video"); setPlatform("other") }
+    else { setSchedType("post"); setPlatform("instagram") }
+    setModalMode("add")
+  }
 
   function openEdit(post: Post) {
     setEditingPost(post)
@@ -464,6 +479,42 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
         </div>
       </div>
 
+      {/* ── Mode Tabs + Member Filter ── */}
+      <div style={{ display: "flex", gap: 12, marginBottom: isMobile ? 14 : 20, flexWrap: "wrap", alignItems: "stretch" }}>
+        {/* Post / Shoot tabs */}
+        <div style={{ flex: 1, minWidth: 260, display: "flex", gap: 4, background: "#FFFFFF", borderRadius: 18, padding: 4, border: "1px solid #E5E7EB", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+          {([
+            { mode: "post"  as const, icon: "📄", label: "Post Schedule",  desc: "Reels, posters, stories", grad: "linear-gradient(135deg, #C41230 0%, #8B0000 100%)", shadow: "rgba(139,0,0,0.35)" },
+            { mode: "shoot" as const, icon: "📹", label: "Shoot Schedule", desc: "Video shoots & locations",  grad: "linear-gradient(135deg, #1D4ED8 0%, #4D8CFF 100%)", shadow: "rgba(29,78,216,0.35)" },
+          ]).map(({ mode, icon, label, desc, grad, shadow }) => (
+            <button key={mode} onClick={() => setContentMode(mode)} style={{
+              flex: 1, padding: isMobile ? "12px 14px" : "16px 20px", borderRadius: 14, border: "none", cursor: "pointer",
+              background: contentMode === mode ? grad : "transparent",
+              color: contentMode === mode ? "#FFF" : "#6B7280",
+              textAlign: "left", transition: "all 0.18s",
+              boxShadow: contentMode === mode ? `0 4px 20px ${shadow}` : "none",
+            }}>
+              <p style={{ fontSize: isMobile ? 13 : 14, fontWeight: 800, margin: "0 0 2px", display: "flex", alignItems: "center", gap: 6 }}>
+                <span>{icon}</span> {label}
+              </p>
+              <p style={{ fontSize: isMobile ? 10 : 11, opacity: contentMode === mode ? 0.75 : 0.6, margin: 0, fontWeight: 500 }}>{desc}</p>
+            </button>
+          ))}
+        </div>
+        {/* Member filter */}
+        <div style={{ background: "#FFFFFF", borderRadius: 18, padding: "14px 18px", border: "1px solid #E5E7EB", boxShadow: "0 2px 16px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 200 }}>
+          <p style={{ fontSize: 10, fontWeight: 800, color: "#4A5568", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 8px" }}>View Schedule Of</p>
+          <div style={{ position: "relative" }}>
+            <select value={memberFilter} onChange={e => setMemberFilter(e.target.value)}
+              style={{ width: "100%", padding: "8px 30px 8px 12px", borderRadius: 10, border: `1.5px solid ${memberFilter === "all" ? "#E5E7EB" : "#DE1A1A"}`, background: memberFilter === "all" ? "#FAFAFA" : "rgba(222,26,26,0.04)", fontSize: 13, fontWeight: 700, color: memberFilter === "all" ? "#6B7280" : "#DE1A1A", cursor: "pointer", outline: "none", appearance: "none" }}>
+              <option value="all">👥 All Team Members</option>
+              {members.map(m => <option key={m.id} value={m.id}>👤 {m.name}</option>)}
+            </select>
+            <ChevronDown size={11} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+          </div>
+        </div>
+      </div>
+
       {/* ── Stats Row ── */}
       <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: isMobile ? 10 : 16, marginBottom: isMobile ? 14 : 24 }}>
         {[
@@ -620,8 +671,15 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               </>
             ) : (
               <div>
-                <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6" }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>All Scheduled Content — {MONTHS[month]} {year}</h3>
+                <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>
+                    {contentMode === "shoot" ? "📹 Shoot Schedule" : "📄 Post Schedule"} — {memberFilter !== "all" ? (members.find(m => m.id === memberFilter)?.name ?? "Team Member") : "All Members"} · {MONTHS[month]} {year}
+                  </h3>
+                  {memberFilter !== "all" && (
+                    <button onClick={() => setMemberFilter("all")} style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, border: "1.5px solid #E5E7EB", background: "#F3F4F6", color: "#6B7280", cursor: "pointer" }}>
+                      Show All ×
+                    </button>
+                  )}
                 </div>
                 {filteredPosts.length === 0 ? (
                   <div style={{ padding: "60px 24px", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>No content scheduled this month.</div>
@@ -715,8 +773,8 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
               {(() => {
                 const ds        = selectedDate
                 const dayPosts  = filteredPosts.filter(p => p.scheduled_date === ds)
-                const dayShoots = shoots.filter(s => s.start_time.split("T")[0] === ds)
-                const dayTasks  = tasks.filter(t => t.due_date === ds)
+                const dayShoots = contentMode === "shoot" ? shoots.filter(s => s.start_time.split("T")[0] === ds) : []
+                const dayTasks  = contentMode === "post" ? tasks.filter(t => t.due_date === ds) : []
                 const total     = dayPosts.length + dayShoots.length + dayTasks.length
                 if (total === 0) return (
                   <div style={{ padding: "28px 20px", textAlign: "center" }}>

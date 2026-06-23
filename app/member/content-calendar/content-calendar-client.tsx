@@ -1129,84 +1129,100 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
         const shootMembers   = (vp.shoot_team ?? []).map(id => members.find(m => m.id === id)?.name).filter(Boolean)
         const isCreator = vp.created_by === userId
         const noteText  = vp.notes ?? ""
-        // Parse shoot time/location from notes if embedded ("Time: HH:MM → HH:MM Location: ...")
-        const timeMatch = noteText.match(/Time:\s*(\d{1,2}:\d{2})\s*[→\-–]\s*(\d{1,2}:\d{2})/)
-        const locMatch  = noteText.match(/Location:\s*(.+)/)
-        const plainNotes = noteText.replace(/Time:[^]+?(Location:[^\n]*)?/, "").trim()
+        // Shoot metadata is packed into notes as "\nTime: HH:MM → HH:MM\nLocation: ..."
+        const shootFromMatch = noteText.match(/Time:\s*([\d]{1,2}:[\d]{2})\s*[→\-–]/)
+        const shootToMatch   = noteText.match(/[→\-–]\s*([\d]{1,2}:[\d]{2})/)
+        const locMatch       = noteText.match(/Location:\s*(.+)/)
+        // Plain instructions = notes with the embedded shoot meta lines removed
+        const plainInstructions = noteText
+          .replace(/\nTime:[^\n]*/g, "")
+          .replace(/\nLocation:[^\n]*/g, "")
+          .trim()
+        const Row = ({ label, value, icon }: { label: string; value: string; icon: string }) => (
+          <div style={{ background: "#F9FAFB", borderRadius: 10, padding: "10px 14px" }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>{label}</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0 }}>{icon} {value}</p>
+          </div>
+        )
         return (
           <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
             <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(5px)" }} onClick={() => setViewPost(null)} />
-            <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 24, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.25)" }}>
+            <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 24, width: "100%", maxWidth: 480, maxHeight: "92vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.25)" }}>
+
               {/* Header */}
-              <div style={{ background: isShoot ? "linear-gradient(135deg,#1D4ED8,#3B82F6)" : "linear-gradient(135deg,#DE1A1A,#8B0000)", padding: "20px 24px", borderRadius: "24px 24px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 20 }}>{isShoot ? "📹" : platformEmoji(vp.platform)}</span>
-                    <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 20, background: "rgba(255,255,255,0.2)", color: "#FFF", letterSpacing: "0.05em" }}>
-                      {isShoot ? "SHOOT SCHEDULE" : platformLabel(vp.platform).toUpperCase()}
-                    </span>
+              <div style={{ background: isShoot ? "linear-gradient(135deg,#1D4ED8,#3B82F6)" : "linear-gradient(135deg,#DE1A1A,#8B0000)", padding: "20px 24px", borderRadius: "24px 24px 0 0", position: "sticky", top: 0, zIndex: 1 }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: 20 }}>{isShoot ? "📹" : platformEmoji(vp.platform)}</span>
+                      <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 10px", borderRadius: 20, background: "rgba(255,255,255,0.2)", color: "#FFF", letterSpacing: "0.06em" }}>
+                        {isShoot ? "SHOOT SCHEDULE" : platformLabel(vp.platform).toUpperCase()}
+                      </span>
+                      <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 10px", borderRadius: 20, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+                    </div>
+                    <h3 style={{ fontSize: 18, fontWeight: 900, color: "#FFFFFF", margin: 0, lineHeight: 1.25 }}>{vp.title}</h3>
                   </div>
-                  <h3 style={{ fontSize: 18, fontWeight: 900, color: "#FFFFFF", margin: 0, lineHeight: 1.2 }}>{vp.title}</h3>
+                  <button onClick={() => setViewPost(null)} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", color: "#FFF", marginLeft: 12, flexShrink: 0 }}><X size={16} /></button>
                 </div>
-                <button onClick={() => setViewPost(null)} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", color: "#FFF", marginLeft: 12, flexShrink: 0 }}><X size={16} /></button>
+                {/* Assigned by banner (assignee only) */}
+                {vp.creator?.name && !isCreator && (
+                  <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "rgba(255,255,255,0.15)", borderRadius: 8 }}>
+                    <span style={{ fontSize: 12 }}>👤</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#FFF" }}>Assigned by {vp.creator.name}</span>
+                  </div>
+                )}
               </div>
 
               {/* Body */}
-              <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
-                {/* Status + Priority */}
-                <div style={{ display: "flex", gap: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 800, padding: "4px 12px", borderRadius: 20, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+              <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
+
+                {/* Priority */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 11, fontWeight: 800, padding: "4px 12px", borderRadius: 20, background: priCfg.bg, color: priCfg.color }}>{priCfg.label} Priority</span>
                   {isCreator && <span style={{ fontSize: 11, fontWeight: 800, padding: "4px 12px", borderRadius: 20, background: "rgba(222,26,26,0.08)", color: "#DE1A1A" }}>Created by me</span>}
                 </div>
 
-                {/* Date + Time */}
-                <div style={{ background: "#F9FAFB", borderRadius: 12, padding: "12px 16px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Date</p>
-                    <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>📅 {vp.scheduled_date}</p>
-                  </div>
-                  {isShoot && timeMatch ? (
-                    <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Shoot Time</p>
-                      <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>🕐 {timeMatch[1]} → {timeMatch[2]}</p>
-                    </div>
-                  ) : vp.scheduled_time ? (
-                    <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Time</p>
-                      <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>🕐 {formatTime(vp.scheduled_time)}</p>
-                    </div>
-                  ) : null}
-                </div>
+                {/* DATE */}
+                <Row label="Date" value={vp.scheduled_date} icon="📅" />
 
-                {/* Client */}
-                {vp.client_name && (
-                  <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Client</p>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>🏢 {vp.client_name}</p>
+                {/* SHOOT TIME (from/to) */}
+                {isShoot && (shootFromMatch || shootToMatch) && (
+                  <div style={{ background: "#F9FAFB", borderRadius: 10, padding: "10px 14px" }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>Shoot Time</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ textAlign: "center" }}>
+                        <p style={{ fontSize: 10, color: "#9CA3AF", margin: "0 0 2px" }}>FROM</p>
+                        <p style={{ fontSize: 15, fontWeight: 900, color: "#1D4ED8", margin: 0 }}>🕐 {formatTime(shootFromMatch?.[1] ?? "") ?? shootFromMatch?.[1] ?? "—"}</p>
+                      </div>
+                      <span style={{ fontSize: 18, color: "#9CA3AF", fontWeight: 300 }}>→</span>
+                      <div style={{ textAlign: "center" }}>
+                        <p style={{ fontSize: 10, color: "#9CA3AF", margin: "0 0 2px" }}>TO</p>
+                        <p style={{ fontSize: 15, fontWeight: 900, color: "#1D4ED8", margin: 0 }}>🕑 {formatTime(shootToMatch?.[1] ?? "") ?? shootToMatch?.[1] ?? "—"}</p>
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {/* Location (shoot) */}
-                {isShoot && locMatch && (
-                  <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Location</p>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>📍 {locMatch[1]}</p>
-                  </div>
+                {/* POST TIME */}
+                {!isShoot && vp.scheduled_time && (
+                  <Row label="Time" value={formatTime(vp.scheduled_time) ?? vp.scheduled_time} icon="🕐" />
                 )}
 
-                {/* Assigned to (creator view) */}
+                {/* CLIENT */}
+                {vp.client_name && <Row label="Client" value={vp.client_name} icon="🏢" />}
+
+                {/* LOCATION (shoot) */}
+                {isShoot && locMatch && <Row label="Location" value={locMatch[1]} icon="📍" />}
+
+                {/* ASSIGNED TO (shown to creator if they assigned to someone else) */}
                 {isCreator && assignedMember && assignedMember.id !== userId && (
-                  <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Assigned To</p>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>👤 {assignedMember.name}</p>
-                  </div>
+                  <Row label="Assigned To" value={assignedMember.name} icon="👤" />
                 )}
 
-                {/* Shoot crew */}
+                {/* CREW MEMBERS (shoot) */}
                 {isShoot && shootMembers.length > 0 && (
-                  <div>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>Crew Members</p>
+                  <div style={{ background: "#F9FAFB", borderRadius: 10, padding: "10px 14px" }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" }}>Crew Members</p>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       {shootMembers.map((name, i) => (
                         <span key={i} style={{ fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 20, background: "rgba(29,78,216,0.07)", color: "#1D4ED8", border: "1px solid rgba(29,78,216,0.15)" }}>👤 {name}</span>
@@ -1215,35 +1231,19 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   </div>
                 )}
 
-                {/* Assigned by (assignee view) */}
-                {vp.creator?.name && !isCreator && (
-                  <div style={{ background: "rgba(99,102,241,0.05)", borderRadius: 10, padding: "10px 14px", border: "1px solid rgba(99,102,241,0.15)" }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Assigned By</p>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>👤 {vp.creator.name}</p>
+                {/* CONTENT TYPE + PILLAR (post only) */}
+                {!isShoot && (vp.content_type || vp.content_pillar) && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                    {vp.content_type && <Row label="Content Type" value={vp.content_type} icon="🎬" />}
+                    {vp.content_pillar && <Row label="Pillar" value={vp.content_pillar} icon="🏛" />}
                   </div>
                 )}
 
-                {/* Content type + pillar */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  {vp.content_type && (
-                    <div style={{ background: "#F9FAFB", borderRadius: 10, padding: "10px 14px" }}>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Content Type</p>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, textTransform: "capitalize" }}>{vp.content_type}</p>
-                    </div>
-                  )}
-                  {vp.content_pillar && (
-                    <div style={{ background: "#F9FAFB", borderRadius: 10, padding: "10px 14px" }}>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Pillar</p>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0 }}>{vp.content_pillar}</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Notes / Instructions */}
-                {(plainNotes || (!isShoot && vp.notes)) && (
-                  <div style={{ background: "rgba(255,200,0,0.06)", borderRadius: 10, padding: "12px 14px", border: "1px solid rgba(255,200,0,0.2)" }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: "#B45309", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>📝 Instructions / Notes</p>
-                    <p style={{ fontSize: 13, color: "#374151", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{isShoot ? plainNotes || vp.notes : vp.notes}</p>
+                {/* INSTRUCTIONS / NOTES */}
+                {(isShoot ? plainInstructions : vp.notes) && (
+                  <div style={{ background: "rgba(255,193,7,0.05)", borderRadius: 10, padding: "12px 14px", border: "1px solid rgba(255,193,7,0.25)" }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: "#B45309", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" }}>📝 Instructions / Keep Remember Points</p>
+                    <p style={{ fontSize: 13, color: "#374151", margin: 0, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{isShoot ? plainInstructions : vp.notes}</p>
                   </div>
                 )}
 

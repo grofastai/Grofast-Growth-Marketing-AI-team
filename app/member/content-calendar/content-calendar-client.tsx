@@ -351,7 +351,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   }
 
   const today        = new Date().toISOString().split("T")[0]
-  const myPosts      = posts.filter(p => p.assigned_to === userId)
+  const myPosts      = posts.filter(p => p.assigned_to === userId || (p.shoot_team ?? []).includes(userId))
   const todayPosts   = filteredPosts.filter(p => p.scheduled_date === today)
   const totalContent = todayPosts.length
   const readyCount   = filteredPosts.filter(p => p.status === "ready").length

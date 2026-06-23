@@ -582,7 +582,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   )}
                 </div>
               </div>
-              <h2 style={{ fontSize: 15, fontWeight: 800, color: "#111827", margin: 0 }}>{MONTHS[month]} {year}</h2>
+
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {clientOptions.length > 0 && (
                   <div style={{ position: "relative" }}>

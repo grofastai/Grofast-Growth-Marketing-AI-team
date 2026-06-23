@@ -30,11 +30,20 @@ const FL_TYPE_CFG: Record<string, { label: string; color: string; bg: string }> 
   other:         { label: "Other",         color: "#6b7280", bg: "rgba(107,114,128,0.08)" },
 }
 
-const TEAMS = [
-  "Media & Technology Team",
-  "Media Team",
-  "Technology & Operation Team",
-  "Creative Team",
+const FULL_TIME_TEAMS = [
+  "Media Production Team",
+  "Creative Studio",
+  "AI Development & Automation",
+  "Performance Marketing & Operations",
+  "AI Development & Media",
+] as const
+
+const FREELANCER_TEAMS = [
+  "Freelance Media Production",
+  "Freelance Creative Studio",
+  "Freelance Development & Automation",
+  "Freelance Marketing & Operations",
+  "Freelance IT Technology & Media",
 ] as const
 
 interface Member {
@@ -92,22 +101,28 @@ const FIELD: React.CSSProperties = {
   fontFamily: "inherit",
 }
 
-// team color per department
 function teamColor(team: string | null): { bg: string; color: string } {
   if (!team) return { bg: "#F3F4F6", color: "#6B7280" }
-  if (team.includes("Media & Tech")) return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
-  if (team.includes("Media")) return { bg: "rgba(236,72,153,0.1)", color: "#EC4899" }
-  if (team.includes("Tech")) return { bg: "rgba(16,185,129,0.1)", color: "#10B981" }
-  if (team.includes("Creative")) return { bg: "rgba(245,158,11,0.1)", color: "#F59E0B" }
+  if (team === "Media Production Team" || team === "Freelance Media Production" || team === "Media Team" || team === "Media") return { bg: "rgba(236,72,153,0.1)", color: "#EC4899" }
+  if (team === "Creative Studio" || team === "Freelance Creative Studio" || team === "Creative Team" || team === "Creative") return { bg: "rgba(245,158,11,0.1)", color: "#F59E0B" }
+  if (team === "AI Development & Automation" || team === "Freelance Development & Automation") return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
+  if (team === "Performance Marketing & Operations" || team === "Freelance Marketing & Operations" || team === "Technology & Operation Team" || team.includes("Tech & Ops")) return { bg: "rgba(16,185,129,0.1)", color: "#10B981" }
+  if (team === "AI Development & Media" || team === "Freelance IT Technology & Media" || team.includes("Media & Tech")) return { bg: "rgba(139,92,246,0.1)", color: "#8B5CF6" }
   return { bg: "#F3F4F6", color: "#6B7280" }
 }
 
 function teamShort(team: string | null) {
   if (!team) return "—"
-  if (team.includes("Media & Tech")) return "Media & Tech"
-  if (team.includes("Media")) return "Media"
-  if (team.includes("Tech")) return "Tech & Ops"
-  if (team.includes("Creative")) return "Creative"
+  if (team === "Media Production Team" || team === "Media Team" || team === "Media") return "Media Production"
+  if (team === "Creative Studio" || team === "Creative Team" || team === "Creative") return "Creative Studio"
+  if (team === "AI Development & Automation") return "AI Dev & Auto"
+  if (team === "Performance Marketing & Operations" || team.includes("Tech & Ops") || team === "Technology & Operation Team") return "Perf. Marketing"
+  if (team === "AI Development & Media" || team.includes("Media & Tech")) return "AI Dev & Media"
+  if (team === "Freelance Media Production") return "FL Media"
+  if (team === "Freelance Creative Studio") return "FL Creative"
+  if (team === "Freelance Development & Automation") return "FL Dev & Auto"
+  if (team === "Freelance Marketing & Operations") return "FL Marketing"
+  if (team === "Freelance IT Technology & Media") return "FL IT & Media"
   return team
 }
 
@@ -383,6 +398,46 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
               ) : (
                 /* Member / Admin edit — full fields */
                 <>
+                  {/* Employment Type — always first */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Employment Type *</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { value: "regular", label: "Full Time" },
+                        { value: "freelancer", label: "Freelancer" },
+                      ] as const).map(({ value, label }) => (
+                        <button key={value} type="button"
+                          onClick={() => setForm((prev) => ({ ...prev, employment_type: value, team: "", monthly_salary: "", hourly_rate: "", paid_leave_days: value === "regular" ? "5" : "0" }))}
+                          className="py-2.5 rounded-xl text-[13px] font-semibold transition-all"
+                          style={form.employment_type === value
+                            ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
+                            : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }
+                          }>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Team — filtered by employment type */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Team *</label>
+                    <div className="relative">
+                      <select className="sheet-input" value={form.team} onChange={set("team")} style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}>
+                        <option value="">Select a team…</option>
+                        {(form.employment_type === "freelancer" ? FREELANCER_TEAMS : FULL_TIME_TEAMS).map((t) => (
+                          <option key={t} value={t}>{t}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#6B7280" }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Position / Designation</label>
+                    <input className="sheet-input" value={form.position} onChange={set("position")} placeholder="e.g. Social Media Executive, Videographer…" style={FIELD} />
+                  </div>
+
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Full Name *</label>
                     <input className="sheet-input" value={form.name} onChange={set("name")} placeholder="e.g. Priya Sharma" style={FIELD} />
@@ -425,43 +480,8 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
                     <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Credentials will be sent here after account creation.</p>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Team *</label>
-                    <div className="relative">
-                      <select className="sheet-input" value={form.team} onChange={set("team")} style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}>
-                        <option value="">Select a team…</option>
-                        {TEAMS.map((t) => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                      <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#6B7280" }} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Position / Designation</label>
-                    <input className="sheet-input" value={form.position} onChange={set("position")} placeholder="e.g. Social Media Executive, Videographer…" style={FIELD} />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Employment Type *</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {([
-                        { value: "regular", label: "Regular" },
-                        { value: "freelancer", label: "Freelancer" },
-                      ] as const).map(({ value, label }) => (
-                        <button key={value} type="button"
-                          onClick={() => setForm((prev) => ({ ...prev, employment_type: value, monthly_salary: "", hourly_rate: "", paid_leave_days: value === "regular" ? "5" : "0" }))}
-                          className="py-2.5 rounded-xl text-[13px] font-semibold transition-all"
-                          style={form.employment_type === value
-                            ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
-                            : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }
-                          }>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {form.employment_type === "regular" ? (
+                  {/* Salary fields — Full Time only */}
+                  {form.employment_type === "regular" && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Monthly Salary (₹)</label>
@@ -475,13 +495,6 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
                           placeholder="5" value={form.paid_leave_days}
                           onChange={(e) => setForm((prev) => ({ ...prev, paid_leave_days: e.target.value }))} />
                       </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Hourly Rate (₹)</label>
-                      <input type="number" min="0" step="10" className="sheet-input" style={FIELD}
-                        placeholder="e.g. 150" value={form.hourly_rate}
-                        onChange={(e) => setForm((prev) => ({ ...prev, hourly_rate: e.target.value }))} />
                     </div>
                   )}
 

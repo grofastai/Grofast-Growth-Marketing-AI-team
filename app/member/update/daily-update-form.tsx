@@ -337,7 +337,7 @@ export default function DailyUpdateForm({
   const h         = now.getHours()
   const greeting  = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"
 
-  const isMediaTeam = team === "Media Team"
+  const isMediaTeam = team === "Media Team" || team === "Media Production Team"
 
   const todayStr = new Date().toISOString().split("T")[0]
 

@@ -663,15 +663,13 @@ export default function HistoryClient({
       presentDays++
     }
 
-    // Leave days: count approved leave days in the selected month period
-    const todayStr = new Date().toISOString().split("T")[0]
+    // Leave days: count full approved leave range (incl. future dates within an approved leave)
     let leaveDays = 0
     for (const leave of approvedLeaves) {
       const start = new Date(leave.from_date + "T12:00:00")
       const end = new Date(leave.to_date + "T12:00:00")
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const ds = d.toISOString().split("T")[0]
-        if (ds > todayStr) continue
         if (monthPrefix && !ds.startsWith(monthPrefix)) continue
         leaveDays++
       }

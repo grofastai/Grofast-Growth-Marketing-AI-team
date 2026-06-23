@@ -275,7 +275,13 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
             </div>
             <div>
               <label style={LABEL}>Language</label>
-              <input type="text" value={entry.language} onChange={e => onChange("language", e.target.value)} placeholder="e.g. Tamil" style={FIELD} />
+              <div style={{ position: "relative" }}>
+                <select value={entry.language} onChange={e => onChange("language", e.target.value)} style={{ ...FIELD, appearance: "none", paddingRight: 34 }}>
+                  <option value="">Select…</option>
+                  {["Tamil","English","Hindi","Kannada","Telugu","Malayalam"].map(l => <option key={l} value={l}>{l}</option>)}
+                </select>
+                <ChevronDown size={13} style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+              </div>
             </div>
           </div>
         )}

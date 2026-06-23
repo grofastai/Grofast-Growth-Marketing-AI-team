@@ -15,6 +15,21 @@ function adminSupabase() {
   )
 }
 
+// Always recompute duration_hours from start_time→end_time so manual edits never drift
+function fixEntryDurations<T extends Record<string, unknown>>(entries: T[]): T[] {
+  return entries.map(e => {
+    const start = e.start_time as string | null | undefined
+    const end   = e.end_time   as string | null | undefined
+    if (!start || !end) return e
+    const [sh, sm] = start.split(':').map(Number)
+    const [eh, em] = end.split(':').map(Number)
+    if ([sh, sm, eh, em].some(isNaN)) return e
+    const expectedH = (eh * 60 + em - (sh * 60 + sm)) / 60
+    if (expectedH <= 0 || expectedH > 15) return e
+    return { ...e, duration_hours: Math.round(expectedH * 100) / 100 }
+  })
+}
+
 async function syncCollaborationConfirmations(
   admin: ReturnType<typeof adminSupabase>,
   recordId: string,
@@ -141,6 +156,8 @@ export async function submitDailyUpdate(
       combinedEntries = [...filteredPrev, ...d.work_entries]
     }
 
+    // Always sync duration_hours to time span before saving
+    combinedEntries = fixEntryDurations(combinedEntries)
     // Recalculate all aggregates from combined entries — never use incremental addition
     const calcWorkHours  = calcNetWorkHours(combinedEntries as Parameters<typeof calcNetWorkHours>[0])
     const calcShootCount = combinedEntries.filter(e => e.task_type === 'shoot').length
@@ -180,6 +197,7 @@ export async function submitDailyUpdate(
     await syncCollaborationConfirmations(admin, existingRecord.id, user.id, profile.company_id, today, d.work_entries as Record<string, unknown>[])
   } else {
     isFirstSubmission = true
+    const fixedNewEntries = fixEntryDurations(d.work_entries as Record<string, unknown>[])
     const { data: inserted, error: insertError } = await admin
       .from('daily_updates')
       .insert({
@@ -188,11 +206,11 @@ export async function submitDailyUpdate(
         date:                today,
         attendance_status:   'present',
         work_type:           workType,
-        working_hours:       d.active_tab !== 'learning' ? roundedHours : null,
+        working_hours:       d.active_tab !== 'learning' ? calcNetWorkHours(fixedNewEntries as Parameters<typeof calcNetWorkHours>[0]) : null,
         learning_hours:      newLearnHours > 0 ? newLearnHours : d.learning_hours,
         shoot_count:         d.shoot_count,
         notes:               null,
-        work_entries:        d.work_entries,
+        work_entries:        fixedNewEntries,
         learning_topic:      d.learning_topic ?? null,
         learning_notes:      d.learning_notes ?? null,
         learning_start_time: d.learning_start_time ?? null,
@@ -346,7 +364,7 @@ export async function updatePastDailyUpdate(
   const existingLeaveEntries = (Array.isArray(record?.work_entries) ? record.work_entries as Record<string, unknown>[] : [])
     .filter(e => e._is_leave === true)
   const entriesWithoutLeave = entries.filter(e => !e._is_leave)
-  const finalEntries = [...entriesWithoutLeave, ...existingLeaveEntries]
+  const finalEntries = fixEntryDurations([...entriesWithoutLeave, ...existingLeaveEntries])
 
   const { error } = await admin
     .from('daily_updates')

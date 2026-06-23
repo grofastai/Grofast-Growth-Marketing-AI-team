@@ -281,17 +281,31 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   }
 
   function openEdit(post: Post) {
+    const isShootPost = post.platform === "other"
     setEditingPost(post)
     setSchedDate(post.scheduled_date)
     setSchedTime(post.scheduled_time ?? "")
     setTitle(post.title); setPlatform(post.platform); setContentType(post.content_type)
     setClientName(post.client_name ?? ""); setAssignedTo(post.assigned_to ?? "")
     setShootTeam(post.shoot_team ?? [])
-    setInstructions(post.notes ?? ""); setContentPillar(post.content_pillar ?? "")
+    setContentPillar(post.content_pillar ?? "")
     setPriority(post.priority ?? "medium")
     setFormError(""); setFormSuccess(false)
-    setSchedType("post"); setShootFrom(""); setShootTo(""); setShootLocation("")
+    setSchedType(isShootPost ? "shoot" : "post")
     setClientBrand(""); setClientCustom("")
+    if (isShootPost && post.notes) {
+      // Parse embedded shoot meta out of notes
+      const fromM = post.notes.match(/Time:\s*([\d]{1,2}:[\d]{2})\s*[→\-–]/)
+      const toM   = post.notes.match(/[→\-–]\s*([\d]{1,2}:[\d]{2})/)
+      const locM  = post.notes.match(/Location:\s*(.+)/)
+      setShootFrom(fromM?.[1] ?? "")
+      setShootTo(toM?.[1] ?? "")
+      setShootLocation(locM?.[1]?.trim() ?? "")
+      setInstructions(post.notes.replace(/\nTime:[^\n]*/g, "").replace(/\nLocation:[^\n]*/g, "").trim())
+    } else {
+      setShootFrom(""); setShootTo(""); setShootLocation("")
+      setInstructions(post.notes ?? "")
+    }
     setShowAdd(true)
   }
 
@@ -1329,7 +1343,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   <div>
                     <label style={L}>Platform</label>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {PLATFORMS.map(p => (
+                      {PLATFORMS.filter(p => p.id !== "other").map(p => (
                         <button key={p.id} type="button" onClick={() => setPlatform(p.id)}
                           style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${platform === p.id ? p.color : "#E2E8F0"}`, background: platform === p.id ? `${p.color}18` : "#FAFAFA", color: platform === p.id ? p.color : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                           {p.label}

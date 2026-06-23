@@ -947,7 +947,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
                   <div>
                     <label style={LABEL}>Platform</label>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      {PLATFORMS.map(p => (
+                      {PLATFORMS.filter(p => p.id !== "other").map(p => (
                         <button key={p.id} type="button" onClick={() => setPlatform(p.id)}
                           style={{ padding: "6px 12px", borderRadius: 8, border: `1.5px solid ${platform === p.id ? p.color : "#E2E8F0"}`, background: platform === p.id ? `${p.color}18` : "#FAFAFA", color: platform === p.id ? p.color : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                           {p.label}

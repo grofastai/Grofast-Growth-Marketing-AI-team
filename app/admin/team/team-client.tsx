@@ -197,6 +197,8 @@ const ACCOUNT_TYPES = [
 ]
 
 const NO_LOGIN_TEAMS = new Set([
+  "Freelance Video Editing",
+  "Freelance Videography",
   "Freelance RJ Voiceover",
   "Freelance Graphics Designer",
   "Freelance Content Writer",

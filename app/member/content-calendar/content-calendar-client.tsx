@@ -517,7 +517,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                     <CalendarDays size={13} color={showMonthPicker ? "#DE1A1A" : "#6B7280"} />
                   </button>
                   {showMonthPicker && (
-                    <div style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, background: "#FFF", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.14)", padding: 16, zIndex: 100, minWidth: 260, border: "1px solid #F0F0F0" }}>
+                    <>
+                    <div style={{ position: "fixed", inset: 0, zIndex: 99 }} onClick={() => setShowMonthPicker(false)} />
+                    <div style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)", background: "#FFF", borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.18)", padding: 16, zIndex: 100, minWidth: 260, border: "1px solid #F0F0F0" }}>
                       {pickerStep === "month" ? (
                         <>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
@@ -576,6 +578,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                         </>
                       )}
                     </div>
+                    </>
                   )}
                 </div>
               </div>

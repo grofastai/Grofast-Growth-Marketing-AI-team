@@ -74,11 +74,14 @@ function getInitials(name: string) {
 }
 
 function computeNextEmployeeId(members: Member[]): string {
-  const nums = members
-    .map(m => { const match = m.employee_id.match(/^GF(\d+)$/i); return match ? parseInt(match[1]) : 0 })
-    .filter(n => n > 0)
-  const max = nums.length > 0 ? Math.max(...nums) : 0
-  return `GF${String(max + 1).padStart(3, "0")}`
+  const used = new Set(
+    members
+      .map(m => { const match = m.employee_id.match(/^GF(\d+)$/i); return match ? parseInt(match[1]) : 0 })
+      .filter(n => n > 0)
+  )
+  let next = 1
+  while (used.has(next)) next++
+  return `GF${String(next).padStart(3, "0")}`
 }
 
 function formatDate(s: string) {

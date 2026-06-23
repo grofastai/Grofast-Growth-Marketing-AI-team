@@ -425,33 +425,52 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
               ) : (
                 /* Member / Admin edit — full fields */
                 <>
-                  {/* Team — all teams; form adapts based on selection */}
+                  {/* Employment Type toggle — Full Time / Part Time */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Employment Type *</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { value: "regular",    label: "Full Time" },
+                        { value: "freelancer", label: "Part Time" },
+                      ] as const).map(({ value, label }) => (
+                        <button key={value} type="button"
+                          onClick={() => setForm(prev => ({ ...prev, employment_type: value, team: "", monthly_salary: "", hourly_rate: "", paid_leave_days: value === "regular" ? "5" : "0" }))}
+                          className="py-2.5 rounded-xl text-[13px] font-semibold transition-all"
+                          style={form.employment_type === value
+                            ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
+                            : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Team — filtered by employment type */}
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Team *</label>
                     <div className="relative">
                       <select className="sheet-input" value={form.team}
-                        onChange={e => {
-                          const t = e.target.value
-                          const empType = FULL_TIME_TEAMS.includes(t as never) ? "regular" : "freelancer"
-                          setForm(prev => ({ ...prev, team: t, employment_type: empType, monthly_salary: "", hourly_rate: "", paid_leave_days: empType === "regular" ? "5" : "0" }))
-                        }}
+                        onChange={e => setForm(prev => ({ ...prev, team: e.target.value }))}
                         style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}>
                         <option value="">Select a team…</option>
-                        <optgroup label="── Full Time">
-                          {FULL_TIME_TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
-                        </optgroup>
-                        <optgroup label="── Freelancer (Login)">
-                          {(["Freelance Media Production","Freelance Video Editing","Freelance Videography"] as const).map(t => <option key={t} value={t}>{t}</option>)}
-                        </optgroup>
-                        <optgroup label="── Freelancer (No Login)">
-                          {(["Freelance RJ Voiceover","Freelance Graphics Designer","Freelance Content Writer","Freelance Development & Automation","Freelance Marketing & Operations","Freelance IT Technology & Media"] as const).map(t => <option key={t} value={t}>{t}</option>)}
-                        </optgroup>
+                        {form.employment_type === "regular" ? (
+                          FULL_TIME_TEAMS.map(t => <option key={t} value={t}>{t}</option>)
+                        ) : (
+                          <>
+                            <optgroup label="── Login (has app access)">
+                              {(["Freelance Media Production","Freelance Video Editing","Freelance Videography"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                            </optgroup>
+                            <optgroup label="── No Login (manager enters work)">
+                              {(["Freelance RJ Voiceover","Freelance Graphics Designer","Freelance Content Writer","Freelance Development & Automation","Freelance Marketing & Operations","Freelance IT Technology & Media"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                            </optgroup>
+                          </>
+                        )}
                       </select>
                       <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#6B7280" }} />
                     </div>
                     {isNoLoginTeam && (
                       <p className="text-[11px] mt-1.5 font-semibold" style={{ color: "#F97316" }}>
-                        No-login freelancer — only name &amp; phone needed.
+                        No-login — only name &amp; phone needed.
                       </p>
                     )}
                   </div>

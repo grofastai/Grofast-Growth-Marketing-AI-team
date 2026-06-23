@@ -33,6 +33,7 @@ export default async function TeamPage({
     { data: members, error: membersError },
     { data: pastMembers },
     { data: freelancersData },
+    { data: pastFreelancersData },
     { data: assignmentRows },
   ] = await Promise.all([
     admin
@@ -52,6 +53,13 @@ export default async function TeamPage({
       .from('freelancers')
       .select('id, name, type, team, phone, upi_id, rating, status, cost_per_minute, cost_per_video, cost_per_hour, voice_type, editing_software, created_at, gender, title')
       .eq('company_id', profile.company_id)
+      .eq('status', 'active')
+      .order('name'),
+    admin
+      .from('freelancers')
+      .select('id, name, type, team, phone, upi_id, rating, status, cost_per_minute, cost_per_video, cost_per_hour, voice_type, editing_software, created_at, gender, title')
+      .eq('company_id', profile.company_id)
+      .eq('status', 'inactive')
       .order('name'),
     admin
       .from('freelancer_assignments')
@@ -72,6 +80,7 @@ export default async function TeamPage({
       members={members ?? []}
       pastMembers={pastMembers ?? []}
       freelancers={freelancersData ?? []}
+      pastFreelancers={pastFreelancersData ?? []}
       initialSearch={initialSearch ?? ""}
       assignedManagerIds={assignedManagerIds}
     />

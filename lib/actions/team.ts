@@ -559,21 +559,22 @@ export async function toggleMemberStatus(
   const admin = adminSupabase()
 
   if (status === 'inactive') {
-    // Deactivating = move to Past Members (soft-delete) + revoke login
+    // Deactivating — soft-delete only, ban auth so they can't log in but account is preserved
     const { error } = await admin
       .from('users')
       .update({ status: 'inactive', deleted_at: new Date().toISOString() })
       .eq('id', id)
     if (error) return { success: false, error: error.message }
-    // Revoke login access
-    await admin.auth.admin.deleteUser(id)
+    // Ban instead of delete — keeps auth account so reactivation restores login immediately
+    await admin.auth.admin.updateUserById(id, { ban_duration: '876600h' })
   } else {
-    // Reactivating — clear deleted_at so they appear in active list again
+    // Reactivating — restore to active + unban so they can log in again with same password
     const { error } = await admin
       .from('users')
       .update({ status: 'active', deleted_at: null })
       .eq('id', id)
     if (error) return { success: false, error: error.message }
+    await admin.auth.admin.updateUserById(id, { ban_duration: 'none' })
   }
 
   revalidatePath('/admin/team')

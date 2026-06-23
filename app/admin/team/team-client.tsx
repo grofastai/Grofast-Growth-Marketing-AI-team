@@ -526,13 +526,13 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                     </div>
                   )}
 
-                  {/* Email — shown for all */}
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
-                      Email Address {!isNoLoginTeam ? "*" : ""}
-                    </label>
-                    <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com" style={FIELD} />
-                  </div>
+                  {/* Email — hidden for no-login teams */}
+                  {!isNoLoginTeam && (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Email Address *</label>
+                      <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com" style={FIELD} />
+                    </div>
+                  )}
 
                   {/* Salary fields — Full Time only */}
                   {!isNoLoginTeam && form.employment_type === "regular" && (
@@ -552,12 +552,14 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                     </div>
                   )}
 
-                  {/* DOB + Work Start — shown for all */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Date of Birth</label>
-                      <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }} value={form.date_of_birth} onChange={set("date_of_birth")} />
-                    </div>
+                  {/* DOB — hidden for no-login teams; Work Start — always shown */}
+                  <div className={isNoLoginTeam ? "" : "grid grid-cols-1 md:grid-cols-2 gap-3"}>
+                    {!isNoLoginTeam && (
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Date of Birth</label>
+                        <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }} value={form.date_of_birth} onChange={set("date_of_birth")} />
+                      </div>
+                    )}
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Work Start Date</label>
                       <input type="date" className="sheet-input" style={{ ...FIELD, colorScheme: "light" }} value={form.joined_at} onChange={set("joined_at")} max={new Date().toISOString().split("T")[0]} />

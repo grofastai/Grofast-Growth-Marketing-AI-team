@@ -240,8 +240,38 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
         {isVoiceover && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div>
-              <label style={LABEL}>Duration (mins)</label>
-              <input type="number" min="0" step="1" value={entry.duration_mins} onChange={e => onChange("duration_mins", e.target.value)} placeholder="e.g. 3" style={FIELD} />
+              <label style={LABEL}>Duration</label>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <div style={{ position: "relative", flex: 1 }}>
+                  <input
+                    type="number" min="0" max="99" step="1"
+                    placeholder="0"
+                    value={Math.floor(parseFloat(entry.duration_mins || "0")) || ""}
+                    onChange={e => {
+                      const m = parseInt(e.target.value) || 0
+                      const s = Math.round(((parseFloat(entry.duration_mins || "0")) % 1) * 60)
+                      onChange("duration_mins", String(m + s / 60))
+                    }}
+                    style={{ ...FIELD, paddingRight: 36, textAlign: "center" }}
+                  />
+                  <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#9CA3AF", pointerEvents: "none" }}>min</span>
+                </div>
+                <span style={{ fontSize: 16, color: "#D1D5DB", flexShrink: 0 }}>:</span>
+                <div style={{ position: "relative", flex: 1 }}>
+                  <input
+                    type="number" min="0" max="59" step="1"
+                    placeholder="00"
+                    value={Math.round(((parseFloat(entry.duration_mins || "0")) % 1) * 60) || ""}
+                    onChange={e => {
+                      const m = Math.floor(parseFloat(entry.duration_mins || "0"))
+                      const s = Math.min(59, parseInt(e.target.value) || 0)
+                      onChange("duration_mins", String(m + s / 60))
+                    }}
+                    style={{ ...FIELD, paddingRight: 32, textAlign: "center" }}
+                  />
+                  <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#9CA3AF", pointerEvents: "none" }}>sec</span>
+                </div>
+              </div>
             </div>
             <div>
               <label style={LABEL}>Language</label>

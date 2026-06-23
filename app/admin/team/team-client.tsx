@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
-import { createFreelancer, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
+import { createFreelancer, updateFreelancer, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
 import { addManagerToAllFreelancers, removeManagerFromAllFreelancers } from "@/lib/actions/freelancer-manager"
 
 type FreelancerBasic = {
@@ -915,6 +915,127 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
   )
 }
 
+// ── Freelancer Edit Sheet ────────────────────────────────────────────────────
+
+function FreelancerEditSheet({ freelancer, open, onClose, onSaved }: {
+  freelancer: FreelancerBasic | null; open: boolean
+  onClose: () => void; onSaved: (updated: FreelancerBasic) => void
+}) {
+  const [team, setTeam] = useState(freelancer?.team ?? "")
+  const [name, setName] = useState(freelancer?.name ?? "")
+  const [phone, setPhone] = useState(freelancer?.phone ?? "")
+  const [gender, setGender] = useState(freelancer?.gender ?? "")
+  const [status, setStatus] = useState<"active" | "inactive">(freelancer?.status ?? "active")
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState("")
+
+  useEffect(() => {
+    if (freelancer) {
+      setTeam(freelancer.team ?? ""); setName(freelancer.name); setPhone(freelancer.phone ?? "")
+      setGender(freelancer.gender ?? ""); setStatus(freelancer.status); setErr("")
+    }
+  }, [freelancer])
+
+  if (!open || !freelancer) return null
+  const cfg = FL_TYPES.find(t => t.key === team)
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim()) { setErr("Name is required"); return }
+    if (!team) { setErr("Team is required"); return }
+    setSaving(true); setErr("")
+    const res = await updateFreelancer(freelancer!.id, {
+      name: name.trim(), type: "other", team, phone: phone || undefined,
+      gender: gender || undefined, status,
+    })
+    if (!res.success) { setErr(res.error ?? "Failed to save"); setSaving(false); return }
+    onSaved({ ...freelancer!, name: name.trim(), team, phone: phone || null, gender: gender || null, status })
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative ml-auto h-full w-full max-w-[420px] bg-white shadow-2xl flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-[16px] font-bold text-gray-900">Edit Freelancer</h2>
+            {cfg && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full mt-0.5 inline-block" style={{ background: cfg.bg, color: cfg.color }}>{cfg.emoji} {cfg.label}</span>}
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+            <X size={16} />
+          </button>
+        </div>
+        <form id="fl-edit-form" onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 flex flex-col gap-5">
+          {/* Team picker */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Team *</label>
+            <div className="grid grid-cols-3 gap-2">
+              {FL_TYPES.map(t => (
+                <button key={t.key} type="button" onClick={() => setTeam(t.key)}
+                  className="flex flex-col items-center gap-1.5 p-3 rounded-xl text-center transition-all"
+                  style={team === t.key ? { background: t.color, border: `2px solid ${t.color}` } : { background: t.bg, border: `2px solid ${t.border}` }}>
+                  <span style={{ fontSize: 20 }}>{t.emoji}</span>
+                  <span className="text-[10px] font-bold leading-tight" style={{ color: team === t.key ? "#fff" : "#374151" }}>{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Name */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Full Name *</label>
+            <input className={FIELD_CLS} placeholder="e.g. Ravi Kumar" value={name} onChange={e => setName(e.target.value)} />
+          </div>
+          {/* Gender */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Gender</label>
+            <div className="flex gap-2">
+              {["male", "female"].map(g => (
+                <button key={g} type="button" onClick={() => setGender(gender === g ? "" : g)}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold capitalize transition-all"
+                  style={gender === g ? { background: "#F97316", color: "#fff", border: "2px solid #F97316" } : { background: "#F9FAFB", color: "#6B7280", border: "2px solid #E5E7EB" }}>
+                  {g === "male" ? "Male" : "Female"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Phone */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Phone</label>
+            <input className={FIELD_CLS} inputMode="numeric" placeholder="9876543210" value={phone}
+              onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 15))} />
+          </div>
+          {/* Status */}
+          <div>
+            <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Status</label>
+            <div className="flex gap-2">
+              {(["active", "inactive"] as const).map(s => (
+                <button key={s} type="button" onClick={() => setStatus(s)}
+                  className="flex-1 py-2.5 rounded-xl text-[13px] font-bold capitalize transition-all"
+                  style={status === s
+                    ? { background: s === "active" ? "#16A34A" : "#6B7280", color: "#fff", border: `2px solid ${s === "active" ? "#16A34A" : "#6B7280"}` }
+                    : { background: "#F9FAFB", color: "#6B7280", border: "2px solid #E5E7EB" }}>
+                  {s === "active" ? "Active" : "Inactive"}
+                </button>
+              ))}
+            </div>
+          </div>
+          {err && <p className="text-[12px] text-red-600 bg-red-50 px-3 py-2 rounded-xl">{err}</p>}
+        </form>
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all">Cancel</button>
+          <button type="submit" form="fl-edit-form" disabled={saving}
+            className="flex-1 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all"
+            style={{ background: saving ? "#fdba74" : "#F97316" }}>
+            {saving ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const FIELD_CLS = "w-full rounded-xl border border-gray-200 px-3 py-2.5 text-[13px] text-gray-800 placeholder-gray-400 focus:outline-none focus:border-[#F97316] focus:ring-1 focus:ring-[#F97316] transition-all bg-white"
 const SELECT_CLS = FIELD_CLS + " appearance-none cursor-pointer"
 const FL_VOICE_TYPES = ["Commercial Tone", "Emotional Tone", "High Pitch", "Base Voice", "Warm & Friendly", "Deep & Authoritative", "Neutral", "Energetic", "Soft & Calm"]
@@ -1115,6 +1236,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
   const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER" | "FREELANCER">("ALL")
   const [freelancers, setFreelancers] = useState(initFreelancers)
   const [flTypeFilter, setFlTypeFilter] = useState<string>("all")
+  const [editingFreelancer, setEditingFreelancer] = useState<FreelancerBasic | null>(null)
   const [assignSheetOpen, setAssignSheetOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
@@ -1386,6 +1508,12 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                           <td className="px-5 py-3.5 text-[12px]" style={{ color: "#9CA3AF" }}>{added}</td>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setEditingFreelancer(f)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                                style={{ background: "rgba(99,102,241,0.07)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.2)" }}>
+                                <Pencil size={11} />
+                              </button>
                               <Link href={`/admin/freelancers/${f.id}`}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
                                 style={{ background: "rgba(249,115,22,0.08)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
@@ -1961,6 +2089,16 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
         onClose={() => setAssignSheetOpen(false)}
         members={members}
         assignedManagerIds={assignedManagerIds}
+      />
+
+      <FreelancerEditSheet
+        freelancer={editingFreelancer}
+        open={editingFreelancer !== null}
+        onClose={() => setEditingFreelancer(null)}
+        onSaved={updated => {
+          setFreelancers(prev => prev.map(f => f.id === updated.id ? updated : f))
+          setEditingFreelancer(null)
+        }}
       />
     </div>
   )

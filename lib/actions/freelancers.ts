@@ -159,6 +159,7 @@ export async function updateFreelancer(id: string, input: FreelancerInput): Prom
   const { error } = await admin.from("freelancers").update({
     name: input.name,
     type: input.type,
+    team: input.team || null,
     phone: input.phone || null,
     upi_id: input.upi_id || null,
     gender: input.gender || null,

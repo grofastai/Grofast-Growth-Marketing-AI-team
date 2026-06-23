@@ -213,12 +213,13 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   }, [clientNames])
 
   const filteredPosts = useMemo(() => {
+    const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}-`
     let p = filter === "mine"
       ? posts.filter(p => p.assigned_to === userId || (p.shoot_team ?? []).includes(userId))
       : posts
     if (clientFilter !== "all") p = p.filter(p => p.client_name === clientFilter)
-    return p
-  }, [posts, filter, clientFilter, userId])
+    return p.filter(p => p.scheduled_date.startsWith(monthPrefix))
+  }, [posts, filter, clientFilter, userId, year, month])
 
   function postsOnDay(d: number)  { const ds = dateStr(d); return filteredPosts.filter(p => p.scheduled_date === ds) }
   function shootsOnDay(d: number) { const ds = dateStr(d); return shoots.filter(s => s.start_time.split("T")[0] === ds) }

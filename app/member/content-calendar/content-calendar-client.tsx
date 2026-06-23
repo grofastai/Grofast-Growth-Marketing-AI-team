@@ -186,6 +186,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [formError, setFormError]     = useState("")
   const [formSuccess, setFormSuccess] = useState(false)
 
+  // View detail modal
+  const [viewPost, setViewPost] = useState<Post | null>(null)
+
   // Post link modal
   const [postLinkModal, setPostLinkModal] = useState<{ postId: string; title: string } | null>(null)
   const [postLink, setPostLink]           = useState("")
@@ -780,8 +783,12 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                             <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{priCfg.label}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{cfg.label}</span>
                           </div>
-                          {/* Action row: Edit + Delete (creator only) + Mark as Posted (creator or assignee) */}
+                          {/* Action row: View + Edit + Delete (creator only) + Mark as Posted */}
                           <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                            <button onClick={() => setViewPost(p)}
+                              style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 9, border: "1.5px solid rgba(99,102,241,0.35)", background: "rgba(99,102,241,0.06)", color: "#6366F1", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                              👁 View
+                            </button>
                             {p.created_by === userId && (
                               <>
                                 <button onClick={() => openEdit(p)}
@@ -1111,6 +1118,161 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           </div>
         </div>
       )}
+
+      {/* ── View Full Detail Modal ── */}
+      {viewPost && (() => {
+        const vp = viewPost
+        const cfg    = STATUS_CFG[vp.status]   ?? STATUS_CFG.pending
+        const priCfg = PRIORITY_CFG[vp.priority ?? "medium"] ?? PRIORITY_CFG.medium
+        const isShoot = vp.platform === "other"
+        const assignedMember = members.find(m => m.id === vp.assigned_to)
+        const shootMembers   = (vp.shoot_team ?? []).map(id => members.find(m => m.id === id)?.name).filter(Boolean)
+        const isCreator = vp.created_by === userId
+        const noteText  = vp.notes ?? ""
+        // Parse shoot time/location from notes if embedded ("Time: HH:MM → HH:MM Location: ...")
+        const timeMatch = noteText.match(/Time:\s*(\d{1,2}:\d{2})\s*[→\-–]\s*(\d{1,2}:\d{2})/)
+        const locMatch  = noteText.match(/Location:\s*(.+)/)
+        const plainNotes = noteText.replace(/Time:[^]+?(Location:[^\n]*)?/, "").trim()
+        return (
+          <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+            <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(5px)" }} onClick={() => setViewPost(null)} />
+            <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 24, width: "100%", maxWidth: 480, maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 80px rgba(0,0,0,0.25)" }}>
+              {/* Header */}
+              <div style={{ background: isShoot ? "linear-gradient(135deg,#1D4ED8,#3B82F6)" : "linear-gradient(135deg,#DE1A1A,#8B0000)", padding: "20px 24px", borderRadius: "24px 24px 0 0", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 20 }}>{isShoot ? "📹" : platformEmoji(vp.platform)}</span>
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 20, background: "rgba(255,255,255,0.2)", color: "#FFF", letterSpacing: "0.05em" }}>
+                      {isShoot ? "SHOOT SCHEDULE" : platformLabel(vp.platform).toUpperCase()}
+                    </span>
+                  </div>
+                  <h3 style={{ fontSize: 18, fontWeight: 900, color: "#FFFFFF", margin: 0, lineHeight: 1.2 }}>{vp.title}</h3>
+                </div>
+                <button onClick={() => setViewPost(null)} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, padding: "6px 8px", cursor: "pointer", color: "#FFF", marginLeft: 12, flexShrink: 0 }}><X size={16} /></button>
+              </div>
+
+              {/* Body */}
+              <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
+                {/* Status + Priority */}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, padding: "4px 12px", borderRadius: 20, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, padding: "4px 12px", borderRadius: 20, background: priCfg.bg, color: priCfg.color }}>{priCfg.label} Priority</span>
+                  {isCreator && <span style={{ fontSize: 11, fontWeight: 800, padding: "4px 12px", borderRadius: 20, background: "rgba(222,26,26,0.08)", color: "#DE1A1A" }}>Created by me</span>}
+                </div>
+
+                {/* Date + Time */}
+                <div style={{ background: "#F9FAFB", borderRadius: 12, padding: "12px 16px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Date</p>
+                    <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>📅 {vp.scheduled_date}</p>
+                  </div>
+                  {isShoot && timeMatch ? (
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Shoot Time</p>
+                      <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>🕐 {timeMatch[1]} → {timeMatch[2]}</p>
+                    </div>
+                  ) : vp.scheduled_time ? (
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Time</p>
+                      <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>🕐 {formatTime(vp.scheduled_time)}</p>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* Client */}
+                {vp.client_name && (
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Client</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>🏢 {vp.client_name}</p>
+                  </div>
+                )}
+
+                {/* Location (shoot) */}
+                {isShoot && locMatch && (
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Location</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>📍 {locMatch[1]}</p>
+                  </div>
+                )}
+
+                {/* Assigned to (creator view) */}
+                {isCreator && assignedMember && assignedMember.id !== userId && (
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Assigned To</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>👤 {assignedMember.name}</p>
+                  </div>
+                )}
+
+                {/* Shoot crew */}
+                {isShoot && shootMembers.length > 0 && (
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>Crew Members</p>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {shootMembers.map((name, i) => (
+                        <span key={i} style={{ fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 20, background: "rgba(29,78,216,0.07)", color: "#1D4ED8", border: "1px solid rgba(29,78,216,0.15)" }}>👤 {name}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Assigned by (assignee view) */}
+                {vp.creator?.name && !isCreator && (
+                  <div style={{ background: "rgba(99,102,241,0.05)", borderRadius: 10, padding: "10px 14px", border: "1px solid rgba(99,102,241,0.15)" }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Assigned By</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: 0 }}>👤 {vp.creator.name}</p>
+                  </div>
+                )}
+
+                {/* Content type + pillar */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  {vp.content_type && (
+                    <div style={{ background: "#F9FAFB", borderRadius: 10, padding: "10px 14px" }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Content Type</p>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, textTransform: "capitalize" }}>{vp.content_type}</p>
+                    </div>
+                  )}
+                  {vp.content_pillar && (
+                    <div style={{ background: "#F9FAFB", borderRadius: 10, padding: "10px 14px" }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 3px" }}>Pillar</p>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0 }}>{vp.content_pillar}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Notes / Instructions */}
+                {(plainNotes || (!isShoot && vp.notes)) && (
+                  <div style={{ background: "rgba(255,200,0,0.06)", borderRadius: 10, padding: "12px 14px", border: "1px solid rgba(255,200,0,0.2)" }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: "#B45309", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>📝 Instructions / Notes</p>
+                    <p style={{ fontSize: 13, color: "#374151", margin: 0, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{isShoot ? plainNotes || vp.notes : vp.notes}</p>
+                  </div>
+                )}
+
+                {/* Drive link */}
+                {vp.drive_link && (
+                  <a href={vp.drive_link} target="_blank" rel="noopener noreferrer"
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, background: "rgba(37,211,102,0.06)", border: "1px solid rgba(37,211,102,0.2)", color: "#16A34A", fontSize: 13, fontWeight: 700, textDecoration: "none" }}>
+                    🔗 View Drive Link
+                  </a>
+                )}
+
+                {/* Footer actions */}
+                <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                  {isCreator && (
+                    <button onClick={() => { setViewPost(null); openEdit(vp) }}
+                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px", borderRadius: 10, border: "1.5px solid rgba(155,107,255,0.4)", background: "rgba(155,107,255,0.07)", color: "#9B6BFF", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>
+                      <Pencil size={13} /> Edit
+                    </button>
+                  )}
+                  <button onClick={() => setViewPost(null)}
+                    style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "11px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Add Content Modal ── */}
       {showAdd && (

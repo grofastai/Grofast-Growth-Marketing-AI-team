@@ -787,6 +787,11 @@ const FL_TYPES = [
   { key: "marketing_ops",     label: "Marketing & Ops", emoji: "📊", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  border: "rgba(236,72,153,0.3)" },
 ]
 
+// No-login freelancers — these 6 teams don't need a system login
+const NO_LOGIN_FL_TYPES = FL_TYPES.filter(t =>
+  !["video_editor", "video_shooter", "nkts_reels"].includes(t.key)
+)
+
 function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
   const [step, setStep] = useState<"type" | "details">("type")
   const [type, setType] = useState("")
@@ -802,7 +807,7 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
   }
   function close() { reset(); onClose() }
 
-  const cfg = FL_TYPES.find(t => t.key === type)
+  const cfg = NO_LOGIN_FL_TYPES.find(t => t.key === type)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -850,7 +855,7 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
             <div className="flex flex-col gap-4">
               <p className="text-[13px] text-gray-500">Select freelancer type to continue</p>
               <div className="grid grid-cols-2 gap-3">
-                {FL_TYPES.map(t => (
+                {NO_LOGIN_FL_TYPES.map(t => (
                   <button key={t.key} type="button"
                     onClick={() => { setType(t.key); setStep("details") }}
                     className="flex flex-col items-center gap-3 p-5 rounded-2xl text-center transition-all hover:scale-[1.02] active:scale-[0.98]"
@@ -937,7 +942,7 @@ function FreelancerEditSheet({ freelancer, open, onClose, onSaved }: {
   }, [freelancer])
 
   if (!open || !freelancer) return null
-  const cfg = FL_TYPES.find(t => t.key === team)
+  const cfg = NO_LOGIN_FL_TYPES.find(t => t.key === team)
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -972,7 +977,7 @@ function FreelancerEditSheet({ freelancer, open, onClose, onSaved }: {
           <div>
             <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Team *</label>
             <div className="grid grid-cols-3 gap-2">
-              {FL_TYPES.map(t => (
+              {NO_LOGIN_FL_TYPES.map(t => (
                 <button key={t.key} type="button" onClick={() => setTeam(t.key)}
                   className="flex flex-col items-center gap-1.5 p-3 rounded-xl text-center transition-all"
                   style={team === t.key ? { background: t.color, border: `2px solid ${t.color}` } : { background: t.bg, border: `2px solid ${t.border}` }}>

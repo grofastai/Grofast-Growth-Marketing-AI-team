@@ -342,15 +342,37 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
               ⏱ Duration: {formatDuration(calcDurationFromTimes(entry.time_from, entry.time_to))}
             </div>
           )}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <div>
-              <label style={LABEL}>Travel Time</label>
-              <input type="text" value={entry.travel_time} onChange={e => onChange("travel_time", e.target.value)} placeholder="e.g. 45 mins" style={FIELD} />
+          <div>
+            <label style={LABEL}>Travel Time</label>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ position: "relative", flex: 1 }}>
+                <input type="number" min="0" max="23" step="1" placeholder="0"
+                  value={entry.travel_time ? Math.floor(parseFloat(entry.travel_time) / 60) || "" : ""}
+                  onChange={e => {
+                    const h = parseInt(e.target.value) || 0
+                    const m = entry.travel_time ? Math.round(parseFloat(entry.travel_time) % 60) : 0
+                    onChange("travel_time", String(h * 60 + m))
+                  }}
+                  style={{ ...FIELD, paddingRight: 36, textAlign: "center" }} />
+                <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#9CA3AF", pointerEvents: "none" }}>hr</span>
+              </div>
+              <span style={{ fontSize: 16, color: "#D1D5DB", flexShrink: 0 }}>:</span>
+              <div style={{ position: "relative", flex: 1 }}>
+                <input type="number" min="0" max="59" step="1" placeholder="00"
+                  value={entry.travel_time ? Math.round(parseFloat(entry.travel_time) % 60) || "" : ""}
+                  onChange={e => {
+                    const h = entry.travel_time ? Math.floor(parseFloat(entry.travel_time) / 60) : 0
+                    const m = Math.min(59, parseInt(e.target.value) || 0)
+                    onChange("travel_time", String(h * 60 + m))
+                  }}
+                  style={{ ...FIELD, paddingRight: 36, textAlign: "center" }} />
+                <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#9CA3AF", pointerEvents: "none" }}>min</span>
+              </div>
             </div>
-            <div>
-              <label style={LABEL}>Location</label>
-              <input type="text" value={entry.location} onChange={e => onChange("location", e.target.value)} placeholder="e.g. Chennai" style={FIELD} />
-            </div>
+          </div>
+          <div>
+            <label style={LABEL}>Location</label>
+            <input type="text" value={entry.location} onChange={e => onChange("location", e.target.value)} placeholder="e.g. Chennai" style={FIELD} />
           </div>
         </>)}
 

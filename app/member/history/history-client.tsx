@@ -71,7 +71,8 @@ function stripShootNotes(notes: string): string {
 }
 
 function fmtTravel(h: number): string {
-  const hrs = Math.floor(h), mins = Math.round((h % 1) * 60)
+  let hrs = Math.floor(h); let mins = Math.round((h % 1) * 60)
+  if (mins === 60) { hrs += 1; mins = 0 }
   return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
 }
 
@@ -154,7 +155,8 @@ function fmt12(t: string) {
   return `${h % 12 || 12}:${String(m).padStart(2,"0")} ${h >= 12 ? "PM":"AM"}`
 }
 function fmtH(h: number) {
-  const hrs = Math.floor(h), mins = Math.round((h % 1) * 60)
+  let hrs = Math.floor(h); let mins = Math.round((h % 1) * 60)
+  if (mins === 60) { hrs += 1; mins = 0 }
   return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
 }
 

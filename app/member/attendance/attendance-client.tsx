@@ -65,7 +65,8 @@ function fmtDuration(s: number) {
   return `${String(Math.floor(s / 3600)).padStart(2, "0")}:${String(Math.floor((s % 3600) / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`
 }
 function fmtHoursShort(h: number) {
-  const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60)
+  let hrs = Math.floor(h); let mins = Math.round((h - hrs) * 60)
+  if (mins === 60) { hrs += 1; mins = 0 }
   return mins === 0 ? `${hrs}h` : `${hrs}h ${mins}m`
 }
 function fmtTimeFromIso(iso: string | null) {
@@ -855,7 +856,8 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 const absent     = log?.status === "leave" || log?.status === "absent"
                 // Prefer daily_updates.working_hours (accurate entry-based calc) for past days;
                 // fall back to clock_in/clock_out span minus breaks for today or when no update
-                const updateH = !isToday ? weekUpdatesByDate[date] : undefined
+                const navWorkedH = weekOff !== 0 ? (log as unknown as { worked_hours?: number })?.worked_hours : undefined
+                const updateH = !isToday ? (navWorkedH ?? weekUpdatesByDate[date]) : undefined
                 const rawH = log?.clock_in
                   ? (log.clock_out ? calcHours(log.clock_in, log.clock_out) : (isToday ? calcHours(log.clock_in, null) : 0))
                   : 0

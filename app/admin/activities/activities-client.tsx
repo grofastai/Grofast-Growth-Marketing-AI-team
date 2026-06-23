@@ -61,7 +61,12 @@ function getDescription(u: Update): string {
 function getTeamBadge(team: string | null | undefined): { label: string; bg: string; color: string } {
   const t = (team ?? "").toLowerCase()
   if (t.includes("media production") || team === "Media Team" || team === "Media") return { label: "Media Production", bg: "rgba(236,72,153,0.1)", color: "#EC4899" }
-  if (t.includes("creative")) return { label: "Creative Studio", bg: "rgba(245,158,11,0.1)", color: "#F59E0B" }
+  if (team === "Freelance Videography") return { label: "FL Videography", bg: "rgba(239,68,68,0.1)", color: "#EF4444" }
+  if (team === "Freelance Video Editing") return { label: "FL Editing", bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
+  if (team === "Freelance RJ Voiceover") return { label: "FL Voiceover", bg: "rgba(168,85,247,0.1)", color: "#A855F7" }
+  if (team === "Freelance Graphics Designer") return { label: "FL Graphics", bg: "rgba(249,115,22,0.1)", color: "#F97316" }
+  if (team === "Freelance Content Writer") return { label: "FL Content", bg: "rgba(20,184,166,0.1)", color: "#14B8A6" }
+  if (team === "Creative Studio" || team === "Creative Team") return { label: "Creative Studio", bg: "rgba(245,158,11,0.1)", color: "#F59E0B" }
   if (t.includes("ai development & auto") || t.includes("automation")) return { label: "AI Dev & Auto", bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
   if (t.includes("performance marketing") || t.includes("marketing & op") || t.includes("tech & ops") || t.includes("technology & op")) return { label: "Perf. Marketing", bg: "rgba(16,185,129,0.1)", color: "#10B981" }
   if (t.includes("ai development & media") || t.includes("media & tech") || t.includes("it technology")) return { label: "AI Dev & Media", bg: "rgba(139,92,246,0.1)", color: "#8B5CF6" }

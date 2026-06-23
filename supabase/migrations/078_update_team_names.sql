@@ -6,17 +6,26 @@ UPDATE users SET team = 'Media Production Team'              WHERE team = 'Media
 UPDATE users SET team = 'AI Development & Media'             WHERE team = 'Media & Technology Team';
 UPDATE users SET team = 'Performance Marketing & Operations' WHERE team = 'Technology & Operation Team';
 UPDATE users SET team = 'Creative Studio'                    WHERE team = 'Creative Team';
+-- Rename Freelance Creative Studio → Freelance RJ Voiceover (if any rows exist)
+UPDATE users SET team = 'Freelance RJ Voiceover'             WHERE team = 'Freelance Creative Studio';
 
--- Add new constraint with all current team names
+-- Add new constraint with all 9 freelancer teams + 5 full-time teams
 ALTER TABLE users ADD CONSTRAINT users_team_check CHECK (
   team IS NULL OR team IN (
+    -- Full Time
     'Media Production Team',
     'Creative Studio',
     'AI Development & Automation',
     'Performance Marketing & Operations',
     'AI Development & Media',
+    -- Freelancer (has login)
     'Freelance Media Production',
-    'Freelance Creative Studio',
+    'Freelance Video Editing',
+    'Freelance Videography',
+    -- Freelancer (no login — manager enters data)
+    'Freelance RJ Voiceover',
+    'Freelance Graphics Designer',
+    'Freelance Content Writer',
     'Freelance Development & Automation',
     'Freelance Marketing & Operations',
     'Freelance IT Technology & Media'

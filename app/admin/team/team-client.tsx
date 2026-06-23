@@ -40,12 +40,14 @@ const FULL_TIME_TEAMS = [
 
 const FREELANCER_TEAMS = [
   "Freelance Media Production",
-  "Freelance Creative Studio",
+  "Freelance Video Editing",
+  "Freelance Videography",
+  "Freelance RJ Voiceover",
+  "Freelance Graphics Designer",
+  "Freelance Content Writer",
   "Freelance Development & Automation",
   "Freelance Marketing & Operations",
   "Freelance IT Technology & Media",
-  "Freelance Video Editing",
-  "Freelance Videography",
 ] as const
 
 interface Member {
@@ -109,12 +111,15 @@ const FIELD: React.CSSProperties = {
 function teamColor(team: string | null): { bg: string; color: string } {
   if (!team) return { bg: "#F3F4F6", color: "#6B7280" }
   if (team === "Media Production Team" || team === "Freelance Media Production" || team === "Media Team" || team === "Media") return { bg: "rgba(236,72,153,0.1)", color: "#EC4899" }
-  if (team === "Creative Studio" || team === "Freelance Creative Studio" || team === "Creative Team" || team === "Creative") return { bg: "rgba(245,158,11,0.1)", color: "#F59E0B" }
+  if (team === "Creative Studio" || team === "Creative Team" || team === "Creative") return { bg: "rgba(245,158,11,0.1)", color: "#F59E0B" }
   if (team === "AI Development & Automation" || team === "Freelance Development & Automation") return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
   if (team === "Performance Marketing & Operations" || team === "Freelance Marketing & Operations" || team === "Technology & Operation Team" || team.includes("Tech & Ops")) return { bg: "rgba(16,185,129,0.1)", color: "#10B981" }
   if (team === "AI Development & Media" || team === "Freelance IT Technology & Media" || team.includes("Media & Tech")) return { bg: "rgba(139,92,246,0.1)", color: "#8B5CF6" }
   if (team === "Freelance Video Editing") return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
   if (team === "Freelance Videography") return { bg: "rgba(239,68,68,0.1)", color: "#EF4444" }
+  if (team === "Freelance RJ Voiceover") return { bg: "rgba(168,85,247,0.1)", color: "#A855F7" }
+  if (team === "Freelance Graphics Designer") return { bg: "rgba(249,115,22,0.1)", color: "#F97316" }
+  if (team === "Freelance Content Writer") return { bg: "rgba(20,184,166,0.1)", color: "#14B8A6" }
   return { bg: "#F3F4F6", color: "#6B7280" }
 }
 
@@ -126,12 +131,14 @@ function teamShort(team: string | null) {
   if (team === "Performance Marketing & Operations" || team.includes("Tech & Ops") || team === "Technology & Operation Team") return "Perf. Marketing"
   if (team === "AI Development & Media" || team.includes("Media & Tech")) return "AI Dev & Media"
   if (team === "Freelance Media Production") return "FL Media"
-  if (team === "Freelance Creative Studio") return "FL Creative"
+  if (team === "Freelance Video Editing") return "FL Editing"
+  if (team === "Freelance Videography") return "FL Videography"
+  if (team === "Freelance RJ Voiceover") return "FL Voiceover"
+  if (team === "Freelance Graphics Designer") return "FL Graphics"
+  if (team === "Freelance Content Writer") return "FL Content"
   if (team === "Freelance Development & Automation") return "FL Dev & Auto"
   if (team === "Freelance Marketing & Operations") return "FL Marketing"
   if (team === "Freelance IT Technology & Media") return "FL IT & Media"
-  if (team === "Freelance Video Editing") return "FL Editing"
-  if (team === "Freelance Videography") return "FL Videography"
   return team
 }
 

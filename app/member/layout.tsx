@@ -3,7 +3,6 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import MemberSidebar from "@/components/member/sidebar"
-import ImpersonationBanner from "@/components/member/impersonation-banner"
 import { getNotificationCount } from "@/lib/actions/notifications"
 import { getYesterdayGateStatus } from "@/lib/actions/attendance"
 import MemberGate from "@/components/member/member-gate"
@@ -44,7 +43,10 @@ export default async function MemberLayout({ children }: { children: React.React
     hasFreelancers = (count ?? 0) > 0
   }
 
-  // Admin impersonation — allowed through member layout
+  // Admin impersonation — render the member panel EXACTLY as the member sees it:
+  // no banner, no gate, no marginTop, no visual difference whatsoever. The admin
+  // exits via the normal "Sign Out" button, which detects the impersonation
+  // cookie (see logoutAction) and returns to the admin panel.
   if (profile?.role === "ADMIN" && impersonateId) {
     const { data: impProfile } = await admin
       .from("users")
@@ -69,7 +71,6 @@ export default async function MemberLayout({ children }: { children: React.React
 
     return (
       <div className="flex min-h-screen" style={{ background: "#EDEEF2" }}>
-        <ImpersonationBanner memberName={impProfile.name} />
         <MemberSidebar
           name={impProfile.name}
           employeeId={impProfile.employee_id ?? ""}
@@ -77,7 +78,7 @@ export default async function MemberLayout({ children }: { children: React.React
           photoUrl={impProfile.photo_url ?? null}
           canManageFreelancers={impHasFreelancers}
         />
-        <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0" style={{ marginTop: 38 }}>
+        <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0">
           {children}
         </main>
       </div>

@@ -65,7 +65,7 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> =
   pending:     { label: "Scheduled",   color: "#FFA53A", bg: "rgba(255,165,58,0.1)"  },
   in_progress: { label: "In Progress", color: "#4D8CFF", bg: "rgba(77,140,255,0.1)"  },
   ready:       { label: "Ready",       color: "#9B6BFF", bg: "rgba(155,107,255,0.1)"  },
-  posted:      { label: "Posted ✓",    color: "#32D27A", bg: "rgba(50,210,122,0.1)"  },
+  posted:      { label: "Uploaded ✓",  color: "#32D27A", bg: "rgba(50,210,122,0.1)"  },
   cancelled:   { label: "Cancelled",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"   },
   missed:      { label: "Missed",      color: "#EF4444", bg: "rgba(239,68,68,0.08)"  },
 }
@@ -472,7 +472,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           </div>
           {/* Posted card */}
           <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 90 }}>
-            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>POSTED</p>
+            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>UPLOADED</p>
             <p style={{ fontSize: 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{postedCount}</p>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Done ✓</p>
           </div>
@@ -521,7 +521,7 @@ export default function ContentCalendarClient({ posts: initial, shoots, tasks, m
           { label: "Total Content", value: totalContent, sub: "All time",   icon: "📄", headerBg: "linear-gradient(135deg,#8B0000 0%,#C41230 100%)", accent: "#DE1A1A", shadow: "rgba(139,0,0,0.22)" },
           { label: "Ready To Post", value: readyCount,   sub: "Scheduled",  icon: "📤", headerBg: "linear-gradient(135deg,#1E3A8A 0%,#3B82F6 100%)", accent: "#3B82F6", shadow: "rgba(37,99,235,0.2)"  },
           { label: "In Progress",   value: inProgCount,  sub: "Creating",   icon: "⏳", headerBg: "linear-gradient(135deg,#92400E 0%,#F59E0B 100%)", accent: "#F59E0B", shadow: "rgba(146,64,14,0.2)"  },
-          { label: "Posted",        value: postedCount,  sub: "Published",  icon: "✅", headerBg: "linear-gradient(135deg,#14532D 0%,#22C55E 100%)", accent: "#22C55E", shadow: "rgba(20,83,45,0.2)"   },
+          { label: "Uploaded",      value: postedCount,  sub: "Uploaded ✓", icon: "✅", headerBg: "linear-gradient(135deg,#14532D 0%,#22C55E 100%)", accent: "#22C55E", shadow: "rgba(20,83,45,0.2)"   },
         ].map(s => (
           <div key={s.label} style={{
             background: "#FFFFFF", borderRadius: 22, overflow: "hidden",

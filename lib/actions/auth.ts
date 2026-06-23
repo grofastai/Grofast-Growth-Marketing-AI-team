@@ -3,7 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
-import { headers } from 'next/headers'
+import { headers, cookies } from 'next/headers'
 import { loginSchema, changePasswordSchema } from '@/lib/validations/auth'
 import { loginLimiter } from '@/lib/ratelimit'
 
@@ -125,6 +125,15 @@ export async function changePasswordAction(
 }
 
 export async function logoutAction(): Promise<void> {
+  // If an admin is impersonating a member, "Sign Out" exits impersonation and
+  // returns to the admin panel — it does NOT end the admin's real session and
+  // does NOT touch the member's attendance timer.
+  const cookieStore = await cookies()
+  if (cookieStore.get('gf_impersonate')?.value) {
+    cookieStore.delete('gf_impersonate')
+    redirect('/admin/team')
+  }
+
   const supabase = await createServerClient()
 
   // Pause the live timer for any active clock-in before signing out

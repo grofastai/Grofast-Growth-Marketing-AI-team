@@ -47,7 +47,7 @@ const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> =
   pending:     { label: "Scheduled",   color: "#FFA53A", bg: "rgba(255,165,58,0.1)"  },
   in_progress: { label: "In Progress", color: "#4D8CFF", bg: "rgba(77,140,255,0.1)"  },
   ready:       { label: "Ready",       color: "#9B6BFF", bg: "rgba(155,107,255,0.1)"  },
-  posted:      { label: "Posted ✓",    color: "#32D27A", bg: "rgba(50,210,122,0.1)"  },
+  posted:      { label: "Uploaded ✓",  color: "#32D27A", bg: "rgba(50,210,122,0.1)"  },
   cancelled:   { label: "Cancelled",   color: "#EF4444", bg: "rgba(239,68,68,0.1)"   },
   missed:      { label: "Missed",      color: "#EF4444", bg: "rgba(239,68,68,0.08)"  },
 }
@@ -481,7 +481,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Posts</p>
           </div>
           <div style={{ background: "rgba(255,255,255,0.1)", backdropFilter: "blur(12px)", borderRadius: 18, padding: "16px 20px", textAlign: "center", border: "1px solid rgba(255,255,255,0.15)", minWidth: 90 }}>
-            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>POSTED</p>
+            <p style={{ fontSize: 10, fontWeight: 800, color: "rgba(255,255,255,0.6)", margin: "0 0 2px", letterSpacing: "0.06em" }}>UPLOADED</p>
             <p style={{ fontSize: 38, fontWeight: 900, color: "#FFFFFF", margin: "0 0 2px", lineHeight: 1 }}>{postedCount}</p>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: 0, fontWeight: 600 }}>Done ✓</p>
           </div>
@@ -525,7 +525,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           { label: contentMode === "shoot" ? "Total Shoots" : "Total Posts", value: totalContent, sub: "This month", icon: contentMode === "shoot" ? "📹" : "📄", headerBg: "linear-gradient(135deg,#8B0000 0%,#C41230 100%)", accent: "#DE1A1A", shadow: "rgba(139,0,0,0.22)" },
           { label: "Ready To Post", value: readyCount,   sub: "Scheduled", icon: "📤", headerBg: "linear-gradient(135deg,#1E3A8A 0%,#3B82F6 100%)", accent: "#3B82F6", shadow: "rgba(37,99,235,0.2)"  },
           { label: "In Progress",   value: inProgCount,  sub: "Creating",  icon: "⏳", headerBg: "linear-gradient(135deg,#92400E 0%,#F59E0B 100%)", accent: "#F59E0B", shadow: "rgba(146,64,14,0.2)"  },
-          { label: contentMode === "shoot" ? "Completed" : "Posted", value: postedCount, sub: contentMode === "shoot" ? "Shot ✓" : "Published", icon: "✅", headerBg: "linear-gradient(135deg,#14532D 0%,#22C55E 100%)", accent: "#22C55E", shadow: "rgba(20,83,45,0.2)" },
+          { label: contentMode === "shoot" ? "Completed" : "Uploaded", value: postedCount, sub: contentMode === "shoot" ? "Shot ✓" : "Uploaded ✓", icon: "✅", headerBg: "linear-gradient(135deg,#14532D 0%,#22C55E 100%)", accent: "#22C55E", shadow: "rgba(20,83,45,0.2)" },
         ].map(s => (
           <div key={s.label} style={{
             background: "#FFFFFF", borderRadius: 22, overflow: "hidden",
@@ -829,14 +829,14 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                             {p.status === "posted" ? (
                               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                                 <span style={{ fontSize: 11, fontWeight: 800, padding: "5px 10px", borderRadius: 8, background: "rgba(50,210,122,0.1)", color: "#32D27A", display: "flex", alignItems: "center", gap: 4 }}>
-                                  <CheckCircle2 size={12} /> Posted ✓
+                                  <CheckCircle2 size={12} /> Uploaded ✓
                                 </span>
                                 <button onClick={() => handleStatusChange(p.id, "pending")} style={{ fontSize: 10, fontWeight: 700, padding: "5px 8px", borderRadius: 8, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", cursor: "pointer" }}>Undo</button>
                               </div>
                             ) : (
                               <button onClick={() => handleStatusChange(p.id, "posted")}
                                 style={{ fontSize: 11, fontWeight: 800, padding: "6px 14px", borderRadius: 9, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}>
-                                <CheckCircle2 size={12} /> {p.platform === "other" ? "Mark as Shot ✓" : "Mark as Posted"}
+                                <CheckCircle2 size={12} /> {p.platform === "other" ? "Mark as Shot ✓" : "Mark as Uploaded"}
                               </button>
                             )}
                           </div>
@@ -879,7 +879,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   action: () => setView("list"),
                 },
                 {
-                  icon: "✅", label: "Mark Posted",  sub: "Update status",
+                  icon: "✅", label: "Mark Uploaded", sub: "Update status",
                   gradient: "linear-gradient(135deg, #16A34A 0%, #22C55E 100%)",
                   shadow: "rgba(22,163,74,0.4)",
                   action: () => setView("list"),
@@ -1011,12 +1011,12 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                           {!isPosted ? (
                             <button onClick={() => handleStatusChange(p.id, "posted")}
                               style={{ width: "100%", padding: "8px 0", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                              <CheckCircle2 size={13} /> {p.platform === "other" ? "Mark as Shot ✓" : "Mark as Posted"}
+                              <CheckCircle2 size={13} /> {p.platform === "other" ? "Mark as Shot ✓" : "Mark as Uploaded"}
                             </button>
                           ) : (
                             <div style={{ display: "flex", gap: 8 }}>
                               <div style={{ flex: 1, padding: "8px 0", borderRadius: 10, background: "rgba(50,210,122,0.1)", border: "1.5px solid rgba(50,210,122,0.3)", color: "#32D27A", fontSize: 12, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
-                                <CheckCircle2 size={13} /> {p.platform === "other" ? "Shot ✓" : "Posted ✓"}
+                                <CheckCircle2 size={13} /> {p.platform === "other" ? "Shot ✓" : "Uploaded ✓"}
                               </div>
                               <button onClick={() => handleStatusChange(p.id, "pending")} style={{ padding: "8px 12px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#F9FAFB", color: "#6B7280", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>Undo</button>
                             </div>
@@ -1109,7 +1109,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                   </div>
                   <button onClick={() => handleStatusChange(p.id, "posted")}
                     style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>
-                    <CheckCircle2 size={13} /> {p.platform === "other" ? "Mark as Shot ✓" : "Mark as Posted"}
+                    <CheckCircle2 size={13} /> {p.platform === "other" ? "Mark as Shot ✓" : "Mark as Uploaded"}
                   </button>
                 </div>
               )
@@ -1125,7 +1125,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
           <div style={{ position: "relative", background: "#FFFFFF", borderRadius: 20, padding: 28, width: "100%", maxWidth: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.25)" }}>
             <div style={{ textAlign: "center", marginBottom: 20 }}>
               <div style={{ fontSize: 36, marginBottom: 8 }}>🎉</div>
-              <h3 style={{ fontSize: 18, fontWeight: 900, color: "#111827", margin: "0 0 6px" }}>Content Posted!</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 900, color: "#111827", margin: "0 0 6px" }}>Content Uploaded!</h3>
               <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}><strong>{postLinkModal.title}</strong> — add the live post link.</p>
             </div>
             <div style={{ marginBottom: 16 }}>
@@ -1137,7 +1137,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               <button onClick={() => setPostLinkModal(null)} style={{ flex: 1, padding: "12px", borderRadius: 10, border: "1px solid #E2E8F0", background: "#FAFAFA", fontSize: 13, fontWeight: 700, cursor: "pointer", color: "#6B7280" }}>Cancel</button>
               <button onClick={confirmPosted} disabled={savingPostLink}
                 style={{ flex: 2, padding: "12px", borderRadius: 10, border: "none", background: savingPostLink ? "#9CA3AF" : "#32D27A", color: "#FFFFFF", fontSize: 13, fontWeight: 800, cursor: savingPostLink ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                {savingPostLink ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : "✓ Mark as Posted"}
+                {savingPostLink ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : "✓ Mark as Uploaded"}
               </button>
             </div>
           </div>

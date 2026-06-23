@@ -49,6 +49,7 @@ export type FreelancerInput = {
   upi_id?: string
   gender?: string
   title?: string
+  team?: string
   availability_notes?: string
   rating?: number
   status?: "active" | "inactive"
@@ -112,6 +113,7 @@ export async function createFreelancer(input: FreelancerInput): Promise<{ succes
     company_id: companyId,
     name: input.name,
     type: input.type,
+    team: input.team || null,
     phone: input.phone || null,
     upi_id: input.upi_id || null,
     gender: input.gender || null,

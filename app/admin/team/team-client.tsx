@@ -150,14 +150,13 @@ interface SheetProps {
   member?: Member | null
   nextId?: string
   initialRole?: "ADMIN" | "MEMBER" | "FREELANCER_MGR"
-  onSelectFreelancer?: () => void
 }
 
 const ACCOUNT_TYPES = [
   {
     role: "MEMBER" as const,
     label: "Team Member",
-    desc: "Logs daily updates, tasks, attendance",
+    desc: "Full-time or freelance — logs daily updates, tasks, attendance",
     icon: User,
     color: "#DE1A1A",
     bg: "rgba(222,26,26,0.06)",
@@ -172,18 +171,18 @@ const ACCOUNT_TYPES = [
     bg: "rgba(124,58,237,0.06)",
     border: "rgba(124,58,237,0.2)",
   },
-  {
-    role: "FREELANCER" as const,
-    label: "Freelancer",
-    desc: "Voice artist, video editor, shooter or other",
-    icon: Clapperboard,
-    color: "#F97316",
-    bg: "rgba(249,115,22,0.06)",
-    border: "rgba(249,115,22,0.2)",
-  },
 ]
 
-function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreelancer }: SheetProps) {
+const NO_LOGIN_TEAMS = new Set([
+  "Freelance RJ Voiceover",
+  "Freelance Graphics Designer",
+  "Freelance Content Writer",
+  "Freelance Development & Automation",
+  "Freelance Marketing & Operations",
+  "Freelance IT Technology & Media",
+])
+
+function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps) {
   const isEdit = !!member
   const [step, setStep] = useState<"type" | "details">(isEdit || initialRole ? "details" : "type")
   const [form, setForm] = useState({
@@ -224,6 +223,22 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
   function handleSubmit() {
     setError("")
     startTransition(async () => {
+      // No-login freelancer — save to freelancers table, no user account
+      if (isNoLoginTeam) {
+        if (!form.name.trim()) { setError("Name is required"); return }
+        const result = await createFreelancer({
+          name: form.name.trim(),
+          type: "other",
+          team: form.team,
+          phone: form.phone || undefined,
+          gender: form.gender || undefined,
+          rating: 0,
+        })
+        if (result.success) { router.refresh(); onClose() }
+        else setError(result.error ?? "Something went wrong")
+        return
+      }
+
       const salaryFields = {
         employment_type: form.employment_type,
         monthly_salary: form.employment_type === "regular" && form.monthly_salary ? parseFloat(form.monthly_salary) : null,
@@ -269,9 +284,10 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
 
   if (!open) return null
 
-  const selectedType = ACCOUNT_TYPES.find(t => t.role === form.role)!
+  const selectedType = ACCOUNT_TYPES.find(t => t.role === form.role) ?? ACCOUNT_TYPES[0]
   const isFreelancerMgr = form.role === "FREELANCER_MGR"
   const isAdmin = form.role === "ADMIN" || form.role === "FOUNDER" || form.role === "CEO"
+  const isNoLoginTeam = !isEdit && NO_LOGIN_TEAMS.has(form.team)
 
   return (
     <>
@@ -317,13 +333,8 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
                 return (
                   <button key={type.role} type="button"
                     onClick={() => {
-                      if (type.role === "FREELANCER") {
-                        onClose()
-                        onSelectFreelancer?.()
-                      } else {
-                        setForm(p => ({ ...p, role: type.role as "ADMIN" | "MEMBER" | "FREELANCER_MGR" }))
-                        setStep("details")
-                      }
+                      setForm(p => ({ ...p, role: type.role as "ADMIN" | "MEMBER" | "FREELANCER_MGR" }))
+                      setStep("details")
                     }}
                     className="w-full flex items-center gap-4 rounded-2xl transition-all text-left"
                     style={{ padding: "18px 20px", background: type.bg, border: `1.5px solid ${type.border}` }}
@@ -414,51 +425,44 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
               ) : (
                 /* Member / Admin edit — full fields */
                 <>
-                  {/* Employment Type — always first */}
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Employment Type *</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {([
-                        { value: "regular", label: "Full Time" },
-                        { value: "freelancer", label: "Freelancer" },
-                      ] as const).map(({ value, label }) => (
-                        <button key={value} type="button"
-                          onClick={() => setForm((prev) => ({ ...prev, employment_type: value, team: "", monthly_salary: "", hourly_rate: "", paid_leave_days: value === "regular" ? "5" : "0" }))}
-                          className="py-2.5 rounded-xl text-[13px] font-semibold transition-all"
-                          style={form.employment_type === value
-                            ? { background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#FFFFFF", border: "1px solid rgba(222,26,26,0.3)" }
-                            : { background: "rgba(0,0,0,0.03)", color: "#6B7280", border: "1px solid #E5E7EB" }
-                          }>
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Team — filtered by employment type */}
+                  {/* Team — all teams; form adapts based on selection */}
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Team *</label>
                     <div className="relative">
-                      <select className="sheet-input" value={form.team} onChange={set("team")} style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}>
+                      <select className="sheet-input" value={form.team}
+                        onChange={e => {
+                          const t = e.target.value
+                          const empType = FULL_TIME_TEAMS.includes(t as never) ? "regular" : "freelancer"
+                          setForm(prev => ({ ...prev, team: t, employment_type: empType, monthly_salary: "", hourly_rate: "", paid_leave_days: empType === "regular" ? "5" : "0" }))
+                        }}
+                        style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}>
                         <option value="">Select a team…</option>
-                        {(form.employment_type === "freelancer" ? FREELANCER_TEAMS : FULL_TIME_TEAMS).map((t) => (
-                          <option key={t} value={t}>{t}</option>
-                        ))}
+                        <optgroup label="── Full Time">
+                          {FULL_TIME_TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
+                        </optgroup>
+                        <optgroup label="── Freelancer (Login)">
+                          {(["Freelance Media Production","Freelance Video Editing","Freelance Videography"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                        </optgroup>
+                        <optgroup label="── Freelancer (No Login)">
+                          {(["Freelance RJ Voiceover","Freelance Graphics Designer","Freelance Content Writer","Freelance Development & Automation","Freelance Marketing & Operations","Freelance IT Technology & Media"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                        </optgroup>
                       </select>
                       <ChevronDown size={13} className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "#6B7280" }} />
                     </div>
+                    {isNoLoginTeam && (
+                      <p className="text-[11px] mt-1.5 font-semibold" style={{ color: "#F97316" }}>
+                        No-login freelancer — only name &amp; phone needed.
+                      </p>
+                    )}
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Position / Designation</label>
-                    <input className="sheet-input" value={form.position} onChange={set("position")} placeholder="e.g. Social Media Executive, Videographer…" style={FIELD} />
-                  </div>
-
+                  {/* Full Name — always shown */}
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Full Name *</label>
                     <input className="sheet-input" value={form.name} onChange={set("name")} placeholder="e.g. Priya Sharma" style={FIELD} />
                   </div>
 
+                  {/* Gender — always shown */}
                   <div>
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Gender *</label>
                     <div style={{ display: "flex", gap: 10 }}>
@@ -475,6 +479,21 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
                     </div>
                   </div>
 
+                  {/* Phone — always shown */}
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>WhatsApp Number</label>
+                    <input className="sheet-input" value={form.phone} onChange={set("phone")} placeholder="e.g. 919876543210" style={FIELD} />
+                    {!isNoLoginTeam && <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Credentials will be sent here after account creation.</p>}
+                  </div>
+
+                  {/* Login-only fields — hidden for no-login freelancers */}
+                  {!isNoLoginTeam && (
+                    <>
+                  <div>
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Position / Designation</label>
+                    <input className="sheet-input" value={form.position} onChange={set("position")} placeholder="e.g. Social Media Executive, Videographer…" style={FIELD} />
+                  </div>
+
                   {!isEdit && (
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>
@@ -489,15 +508,11 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Email Address *</label>
                     <input type="email" className="sheet-input" value={form.email} onChange={set("email")} placeholder="e.g. priya@gmail.com" style={FIELD} />
                   </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>WhatsApp Number</label>
-                    <input className="sheet-input" value={form.phone} onChange={set("phone")} placeholder="e.g. 919876543210" style={FIELD} />
-                    <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Credentials will be sent here after account creation.</p>
-                  </div>
+                    </>
+                  )}
 
                   {/* Salary fields — Full Time only */}
-                  {form.employment_type === "regular" && (
+                  {!isNoLoginTeam && form.employment_type === "regular" && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Monthly Salary (₹)</label>
@@ -514,6 +529,8 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
                     </div>
                   )}
 
+                  {!isNoLoginTeam && (
+                    <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Date of Birth</label>
@@ -533,6 +550,8 @@ function MemberSheet({ open, onClose, member, nextId, initialRole, onSelectFreel
                       <input type="text" className="sheet-input" value={form.password} onChange={set("password")} placeholder="Min 6 characters" style={FIELD} />
                       {!isAdmin && <p className="text-[11px] mt-1.5" style={{ color: "#9CA3AF" }}>Will be sent via WhatsApp.</p>}
                     </div>
+                  )}
+                    </>
                   )}
                 </>
               )}
@@ -1070,7 +1089,6 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
   const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER" | "FREELANCER">("ALL")
   const [freelancers, setFreelancers] = useState(initFreelancers)
   const [flTypeFilter, setFlTypeFilter] = useState<"all" | "voice_over" | "video_editor" | "video_shooter" | "other">("all")
-  const [flSheetOpen, setFlSheetOpen] = useState(false)
   const [assignSheetOpen, setAssignSheetOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
@@ -1930,13 +1948,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
 
       {assignTarget && <AssignTaskModal member={assignTarget} onClose={() => setAssignTarget(null)} />}
 
-      <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} nextId={nextId} onSelectFreelancer={() => { setSheetOpen(false); setFlSheetOpen(true) }} />
-
-      <FreelancerQuickSheet
-        open={flSheetOpen}
-        onClose={() => setFlSheetOpen(false)}
-        onCreated={() => startTransition(() => router.refresh())}
-      />
+      <MemberSheet key={editMember?.id ?? "add"} open={sheetOpen} onClose={() => setSheetOpen(false)} member={editMember} nextId={nextId} />
 
       <AssignManagerSheet
         open={assignSheetOpen}

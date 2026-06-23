@@ -57,8 +57,8 @@ const TEAM_CFG: Record<FreelancerTeam, {
   "Freelance Development & Automation": { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Dev & Auto",    entryLabel: "Task",      emoji: "💻", costLabel: "Project Price (INR)" },
   "Freelance Marketing & Operations":   { color: "#10B981", bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.2)",  shortLabel: "Marketing",     entryLabel: "Task",      emoji: "📊", costLabel: "Project Price (INR)" },
   "Freelance IT Technology & Media":    { color: "#8B5CF6", bg: "rgba(139,92,246,0.07)",  border: "rgba(139,92,246,0.2)",  shortLabel: "IT & Media",    entryLabel: "Task",      emoji: "🖥️", costLabel: "Project Price (INR)" },
-  "Freelance Video Editing":            { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Video Editing", entryLabel: "Edit",      emoji: "✂️", costLabel: "Prize (INR)" },
-  "Freelance Videography":              { color: "#0EA5E9", bg: "rgba(14,165,233,0.07)",  border: "rgba(14,165,233,0.2)",  shortLabel: "Videography",   entryLabel: "Shoot",     emoji: "🎥", costLabel: "Cost (INR)" },
+  "Freelance Video Editing":            { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Video Editing", entryLabel: "Edit",      emoji: "🎬", costLabel: "Prize (INR)" },
+  "Freelance Videography":              { color: "#0EA5E9", bg: "rgba(14,165,233,0.07)",  border: "rgba(14,165,233,0.2)",  shortLabel: "Videography",   entryLabel: "Shoot",     emoji: "📹", costLabel: "Cost (INR)" },
 }
 
 const NO_LOGIN_TEAMS = Object.keys(TEAM_CFG) as FreelancerTeam[]
@@ -950,7 +950,7 @@ export default function FreelancersMemberClient({
 
         {/* LEFT panel */}
         <div style={{ width: 276, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ borderBottom: "1px solid #F5F5F7", padding: "8px 10px", display: "flex", gap: 4, flexWrap: "nowrap", flexShrink: 0, alignItems: "center" }}>
+          <div style={{ borderBottom: "1px solid #F5F5F7", padding: "8px 10px", display: "flex", gap: 4, flexWrap: "wrap", flexShrink: 0, alignItems: "center" }}>
             <button onClick={() => { setTeamFilter("all"); setSelectedId(null) }} style={{ padding: "6px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", background: teamFilter === "all" && !selectedId ? "#111" : "#F5F5F7", color: teamFilter === "all" && !selectedId ? "#fff" : "#6B7280", transition: "all 0.15s", flexShrink: 0 }}>
               All {activeFreelancers.length}
             </button>

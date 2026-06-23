@@ -65,6 +65,10 @@ export default async function ProfilePage() {
 
   // ── Parallel queries ──────────────────────────────────────────
   const admin = adminClient()
+  // When impersonating, the RLS-bound `supabase` client is still authenticated as
+  // the admin, so member-scoped queries return zero rows (showing the wrong/empty
+  // profile). Read through the service-role client instead, scoped to effectiveUserId.
+  const db = impersonateId ? admin : supabase
 
   const [
     { data: profileRaw },
@@ -74,27 +78,27 @@ export default async function ProfilePage() {
     { data: kycRaw },
     { data: docsRaw },
   ] = await Promise.all([
-    supabase
+    db
       .from("users")
       .select("name, employee_id, role, email, phone, status, created_at, photo_url, passport_photo_url, position, blood_group, address, emergency_contact_name, emergency_contact_phone, company_id")
       .eq("id", effectiveUserId)
       .single(),
-    supabase
+    db
       .from("daily_updates")
       .select("date, working_hours, shoot_count")
       .eq("user_id", effectiveUserId)
       .gte("date", sevenDaysAgo)
       .order("date", { ascending: true }),
-    supabase
+    db
       .from("tasks")
       .select("*", { count: "exact", head: true })
       .eq("assigned_to", effectiveUserId)
       .eq("status", "completed"),
-    supabase
+    db
       .from("leaves")
       .select("*", { count: "exact", head: true })
       .eq("user_id", effectiveUserId),
-    supabase
+    db
       .from("member_kyc")
       .select("bank_name, bank_account, bank_ifsc, aadhaar_number, pan_number, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2")
       .eq("user_id", effectiveUserId)

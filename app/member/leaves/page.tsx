@@ -23,6 +23,10 @@ export default async function MemberLeavesPage() {
   const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminSupabase()
+  // When impersonating, the RLS-bound `supabase` client is still authed as the
+  // admin, so member-scoped queries return zero rows. Read through the service-role
+  // client instead, scoped to effectiveUserId.
+  const db = impersonateId ? admin : supabase
 
   const yearStart = `${new Date().getFullYear()}-01-01`
 
@@ -35,7 +39,7 @@ export default async function MemberLeavesPage() {
   const companyId = profileData?.company_id ?? ""
 
   const [leavesResult, usedResult, absentResult, companyLeavesResult] = await Promise.all([
-    supabase
+    db
       .from("leaves")
       .select("*")
       .eq("user_id", effectiveUserId)

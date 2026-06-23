@@ -62,7 +62,7 @@ export default async function MemberLeavesPage() {
   const leaves        = leavesResult.data ?? []
   const name          = (profileData?.name ?? "").split(" ")[0] || "there"
   const paidLeaveDays = profileData?.paid_leave_days ?? 0
-  const isMedia       = (profileData as { team?: string | null } | null)?.team === "Media Team"
+  const isMedia       = (profileData as { team?: string | null } | null)?.team === "Media Team" || (profileData as { team?: string | null } | null)?.team === "Media Production Team"
   const absentDays    = (absentResult.data ?? []) as { id: string; date: string }[]
   const companyLeaves = (companyLeavesResult.data ?? []) as { id: string; date: string; name: string }[]
 

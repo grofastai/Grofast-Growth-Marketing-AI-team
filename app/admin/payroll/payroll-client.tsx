@@ -189,12 +189,20 @@ function MiniCalendar({
 
 // ── Team badge colours ──────────────────────────────────────────────────────
 const TEAM_CLR: Record<string, { bg: string; color: string }> = {
-  "Design Team":      { bg: "#EFF6FF", color: "#3B82F6" },
-  "Marketing Team":   { bg: "#F0FDF4", color: "#16A34A" },
-  "Sales Team":       { bg: "#FFF7ED", color: "#EA580C" },
-  "Tech Team":        { bg: "#FAF5FF", color: "#9333EA" },
-  "Technology & Operation": { bg: "#FAF5FF", color: "#9333EA" },
-  "Operations Team":  { bg: "#FFF1F2", color: "#E11D48" },
+  "Media Production Team":             { bg: "#FFF1F2", color: "#EC4899" },
+  "Creative Studio":                   { bg: "#FFFBEB", color: "#F59E0B" },
+  "AI Development & Automation":       { bg: "#EEF2FF", color: "#6366F1" },
+  "Performance Marketing & Operations":{ bg: "#F0FDF4", color: "#10B981" },
+  "AI Development & Media":            { bg: "#F5F3FF", color: "#8B5CF6" },
+  "Freelance Media Production":        { bg: "#FFF1F2", color: "#EC4899" },
+  "Freelance Creative Studio":         { bg: "#FFFBEB", color: "#F59E0B" },
+  "Freelance Development & Automation":{ bg: "#EEF2FF", color: "#6366F1" },
+  "Freelance Marketing & Operations":  { bg: "#F0FDF4", color: "#10B981" },
+  "Freelance IT Technology & Media":   { bg: "#F5F3FF", color: "#8B5CF6" },
+  "Media Team":                        { bg: "#FFF1F2", color: "#EC4899" },
+  "Media & Technology Team":           { bg: "#F5F3FF", color: "#8B5CF6" },
+  "Technology & Operation Team":       { bg: "#F0FDF4", color: "#10B981" },
+  "Creative Team":                     { bg: "#FFFBEB", color: "#F59E0B" },
 }
 const DEF_TEAM = { bg: "#F3F4F6", color: "#6B7280" }
 

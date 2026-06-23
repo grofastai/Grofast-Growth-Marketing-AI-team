@@ -178,7 +178,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     : 0
 
   // Right-panel stats — media vs non-media
-  const isMedia        = profile?.team === "Media Team"
+  const isMedia        = profile?.team === "Media Team" || profile?.team === "Media Production Team"
   const totalShoots    = monthlyUpdates.reduce((s, u) => s + (u.shoot_count ?? 0), 0)
   const totalEdited    = monthlyUpdates.reduce((s, u) => s + (u.editing_count ?? 0), 0)
   const totalLearningHrs = Math.round(monthlyUpdates.reduce((s, u) => s + (u.learning_hours ?? 0), 0) * 10) / 10

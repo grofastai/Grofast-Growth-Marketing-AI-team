@@ -781,7 +781,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
                 )}
               </div>
               {/* Media team client field */}
-              {selectedMembers.some(id => members.find(m => m.id === id)?.team === "Media Team") && (
+              {selectedMembers.some(id => { const t = members.find(m => m.id === id)?.team; return t === "Media Team" || t === "Media Production Team" }) && (
                 <div style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(222,26,26,0.04)", border: "1.5px solid rgba(222,26,26,0.15)" }}>
                   <input type="hidden" name="client_name" value={resolveClientName(mediaClientType, mediaBrand, mediaCustomClient)} />
                   <ClientSelector

@@ -163,7 +163,7 @@ export default async function AttendancePage() {
   const monthUpdates = (monthUpdatesRaw ?? []) as MonthUpdate[]
   const approvedLeaves = (approvedLeavesRaw ?? []) as { from_date: string; to_date: string; leave_type: string | null }[]
 
-  const isMedia = (profileRaw as { team?: string | null } | null)?.team === "Media Team"
+  const isMedia = (profileRaw as { team?: string | null } | null)?.team === "Media Team" || (profileRaw as { team?: string | null } | null)?.team === "Media Production Team"
 
   const presentLogs = monthAttLogs.filter(l => l.status === "present")
   const monthOfficeDays  = presentLogs.filter(l => l.work_type === "office").length

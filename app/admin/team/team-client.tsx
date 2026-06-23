@@ -38,6 +38,15 @@ const FL_TYPE_CFG: Record<string, { label: string; color: string; bg: string; em
   voice_over:        { label: "Voice Over",      color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🎙️" },
   video_shoot:       { label: "Video Shooter",   color: "#10B981", bg: "rgba(16,185,129,0.08)",  emoji: "📹" },
   other:             { label: "Other",            color: "#6b7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" },
+  // Old "Freelance X" format stored in availability_notes / team column
+  "Freelance RJ Voiceover":             { label: "RJ Voiceover",    color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🎙️" },
+  "Freelance Video Editor":             { label: "Video Editor",    color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",  emoji: "🎬" },
+  "Freelance Video Shooter":            { label: "Video Shooter",   color: "#10B981", bg: "rgba(16,185,129,0.08)",  emoji: "📹" },
+  "Freelance Graphics Designer":        { label: "Graphics Design", color: "#F97316", bg: "rgba(249,115,22,0.08)",  emoji: "🎨" },
+  "Freelance Content Writer":           { label: "Content Writer",  color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  emoji: "✍️" },
+  "Freelance Development & Automation": { label: "Dev & Automation",color: "#6366F1", bg: "rgba(99,102,241,0.08)",  emoji: "💻" },
+  "Freelance Marketing & Operations":   { label: "Marketing & Ops", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  emoji: "📊" },
+  "Freelance IT Technology & Media":    { label: "IT & Media",      color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🖥️" },
 }
 
 function getFreelancerTeamKey(f: FreelancerBasic): string {

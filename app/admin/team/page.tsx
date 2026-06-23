@@ -50,7 +50,7 @@ export default async function TeamPage({
       .order('deleted_at', { ascending: false }),
     admin
       .from('freelancers')
-      .select('id, name, type, phone, upi_id, rating, status, cost_per_minute, cost_per_video, cost_per_hour, voice_type, editing_software, created_at, gender, title')
+      .select('id, name, type, team, phone, upi_id, rating, status, cost_per_minute, cost_per_video, cost_per_hour, voice_type, editing_software, created_at, gender, title')
       .eq('company_id', profile.company_id)
       .order('name'),
     admin

@@ -16,18 +16,32 @@ import { createFreelancer, assignAllFreelancersToMembers, deleteFreelancer } fro
 import { addManagerToAllFreelancers, removeManagerFromAllFreelancers } from "@/lib/actions/freelancer-manager"
 
 type FreelancerBasic = {
-  id: string; name: string; type: string; phone: string | null; upi_id: string | null
+  id: string; name: string; type: string; team: string | null; phone: string | null; upi_id: string | null
   rating: number; status: "active" | "inactive"
   cost_per_minute: number | null; cost_per_video: number | null; cost_per_hour: number | null
   voice_type: string | null; editing_software: string[]; gender: string | null; title: string | null
   created_at: string
 }
 
-const FL_TYPE_CFG: Record<string, { label: string; color: string; bg: string }> = {
-  voice_over:    { label: "Voice Over",    color: "#8b5cf6", bg: "rgba(139,92,246,0.08)" },
-  video_editor:  { label: "Video Editor",  color: "#0ea5e9", bg: "rgba(14,165,233,0.08)" },
-  video_shooter: { label: "Video Shooter", color: "#10b981", bg: "rgba(16,185,129,0.08)" },
-  other:         { label: "Other",         color: "#6b7280", bg: "rgba(107,114,128,0.08)" },
+const FL_TYPE_CFG: Record<string, { label: string; color: string; bg: string; emoji: string }> = {
+  // New 9-team system (team column)
+  rj_voiceover:      { label: "RJ Voiceover",    color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🎙️" },
+  video_editor:      { label: "Video Editor",    color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",  emoji: "🎬" },
+  video_shooter:     { label: "Video Shooter",   color: "#10B981", bg: "rgba(16,185,129,0.08)",  emoji: "📹" },
+  graphics_designer: { label: "Graphics Design", color: "#F97316", bg: "rgba(249,115,22,0.08)",  emoji: "🎨" },
+  content_writer:    { label: "Content Writer",  color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  emoji: "✍️" },
+  dev_automation:    { label: "Dev & Automation",color: "#6366F1", bg: "rgba(99,102,241,0.08)",  emoji: "💻" },
+  nkts_reels:        { label: "NKTS Reels",      color: "#EF4444", bg: "rgba(239,68,68,0.08)",   emoji: "🎞️" },
+  voiceover_poster:  { label: "VO & Poster",     color: "#F59E0B", bg: "rgba(245,158,11,0.08)",  emoji: "🖼️" },
+  marketing_ops:     { label: "Marketing & Ops", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  emoji: "📊" },
+  // Legacy type column fallbacks
+  voice_over:        { label: "Voice Over",      color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  emoji: "🎙️" },
+  video_shoot:       { label: "Video Shooter",   color: "#10B981", bg: "rgba(16,185,129,0.08)",  emoji: "📹" },
+  other:             { label: "Other",            color: "#6b7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" },
+}
+
+function getFreelancerTeamKey(f: FreelancerBasic): string {
+  return f.team || f.type || "other"
 }
 
 const FULL_TIME_TEAMS = [
@@ -753,12 +767,15 @@ function AssignTaskModal({ member, onClose }: AssignTaskModalProps) {
 // ── Freelancer Quick-Create Sheet ─────────────────────────────────────────────
 
 const FL_TYPES = [
-  { key: "Freelance RJ Voiceover",            label: "RJ Voiceover",    emoji: "🎙️", color: "#A855F7", bg: "rgba(168,85,247,0.08)", border: "rgba(168,85,247,0.3)" },
-  { key: "Freelance Graphics Designer",        label: "Graphics Design", emoji: "🎨", color: "#F97316", bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.3)" },
-  { key: "Freelance Content Writer",           label: "Content Writer",  emoji: "✍️", color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  border: "rgba(20,184,166,0.3)" },
-  { key: "Freelance Development & Automation", label: "Dev & Automation",emoji: "💻", color: "#6366F1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.3)" },
-  { key: "Freelance Marketing & Operations",   label: "Marketing & Ops", emoji: "📊", color: "#10B981", bg: "rgba(16,185,129,0.08)",  border: "rgba(16,185,129,0.3)" },
-  { key: "Freelance IT Technology & Media",    label: "IT & Media",      emoji: "🖥️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  border: "rgba(139,92,246,0.3)" },
+  { key: "rj_voiceover",      label: "RJ Voiceover",    emoji: "🎙️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.3)" },
+  { key: "video_editor",      label: "Video Editor",    emoji: "🎬", color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",  border: "rgba(14,165,233,0.3)" },
+  { key: "video_shooter",     label: "Video Shooter",   emoji: "📹", color: "#10B981", bg: "rgba(16,185,129,0.08)",  border: "rgba(16,185,129,0.3)" },
+  { key: "graphics_designer", label: "Graphics Design", emoji: "🎨", color: "#F97316", bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.3)" },
+  { key: "content_writer",    label: "Content Writer",  emoji: "✍️", color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  border: "rgba(20,184,166,0.3)" },
+  { key: "dev_automation",    label: "Dev & Automation",emoji: "💻", color: "#6366F1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.3)" },
+  { key: "nkts_reels",        label: "NKTS Reels",      emoji: "🎞️", color: "#EF4444", bg: "rgba(239,68,68,0.08)",   border: "rgba(239,68,68,0.3)" },
+  { key: "voiceover_poster",  label: "VO & Poster",     emoji: "🖼️", color: "#F59E0B", bg: "rgba(245,158,11,0.08)",  border: "rgba(245,158,11,0.3)" },
+  { key: "marketing_ops",     label: "Marketing & Ops", emoji: "📊", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  border: "rgba(236,72,153,0.3)" },
 ]
 
 function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
@@ -785,9 +802,9 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
     if (!name.trim()) { setErr("Name is required"); return }
     setSaving(true); setErr("")
     const res = await createFreelancer({
-      name: name.trim(), type: "other",
+      name: name.trim(), type: "other", team: type,
       phone: phone || undefined, upi_id: upi || undefined, gender: gender || undefined,
-      rating, availability_notes: type,
+      rating,
     })
     if (!res.success) { setErr(res.error ?? "Failed to create"); setSaving(false); return }
     setSuccess(true); setSaving(false)
@@ -1111,7 +1128,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
   const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER" | "FREELANCER">("ALL")
   const [freelancers, setFreelancers] = useState(initFreelancers)
-  const [flTypeFilter, setFlTypeFilter] = useState<"all" | "voice_over" | "video_editor" | "video_shooter" | "other">("all")
+  const [flTypeFilter, setFlTypeFilter] = useState<string>("all")
   const [assignSheetOpen, setAssignSheetOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editMember, setEditMember] = useState<Member | null>(null)
@@ -1149,18 +1166,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
     freelancers: freelancers.length,
   }
 
-  const filteredFreelancers = useMemo(() =>
-    flTypeFilter === "all" ? freelancers : freelancers.filter(f => f.type === flTypeFilter),
-    [freelancers, flTypeFilter]
-  )
-
-  const flTypeCounts = useMemo(() => ({
-    all: freelancers.length,
-    voice_over: freelancers.filter(f => f.type === "voice_over").length,
-    video_editor: freelancers.filter(f => f.type === "video_editor").length,
-    video_shooter: freelancers.filter(f => f.type === "video_shooter").length,
-    other: freelancers.filter(f => f.type === "other").length,
-  }), [freelancers])
+  const filteredFreelancers = freelancers
 
   async function handleDeleteFreelancer(id: string, name: string) {
     if (!confirm(`Delete freelancer "${name}"? This cannot be undone.`)) return
@@ -1335,7 +1341,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
               <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
                 <div>
                   <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Freelancers</h3>
-                  <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{filteredFreelancers.length} of {freelancers.length} freelancer{freelancers.length !== 1 ? "s" : ""}</p>
+                  <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{freelancers.length} freelancer{freelancers.length !== 1 ? "s" : ""}</p>
                 </div>
                 <button
                   onClick={() => setAssignSheetOpen(true)}
@@ -1344,53 +1350,48 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                   <UserCheck size={13} /> Assign Manager
                 </button>
               </div>
-              {/* Type filter tabs */}
-              <div className="flex items-center gap-1 px-5 py-3 overflow-x-auto" style={{ borderBottom: "1px solid #F3F4F6" }}>
-                {([
-                  { key: "all",          label: `All (${flTypeCounts.all})` },
-                  { key: "voice_over",   label: `Voice Over (${flTypeCounts.voice_over})` },
-                  { key: "video_editor", label: `Video Editor (${flTypeCounts.video_editor})` },
-                  { key: "video_shooter",label: `Video Shooter (${flTypeCounts.video_shooter})` },
-                  { key: "other",        label: `Other (${flTypeCounts.other})` },
-                ] as const).map(({ key, label }) => (
-                  <button key={key} onClick={() => setFlTypeFilter(key)}
-                    className="whitespace-nowrap px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all flex-shrink-0"
-                    style={flTypeFilter === key
-                      ? { background: "#F97316", color: "#fff" }
-                      : { background: "#F3F4F6", color: "#6B7280" }
-                    }>
-                    {label}
-                  </button>
-                ))}
-              </div>
               <div style={{ overflowX: "auto" }}>
                 <table className="w-full" style={{ minWidth: 560 }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
-                      {["Name", "Type", "Phone", "Rate", "Status", "Actions"].map(h => (
+                      {["Freelancer", "Team", "Phone", "Rate", "Status", "Added", "Actions"].map(h => (
                         <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#9CA3AF" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredFreelancers.length === 0 ? (
-                      <tr><td colSpan={6} className="px-5 py-10 text-center text-[13px]" style={{ color: "#9CA3AF" }}>
-                        {freelancers.length === 0 ? "No freelancers added yet" : "No freelancers match this filter"}
+                    {freelancers.length === 0 ? (
+                      <tr><td colSpan={7} className="px-5 py-10 text-center text-[13px]" style={{ color: "#9CA3AF" }}>
+                        No freelancers added yet
                       </td></tr>
-                    ) : filteredFreelancers.map((f, i) => {
-                      const typeCfg = FL_TYPE_CFG[f.type] ?? { label: f.type, color: "#6B7280", bg: "rgba(107,114,128,0.08)" }
+                    ) : freelancers.map((f, i) => {
+                      const teamKey = getFreelancerTeamKey(f)
+                      const teamCfg = FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
                       const rate = f.cost_per_minute ? `₹${f.cost_per_minute}/min`
                         : f.cost_per_video ? `₹${f.cost_per_video}/video`
                         : f.cost_per_hour ? `₹${f.cost_per_hour}/hr`
                         : "—"
+                      const added = f.created_at
+                        ? new Date(f.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                        : "—"
+                      const initials = f.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
                       return (
-                        <tr key={f.id} style={{ borderBottom: i < filteredFreelancers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
+                        <tr key={f.id} style={{ borderBottom: i < freelancers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
                           <td className="px-5 py-3.5">
-                            <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{f.name}</p>
-                            {f.gender && <p className="text-[11px] capitalize" style={{ color: "#9CA3AF" }}>{f.gender}</p>}
+                            <div className="flex items-center gap-3">
+                              <div style={{ width: 34, height: 34, borderRadius: 10, background: teamCfg.bg, border: `1.5px solid ${teamCfg.color}33`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                <span style={{ fontSize: 11, fontWeight: 800, color: teamCfg.color }}>{initials}</span>
+                              </div>
+                              <div>
+                                <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{f.name}</p>
+                                {f.gender && <p className="text-[11px] capitalize" style={{ color: "#9CA3AF" }}>{f.gender}</p>}
+                              </div>
+                            </div>
                           </td>
                           <td className="px-5 py-3.5">
-                            <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold" style={{ background: typeCfg.bg, color: typeCfg.color }}>{typeCfg.label}</span>
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold" style={{ background: teamCfg.bg, color: teamCfg.color }}>
+                              {teamCfg.emoji} {teamCfg.label}
+                            </span>
                           </td>
                           <td className="px-5 py-3.5 text-[13px]" style={{ color: "#374151" }}>{f.phone ?? "—"}</td>
                           <td className="px-5 py-3.5 text-[13px] font-semibold" style={{ color: "#374151" }}>{rate}</td>
@@ -1401,6 +1402,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                               {f.status === "active" ? "Active" : "Inactive"}
                             </span>
                           </td>
+                          <td className="px-5 py-3.5 text-[12px]" style={{ color: "#9CA3AF" }}>{added}</td>
                           <td className="px-5 py-3.5">
                             <div className="flex items-center gap-2">
                               <Link href={`/admin/freelancers/${f.id}`}

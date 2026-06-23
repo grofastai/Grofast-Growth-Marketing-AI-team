@@ -808,16 +808,16 @@ export default function FreelancersMemberClient({
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
         {/* LEFT panel */}
-        <div style={{ width: 260, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ borderBottom: "1px solid #F5F5F7", padding: "8px 12px", display: "flex", gap: 4, flexWrap: "wrap", flexShrink: 0 }}>
-            <button onClick={() => { setTeamFilter("all"); setSelectedId(null) }} style={{ padding: "5px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", background: teamFilter === "all" && !selectedId ? "#111" : "#F5F5F7", color: teamFilter === "all" && !selectedId ? "#fff" : "#6B7280", transition: "all 0.15s" }}>
+        <div style={{ width: 276, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ borderBottom: "1px solid #F5F5F7", padding: "8px 10px", display: "flex", gap: 4, flexWrap: "nowrap", flexShrink: 0, alignItems: "center" }}>
+            <button onClick={() => { setTeamFilter("all"); setSelectedId(null) }} style={{ padding: "6px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", background: teamFilter === "all" && !selectedId ? "#111" : "#F5F5F7", color: teamFilter === "all" && !selectedId ? "#fff" : "#6B7280", transition: "all 0.15s", flexShrink: 0 }}>
               All {activeFreelancers.length}
             </button>
             {NO_LOGIN_TEAMS.filter(t => (teamCounts[t] ?? 0) > 0).map(t => {
               const c = TEAM_CFG[t]; const active = teamFilter === t
               return (
-                <button key={t} onClick={() => setTeamFilter(t)} title={c.shortLabel} style={{ width: 30, height: 30, borderRadius: 10, border: "none", cursor: "pointer", background: active ? c.color : "#F5F5F7", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", boxShadow: active ? `0 3px 10px ${c.color}50` : "none" }}>
-                  <span style={{ fontSize: 14 }}>{c.emoji}</span>
+                <button key={t} onClick={() => setTeamFilter(t)} title={c.shortLabel} style={{ width: 32, height: 32, borderRadius: 10, border: "none", cursor: "pointer", background: active ? c.color : "#F5F5F7", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", boxShadow: active ? `0 3px 10px ${c.color}50` : "none", flexShrink: 0 }}>
+                  <span style={{ fontSize: 15 }}>{c.emoji}</span>
                 </button>
               )
             })}

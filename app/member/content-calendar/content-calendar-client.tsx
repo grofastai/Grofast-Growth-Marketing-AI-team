@@ -218,7 +218,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const filteredPosts = useMemo(() => {
     const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}-`
     let p = filter === "mine"
-      ? posts.filter(p => p.assigned_to === userId || (p.shoot_team ?? []).includes(userId))
+      ? posts.filter(p => p.assigned_to === userId || (p.shoot_team ?? []).includes(userId) || p.created_by === userId)
       : posts
     if (clientFilter !== "all") p = p.filter(p => p.client_name === clientFilter)
     p = p.filter(p => p.scheduled_date.startsWith(monthPrefix))
@@ -364,7 +364,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   }
 
   const today        = new Date().toISOString().split("T")[0]
-  const myPosts      = posts.filter(p => p.assigned_to === userId || (p.shoot_team ?? []).includes(userId))
+  const myPosts      = posts.filter(p => p.assigned_to === userId || (p.shoot_team ?? []).includes(userId) || p.created_by === userId)
   const todayPosts   = filteredPosts.filter(p => p.scheduled_date === today)
   const totalContent = filteredPosts.length
   const readyCount   = filteredPosts.filter(p => p.status === "ready").length

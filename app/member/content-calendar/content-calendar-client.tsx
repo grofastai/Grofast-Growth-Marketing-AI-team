@@ -137,6 +137,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   const [view, setView]   = useState<"calendar" | "list">("calendar")
   const [filter, setFilter] = useState<"all" | "mine">(isAdmin ? "all" : "mine")
   const [selectedDay, setSelectedDay] = useState(() => new Date().toISOString().split("T")[0])
+  const [listDayFilter, setListDayFilter] = useState<string | null>(null)
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -195,13 +196,13 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
   function prevMonth() {
     const newYear = month === 0 ? year - 1 : year
     const newMonth = month === 0 ? 11 : month - 1
-    setYear(newYear); setMonth(newMonth)
+    setYear(newYear); setMonth(newMonth); setListDayFilter(null)
     router.push(`/member/content-calendar?year=${newYear}&month=${newMonth}`)
   }
   function nextMonth() {
     const newYear = month === 11 ? year + 1 : year
     const newMonth = month === 11 ? 0 : month + 1
-    setYear(newYear); setMonth(newMonth)
+    setYear(newYear); setMonth(newMonth); setListDayFilter(null)
     router.push(`/member/content-calendar?year=${newYear}&month=${newMonth}`)
   }
   function dateStr(d: number) { return `${year}-${String(month + 1).padStart(2,"0")}-${String(d).padStart(2,"0")}` }
@@ -562,7 +563,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                                 const ds = `${pickerYear}-${String(pickerMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`
                                 const isToday = ds === today
                                 cells.push(
-                                  <button key={d} onClick={() => { setYear(pickerYear); setMonth(pickerMonth); setSelectedDay(ds); setView("calendar"); setShowMonthPicker(false) }}
+                                  <button key={d} onClick={() => { setYear(pickerYear); setMonth(pickerMonth); setSelectedDay(ds); setListDayFilter(ds); setShowMonthPicker(false) }}
                                     style={{ width: "100%", aspectRatio: "1", borderRadius: 6, border: "none", background: isToday ? "#DE1A1A" : "transparent", fontWeight: isToday ? 800 : 500, fontSize: 11, color: isToday ? "#FFF" : "#374151", cursor: "pointer" }}>
                                     {d}
                                   </button>
@@ -571,9 +572,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                               return cells
                             })()}
                           </div>
-                          <button onClick={() => { setYear(pickerYear); setMonth(pickerMonth); setShowMonthPicker(false) }}
+                          <button onClick={() => { setYear(pickerYear); setMonth(pickerMonth); setListDayFilter(null); setShowMonthPicker(false) }}
                             style={{ width: "100%", padding: "8px 0", borderRadius: 10, border: "1.5px solid #DE1A1A", background: "rgba(222,26,26,0.06)", fontWeight: 700, fontSize: 12, color: "#DE1A1A", cursor: "pointer" }}>
-                            Show Month Only
+                            Show Full Month
                           </button>
                         </>
                       )}
@@ -683,24 +684,35 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               </>
             ) : (
               <div>
-                <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6" }}>
-                  <h2 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>{isAdmin && filter === "all" ? "All Content" : "My Content"} — {MONTHS[month]} {year}</h2>
+                {(() => {
+                  const listPosts = listDayFilter ? filteredPosts.filter(p => p.scheduled_date === listDayFilter) : filteredPosts
+                  const listLabel = listDayFilter
+                    ? new Date(listDayFilter + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+                    : `${MONTHS[month]} ${year}`
+                  return (<>
+                <div style={{ padding: "14px 18px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <h2 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>{isAdmin && filter === "all" ? "All Content" : "My Content"} — {listLabel}</h2>
+                  {listDayFilter && (
+                    <button onClick={() => setListDayFilter(null)} style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 99, border: "1.5px solid #E5E7EB", background: "#F3F4F6", color: "#6B7280", cursor: "pointer" }}>
+                      Show Full Month ×
+                    </button>
+                  )}
                 </div>
-                {filteredPosts.length === 0 ? (
+                {listPosts.length === 0 ? (
                   <div style={{ padding: "60px 24px", textAlign: "center" }}>
                     <p style={{ fontSize: 32, margin: "0 0 12px" }}>📭</p>
                     <p style={{ fontSize: 14, fontWeight: 700, color: "#111827", margin: "0 0 6px" }}>No content scheduled</p>
-                    <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>No content assigned to you this month.</p>
+                    <p style={{ fontSize: 12, color: "#9CA3AF", margin: 0 }}>{listDayFilter ? "No content scheduled for this date." : "No content assigned to you this month."}</p>
                   </div>
                 ) : (
                   <div>
-                    {filteredPosts.map((p, i) => {
+                    {listPosts.map((p, i) => {
                       const cfg    = STATUS_CFG[p.status] ?? STATUS_CFG.pending
                       const priCfg = PRIORITY_CFG[p.priority ?? "medium"] ?? PRIORITY_CFG.medium
                       const isMine = p.assigned_to === userId
                       const pColor = platformColor(p.platform)
                       return (
-                        <div key={p.id} style={{ padding: "12px 18px", borderBottom: i < filteredPosts.length - 1 ? "1px solid #F9FAFB" : "none", background: isMine ? "rgba(222,26,26,0.02)" : "transparent" }}>
+                        <div key={p.id} style={{ padding: "12px 18px", borderBottom: i < listPosts.length - 1 ? "1px solid #F9FAFB" : "none", background: isMine ? "rgba(222,26,26,0.02)" : "transparent" }}>
                           {/* Top row: icon + title + date + priority + status */}
                           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
                             <div style={{ width: 38, height: 38, borderRadius: 11, background: `${pColor}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 19 }}>
@@ -750,6 +762,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                     })}
                   </div>
                 )}
+                </>)})()}
               </div>
             )}
           </div>

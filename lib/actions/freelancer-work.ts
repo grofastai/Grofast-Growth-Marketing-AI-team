@@ -73,6 +73,18 @@ export async function saveFreelancerWorkEntry(input: {
   return { success: true, entries: (data ?? []) as WorkEntry[] }
 }
 
+export async function deleteFreelancerWorkEntry(entryId: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: "Not authenticated" }
+  const admin = adminClient()
+  const { error } = await admin.from("freelancer_work_entries_v2").delete().eq("id", entryId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath("/member/freelancers")
+  revalidatePath("/admin/freelancers")
+  return { success: true }
+}
+
 export async function toggleFreelancerPaymentStatus(
   entryId: string,
   newStatus: "paid" | "unpaid"
@@ -115,6 +127,7 @@ export async function updateFreelancerWorkEntry(
       duration_mins:    payload.duration_mins,
       language:         payload.language,
       task_description: payload.task_description,
+      payment_status:   payload.payment_status ?? "unpaid",
     })
     .eq("id", entryId)
 

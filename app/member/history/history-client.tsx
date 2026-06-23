@@ -71,7 +71,8 @@ function stripShootNotes(notes: string): string {
 }
 
 function fmtTravel(h: number): string {
-  const hrs = Math.floor(h), mins = Math.round((h % 1) * 60)
+  let hrs = Math.floor(h); let mins = Math.round((h % 1) * 60)
+  if (mins === 60) { hrs += 1; mins = 0 }
   return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
 }
 
@@ -154,7 +155,8 @@ function fmt12(t: string) {
   return `${h % 12 || 12}:${String(m).padStart(2,"0")} ${h >= 12 ? "PM":"AM"}`
 }
 function fmtH(h: number) {
-  const hrs = Math.floor(h), mins = Math.round((h % 1) * 60)
+  let hrs = Math.floor(h); let mins = Math.round((h % 1) * 60)
+  if (mins === 60) { hrs += 1; mins = 0 }
   return mins > 0 ? `${hrs}h ${mins}m` : `${hrs}h`
 }
 
@@ -502,6 +504,21 @@ export default function HistoryClient({
       draftToSave = { ...editDraft, title: finalTitle, client_name: "Break", duration_hours: calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0 }
     }
     const updatedEntry = { ...(allEntries[entryIdx] as unknown as Record<string, unknown>), ...draftToSave }
+
+    // Overlap check: new times must not overlap any other entry on same date by >3 min
+    const newStart = draftToSave.start_time as string | undefined
+    const newEnd   = draftToSave.end_time   as string | undefined
+    if (newStart && newEnd && toMins(newEnd) > toMins(newStart)) {
+      const others = (allEntries as unknown as Record<string,unknown>[]).filter((_, i) => i !== entryIdx).filter(e => e.start_time && e.end_time)
+      for (const other of others) {
+        const s1 = toMins(newStart), e1 = toMins(newEnd)
+        const s2 = toMins(other.start_time as string), e2 = toMins(other.end_time as string)
+        if (e2 > s2 && Math.min(e1, e2) - Math.max(s1, s2) > 3) {
+          alert(`Time ${newStart}–${newEnd} overlaps with "${other.title}" (${other.start_time}–${other.end_time}). Please fix the times.`)
+          setSavingKey(null); return
+        }
+      }
+    }
 
     if (editDraftDate && editDraftDate !== editOrigDate) {
       // Move entry to a different date
@@ -1505,11 +1522,7 @@ export default function HistoryClient({
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(() => {
-                        const isMediaDay = entries.some(e => e.task_type === "shoot" || e.task_type === "edit")
-                        const shootH  = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-                        const editH   = entries.filter(e => e.task_type === "edit").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-                        const otherH  = entries.filter(e => e.task_type !== "shoot" && e.task_type !== "edit" && e.task_type !== "break" && e.task_type !== "learning").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-                        const workH   = isMediaDay ? (shootH + editH) : otherH
+                        const workH   = calcNetWorkHours(entries)
                         const travelH = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + (e._travel_hours ?? 0), 0)
                         const learnH  = entries.filter(e => e.task_type === "learning").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
                         const breakH  = entries.filter(e => e.task_type === "break").reduce((s, e) => s + (e.duration_hours ?? 0), 0)

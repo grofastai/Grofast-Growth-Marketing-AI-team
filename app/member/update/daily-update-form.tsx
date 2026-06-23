@@ -645,14 +645,14 @@ export default function DailyUpdateForm({
       }
     }
 
-    // Past date: check new blocks don't overlap with already-saved entries
+    // Past date: check new blocks don't overlap with already-saved entries (all types, >3 min threshold)
     if (isPastDate && activeUpdate) {
       const existingEntries = (activeUpdate.work_entries as Record<string,unknown>[] | null) ?? []
-      const savedTimes = existingEntries.filter(e => e.task_type !== "break" && e.start_time && e.end_time)
+      const savedTimes = existingEntries.filter(e => e.start_time && e.end_time)
       for (const b of filledBlocks) {
         for (const ex of savedTimes) {
-          if (timesOverlap(b.startTime, b.endTime, ex.start_time as string, ex.end_time as string)) {
-            setWorkingError(`Time overlaps with existing entry "${ex.title}" already saved for this date.`); return
+          if (timesOverlap(b.startTime, b.endTime, ex.start_time as string, ex.end_time as string, 3)) {
+            setWorkingError(`Time ${b.startTime}–${b.endTime} overlaps with "${ex.title}" (${ex.start_time}–${ex.end_time}). Please fix the times.`); return
           }
         }
       }
@@ -770,10 +770,10 @@ export default function DailyUpdateForm({
     setError(null)
     if (tab !== "break" && shoots.length === 0 && edits.length === 0 && voiceovers.length === 0 && posters.length === 0) { setError("Add at least one shoot, edit, voiceover, or poster entry."); return }
 
-    // Past date: check new entries don't overlap with already-saved entries
+    // Past date: check new entries don't overlap with already-saved entries (all types, >3 min threshold)
     if (isPastDate && activeUpdate) {
       const existingEntries = (activeUpdate.work_entries as Record<string,unknown>[] | null) ?? []
-      const savedTimes = existingEntries.filter(e => e.task_type !== "break" && e.start_time && e.end_time)
+      const savedTimes = existingEntries.filter(e => e.start_time && e.end_time)
       const newEntries = [
         ...shoots.map(s => ({ start: s.startTime, end: s.endTime, title: s.title || "Shoot" })),
         ...edits.map(e => ({ start: e.startTime, end: e.endTime, title: e.title || "Edit" })),
@@ -782,8 +782,8 @@ export default function DailyUpdateForm({
       ]
       for (const n of newEntries) {
         for (const ex of savedTimes) {
-          if (timesOverlap(n.start, n.end, ex.start_time as string, ex.end_time as string)) {
-            setError(`Time overlaps with existing entry "${ex.title}" already saved for this date.`); return
+          if (timesOverlap(n.start, n.end, ex.start_time as string, ex.end_time as string, 3)) {
+            setError(`Time ${n.start}–${n.end} overlaps with "${ex.title}" (${ex.start_time}–${ex.end_time}). Please fix the times.`); return
           }
         }
       }
@@ -875,12 +875,12 @@ export default function DailyUpdateForm({
     })
   }
 
-  // ── Time overlap check between two time ranges ───────────────────────────
-  function timesOverlap(s1: string, e1: string, s2: string, e2: string): boolean {
+  // ── Time overlap check — returns overlap minutes; >3 min is a real conflict ─
+  function timesOverlap(s1: string, e1: string, s2: string, e2: string, thresholdMins = 0): boolean {
     if (!s1 || !e1 || !s2 || !e2) return false
     const a = toMins(s1), b = toMins(e1), c = toMins(s2), d = toMins(e2)
     if (b <= a || d <= c) return false
-    return Math.max(a, c) < Math.min(b, d)
+    return Math.min(b, d) - Math.max(a, c) > thresholdMins
   }
 
   // ── Per-entry save (media) ────────────────────────────────────────────────

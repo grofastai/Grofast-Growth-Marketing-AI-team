@@ -14,6 +14,8 @@ export type FreelancerTeam =
   | "Freelance Development & Automation"
   | "Freelance Marketing & Operations"
   | "Freelance IT Technology & Media"
+  | "Freelance Video Editing"
+  | "Freelance Videography"
 
 export type Freelancer = {
   id: string
@@ -49,12 +51,14 @@ const TEAM_CFG: Record<FreelancerTeam, {
   color: string; bg: string; border: string
   shortLabel: string; entryLabel: string; emoji: string; costLabel: string
 }> = {
-  "Freelance RJ Voiceover":            { color: "#A855F7", bg: "rgba(168,85,247,0.07)", border: "rgba(168,85,247,0.2)", shortLabel: "RJ Voiceover",  entryLabel: "Voiceover", emoji: "🎙️", costLabel: "Prize (INR)" },
+  "Freelance RJ Voiceover":            { color: "#A855F7", bg: "rgba(168,85,247,0.07)", border: "rgba(168,85,247,0.2)", shortLabel: "RJ Voiceover",  entryLabel: "Voice",     emoji: "🎙️", costLabel: "Prize (INR)" },
   "Freelance Graphics Designer":        { color: "#F97316", bg: "rgba(249,115,22,0.07)",  border: "rgba(249,115,22,0.2)",  shortLabel: "Graphics",      entryLabel: "Design",    emoji: "🎨", costLabel: "Prize (INR)" },
   "Freelance Content Writer":           { color: "#14B8A6", bg: "rgba(20,184,166,0.07)",  border: "rgba(20,184,166,0.2)",  shortLabel: "Content",       entryLabel: "Content",   emoji: "✍️", costLabel: "Prize (INR)" },
   "Freelance Development & Automation": { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Dev & Auto",    entryLabel: "Task",      emoji: "💻", costLabel: "Project Price (INR)" },
   "Freelance Marketing & Operations":   { color: "#10B981", bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.2)",  shortLabel: "Marketing",     entryLabel: "Task",      emoji: "📊", costLabel: "Project Price (INR)" },
   "Freelance IT Technology & Media":    { color: "#8B5CF6", bg: "rgba(139,92,246,0.07)",  border: "rgba(139,92,246,0.2)",  shortLabel: "IT & Media",    entryLabel: "Task",      emoji: "🖥️", costLabel: "Project Price (INR)" },
+  "Freelance Video Editing":            { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Video Editing", entryLabel: "Edit",      emoji: "🎬", costLabel: "Prize (INR)" },
+  "Freelance Videography":              { color: "#0EA5E9", bg: "rgba(14,165,233,0.07)",  border: "rgba(14,165,233,0.2)",  shortLabel: "Videography",   entryLabel: "Shoot",     emoji: "📹", costLabel: "Cost (INR)" },
 }
 
 const NO_LOGIN_TEAMS = Object.keys(TEAM_CFG) as FreelancerTeam[]
@@ -97,14 +101,49 @@ type EntryItem = {
   amount: string
   drive_link: string
   notes: string
-  duration_mins: string   // RJ Voiceover
-  language: string        // RJ Voiceover
-  task_description: string // Dev / Marketing / IT
+  duration_mins: string
+  language: string
+  task_description: string
   payment_status: "unpaid" | "paid"
+  // Video Editing
+  video_type: string
+  revisions: string
+  hooks_completed: string
+  edit_start_time: string
+  edit_end_time: string
+  drive_updated: string    // "yes" | "no"
+  // Videography
+  time_from: string
+  time_to: string
+  travel_time: string
+  location: string
+  video_uploaded: string   // "yes" | "no"
+}
+
+function calcDurationFromTimes(from: string, to: string): string {
+  if (!from || !to) return ""
+  const [fh, fm] = from.split(":").map(Number)
+  const [th, tm] = to.split(":").map(Number)
+  const mins = (th * 60 + tm) - (fh * 60 + fm)
+  return mins > 0 ? String(mins) : ""
+}
+
+function formatDuration(mins: string): string {
+  const m = parseFloat(mins)
+  if (!m || m <= 0) return ""
+  const h = Math.floor(m / 60)
+  const rem = Math.round(m % 60)
+  if (h === 0) return `${rem}m`
+  return `${h}h ${rem}m`
 }
 
 function blankEntry(today: string): EntryItem {
-  return { date_given: today, client_name: "", title: "", amount: "", drive_link: "", notes: "", duration_mins: "", language: "", task_description: "", payment_status: "unpaid" }
+  return {
+    date_given: today, client_name: "", title: "", amount: "", drive_link: "", notes: "",
+    duration_mins: "", language: "", task_description: "", payment_status: "unpaid",
+    video_type: "", revisions: "0", hooks_completed: "0", edit_start_time: "", edit_end_time: "", drive_updated: "no",
+    time_from: "", time_to: "", travel_time: "", location: "", video_uploaded: "no",
+  }
 }
 
 // ── Shared field styles ───────────────────────────────────────────────────────
@@ -138,6 +177,30 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
   const cfg = TEAM_CFG[team]
   const isDevType = team === "Freelance Development & Automation" || team === "Freelance Marketing & Operations" || team === "Freelance IT Technology & Media"
   const isVoiceover = team === "Freelance RJ Voiceover"
+  const isVideoEditing = team === "Freelance Video Editing"
+  const isVideography = team === "Freelance Videography"
+  const showNotes = team !== "Freelance Development & Automation" && team !== "Freelance IT Technology & Media"
+
+  function handleEditTimeChange(field: "edit_start_time" | "edit_end_time", val: string) {
+    onChange(field, val)
+    const start = field === "edit_start_time" ? val : entry.edit_start_time
+    const end = field === "edit_end_time" ? val : entry.edit_end_time
+    const dur = calcDurationFromTimes(start, end)
+    if (dur) onChange("duration_mins", dur)
+  }
+  function handleShootTimeChange(field: "time_from" | "time_to", val: string) {
+    onChange(field, val)
+    const from = field === "time_from" ? val : entry.time_from
+    const to = field === "time_to" ? val : entry.time_to
+    const dur = calcDurationFromTimes(from, to)
+    if (dur) onChange("duration_mins", dur)
+  }
+
+  const titleLabel =
+    isVoiceover ? "Script / Content Name *"
+    : isDevType ? "Task Title *"
+    : team === "Freelance Graphics Designer" ? "Design Title *"
+    : "Content Title *"
 
   const titlePlaceholder =
     isVoiceover ? "e.g. Brand Intro Script — SKB Silks"
@@ -162,25 +225,19 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
 
       <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
 
-        {/* Date Given */}
+        {/* Date */}
         <div>
-          <label style={LABEL}>Date Given *</label>
+          <label style={LABEL}>📅 Date *</label>
           <input type="date" value={entry.date_given} onChange={e => onChange("date_given", e.target.value)} style={{ ...FIELD, colorScheme: "light" }} />
         </div>
 
-        {/* Client Name — exact same structure as daily update work log */}
+        {/* Client Name */}
         <div>
           <label style={LABEL}>Client Name *</label>
           {customMode ? (
             <div style={{ display: "flex", gap: 8 }}>
-              <input
-                type="text"
-                autoFocus
-                placeholder="Type client name…"
-                value={entry.client_name}
-                style={{ ...FIELD, flex: 1 }}
-                onChange={e => onChange("client_name", e.target.value)}
-              />
+              <input type="text" autoFocus placeholder="Type client name…" value={entry.client_name}
+                style={{ ...FIELD, flex: 1 }} onChange={e => onChange("client_name", e.target.value)} />
               <button type="button"
                 onClick={() => { setCustomMode(false); setShowPast(false); onChange("client_name", "") }}
                 style={{ padding: "0 12px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#F9FAFB", fontSize: 12, color: "#6B7280", cursor: "pointer", whiteSpace: "nowrap" }}>
@@ -189,9 +246,7 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
             </div>
           ) : showPast ? (
             <div style={{ position: "relative" }}>
-              <select
-                autoFocus
-                value=""
+              <select autoFocus value=""
                 onChange={e => {
                   const v = e.target.value
                   if (!v) return
@@ -207,8 +262,7 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
             </div>
           ) : (
             <div style={{ position: "relative" }}>
-              <select
-                value={entry.client_name}
+              <select value={entry.client_name}
                 onChange={e => {
                   const v = e.target.value
                   if (v === "__past_clients__") { setShowPast(true) }
@@ -228,48 +282,141 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
 
         {/* Title */}
         <div>
-          <label style={LABEL}>
-            {isVoiceover ? "Script / Content Name *"
-              : isDevType ? "Task Title *"
-              : team === "Freelance Graphics Designer" ? "Design Title *"
-              : "Content Title *"}
-          </label>
+          <label style={LABEL}>{titleLabel}</label>
           <input type="text" value={entry.title} onChange={e => onChange("title", e.target.value)} placeholder={titlePlaceholder} style={FIELD} />
         </div>
 
-        {/* RJ Voiceover extras */}
+        {/* Video Editing extras */}
+        {isVideoEditing && (<>
+          <div>
+            <label style={LABEL}>Video Type *</label>
+            <div style={{ position: "relative" }}>
+              <select value={entry.video_type} onChange={e => onChange("video_type", e.target.value)} style={{ ...FIELD, appearance: "none", paddingRight: 34 }}>
+                <option value="">Select type…</option>
+                {["Reels / Short","YouTube","Ad Film","Corporate","Documentary","Other"].map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <ChevronDown size={13} style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={LABEL}>Edit Start Time</label>
+              <input type="time" value={entry.edit_start_time} onChange={e => handleEditTimeChange("edit_start_time", e.target.value)} style={{ ...FIELD, colorScheme: "light" }} />
+            </div>
+            <div>
+              <label style={LABEL}>Edit End Time</label>
+              <input type="time" value={entry.edit_end_time} onChange={e => handleEditTimeChange("edit_end_time", e.target.value)} style={{ ...FIELD, colorScheme: "light" }} />
+            </div>
+          </div>
+          {entry.edit_start_time && entry.edit_end_time && formatDuration(calcDurationFromTimes(entry.edit_start_time, entry.edit_end_time)) && (
+            <div style={{ padding: "8px 14px", borderRadius: 8, background: `${cfg.color}10`, border: `1px solid ${cfg.border}`, fontSize: 12, fontWeight: 700, color: cfg.color }}>
+              ⏱ Duration: {formatDuration(calcDurationFromTimes(entry.edit_start_time, entry.edit_end_time))}
+            </div>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={LABEL}>Revisions</label>
+              <input type="number" min="0" step="1" value={entry.revisions} onChange={e => onChange("revisions", e.target.value)} style={{ ...FIELD, textAlign: "center" }} />
+            </div>
+            <div>
+              <label style={LABEL}>Hooks Done</label>
+              <input type="number" min="0" step="1" value={entry.hooks_completed} onChange={e => onChange("hooks_completed", e.target.value)} style={{ ...FIELD, textAlign: "center" }} />
+            </div>
+          </div>
+        </>)}
+
+        {/* Videography extras */}
+        {isVideography && (<>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={LABEL}>Time From *</label>
+              <input type="time" value={entry.time_from} onChange={e => handleShootTimeChange("time_from", e.target.value)} style={{ ...FIELD, colorScheme: "light" }} />
+            </div>
+            <div>
+              <label style={LABEL}>Time To *</label>
+              <input type="time" value={entry.time_to} onChange={e => handleShootTimeChange("time_to", e.target.value)} style={{ ...FIELD, colorScheme: "light" }} />
+            </div>
+          </div>
+          {entry.time_from && entry.time_to && formatDuration(calcDurationFromTimes(entry.time_from, entry.time_to)) && (
+            <div style={{ padding: "8px 14px", borderRadius: 8, background: `${cfg.color}10`, border: `1px solid ${cfg.border}`, fontSize: 12, fontWeight: 700, color: cfg.color }}>
+              ⏱ Duration: {formatDuration(calcDurationFromTimes(entry.time_from, entry.time_to))}
+            </div>
+          )}
+          <div>
+            <label style={LABEL}>🚗 Travel Time</label>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <input
+                type="number" min={0} max={12} placeholder="0"
+                value={entry.travel_time ? Math.floor(parseFloat(entry.travel_time) / 60) || "" : ""}
+                onChange={e => {
+                  const h = Math.max(0, Math.min(12, parseInt(e.target.value) || 0))
+                  const m = entry.travel_time ? Math.round(parseFloat(entry.travel_time) % 60) : 0
+                  onChange("travel_time", String(h * 60 + m))
+                }}
+                style={{ ...FIELD, width: 52, textAlign: "center", padding: "9px 6px" }}
+              />
+              <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, flexShrink: 0 }}>hr</span>
+              <input
+                type="number" min={0} max={59} placeholder="0"
+                value={entry.travel_time ? Math.round(parseFloat(entry.travel_time) % 60) || "" : ""}
+                onChange={e => {
+                  const m = Math.max(0, Math.min(59, parseInt(e.target.value) || 0))
+                  const h = entry.travel_time ? Math.floor(parseFloat(entry.travel_time) / 60) : 0
+                  onChange("travel_time", String(h * 60 + m))
+                }}
+                style={{ ...FIELD, width: 52, textAlign: "center", padding: "9px 6px" }}
+              />
+              <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, flexShrink: 0 }}>min</span>
+              {entry.travel_time && parseFloat(entry.travel_time) > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 700, color: "#F59E0B" }}>
+                  +{formatDuration(entry.travel_time)} travel included
+                </span>
+              )}
+            </div>
+          </div>
+          <div>
+            <label style={LABEL}>📍 Location</label>
+            <input type="text" value={entry.location} onChange={e => onChange("location", e.target.value)} placeholder="e.g. Chennai" style={FIELD} />
+          </div>
+        </>)}
+
+        {/* Dev / Marketing / IT — Task Description */}
+        {isDevType && (
+          <div>
+            <label style={LABEL}>Task Description</label>
+            <textarea rows={2} value={entry.task_description} onChange={e => onChange("task_description", e.target.value)}
+              placeholder="Brief details about the task..."
+              style={{ ...FIELD, resize: "none" }} />
+          </div>
+        )}
+
+        {/* RJ Voiceover — Duration + Language */}
         {isVoiceover && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div>
               <label style={LABEL}>Duration</label>
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <div style={{ position: "relative", flex: 1 }}>
-                  <input
-                    type="number" min="0" max="99" step="1"
-                    placeholder="0"
+                  <input type="number" min="0" max="99" step="1" placeholder="0"
                     value={Math.floor(parseFloat(entry.duration_mins || "0")) || ""}
                     onChange={e => {
                       const m = parseInt(e.target.value) || 0
                       const s = Math.round(((parseFloat(entry.duration_mins || "0")) % 1) * 60)
                       onChange("duration_mins", String(m + s / 60))
                     }}
-                    style={{ ...FIELD, paddingRight: 36, textAlign: "center" }}
-                  />
+                    style={{ ...FIELD, paddingRight: 36, textAlign: "center" }} />
                   <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#9CA3AF", pointerEvents: "none" }}>min</span>
                 </div>
                 <span style={{ fontSize: 16, color: "#D1D5DB", flexShrink: 0 }}>:</span>
                 <div style={{ position: "relative", flex: 1 }}>
-                  <input
-                    type="number" min="0" max="59" step="1"
-                    placeholder="00"
+                  <input type="number" min="0" max="59" step="1" placeholder="00"
                     value={Math.round(((parseFloat(entry.duration_mins || "0")) % 1) * 60) || ""}
                     onChange={e => {
                       const m = Math.floor(parseFloat(entry.duration_mins || "0"))
                       const s = Math.min(59, parseInt(e.target.value) || 0)
                       onChange("duration_mins", String(m + s / 60))
                     }}
-                    style={{ ...FIELD, paddingRight: 32, textAlign: "center" }}
-                  />
+                    style={{ ...FIELD, paddingRight: 32, textAlign: "center" }} />
                   <span style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#9CA3AF", pointerEvents: "none" }}>sec</span>
                 </div>
               </div>
@@ -287,40 +434,60 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
           </div>
         )}
 
-        {/* Dev / Marketing / IT — Task Description */}
-        {isDevType && (
-          <div>
-            <label style={LABEL}>Task Description</label>
-            <textarea rows={2} value={entry.task_description} onChange={e => onChange("task_description", e.target.value)}
-              placeholder="Brief details about the task..."
-              style={{ ...FIELD, resize: "none" }} />
-          </div>
-        )}
-
         {/* Cost / Prize / Project Price */}
         <div>
           <label style={LABEL}>{cfg.costLabel} *</label>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#6B7280", fontWeight: 700 }}>₹</span>
             <input type="number" min="0" step="1" value={entry.amount} onChange={e => onChange("amount", e.target.value)}
-              placeholder="e.g. 500"
-              style={{ ...FIELD, paddingLeft: 28 }} />
+              placeholder="e.g. 500" style={{ ...FIELD, paddingLeft: 28 }} />
           </div>
         </div>
 
-        {/* Drive Link */}
-        <div>
-          <label style={LABEL}>🔗 {isDevType ? "Drive / Repo Link" : "Drive Link"}</label>
-          <input type="text" value={entry.drive_link} onChange={e => onChange("drive_link", e.target.value)} placeholder="Paste Google Drive link..." style={FIELD} />
-        </div>
+        {/* Drive Updated toggle — Video Editing only */}
+        {isVideoEditing && (
+          <div>
+            <label style={LABEL}>Drive Updated?</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {(["no", "yes"] as const).map(v => (
+                <button key={v} type="button" onClick={() => onChange("drive_updated", v)}
+                  style={{ flex: 1, padding: "9px 0", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "1.5px solid", transition: "all 0.15s",
+                    background: entry.drive_updated === v ? (v === "yes" ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.07)") : "#F9FAFB",
+                    borderColor: entry.drive_updated === v ? (v === "yes" ? "#10B981" : "#EF4444") : "#E5E7EB",
+                    color: entry.drive_updated === v ? (v === "yes" ? "#059669" : "#DC2626") : "#9CA3AF",
+                  }}>
+                  {v === "yes" ? "✓ Yes" : "✗ No"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Video Uploaded toggle — Videography only */}
+        {isVideography && (
+          <div>
+            <label style={LABEL}>Video Uploaded?</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {(["no", "yes"] as const).map(v => (
+                <button key={v} type="button" onClick={() => onChange("video_uploaded", v)}
+                  style={{ flex: 1, padding: "9px 0", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "1.5px solid", transition: "all 0.15s",
+                    background: entry.video_uploaded === v ? (v === "yes" ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.07)") : "#F9FAFB",
+                    borderColor: entry.video_uploaded === v ? (v === "yes" ? "#10B981" : "#EF4444") : "#E5E7EB",
+                    color: entry.video_uploaded === v ? (v === "yes" ? "#059669" : "#DC2626") : "#9CA3AF",
+                  }}>
+                  {v === "yes" ? "✓ Yes" : "✗ No"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Payment Status */}
         <div>
           <label style={LABEL}>Payment Status</label>
           <div style={{ display: "flex", gap: 8 }}>
             {(["unpaid", "paid"] as const).map(s => (
-              <button key={s} type="button"
-                onClick={() => onChange("payment_status", s)}
+              <button key={s} type="button" onClick={() => onChange("payment_status", s)}
                 style={{
                   flex: 1, padding: "9px 0", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "1.5px solid", transition: "all 0.15s",
                   background: entry.payment_status === s ? (s === "paid" ? "rgba(16,185,129,0.1)" : "rgba(245,158,11,0.1)") : "#F9FAFB",
@@ -333,11 +500,14 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
           </div>
         </div>
 
-        {/* Notes */}
-        <div>
-          <label style={LABEL}>Notes</label>
-          <textarea rows={2} value={entry.notes} onChange={e => onChange("notes", e.target.value)} placeholder="Additional notes..." style={{ ...FIELD, resize: "none" }} />
-        </div>
+        {/* Notes — hidden for Dev & Auto and IT & Media */}
+        {showNotes && (
+          <div>
+            <label style={LABEL}>Notes</label>
+            <textarea rows={2} value={entry.notes} onChange={e => onChange("notes", e.target.value)}
+              placeholder="Additional notes..." style={{ ...FIELD, resize: "none" }} />
+          </div>
+        )}
       </div>
     </div>
   )
@@ -354,7 +524,6 @@ function WorkEntrySheet({ freelancer, activeClients, pastClients, onClose, onSav
 }) {
   const cfg = TEAM_CFG[freelancer.team]
   const today = todayIST()
-  const [dateFinished, setDateFinished] = useState(today)
   const [entries, setEntries] = useState<EntryItem[]>([blankEntry(today)])
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
@@ -372,6 +541,7 @@ function WorkEntrySheet({ freelancer, activeClients, pastClients, onClose, onSav
   function handleSave() {
     setError("")
     for (const [i, e] of entries.entries()) {
+      if (!e.date_given) { setError(`Entry #${i + 1}: Date is required`); return }
       if (!e.client_name) { setError(`Entry #${i + 1}: Client name is required`); return }
       if (!e.title.trim()) { setError(`Entry #${i + 1}: Title is required`); return }
       if (!e.amount || isNaN(parseFloat(e.amount))) { setError(`Entry #${i + 1}: ${cfg.costLabel} is required`); return }
@@ -381,17 +551,22 @@ function WorkEntrySheet({ freelancer, activeClients, pastClients, onClose, onSav
       const result = await saveFreelancerWorkEntry({
         freelancer_id: freelancer.id,
         team: freelancer.team,
-        date_finished: dateFinished,
+        date_finished: today,
         entries: entries.map(e => ({
-          date_given: e.date_given || null,
+          date_finished: e.date_given || today,
+          date_given: null,
           client_name: e.client_name,
           title: e.title.trim(),
           amount: parseFloat(e.amount),
-          drive_link: e.drive_link || null,
+          drive_link: null,
           notes: e.notes || null,
           duration_mins: e.duration_mins ? parseFloat(e.duration_mins) : null,
           language: e.language || null,
-          task_description: e.task_description || null,
+          task_description: freelancer.team === "Freelance Video Editing"
+            ? JSON.stringify({ video_type: e.video_type, revisions: e.revisions, hooks: e.hooks_completed, start: e.edit_start_time, end: e.edit_end_time, drive_updated: e.drive_updated })
+            : freelancer.team === "Freelance Videography"
+            ? JSON.stringify({ travel_time: e.travel_time, location: e.location, video_uploaded: e.video_uploaded })
+            : e.task_description || null,
           payment_status: e.payment_status,
         })),
       })
@@ -429,13 +604,6 @@ function WorkEntrySheet({ freelancer, activeClients, pastClients, onClose, onSav
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto" style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
-
-          {/* Date Finished — master date */}
-          <div style={{ background: "#F8F9FF", border: "1.5px solid #E0E7FF", borderRadius: 12, padding: "14px 16px" }}>
-            <label style={{ ...LABEL, color: "#4F46E5", marginBottom: 8 }}>📅 Date Finished * <span style={{ fontSize: 9, fontWeight: 500, color: "#9CA3AF", textTransform: "none", letterSpacing: 0 }}>(applies to all entries below)</span></label>
-            <input type="date" value={dateFinished} onChange={e => setDateFinished(e.target.value)}
-              style={{ ...FIELD, colorScheme: "light", border: "1.5px solid #C7D2FE", background: "#FFFFFF" }} />
-          </div>
 
           {/* Entry cards */}
           {entries.map((entry, idx) => (
@@ -594,35 +762,38 @@ function EditEntrySheet({ entry, activeClients, pastClients, onClose, onSaved }:
   onClose: () => void; onSaved: (updated: WorkEntry) => void
 }) {
   const cfg = TEAM_CFG[entry.team]
-  const [dateFinished, setDateFinished] = useState(entry.date_finished)
   const [formEntry, setFormEntry] = useState<EntryItem>({
-    date_given: entry.date_given ?? entry.date_finished,
+    date_given: entry.date_finished,
     client_name: entry.client_name, title: entry.title,
     amount: entry.amount?.toString() ?? "", drive_link: entry.drive_link ?? "",
     notes: entry.notes ?? "", duration_mins: entry.duration_mins?.toString() ?? "",
     language: entry.language ?? "", task_description: entry.task_description ?? "",
     payment_status: entry.payment_status,
+    video_type: "", revisions: "0", hooks_completed: "0", edit_start_time: "", edit_end_time: "", drive_updated: "no",
+    time_from: "", time_to: "", travel_time: "", location: "", video_uploaded: "no",
   })
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()
 
   function handleSave() {
     setError("")
+    if (!formEntry.date_given) { setError("Date is required"); return }
     if (!formEntry.client_name || formEntry.client_name === "__past_mode__") { setError("Client is required"); return }
     if (!formEntry.title.trim()) { setError("Title is required"); return }
     if (!formEntry.amount) { setError("Amount is required"); return }
     startTransition(async () => {
       const result = await updateFreelancerWorkEntry(entry.id, {
-        date_finished: dateFinished, date_given: formEntry.date_given || null,
+        date_finished: formEntry.date_given || entry.date_finished,
+        date_given: null,
         client_name: formEntry.client_name, title: formEntry.title.trim(),
-        amount: parseFloat(formEntry.amount), drive_link: formEntry.drive_link || null,
+        amount: parseFloat(formEntry.amount), drive_link: null,
         notes: formEntry.notes || null,
         duration_mins: formEntry.duration_mins ? parseFloat(formEntry.duration_mins) : null,
         language: formEntry.language || null, task_description: formEntry.task_description || null,
         payment_status: formEntry.payment_status,
       })
       if (!result.success) { setError(result.error ?? "Failed to save"); return }
-      onSaved({ ...entry, date_finished: dateFinished, date_given: formEntry.date_given || null, client_name: formEntry.client_name, title: formEntry.title.trim(), amount: parseFloat(formEntry.amount), drive_link: formEntry.drive_link || null, notes: formEntry.notes || null, duration_mins: formEntry.duration_mins ? parseFloat(formEntry.duration_mins) : null, language: formEntry.language || null, task_description: formEntry.task_description || null, payment_status: formEntry.payment_status })
+      onSaved({ ...entry, date_finished: formEntry.date_given || entry.date_finished, date_given: null, client_name: formEntry.client_name, title: formEntry.title.trim(), amount: parseFloat(formEntry.amount), drive_link: null, notes: formEntry.notes || null, duration_mins: formEntry.duration_mins ? parseFloat(formEntry.duration_mins) : null, language: formEntry.language || null, task_description: formEntry.task_description || null, payment_status: formEntry.payment_status })
       onClose()
     })
   }
@@ -646,10 +817,6 @@ function EditEntrySheet({ entry, activeClients, pastClients, onClose, onSaved }:
           </button>
         </div>
         <div className="flex-1 overflow-y-auto" style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ background: "#F8F9FF", border: "1.5px solid #E0E7FF", borderRadius: 12, padding: "14px 16px" }}>
-            <label style={{ ...LABEL, color: "#4F46E5", marginBottom: 8 }}>📅 Date Finished *</label>
-            <input type="date" value={dateFinished} onChange={e => setDateFinished(e.target.value)} style={{ ...FIELD, colorScheme: "light", border: "1.5px solid #C7D2FE", background: "#FFFFFF" }} />
-          </div>
           <EntryCard team={entry.team} entry={formEntry} idx={0} activeClients={activeClients} pastClients={pastClients}
             onChange={(field, val) => setFormEntry(prev => ({ ...prev, [field]: val }))}
             onRemove={() => {}} canRemove={false} />
@@ -689,8 +856,7 @@ export default function FreelancersMemberClient({
   const [, startTransition] = useTransition()
 
   const activeFreelancers = useMemo(() => freelancers.filter(f => f.status === "active"), [freelancers])
-  const effectiveSelectedId = selectedId ?? activeFreelancers[0]?.id ?? null
-  const selectedFreelancer = activeFreelancers.find(f => f.id === effectiveSelectedId) ?? null
+  const selectedFreelancer = activeFreelancers.find(f => f.id === selectedId) ?? null
 
   const filteredFreelancers = useMemo(() =>
     teamFilter === "all" ? activeFreelancers : activeFreelancers.filter(f => f.team === teamFilter),
@@ -699,9 +865,10 @@ export default function FreelancersMemberClient({
 
   const globalMonthEntries = useMemo(() => globalAllTime ? workEntries : workEntries.filter(e => e.date_finished.startsWith(globalMonth)), [workEntries, globalMonth, globalAllTime])
   const detailEntries = useMemo(() => {
-    const base = workEntries.filter(e => e.freelancer_id === effectiveSelectedId)
+    if (!selectedId) return []
+    const base = workEntries.filter(e => e.freelancer_id === selectedId)
     return detailAllTime ? base : base.filter(e => e.date_finished.startsWith(detailMonth))
-  }, [workEntries, effectiveSelectedId, detailMonth, detailAllTime])
+  }, [workEntries, selectedId, detailMonth, detailAllTime])
 
   const entriesByFreelancer = useMemo(() => {
     const map: Record<string, WorkEntry[]> = {}
@@ -808,16 +975,16 @@ export default function FreelancersMemberClient({
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
         {/* LEFT panel */}
-        <div style={{ width: 260, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ borderBottom: "1px solid #F5F5F7", padding: "8px 12px", display: "flex", gap: 4, flexWrap: "wrap", flexShrink: 0 }}>
-            <button onClick={() => setTeamFilter("all")} style={{ padding: "5px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", background: teamFilter === "all" ? "#111" : "#F5F5F7", color: teamFilter === "all" ? "#fff" : "#6B7280", transition: "all 0.15s" }}>
+        <div style={{ width: 276, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          <div style={{ borderBottom: "1px solid #F5F5F7", padding: "8px 10px", display: "flex", gap: 4, flexWrap: "wrap", flexShrink: 0, alignItems: "center" }}>
+            <button onClick={() => { setTeamFilter("all"); setSelectedId(null) }} style={{ padding: "6px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", background: teamFilter === "all" && !selectedId ? "#111" : "#F5F5F7", color: teamFilter === "all" && !selectedId ? "#fff" : "#6B7280", transition: "all 0.15s", flexShrink: 0 }}>
               All {activeFreelancers.length}
             </button>
             {NO_LOGIN_TEAMS.filter(t => (teamCounts[t] ?? 0) > 0).map(t => {
               const c = TEAM_CFG[t]; const active = teamFilter === t
               return (
-                <button key={t} onClick={() => setTeamFilter(t)} title={c.shortLabel} style={{ width: 30, height: 30, borderRadius: 10, border: "none", cursor: "pointer", background: active ? c.color : "#F5F5F7", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", boxShadow: active ? `0 3px 10px ${c.color}50` : "none" }}>
-                  <span style={{ fontSize: 14 }}>{c.emoji}</span>
+                <button key={t} onClick={() => setTeamFilter(t)} title={c.shortLabel} style={{ width: 32, height: 32, borderRadius: 10, border: "none", cursor: "pointer", background: active ? c.color : "#F5F5F7", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", boxShadow: active ? `0 3px 10px ${c.color}50` : "none", flexShrink: 0 }}>
+                  <span style={{ fontSize: 15 }}>{c.emoji}</span>
                 </button>
               )
             })}
@@ -830,7 +997,7 @@ export default function FreelancersMemberClient({
               return (
                 <div key={f.id}>
                   <FreelancerListItem freelancer={f} works={fEntries.length} total={fTotal} unpaid={fUnpaid}
-                    isSelected={f.id === effectiveSelectedId} onClick={() => setSelectedId(f.id)} />
+                    isSelected={f.id === selectedId} onClick={() => setSelectedId(f.id)} />
                   <div style={{ padding: "0 14px 6px", opacity: 0.45 }}>
                     <Sparkline data={sparkData[f.id] ?? []} color={TEAM_CFG[f.team].color} />
                   </div>
@@ -842,12 +1009,121 @@ export default function FreelancersMemberClient({
 
         {/* RIGHT panel */}
         <div style={{ flex: 1, overflowY: "auto" }}>
-          {!selectedFreelancer ? (
-            <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: "#9CA3AF" }}>
-              <Users size={40} />
-              <p style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Select a freelancer</p>
-            </div>
-          ) : (() => {
+          {!selectedFreelancer ? (() => {
+            // ── All Freelancers combined view ──────────────────────────
+            const allEntries = [...globalMonthEntries].sort((a, b) => b.date_finished.localeCompare(a.date_finished))
+            const allTotal = allEntries.reduce((s, e) => s + (e.amount ?? 0), 0)
+            const allPaid = allEntries.filter(e => e.payment_status === "paid").reduce((s, e) => s + (e.amount ?? 0), 0)
+            const allUnpaid = allTotal - allPaid
+            return (
+              <div>
+                {/* Combined hero banner */}
+                <div style={{ margin: "16px 16px 0", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg, #1E1B4B 0%, #312E81 40%, #1E3A5F 100%)", boxShadow: "0 8px 32px rgba(30,27,75,0.35)", position: "relative", minHeight: 180 }}>
+                  <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+                  <div style={{ position: "absolute", bottom: -20, left: 100, width: 130, height: 130, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+                  <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                      <div>
+                        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                          {NO_LOGIN_TEAMS.filter(t => activeFreelancers.some(f => f.team === t)).slice(0, 5).map(t => (
+                            <span key={t} style={{ fontSize: 16 }}>{TEAM_CFG[t].emoji}</span>
+                          ))}
+                        </div>
+                        <h2 style={{ fontSize: 22, fontWeight: 900, color: "#fff", margin: 0, fontFamily: "var(--font-jakarta)" }}>All Freelancers</h2>
+                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", margin: "4px 0 0" }}>{activeFreelancers.length} active · {globalAllTime ? "All time" : new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <button onClick={() => setGlobalAllTime(v => !v)} style={{ padding: "6px 14px", borderRadius: 99, fontSize: 11, fontWeight: 700, border: "1.5px solid rgba(255,255,255,0.3)", cursor: "pointer", background: globalAllTime ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.1)", color: "#fff", transition: "all 0.15s" }}>
+                          All Time
+                        </button>
+                        {!globalAllTime && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 10, padding: "4px 7px" }}>
+                            <button onClick={() => setGlobalMonth(prevMonth(globalMonth))} style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ChevronLeft size={12} color="#fff" /></button>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#fff", minWidth: 80, textAlign: "center" }}>{new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</span>
+                            <button onClick={() => setGlobalMonth(nextMonth(globalMonth))} disabled={globalMonth >= currentYM()} style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "transparent", cursor: globalMonth >= currentYM() ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: globalMonth >= currentYM() ? 0.3 : 1 }}><ChevronRight size={12} color="#fff" /></button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 10, marginTop: 18, paddingBottom: 24, flexWrap: "wrap" }}>
+                      {[
+                        { label: "Works", value: String(allEntries.length) },
+                        { label: "Total Cost", value: allTotal > 0 ? fmt(allTotal) : "—" },
+                        { label: "Paid", value: allPaid > 0 ? fmt(allPaid) : "—" },
+                        { label: "Unpaid", value: allUnpaid > 0 ? fmt(allUnpaid) : "—" },
+                        { label: "Freelancers", value: String(activeFreelancers.length) },
+                      ].map(k => (
+                        <div key={k.label} style={{ background: "rgba(255,255,255,0.12)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.2)", padding: "10px 16px", backdropFilter: "blur(8px)", minWidth: 85 }}>
+                          <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: 0, fontFamily: "var(--font-jakarta)" }}>{k.value}</p>
+                          <p style={{ fontSize: 9, color: "rgba(255,255,255,0.65)", margin: "3px 0 0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{k.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Combined history cards */}
+                <div style={{ margin: "14px 16px 0", background: "#FFFFFF", borderRadius: 20, border: "1px solid #F0F0F5", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
+                  <div style={{ padding: "16px 20px", borderBottom: "1px solid #F5F5F7" }}>
+                    <p style={{ fontSize: 14, fontWeight: 900, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>All Work Entries</p>
+                    <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{allEntries.length} {allEntries.length === 1 ? "entry" : "entries"} across all freelancers</p>
+                  </div>
+                  {allEntries.length === 0 ? (
+                    <div style={{ padding: "48px 20px", textAlign: "center" }}>
+                      <p style={{ fontSize: 36, margin: "0 0 12px" }}>📋</p>
+                      <p style={{ fontSize: 14, fontWeight: 800, color: "#374151", margin: 0 }}>No entries {globalAllTime ? "yet" : `for ${new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long" })}`}</p>
+                      <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 6 }}>Select a freelancer from the left panel to add work entries.</p>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px" }}>
+                      {allEntries.map(e => {
+                        const fl = activeFreelancers.find(f => f.id === e.freelancer_id)
+                        const cfg = TEAM_CFG[e.team]
+                        return (
+                          <div key={e.id} style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F0F5", padding: "14px 18px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)", display: "flex", alignItems: "flex-start", gap: 14, transition: "box-shadow 0.15s" }}
+                            onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.boxShadow = "0 6px 24px rgba(0,0,0,0.09)"}
+                            onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.04)"}>
+                            {/* Team icon */}
+                            <div style={{ width: 44, height: 44, borderRadius: 14, flexShrink: 0, background: `linear-gradient(135deg, ${cfg.color}18 0%, ${cfg.color}08 100%)`, border: `1.5px solid ${cfg.color}25`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <span style={{ fontSize: 20 }}>{cfg.emoji}</span>
+                            </div>
+                            {/* Info */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              {/* Freelancer name chip */}
+                              {fl && (
+                                <button onClick={() => setSelectedId(fl.id)} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, marginBottom: 5, cursor: "pointer" }}>
+                                  <span style={{ width: 16, height: 16, borderRadius: 5, background: cfg.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 900, color: "#fff", flexShrink: 0 }}>{getInitials(fl.name)}</span>
+                                  {fl.name}
+                                </button>
+                              )}
+                              <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, lineHeight: 1.3 }}>{e.title}</p>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px", marginTop: 4 }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color, background: `${cfg.color}12`, padding: "1px 8px", borderRadius: 6 }}>{e.client_name}</span>
+                                <span style={{ fontSize: 11, color: "#9CA3AF" }}>{new Date(e.date_finished + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+                                {e.language && <span style={{ fontSize: 11, color: "#6B7280" }}>· {e.language}</span>}
+                              </div>
+                            </div>
+                            {/* Right */}
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
+                              <p style={{ fontSize: 17, fontWeight: 900, color: "#111827", margin: 0, fontFamily: "var(--font-jakarta)" }}>{e.amount ? fmt(e.amount) : "—"}</p>
+                              <button onClick={() => handleTogglePaid(e)} style={{ padding: "3px 10px", borderRadius: 99, fontSize: 10, fontWeight: 800, cursor: "pointer", border: "none", background: e.payment_status === "paid" ? "rgba(16,185,129,0.1)" : "rgba(245,158,11,0.1)", color: e.payment_status === "paid" ? "#059669" : "#D97706" }}>
+                                {e.payment_status === "paid" ? "✓ PAID" : "⏳ UNPAID"}
+                              </button>
+                              <div style={{ display: "flex", gap: 5 }}>
+                                <button onClick={() => setEditEntry(e)} style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid #EEF0FF", background: "#F8F9FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Pencil size={11} color="#6366F1" /></button>
+                                <button onClick={() => handleDelete(e.id)} style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid #FEE2E2", background: "#FFF8F8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Trash2 size={11} color="#EF4444" /></button>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div style={{ height: 24 }} />
+              </div>
+            )
+          })() : (() => {
             const cfg = TEAM_CFG[selectedFreelancer.team]
             const joinedDate = selectedFreelancer.created_at
               ? new Date(selectedFreelancer.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })

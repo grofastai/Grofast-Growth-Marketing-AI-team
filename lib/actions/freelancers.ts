@@ -219,6 +219,22 @@ export async function assignAllFreelancersToMembers(
   return { success: true }
 }
 
+export async function toggleFreelancerStatus(
+  id: string,
+  status: 'active' | 'inactive'
+): Promise<{ success: boolean; error?: string }> {
+  const companyId = await getCompanyId()
+  if (!companyId) return { success: false, error: 'Not authenticated' }
+  const admin = adminClient()
+  const { error } = await admin.from('freelancers')
+    .update({ status })
+    .eq('id', id).eq('company_id', companyId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/admin/team')
+  revalidatePath('/member/freelancers')
+  return { success: true }
+}
+
 export async function deleteFreelancer(id: string): Promise<{ success: boolean; error?: string }> {
   const companyId = await getCompanyId()
   if (!companyId) return { success: false, error: "Not authenticated" }

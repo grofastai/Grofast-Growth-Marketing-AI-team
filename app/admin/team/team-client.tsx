@@ -12,7 +12,7 @@ import {
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
-import { createFreelancer, updateFreelancer, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
+import { createFreelancer, updateFreelancer, toggleFreelancerStatus, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
 import { addManagerToAllFreelancers, removeManagerFromAllFreelancers } from "@/lib/actions/freelancer-manager"
 
 type FreelancerBasic = {
@@ -197,6 +197,8 @@ const ACCOUNT_TYPES = [
 ]
 
 const NO_LOGIN_TEAMS = new Set([
+  "Freelance Video Editing",
+  "Freelance Videography",
   "Freelance RJ Voiceover",
   "Freelance Graphics Designer",
   "Freelance Content Writer",
@@ -485,10 +487,10 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                         ) : (
                           <>
                             <optgroup label="── Login (has app access)">
-                              {(["Freelance Media Production","Freelance Video Editing","Freelance Videography"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                              {(["Freelance Media Production"] as const).map(t => <option key={t} value={t}>{t}</option>)}
                             </optgroup>
                             <optgroup label="── No Login (manager enters work)">
-                              {(["Freelance RJ Voiceover","Freelance Graphics Designer","Freelance Content Writer","Freelance Development & Automation","Freelance Marketing & Operations","Freelance IT Technology & Media"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                              {(["Freelance Video Editing","Freelance Videography","Freelance RJ Voiceover","Freelance Graphics Designer","Freelance Content Writer","Freelance Development & Automation","Freelance Marketing & Operations","Freelance IT Technology & Media"] as const).map(t => <option key={t} value={t}>{t}</option>)}
                             </optgroup>
                           </>
                         )}
@@ -789,7 +791,9 @@ const FL_TYPES = [
 
 // No-login freelancers — keys match NO_LOGIN_TEAMS and FREELANCER_TEAMS exactly
 const NO_LOGIN_FL_TYPES = [
-  { key: "Freelance RJ Voiceover",            label: "RJ Voiceover",    emoji: "🎙️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.3)" },
+  { key: "Freelance Video Editing",            label: "Video Editing",   emoji: "🎬", color: "#6366F1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.3)" },
+  { key: "Freelance Videography",              label: "Videography",     emoji: "📹", color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",   border: "rgba(14,165,233,0.3)" },
+  { key: "Freelance RJ Voiceover",             label: "RJ Voiceover",    emoji: "🎙️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.3)" },
   { key: "Freelance Graphics Designer",        label: "Graphics Design", emoji: "🎨", color: "#F97316", bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.3)" },
   { key: "Freelance Content Writer",           label: "Content Writer",  emoji: "✍️", color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  border: "rgba(20,184,166,0.3)" },
   { key: "Freelance Development & Automation", label: "Dev & Auto",      emoji: "💻", color: "#6366F1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.3)" },
@@ -1238,13 +1242,15 @@ function AssignManagerSheet({
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function TeamClient({ members, pastMembers, freelancers: initFreelancers = [], initialSearch = "", assignedManagerIds = [] }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; initialSearch?: string; assignedManagerIds?: string[] }) {
+export default function TeamClient({ members, pastMembers, freelancers: initFreelancers = [], pastFreelancers: initPastFreelancers = [], initialSearch = "", assignedManagerIds = [] }: { members: Member[]; pastMembers: Member[]; freelancers?: FreelancerBasic[]; pastFreelancers?: FreelancerBasic[]; initialSearch?: string; assignedManagerIds?: string[] }) {
   const router = useRouter()
   const nextId = useMemo(() => computeNextEmployeeId(members), [members])
   const [search, setSearch] = useState(initialSearch)
   const [tabFilter, setTabFilter] = useState<"ALL" | "active" | "inactive">("ALL")
   const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "MEMBER" | "FREELANCER">("ALL")
   const [freelancers, setFreelancers] = useState(initFreelancers)
+  const [pastFreelancers, setPastFreelancers] = useState(initPastFreelancers)
+  const [showPastFreelancers, setShowPastFreelancers] = useState(false)
   const [flTypeFilter, setFlTypeFilter] = useState<string>("all")
   const [editingFreelancer, setEditingFreelancer] = useState<FreelancerBasic | null>(null)
   const [assignSheetOpen, setAssignSheetOpen] = useState(false)
@@ -1292,6 +1298,23 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
     if (res.success) {
       setFreelancers(prev => prev.filter(f => f.id !== id))
       startTransition(() => router.refresh())
+    }
+  }
+
+  async function handleDeactivateFreelancer(f: FreelancerBasic) {
+    if (!confirm(`Move "${f.name}" to Past Freelancers? All their data stays safe. You can reactivate anytime.`)) return
+    const res = await toggleFreelancerStatus(f.id, 'inactive')
+    if (res.success) {
+      setFreelancers(prev => prev.filter(x => x.id !== f.id))
+      setPastFreelancers(prev => [{ ...f, status: 'inactive' }, ...prev])
+    }
+  }
+
+  async function handleReactivateFreelancer(f: FreelancerBasic) {
+    const res = await toggleFreelancerStatus(f.id, 'active')
+    if (res.success) {
+      setPastFreelancers(prev => prev.filter(x => x.id !== f.id))
+      setFreelancers(prev => [...prev, { ...f, status: 'active' }])
     }
   }
 
@@ -1524,13 +1547,16 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                                 style={{ background: "rgba(99,102,241,0.07)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.2)" }}>
                                 <Pencil size={11} />
                               </button>
-                              <Link href={`/admin/freelancers/${f.id}`}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                                style={{ background: "rgba(249,115,22,0.08)", color: "#F97316", border: "1px solid rgba(249,115,22,0.2)" }}>
-                                View <ArrowRight size={10} />
-                              </Link>
+                              <button
+                                onClick={() => handleDeactivateFreelancer(f)}
+                                title="Deactivate"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                                style={{ background: "rgba(245,158,11,0.07)", color: "#D97706", border: "1px solid rgba(245,158,11,0.2)" }}>
+                                <Ban size={11} />
+                              </button>
                               <button
                                 onClick={() => handleDeleteFreelancer(f.id, f.name)}
+                                title="Delete permanently"
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all"
                                 style={{ background: "rgba(222,26,26,0.07)", color: "#DE1A1A", border: "1px solid rgba(222,26,26,0.18)" }}>
                                 <Trash2 size={11} />
@@ -1903,7 +1929,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
               <table className="w-full">
                 <thead>
                   <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
-                    {["Employee", "ID", "Team", "Role", "Left On"].map((h) => (
+                    {["Employee", "ID", "Team", "Role", "Left On", ""].map((h) => (
                       <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]"
                         style={{ color: "#D1D5DB" }}>{h}</th>
                     ))}
@@ -1928,8 +1954,83 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                       <td className="px-5 py-3"><span className="text-[12px]" style={{ color: "#D1D5DB" }}>{m.team ?? "—"}</span></td>
                       <td className="px-5 py-3"><span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#F3F4F6", color: "#9CA3AF" }}>{m.role}</span></td>
                       <td className="px-5 py-3"><span className="text-[12px]" style={{ color: "#D1D5DB" }}>{m.deleted_at ? formatDate(m.deleted_at) : "—"}</span></td>
+                      <td className="px-5 py-3">
+                        <button onClick={() => handleToggleStatus(m)} disabled={isPending}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all disabled:opacity-50"
+                          style={{ background: "rgba(34,197,94,0.08)", color: "#16A34A", border: "1px solid rgba(34,197,94,0.2)" }}>
+                          <RotateCcw size={10} /> Reactivate
+                        </button>
+                      </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Past Freelancers ── */}
+      {pastFreelancers.length > 0 && (
+        <div>
+          <button onClick={() => setShowPastFreelancers(v => !v)}
+            className="flex items-center gap-2 text-[13px] font-semibold mb-3"
+            style={{ color: "#6B7280" }}>
+            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px]" style={{ background: "#F3F4F6" }}>
+              {showPastFreelancers ? "▲" : "▼"}
+            </span>
+            Past Freelancers
+            <span className="text-[11px] px-2 py-0.5 rounded-full" style={{ background: "#F3F4F6", color: "#9CA3AF" }}>
+              {pastFreelancers.length}
+            </span>
+          </button>
+          {showPastFreelancers && (
+            <div style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 18, overflow: "hidden" }}>
+              <table className="w-full">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
+                    {["Freelancer", "Team", "Phone", "Deactivated", ""].map(h => (
+                      <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#D1D5DB" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pastFreelancers.map((f, i) => {
+                    const teamKey = getFreelancerTeamKey(f)
+                    const teamCfg = FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6b7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
+                    const initials = f.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()
+                    return (
+                      <tr key={f.id} style={{ borderBottom: i < pastFreelancers.length - 1 ? "1px solid #F9FAFB" : "none", opacity: 0.65 }}>
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3">
+                            <div style={{ width: 32, height: 32, borderRadius: 9, background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                              <span style={{ fontSize: 11, fontWeight: 800, color: "#9CA3AF" }}>{initials}</span>
+                            </div>
+                            <div>
+                              <p className="text-[13px] font-semibold" style={{ color: "#6B7280" }}>{f.name}</p>
+                              {f.gender && <p className="text-[11px] capitalize" style={{ color: "#D1D5DB" }}>{f.gender}</p>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold" style={{ background: "#F3F4F6", color: "#9CA3AF" }}>
+                            {teamCfg.emoji} {teamCfg.label}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-[12px]" style={{ color: "#D1D5DB" }}>{f.phone ?? "—"}</td>
+                        <td className="px-5 py-3 text-[12px]" style={{ color: "#D1D5DB" }}>
+                          {f.created_at ? new Date(f.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                        </td>
+                        <td className="px-5 py-3">
+                          <button onClick={() => handleReactivateFreelancer(f)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
+                            style={{ background: "rgba(34,197,94,0.08)", color: "#16A34A", border: "1px solid rgba(34,197,94,0.2)" }}>
+                            <RotateCcw size={10} /> Reactivate
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>

@@ -15,6 +15,7 @@ function adminClient() {
 
 type WorkEntryPayload = {
   date_given: string | null
+  date_finished?: string        // per-entry override; falls back to input.date_finished
   client_name: string
   title: string
   amount: number
@@ -48,7 +49,7 @@ export async function saveFreelancerWorkEntry(input: {
     company_id:       profile.company_id,
     freelancer_id:    input.freelancer_id,
     team:             input.team,
-    date_finished:    input.date_finished,
+    date_finished:    e.date_finished ?? input.date_finished,
     date_given:       e.date_given,
     client_name:      e.client_name,
     title:            e.title,

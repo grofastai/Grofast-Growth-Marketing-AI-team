@@ -1507,11 +1507,7 @@ export default function HistoryClient({
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(() => {
-                        const isMediaDay = entries.some(e => e.task_type === "shoot" || e.task_type === "edit")
-                        const shootH  = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-                        const editH   = entries.filter(e => e.task_type === "edit").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-                        const otherH  = entries.filter(e => e.task_type !== "shoot" && e.task_type !== "edit" && e.task_type !== "break" && e.task_type !== "learning").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-                        const workH   = isMediaDay ? (shootH + editH) : otherH
+                        const workH   = calcNetWorkHours(entries)
                         const travelH = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + (e._travel_hours ?? 0), 0)
                         const learnH  = entries.filter(e => e.task_type === "learning").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
                         const breakH  = entries.filter(e => e.task_type === "break").reduce((s, e) => s + (e.duration_hours ?? 0), 0)

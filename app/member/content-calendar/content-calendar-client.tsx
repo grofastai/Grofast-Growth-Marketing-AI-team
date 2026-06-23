@@ -778,8 +778,9 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                         <div key={p.id} style={{ padding: "12px 18px", borderBottom: i < listPosts.length - 1 ? "1px solid #F9FAFB" : "none", background: isMine ? "rgba(222,26,26,0.02)" : "transparent" }}>
                           {/* Top row: icon + title + date + priority + status */}
                           <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                            <div style={{ width: 38, height: 38, borderRadius: 11, background: `${pColor}15`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 19 }}>
-                              {platformEmoji(p.platform)}
+                            <div style={{ width: 44, height: 44, borderRadius: 11, overflow: "hidden", flexShrink: 0, background: p.platform === "other" ? "rgba(29,78,216,0.07)" : "rgba(196,18,48,0.06)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={p.platform === "other" ? "/shoot-illustration.png" : "/post-illustration.png"} alt={p.platform === "other" ? "Shoot" : "Post"} style={{ width: 44, height: 44, objectFit: "cover", objectPosition: p.platform === "other" ? "center top" : "center" }} />
                             </div>
                             <div style={{ flex: 1, minWidth: 100 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>

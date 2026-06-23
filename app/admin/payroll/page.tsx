@@ -41,6 +41,7 @@ export default async function PayrollPage({
     { data: collabConfirmsRaw },
     { count: pendingCollabCount },
     { count: pendingLeaveCount },
+    { data: salaryRecordsRaw },
   ] = await Promise.all([
     admin
       .from("users")
@@ -103,6 +104,12 @@ export default async function PayrollPage({
       .select("id", { count: "exact", head: true })
       .eq("company_id", cid)
       .eq("status", "pending"),
+    // Salary snapshots for this month
+    admin
+      .from("monthly_salary_records")
+      .select("user_id, amount")
+      .eq("company_id", cid)
+      .eq("month", month),
   ])
 
   type UpdateRow = { user_id: string; date: string; working_hours: number | null; work_entries: { duration_hours?: number | null }[] | null }
@@ -122,6 +129,21 @@ export default async function PayrollPage({
   const approvedLeaves = (approvedLeavesRaw   ?? []) as LeaveRow[]
   const holidayDates  = new Set(((holidaysRaw ?? []) as { date: string }[]).map(h => h.date))
   const collabConfirms = (collabConfirmsRaw   ?? []) as { collaborator_id: string; date: string; confirmed_hours: number | null }[]
+  const salaryRecords = (salaryRecordsRaw     ?? []) as { user_id: string; amount: number }[]
+
+  // Build salary snapshot map for this month
+  const snapshotMap = new Map(salaryRecords.map(r => [r.user_id, r.amount]))
+
+  // Auto-snapshot: insert salary record for any member not yet snapshotted this month
+  // ON CONFLICT DO NOTHING — existing records are NEVER overwritten
+  const missingSnapshots = members
+    .filter(m => m.employment_type === "regular" && m.monthly_salary && m.monthly_salary > 0 && !snapshotMap.has(m.id))
+    .map(m => ({ company_id: cid, user_id: m.id, month, amount: m.monthly_salary as number }))
+  if (missingSnapshots.length > 0) {
+    await admin.from("monthly_salary_records").upsert(missingSnapshots, { onConflict: "user_id,month", ignoreDuplicates: true })
+    // Add to map so calculations below use the fresh snapshot
+    for (const s of missingSnapshots) snapshotMap.set(s.user_id, s.amount)
+  }
 
   const runsMap = new Map(runs.map(r => [r.user_id, r]))
 
@@ -214,9 +236,11 @@ export default async function PayrollPage({
 
     let basePay = 0, deduction = 0, otPay = 0, netPay = 0
 
-    if ((m.employment_type ?? "regular") === "regular" && m.monthly_salary) {
-      const dailyRate = m.monthly_salary / SALARY_BASIS
-      basePay   = m.monthly_salary
+    // Use snapshotted salary for this month — falls back to current if no snapshot (shouldn't happen after above)
+    const effectiveSalary = snapshotMap.get(m.id) ?? m.monthly_salary
+    if ((m.employment_type ?? "regular") === "regular" && effectiveSalary) {
+      const dailyRate = effectiveSalary / SALARY_BASIS
+      basePay   = effectiveSalary
       deduction = Math.round(deductibleDays * dailyRate * 100) / 100
       otPay     = Math.round(otHours * (dailyRate / OT_THRESHOLD) * 100) / 100
       netPay    = Math.round((basePay - deduction + otPay) * 100) / 100
@@ -244,7 +268,7 @@ export default async function PayrollPage({
       bonus, advance, incentive, finalNetPay,
       isPaid: run?.is_paid ?? false,
       paidAt: run?.paid_at ?? null,
-      monthly_salary: m.monthly_salary, hourly_rate: m.hourly_rate,
+      monthly_salary: snapshotMap.get(m.id) ?? m.monthly_salary, hourly_rate: m.hourly_rate,
       effectiveWorkDays,
     }
   })

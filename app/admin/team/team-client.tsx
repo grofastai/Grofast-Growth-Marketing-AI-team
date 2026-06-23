@@ -792,15 +792,13 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
   const [type, setType] = useState("")
   const [name, setName] = useState("")
   const [phone, setPhone] = useState("")
-  const [upi, setUpi] = useState("")
   const [gender, setGender] = useState("")
-  const [rating, setRating] = useState(0)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
   const [success, setSuccess] = useState(false)
 
   function reset() {
-    setStep("type"); setType(""); setName(""); setPhone(""); setUpi(""); setGender(""); setRating(0); setSaving(false); setErr(""); setSuccess(false)
+    setStep("type"); setType(""); setName(""); setPhone(""); setGender(""); setSaving(false); setErr(""); setSuccess(false)
   }
   function close() { reset(); onClose() }
 
@@ -812,8 +810,7 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
     setSaving(true); setErr("")
     const res = await createFreelancer({
       name: name.trim(), type: "other", team: type,
-      phone: phone || undefined, upi_id: upi || undefined, gender: gender || undefined,
-      rating,
+      phone: phone || undefined, gender: gender || undefined,
     })
     if (!res.success) { setErr(res.error ?? "Failed to create"); setSaving(false); return }
     setSuccess(true); setSaving(false)
@@ -890,30 +887,10 @@ function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onC
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Phone</label>
-                  <input className={FIELD_CLS} inputMode="numeric" placeholder="9876543210" value={phone}
-                    onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 15))} />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">UPI ID</label>
-                  <input className={FIELD_CLS} placeholder="name@upi" value={upi} onChange={e => setUpi(e.target.value)} />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Rating</label>
-                <div className="flex gap-1">
-                  {[1,2,3,4,5].map(n => (
-                    <button key={n} type="button" onClick={() => setRating(rating === n ? 0 : n)}
-                      className="p-1 transition-all">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill={n <= rating ? "#f59e0b" : "none"} stroke={n <= rating ? "#f59e0b" : "#d1d5db"} strokeWidth="1.5">
-                        <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-                      </svg>
-                    </button>
-                  ))}
-                </div>
+                <label className="block text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Phone</label>
+                <input className={FIELD_CLS} inputMode="numeric" placeholder="9876543210" value={phone}
+                  onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 15))} />
               </div>
 
               {err && (

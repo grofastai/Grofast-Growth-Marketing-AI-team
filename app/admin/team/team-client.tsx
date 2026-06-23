@@ -1363,23 +1363,19 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                 <table className="w-full" style={{ minWidth: 560 }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid #F3F4F6", background: "#FAFAFA" }}>
-                      {["Freelancer", "Team", "Phone", "Rate", "Status", "Added", "Actions"].map(h => (
+                      {["Freelancer", "Team", "Phone", "Status", "Added", "Actions"].map(h => (
                         <th key={h} className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#9CA3AF" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {freelancers.length === 0 ? (
-                      <tr><td colSpan={7} className="px-5 py-10 text-center text-[13px]" style={{ color: "#9CA3AF" }}>
+                      <tr><td colSpan={6} className="px-5 py-10 text-center text-[13px]" style={{ color: "#9CA3AF" }}>
                         No freelancers added yet
                       </td></tr>
                     ) : freelancers.map((f, i) => {
                       const teamKey = getFreelancerTeamKey(f)
                       const teamCfg = FL_TYPE_CFG[teamKey] ?? { label: teamKey, color: "#6B7280", bg: "rgba(107,114,128,0.08)", emoji: "👤" }
-                      const rate = f.cost_per_minute ? `₹${f.cost_per_minute}/min`
-                        : f.cost_per_video ? `₹${f.cost_per_video}/video`
-                        : f.cost_per_hour ? `₹${f.cost_per_hour}/hr`
-                        : "—"
                       const added = f.created_at
                         ? new Date(f.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
                         : "—"
@@ -1403,7 +1399,6 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                             </span>
                           </td>
                           <td className="px-5 py-3.5 text-[13px]" style={{ color: "#374151" }}>{f.phone ?? "—"}</td>
-                          <td className="px-5 py-3.5 text-[13px] font-semibold" style={{ color: "#374151" }}>{rate}</td>
                           <td className="px-5 py-3.5">
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
                               style={f.status === "active" ? { background: "rgba(34,197,94,0.1)", color: "#16A34A" } : { background: "rgba(107,114,128,0.1)", color: "#6B7280" }}>

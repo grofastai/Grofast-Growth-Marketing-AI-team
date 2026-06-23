@@ -787,10 +787,15 @@ const FL_TYPES = [
   { key: "marketing_ops",     label: "Marketing & Ops", emoji: "📊", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  border: "rgba(236,72,153,0.3)" },
 ]
 
-// No-login freelancers — these 6 teams don't need a system login
-const NO_LOGIN_FL_TYPES = FL_TYPES.filter(t =>
-  !["video_editor", "video_shooter", "nkts_reels"].includes(t.key)
-)
+// No-login freelancers — keys match NO_LOGIN_TEAMS and FREELANCER_TEAMS exactly
+const NO_LOGIN_FL_TYPES = [
+  { key: "Freelance RJ Voiceover",            label: "RJ Voiceover",    emoji: "🎙️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.3)" },
+  { key: "Freelance Graphics Designer",        label: "Graphics Design", emoji: "🎨", color: "#F97316", bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.3)" },
+  { key: "Freelance Content Writer",           label: "Content Writer",  emoji: "✍️", color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  border: "rgba(20,184,166,0.3)" },
+  { key: "Freelance Development & Automation", label: "Dev & Auto",      emoji: "💻", color: "#6366F1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.3)" },
+  { key: "Freelance Marketing & Operations",   label: "Marketing & Ops", emoji: "📊", color: "#EC4899", bg: "rgba(236,72,153,0.08)",  border: "rgba(236,72,153,0.3)" },
+  { key: "Freelance IT Technology & Media",    label: "IT & Media",      emoji: "🖥️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)",  border: "rgba(139,92,246,0.3)" },
+]
 
 function FreelancerQuickSheet({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
   const [step, setStep] = useState<"type" | "details">("type")

@@ -489,24 +489,34 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
       </div>
 
       {/* ── Mode Tabs: Post / Shoot ── */}
-      <div style={{ display: "flex", gap: 4, marginBottom: isMobile ? 14 : 20, background: "#FFFFFF", borderRadius: 18, padding: 4, border: "1px solid #E5E7EB", boxShadow: "0 2px 16px rgba(0,0,0,0.06)" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: isMobile ? 14 : 20 }}>
         {([
-          { mode: "post"  as const, icon: "📄", label: "Post Schedule",  desc: "Reels, posters, stories", grad: "linear-gradient(135deg, #C41230 0%, #8B0000 100%)", shadow: "rgba(139,0,0,0.35)" },
-          { mode: "shoot" as const, icon: "📹", label: "Shoot Schedule", desc: "Video shoots & locations",  grad: "linear-gradient(135deg, #1D4ED8 0%, #4D8CFF 100%)", shadow: "rgba(29,78,216,0.35)" },
-        ]).map(({ mode, icon, label, desc, grad, shadow }) => (
-          <button key={mode} onClick={() => setContentMode(mode)} style={{
-            flex: 1, padding: isMobile ? "12px 14px" : "18px 24px", borderRadius: 14, border: "none", cursor: "pointer",
-            background: contentMode === mode ? grad : "transparent",
-            color: contentMode === mode ? "#FFF" : "#6B7280",
-            textAlign: "left", transition: "all 0.18s",
-            boxShadow: contentMode === mode ? `0 4px 20px ${shadow}` : "none",
-          }}>
-            <p style={{ fontSize: isMobile ? 14 : 16, fontWeight: 800, margin: "0 0 3px", display: "flex", alignItems: "center", gap: 7 }}>
-              <span>{icon}</span> {label}
-            </p>
-            <p style={{ fontSize: isMobile ? 10 : 12, opacity: contentMode === mode ? 0.75 : 0.6, margin: 0, fontWeight: 500 }}>{desc}</p>
-          </button>
-        ))}
+          { mode: "post"  as const, label: "Post Schedule",  desc: "Reels, posters, stories",   grad: "linear-gradient(135deg, #C41230 0%, #8B0000 100%)", shadow: "rgba(139,0,0,0.35)",    img: "/post-illustration.png"  },
+          { mode: "shoot" as const, label: "Shoot Schedule", desc: "Video shoots & locations",   grad: "linear-gradient(135deg, #1D4ED8 0%, #4D8CFF 100%)", shadow: "rgba(29,78,216,0.35)",  img: "/shoot-illustration.png" },
+        ]).map(({ mode, label, desc, grad, shadow, img }) => {
+          const active = contentMode === mode
+          return (
+            <button key={mode} onClick={() => setContentMode(mode)} style={{
+              flex: 1, borderRadius: 18, border: active ? "none" : "2px solid #E5E7EB",
+              cursor: "pointer", overflow: "hidden", padding: 0, position: "relative",
+              background: active ? grad : "#FAFAFA",
+              boxShadow: active ? `0 6px 24px ${shadow}` : "0 1px 4px rgba(0,0,0,0.06)",
+              transition: "all 0.2s", minHeight: isMobile ? 80 : 96,
+              display: "flex", alignItems: "center",
+            }}>
+              {/* Text side */}
+              <div style={{ flex: 1, padding: isMobile ? "14px 12px 14px 16px" : "18px 12px 18px 22px", textAlign: "left", zIndex: 1 }}>
+                <p style={{ fontSize: isMobile ? 13 : 15, fontWeight: 900, margin: "0 0 4px", color: active ? "#FFF" : "#111827", letterSpacing: "-0.01em" }}>{label}</p>
+                <p style={{ fontSize: isMobile ? 10 : 11, margin: 0, fontWeight: 600, color: active ? "rgba(255,255,255,0.7)" : "#9CA3AF" }}>{desc}</p>
+                {active && <div style={{ marginTop: 8, display: "inline-flex", padding: "2px 10px", borderRadius: 20, background: "rgba(255,255,255,0.2)", fontSize: 9, fontWeight: 800, color: "#FFF", letterSpacing: "0.06em" }}>ACTIVE</div>}
+              </div>
+              {/* Illustration */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={img} alt={label}
+                style={{ height: isMobile ? 72 : 88, width: "auto", objectFit: "contain", flexShrink: 0, marginRight: 8, opacity: active ? 1 : 0.45, transition: "opacity 0.2s", filter: active ? "none" : "grayscale(40%)" }} />
+            </button>
+          )
+        })}
       </div>
 
       {/* ── Stats ── */}
@@ -1309,17 +1319,20 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             {!schedType && !editingPost && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 4 }}>
                 {[
-                  { key: "shoot", emoji: "📹", label: "Video Shoot", sub: "Schedule a shoot session", color: "#9B6BFF", bg: "rgba(155,107,255,0.06)", border: "rgba(155,107,255,0.25)" },
-                  { key: "post",  emoji: "📱", label: "Post",        sub: "Videos, Reels & Posters",  color: "#DE1A1A", bg: "rgba(222,26,26,0.06)",   border: "rgba(222,26,26,0.25)" },
+                  { key: "shoot", img: "/shoot-illustration.png", label: "Video Shoot", sub: "Schedule a shoot session", color: "#1D4ED8", grad: "linear-gradient(135deg,#1D4ED8,#3B82F6)", border: "rgba(29,78,216,0.3)" },
+                  { key: "post",  img: "/post-illustration.png",  label: "Post",        sub: "Reels, posters & stories",  color: "#C41230", grad: "linear-gradient(135deg,#C41230,#8B0000)", border: "rgba(196,18,48,0.3)" },
                 ].map(opt => (
                   <button key={opt.key} type="button"
                     onClick={() => { setSchedType(opt.key as "shoot" | "post"); setContentType(opt.key === "shoot" ? "video" : "post"); setPlatform(opt.key === "shoot" ? "other" : "instagram") }}
-                    style={{ padding: "22px 16px", borderRadius: 16, border: `2px solid ${opt.border}`, background: opt.bg, cursor: "pointer", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "all 0.15s" }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.transform = "none"}>
-                    <span style={{ fontSize: 32 }}>{opt.emoji}</span>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: opt.color }}>{opt.label}</span>
-                    <span style={{ fontSize: 11, color: "#6B7280" }}>{opt.sub}</span>
+                    style={{ padding: "0", borderRadius: 16, border: `2px solid ${opt.border}`, background: "#FAFAFA", cursor: "pointer", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", overflow: "hidden", transition: "all 0.15s" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-3px)"; (e.currentTarget as HTMLElement).style.boxShadow = `0 8px 24px ${opt.border}` }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "none"; (e.currentTarget as HTMLElement).style.boxShadow = "none" }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={opt.img} alt={opt.label} style={{ width: "100%", height: 110, objectFit: "cover", objectPosition: "center top" }} />
+                    <div style={{ width: "100%", padding: "10px 12px 14px", background: opt.grad }}>
+                      <span style={{ fontSize: 13, fontWeight: 900, color: "#FFF", display: "block" }}>{opt.label}</span>
+                      <span style={{ fontSize: 10, color: "rgba(255,255,255,0.75)", fontWeight: 500 }}>{opt.sub}</span>
+                    </div>
                   </button>
                 ))}
               </div>

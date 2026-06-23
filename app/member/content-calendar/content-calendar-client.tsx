@@ -19,8 +19,9 @@ interface Post {
   content_pillar?: string | null; priority?: string | null
   scheduled_time?: string | null; notes?: string | null
   assignee?: { name: string } | null
+  creator?: { name: string } | null
 }
-interface Shoot  { id: string; title: string; start_time: string; client: string; status: string }
+interface Shoot  { id: string; title: string; start_time: string; client: string; status: string; creator?: { name: string } | null }
 interface Task   { id: string; title: string; due_date: string; status: string }
 interface Member { id: string; name: string }
 
@@ -723,6 +724,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                                 <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
                                 {isMine && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", flexShrink: 0 }}>MINE</span>}
+                                {!isMine && p.assigned_to === userId && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: "rgba(99,102,241,0.1)", color: "#6366F1", flexShrink: 0 }}>ASSIGNED</span>}
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                                 <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>{platformLabel(p.platform)} · {p.client_name} · {p.scheduled_date}</p>
@@ -730,6 +732,11 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                                   <span style={{ fontSize: 11, fontWeight: 800, color: "#DE1A1A", background: "rgba(222,26,26,0.08)", padding: "2px 8px", borderRadius: 6, whiteSpace: "nowrap" }}>🕐 {formatTime(p.scheduled_time)}</span>
                                 )}
                               </div>
+                              {p.creator?.name && p.assigned_to === userId && (
+                                <p style={{ fontSize: 10, color: "#9CA3AF", margin: "3px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
+                                  <span style={{ fontSize: 10 }}>👤</span> Assigned by <strong style={{ color: "#6B7280" }}>{p.creator.name}</strong>
+                                </p>
+                              )}
                             </div>
                             <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{priCfg.label}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{cfg.label}</span>
@@ -873,6 +880,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0 }}>{s.title || s.client}</p>
                           <p style={{ fontSize: 11, color: "#4D8CFF", margin: "2px 0 0", fontWeight: 600 }}>📹 Video Shoot</p>
+                          {s.creator?.name && <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0" }}>👤 Scheduled by <strong style={{ color: "#6B7280" }}>{s.creator.name}</strong></p>}
                         </div>
                       </div>
                     ))}
@@ -901,6 +909,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
                               <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{platformLabel(p.platform)}{p.client_name ? ` · ${p.client_name}` : ""}</p>
+                              {p.creator?.name && p.assigned_to === userId && <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0" }}>👤 Assigned by <strong style={{ color: "#6B7280" }}>{p.creator.name}</strong></p>}
                             </div>
                             <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{cfg.label}</span>
                           </div>
@@ -999,7 +1008,10 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 24px", borderBottom: i < arr.length - 1 ? "1px solid #F9FAFB" : "none", background: isOverdue ? "rgba(239,68,68,0.03)" : "transparent" }}>
                   <span style={{ fontSize: 20, flexShrink: 0 }}>{platformEmoji(p.platform)}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
+                      {p.creator?.name && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: "rgba(99,102,241,0.1)", color: "#6366F1", flexShrink: 0 }}>ASSIGNED</span>}
+                    </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2, flexWrap: "wrap" }}>
                       <p style={{ fontSize: 11, color: isOverdue ? "#EF4444" : "#6B7280", margin: 0, fontWeight: isOverdue ? 700 : 400 }}>
                         {isOverdue ? "⚠ Overdue · " : ""}{p.scheduled_date} · {platformLabel(p.platform)}
@@ -1010,6 +1022,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                         </span>
                       )}
                     </div>
+                    {p.creator?.name && <p style={{ fontSize: 10, color: "#9CA3AF", margin: "3px 0 0" }}>👤 Assigned by <strong style={{ color: "#6B7280" }}>{p.creator.name}</strong></p>}
                   </div>
                   <button onClick={() => handleStatusChange(p.id, "posted")}
                     style={{ fontSize: 11, fontWeight: 800, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#32D27A,#22B36A)", color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}>

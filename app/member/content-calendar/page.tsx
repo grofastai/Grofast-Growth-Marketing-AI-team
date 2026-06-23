@@ -45,13 +45,13 @@ export default async function MemberContentCalendarPage({ searchParams }: { sear
     { data: pastClients },
   ] = await Promise.all([
     admin.from("content_posts")
-      .select("*, assignee:users!assigned_to(name)")
+      .select("*, assignee:users!assigned_to(name), creator:users!created_by(name)")
       .eq("company_id", cid)
       .gte("scheduled_date", monthStart)
       .lte("scheduled_date", monthEnd)
       .order("scheduled_date"),
     admin.from("shoots")
-      .select("id, title, start_time, client, status")
+      .select("id, title, start_time, client, status, creator:users!created_by(name)")
       .eq("company_id", cid)
       .gte("start_time", monthStart)
       .lte("start_time", monthEnd + "T23:59:59"),
@@ -92,7 +92,7 @@ export default async function MemberContentCalendarPage({ searchParams }: { sear
   return (
     <MemberContentCalendarClient
       posts={posts ?? []}
-      shoots={shoots ?? []}
+      shoots={(shoots ?? []).map(s => ({ ...s, creator: Array.isArray(s.creator) ? (s.creator[0] ?? null) : s.creator }))}
       tasks={tasks ?? []}
       members={members ?? []}
       clientNames={allActiveNames}

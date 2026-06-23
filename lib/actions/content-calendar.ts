@@ -40,6 +40,12 @@ export async function createContentPost(input: ContentPostInput) {
     .from('users').select('company_id, role, name').eq('id', user.id).single()
   if (!profile) return { success: false, error: 'Profile not found' }
 
+  const isAdmin = profile.role === 'ADMIN'
+
+  // Members can only assign to themselves
+  const effectiveAssignedTo = isAdmin ? (input.assigned_to || null) : user.id
+  const effectiveShootTeam  = isAdmin ? (input.shoot_team ?? []) : (input.shoot_team?.includes(user.id) ? input.shoot_team.filter(id => id === user.id) : [])
+
   const { data: post, error } = await admin.from('content_posts').insert({
     company_id:     profile.company_id,
     user_id:        user.id,
@@ -52,8 +58,8 @@ export async function createContentPost(input: ContentPostInput) {
     date:           input.scheduled_date,
     scheduled_date: input.scheduled_date,
     post_type:      input.content_type,
-    assigned_to:    input.assigned_to || null,
-    shoot_team:     input.shoot_team ?? [],
+    assigned_to:    effectiveAssignedTo,
+    shoot_team:     effectiveShootTeam,
     drive_link:     input.drive_link || null,
     caption:        input.caption || null,
     notes:          input.notes || null,
@@ -65,9 +71,9 @@ export async function createContentPost(input: ContentPostInput) {
   if (error) return { success: false, error: error.message }
 
   // WhatsApp notification — shoot_team members or single assignee
-  const notifyIds = (input.shoot_team && input.shoot_team.length > 0)
-    ? input.shoot_team
-    : input.assigned_to ? [input.assigned_to] : []
+  const notifyIds = (effectiveShootTeam.length > 0)
+    ? effectiveShootTeam
+    : effectiveAssignedTo ? [effectiveAssignedTo] : []
   if (notifyIds.length > 0) {
     const { data: assignees } = await admin
       .from('users').select('name, phone').in('id', notifyIds)
@@ -155,9 +161,25 @@ export async function updateContentPost(
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users').select('company_id, role').eq('id', user.id).single()
-  if (!profile || profile.role !== 'ADMIN') return { success: false, error: 'Admin only' }
+  if (!profile) return { success: false, error: 'Profile not found' }
 
-  const { error } = await admin.from('content_posts').update({
+  const isAdmin = profile.role === 'ADMIN'
+
+  // Members can edit posts where they are the assignee or in the shoot team
+  // but cannot change assignment fields
+  let query = admin.from('content_posts')
+  let postQuery = query.select('id, assigned_to, shoot_team').eq('id', postId).eq('company_id', profile.company_id)
+  const { data: existing } = await postQuery.single()
+  if (!existing) return { success: false, error: 'Post not found' }
+
+  if (!isAdmin) {
+    const inShootTeam = Array.isArray(existing.shoot_team) && existing.shoot_team.includes(user.id)
+    if (existing.assigned_to !== user.id && !inShootTeam) {
+      return { success: false, error: 'Permission denied' }
+    }
+  }
+
+  const updateFields: Record<string, unknown> = {
     ...(input.title          !== undefined && { title: input.title }),
     ...(input.platform       !== undefined && { platform: input.platform }),
     ...(input.content_type   !== undefined && { content_type: input.content_type, post_type: input.content_type }),
@@ -165,12 +187,16 @@ export async function updateContentPost(
     ...(input.client_name    !== undefined && { client_name: input.client_name }),
     ...(input.scheduled_date !== undefined && { scheduled_date: input.scheduled_date, date: input.scheduled_date }),
     ...(input.scheduled_time !== undefined && { scheduled_time: input.scheduled_time || null, reminder_sent: false }),
-    ...(input.assigned_to    !== undefined && { assigned_to: input.assigned_to || null }),
-    ...(input.shoot_team     !== undefined && { shoot_team: input.shoot_team }),
     ...(input.notes          !== undefined && { notes: input.notes || null }),
     ...(input.content_pillar !== undefined && { content_pillar: input.content_pillar || null }),
     ...(input.priority       !== undefined && { priority: input.priority || 'medium' }),
-  }).eq('id', postId).eq('company_id', profile.company_id)
+    // Assignment fields — admin only
+    ...(isAdmin && input.assigned_to !== undefined && { assigned_to: input.assigned_to || null }),
+    ...(isAdmin && input.shoot_team  !== undefined && { shoot_team: input.shoot_team }),
+  }
+
+  const { error } = await admin.from('content_posts').update(updateFields)
+    .eq('id', postId).eq('company_id', profile.company_id)
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/content-calendar')

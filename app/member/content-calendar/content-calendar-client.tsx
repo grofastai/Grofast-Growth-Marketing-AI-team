@@ -1206,36 +1206,52 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
               {schedType === "shoot" ? (
                 <div>
                   <label style={L}>Assign To <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(select all crew members)</span></label>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
-                    {members.map(m => {
-                      const sel = shootTeam.includes(m.id)
-                      return (
-                        <button key={m.id} type="button"
-                          onClick={() => setShootTeam(prev => sel ? prev.filter(id => id !== m.id) : [...prev, m.id])}
-                          style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${sel ? "#DE1A1A" : "#E2E8F0"}`, background: sel ? "rgba(222,26,26,0.08)" : "#FAFAFA", color: sel ? "#DE1A1A" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.15s" }}>
-                          {sel ? "✓ " : ""}{m.id === userId ? `${m.name} (me)` : m.name}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  {shootTeam.length > 0 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(37,211,102,0.07)", borderRadius: 8, border: "1px solid rgba(37,211,102,0.2)", marginTop: 8 }}>
-                      <Send size={13} color="#25D366" />
-                      <span style={{ fontSize: 12, color: "#25D366", fontWeight: 600 }}>
-                        WhatsApp will be sent to {shootTeam.map(id => members.find(m => m.id === id)?.name ?? "").filter(Boolean).join(", ")}
-                      </span>
+                  {isAdmin ? (
+                    <>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                        {members.map(m => {
+                          const sel = shootTeam.includes(m.id)
+                          return (
+                            <button key={m.id} type="button"
+                              onClick={() => setShootTeam(prev => sel ? prev.filter(id => id !== m.id) : [...prev, m.id])}
+                              style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${sel ? "#DE1A1A" : "#E2E8F0"}`, background: sel ? "rgba(222,26,26,0.08)" : "#FAFAFA", color: sel ? "#DE1A1A" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.15s" }}>
+                              {sel ? "✓ " : ""}{m.id === userId ? `${m.name} (me)` : m.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                      {shootTeam.length > 0 && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(37,211,102,0.07)", borderRadius: 8, border: "1px solid rgba(37,211,102,0.2)", marginTop: 8 }}>
+                          <Send size={13} color="#25D366" />
+                          <span style={{ fontSize: 12, color: "#25D366", fontWeight: 600 }}>
+                            WhatsApp will be sent to {shootTeam.map(id => members.find(m => m.id === id)?.name ?? "").filter(Boolean).join(", ")}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(99,102,241,0.06)", borderRadius: 8, border: "1px solid rgba(99,102,241,0.15)", marginTop: 6 }}>
+                      <span style={{ fontSize: 13 }}>👤</span>
+                      <span style={{ fontSize: 12, color: "#6366F1", fontWeight: 600 }}>This shoot will be assigned to you only. Contact admin to assign crew.</span>
                     </div>
                   )}
                 </div>
               ) : (
                 <div>
                   <label style={L}>Assign To</label>
-                  <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={F}>
-                    <option value="">— Myself —</option>
-                    {members.filter(m => m.id !== userId).map(m => (
-                      <option key={m.id} value={m.id}>{m.name}</option>
-                    ))}
-                  </select>
+                  {isAdmin ? (
+                    <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={F}>
+                      <option value="">— Myself —</option>
+                      {members.filter(m => m.id !== userId).map(m => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(99,102,241,0.06)", borderRadius: 8, border: "1px solid rgba(99,102,241,0.15)" }}>
+                      <span style={{ fontSize: 13 }}>👤</span>
+                      <span style={{ fontSize: 12, color: "#6366F1", fontWeight: 600 }}>This post will be assigned to you. Only admins can assign to others.</span>
+                    </div>
+                  )}
                 </div>
               )}
 

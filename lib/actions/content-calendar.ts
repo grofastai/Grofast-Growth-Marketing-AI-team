@@ -40,11 +40,9 @@ export async function createContentPost(input: ContentPostInput) {
     .from('users').select('company_id, role, name').eq('id', user.id).single()
   if (!profile) return { success: false, error: 'Profile not found' }
 
-  const isAdmin = profile.role === 'ADMIN'
-
-  // Members can only assign to themselves
-  const effectiveAssignedTo = isAdmin ? (input.assigned_to || null) : user.id
-  const effectiveShootTeam  = isAdmin ? (input.shoot_team ?? []) : (input.shoot_team?.includes(user.id) ? input.shoot_team.filter(id => id === user.id) : [])
+  // Any member can assign to others — no restriction on assignment
+  const effectiveAssignedTo = input.assigned_to || null
+  const effectiveShootTeam  = input.shoot_team ?? []
 
   const { data: post, error } = await admin.from('content_posts').insert({
     company_id:     profile.company_id,
@@ -165,19 +163,16 @@ export async function updateContentPost(
 
   const isAdmin = profile.role === 'ADMIN'
 
-  // Members can edit posts where they are the assignee or in the shoot team
-  // but cannot change assignment fields
-  let query = admin.from('content_posts')
-  let postQuery = query.select('id, assigned_to, shoot_team').eq('id', postId).eq('company_id', profile.company_id)
-  const { data: existing } = await postQuery.single()
+  // Allow edit if: admin OR the original creator of the post
+  const { data: existing } = await admin
+    .from('content_posts')
+    .select('id, created_by, assigned_to, shoot_team')
+    .eq('id', postId).eq('company_id', profile.company_id)
+    .single()
   if (!existing) return { success: false, error: 'Post not found' }
 
-  if (!isAdmin) {
-    const inShootTeam = Array.isArray(existing.shoot_team) && existing.shoot_team.includes(user.id)
-    if (existing.assigned_to !== user.id && !inShootTeam) {
-      return { success: false, error: 'Permission denied' }
-    }
-  }
+  const isCreator = existing.created_by === user.id
+  if (!isAdmin && !isCreator) return { success: false, error: 'Permission denied' }
 
   const updateFields: Record<string, unknown> = {
     ...(input.title          !== undefined && { title: input.title }),
@@ -190,9 +185,9 @@ export async function updateContentPost(
     ...(input.notes          !== undefined && { notes: input.notes || null }),
     ...(input.content_pillar !== undefined && { content_pillar: input.content_pillar || null }),
     ...(input.priority       !== undefined && { priority: input.priority || 'medium' }),
-    // Assignment fields — admin only
-    ...(isAdmin && input.assigned_to !== undefined && { assigned_to: input.assigned_to || null }),
-    ...(isAdmin && input.shoot_team  !== undefined && { shoot_team: input.shoot_team }),
+    // Assignment — allowed for creator and admin
+    ...(input.assigned_to !== undefined && { assigned_to: input.assigned_to || null }),
+    ...(input.shoot_team  !== undefined && { shoot_team: input.shoot_team }),
   }
 
   const { error } = await admin.from('content_posts').update(updateFields)
@@ -214,11 +209,11 @@ export async function deleteContentPost(postId: string) {
     .from('users').select('company_id, role').eq('id', user.id).single()
   if (!profile) return { success: false, error: 'Profile not found' }
 
-  // Admins can delete any post; members can only delete posts assigned to them
+  // Admins can delete any post; others can delete only posts they created
   const query = admin.from('content_posts').delete().eq('id', postId).eq('company_id', profile.company_id)
   const { error } = profile.role === 'ADMIN'
     ? await query
-    : await query.eq('assigned_to', user.id)
+    : await query.eq('created_by', user.id)
 
   if (error) return { success: false, error: error.message }
   revalidatePath('/admin/content-calendar')

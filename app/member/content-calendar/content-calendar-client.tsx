@@ -771,20 +771,29 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                                   <span style={{ fontSize: 10 }}>👤</span> Assigned by <strong style={{ color: "#6B7280" }}>{p.creator.name}</strong>
                                 </p>
                               )}
+                              {p.notes && p.created_by !== userId && (
+                                <p style={{ fontSize: 10, color: "#6B7280", margin: "4px 0 0", background: "rgba(107,114,128,0.06)", padding: "4px 8px", borderRadius: 6, lineHeight: 1.5 }}>
+                                  📝 {p.notes}
+                                </p>
+                              )}
                             </div>
                             <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: priCfg.bg, color: priCfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{priCfg.label}</span>
                             <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 8, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{cfg.label}</span>
                           </div>
-                          {/* Action row: Edit + Delete + Mark as Posted */}
+                          {/* Action row: Edit + Delete (creator only) + Mark as Posted (creator or assignee) */}
                           <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-                            <button onClick={() => openEdit(p)}
-                              style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 9, border: "1.5px solid rgba(155,107,255,0.35)", background: "rgba(155,107,255,0.07)", color: "#9B6BFF", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                              <Pencil size={11} /> Edit
-                            </button>
-                            <button onClick={() => handleDelete(p.id)}
-                              style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 9, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)", color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                              <Trash2 size={11} /> Delete
-                            </button>
+                            {p.created_by === userId && (
+                              <>
+                                <button onClick={() => openEdit(p)}
+                                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 9, border: "1.5px solid rgba(155,107,255,0.35)", background: "rgba(155,107,255,0.07)", color: "#9B6BFF", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                                  <Pencil size={11} /> Edit
+                                </button>
+                                <button onClick={() => handleDelete(p.id)}
+                                  style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 9, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)", color: "#EF4444", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                                  <Trash2 size={11} /> Delete
+                                </button>
+                              </>
+                            )}
                             {p.status === "posted" ? (
                               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                                 <span style={{ fontSize: 11, fontWeight: 800, padding: "5px 10px", borderRadius: 8, background: "rgba(50,210,122,0.1)", color: "#32D27A", display: "flex", alignItems: "center", gap: 4 }}>
@@ -942,22 +951,30 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
-                              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{platformLabel(p.platform)}{p.client_name ? ` · ${p.client_name}` : ""}</p>
+                              <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>
+                                {platformLabel(p.platform)}{p.client_name ? ` · ${p.client_name}` : ""}
+                                {p.scheduled_time ? ` · 🕐 ${formatTime(p.scheduled_time)}` : ""}
+                              </p>
                               {p.creator?.name && p.assigned_to === userId && p.created_by !== userId && <p style={{ fontSize: 10, color: "#9CA3AF", margin: "2px 0 0" }}>👤 Assigned by <strong style={{ color: "#6B7280" }}>{p.creator.name}</strong></p>}
+                              {p.notes && p.created_by !== userId && (
+                                <p style={{ fontSize: 10, color: "#6B7280", margin: "4px 0 0", background: "rgba(107,114,128,0.06)", padding: "4px 8px", borderRadius: 6, lineHeight: 1.5 }}>📝 {p.notes}</p>
+                              )}
                             </div>
                             <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: cfg.bg, color: cfg.color, whiteSpace: "nowrap", flexShrink: 0 }}>{cfg.label}</span>
                           </div>
-                          {/* Action buttons */}
-                          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                            <button onClick={() => openEdit(p)}
-                              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", borderRadius: 9, border: "1.5px solid rgba(155,107,255,0.35)", background: "rgba(155,107,255,0.07)", color: "#9B6BFF", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                              <Pencil size={12} /> Edit
-                            </button>
-                            <button onClick={() => handleDelete(p.id)}
-                              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", borderRadius: 9, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)", color: "#EF4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                              <Trash2 size={12} /> Delete
-                            </button>
-                          </div>
+                          {/* Edit + Delete — creator only */}
+                          {p.created_by === userId && (
+                            <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                              <button onClick={() => openEdit(p)}
+                                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", borderRadius: 9, border: "1.5px solid rgba(155,107,255,0.35)", background: "rgba(155,107,255,0.07)", color: "#9B6BFF", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                                <Pencil size={12} /> Edit
+                              </button>
+                              <button onClick={() => handleDelete(p.id)}
+                                style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "7px 0", borderRadius: 9, border: "1.5px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.06)", color: "#EF4444", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                                <Trash2 size={12} /> Delete
+                              </button>
+                            </div>
+                          )}
                           {/* Posted status row */}
                           {!isPosted ? (
                             <button onClick={() => handleStatusChange(p.id, "posted")}
@@ -1239,15 +1256,49 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </>
               )}
 
-              <div>
-                <label style={L}>Assigned To</label>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "rgba(99,102,241,0.06)", borderRadius: 8, border: "1px solid rgba(99,102,241,0.15)" }}>
-                  <span style={{ fontSize: 13 }}>👤</span>
-                  <span style={{ fontSize: 12, color: "#6366F1", fontWeight: 600 }}>
-                    {schedType === "shoot" ? "This shoot is assigned to you." : "This post is assigned to you."}
-                  </span>
+              {schedType === "shoot" ? (
+                <div>
+                  <label style={L}>Assign Crew <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(select all crew members)</span></label>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 6 }}>
+                    {members.map(m => {
+                      const sel = shootTeam.includes(m.id)
+                      return (
+                        <button key={m.id} type="button"
+                          onClick={() => setShootTeam(prev => sel ? prev.filter(id => id !== m.id) : [...prev, m.id])}
+                          style={{ padding: "6px 14px", borderRadius: 20, border: `1.5px solid ${sel ? "#DE1A1A" : "#E2E8F0"}`, background: sel ? "rgba(222,26,26,0.08)" : "#FAFAFA", color: sel ? "#DE1A1A" : "#718096", fontSize: 12, fontWeight: 700, cursor: "pointer", transition: "all 0.15s" }}>
+                          {sel ? "✓ " : ""}{m.id === userId ? `${m.name} (me)` : m.name}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {shootTeam.length > 0 && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(37,211,102,0.07)", borderRadius: 8, border: "1px solid rgba(37,211,102,0.2)", marginTop: 8 }}>
+                      <Send size={13} color="#25D366" />
+                      <span style={{ fontSize: 12, color: "#25D366", fontWeight: 600 }}>
+                        WhatsApp will be sent to {shootTeam.map(id => members.find(m => m.id === id)?.name ?? "").filter(Boolean).join(", ")}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                <div>
+                  <label style={L}>Assign To</label>
+                  <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} style={F}>
+                    <option value="">— Myself —</option>
+                    {members.filter(m => m.id !== userId).map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                  {assignedTo && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "rgba(37,211,102,0.07)", borderRadius: 8, border: "1px solid rgba(37,211,102,0.2)", marginTop: 8 }}>
+                      <Send size={13} color="#25D366" />
+                      <span style={{ fontSize: 12, color: "#25D366", fontWeight: 600 }}>
+                        WhatsApp notification will be sent to {members.find(m => m.id === assignedTo)?.name ?? "assignee"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label style={L}>Instructions / Keep Remember Points <span style={{ fontWeight: 400, color: "#9CA3AF", textTransform: "none" }}>(optional)</span></label>

@@ -511,7 +511,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                 </button>
                 {/* Small date picker button */}
                 <div style={{ position: "relative" }} data-month-picker>
-                  <button onClick={() => { setPickerYear(year); setPickerMonth(month); setPickerStep("month"); setShowMonthPicker(v => !v) }}
+                  <button onClick={() => { setPickerYear(year); setPickerMonth(month); setPickerStep("date"); setShowMonthPicker(v => !v) }}
                     style={{ width: 30, height: 30, borderRadius: 8, border: showMonthPicker ? "1.5px solid #DE1A1A" : "1px solid #E5E7EB", background: showMonthPicker ? "rgba(222,26,26,0.07)" : "#FAFAFA", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                     title="Go to date">
                     <CalendarDays size={13} color={showMonthPicker ? "#DE1A1A" : "#6B7280"} />

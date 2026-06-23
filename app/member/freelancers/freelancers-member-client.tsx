@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useMemo, useTransition } from "react"
-import { X, Plus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Star, Link2, FileText, IndianRupee, Users } from "lucide-react"
-import { saveFreelancerWorkEntry } from "@/lib/actions/freelancer-work"
+import { X, Plus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Star, Link2, FileText, IndianRupee, Users, Pencil, CheckCircle2 } from "lucide-react"
+import { saveFreelancerWorkEntry, toggleFreelancerPaymentStatus, updateFreelancerWorkEntry } from "@/lib/actions/freelancer-work"
 import { buildClientOptions } from "@/lib/utils/client-options"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -100,10 +100,11 @@ type EntryItem = {
   duration_mins: string   // RJ Voiceover
   language: string        // RJ Voiceover
   task_description: string // Dev / Marketing / IT
+  payment_status: "unpaid" | "paid"
 }
 
 function blankEntry(today: string): EntryItem {
-  return { date_given: today, client_name: "", title: "", amount: "", drive_link: "", notes: "", duration_mins: "", language: "", task_description: "" }
+  return { date_given: today, client_name: "", title: "", amount: "", drive_link: "", notes: "", duration_mins: "", language: "", task_description: "", payment_status: "unpaid" }
 }
 
 // ── Shared field styles ───────────────────────────────────────────────────────
@@ -313,6 +314,25 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
           <input type="text" value={entry.drive_link} onChange={e => onChange("drive_link", e.target.value)} placeholder="Paste Google Drive link..." style={FIELD} />
         </div>
 
+        {/* Payment Status */}
+        <div>
+          <label style={LABEL}>Payment Status</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            {(["unpaid", "paid"] as const).map(s => (
+              <button key={s} type="button"
+                onClick={() => onChange("payment_status", s)}
+                style={{
+                  flex: 1, padding: "9px 0", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "1.5px solid", transition: "all 0.15s",
+                  background: entry.payment_status === s ? (s === "paid" ? "rgba(16,185,129,0.1)" : "rgba(245,158,11,0.1)") : "#F9FAFB",
+                  borderColor: entry.payment_status === s ? (s === "paid" ? "#10B981" : "#F59E0B") : "#E5E7EB",
+                  color: entry.payment_status === s ? (s === "paid" ? "#059669" : "#D97706") : "#9CA3AF",
+                }}>
+                {s === "paid" ? "✓ Paid" : "⏳ Not Paid"}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Notes */}
         <div>
           <label style={LABEL}>Notes</label>
@@ -372,6 +392,7 @@ function WorkEntrySheet({ freelancer, activeClients, pastClients, onClose, onSav
           duration_mins: e.duration_mins ? parseFloat(e.duration_mins) : null,
           language: e.language || null,
           task_description: e.task_description || null,
+          payment_status: e.payment_status,
         })),
       })
       if (!result.success) {

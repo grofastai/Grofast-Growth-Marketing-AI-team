@@ -23,6 +23,7 @@ type WorkEntryPayload = {
   duration_mins: number | null
   language: string | null
   task_description: string | null
+  payment_status?: "unpaid" | "paid"
 }
 
 export async function saveFreelancerWorkEntry(input: {
@@ -57,7 +58,7 @@ export async function saveFreelancerWorkEntry(input: {
     duration_mins:    e.duration_mins,
     language:         e.language,
     task_description: e.task_description,
-    payment_status:   "unpaid",
+    payment_status:   e.payment_status ?? "unpaid",
   }))
 
   const { data, error } = await admin
@@ -70,6 +71,57 @@ export async function saveFreelancerWorkEntry(input: {
   revalidatePath("/member/freelancers")
   revalidatePath("/admin/freelancers")
   return { success: true, entries: (data ?? []) as WorkEntry[] }
+}
+
+export async function toggleFreelancerPaymentStatus(
+  entryId: string,
+  newStatus: "paid" | "unpaid"
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: "Not authenticated" }
+
+  const admin = adminClient()
+  const { error } = await admin
+    .from("freelancer_work_entries_v2")
+    .update({ payment_status: newStatus })
+    .eq("id", entryId)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath("/member/freelancers")
+  revalidatePath("/admin/freelancers")
+  return { success: true }
+}
+
+export async function updateFreelancerWorkEntry(
+  entryId: string,
+  payload: WorkEntryPayload & { date_finished: string }
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: "Not authenticated" }
+
+  const admin = adminClient()
+  const { error } = await admin
+    .from("freelancer_work_entries_v2")
+    .update({
+      date_finished:    payload.date_finished,
+      date_given:       payload.date_given,
+      client_name:      payload.client_name,
+      title:            payload.title,
+      amount:           payload.amount,
+      drive_link:       payload.drive_link,
+      notes:            payload.notes,
+      duration_mins:    payload.duration_mins,
+      language:         payload.language,
+      task_description: payload.task_description,
+    })
+    .eq("id", entryId)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath("/member/freelancers")
+  revalidatePath("/admin/freelancers")
+  return { success: true }
 }
 
 export async function getFreelancerWorkEntries(companyId: string, freelancerIds: string[]): Promise<WorkEntry[]> {

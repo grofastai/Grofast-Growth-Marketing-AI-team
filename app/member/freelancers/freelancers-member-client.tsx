@@ -111,13 +111,13 @@ type EntryItem = {
   hooks_completed: string
   edit_start_time: string
   edit_end_time: string
-  drive_updated: boolean
+  drive_updated: string    // "yes" | "no"
   // Videography
   time_from: string
   time_to: string
   travel_time: string
   location: string
-  video_uploaded: boolean
+  video_uploaded: string   // "yes" | "no"
 }
 
 function calcDurationFromTimes(from: string, to: string): string {
@@ -141,8 +141,8 @@ function blankEntry(today: string): EntryItem {
   return {
     date_given: today, client_name: "", title: "", amount: "", drive_link: "", notes: "",
     duration_mins: "", language: "", task_description: "", payment_status: "unpaid",
-    video_type: "", revisions: "0", hooks_completed: "0", edit_start_time: "", edit_end_time: "", drive_updated: false,
-    time_from: "", time_to: "", travel_time: "", location: "", video_uploaded: false,
+    video_type: "", revisions: "0", hooks_completed: "0", edit_start_time: "", edit_end_time: "", drive_updated: "no",
+    time_from: "", time_to: "", travel_time: "", location: "", video_uploaded: "no",
   }
 }
 
@@ -177,7 +177,24 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
   const cfg = TEAM_CFG[team]
   const isDevType = team === "Freelance Development & Automation" || team === "Freelance Marketing & Operations" || team === "Freelance IT Technology & Media"
   const isVoiceover = team === "Freelance RJ Voiceover"
+  const isVideoEditing = team === "Freelance Video Editing"
+  const isVideography = team === "Freelance Videography"
   const showNotes = team !== "Freelance Development & Automation" && team !== "Freelance IT Technology & Media"
+
+  function handleEditTimeChange(field: "edit_start_time" | "edit_end_time", val: string) {
+    onChange(field, val)
+    const start = field === "edit_start_time" ? val : entry.edit_start_time
+    const end = field === "edit_end_time" ? val : entry.edit_end_time
+    const dur = calcDurationFromTimes(start, end)
+    if (dur) onChange("duration_mins", dur)
+  }
+  function handleShootTimeChange(field: "time_from" | "time_to", val: string) {
+    onChange(field, val)
+    const from = field === "time_from" ? val : entry.time_from
+    const to = field === "time_to" ? val : entry.time_to
+    const dur = calcDurationFromTimes(from, to)
+    if (dur) onChange("duration_mins", dur)
+  }
 
   const titleLabel =
     isVoiceover ? "Script / Content Name *"
@@ -269,6 +286,74 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
           <input type="text" value={entry.title} onChange={e => onChange("title", e.target.value)} placeholder={titlePlaceholder} style={FIELD} />
         </div>
 
+        {/* Video Editing extras */}
+        {isVideoEditing && (<>
+          <div>
+            <label style={LABEL}>Video Type *</label>
+            <div style={{ position: "relative" }}>
+              <select value={entry.video_type} onChange={e => onChange("video_type", e.target.value)} style={{ ...FIELD, appearance: "none", paddingRight: 34 }}>
+                <option value="">Select type…</option>
+                {["Reels / Short","YouTube","Ad Film","Corporate","Documentary","Other"].map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <ChevronDown size={13} style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={LABEL}>Edit Start Time</label>
+              <input type="time" value={entry.edit_start_time} onChange={e => handleEditTimeChange("edit_start_time", e.target.value)} style={{ ...FIELD, colorScheme: "light" }} />
+            </div>
+            <div>
+              <label style={LABEL}>Edit End Time</label>
+              <input type="time" value={entry.edit_end_time} onChange={e => handleEditTimeChange("edit_end_time", e.target.value)} style={{ ...FIELD, colorScheme: "light" }} />
+            </div>
+          </div>
+          {entry.edit_start_time && entry.edit_end_time && formatDuration(calcDurationFromTimes(entry.edit_start_time, entry.edit_end_time)) && (
+            <div style={{ padding: "8px 14px", borderRadius: 8, background: `${cfg.color}10`, border: `1px solid ${cfg.border}`, fontSize: 12, fontWeight: 700, color: cfg.color }}>
+              ⏱ Duration: {formatDuration(calcDurationFromTimes(entry.edit_start_time, entry.edit_end_time))}
+            </div>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={LABEL}>Revisions</label>
+              <input type="number" min="0" step="1" value={entry.revisions} onChange={e => onChange("revisions", e.target.value)} style={{ ...FIELD, textAlign: "center" }} />
+            </div>
+            <div>
+              <label style={LABEL}>Hooks Done</label>
+              <input type="number" min="0" step="1" value={entry.hooks_completed} onChange={e => onChange("hooks_completed", e.target.value)} style={{ ...FIELD, textAlign: "center" }} />
+            </div>
+          </div>
+        </>)}
+
+        {/* Videography extras */}
+        {isVideography && (<>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={LABEL}>Time From *</label>
+              <input type="time" value={entry.time_from} onChange={e => handleShootTimeChange("time_from", e.target.value)} style={{ ...FIELD, colorScheme: "light" }} />
+            </div>
+            <div>
+              <label style={LABEL}>Time To *</label>
+              <input type="time" value={entry.time_to} onChange={e => handleShootTimeChange("time_to", e.target.value)} style={{ ...FIELD, colorScheme: "light" }} />
+            </div>
+          </div>
+          {entry.time_from && entry.time_to && formatDuration(calcDurationFromTimes(entry.time_from, entry.time_to)) && (
+            <div style={{ padding: "8px 14px", borderRadius: 8, background: `${cfg.color}10`, border: `1px solid ${cfg.border}`, fontSize: 12, fontWeight: 700, color: cfg.color }}>
+              ⏱ Duration: {formatDuration(calcDurationFromTimes(entry.time_from, entry.time_to))}
+            </div>
+          )}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div>
+              <label style={LABEL}>Travel Time</label>
+              <input type="text" value={entry.travel_time} onChange={e => onChange("travel_time", e.target.value)} placeholder="e.g. 45 mins" style={FIELD} />
+            </div>
+            <div>
+              <label style={LABEL}>Location</label>
+              <input type="text" value={entry.location} onChange={e => onChange("location", e.target.value)} placeholder="e.g. Chennai" style={FIELD} />
+            </div>
+          </div>
+        </>)}
+
         {/* Dev / Marketing / IT — Task Description */}
         {isDevType && (
           <div>
@@ -332,6 +417,44 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
               placeholder="e.g. 500" style={{ ...FIELD, paddingLeft: 28 }} />
           </div>
         </div>
+
+        {/* Drive Updated toggle — Video Editing only */}
+        {isVideoEditing && (
+          <div>
+            <label style={LABEL}>Drive Updated?</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {(["no", "yes"] as const).map(v => (
+                <button key={v} type="button" onClick={() => onChange("drive_updated", v)}
+                  style={{ flex: 1, padding: "9px 0", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "1.5px solid", transition: "all 0.15s",
+                    background: entry.drive_updated === v ? (v === "yes" ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.07)") : "#F9FAFB",
+                    borderColor: entry.drive_updated === v ? (v === "yes" ? "#10B981" : "#EF4444") : "#E5E7EB",
+                    color: entry.drive_updated === v ? (v === "yes" ? "#059669" : "#DC2626") : "#9CA3AF",
+                  }}>
+                  {v === "yes" ? "✓ Yes" : "✗ No"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Video Uploaded toggle — Videography only */}
+        {isVideography && (
+          <div>
+            <label style={LABEL}>Video Uploaded?</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              {(["no", "yes"] as const).map(v => (
+                <button key={v} type="button" onClick={() => onChange("video_uploaded", v)}
+                  style={{ flex: 1, padding: "9px 0", borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "1.5px solid", transition: "all 0.15s",
+                    background: entry.video_uploaded === v ? (v === "yes" ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.07)") : "#F9FAFB",
+                    borderColor: entry.video_uploaded === v ? (v === "yes" ? "#10B981" : "#EF4444") : "#E5E7EB",
+                    color: entry.video_uploaded === v ? (v === "yes" ? "#059669" : "#DC2626") : "#9CA3AF",
+                  }}>
+                  {v === "yes" ? "✓ Yes" : "✗ No"}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Payment Status */}
         <div>
@@ -413,7 +536,11 @@ function WorkEntrySheet({ freelancer, activeClients, pastClients, onClose, onSav
           notes: e.notes || null,
           duration_mins: e.duration_mins ? parseFloat(e.duration_mins) : null,
           language: e.language || null,
-          task_description: e.task_description || null,
+          task_description: freelancer.team === "Freelance Video Editing"
+            ? JSON.stringify({ video_type: e.video_type, revisions: e.revisions, hooks: e.hooks_completed, start: e.edit_start_time, end: e.edit_end_time, drive_updated: e.drive_updated })
+            : freelancer.team === "Freelance Videography"
+            ? JSON.stringify({ travel_time: e.travel_time, location: e.location, video_uploaded: e.video_uploaded })
+            : e.task_description || null,
           payment_status: e.payment_status,
         })),
       })
@@ -616,8 +743,8 @@ function EditEntrySheet({ entry, activeClients, pastClients, onClose, onSaved }:
     notes: entry.notes ?? "", duration_mins: entry.duration_mins?.toString() ?? "",
     language: entry.language ?? "", task_description: entry.task_description ?? "",
     payment_status: entry.payment_status,
-    video_type: "", revisions: "0", hooks_completed: "0", edit_start_time: "", edit_end_time: "", drive_updated: false,
-    time_from: "", time_to: "", travel_time: "", location: "", video_uploaded: false,
+    video_type: "", revisions: "0", hooks_completed: "0", edit_start_time: "", edit_end_time: "", drive_updated: "no",
+    time_from: "", time_to: "", travel_time: "", location: "", video_uploaded: "no",
   })
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()

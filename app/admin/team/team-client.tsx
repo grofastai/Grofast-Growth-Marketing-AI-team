@@ -485,10 +485,10 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                         ) : (
                           <>
                             <optgroup label="── Login (has app access)">
-                              {(["Freelance Media Production","Freelance Video Editing","Freelance Videography"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                              {(["Freelance Media Production"] as const).map(t => <option key={t} value={t}>{t}</option>)}
                             </optgroup>
                             <optgroup label="── No Login (manager enters work)">
-                              {(["Freelance RJ Voiceover","Freelance Graphics Designer","Freelance Content Writer","Freelance Development & Automation","Freelance Marketing & Operations","Freelance IT Technology & Media"] as const).map(t => <option key={t} value={t}>{t}</option>)}
+                              {(["Freelance Video Editing","Freelance Videography","Freelance RJ Voiceover","Freelance Graphics Designer","Freelance Content Writer","Freelance Development & Automation","Freelance Marketing & Operations","Freelance IT Technology & Media"] as const).map(t => <option key={t} value={t}>{t}</option>)}
                             </optgroup>
                           </>
                         )}
@@ -789,7 +789,9 @@ const FL_TYPES = [
 
 // No-login freelancers — keys match NO_LOGIN_TEAMS and FREELANCER_TEAMS exactly
 const NO_LOGIN_FL_TYPES = [
-  { key: "Freelance RJ Voiceover",            label: "RJ Voiceover",    emoji: "🎙️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.3)" },
+  { key: "Freelance Video Editing",            label: "Video Editing",   emoji: "✂️", color: "#6366F1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.3)" },
+  { key: "Freelance Videography",              label: "Videography",     emoji: "🎥", color: "#0EA5E9", bg: "rgba(14,165,233,0.08)",   border: "rgba(14,165,233,0.3)" },
+  { key: "Freelance RJ Voiceover",             label: "RJ Voiceover",    emoji: "🎙️", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)", border: "rgba(139,92,246,0.3)" },
   { key: "Freelance Graphics Designer",        label: "Graphics Design", emoji: "🎨", color: "#F97316", bg: "rgba(249,115,22,0.08)",  border: "rgba(249,115,22,0.3)" },
   { key: "Freelance Content Writer",           label: "Content Writer",  emoji: "✍️", color: "#14B8A6", bg: "rgba(20,184,166,0.08)",  border: "rgba(20,184,166,0.3)" },
   { key: "Freelance Development & Automation", label: "Dev & Auto",      emoji: "💻", color: "#6366F1", bg: "rgba(99,102,241,0.08)",  border: "rgba(99,102,241,0.3)" },

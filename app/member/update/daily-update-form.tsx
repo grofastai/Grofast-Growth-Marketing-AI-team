@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useTransition, useMemo, useEffect, useRef, Fragment, type CSSProperties } from "react"
 import { useRouter } from "next/navigation"
@@ -9,11 +9,10 @@ import {
   ChevronDown, Upload, Link2, Zap, BarChart2, MoreHorizontal, Calendar, X,
 } from "lucide-react"
 import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
+import { buildClientOptions } from "@/lib/utils/client-options"
 
 interface Project { id: string; business_name: string }
 interface TeamMember { id: string; name: string; employee_id: string; role: string; team?: string | null }
-
-const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 
 interface ShootEntry {
   id: string; clientName: string; customClient: string; title: string
@@ -391,20 +390,9 @@ export default function DailyUpdateForm({
 
   const [tab, setTab] = useState<"working" | "media" | "learning" | "break">(isMediaTeam ? "media" : "working")
 
-  // Normalize: collapse all whitespace (including non-breaking spaces) to single space, lowercase
-  const norm = (s: string) => s.replace(/[\s ]+/g, " ").trim().toLowerCase()
-  const seenLower = new Set(INTERNAL_BRANDS.map(norm))
-  const activeClientOptions: string[] = [...INTERNAL_BRANDS]
-  for (const n of [...projects.map(p => p.business_name), ...sheetClientNames]) {
-    const t = n?.replace(/[\s ]+/g, " ").trim()
-    if (t && !seenLower.has(norm(t))) { seenLower.add(norm(t)); activeClientOptions.push(t) }
-  }
-  // Past clients — deduped against active list
-  const pastClientOptions: string[] = []
-  for (const n of pastClientNames) {
-    const t = n?.replace(/[\s ]+/g, " ").trim()
-    if (t && !seenLower.has(norm(t))) { seenLower.add(norm(t)); pastClientOptions.push(t) }
-  }
+  const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = buildClientOptions(
+    sheetClientNames, pastClientNames, projects.map(p => p.business_name)
+  )
   const allClientOptions = activeClientOptions
 
   // Tracks which entry IDs are in "past clients" mode

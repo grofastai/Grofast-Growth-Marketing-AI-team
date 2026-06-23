@@ -30,29 +30,27 @@ export default async function MemberFreelancersPage() {
   if (!profile?.company_id) redirect("/login")
   const cid = profile.company_id
 
-  const [freelancersResult, workEntriesResult, clientsResult] = await Promise.all([
+  const [freelancersResult, workEntriesResult, activeClientsResult, pastClientsResult] = await Promise.all([
     admin.from("freelancers").select("id, name, team, phone, rating, status, created_at")
       .eq("company_id", cid).not("team", "is", null).order("name"),
     admin.from("freelancer_work_entries_v2").select("*")
       .eq("company_id", cid).order("date_finished", { ascending: false }),
-    admin.from("clients").select("name, status").eq("company_id", cid).order("name"),
+    admin.from("clients").select("name").eq("company_id", cid).eq("status", "active").order("name"),
+    admin.from("clients").select("name").eq("company_id", cid).eq("status", "past").order("name"),
   ])
 
   const freelancers = (freelancersResult.data ?? []) as Freelancer[]
   const workEntries = (workEntriesResult.data ?? []) as WorkEntry[]
 
-  const INTERNAL = new Set(["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"])
-  const allClients = (clientsResult.data ?? []) as { name: string; status: string }[]
-  const clientNames = allClients
-    .filter(c => c.status === "active" && !INTERNAL.has(c.name))
-    .map(c => c.name)
-    .filter(Boolean)
+  const clientNames     = (activeClientsResult.data ?? []).map((c: { name: string }) => c.name).filter(Boolean)
+  const pastClientNames = (pastClientsResult.data ?? []).map((c: { name: string }) => c.name).filter(Boolean)
 
   return (
     <FreelancersMemberClient
       freelancers={freelancers}
       workEntries={workEntries}
       clientNames={clientNames}
+      pastClientNames={pastClientNames}
     />
   )
 }

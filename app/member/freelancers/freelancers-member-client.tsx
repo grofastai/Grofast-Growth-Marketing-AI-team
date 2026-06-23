@@ -3,6 +3,7 @@
 import { useState, useMemo, useTransition } from "react"
 import { X, Plus, ChevronDown, ChevronLeft, ChevronRight, Loader2, Star, Link2, FileText, IndianRupee, Users } from "lucide-react"
 import { saveFreelancerWorkEntry } from "@/lib/actions/freelancer-work"
+import { buildClientOptions } from "@/lib/utils/client-options"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -119,15 +120,20 @@ const LABEL: React.CSSProperties = {
 
 // ── Single entry card inside work sheet ──────────────────────────────────────
 
-function EntryCard({ team, entry, idx, clients, onChange, onRemove, canRemove }: {
+function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onRemove, canRemove }: {
   team: FreelancerTeam
   entry: EntryItem
   idx: number
-  clients: string[]
+  activeClients: string[]
+  pastClients: string[]
   onChange: (field: keyof EntryItem, val: string) => void
   onRemove: () => void
   canRemove: boolean
 }) {
+  const [showPast, setShowPast] = useState(pastClients.includes(entry.client_name))
+  const [customMode, setCustomMode] = useState(
+    !!entry.client_name && !activeClients.includes(entry.client_name) && !pastClients.includes(entry.client_name)
+  )
   const cfg = TEAM_CFG[team]
   const isDevType = team === "Freelance Development & Automation" || team === "Freelance Marketing & Operations" || team === "Freelance IT Technology & Media"
   const isVoiceover = team === "Freelance RJ Voiceover"
@@ -161,16 +167,62 @@ function EntryCard({ team, entry, idx, clients, onChange, onRemove, canRemove }:
           <input type="date" value={entry.date_given} onChange={e => onChange("date_given", e.target.value)} style={{ ...FIELD, colorScheme: "light" }} />
         </div>
 
-        {/* Client Name */}
+        {/* Client Name — exact same structure as daily update work log */}
         <div>
           <label style={LABEL}>Client Name *</label>
-          <div style={{ position: "relative" }}>
-            <select value={entry.client_name} onChange={e => onChange("client_name", e.target.value)} style={{ ...FIELD, appearance: "none", paddingRight: 34 }}>
-              <option value="">Select client...</option>
-              {clients.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <ChevronDown size={13} style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
-          </div>
+          {customMode ? (
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                type="text"
+                autoFocus
+                placeholder="Type client name…"
+                value={entry.client_name}
+                style={{ ...FIELD, flex: 1 }}
+                onChange={e => onChange("client_name", e.target.value)}
+              />
+              <button type="button"
+                onClick={() => { setCustomMode(false); setShowPast(false); onChange("client_name", "") }}
+                style={{ padding: "0 12px", borderRadius: 10, border: "1.5px solid #E5E7EB", background: "#F9FAFB", fontSize: 12, color: "#6B7280", cursor: "pointer", whiteSpace: "nowrap" }}>
+                ← Back
+              </button>
+            </div>
+          ) : showPast ? (
+            <div style={{ position: "relative" }}>
+              <select
+                autoFocus
+                value=""
+                onChange={e => {
+                  const v = e.target.value
+                  if (!v) return
+                  if (v === "__back__") { setShowPast(false); onChange("client_name", "") }
+                  else { onChange("client_name", v); setShowPast(false) }
+                }}
+                style={{ ...FIELD, appearance: "none", paddingRight: 34 }}>
+                <option value="">📁 Past Clients — select one…</option>
+                {pastClients.map(c => <option key={c} value={c}>{c}</option>)}
+                <option value="__back__">← Back to active clients</option>
+              </select>
+              <ChevronDown size={13} style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+            </div>
+          ) : (
+            <div style={{ position: "relative" }}>
+              <select
+                value={entry.client_name}
+                onChange={e => {
+                  const v = e.target.value
+                  if (v === "__past_clients__") { setShowPast(true) }
+                  else if (v === "__custom__") { setCustomMode(true); onChange("client_name", "") }
+                  else onChange("client_name", v)
+                }}
+                style={{ ...FIELD, appearance: "none", paddingRight: 34 }}>
+                <option value="">Select client…</option>
+                {activeClients.map(c => <option key={c} value={c}>{c}</option>)}
+                {pastClients.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                <option value="__custom__">✏️ Other (type manually)</option>
+              </select>
+              <ChevronDown size={13} style={{ position: "absolute", right: 11, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+            </div>
+          )}
         </div>
 
         {/* Title */}
@@ -237,9 +289,10 @@ function EntryCard({ team, entry, idx, clients, onChange, onRemove, canRemove }:
 
 // ── Work Entry Sheet ──────────────────────────────────────────────────────────
 
-function WorkEntrySheet({ freelancer, clients, onClose, onSaved }: {
+function WorkEntrySheet({ freelancer, activeClients, pastClients, onClose, onSaved }: {
   freelancer: Freelancer
-  clients: string[]
+  activeClients: string[]
+  pastClients: string[]
   onClose: () => void
   onSaved: (entries: WorkEntry[]) => void
 }) {
@@ -334,7 +387,8 @@ function WorkEntrySheet({ freelancer, clients, onClose, onSaved }: {
               team={freelancer.team}
               entry={entry}
               idx={idx}
-              clients={clients}
+              activeClients={activeClients}
+              pastClients={pastClients}
               onChange={(field, val) => updateEntry(idx, field, val)}
               onRemove={() => removeEntry(idx)}
               canRemove={entries.length > 1}
@@ -462,11 +516,17 @@ export default function FreelancersMemberClient({
   freelancers,
   workEntries: initialEntries,
   clientNames,
+  pastClientNames = [],
 }: {
   freelancers: Freelancer[]
   workEntries: WorkEntry[]
   clientNames: string[]
+  pastClientNames?: string[]
 }) {
+  const { activeOptions: activeClients, pastOptions: pastClients } = useMemo(
+    () => buildClientOptions(clientNames, pastClientNames),
+    [clientNames, pastClientNames]
+  )
   const [workEntries, setWorkEntries] = useState(initialEntries)
   const [teamFilter, setTeamFilter] = useState<"all" | FreelancerTeam>("all")
   const [selectedMonth, setSelectedMonth] = useState(currentYM())
@@ -636,7 +696,8 @@ export default function FreelancersMemberClient({
       {addWorkFor && (
         <WorkEntrySheet
           freelancer={addWorkFor}
-          clients={clientNames}
+          activeClients={activeClients}
+          pastClients={pastClients}
           onClose={() => setAddWorkFor(null)}
           onSaved={handleSaved}
         />

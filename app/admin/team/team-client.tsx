@@ -44,6 +44,8 @@ const FREELANCER_TEAMS = [
   "Freelance Development & Automation",
   "Freelance Marketing & Operations",
   "Freelance IT Technology & Media",
+  "Freelance Video Editing",
+  "Freelance Videography",
 ] as const
 
 interface Member {
@@ -111,6 +113,8 @@ function teamColor(team: string | null): { bg: string; color: string } {
   if (team === "AI Development & Automation" || team === "Freelance Development & Automation") return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
   if (team === "Performance Marketing & Operations" || team === "Freelance Marketing & Operations" || team === "Technology & Operation Team" || team.includes("Tech & Ops")) return { bg: "rgba(16,185,129,0.1)", color: "#10B981" }
   if (team === "AI Development & Media" || team === "Freelance IT Technology & Media" || team.includes("Media & Tech")) return { bg: "rgba(139,92,246,0.1)", color: "#8B5CF6" }
+  if (team === "Freelance Video Editing") return { bg: "rgba(99,102,241,0.1)", color: "#6366F1" }
+  if (team === "Freelance Videography") return { bg: "rgba(239,68,68,0.1)", color: "#EF4444" }
   return { bg: "#F3F4F6", color: "#6B7280" }
 }
 
@@ -126,6 +130,8 @@ function teamShort(team: string | null) {
   if (team === "Freelance Development & Automation") return "FL Dev & Auto"
   if (team === "Freelance Marketing & Operations") return "FL Marketing"
   if (team === "Freelance IT Technology & Media") return "FL IT & Media"
+  if (team === "Freelance Video Editing") return "FL Editing"
+  if (team === "Freelance Videography") return "FL Videography"
   return team
 }
 

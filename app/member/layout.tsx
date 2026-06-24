@@ -25,10 +25,14 @@ export default async function MemberLayout({ children }: { children: React.React
   const impersonateId = cookieStore.get("gf_impersonate")?.value
 
   const [{ data: profile }, unreadCount, gate] = await Promise.all([
-    admin.from("users").select("name, employee_id, role, must_change_password, photo_url, company_id, can_manage_freelancers").eq("id", user.id).single(),
+    admin.from("users").select("name, employee_id, role, must_change_password, photo_url, company_id, can_manage_freelancers, team").eq("id", user.id).single(),
     getNotificationCount(),
     getYesterdayGateStatus(),
   ])
+
+  // Login freelancers on the "Freelance Media Production" team get a trimmed media
+  // portal — no Attendance/Content Calendar/Leaves, no clock-in gate.
+  const isFreelancerMedia = profile?.team === "Freelance Media Production"
 
   // Check if this user has any freelancers assigned
   const elevatedRoles = ["ADMIN", "FOUNDER", "CEO", "FREELANCER_MGR"]
@@ -50,7 +54,7 @@ export default async function MemberLayout({ children }: { children: React.React
   if (profile?.role === "ADMIN" && impersonateId) {
     const { data: impProfile } = await admin
       .from("users")
-      .select("name, employee_id, photo_url, company_id")
+      .select("name, employee_id, photo_url, company_id, team")
       .eq("id", impersonateId)
       .eq("company_id", profile.company_id ?? "")
       .single()
@@ -77,6 +81,7 @@ export default async function MemberLayout({ children }: { children: React.React
           unreadCount={unreadCount}
           photoUrl={impProfile.photo_url ?? null}
           canManageFreelancers={impHasFreelancers}
+          isFreelancerMedia={impProfile.team === "Freelance Media Production"}
         />
         <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0">
           {children}
@@ -93,17 +98,20 @@ export default async function MemberLayout({ children }: { children: React.React
 
   return (
     <div className="flex min-h-screen" style={{ background: "#EDEEF2" }}>
-      <MemberGate
-        forgotLogout={gate.forgotLogout}
-        missingUpdate={gate.missingUpdate}
-        yesterdayDate={gate.yesterdayDate}
-      />
+      {!isFreelancerMedia && (
+        <MemberGate
+          forgotLogout={gate.forgotLogout}
+          missingUpdate={gate.missingUpdate}
+          yesterdayDate={gate.yesterdayDate}
+        />
+      )}
       <MemberSidebar
         name={profile?.name ?? "Member"}
         employeeId={profile?.employee_id ?? ""}
         unreadCount={unreadCount}
         photoUrl={profile?.photo_url ?? null}
         canManageFreelancers={hasFreelancers}
+        isFreelancerMedia={isFreelancerMedia}
       />
       <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0">
         {children}

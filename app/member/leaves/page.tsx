@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import MemberLeavesClient from "./leaves-client"
+import { blockFreelancerMedia } from "@/lib/utils/freelancer-guard"
 
 function adminSupabase() {
   return createClient(
@@ -15,6 +16,7 @@ function adminSupabase() {
 }
 
 export default async function MemberLeavesPage() {
+  await blockFreelancerMedia()
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")

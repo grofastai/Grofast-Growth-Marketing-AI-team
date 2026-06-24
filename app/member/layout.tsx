@@ -5,6 +5,7 @@ import { cookies } from "next/headers"
 import MemberSidebar from "@/components/member/sidebar"
 import { getNotificationCount } from "@/lib/actions/notifications"
 import { getYesterdayGateStatus } from "@/lib/actions/attendance"
+import { stopImpersonation } from "@/lib/actions/impersonate"
 import MemberGate from "@/components/member/member-gate"
 
 function adminSupabase() {
@@ -47,10 +48,9 @@ export default async function MemberLayout({ children }: { children: React.React
     hasFreelancers = (count ?? 0) > 0
   }
 
-  // Admin impersonation — render the member panel EXACTLY as the member sees it:
-  // no banner, no gate, no marginTop, no visual difference whatsoever. The admin
-  // exits via the normal "Sign Out" button, which detects the impersonation
-  // cookie (see logoutAction) and returns to the admin panel.
+  // Admin impersonation — render the member panel as the member sees it, plus a
+  // slim "Back to Admin" bar pinned at the top so the admin can return with one
+  // click (it also clarifies whose account is being viewed).
   if (profile?.role === "ADMIN" && impersonateId) {
     const { data: impProfile } = await admin
       .from("users")
@@ -84,6 +84,26 @@ export default async function MemberLayout({ children }: { children: React.React
           isFreelancerMedia={impProfile.team === "Freelance Media Production"}
         />
         <main className="flex-1 md:ml-[64px] lg:ml-[240px] min-h-screen overflow-x-hidden pt-14 md:pt-0 pb-16 md:pb-0">
+          {/* Admin impersonation bar — sticky at the top of the member view */}
+          <form
+            action={stopImpersonation}
+            className="sticky top-0 z-50 flex items-center justify-between gap-3 px-4 py-2.5"
+            style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 100%)", boxShadow: "0 2px 10px rgba(0,0,0,0.18)" }}
+          >
+            <span style={{ fontSize: 12.5, fontWeight: 700, color: "#FFFFFF", display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+              <span style={{ fontSize: 14 }}>👁</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                Viewing as <strong>{impProfile.name}</strong>
+                {impProfile.employee_id ? ` · ${impProfile.employee_id}` : ""}
+              </span>
+            </span>
+            <button
+              type="submit"
+              style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 10, background: "#FFFFFF", color: "#B91212", fontSize: 12.5, fontWeight: 800, border: "none", cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              ← Back to Admin
+            </button>
+          </form>
           {children}
         </main>
       </div>

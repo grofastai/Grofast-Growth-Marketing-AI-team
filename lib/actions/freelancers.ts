@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { revalidatePath } from "next/cache"
 import { logFreelancerActivity } from "./freelancer-activity"
+import { normalizePhone } from "@/lib/utils/phone"
 
 function adminClient() {
   return createClient(
@@ -113,6 +114,19 @@ export async function createFreelancer(input: FreelancerInput): Promise<{ succes
   const { companyId, userId } = ctx
 
   const admin = adminClient()
+
+  // Block duplicate phone numbers within the same company
+  const target = normalizePhone(input.phone)
+  if (target.length >= 10) {
+    const { data: existing } = await admin
+      .from("freelancers")
+      .select("id, name, phone")
+      .eq("company_id", companyId)
+      .not("phone", "is", null)
+    const dup = (existing ?? []).find(f => normalizePhone(f.phone) === target)
+    if (dup) return { success: false, error: `This phone number is already used by "${dup.name}".` }
+  }
+
   const { data, error } = await admin.from("freelancers").insert({
     company_id: companyId,
     name: input.name,
@@ -156,6 +170,19 @@ export async function updateFreelancer(id: string, input: FreelancerInput): Prom
   if (!companyId) return { success: false, error: "Not authenticated" }
 
   const admin = adminClient()
+
+  // Block duplicate phone numbers within the same company (excluding this record)
+  const target = normalizePhone(input.phone)
+  if (target.length >= 10) {
+    const { data: existing } = await admin
+      .from("freelancers")
+      .select("id, name, phone")
+      .eq("company_id", companyId)
+      .not("phone", "is", null)
+    const dup = (existing ?? []).find(f => f.id !== id && normalizePhone(f.phone) === target)
+    if (dup) return { success: false, error: `This phone number is already used by "${dup.name}".` }
+  }
+
   const { error } = await admin.from("freelancers").update({
     name: input.name,
     type: input.type,

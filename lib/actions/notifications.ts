@@ -1,8 +1,8 @@
 'use server'
 
-import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { getEffectiveUserId } from './impersonate'
 
 function adminSupabase() {
   return createClient(
@@ -27,15 +27,14 @@ export interface NotificationRow {
 }
 
 export async function getUnreadNotifications(): Promise<NotificationRow[]> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
+  const uid = await getEffectiveUserId()
+  if (!uid) return []
 
   const admin = adminSupabase()
   const { data } = await admin
     .from('notifications')
     .select('id, type, title, body, read, link, created_at')
-    .eq('user_id', user.id)
+    .eq('user_id', uid)
     .eq('read', false)
     .not('type', 'in', `(${LOG_ONLY_TYPES.join(',')})`)
     .order('created_at', { ascending: false })
@@ -45,15 +44,14 @@ export async function getUnreadNotifications(): Promise<NotificationRow[]> {
 }
 
 export async function getNotificationCount(): Promise<number> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return 0
+  const uid = await getEffectiveUserId()
+  if (!uid) return 0
 
   const admin = adminSupabase()
   const { count } = await admin
     .from('notifications')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', user.id)
+    .eq('user_id', uid)
     .eq('read', false)
     .not('type', 'in', `(${LOG_ONLY_TYPES.join(',')})`)
 
@@ -61,28 +59,26 @@ export async function getNotificationCount(): Promise<number> {
 }
 
 export async function markAllRead(): Promise<{ success: boolean }> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false }
+  const uid = await getEffectiveUserId()
+  if (!uid) return { success: false }
 
   const admin = adminSupabase()
   await admin.from('notifications').update({ read: true })
-    .eq('user_id', user.id).eq('read', false)
+    .eq('user_id', uid).eq('read', false)
     .not('type', 'in', `(${LOG_ONLY_TYPES.join(',')})`)
   revalidatePath('/member', 'layout')
   return { success: true }
 }
 
 export async function getAllNotifications(): Promise<NotificationRow[]> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
+  const uid = await getEffectiveUserId()
+  if (!uid) return []
 
   const admin = adminSupabase()
   const { data } = await admin
     .from('notifications')
     .select('id, type, title, body, read, link, created_at')
-    .eq('user_id', user.id)
+    .eq('user_id', uid)
     .not('type', 'in', `(${LOG_ONLY_TYPES.join(',')})`)
     .order('created_at', { ascending: false })
 

@@ -669,7 +669,7 @@ export default function HistoryClient({
     // Also count clock-in dates in the selected month that have no daily_update record
     const updateDates = new Set(monthFiltered.map(u => u.date))
     const monthPrefix = selectedMonth
-      ? new Date(monthFiltered[0]?.date + "T12:00:00" || Date.now()).toISOString().slice(0, 7)
+      ? (monthFiltered[0]?.date ? new Date(monthFiltered[0].date + "T12:00:00").toISOString().slice(0, 7) : selectedMonth)
       : null
     for (const d of attendanceDates) {
       if (updateDates.has(d)) continue

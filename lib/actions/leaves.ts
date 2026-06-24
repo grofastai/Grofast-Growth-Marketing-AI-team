@@ -532,6 +532,23 @@ export async function updateLeaveStatus(
           status:     attStatus,
         }).then(({ error: e }) => { if (e) console.error('[leave approval] attendance insert:', e.message) })
       }
+      // For full_day leave: delete any empty daily_update row so the 🌴 leave card shows in history
+      if (leave.leave_type === 'full_day') {
+        const { data: du } = await admin
+          .from('daily_updates')
+          .select('id, work_entries')
+          .eq('company_id', leave.company_id)
+          .eq('user_id', leave.user_id)
+          .eq('date', dateStr)
+          .maybeSingle()
+        if (du) {
+          const entries = Array.isArray(du.work_entries) ? (du.work_entries as { task_type?: string }[]).filter(e => e.task_type !== 'break') : []
+          if (entries.length === 0) {
+            admin.from('daily_updates').delete().eq('id', du.id)
+              .then(({ error: e }) => { if (e) console.error('[leave approval] daily_update cleanup:', e.message) })
+          }
+        }
+      }
       curr.setDate(curr.getDate() + 1)
     }
 

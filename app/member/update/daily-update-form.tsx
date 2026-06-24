@@ -1683,7 +1683,7 @@ export default function DailyUpdateForm({
               )}
 
               {/* ── Voiceover Today section ─────────────────────────────── */}
-              {!isFreelancerMedia && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                 <SectionHead icon={<span style={{ fontSize:16 }}>🎙️</span>} label="Voiceover Today" count={voiceovers.length} color="#8B5CF6" />
                 {voiceovers.length === 0 ? (
                   <div onClick={addVoiceover} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #DDD6FE", background:"rgba(139,92,246,0.02)", cursor:"pointer" }}>
@@ -1778,7 +1778,7 @@ export default function DailyUpdateForm({
               </div>}
 
               {/* ── Poster Today section ────────────────────────────────── */}
-              {!isFreelancerMedia && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
                 <SectionHead icon={<span style={{ fontSize:16 }}>🖼️</span>} label="Poster Today" count={posters.length} color="#EC4899" />
                 {posters.length === 0 ? (
                   <div onClick={addPoster} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #FBCFE8", background:"rgba(236,72,153,0.02)", cursor:"pointer" }}>

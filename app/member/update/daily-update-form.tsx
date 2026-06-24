@@ -565,6 +565,12 @@ export default function DailyUpdateForm({
         .some(e => e.task_type === 'break' && Number(e.duration_hours) > 0))
 
   const [submitted,     setSubmitted]     = useState(false)
+  const [successPopup,  setSuccessPopup]  = useState<string | null>(null)
+  useEffect(() => {
+    if (!successPopup) return
+    const t = setTimeout(() => setSuccessPopup(null), 2500)
+    return () => clearTimeout(t)
+  }, [successPopup])
   const [workingDone,   setWorkingDone]   = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).working_hours))
   const [learningDone,  setLearningDone]  = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).learning_hours))
   const [learningStarted, setLearningStarted] = useState(!!(existingUpdate && (existingUpdate as Record<string,unknown>).learning_hours))
@@ -795,11 +801,13 @@ export default function DailyUpdateForm({
         if (isPastDate) {
           // Past date: show success banner, reset form for another entry, refresh data
           setSubmitted(true)
+          setSuccessPopup("working")
           setTimeBlocks([])
           setVoiceovers([])
           setPosters([])
           router.refresh()
         } else {
+          setSuccessPopup("working")
           setWorkingDone(true); router.refresh()
         }
       }
@@ -907,9 +915,11 @@ export default function DailyUpdateForm({
       else {
         if (isPastDate) {
           setSubmitted(true)
+          setSuccessPopup("media")
           setShoots([]); setEdits([]); setVoiceovers([]); setPosters([])
           router.refresh()
         } else {
+          setSuccessPopup("media")
           setMediaDone(true); setEditMode(false); router.refresh()
         }
       }
@@ -1085,7 +1095,7 @@ export default function DailyUpdateForm({
         })),
       })
       if (!res.success) setLearningError(res.error ?? "Submission failed.")
-      else { setLearningDone(true); setEditMode(false); router.refresh() }
+      else { setSuccessPopup("learning"); setLearningDone(true); setEditMode(false); router.refresh() }
     })
   }
 
@@ -1140,7 +1150,7 @@ export default function DailyUpdateForm({
         participant_ids: allParticipantIds,
       })
       if (!res.success) setError(res.error ?? "Submission failed.")
-      else { if (isMediaTeam) { setBreaksDone(true); setEditMode(false) } else setWorkingDone(true); router.refresh() }
+      else { setSuccessPopup("break"); if (isMediaTeam) { setBreaksDone(true); setEditMode(false) } else setWorkingDone(true); router.refresh() }
     })
   }
 
@@ -1216,6 +1226,21 @@ export default function DailyUpdateForm({
 
     return (
       <div style={{ background:"#F5F6FA", minHeight:"100vh", padding:"24px 16px" }}>
+        {successPopup && (
+          <div onClick={() => setSuccessPopup(null)} style={{ position:"fixed", inset:0, zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.45)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:24, padding:"36px 40px", textAlign:"center", boxShadow:"0 24px 80px rgba(0,0,0,0.2)", maxWidth:320, width:"calc(100% - 48px)", animation:"gf-pop 0.3s cubic-bezier(0.34,1.56,0.64,1)" }}>
+              <style>{`@keyframes gf-pop{from{opacity:0;transform:scale(0.7)}to{opacity:1;transform:scale(1)}}`}</style>
+              <div style={{ width:72, height:72, borderRadius:"50%", background:"linear-gradient(135deg,#22C55E,#16A34A)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 18px", boxShadow:"0 8px 24px rgba(34,197,94,0.4)" }}>
+                <CheckCircle2 size={36} color="#fff" strokeWidth={2.5} />
+              </div>
+              <p style={{ fontSize:20, fontWeight:900, color:"#111827", margin:"0 0 6px", fontFamily:"var(--font-jakarta)" }}>Successfully Submitted!</p>
+              <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 22px", lineHeight:1.5 }}>
+                {successPopup === "working" ? "Work log saved ✓" : successPopup === "media" ? "Shoots & edits saved ✓" : successPopup === "learning" ? "Learning block saved ✓" : "Break saved ✓"}
+              </p>
+              <button onClick={() => setSuccessPopup(null)} style={{ background:"linear-gradient(135deg,#22C55E,#16A34A)", color:"#fff", border:"none", borderRadius:12, padding:"10px 28px", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(34,197,94,0.35)" }}>Done</button>
+            </div>
+          </div>
+        )}
         {/* Date selector strip */}
         <div style={{ background:"#FFFFFF", borderRadius:14, border: isPastDate ? "1.5px solid #F59E0B" : "1px solid #EBEDF2", padding:"10px 16px", display:"flex", alignItems:"center", gap:12, marginBottom:16, flexWrap:"wrap" }}>
           <div style={{ display:"flex", alignItems:"center", gap:8, flex:1, minWidth:200 }}>
@@ -1481,6 +1506,23 @@ export default function DailyUpdateForm({
           </label>
         </div>
       </div>
+
+      {/* ── SUCCESS POPUP (all dates, all tabs) ─────────────────────────── */}
+      {successPopup && (
+        <div onClick={() => setSuccessPopup(null)} style={{ position:"fixed", inset:0, zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.45)", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:"#fff", borderRadius:24, padding:"36px 40px", textAlign:"center", boxShadow:"0 24px 80px rgba(0,0,0,0.2)", maxWidth:320, width:"calc(100% - 48px)", animation:"gf-pop 0.3s cubic-bezier(0.34,1.56,0.64,1)" }}>
+            <style>{`@keyframes gf-pop{from{opacity:0;transform:scale(0.7)}to{opacity:1;transform:scale(1)}}`}</style>
+            <div style={{ width:72, height:72, borderRadius:"50%", background:"linear-gradient(135deg,#22C55E,#16A34A)", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 18px", boxShadow:"0 8px 24px rgba(34,197,94,0.4)" }}>
+              <CheckCircle2 size={36} color="#fff" strokeWidth={2.5} />
+            </div>
+            <p style={{ fontSize:20, fontWeight:900, color:"#111827", margin:"0 0 6px", fontFamily:"var(--font-jakarta)" }}>Successfully Submitted!</p>
+            <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 22px", lineHeight:1.5 }}>
+              {successPopup === "working" ? "Work log saved ✓" : successPopup === "media" ? "Shoots & edits saved ✓" : successPopup === "learning" ? "Learning block saved ✓" : "Break saved ✓"}
+            </p>
+            <button onClick={() => setSuccessPopup(null)} style={{ background:"linear-gradient(135deg,#22C55E,#16A34A)", color:"#fff", border:"none", borderRadius:12, padding:"10px 28px", fontSize:13, fontWeight:700, cursor:"pointer", boxShadow:"0 4px 14px rgba(34,197,94,0.35)" }}>Done</button>
+          </div>
+        </div>
+      )}
 
       {/* ── PAST DATE SUCCESS BANNER ─────────────────────────────────────── */}
       {isPastDate && submitted && (

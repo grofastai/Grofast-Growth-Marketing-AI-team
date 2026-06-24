@@ -469,6 +469,7 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
 }> {
   const ctxResult = await getUserContext()
   if ('error' in ctxResult) return { success: false, logs: [], leaveDates: [], holidayDates: [], error: ctxResult.error }
+
   const ctx = ctxResult
 
   const admin = adminSupabase()
@@ -504,7 +505,7 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
       .lte('date', endDate),
   ])
 
-  if (attResult.error) return { success: false, logs: [], leaveDates: [], error: attResult.error.message }
+  if (attResult.error) return { success: false, logs: [], leaveDates: [], holidayDates: [], error: attResult.error.message }
 
   const workedByDate: Record<string, number> = {}
   const learnByDate: Record<string, number>  = {}

@@ -488,7 +488,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
         {/* RIGHT — monthly quick stats (media/non-media) + salary + today summary */}
         <div className="space-y-3">
-          {rightStats.map(stat => (
+          {!isFreelancerMedia && rightStats.map(stat => (
             <Link key={stat.label} href={stat.href}
               className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
               style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>

@@ -1343,8 +1343,11 @@ export default function DailyUpdateForm({
     { id: "learning"as const, label: "📚  Learning", desc: "Skills & growth" },
     { id: "break"   as const, label: "☕  Break",     desc: "Break in / break out" },
   ]
+  const isFreelancerMedia = team === "Freelance Media Production"
   const TABS = isMediaTeam
-    ? ALL_TABS.filter(t => t.id === "media" || t.id === "learning" || t.id === "break")
+    ? isFreelancerMedia
+      ? ALL_TABS.filter(t => t.id === "media" || t.id === "learning")
+      : ALL_TABS.filter(t => t.id === "media" || t.id === "learning" || t.id === "break")
     : ALL_TABS.filter(t => t.id === "working" || t.id === "learning" || t.id === "break")
 
   return (

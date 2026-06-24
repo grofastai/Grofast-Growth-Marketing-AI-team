@@ -464,14 +464,15 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
   success: boolean
   logs: Array<{ id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number; break_in: string | null; break_out: string | null; work_type: string | null; status: string; learning_hours: number; worked_hours: number; entries_break_hours: number }>
   leaveDates: string[]
+  holidayDates: { date: string; name: string }[]
   error?: string
 }> {
   const ctxResult = await getUserContext()
-  if ('error' in ctxResult) return { success: false, logs: [], leaveDates: [], error: ctxResult.error }
+  if ('error' in ctxResult) return { success: false, logs: [], leaveDates: [], holidayDates: [], error: ctxResult.error }
   const ctx = ctxResult
 
   const admin = adminSupabase()
-  const [attResult, updatesResult, leavesResult] = await Promise.all([
+  const [attResult, updatesResult, leavesResult, holidaysResult] = await Promise.all([
     admin
       .from('attendance_logs')
       .select('id, date, clock_in, clock_out, break_total_mins, break_in, break_out, work_type, status')
@@ -495,6 +496,12 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
       .eq('status', 'approved')
       .lte('from_date', endDate)
       .gte('to_date', startDate),
+    admin
+      .from('company_leaves')
+      .select('date, name')
+      .eq('company_id', ctx.companyId)
+      .gte('date', startDate)
+      .lte('date', endDate),
   ])
 
   if (attResult.error) return { success: false, logs: [], leaveDates: [], error: attResult.error.message }
@@ -537,7 +544,9 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
     }
   }
 
-  return { success: true, logs, leaveDates }
+  const holidayDates = (holidaysResult.data ?? []) as { date: string; name: string }[]
+
+  return { success: true, logs, leaveDates, holidayDates }
 }
 
 export async function getYesterdayGateStatus(): Promise<{

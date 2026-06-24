@@ -377,7 +377,6 @@ export default function HistoryClient({
   // Per-entry edit state
   const [editingKey, setEditingKey]   = useState<string | null>(null) // "updateId:entryIdx"
   const [editDraft, setEditDraft]     = useState<Partial<WorkEntry>>({})
-  const [editEntryStatus, setEditEntryStatus] = useState<"completed" | "in_progress" | "not_started">("not_started")
   const [savingKey, setSavingKey]     = useState<string | null>(null)
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
 
@@ -418,10 +417,9 @@ export default function HistoryClient({
     setEditOrigDate(updateDate)
     setEditingKey(`${updateId}:${entryIdx}`)
     let notes = entry.notes ?? ""
-    let parsedStatus: "completed" | "in_progress" | "not_started" = "not_started"
     if (entry.task_type === "other") {
-      const m = notes.match(/^\[(completed|in_progress|not_started)\]$/)
-      if (m) { parsedStatus = m[1] as typeof parsedStatus; notes = "" }
+      // Strip any legacy [status] marker so it never shows in the notes field
+      if (notes.match(/^\[(completed|in_progress|not_started)\]$/)) notes = ""
     }
     // For shoot entries: parse _travel_hours and _location from old concatenated notes as fallback
     let parsedTravelHours = entry._travel_hours ?? 0
@@ -438,7 +436,6 @@ export default function HistoryClient({
       }
       notes = stripShootNotes(notes)
     }
-    setEditEntryStatus(parsedStatus)
     const BREAK_LABELS = ["Lunch", "Lunch Break", "Tea", "Short Break", "Personal", "Permission", "Early Logoff", "Late Login"]
     const isCustomBreak = entry.task_type === "break" && !BREAK_LABELS.includes(entry.title)
     setEditDraft({
@@ -490,7 +487,7 @@ export default function HistoryClient({
     setSavingKey(key)
     let draftToSave: Partial<WorkEntry> = { ...editDraft }
     if (editDraft.task_type === "other") {
-      draftToSave = { ...editDraft, notes: `[${editEntryStatus}]` }
+      draftToSave = { ...editDraft, notes: "" }
     } else if (editDraft.task_type === "shoot") {
       const travelH = editDraft._travel_hours ?? 0
       const dur = calcDur(editDraft.start_time, editDraft.end_time) || editDraft.duration_hours || 0
@@ -2203,11 +2200,31 @@ export default function HistoryClient({
                                         <label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:6 }}>
                                           Client {(editDraft.client_names??[]).length > 1 && <span style={{ color:"#de1a1a", fontWeight:700 }}>· Split cost ({(editDraft.client_names??[]).length} clients)</span>}
                                         </label>
-                                        <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
-                                          {activeClientsForEdit.map(name=>{const selected=(editDraft.client_names??[]).some(n=>n.toLowerCase()===name.toLowerCase());return(<button key={name} type="button" onClick={()=>{const cur=editDraft.client_names??[];const idx=cur.findIndex(n=>n.toLowerCase()===name.toLowerCase());const next=idx>=0?cur.filter((_,i)=>i!==idx):[...cur,name];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name,is_multi_client:next.length>1}))}} style={{ padding:"5px 12px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${selected?"#de1a1a":"#EBEDF2"}`, background:selected?"rgba(222,26,26,0.08)":"#F9FAFB", color:selected?"#de1a1a":"#6B7280" }}>{name}</button>)})}
+                                        <div style={{ position:"relative" }}>
+                                          {editClientShowPast ? (
+                                            <select value="" onChange={ev=>{const v=ev.target.value;if(!v)return;if(v==="__back__"){setEditClientShowPast(false);return}const cur=editDraft.client_names??[];if(!cur.some(n=>n.toLowerCase()===v.toLowerCase())){const next=[...cur,v];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name,is_multi_client:next.length>1}))}setEditClientShowPast(false)}} style={{ background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 28px 9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box", appearance:"none", fontWeight:600, cursor:"pointer" }}>
+                                              <option value="__back__">← Back to Active Clients</option>
+                                              {pastClientsOnly.filter(n=>!(editDraft.client_names??[]).some(c=>c.toLowerCase()===n.toLowerCase())).map(n=><option key={n} value={n}>{n}</option>)}
+                                            </select>
+                                          ) : (
+                                            <select value="" onChange={ev=>{const v=ev.target.value;if(!v)return;if(v==="__past_clients__"){setEditClientShowPast(true);return}const cur=editDraft.client_names??[];if(!cur.some(n=>n.toLowerCase()===v.toLowerCase())){const next=[...cur,v];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name,is_multi_client:next.length>1}))}}} style={{ background:"#F9FAFB", border:"1.5px solid #EBEDF2", color:"#111827", borderRadius:10, padding:"9px 28px 9px 12px", fontSize:13, outline:"none", width:"100%", boxSizing:"border-box", appearance:"none", fontWeight:600, cursor:"pointer" }}>
+                                              <option value="">Add client / project…</option>
+                                              {activeClientsForEdit.filter(n=>!(editDraft.client_names??[]).some(c=>c.toLowerCase()===n.toLowerCase())).map(n=><option key={n} value={n}>{n}</option>)}
+                                              {pastClientsOnly.length>0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                            </select>
+                                          )}
+                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                         </div>
-                                        {pastClientsOnly.length>0 && <details style={{ marginTop:6 }} open={pastClientsOnly.some(n=>(editDraft.client_names??[]).some(cn=>cn.toLowerCase()===n.toLowerCase()))}><summary style={{ fontSize:10, color:"#9CA3AF", cursor:"pointer", fontWeight:600 }}>📁 Past Clients {pastClientsOnly.some(n=>(editDraft.client_names??[]).some(cn=>cn.toLowerCase()===n.toLowerCase())) && <span style={{ color:"#de1a1a", fontWeight:700 }}>(selected)</span>}</summary><div style={{ display:"flex", flexWrap:"wrap", gap:5, marginTop:6 }}>{pastClientsOnly.map(name=>{const selected=(editDraft.client_names??[]).some(n=>n.toLowerCase()===name.toLowerCase());return(<button key={name} type="button" onClick={()=>{const cur=editDraft.client_names??[];const idx=cur.findIndex(n=>n.toLowerCase()===name.toLowerCase());const next=idx>=0?cur.filter((_,i)=>i!==idx):[...cur,name];setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name,is_multi_client:next.length>1}))}} style={{ padding:"5px 12px", borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer", border:`1.5px solid ${selected?"#de1a1a":"#EBEDF2"}`, background:selected?"rgba(222,26,26,0.08)":"#F9FAFB", color:selected?"#de1a1a":"#6B7280" }}>{name}</button>)})}</div></details>}
-                                        {(()=>{const allKnown=[...activeClientsForEdit,...pastClientsOnly];const orphans=(editDraft.client_names??[]).filter(n=>n&&!allKnown.some(k=>k.toLowerCase()===n.toLowerCase()));if(!orphans.length)return null;return(<div style={{marginTop:8,padding:"6px 10px",borderRadius:8,background:"rgba(222,26,26,0.05)",border:"1px dashed #de1a1a"}}><p style={{fontSize:10,fontWeight:700,color:"#9CA3AF",margin:"0 0 5px"}}>Also selected (not in current list — click ✕ to remove):</p><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{orphans.map(name=>(<button key={name} type="button" onClick={()=>{const next=(editDraft.client_names??[]).filter(n=>n.toLowerCase()!==name.toLowerCase());setEditDraft(d=>({...d,client_names:next,client_name:next[0]||d.client_name,is_multi_client:next.length>1}))}} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 10px",borderRadius:20,fontSize:11,fontWeight:700,cursor:"pointer",border:"1.5px solid #de1a1a",background:"rgba(222,26,26,0.08)",color:"#de1a1a"}}>{name} <X size={10}/></button>))}</div></div>)})()}
+                                        {(editDraft.client_names??[]).length>0 && (
+                                          <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                                            {(editDraft.client_names??[]).map(name=>(
+                                              <button key={name} type="button" onClick={()=>{const next=(editDraft.client_names??[]).filter(n=>n.toLowerCase()!==name.toLowerCase());setEditDraft(d=>({...d,client_names:next,client_name:next[0]||"",is_multi_client:next.length>1}))}} style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px", borderRadius:99, background:"rgba(222,26,26,0.08)", border:"1.5px solid rgba(222,26,26,0.25)", cursor:"pointer" }}>
+                                                <span style={{ fontSize:10, fontWeight:700, color:"#de1a1a" }}>{name}</span>
+                                                <span style={{ fontSize:8, color:"#de1a1a" }}>✕</span>
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                     {(editDraft.task_type==="other"||editDraft.task_type==="learning") && (
@@ -2217,10 +2234,7 @@ export default function HistoryClient({
                                       </div>
                                     )}
                                     {editDraft.task_type==="other" && (
-                                      <>
-                                        <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Project / Task Name</label><input value={editDraft.project_name??""} onChange={ev=>setEditDraft(d=>({...d,project_name:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} /></div>
-                                        <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Status</label><select value={editEntryStatus} onChange={ev=>setEditEntryStatus(ev.target.value as typeof editEntryStatus)} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }}><option value="not_started">Not Started</option><option value="in_progress">In Progress</option><option value="completed">Completed ✓</option></select></div>
-                                      </>
+                                      <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Project / Task Name</label><input value={editDraft.project_name??""} onChange={ev=>setEditDraft(d=>({...d,project_name:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", boxSizing:"border-box" }} /></div>
                                     )}
                                     {editDraft.task_type!=="other" && (
                                       <div><label style={{ fontSize:10, fontWeight:600, color:"#6B7280", display:"block", marginBottom:3 }}>Notes</label><textarea rows={2} value={editDraft.notes??""} onChange={ev=>setEditDraft(d=>({...d,notes:ev.target.value}))} style={{ width:"100%", padding:"7px 10px", borderRadius:8, border:"1px solid #E5E7EB", fontSize:12, color:"#111111", outline:"none", background:"#fff", resize:"none", boxSizing:"border-box" }} /></div>

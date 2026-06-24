@@ -163,11 +163,26 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
     ((attLogsResult.data ?? []) as { date: string }[]).map(r => r.date)
   )
 
-  // Override attendance_status to 'present' for any day with a clock-in
+  // Build set of dates covered by an approved full_day leave (these win over clock-in)
+  const fullDayLeaveDates = new Set<string>()
+  for (const leave of (leavesResult.data ?? []) as { leave_type: string; from_date: string; to_date: string }[]) {
+    if (leave.leave_type === 'full_day') {
+      const from = new Date(leave.from_date)
+      const to   = new Date(leave.to_date)
+      for (const d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
+        fullDayLeaveDates.add(d.toISOString().split('T')[0])
+      }
+    }
+  }
+
+  // Override attendance_status to 'present' for any day with a clock-in,
+  // UNLESS that day has an approved full_day leave (leave takes priority)
   const rawUpdates = (updatesResult.data ?? []) as unknown as UpdateRow[]
   const updates = rawUpdates.map(u => ({
     ...u,
-    attendance_status: clockedInDates.has(u.date) ? "present" : u.attendance_status,
+    attendance_status: (clockedInDates.has(u.date) && !fullDayLeaveDates.has(u.date))
+      ? "present"
+      : u.attendance_status,
   }))
   const name = (profileResult.data?.name ?? "").split(" ")[0] || "there"
   const clients = ((clientsResult.data ?? []) as { name: string }[]).map(c => c.name)

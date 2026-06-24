@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import MemberContentCalendarClient from "./content-calendar-client"
+import { blockFreelancerMedia } from "@/lib/utils/freelancer-guard"
 
 function adminSupabase() {
   return createClient(
@@ -15,6 +16,7 @@ function adminSupabase() {
 }
 
 export default async function MemberContentCalendarPage({ searchParams }: { searchParams: Promise<{ year?: string; month?: string }> }) {
+  await blockFreelancerMedia()
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")

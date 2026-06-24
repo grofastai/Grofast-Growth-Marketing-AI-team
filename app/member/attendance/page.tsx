@@ -4,6 +4,7 @@ import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import AttendanceClient from "./attendance-client"
 import { calcNetWorkHours } from "@/lib/utils/work-hours"
+import { blockFreelancerMedia } from "@/lib/utils/freelancer-guard"
 
 function adminSupabase() {
   return createClient(
@@ -14,6 +15,7 @@ function adminSupabase() {
 }
 
 export default async function AttendancePage() {
+  await blockFreelancerMedia()
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect("/login")

@@ -299,11 +299,12 @@ type CollaborationConfirmation = {
 }
 
 export default function HistoryClient({
-  updates, userName, userId = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [], companyLeaves = [], defaultDate = "", collaborationConfirmations = [],
+  updates, userName, userId = "", team = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [], companyLeaves = [], defaultDate = "", collaborationConfirmations = [],
 }: {
   updates: UpdateRow[]
   userName: string
   userId?: string
+  team?: string
   clients?: string[]
   pastClients?: string[]
   participatedUpdates?: ParticipatedUpdate[]
@@ -314,6 +315,7 @@ export default function HistoryClient({
   defaultDate?: string
   collaborationConfirmations?: CollaborationConfirmation[]
 }) {
+  const isFreelancerMedia = team === "Freelance Media Production"
 
   const months = useMemo(() => {
     const seen = new Set<string>(), result: string[] = []
@@ -652,6 +654,7 @@ export default function HistoryClient({
       totalLearning += learnH
       totalBreak += breakH
       if (entries.some(e => e.task_type === "shoot" || e.task_type === "edit")) isMedia = true
+      if (isFreelancerMedia) isMedia = true
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
@@ -713,8 +716,10 @@ export default function HistoryClient({
     // Non-media working = worklogs + voiceovers + posters + learning
     const nonMediaWorkH = otherH + voiceoverH + posterH + totalLearning
     const workForAvg = isMedia ? mediaWorkH : nonMediaWorkH
-    const avgH = presentDays > 0 ? Math.round((workForAvg / presentDays) * 10) / 10 : 0
-    return { totalHours, totalOT, totalTasks, presentDays, absentDays, leaveDays, holidayDays, totalLearning, totalBreak, travelH, shootH, editH, otherH, shootCount, editCount, worklogCount, voiceoverCount, voiceoverH, posterCount, posterH, mediaWorkH, nonMediaWorkH, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity }
+    const daysSubmitted = monthFiltered.length
+    const avgDivisor = isFreelancerMedia ? daysSubmitted : presentDays
+    const avgH = avgDivisor > 0 ? Math.round((workForAvg / avgDivisor) * 10) / 10 : 0
+    return { totalHours, totalOT, totalTasks, presentDays, absentDays, leaveDays, holidayDays, totalLearning, totalBreak, travelH, shootH, editH, otherH, shootCount, editCount, worklogCount, voiceoverCount, voiceoverH, posterCount, posterH, mediaWorkH, nonMediaWorkH, isMedia, avgH, hoursPerDay, dailyData: dailyData.reverse(), productivity, daysSubmitted }
   }, [filtered, attendanceDates, selectedMonth, monthFiltered, approvedLeaves, companyLeaves])
 
   // Streak calculation
@@ -2405,7 +2410,15 @@ export default function HistoryClient({
 
               {/* Stats rows */}
               <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
-                {(stats.isMedia ? [
+                {(isFreelancerMedia ? [
+                  { label:"Working Hours",    value: fmtH(stats.mediaWorkH),              dot:"#22C55E" },
+                  { label:"Avg Working Hrs",  value: fmtH(stats.avgH),                    dot: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", isAvg: true },
+                  { label:"Total Shoots",     value: String(stats.shootCount),             dot:"#EF4444" },
+                  { label:"Videos Edited",    value: String(stats.editCount),              dot:"#6366F1" },
+                  { label:"Learning Hours",   value: fmtH(stats.totalLearning),           dot:"#A78BFA" },
+                  { label:"Travel Hours",     value: fmtH(stats.travelH),                 dot:"#F59E0B" },
+                  { label:"Days Submitted",   value: String(stats.daysSubmitted),          dot:"#059669" },
+                ] : stats.isMedia ? [
                   { label:"Working Hours",    value: fmtH(stats.mediaWorkH),              dot:"#22C55E" },
                   { label:"Avg Working Hrs",  value: fmtH(stats.avgH),                    dot: stats.avgH >= 8.5 ? "#22C55E" : "#EF4444", isAvg: true },
                   { label:"Total Shoots",     value: String(stats.shootCount),             dot:"#EF4444" },

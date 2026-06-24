@@ -391,7 +391,8 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
         </div>
       </div>
 
-      {/* ── Daily Update Alert ────────────────────────────────── */}
+      {/* ── Daily Update Alert — hidden for freelancer-media (no daily obligation) */}
+      {!isFreelancerMedia && (
       <div className="rounded-2xl p-4 md:p-5 mb-5 flex items-start md:items-center gap-3 md:gap-4 flex-wrap"
         style={{ background: "#FFFFFF", border: todayUpdate ? "1px solid rgba(22,163,74,0.25)" : "1px solid #E8E9EF" }}>
         <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0"
@@ -406,7 +407,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
           </p>
           <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
             {todayUpdate
-              ? (isMedia || isFreelancerMedia) ? `${todayUpdate.working_hours ?? "—"}h logged · ${shootCount} shoot${shootCount !== 1 ? "s" : ""}` : `${todayUpdate.working_hours ?? "—"}h logged`
+              ? isMedia ? `${todayUpdate.working_hours ?? "—"}h logged · ${shootCount} shoot${shootCount !== 1 ? "s" : ""}` : `${todayUpdate.working_hours ?? "—"}h logged`
               : "Submit before 9 PM to avoid alerts"}
           </p>
         </div>
@@ -418,6 +419,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
           </Link>
         )}
       </div>
+      )}
 
       {/* ── Main 2-col grid ───────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] lg:grid-cols-[1fr_300px] gap-5">

@@ -1865,7 +1865,8 @@ export default function HistoryClient({
                                           {realNotes && <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{realNotes}</p>}
                                         </>)
                                       }
-                                      const txt = e.notes || e.description
+                                      const rawTxt = e.notes || e.description
+                                      const txt = (rawTxt ?? "").replace(/^\[(completed|in_progress|not_started)\]$/, "").trim() || null
                                       return txt ? <p style={{ fontSize:11, color:"#9CA3AF", margin:"0 0 4px", lineHeight:1.5 }}>{txt}</p> : null
                                     })()}
                                   </>)

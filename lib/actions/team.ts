@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { getOrCreateMemberFolder } from '@/lib/google/drive'
+import { normalizePhone } from '@/lib/utils/phone'
 
 function adminSupabase() {
   return createClient(
@@ -133,6 +134,16 @@ export async function createMember(input: {
     .single()
   if (!adminProfile?.company_id) return { success: false, error: 'Admin profile not found — contact support' }
   const company_id = adminProfile.company_id
+
+  // Block duplicate phone numbers within the company
+  const phoneTarget = normalizePhone(input.phone)
+  if (phoneTarget.length >= 10) {
+    const { data: phoneRows } = await admin
+      .from('users').select('id, name, phone')
+      .eq('company_id', company_id).not('phone', 'is', null)
+    const dup = (phoneRows ?? []).find((u: { phone: string | null }) => normalizePhone(u.phone) === phoneTarget)
+    if (dup) return { success: false, error: `This phone number is already used by "${dup.name}".` }
+  }
 
   // Auto-generate employee ID for admin-level accounts
   let finalEmployeeId = input.employee_id
@@ -339,6 +350,18 @@ export async function updateMember(input: {
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
+
+  // Block duplicate phone numbers within the company (excluding this member)
+  const { data: editorProfile } = await admin.from('users').select('company_id').eq('id', user.id).single()
+  const phoneTarget = normalizePhone(input.phone)
+  if (editorProfile?.company_id && phoneTarget.length >= 10) {
+    const { data: phoneRows } = await admin
+      .from('users').select('id, name, phone')
+      .eq('company_id', editorProfile.company_id).not('phone', 'is', null)
+    const dup = (phoneRows ?? []).find((u: { id: string; phone: string | null }) => u.id !== input.id && normalizePhone(u.phone) === phoneTarget)
+    if (dup) return { success: false, error: `This phone number is already used by "${dup.name}".` }
+  }
+
   const { error } = await admin
     .from('users')
     .update({
@@ -517,6 +540,20 @@ export async function updateOwnProfile(input: {
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
+
+  // Block duplicate phone numbers within the company (excluding self)
+  const phoneTarget = normalizePhone(input.phone)
+  if (phoneTarget.length >= 10) {
+    const { data: me } = await admin.from('users').select('company_id').eq('id', user.id).single()
+    if (me?.company_id) {
+      const { data: phoneRows } = await admin
+        .from('users').select('id, name, phone')
+        .eq('company_id', me.company_id).not('phone', 'is', null)
+      const dup = (phoneRows ?? []).find((u: { id: string; phone: string | null }) => u.id !== user.id && normalizePhone(u.phone) === phoneTarget)
+      if (dup) return { success: false, error: `This phone number is already used by "${dup.name}".` }
+    }
+  }
+
   const { error } = await admin
     .from('users')
     .update({ name: input.name.trim(), phone: input.phone.trim() || null })

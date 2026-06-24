@@ -2,6 +2,7 @@
 
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertManyNotifications } from './notifications'
@@ -38,8 +39,23 @@ async function getUserContext(): Promise<{ userId: string; companyId: string } |
 
   // Try users table first (service-role query)
   const admin = adminSupabase()
-  const { data, error: dbError } = await admin.from('users').select('company_id').eq('id', user.id).single()
-  if (data?.company_id) return { userId: user.id, companyId: data.company_id as string }
+  const { data, error: dbError } = await admin.from('users').select('role, company_id').eq('id', user.id).single()
+  if (data?.company_id) {
+    // Admin impersonation — when an admin has an active impersonation cookie, act
+    // as the target member (reads + writes) so the member panel reflects their
+    // data. Only honored for ADMINs and same-company targets (the cookie is
+    // set server-side by startImpersonation, which already enforces this).
+    if (data.role === 'ADMIN') {
+      const impersonateId = (await cookies()).get('gf_impersonate')?.value
+      if (impersonateId && impersonateId !== user.id) {
+        const { data: target } = await admin.from('users').select('company_id').eq('id', impersonateId).single()
+        if (target?.company_id && target.company_id === data.company_id) {
+          return { userId: impersonateId, companyId: target.company_id as string }
+        }
+      }
+    }
+    return { userId: user.id, companyId: data.company_id as string }
+  }
 
   if (dbError && dbError.code !== 'PGRST116') {
     // PGRST116 = row not found; any other error means DB/key issue

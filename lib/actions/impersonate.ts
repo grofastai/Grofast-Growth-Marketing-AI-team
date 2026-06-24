@@ -53,3 +53,39 @@ export async function getImpersonatedUserId(): Promise<string | null> {
   const cookieStore = await cookies()
   return cookieStore.get(COOKIE)?.value ?? null
 }
+
+/** Resolves the effective user ID for member-scoped data/actions.
+ *  When the logged-in user is an ADMIN with an active impersonation cookie,
+ *  returns the impersonated member's ID (same-company only). Otherwise returns
+ *  the logged-in user's own ID. Returns null when there is no session.
+ *
+ *  The admin-role + same-company checks make this safe to honor the cookie:
+ *  a non-admin cannot escalate by forging the cookie. */
+export async function getEffectiveUserId(): Promise<string | null> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const admin = adminClient()
+  const { data: self } = await admin
+    .from("users")
+    .select("role, company_id")
+    .eq("id", user.id)
+    .single()
+
+  if (self?.role === "ADMIN") {
+    const impersonateId = (await cookies()).get(COOKIE)?.value
+    if (impersonateId && impersonateId !== user.id) {
+      const { data: target } = await admin
+        .from("users")
+        .select("company_id")
+        .eq("id", impersonateId)
+        .single()
+      if (target?.company_id && target.company_id === self.company_id) {
+        return impersonateId
+      }
+    }
+  }
+
+  return user.id
+}

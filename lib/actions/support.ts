@@ -1,9 +1,9 @@
 'use server'
 
-import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { insertNotification } from '@/lib/actions/notifications'
+import { getEffectiveUserId } from '@/lib/actions/impersonate'
 import { ticketLimiter, replyLimiter } from '@/lib/ratelimit'
 import { cacheGet, cacheSet, cacheDel } from '@/lib/cache'
 
@@ -16,11 +16,10 @@ function adminSupabase() {
 }
 
 async function getProfile() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  const uid = await getEffectiveUserId()
+  if (!uid) return null
   const admin = adminSupabase()
-  const { data } = await admin.from('users').select('id, company_id, name, role, employee_id').eq('id', user.id).single()
+  const { data } = await admin.from('users').select('id, company_id, name, role, employee_id').eq('id', uid).single()
   return data
 }
 

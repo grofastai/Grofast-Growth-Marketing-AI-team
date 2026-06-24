@@ -1,8 +1,8 @@
 export const revalidate = 0
 
-import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
+import { getEffectiveUserId } from "@/lib/actions/impersonate"
 import FreelancersMemberClient from "./freelancers-member-client"
 import type { Freelancer, WorkEntry } from "./freelancers-member-client"
 
@@ -15,16 +15,16 @@ function adminSupabase() {
 }
 
 export default async function MemberFreelancersPage() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect("/login")
+  // Effective user — when an admin is impersonating a member, act as that member
+  const effectiveUserId = await getEffectiveUserId()
+  if (!effectiveUserId) redirect("/login")
 
   const admin = adminSupabase()
 
   const { data: profile } = await admin
     .from("users")
     .select("company_id")
-    .eq("id", user.id)
+    .eq("id", effectiveUserId)
     .single()
 
   if (!profile?.company_id) redirect("/login")
@@ -34,7 +34,7 @@ export default async function MemberFreelancersPage() {
   const { count: assignedCount } = await admin
     .from("freelancer_assignments")
     .select("freelancer_id", { count: "exact", head: true })
-    .eq("user_id", user.id)
+    .eq("user_id", effectiveUserId)
     .eq("company_id", cid)
   if ((assignedCount ?? 0) === 0) redirect("/member/dashboard")
 

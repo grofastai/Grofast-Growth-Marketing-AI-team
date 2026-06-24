@@ -3,6 +3,7 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
+import { getEffectiveUserId } from './impersonate'
 
 function adminSupabase() {
   return createClient(
@@ -50,14 +51,14 @@ export interface NoteInput {
 }
 
 export async function getNotes(archived = false): Promise<NoteRow[]> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return []
+  const uid = await getEffectiveUserId()
+  if (!uid) return []
 
-  const { data } = await supabase
+  const admin = adminSupabase()
+  const { data } = await admin
     .from('notes')
     .select('id, title, content, color, pinned, reminder_at, reminded, reminder_recipients, reminder_message, note_type, items, labels, archived, created_at, updated_at')
-    .eq('user_id', user.id)
+    .eq('user_id', uid)
     .eq('archived', archived)
     .order('pinned', { ascending: false })
     .order('created_at', { ascending: false })

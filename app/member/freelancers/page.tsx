@@ -30,6 +30,14 @@ export default async function MemberFreelancersPage() {
   if (!profile?.company_id) redirect("/login")
   const cid = profile.company_id
 
+  // Access gate: only users assigned in freelancer_assignments can view this page
+  const { count: assignedCount } = await admin
+    .from("freelancer_assignments")
+    .select("freelancer_id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("company_id", cid)
+  if ((assignedCount ?? 0) === 0) redirect("/member/dashboard")
+
   const [freelancersResult, workEntriesResult, activeClientsResult, pastClientsResult] = await Promise.all([
     admin.from("freelancers").select("id, name, team, phone, rating, status, created_at")
       .eq("company_id", cid).not("team", "is", null).order("name"),

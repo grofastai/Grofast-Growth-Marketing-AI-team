@@ -1938,16 +1938,13 @@ export default function HistoryClient({
                                       {dur>0 && <span style={{ fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:99, background:"rgba(245,158,11,0.12)", color:"#D97706" }}>{fmtTravel(dur)}</span>}
                                       <select value={editDraft.title??"Lunch"} onChange={ev=>setEditDraft(d=>({...d,title:ev.target.value,_custom_label:""}))}
                                         style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.35)", borderRadius:8, padding:"4px 10px", cursor:"pointer", outline:"none" }}>
-                                        <option value="Permission">🙋 Permission</option>
                                         <option value="Tea">☕ Tea</option>
                                         <option value="Lunch Break">🍱 Lunch Break</option>
                                         <option value="Personal">🏠 Personal</option>
                                         <option value="Short Break">🚶 Short Break</option>
                                         <option value="Early Logoff">🌙 Early Logoff</option>
                                         <option value="Late Login">⏰ Late Login</option>
-                                        <option value="__other__">✏️ Other</option>
                                       </select>
-                                      {editDraft.title==="__other__" && <input value={editDraft._custom_label??""} onChange={ev=>setEditDraft(d=>({...d,_custom_label:ev.target.value}))} placeholder="Type break name…" style={{ fontSize:11, fontWeight:700, color:"#D97706", background:"#FEF3C7", border:"1.5px solid rgba(245,158,11,0.4)", borderRadius:8, padding:"4px 10px", outline:"none", width:130 }} />}
                                     </div>
                                     <div style={{ display:"flex", gap:8, justifyContent:"flex-end" }}>
                                       <button onClick={()=>{setEditingKey(null);setEditDraft({})}} style={{ padding:"7px 14px", borderRadius:8, background:"#F3F4F6", border:"none", fontSize:12, fontWeight:600, color:"#6B7280", cursor:"pointer" }}>Cancel</button>

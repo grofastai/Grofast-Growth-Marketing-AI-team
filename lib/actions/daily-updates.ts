@@ -516,6 +516,37 @@ export async function addEntryToDate(
   return { success: true }
 }
 
+export async function updateWorkEntryPrice(
+  dailyUpdateId: string,
+  entryId: string,
+  price: number | null
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { success: false, error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data: record } = await admin
+    .from('daily_updates')
+    .select('work_entries')
+    .eq('id', dailyUpdateId)
+    .single()
+
+  if (!record) return { success: false, error: 'Record not found' }
+
+  const entries = (Array.isArray(record.work_entries) ? record.work_entries : []) as Record<string, unknown>[]
+  const updated = entries.map(e => e.id === entryId ? { ...e, price } : e)
+
+  const { error } = await admin
+    .from('daily_updates')
+    .update({ work_entries: updated })
+    .eq('id', dailyUpdateId)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/admin/freelancers')
+  return { success: true }
+}
+
 export async function getTodayUpdate() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()

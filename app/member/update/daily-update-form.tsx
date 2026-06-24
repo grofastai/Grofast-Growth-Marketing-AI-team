@@ -163,6 +163,7 @@ type SavedEntry = {
   _client_type?: string; _brand?: string; _shop_name?: string
   _custom_client?: string; _location?: string; _travel_hours?: number
   _camera_hours?: number; _drone_hours?: number
+  price?: number | null
 }
 
 function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock[] {
@@ -2314,7 +2315,7 @@ export default function DailyUpdateForm({
                         </div>
                       </div>
                       {/* Partner picker per edit */}
-                      {teamMembers.length > 0 && (
+                      {!isFreelancerMedia && teamMembers.length > 0 && (
                         <div style={{ marginTop:10, paddingTop:10, borderTop:"1px dashed #F0F1F5" }}>
                           <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Edited With</p>
                           {e.participantIds.length > 0 && (

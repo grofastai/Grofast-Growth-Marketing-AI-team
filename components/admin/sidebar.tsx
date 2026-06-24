@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, Clock, Target,
   CalendarOff, Megaphone, Briefcase, LogOut,
   Receipt, IndianRupee, FolderOpen, LifeBuoy,
-  MoreHorizontal, X, Bell, UserCircle2, ClipboardList, Activity, TrendingUp, CalendarDays, Clapperboard, Shield,
+  MoreHorizontal, X, Bell, UserCircle2, ClipboardList, Activity, TrendingUp, CalendarDays, Clapperboard, Shield, Film,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
@@ -19,6 +19,7 @@ const navItems = [
   { label: "Attendance",    href: "/admin/attendance",    icon: Clock },
   { label: "Tasks",         href: "/admin/goals",         icon: Target },
   { label: "Clients",       href: "/admin/clients",       icon: Briefcase },
+  { label: "Freelancers",   href: "/admin/freelancers",   icon: Film },
   { label: "Team Insights", href: "/admin/insights",      icon: TrendingUp },
   { label: "Leaves",        href: "/admin/leaves",           icon: CalendarOff },
   { label: "Content Cal",   href: "/admin/content-calendar", icon: CalendarDays },
@@ -41,6 +42,7 @@ const moreNavItems = [
   { label: "Activities",    href: "/admin/activities",       icon: Activity },
   { label: "Attendance",    href: "/admin/attendance",       icon: Clock },
   { label: "Clients",       href: "/admin/clients",          icon: Briefcase },
+  { label: "Freelancers",   href: "/admin/freelancers",      icon: Film },
   { label: "Content Cal",   href: "/admin/content-calendar", icon: CalendarDays },
   { label: "Announcements", href: "/admin/announcements",    icon: Megaphone },
   { label: "Expenses",      href: "/admin/expenses",         icon: Receipt },

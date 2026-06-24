@@ -74,7 +74,8 @@ export default async function ProfilePage() {
     { data: profileRaw },
     { data: allUpdatesRaw },
     { count: totalCompleted },
-    { count: totalLeaves },
+    { count: weekCompleted },
+    { count: weekLeaves },
     { data: kycRaw },
     { data: docsRaw },
   ] = await Promise.all([
@@ -89,15 +90,25 @@ export default async function ProfilePage() {
       .eq("user_id", effectiveUserId)
       .gte("date", sevenDaysAgo)
       .order("date", { ascending: true }),
+    // All-time completed tasks (for the lifetime "Tasks completed" card)
     db
       .from("tasks")
       .select("*", { count: "exact", head: true })
       .eq("assigned_to", effectiveUserId)
       .eq("status", "completed"),
+    // This-week completed tasks (Mon → today), by completion date
+    db
+      .from("tasks")
+      .select("*", { count: "exact", head: true })
+      .eq("assigned_to", effectiveUserId)
+      .eq("status", "completed")
+      .gte("completed_at", weekStart),
+    // This-week leave requests, by submission date
     db
       .from("leaves")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", effectiveUserId),
+      .eq("user_id", effectiveUserId)
+      .gte("created_at", weekStart),
     db
       .from("member_kyc")
       .select("bank_name, bank_account, bank_ifsc, aadhaar_number, pan_number, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2")
@@ -180,7 +191,8 @@ export default async function ProfilePage() {
         weekHours:    Math.round(weekHours * 10) / 10,
         weekMissed,
         totalCompleted: totalCompleted ?? 0,
-        totalLeaves:    totalLeaves ?? 0,
+        weekCompleted:  weekCompleted ?? 0,
+        weekLeaves:     weekLeaves ?? 0,
         avgHoursPerDay: avgHours,
       }}
       chartData={sevenDayChart}

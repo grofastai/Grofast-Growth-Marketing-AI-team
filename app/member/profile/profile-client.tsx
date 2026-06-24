@@ -32,7 +32,7 @@ interface KYCData {
 }
 interface Stats {
   weekHours: number; weekMissed: number
-  totalCompleted: number; totalLeaves: number; avgHoursPerDay: number
+  totalCompleted: number; weekCompleted: number; weekLeaves: number; avgHoursPerDay: number
 }
 interface ChartDay { date: string; label: string; hours: number; isFuture: boolean }
 interface RecentUpdate { date: string; working_hours: number | null; shoot_count: number | null }
@@ -755,9 +755,9 @@ export default function ProfileClient({
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {[
                 { Icon: Clock,       label: "Hours Worked",    value: stats.weekHours > 0 ? `${stats.weekHours}h` : "—", color: "#DE1A1A",   bg: "rgba(222,26,26,0.08)"   },
-                { Icon: CheckCircle2,label: "Tasks Completed", value: stats.totalCompleted,                              color: "#22C55E",   bg: "rgba(34,197,94,0.08)"   },
+                { Icon: CheckCircle2,label: "Tasks Completed", value: stats.weekCompleted,                               color: "#22C55E",   bg: "rgba(34,197,94,0.08)"   },
                 { Icon: AlertCircle, label: "Missed Updates",  value: stats.weekMissed,                                  color: stats.weekMissed > 0 ? "#F59E0B" : "#22C55E", bg: stats.weekMissed > 0 ? "rgba(245,158,11,0.08)" : "rgba(34,197,94,0.08)" },
-                { Icon: TrendingUp,  label: "Leave Requests",  value: stats.totalLeaves,                                 color: "#6366F1",   bg: "rgba(99,102,241,0.08)"  },
+                { Icon: TrendingUp,  label: "Leave Requests",  value: stats.weekLeaves,                                  color: "#6366F1",   bg: "rgba(99,102,241,0.08)"  },
               ].map(({ Icon, label, value, color, bg }) => (
                 <div key={label} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 34, height: 34, borderRadius: 10, background: bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>

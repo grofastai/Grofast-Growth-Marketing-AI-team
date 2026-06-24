@@ -1,5 +1,7 @@
 export type NotificationEvent =
   | 'leave.submitted'
+  | 'wfh.submitted'
+  | 'shoot.submitted'
   | 'leave.approved'
   | 'leave.rejected'
   | 'daily_update.submitted'
@@ -10,7 +12,7 @@ export type NotificationEvent =
   | 'attendance.late'
 
 export interface LeaveSubmittedPayload {
-  event: 'leave.submitted'
+  event: 'leave.submitted' | 'wfh.submitted' | 'shoot.submitted'
   leave_id: string
   employee_name: string
   employee_id: string

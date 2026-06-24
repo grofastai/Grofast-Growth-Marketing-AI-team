@@ -126,6 +126,7 @@ async function handleLeaveAction(leaveId: string, action: 'approve' | 'reject') 
     to_date: string
     leave_type: string | null
     reason: string | null
+    created_at: string
     permission_time: string | null
     permission_end_time: string | null
     permission_hours: number | null
@@ -138,7 +139,7 @@ async function handleLeaveAction(leaveId: string, action: 'approve' | 'reject') 
 
   const { data: leaveRaw, error: fetchErr } = await supabase
     .from('leaves')
-    .select('company_id, user_id, from_date, to_date, leave_type, reason, permission_time, permission_end_time, permission_hours, half_day_from_time, half_day_to_time, half_day_period, status, users(name, phone)')
+    .select('company_id, user_id, from_date, to_date, leave_type, reason, created_at, permission_time, permission_end_time, permission_hours, half_day_from_time, half_day_to_time, half_day_period, status, users(name, phone)')
     .eq('id', leaveId)
     .single()
 
@@ -168,8 +169,46 @@ async function handleLeaveAction(leaveId: string, action: 'approve' | 'reject') 
 
   console.log(`[whatsapp-webhook] leave ${leaveId} ${status}`)
 
+  // WFH / Shoot Day → mark PRESENT with the right work_type (never absent).
+  // Auto clock-in only for same-day single-day requests (from the attendance button).
+  if (status === 'approved' && (leave.leave_type === 'wfh' || leave.leave_type === 'shoot_day')) {
+    const todayIst = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
+    if (leave.from_date === todayIst && leave.to_date === todayIst) {
+      const { data: existing } = await supabase
+        .from('attendance_logs')
+        .select('id, clock_in')
+        .eq('company_id', leave.company_id)
+        .eq('user_id', leave.user_id)
+        .eq('date', todayIst)
+        .maybeSingle()
+      const appliedHourIst = parseInt(
+        new Date(leave.created_at).toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false })
+      )
+      // Before 9 AM → shift start 9:30 AM IST (= 04:00 UTC); after 9 AM → actual apply time
+      const clockInTime = appliedHourIst < 9
+        ? new Date(todayIst + 'T04:00:00.000Z').toISOString()
+        : leave.created_at
+      const workType = leave.leave_type === 'shoot_day' ? 'shoot' : 'wfh'
+      if (!existing) {
+        await supabase.from('attendance_logs').insert({
+          company_id: leave.company_id,
+          user_id:    leave.user_id,
+          date:       todayIst,
+          clock_in:   clockInTime,
+          work_type:  workType,
+          status:     'present',
+        })
+      } else if (!existing.clock_in) {
+        await supabase.from('attendance_logs').update({
+          clock_in:  clockInTime,
+          work_type: workType,
+          status:    'present',
+        }).eq('id', existing.id)
+      }
+    }
+
   // Auto-update attendance + history when approved (skip permission — employee is still present)
-  if (status === 'approved' && leave.leave_type !== 'permission') {
+  } else if (status === 'approved' && leave.leave_type !== 'permission') {
     const curr = new Date(leave.from_date + 'T12:00:00')
     const end  = new Date(leave.to_date   + 'T12:00:00')
     while (curr <= end) {
@@ -200,6 +239,8 @@ async function handleLeaveAction(leaveId: string, action: 'approve' | 'reject') 
   // In-app bell notification to member
   const leaveLabel = leave.leave_type === 'permission' ? 'Permission'
     : leave.leave_type === 'half_day' ? 'Half Day Leave'
+    : leave.leave_type === 'wfh' ? 'Work From Home'
+    : leave.leave_type === 'shoot_day' ? 'Shoot Day'
     : 'Full Day Leave'
   supabase.from('notifications').insert({
     company_id: leave.company_id,

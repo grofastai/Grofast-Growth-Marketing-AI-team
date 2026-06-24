@@ -146,6 +146,13 @@ export async function submitLeaveRequest(
 
   if (insertError) return { error: insertError.message }
 
+  // Route to the matching WhatsApp template per request type
+  const submitEvent = parsed.data.leave_type === 'wfh'
+    ? 'wfh.submitted' as const
+    : parsed.data.leave_type === 'shoot_day'
+    ? 'shoot.submitted' as const
+    : 'leave.submitted' as const
+
   if (profile && inserted?.id) {
     const adminClient = createAdminClient()
     const { data: adminUsers } = await adminClient
@@ -158,7 +165,7 @@ export async function submitLeaveRequest(
     const adminWithPhone = adminUsers?.find(a => a.phone)
     if (adminWithPhone?.phone) {
       sendNotification({
-        event:         'leave.submitted',
+        event:         submitEvent,
         leave_id:      inserted.id,
         employee_name: profile.name,
         employee_id:   profile.employee_id,
@@ -177,11 +184,14 @@ export async function submitLeaveRequest(
         : parsed.data.leave_type === 'wfh' ? `WFH on ${parsed.data.from_date}`
         : parsed.data.leave_type === 'shoot_day' ? `Shoot Day on ${parsed.data.from_date}`
         : `Permission on ${parsed.data.from_date}`
+      const requestNoun = parsed.data.leave_type === 'wfh' ? 'requested Work From Home'
+        : parsed.data.leave_type === 'shoot_day' ? 'requested a Shoot Day'
+        : 'applied for leave'
       await insertManyNotifications(adminUsers.map(a => ({
         companyId: company_id,
         userId: a.id,
         type: 'leave_submitted',
-        title: `${profile.name} applied for leave`,
+        title: `${profile.name} ${requestNoun}`,
         body: leaveLabel,
         link: '/admin/leaves',
       })))
@@ -671,7 +681,7 @@ export async function submitWfhAttendanceRequest(
   const adminWithPhone = adminUsers?.find(a => a.phone)
   if (adminWithPhone?.phone) {
     sendNotification({
-      event:         'leave.submitted',
+      event:         leaveType === 'shoot_day' ? 'shoot.submitted' : 'wfh.submitted',
       leave_id:      inserted?.id,
       employee_name: profile?.name ?? '',
       employee_id:   profile?.employee_id ?? '',

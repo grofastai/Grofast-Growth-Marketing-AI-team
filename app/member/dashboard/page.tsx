@@ -196,6 +196,32 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     ? Math.round((totalMonthHrs / presentDays) * 10) / 10
     : 0
 
+  // Freelancer-media (login freelancer, team "Freelance Media Production") —
+  // work-entry-based stats instead of attendance-based (no clock, no leave, no break).
+  const isFreelancerMedia = profile?.team === "Freelance Media Production"
+  function entryDurH(e: WorkEntryLike): number {
+    if (e.start_time && e.end_time) {
+      const [sh, sm] = e.start_time.split(":").map(Number)
+      const [eh, em] = e.end_time.split(":").map(Number)
+      const d = (eh * 60 + em - sh * 60 - sm) / 60
+      return d > 0 ? d : (e.duration_hours ?? 0)
+    }
+    return e.duration_hours ?? 0
+  }
+  let flEditCount = 0, flShootCount = 0, flEditHrs = 0, flShootHrs = 0
+  for (const u of monthlyUpdates) {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+    for (const e of entries) {
+      if (e.task_type === "edit")       { flEditCount++;  flEditHrs  += entryDurH(e) }
+      else if (e.task_type === "shoot") { flShootCount++; flShootHrs += entryDurH(e) }
+    }
+  }
+  const flTotalVideos = flEditCount + flShootCount
+  const flWorkingHrs  = totalMonthHrs // edit+shoot+learning+collab, merged per day
+  const flAvgEdit     = flEditCount  > 0 ? Math.round((flEditHrs / flEditCount) * 10) / 10 : 0
+  const flAvgShoot    = flShootCount > 0 ? Math.round((flShootHrs / flShootCount) * 10) / 10 : 0
+  const flAvgVideo    = flTotalVideos > 0 ? Math.round(((flEditHrs + flShootHrs) / flTotalVideos) * 10) / 10 : 0
+
   const hour      = now.getHours()
   const greeting  = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
   const dateStr   = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
@@ -231,13 +257,50 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   }
 
   // Monthly stats grid
-  const monthlyStats = [
+  const monthlyStats: { label: string; value: string | number; color: string; sub: string | undefined }[] = isFreelancerMedia ? [
+    { label: "Total Working Hrs", value: flWorkingHrs > 0 ? `${flWorkingHrs}h` : "—",  color: "#111111", sub: undefined },
+    { label: "Videos Edited",     value: flEditCount,                                  color: "#de1a1a", sub: undefined },
+    { label: "Videos Shot",       value: flShootCount,                                 color: "#6366F1", sub: undefined },
+    { label: "Avg Time / Edit",   value: flAvgEdit > 0 ? `${flAvgEdit}h` : "—",        color: "#10B981", sub: undefined },
+    { label: "Avg Time / Shoot",  value: flAvgShoot > 0 ? `${flAvgShoot}h` : "—",      color: "#F59E0B", sub: undefined },
+    { label: "Learning Hrs",      value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", color: "#A78BFA", sub: undefined },
+  ] : [
     { label: "Avg Login Hrs",        value: avgLoginHrs > 0 ? `${avgLoginHrs}h` : "—",       color: "#6366F1", sub: undefined },
     { label: "Avg Working Hrs",      value: avgWorkingHrs > 0 ? `${avgWorkingHrs}h` : "—",   color: "#111111", sub: undefined },
     { label: "Office Days",          value: officeDays,                                       color: "#de1a1a",  sub: undefined },
     { label: isMedia ? "Shoot Days" : "WFH Days", value: isMedia ? shootDays : wfhDays,       color: "#6366F1",  sub: undefined },
     { label: "Leave Taken This Month", value: leaveDays,                                       color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: `${Math.max(0, 5 - leaveDays)} days left` },
     { label: "Overtime Hrs",         value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",       color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeDays > 0 ? `${overtimeDays} day${overtimeDays !== 1 ? "s" : ""}` : undefined },
+  ]
+
+  // Top 5 stat cards — work-entry based for freelancer-media
+  const topCards: { icon: React.ElementType; iconBg: string; iconColor: string; value: string | number; label: string }[] = isFreelancerMedia ? [
+    { icon: Film,         iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: flEditCount,  label: "Videos Edited" },
+    { icon: Camera,       iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: flShootCount, label: "Videos Shot" },
+    { icon: Clock,        iconBg: "rgba(16,185,129,0.12)", iconColor: "#10B981", value: flWorkingHrs > 0 ? `${flWorkingHrs}h` : "—", label: "Working Hrs" },
+    { icon: Zap,          iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: flAvgVideo > 0 ? `${flAvgVideo}h` : "—", label: "Avg / Video" },
+    { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks, label: "Active Tasks" },
+  ] : [
+    { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: presentDays || 0,   label: "Present Days"  },
+    { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Monthly Working Hrs"  },
+    { icon: Target,       iconBg: "rgba(16,185,129,0.12)", iconColor: "#10B981", value: totalLoginHrs > 0 ? `${totalLoginHrs}h` : "—", label: "Monthly Login Hrs" },
+    { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: Math.max(0, 5 - leaveDays), label: "Leave Left This Month" },
+    { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks"  },
+  ]
+
+  // Right-panel quick stats
+  const rightStats: { icon: React.ElementType; iconBg: string; iconColor: string; value: string | number; label: string; href: string }[] = isFreelancerMedia ? [
+    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: flEditCount,  label: "Videos Edited", href: "/member/history" },
+    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: flShootCount, label: "Videos Shot",   href: "/member/history" },
+    { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
+  ] : isMedia ? [
+    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: totalShoots,                                          label: "Total Shoots", href: "/member/history" },
+    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: totalEdited,                                          label: "Total Edited", href: "/member/history" },
+    { icon: Coffee,   iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", value: totalBreakHrs > 0 ? `${totalBreakHrs}h` : "—",       label: "Break Hours",  href: "/member/attendance" },
+  ] : [
+    { icon: BookOpen, iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
+    { icon: Clock,    iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : "—",       label: "Working Hrs",  href: "/member/attendance" },
+    { icon: Coffee,   iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", value: totalBreakHrs > 0 ? `${totalBreakHrs}h` : "—",       label: "Break Hours",  href: "/member/attendance" },
   ]
 
   return (
@@ -260,13 +323,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
       {/* ── 5 Stat Cards ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-5">
-        {([
-          { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: presentDays || 0,   label: "Present Days"  },
-          { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Monthly Working Hrs"  },
-          { icon: Target,       iconBg: "rgba(16,185,129,0.12)", iconColor: "#10B981", value: totalLoginHrs > 0 ? `${totalLoginHrs}h` : "—", label: "Monthly Login Hrs" },
-          { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: Math.max(0, 5 - leaveDays), label: "Leave Left This Month" },
-          { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks"  },
-        ] as const).map((s) => {
+        {topCards.map((s) => {
           const Icon = s.icon
           return (
             <div key={s.label} className="rounded-2xl p-4 flex flex-col"
@@ -349,7 +406,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
           </p>
           <p className="text-[12px] mt-0.5" style={{ color: "#6B7280" }}>
             {todayUpdate
-              ? isMedia ? `${todayUpdate.working_hours ?? "—"}h logged · ${shootCount} shoot${shootCount !== 1 ? "s" : ""}` : `${todayUpdate.working_hours ?? "—"}h logged`
+              ? (isMedia || isFreelancerMedia) ? `${todayUpdate.working_hours ?? "—"}h logged · ${shootCount} shoot${shootCount !== 1 ? "s" : ""}` : `${todayUpdate.working_hours ?? "—"}h logged`
               : "Submit before 9 PM to avoid alerts"}
           </p>
         </div>
@@ -431,15 +488,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
         {/* RIGHT — monthly quick stats (media/non-media) + salary + today summary */}
         <div className="space-y-3">
-          {(isMedia ? [
-            { icon: Camera,    iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: totalShoots,                                          label: "Total Shoots", href: "/member/history" },
-            { icon: Film,      iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: totalEdited,                                          label: "Total Edited", href: "/member/history" },
-            { icon: Coffee,    iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", value: totalBreakHrs > 0 ? `${totalBreakHrs}h` : "—",       label: "Break Hours",  href: "/member/attendance" },
-          ] : [
-            { icon: BookOpen,  iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
-            { icon: Clock,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : "—",       label: "Working Hrs",  href: "/member/attendance" },
-            { icon: Coffee,    iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", value: totalBreakHrs > 0 ? `${totalBreakHrs}h` : "—",       label: "Break Hours",  href: "/member/attendance" },
-          ] as { icon: React.ElementType; iconBg: string; iconColor: string; value: string | number; label: string; href: string }[]).map(stat => (
+          {rightStats.map(stat => (
             <Link key={stat.label} href={stat.href}
               className="rounded-2xl p-4 flex items-center gap-3 transition-all hover:shadow-sm"
               style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", display: "flex" }}>
@@ -455,7 +504,8 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
             </Link>
           ))}
 
-          {/* Salary Date Card */}
+          {/* Salary Date Card — hidden for freelancers (paid per work entry, not monthly) */}
+          {!isFreelancerMedia && (
           <div className="rounded-2xl p-4 flex items-center gap-3"
             style={{
               background: nextSalaryDaysLeft <= 2
@@ -478,6 +528,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
               </p>
             </div>
           </div>
+          )}
 
           {/* Today Summary — red wave card */}
           <div className="rounded-2xl p-4 relative overflow-hidden" style={{ background: "#0a0a0a" }}>

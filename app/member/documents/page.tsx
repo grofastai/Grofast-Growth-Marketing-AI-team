@@ -1,9 +1,18 @@
 ﻿export const revalidate = 60
 
 import { createServerClient } from "@/lib/supabase/server"
+import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { FileText, Download, FolderOpen } from "lucide-react"
+
+function adminSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  )
+}
 
 type Doc = {
   id: string
@@ -42,8 +51,11 @@ export default async function MemberDocumentsPage() {
   const cookieStore = await cookies()
   const impersonateId = cookieStore.get("gf_impersonate")?.value
   const effectiveUserId = impersonateId ?? user.id
+  // When impersonating, read through the service-role client (RLS would otherwise
+  // return zero rows since the session is still the admin's), scoped to effectiveUserId.
+  const db = impersonateId ? adminSupabase() : supabase
 
-  const { data: raw } = await supabase
+  const { data: raw } = await db
     .from("documents")
     .select("id, name, file_url, file_type, file_size, doc_type, created_at")
     .eq("user_id", effectiveUserId)

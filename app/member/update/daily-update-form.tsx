@@ -192,6 +192,49 @@ function parseExistingBlocks(existingUpdate: Record<string, unknown>): TimeBlock
     }))
 }
 
+// ── Learning blocks ─────────────────────────────────────────────────────────
+interface LearningBlock {
+  id: string; client: string; topic: string
+  from: string; to: string; notes: string
+}
+function newLearningBlock(): LearningBlock {
+  return { id: crypto.randomUUID(), client: "GROFAST DIGITAL", topic: "", from: "", to: "", notes: "" }
+}
+function calcLearningHours(from: string, to: string): number {
+  if (!from || !to) return 0
+  const [fh, fm] = from.split(":").map(Number)
+  const [th, tm] = to.split(":").map(Number)
+  const diff = (th * 60 + tm) - (fh * 60 + fm)
+  return diff > 0 ? Math.round(diff / 60 * 100) / 100 : 0
+}
+function parseExistingLearningBlocks(existingUpdate: Record<string, unknown>): LearningBlock[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  const learnEntries = Array.isArray(entries) ? entries.filter(e => e.task_type === 'learning') : []
+  if (learnEntries.length > 0) {
+    return learnEntries.map(e => {
+      const rawTitle = e.title ?? ''
+      const m = rawTitle.match(/^\[([^\]]+)\]\s*(.*)$/)
+      return {
+        id: e.id ?? crypto.randomUUID(),
+        client: m ? m[1] : 'GROFAST DIGITAL',
+        topic: m ? m[2] : rawTitle,
+        from: e.start_time ?? '',
+        to: e.end_time ?? '',
+        notes: e.notes ?? '',
+      }
+    })
+  }
+  // Legacy fallback: single learning_topic column
+  const legacyTopic = existingUpdate?.learning_topic as string | null
+  if (legacyTopic) {
+    return [{
+      id: crypto.randomUUID(), client: 'GROFAST DIGITAL', topic: legacyTopic,
+      from: '', to: '', notes: (existingUpdate?.learning_notes as string) ?? '',
+    }]
+  }
+  return [newLearningBlock()]
+}
+
 function parseExistingNonMediaBreaks(existingUpdate: Record<string, unknown>): MediaBreakEntry[] {
   const entries = existingUpdate?.work_entries as SavedEntry[] | null
   if (!Array.isArray(entries)) return []
@@ -371,9 +414,7 @@ export default function DailyUpdateForm({
     setPosters(isPast ? [] : (found ? parseExistingPosters(found) : []))
     setTimeBlocks(isPast ? [] : (found ? parseExistingBlocks(found) : []))
     setMediaBreaks(isPast ? [] : (found ? parseExistingMediaBreaks(found) : []))
-    setLearningTopic(isPast ? "" : (found?.learning_topic as string) ?? "")
-    setLearningFrom(""); setLearningTo("")
-    setLearningNotes(isPast ? "" : (found?.learning_notes as string) ?? "")
+    setLearningBlocks(isPast ? [newLearningBlock()] : (found ? parseExistingLearningBlocks(found) : [newLearningBlock()]))
     setLearningParticipantIds(isPast ? [] : (found?.active_tab === "learning" ? ((found?.participant_ids as string[]) ?? []) : []))
     // Past date: never mark as done — always show fresh form regardless of existing data
     setWorkingDone(isPast ? false : !!(found && (found as Record<string, unknown>).working_hours))
@@ -487,22 +528,21 @@ export default function DailyUpdateForm({
   }))
   const removeNonMediaBreak = (id: string) => setNonMediaBreaks(p => p.filter(b => b.id !== id))
 
-  // ── Learning ─────────────────────────────────────────────────────────────
-  const [learningClient, setLearningClient] = useState("GROFAST DIGITAL")
-  const [learningTopic, setLearningTopic] = useState(
-    (existingUpdate?.learning_topic as string) ?? ""
+  // ── Learning (multi-block) ───────────────────────────────────────────────
+  const [learningBlocks, setLearningBlocks] = useState<LearningBlock[]>(() =>
+    existingUpdate ? parseExistingLearningBlocks(existingUpdate) : [newLearningBlock()]
   )
-  const [learningFrom, setLearningFrom] = useState("")
-  const [learningTo,   setLearningTo]   = useState("")
-  const learningHours = (() => {
-    if (!learningFrom || !learningTo) return 0
-    const [fh, fm] = learningFrom.split(":").map(Number)
-    const [th, tm] = learningTo.split(":").map(Number)
-    const diff = (th * 60 + tm) - (fh * 60 + fm)
-    return diff > 0 ? Math.round(diff / 60 * 100) / 100 : 0
-  })()
-  const [learningNotes, setLearningNotes] = useState(
-    (existingUpdate?.learning_notes as string) ?? ""
+  const addLearningBlock = () => setLearningBlocks(p => [...p, newLearningBlock()])
+  const removeLearningBlock = (id: string) =>
+    setLearningBlocks(p => p.length > 1 ? p.filter(b => b.id !== id) : p)
+  const patchLearningBlock = (id: string, patch: Partial<LearningBlock>) =>
+    setLearningBlocks(p => p.map(b => b.id === id ? { ...b, ...patch } : b))
+  const learningHours = Math.round(
+    learningBlocks.reduce((s, b) => s + calcLearningHours(b.from, b.to), 0) * 100
+  ) / 100
+  const learningSummaryTopic = learningBlocks.find(b => b.topic.trim())?.topic ?? ""
+  const filledLearningBlocks = learningBlocks.filter(
+    b => b.topic.trim() && b.from && b.to && calcLearningHours(b.from, b.to) > 0
   )
   const [learningParticipantIds, setLearningParticipantIds] = useState<string[]>(
     existingUpdate?.active_tab === "learning" ? ((existingUpdate?.participant_ids as string[]) ?? []) : []
@@ -579,7 +619,7 @@ export default function DailyUpdateForm({
   const hasUnsaved = !workingDone && (
     shoots.length > 0 || edits.length > 0 ||
     timeBlocks.some(b => b.description.trim()) ||
-    learningTopic.trim().length > 0
+    learningBlocks.some(b => b.topic.trim().length > 0)
   )
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -1016,9 +1056,12 @@ export default function DailyUpdateForm({
   // ── Submit: learning ─────────────────────────────────────────────────────
   function handleLearningSubmit() {
     setLearningError(null)
-    if (!learningTopic.trim()) { setLearningError("Enter what you learned today."); return }
-    if (!learningFrom || !learningTo) { setLearningError("Set the From and To time."); return }
-    if (learningHours <= 0) { setLearningError("To time must be after From time."); return }
+    const incomplete = learningBlocks.find(b => b.topic.trim() || b.from || b.to)
+    if (filledLearningBlocks.length === 0) {
+      if (incomplete && !incomplete.topic.trim()) { setLearningError("Enter what you learned today."); return }
+      if (incomplete && (!incomplete.from || !incomplete.to)) { setLearningError("Set the From and To time."); return }
+      setLearningError("Add at least one learning block with a topic and time."); return
+    }
     startTransition(async () => {
       const res = await submitDailyUpdate({
         active_tab: "learning", date: selectedDate, links: [],
@@ -1026,20 +1069,20 @@ export default function DailyUpdateForm({
         shoot_time_hours: 0, editing_time_hours: 0,
         learning_hours: 0,
         participant_ids: learningParticipantIds,
-        work_entries: [{
-          id: crypto.randomUUID(),
+        work_entries: filledLearningBlocks.map(b => ({
+          id: b.id,
           client_id: null,
-          client_name: learningClient,
+          client_name: b.client,
           client_names: [],
           is_multi_client: false,
           task_type: "learning" as const,
-          title: `[${learningClient}] ${learningTopic.trim()}`,
-          start_time: learningFrom || "",
-          end_time:   learningTo   || "",
-          duration_hours: learningHours,
-          notes: learningNotes || "",
+          title: `[${b.client}] ${b.topic.trim()}`,
+          start_time: b.from || "",
+          end_time:   b.to   || "",
+          duration_hours: calcLearningHours(b.from, b.to),
+          notes: b.notes || "",
           editing_videos: [],
-        }],
+        })),
       })
       if (!res.success) setLearningError(res.error ?? "Submission failed.")
       else { setLearningDone(true); setEditMode(false); router.refresh() }
@@ -2610,44 +2653,62 @@ export default function DailyUpdateForm({
                 </div>
               ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-                <div>
-                  <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>For Client *</label>
-                  <div style={{ display:"flex", gap:8 }}>
-                    {["GROFAST DIGITAL", "GROFAST AI"].map(c => (
-                      <button key={c} type="button" onClick={() => setLearningClient(c)}
-                        style={{ flex:1, padding:"9px 14px", borderRadius:10, fontSize:12, fontWeight:700, cursor:"pointer",
-                          border: learningClient === c ? "2px solid #10B981" : "1.5px solid #EBEDF2",
-                          background: learningClient === c ? "rgba(16,185,129,0.1)" : "#F9FAFB",
-                          color: learningClient === c ? "#059669" : "#6B7280" }}>
-                        {c}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Topic / Course *</label>
-                  <input value={learningTopic} onChange={e => setLearningTopic(e.target.value)} placeholder="e.g. DaVinci Resolve color grading, Adobe Premiere…" style={F} />
-                </div>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
-                  <div>
-                    <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>From *</label>
-                    <TimePicker value={learningFrom} onChange={setLearningFrom} allowEmpty style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
-                  </div>
-                  <div>
-                    <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>To *</label>
-                    <TimePicker value={learningTo} onChange={setLearningTo} allowEmpty style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
-                  </div>
-                  <div>
-                    <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Duration</label>
-                    <div style={{ ...F, background:"#F9FAFB", color: learningHours > 0 ? "#111827" : "#9CA3AF", fontWeight:700, display:"flex", alignItems:"center" }}>
-                      {learningHours > 0 ? `${learningHours}h` : "—"}
+                {learningBlocks.map((blk, idx) => (
+                  <div key={blk.id} style={{ border:"1.5px solid #EBEDF2", borderRadius:14, padding:"14px 16px", background:"#FCFEFD", display:"flex", flexDirection:"column", gap:12 }}>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                      <span style={{ fontSize:11, fontWeight:800, color:"#10B981", textTransform:"uppercase", letterSpacing:"0.08em" }}>📘 Learning #{idx + 1}</span>
+                      {learningBlocks.length > 1 && (
+                        <button type="button" onClick={() => removeLearningBlock(blk.id)} title="Remove this learning"
+                          style={{ width:26, height:26, borderRadius:8, border:"1.5px solid #FECACA", background:"#FEF2F2", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+                          <Trash2 size={13} style={{ color:"#EF4444" }} />
+                        </button>
+                      )}
+                    </div>
+                    <div>
+                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>For Client *</label>
+                      <div style={{ display:"flex", gap:8 }}>
+                        {["GROFAST DIGITAL", "GROFAST AI"].map(c => (
+                          <button key={c} type="button" onClick={() => patchLearningBlock(blk.id, { client: c })}
+                            style={{ flex:1, padding:"9px 14px", borderRadius:10, fontSize:12, fontWeight:700, cursor:"pointer",
+                              border: blk.client === c ? "2px solid #10B981" : "1.5px solid #EBEDF2",
+                              background: blk.client === c ? "rgba(16,185,129,0.1)" : "#F9FAFB",
+                              color: blk.client === c ? "#059669" : "#6B7280" }}>
+                            {c}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Topic / Course *</label>
+                      <input value={blk.topic} onChange={e => patchLearningBlock(blk.id, { topic: e.target.value })} placeholder="e.g. DaVinci Resolve color grading, Adobe Premiere…" style={F} />
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12 }}>
+                      <div>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>From *</label>
+                        <TimePicker value={blk.from} onChange={v => patchLearningBlock(blk.id, { from: v })} allowEmpty style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
+                      </div>
+                      <div>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>To *</label>
+                        <TimePicker value={blk.to} onChange={v => patchLearningBlock(blk.id, { to: v })} allowEmpty style={{ ...F, fontVariantNumeric:"tabular-nums" }} />
+                      </div>
+                      <div>
+                        <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Duration</label>
+                        <div style={{ ...F, background:"#F9FAFB", color: calcLearningHours(blk.from, blk.to) > 0 ? "#111827" : "#9CA3AF", fontWeight:700, display:"flex", alignItems:"center" }}>
+                          {calcLearningHours(blk.from, blk.to) > 0 ? `${calcLearningHours(blk.from, blk.to)}h` : "—"}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Notes</label>
+                      <input value={blk.notes} onChange={e => patchLearningBlock(blk.id, { notes: e.target.value })} placeholder="Key takeaways, resources used…" style={F} />
                     </div>
                   </div>
-                </div>
-                <div>
-                  <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:6 }}>Notes</label>
-                  <input value={learningNotes} onChange={e => setLearningNotes(e.target.value)} placeholder="Key takeaways, resources used…" style={F} />
-                </div>
+                ))}
+                {/* Add another learning block */}
+                <button type="button" onClick={addLearningBlock}
+                  style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:6, padding:"11px", borderRadius:12, border:"1.5px dashed #10B981", background:"rgba(16,185,129,0.06)", color:"#059669", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  <Plus size={14} /> Add Another Learning
+                </button>
                 {/* Learned With */}
                 {teamMembers.length > 0 && (
                   <div style={{ paddingTop:10, borderTop:"1px dashed #EBEDF2" }}>
@@ -2696,7 +2757,7 @@ export default function DailyUpdateForm({
                 <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
                   <div>
                     {learningError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{learningError}</p>}
-                    {!learningError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningTopic || "not set"} · {learningHours}h</p>}
+                    {!learningError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningSummaryTopic || "not set"}{filledLearningBlocks.length > 1 ? ` +${filledLearningBlocks.length - 1} more` : ""} · {learningHours}h</p>}
                   </div>
                   {learningDone ? (
                     <span style={{ fontSize:12, fontWeight:700, color:"#22C55E", display:"flex", alignItems:"center", gap:6 }}>
@@ -2726,7 +2787,7 @@ export default function DailyUpdateForm({
               <div>
                 {error && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{error}</p>}
                 {!error && tab === "media"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{shoots.length} shoot{shoots.length !== 1 ? "s" : ""} · {edits.length} edit{edits.length !== 1 ? "s" : ""} · {totalMediaHours}h total</p>}
-                {!error && tab === "learning"&& <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningTopic || "not set"} · {learningHours}h</p>}
+                {!error && tab === "learning"&& <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningSummaryTopic || "not set"}{filledLearningBlocks.length > 1 ? ` +${filledLearningBlocks.length - 1} more` : ""} · {learningHours}h</p>}
                 {!error && tab === "break"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>
                   {isMediaTeam ? `${mediaBreaks.length} break${mediaBreaks.length !== 1 ? "s" : ""} · ${mediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h` : `${nonMediaBreaks.length} break${nonMediaBreaks.length !== 1 ? "s" : ""} · ${nonMediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h`}
                 </p>}
@@ -2840,7 +2901,7 @@ export default function DailyUpdateForm({
                       📚 Learning{src ? " ✓" : ""}
                     </p>
                     {([
-                      { label:"Topic", value: srcTopic || learningTopic || "Not set", color:"#10B981" },
+                      { label:"Topic", value: srcTopic || learningSummaryTopic || "Not set", color:"#10B981" },
                       { label:"Hours", value:`${srcHours ?? learningHours}h`,          color:"#6366F1" },
                     ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
                       <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:4 }}>
@@ -2897,7 +2958,7 @@ export default function DailyUpdateForm({
               {(isMediaTeam && tab === "learning") && (
                 <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
                   {([
-                    { label:"Topic",       value: learningTopic || "Not set", color:"#10B981" },
+                    { label:"Topic",       value: learningSummaryTopic || "Not set", color:"#10B981" },
                     { label:"Hours",       value:`${learningHours}h`,          color:"#6366F1" },
                   ] as Array<{label:string;value:string;color:string}>).map((r,i) => (
                     <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>

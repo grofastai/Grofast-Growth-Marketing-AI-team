@@ -81,12 +81,16 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   const effectiveUserId = impersonateId ?? user.id
 
   const admin = adminSupabase()
+  // When impersonating, the RLS-bound `supabase` client is still authed as the
+  // admin, so member-scoped queries return zero rows. Read through the service-role
+  // client instead, scoped to effectiveUserId.
+  const db = impersonateId ? admin : supabase
 
   // Profile first — needed for company_id to query participated updates
   const profileResult = await admin
     .from("users")
     .select("name, company_id, team")
-    .eq("id", user.id)
+    .eq("id", effectiveUserId)
     .single()
 
   const companyId = profileResult.data?.company_id ?? ""
@@ -95,7 +99,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   const fromDateStr = `${new Date().getFullYear()}-01-01`
 
   const [updatesResult, clientsResult, pastClientsResult, participatedResult, membersResult, attLogsResult, leavesResult, companyLeavesResult, confirmationsResult] = await Promise.all([
-    supabase
+    db
       .from("daily_updates")
       .select("id, date, attendance_status, work_type, working_hours, learning_hours, learning_topic, learning_notes, learning_start_time, learning_end_time, shoot_count, editing_count, work_entries, created_at")
       .eq("user_id", effectiveUserId)

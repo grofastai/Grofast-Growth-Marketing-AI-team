@@ -1131,7 +1131,7 @@ export default function FreelancersMemberClient({
             return (
               <div>
                 {/* HERO BANNER */}
-                <div style={{ margin: "16px 16px 0", borderRadius: 24, overflow: "hidden", background: `linear-gradient(135deg, ${cfg.color} 0%, ${cfg.color}CC 55%, ${cfg.color}66 100%)`, boxShadow: `0 8px 32px ${cfg.color}45`, position: "relative", minHeight: 210 }}>
+                <div style={{ margin: "16px 16px 0", borderRadius: 24, overflow: "hidden", background: `linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.82) 100%), linear-gradient(135deg, ${cfg.color} 0%, #060606 100%)`, boxShadow: `0 10px 38px rgba(0,0,0,0.4)`, position: "relative", minHeight: 210 }}>
                   <div style={{ position: "absolute", top: -50, right: -50, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.07)", pointerEvents: "none" }} />
                   <div style={{ position: "absolute", bottom: -30, left: 140, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
                   <div style={{ position: "absolute", top: 20, left: 220, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />

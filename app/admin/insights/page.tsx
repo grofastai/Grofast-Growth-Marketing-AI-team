@@ -30,6 +30,8 @@ type UpdateRow = {
   work_entries: {
     client_name?: string
     task_type?: string
+    start_time?: string | null
+    end_time?: string | null
     duration_hours?: number
   }[] | null
   learning_hours: number | null
@@ -40,6 +42,7 @@ export type MemberUtilization = {
   name: string
   employeeId: string
   team: string | null
+  isMedia: boolean
   monthlySalary: number
   workingDays: number
   expectedHours: number       // workingDays × 8.5
@@ -85,6 +88,10 @@ export type InsightsKPIs  = {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function isMediaTeam(team: string | null): boolean {
+  return (team ?? '').toLowerCase().includes('media')
+}
 
 function deriveHourly(m: MemberRow): number {
   if (m.hourly_rate && m.hourly_rate > 0) return m.hourly_rate
@@ -168,7 +175,8 @@ export default async function InsightsPage({
   for (const du of updates) {
     const member = memberMap.get(du.user_id)
     if (!member) continue
-    const hourly = deriveHourly(member)
+    const hourly  = deriveHourly(member)
+    const isMedia = isMediaTeam(member.team)
 
     if (!accMap[du.user_id]) {
       accMap[du.user_id] = {
@@ -181,32 +189,37 @@ export default async function InsightsPage({
 
     const learnH = du.learning_hours ?? 0
     acc.learningHours += learnH
-    acc.trackedHours  += learnH
-    acc.totalCost     += learnH * hourly
 
-    let dayHrs = learnH
+    let dayShoot = 0, dayEdit = 0, dayOther = 0, dayVoiceover = 0, dayPoster = 0
+
     for (const e of du.work_entries ?? []) {
       const hrs = e.duration_hours ?? 0
       if (hrs <= 0) continue
-      const cost = hrs * hourly
-      const tt   = (e.task_type ?? 'other').toLowerCase()
-
-      acc.trackedHours += hrs
-      acc.totalCost    += cost
-      dayHrs           += hrs
+      const tt = (e.task_type ?? 'other').toLowerCase()
+      if (tt === 'break') continue  // breaks never count as working hours
 
       if (e.client_name) acc.clients.add(e.client_name)
 
-      if      (tt === 'shoot')               acc.shoot     += hrs
-      else if (tt === 'edit')                acc.edit      += hrs
-      else if (tt === 'voiceover')           acc.voiceover += hrs
-      else if (tt === 'poster')              acc.poster    += hrs
-      else                                   acc.technical += hrs
+      if      (tt === 'shoot')     { acc.shoot     += hrs; dayShoot     += hrs }
+      else if (tt === 'edit')      { acc.edit      += hrs; dayEdit      += hrs }
+      else if (tt === 'voiceover') { acc.voiceover += hrs; dayVoiceover += hrs }
+      else if (tt === 'poster')    { acc.poster    += hrs; dayPoster    += hrs }
+      else                         { acc.technical += hrs; dayOther     += hrs }
     }
 
+    // Exact formula from History page:
+    // Media (shoot/edit team): shoot + edit + learning
+    // Non-media: other + voiceover + poster + learning
+    const workH = isMedia
+      ? dayShoot + dayEdit + learnH
+      : dayOther + dayVoiceover + dayPoster + learnH
+
+    acc.trackedHours += workH
+    acc.totalCost    += workH * hourly
+
     if (!dailyMap[du.date]) dailyMap[du.date] = { hours: 0, cost: 0 }
-    dailyMap[du.date].hours += dayHrs
-    dailyMap[du.date].cost  += dayHrs * hourly
+    dailyMap[du.date].hours += workH
+    dailyMap[du.date].cost  += workH * hourly
   }
 
   // ── Member utilization ────────────────────────────────────────────────────
@@ -226,7 +239,7 @@ export default async function InsightsPage({
 
       return {
         id: m.id, name: m.name, employeeId: m.employee_id,
-        team: m.team, monthlySalary: m.monthly_salary ?? 0,
+        team: m.team, isMedia: isMediaTeam(m.team), monthlySalary: m.monthly_salary ?? 0,
         workingDays, expectedHours,
         trackedHours, learningHours, untrackedHours,
         wastedCost, efficiency, overworked: efficiency > 105,

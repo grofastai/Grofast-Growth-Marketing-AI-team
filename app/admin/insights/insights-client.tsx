@@ -213,7 +213,7 @@ export default function InsightsClient({
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
             <thead>
               <tr style={{ background: '#F9FAFB' }}>
-                {['Member', 'Team', 'Days In', 'Expected', 'Tracked', 'Learning', 'Untracked', 'Wasted ₹', 'Efficiency'].map(h => (
+                {['Member', 'Team', 'Days In', 'Expected', 'Tracked', 'Avg/Day', 'Learning', 'Untracked', 'Wasted ₹', 'Efficiency'].map(h => (
                   <th key={h} style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#9CA3AF', textAlign: h === 'Member' || h === 'Team' ? 'left' : 'right', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                     {h}
                   </th>
@@ -262,6 +262,18 @@ export default function InsightsClient({
                     <td style={{ padding: '12px 14px', fontSize: 13, fontWeight: 700, color: '#111827', textAlign: 'right' }}>
                       {fmtH(m.trackedHours)}
                     </td>
+                    {/* Avg/Day */}
+                    {(() => {
+                      const avg = m.workingDays > 0 ? m.trackedHours / m.workingDays : 0
+                      const avgColor = avg >= 8 ? '#22C55E' : avg >= 6 ? '#F59E0B' : '#EF4444'
+                      return (
+                        <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: avgColor }}>
+                            {avg > 0 ? `${avg.toFixed(1)}h` : '—'}
+                          </span>
+                        </td>
+                      )
+                    })()}
                     {/* Learning */}
                     <td style={{ padding: '12px 14px', fontSize: 12, fontWeight: 600, color: '#0EA5E9', textAlign: 'right' }}>
                       {m.learningHours > 0 ? fmtH(m.learningHours) : '—'}
@@ -310,6 +322,15 @@ export default function InsightsClient({
                   </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 800, color: '#111827' }}>
                     {fmtH(kpis.totalTrackedHours)}
+                  </td>
+                  {/* Avg/Day total */}
+                  <td style={{ padding: '10px 14px', textAlign: 'right' }}>
+                    {(() => {
+                      const totalDays = memberUtilization.reduce((s, m) => s + m.workingDays, 0)
+                      const avg = totalDays > 0 ? kpis.totalTrackedHours / totalDays : 0
+                      const avgColor = avg >= 8 ? '#22C55E' : avg >= 6 ? '#F59E0B' : '#EF4444'
+                      return <span style={{ fontSize: 12, fontWeight: 800, color: avgColor }}>{avg > 0 ? `${avg.toFixed(1)}h` : '—'}</span>
+                    })()}
                   </td>
                   <td style={{ padding: '10px 14px', textAlign: 'right', fontSize: 12, fontWeight: 700, color: '#0EA5E9' }}>
                     {fmtH(kpis.totalLearningHours)}

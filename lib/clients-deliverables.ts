@@ -103,7 +103,7 @@ export type DeliverableResult = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 export function derivePerHour(u: MemberUser): number {
-  if (u.monthly_salary && u.monthly_salary > 0) return u.monthly_salary / 25 / 9
+  if (u.monthly_salary && u.monthly_salary > 0) return u.monthly_salary / 25 / 8.5
   return u.hourly_rate ?? 0
 }
 

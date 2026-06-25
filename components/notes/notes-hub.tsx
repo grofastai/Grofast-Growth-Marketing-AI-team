@@ -1,5 +1,5 @@
 'use client'
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, CalendarDays } from 'lucide-react'
 import { FolderSidebar } from './folder-sidebar'
@@ -27,6 +27,11 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
   const [creating, setCreating] = useState(false)
   const [calendar, setCalendar] = useState(false)
   const [saving, startSave] = useTransition()
+  const wasSaving = useRef(false)
+  useEffect(() => {
+    if (wasSaving.current && !saving) router.refresh()
+    wasSaving.current = saving
+  }, [saving, router])
 
   const visible = useMemo(() => {
     const fn = (id: string | null) => folders.find(f => f.id === id)?.name ?? ''
@@ -52,17 +57,16 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
         const r = await createNote(input)
         if (r.success && r.id) { setActiveId(r.id); setCreating(false) }
       }
-      router.refresh()
     })
   }
   const handleNew = () => { setCreating(true); setActiveId(null) }
   const handleSelect = (id: string) => { setCreating(false); setActiveId(id) }
   const handleNewFolder = (name: string, scope: NoteScope) =>
-    startSave(async () => { await createFolder({ name, scope }); router.refresh() })
+    startSave(async () => { await createFolder({ name, scope }) })
   const handleDeleteNote = (id: string) =>
-    startSave(async () => { await deleteNote(id); if (activeId === id) { setActiveId(null); setCreating(false) }; router.refresh() })
+    startSave(async () => { await deleteNote(id); if (activeId === id) { setActiveId(null); setCreating(false) } })
   const handleDeleteFolder = (id: string) =>
-    startSave(async () => { await deleteFolder(id); if (folderId === id) setFolderId(null); router.refresh() })
+    startSave(async () => { await deleteFolder(id); if (folderId === id) setFolderId(null) })
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#F8F9FC' }}>

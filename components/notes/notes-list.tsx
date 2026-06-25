@@ -1,5 +1,6 @@
 'use client'
-import { Pin, Bell, Lock, Globe, BookOpen } from 'lucide-react'
+import { useState } from 'react'
+import { Pin, Bell, Lock, Globe, BookOpen, Trash2 } from 'lucide-react'
 import type { HubNote, Folder } from './types'
 
 const scopeBadge = (s: string) =>
@@ -7,11 +8,13 @@ const scopeBadge = (s: string) =>
   : s === 'sop' ? { icon: <BookOpen size={11}/>, label: 'SOP', c: '#7C3AED' }
   : { icon: <Lock size={11}/>, label: 'Private', c: '#6B7280' }
 
-export function NotesList({ notes, folders, activeId, sort, onSort, onSelect }: {
+export function NotesList({ notes, folders, activeId, sort, onSort, onSelect, onDelete }: {
   notes: HubNote[]; folders: Folder[]; activeId: string | null
   sort: 'newest' | 'oldest' | 'edited'; onSort: (s: 'newest' | 'oldest' | 'edited') => void
   onSelect: (id: string) => void
+  onDelete: (id: string) => void
 }) {
+  const [hoverId, setHoverId] = useState<string | null>(null)
   const fname = (id: string | null) => folders.find(f => f.id === id)?.name ?? ''
   const sorted = [...notes].sort((a, b) =>
     sort === 'oldest' ? +new Date(a.created_at) - +new Date(b.created_at)
@@ -29,13 +32,26 @@ export function NotesList({ notes, folders, activeId, sort, onSort, onSelect }: 
         {sorted.map(n => {
           const b = scopeBadge(n.scope)
           return (
-            <div key={n.id} onClick={() => onSelect(n.id)}
-              style={{ background: activeId === n.id ? 'rgba(222,26,26,0.06)' : '#fff', borderRadius: 14,
+            <div key={n.id}
+              onClick={() => onSelect(n.id)}
+              onMouseEnter={() => setHoverId(n.id)}
+              onMouseLeave={() => setHoverId(null)}
+              style={{ position: 'relative', background: activeId === n.id ? 'rgba(222,26,26,0.06)' : '#fff', borderRadius: 14,
                 border: activeId === n.id ? '1px solid rgba(222,26,26,0.3)' : '1px solid #F1F1F4',
                 padding: 12, cursor: 'pointer', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                 <span style={{ fontWeight: 700, fontSize: 14, color: '#111' }}>{n.title || 'Untitled'}</span>
-                {n.pinned && <Pin size={13} color="#DE1A1A" />}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {n.pinned && <Pin size={13} color="#DE1A1A" />}
+                  {hoverId === n.id && (
+                    <button
+                      onClick={e => { e.stopPropagation(); if (confirm(`Delete "${n.title || 'Untitled'}"? This cannot be undone.`)) onDelete(n.id) }}
+                      title="Delete note"
+                      style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 2, display: 'flex', alignItems: 'center' }}>
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
               </div>
               <div style={{ fontSize: 12, color: '#9CA3AF', margin: '4px 0', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{n.content}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#9CA3AF' }}>

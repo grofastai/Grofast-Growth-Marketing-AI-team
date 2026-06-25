@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { User, Globe, BookOpen, Star, Plus } from 'lucide-react'
+import { User, Globe, BookOpen, Star, Plus, Trash2 } from 'lucide-react'
 import type { Folder, NoteScope } from './types'
 import type { HubView } from '@/lib/notes/filter'
 
@@ -11,14 +11,17 @@ const TABS: { key: HubView; label: string; icon: React.ReactNode }[] = [
   { key: 'shared', label: 'Shared With Me', icon: <Star size={15}/> },
 ]
 
-export function FolderSidebar({ folders, view, activeFolderId, onView, onFolder, onNewFolder, isAdmin }: {
+export function FolderSidebar({ folders, view, activeFolderId, onView, onFolder, onNewFolder, onDeleteFolder, isAdmin }: {
   folders: Folder[]; view: HubView; activeFolderId: string | null
   onView: (v: HubView) => void; onFolder: (id: string | null) => void
-  onNewFolder: (name: string, scope: NoteScope) => void; isAdmin: boolean
+  onNewFolder: (name: string, scope: NoteScope) => void
+  onDeleteFolder: (id: string) => void
+  isAdmin: boolean
 }) {
   void isAdmin
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
+  const [hoverId, setHoverId] = useState<string | null>(null)
   const row = (active: boolean): React.CSSProperties => ({
     display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10,
     cursor: 'pointer', fontSize: 13, fontWeight: 600,
@@ -35,9 +38,21 @@ export function FolderSidebar({ folders, view, activeFolderId, onView, onFolder,
       ))}
       <div style={{ height: 1, background: '#F1F1F4', margin: '10px 4px' }} />
       {folders.map(f => (
-        <div key={f.id} style={row(activeFolderId === f.id)} onClick={() => onFolder(f.id)}>
-          <span>{f.icon ?? '📁'}</span><span style={{ flex: 1 }}>{f.name}</span>
+        <div key={f.id} style={{ ...row(activeFolderId === f.id), position: 'relative' }}
+          onClick={() => onFolder(f.id)}
+          onMouseEnter={() => setHoverId(f.id)}
+          onMouseLeave={() => setHoverId(null)}>
+          <span>{f.icon ?? '📁'}</span>
+          <span style={{ flex: 1 }}>{f.name}</span>
           <span style={{ fontSize: 11, color: '#9CA3AF' }}>{f.count}</span>
+          {hoverId === f.id && (
+            <button
+              onClick={e => { e.stopPropagation(); if (confirm(`Delete folder "${f.name}"? Notes inside will not be deleted.`)) onDeleteFolder(f.id) }}
+              title="Delete folder"
+              style={{ marginLeft: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: '#EF4444', padding: 2, display: 'flex', alignItems: 'center' }}>
+              <Trash2 size={13} />
+            </button>
+          )}
         </div>
       ))}
       {adding ? (

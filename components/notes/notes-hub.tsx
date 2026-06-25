@@ -9,7 +9,7 @@ import { SharePopup } from './share-popup'
 import { CalendarView } from './calendar-view'
 import { filterNotes, type HubView, type FilterNote } from '@/lib/notes/filter'
 import { canEditNote } from '@/lib/notes/access'
-import { createNote, updateNote, createFolder } from '@/lib/actions/notes'
+import { createNote, updateNote, createFolder, deleteNote, deleteFolder } from '@/lib/actions/notes'
 import type { HubNote, Folder, TeamMember, NoteScope } from './types'
 
 export default function NotesHub({ initialNotes, folders, teamMembers, viewer }: {
@@ -59,6 +59,10 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
   const handleSelect = (id: string) => { setCreating(false); setActiveId(id) }
   const handleNewFolder = (name: string, scope: NoteScope) =>
     startSave(async () => { await createFolder({ name, scope }); router.refresh() })
+  const handleDeleteNote = (id: string) =>
+    startSave(async () => { await deleteNote(id); if (activeId === id) { setActiveId(null); setCreating(false) }; router.refresh() })
+  const handleDeleteFolder = (id: string) =>
+    startSave(async () => { await deleteFolder(id); if (folderId === id) setFolderId(null); router.refresh() })
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#F8F9FC' }}>
@@ -84,12 +88,12 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <FolderSidebar folders={folders} view={view} activeFolderId={folderId}
           onView={v => { setView(v); setFolderId(null) }} onFolder={id => { setFolderId(id); setView('all') }}
-          onNewFolder={handleNewFolder} isAdmin={isAdmin} />
+          onNewFolder={handleNewFolder} onDeleteFolder={handleDeleteFolder} isAdmin={isAdmin} />
         {calendar ? (
           <CalendarView notes={visible} onSelect={id => { setCalendar(false); handleSelect(id) }} />
         ) : (
           <>
-            <NotesList notes={visible} folders={folders} activeId={creating ? null : activeId} sort={sort} onSort={setSort} onSelect={handleSelect} />
+            <NotesList notes={visible} folders={folders} activeId={creating ? null : activeId} sort={sort} onSort={setSort} onSelect={handleSelect} onDelete={handleDeleteNote} />
             <NoteEditor key={active?.id ?? (creating ? 'new' : 'none')}
               note={active ?? (creating ? EMPTY_NOTE : null)} folders={folders} canEdit={canEdit} isAdmin={isAdmin}
               teamMembers={teamMembers} onSave={handleSave} onShare={() => active && setSharing(active.id)} saving={saving} />

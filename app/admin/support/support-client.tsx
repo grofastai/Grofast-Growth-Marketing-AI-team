@@ -303,7 +303,7 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
 
       {/* ── HERO BANNER ──────────────────────────────────────────── */}
       <div style={{
-        background: 'linear-gradient(135deg,#FDF8F5 0%,#FAF0E8 50%,#F5EBE0 100%)',
+        background: 'linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)',
         borderBottom: '1px solid rgba(0,0,0,0.06)',
         position: 'relative', overflow: 'hidden', minHeight: 240,
       }}>
@@ -314,10 +314,10 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
 
           {/* Left: heading + pills */}
           <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: 34, fontWeight: 900, color: '#111111', fontFamily: 'var(--font-jakarta)', margin: 0, lineHeight: 1.15 }}>
+            <h1 style={{ fontSize: 34, fontWeight: 900, color: '#FFFFFF', fontFamily: 'var(--font-jakarta)', margin: 0, lineHeight: 1.15 }}>
               Support Workspace
             </h1>
-            <p style={{ fontSize: 13, color: '#9CA3AF', margin: '6px 0 22px' }}>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)', margin: '6px 0 22px' }}>
               Manage, resolve, and track team support operations intelligently.
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingBottom: 28 }}>

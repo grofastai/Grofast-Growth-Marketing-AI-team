@@ -80,21 +80,25 @@ function ClientCard({ c, isSelected, onClick }: { c: ClientRow; isSelected: bool
 
 // ── Stat chip ─────────────────────────────────────────────────────────────────
 
-function StatChip({ label, value, sub, color, bg, emoji }: {
-  label: string; value: string | number; sub?: string; color: string; bg: string; emoji: string
+function StatChip({ label, hours, count, color, isCost }: {
+  label: string; hours: string; count?: number | string; color: string; isCost?: boolean
 }) {
   return (
     <div style={{
-      background: bg, borderRadius: 16, padding: '16px 14px', border: `1px solid ${color}22`,
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      flex: 1, minWidth: 100, gap: 2, textAlign: 'center',
+      background: '#fff', borderRadius: 14, border: '1px solid #EBEDF2',
+      borderTop: `3px solid ${color}`,
+      padding: '14px 16px', flex: 1, minWidth: 110,
+      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
     }}>
-      <span style={{ fontSize: 22, lineHeight: 1, marginBottom: 2 }}>{emoji}</span>
-      <p style={{ fontSize: 10, color: '#9CA3AF', margin: 0, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
-      <p style={{ fontSize: 24, fontWeight: 900, color, margin: '4px 0 0', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>
-        {value}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>
+        {count != null && (
+          <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 99, background: `${color}15`, color }}>{count}</span>
+        )}
+      </div>
+      <p style={{ fontSize: 22, fontWeight: 900, color: isCost ? color : '#111827', margin: 0, fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>
+        {hours}
       </p>
-      {sub && <p style={{ fontSize: 11, color: '#9CA3AF', margin: '3px 0 0', fontWeight: 600 }}>{sub}</p>}
     </div>
   )
 }
@@ -164,20 +168,24 @@ export default function ClientsUnifiedClient({
   dateTo: string
 }) {
   const router = useRouter()
-  const [listTab, setListTab] = useState<'active' | 'past'>('active')
-  const [search, setSearch]   = useState('')
+  const [search, setSearch] = useState('')
 
-  const allClients = listTab === 'active' ? activeClients : pastClients
+  const internalClients = useMemo(() => activeClients.filter(c => c.industry === 'Internal Brand'), [activeClients])
+  const regularActive   = useMemo(() => activeClients.filter(c => c.industry !== 'Internal Brand'), [activeClients])
 
-  const filtered = useMemo(() => {
+  function filterList(list: ClientRow[]) {
     const q = search.toLowerCase()
-    if (!q) return allClients
-    return allClients.filter(c =>
+    if (!q) return list
+    return list.filter(c =>
       c.name.toLowerCase().includes(q) ||
       (c.industry ?? '').toLowerCase().includes(q) ||
       (c.location ?? '').toLowerCase().includes(q)
     )
-  }, [allClients, search])
+  }
+
+  const filteredInternal = useMemo(() => filterList(internalClients), [internalClients, search]) // eslint-disable-line react-hooks/exhaustive-deps
+  const filteredActive   = useMemo(() => filterList(regularActive),   [regularActive,   search]) // eslint-disable-line react-hooks/exhaustive-deps
+  const filteredPast     = useMemo(() => filterList(pastClients),     [pastClients,     search]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function thisMonthStr() { return new Date().toISOString().slice(0, 7) }
   function prevMonthStr() {
@@ -235,21 +243,6 @@ export default function ClientsUnifiedClient({
             </span>
           </div>
 
-          {/* Active / Past toggle */}
-          <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
-            {(['active', 'past'] as const).map(t => (
-              <button key={t} onClick={() => { setListTab(t); setSearch('') }}
-                style={{
-                  flex: 1, padding: '6px 0', borderRadius: 8, fontSize: 11, fontWeight: 700,
-                  border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-                  background: listTab === t ? '#DE1A1A' : '#F3F4F6',
-                  color: listTab === t ? '#FFFFFF' : '#6B7280',
-                }}>
-                {t === 'active' ? `Active · ${activeClients.length}` : `Past · ${pastClients.length}`}
-              </button>
-            ))}
-          </div>
-
           {/* Search */}
           <div style={{ position: 'relative' }}>
             <Search size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
@@ -272,18 +265,53 @@ export default function ClientsUnifiedClient({
           </div>
         </div>
 
-        {/* Client list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {filtered.length === 0 ? (
+        {/* Client list — 3 sections */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {filteredInternal.length === 0 && filteredActive.length === 0 && filteredPast.length === 0 && (
             <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '24px 0' }}>No clients found</p>
-          ) : filtered.map(c => (
-            <ClientCard
-              key={c.name}
-              c={c}
-              isSelected={selectedClientName?.toLowerCase() === c.name.toLowerCase()}
-              onClick={() => selectClient(c.name)}
-            />
-          ))}
+          )}
+
+          {/* Internal */}
+          {filteredInternal.length > 0 && (
+            <>
+              <p style={{ fontSize: 9, fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '6px 4px 4px' }}>
+                Internal · {filteredInternal.length}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+                {filteredInternal.map(c => (
+                  <ClientCard key={c.name} c={c} isSelected={selectedClientName?.toLowerCase() === c.name.toLowerCase()} onClick={() => selectClient(c.name)} />
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Active */}
+          {filteredActive.length > 0 && (
+            <>
+              <p style={{ fontSize: 9, fontWeight: 800, color: '#22C55E', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '6px 4px 4px' }}>
+                Active · {filteredActive.length}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+                {filteredActive.map(c => (
+                  <ClientCard key={c.name} c={c} isSelected={selectedClientName?.toLowerCase() === c.name.toLowerCase()} onClick={() => selectClient(c.name)} />
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Past */}
+          {filteredPast.length > 0 && (
+            <>
+              <p style={{ fontSize: 9, fontWeight: 800, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '6px 4px 4px' }}>
+                Past · {filteredPast.length}
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {filteredPast.map(c => (
+                  <ClientCard key={c.name} c={c} isSelected={selectedClientName?.toLowerCase() === c.name.toLowerCase()} onClick={() => selectClient(c.name)} />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -390,22 +418,22 @@ export default function ClientsUnifiedClient({
               if (isInternal) {
                 return (
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <StatChip label="Shooting" value={d.mediaShootCount}                     sub={`${d.mediaShootHours.toFixed(1)}h`}  emoji="📸" color="#F97316" bg="rgba(249,115,22,0.06)"  />
-                    <StatChip label="Editing"  value={d.mediaEditCount}                      sub={`${d.mediaEditHours.toFixed(1)}h`}   emoji="🎬" color="#E53935" bg="rgba(229,57,53,0.06)"   />
-                    <StatChip label="Working"  value={`${d.nonMediaWorkHours.toFixed(1)}h`}                                            emoji="💼" color="#6366F1" bg="rgba(99,102,241,0.06)"  />
-                    <StatChip label="Learning" value={`${d.totalLearningHours.toFixed(1)}h`}                                           emoji="📚" color="#0EA5E9" bg="rgba(14,165,233,0.06)"  />
-                    <StatChip label="Total"    value={fmtRupee(d.totalCost)}                                                           emoji="💰" color="#DE1A1A" bg="rgba(222,26,26,0.06)"   />
+                    <StatChip label="Shooting" hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
+                    <StatChip label="Editing"  hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
+                    <StatChip label="Working"  hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
+                    <StatChip label="Learning" hours={`${d.totalLearningHours.toFixed(1)}h`}                           color="#0EA5E9" />
+                    <StatChip label="Total"    hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
                   </div>
                 )
               }
               return (
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <StatChip label="Shooting"  value={d.mediaShootCount}                     sub={`${d.mediaShootHours.toFixed(1)}h`}  emoji="📸" color="#F97316" bg="rgba(249,115,22,0.06)"  />
-                  <StatChip label="Editing"   value={d.mediaEditCount}                      sub={`${d.mediaEditHours.toFixed(1)}h`}   emoji="🎬" color="#E53935" bg="rgba(229,57,53,0.06)"   />
-                  <StatChip label="Working"   value={`${d.nonMediaWorkHours.toFixed(1)}h`}                                            emoji="💼" color="#6366F1" bg="rgba(99,102,241,0.06)"  />
-                  <StatChip label="Voiceover" value={d.voiceoverCount}                      sub={`${d.voiceoverHours.toFixed(1)}h`}   emoji="🎙️" color="#8B5CF6" bg="rgba(139,92,246,0.06)"  />
-                  <StatChip label="Posters"   value={d.totalPosters}                        sub={`${d.posterHours.toFixed(1)}h`}      emoji="🖼️" color="#10B981" bg="rgba(16,185,129,0.06)"  />
-                  <StatChip label="Total"     value={fmtRupee(d.totalCost)}                                                           emoji="💰" color="#DE1A1A" bg="rgba(222,26,26,0.06)"   />
+                  <StatChip label="Shooting"  hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
+                  <StatChip label="Editing"   hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
+                  <StatChip label="Working"   hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
+                  <StatChip label="Voiceover" hours={`${d.voiceoverHours.toFixed(1)}h`}    count={d.voiceoverCount}   color="#8B5CF6" />
+                  <StatChip label="Posters"   hours={`${d.posterHours.toFixed(1)}h`}       count={d.totalPosters}     color="#10B981" />
+                  <StatChip label="Total"     hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
                 </div>
               )
             })()}
@@ -493,27 +521,50 @@ export default function ClientsUnifiedClient({
               </Section>
             )}
 
-            {/* ── Other work ───────────────────────────────────────────── */}
-            {deliverables && deliverables.otherWork.length > 0 && (
-              <Section title="Other (Technical Team)" emoji="💼" count={deliverables.otherWork.length} totalCost={deliverables.otherWork.reduce((s, e) => s + e.cost, 0)}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead><tr style={{ background: '#F9FAFB' }}>
-                    {['Date', 'Member', 'Task', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
-                  </tr></thead>
-                  <tbody>
-                    {deliverables.otherWork.map((o, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#6B7280' }}>{fmtDate(o.date)}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151' }}>{o.memberName}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>{o.title}</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>{o.hours.toFixed(1)}h</td>
-                        <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: '#111827' }}>{fmtRupee(o.cost)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </Section>
-            )}
+            {/* ── Shared row table helper ───────────────────────────────── */}
+            {deliverables && (() => {
+              type FlatEntry = { date: string; memberName: string; title: string; hours: number; cost: number }
+              function EntryTable({ entries }: { entries: FlatEntry[] }) {
+                return (
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead><tr style={{ background: '#F9FAFB' }}>
+                      {['Date', 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
+                    </tr></thead>
+                    <tbody>
+                      {entries.map((o, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#6B7280' }}>{fmtDate(o.date)}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151' }}>{o.memberName}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>{o.title}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>{o.hours.toFixed(1)}h</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: '#111827' }}>{fmtRupee(o.cost)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )
+              }
+              const d = deliverables
+              return (
+                <>
+                  {d.technicalWork.length > 0 && (
+                    <Section title="Technical Work" emoji="💼" count={d.technicalWork.length} totalCost={d.technicalWork.reduce((s, e) => s + e.cost, 0)}>
+                      <EntryTable entries={d.technicalWork} />
+                    </Section>
+                  )}
+                  {d.posterWork.length > 0 && (
+                    <Section title="Posters" emoji="🖼️" count={d.posterWork.length} totalCost={d.posterWork.reduce((s, e) => s + e.cost, 0)}>
+                      <EntryTable entries={d.posterWork} />
+                    </Section>
+                  )}
+                  {d.voiceoverWork.length > 0 && (
+                    <Section title="Voiceover" emoji="🎙️" count={d.voiceoverWork.length} totalCost={d.voiceoverWork.reduce((s, e) => s + e.cost, 0)}>
+                      <EntryTable entries={d.voiceoverWork} />
+                    </Section>
+                  )}
+                </>
+              )
+            })()}
 
 
           </div>

@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react'
 import { getTickets, getCurrentUser } from '@/lib/actions/support'
 import AdminSupportClient from './support-client'
 
@@ -8,5 +9,5 @@ export default async function AdminSupportPage() {
     getTickets('ADMIN'),
     getCurrentUser(),
   ])
-  return <AdminSupportClient tickets={tickets as any} currentUserId={user?.id ?? ''} />
+  return <AdminSupportClient tickets={tickets as ComponentProps<typeof AdminSupportClient>['tickets']} currentUserId={user?.id ?? ''} />
 }

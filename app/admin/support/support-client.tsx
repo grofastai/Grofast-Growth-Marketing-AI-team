@@ -312,9 +312,6 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
         <div style={{ position: 'absolute', top: -40, right: -40, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
         <div style={{ position: 'absolute', bottom: -30, left: 60, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
 
-        {/* Hero character — right background */}
-        <img src="/support/hero-agent.png" alt="" aria-hidden style={{ position: 'absolute', right: 280, bottom: 0, height: 215, objectFit: 'contain', zIndex: 1, pointerEvents: 'none', opacity: 0.95 }} className="hidden xl:block" />
-
         <div style={{ display: 'flex', gap: 20, padding: '22px 28px', position: 'relative', zIndex: 2 }}>
 
           {/* Left: heading + pills */}

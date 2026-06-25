@@ -90,7 +90,9 @@ export type InsightsKPIs  = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function isMediaTeam(team: string | null): boolean {
-  return (team ?? '').toLowerCase().includes('media')
+  const t = (team ?? '').toLowerCase().trim()
+  // Only exact media production teams — "AI Development & Media" is NOT media
+  return t === 'media production team' || t === 'media team'
 }
 
 function deriveHourly(m: MemberRow): number {
@@ -187,16 +189,13 @@ export default async function InsightsPage({
     }
     const acc = accMap[du.user_id]
 
-    const learnH = du.learning_hours ?? 0
-    acc.learningHours += learnH
-
     let dayShoot = 0, dayEdit = 0, dayOther = 0, dayVoiceover = 0, dayPoster = 0
 
     for (const e of du.work_entries ?? []) {
       const hrs = e.duration_hours ?? 0
       if (hrs <= 0) continue
       const tt = (e.task_type ?? 'other').toLowerCase()
-      if (tt === 'break') continue  // breaks never count as working hours
+      if (tt === 'break' || tt === 'learning') continue  // handled separately
 
       if (e.client_name) acc.clients.add(e.client_name)
 
@@ -206,6 +205,14 @@ export default async function InsightsPage({
       else if (tt === 'poster')    { acc.poster    += hrs; dayPoster    += hrs }
       else                         { acc.technical += hrs; dayOther     += hrs }
     }
+
+    // History page formula: use learning entries from work_entries if they exist,
+    // otherwise fall back to the learning_hours field (older submissions)
+    const learnFromEntries = (du.work_entries ?? [])
+      .filter(e => (e.task_type ?? '').toLowerCase() === 'learning')
+      .reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+    const learnH = learnFromEntries > 0 ? learnFromEntries : (du.learning_hours ?? 0)
+    acc.learningHours += learnH
 
     // Exact formula from History page:
     // Media (shoot/edit team): shoot + edit + learning

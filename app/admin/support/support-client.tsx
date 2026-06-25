@@ -21,13 +21,17 @@ type Ticket = {
   created_at: string; updated_at: string; support_responses: Response[]
 }
 
-const FILTERS: { key: string; label: string }[] = [
-  { key: 'all',         label: 'All' },
-  { key: 'open',        label: 'Open' },
-  { key: 'in_progress', label: 'In Progress' },
-  { key: 'resolved',    label: 'Resolved' },
-  { key: 'closed',      label: 'Closed' },
+// Three list segments. "New" = anything still being worked (open + in progress).
+const SEGMENTS: { key: string; label: string }[] = [
+  { key: 'new',      label: 'New' },
+  { key: 'resolved', label: 'Resolved' },
+  { key: 'closed',   label: 'Closed' },
 ]
+
+function inSegment(status: string, seg: string): boolean {
+  if (seg === 'new') return status === 'open' || status === 'in_progress'
+  return status === seg
+}
 
 function requesterName(t: Ticket): string {
   const own = (t.support_responses ?? []).find(r => r.responder_id === t.user_id)
@@ -39,7 +43,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
   const router = useRouter()
   const supabase = useMemo(() => createBrowserClient(), [])
 
-  const [filter, setFilter]         = useState('all')
+  const [filter, setFilter]         = useState('new')
   const [search, setSearch]         = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showThreadMobile, setShowThreadMobile] = useState(false)
@@ -72,10 +76,14 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return [...tickets]
-      .filter(t => (filter === 'all' || t.status === filter)
+      .filter(t => inSegment(t.status, filter)
         && (!q || t.title.toLowerCase().includes(q) || t.category.includes(q) || requesterName(t).toLowerCase().includes(q)))
       .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
   }, [tickets, filter, search])
+
+  const segCounts: Record<string, number> = {
+    new: stats.open + stats.in_progress, resolved: stats.resolved, closed: stats.closed,
+  }
 
   const active = useMemo(
     () => (selectedId ? tickets.find(t => t.id === selectedId) : null) ?? filtered[0] ?? null,
@@ -176,22 +184,6 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                 </button>
               </div>
             </div>
-            {/* status filter pills with real counts */}
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
-              {FILTERS.map(f => {
-                const on = filter === f.key
-                const count = f.key === 'all' ? tickets.length : (stats as Record<string, number>)[f.key] ?? 0
-                return (
-                  <button key={f.key} onClick={() => { setFilter(f.key); setSelectedId(null) }}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 99, fontSize: 12.5, fontWeight: 700, border: 'none', cursor: 'pointer',
-                      background: on ? '#FFFFFF' : 'rgba(255,255,255,0.14)',
-                      color: on ? '#B91212' : 'rgba(255,255,255,0.9)' }}>
-                    {f.label}
-                    <span style={{ fontSize: 11, fontWeight: 800, padding: '1px 7px', borderRadius: 99, background: on ? 'rgba(222,26,26,0.1)' : 'rgba(255,255,255,0.18)', color: on ? '#B91212' : '#fff' }}>{count}</span>
-                  </button>
-                )
-              })}
-            </div>
           </div>
         </div>
 
@@ -204,7 +196,7 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
             <p style={{ fontSize: 13, color: '#8A8F99', margin: '6px 0 0' }}>No support requests yet. New ones land here.</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', height: 'calc(100vh - 260px)', minHeight: 440 }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', height: 'calc(100vh - 210px)', minHeight: 460 }}>
 
             {/* LEFT: queue */}
             <aside className={showThreadMobile ? 'hidden lg:flex' : 'flex'}
@@ -214,6 +206,22 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
                   <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#A6AAB3' }} />
                   <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search tickets or people…"
                     style={{ width: '100%', padding: '10px 12px 10px 34px', borderRadius: 11, fontSize: 13, background: '#F6F7F9', border: '1px solid #EDEFF3', color: '#1F2430', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                {/* New / Resolved / Closed segmented filter */}
+                <div style={{ display: 'flex', gap: 4, marginTop: 12, background: '#F1F2F5', borderRadius: 12, padding: 4 }}>
+                  {SEGMENTS.map(s => {
+                    const on = filter === s.key
+                    return (
+                      <button key={s.key} onClick={() => { setFilter(s.key); setSelectedId(null) }}
+                        style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px 4px', borderRadius: 9, fontSize: 12.5, fontWeight: 700, border: 'none', cursor: 'pointer',
+                          background: on ? '#FFFFFF' : 'transparent',
+                          color: on ? '#DE1A1A' : '#8A8F99',
+                          boxShadow: on ? '0 1px 4px rgba(0,0,0,0.08)' : 'none', transition: 'all .15s' }}>
+                        {s.label}
+                        <span style={{ fontSize: 10.5, fontWeight: 800, minWidth: 17, padding: '1px 6px', borderRadius: 99, background: on ? 'rgba(222,26,26,0.1)' : 'rgba(130,133,140,0.16)', color: on ? '#DE1A1A' : '#8A8F99' }}>{segCounts[s.key]}</span>
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
               <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>

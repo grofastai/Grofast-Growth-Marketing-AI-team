@@ -302,25 +302,33 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
     <div style={{ background: '#F4F5F7', minHeight: '100vh' }}>
 
       {/* ── HERO BANNER ──────────────────────────────────────────── */}
+      <div style={{ padding: '16px 16px 0' }} className="md:!px-7 md:!pt-6">
       <div style={{
         background: 'linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)',
-        borderBottom: '1px solid rgba(0,0,0,0.06)',
-        position: 'relative', overflow: 'hidden', minHeight: 240,
+        borderRadius: 20, boxShadow: '0 8px 32px rgba(180,0,0,0.4)',
+        position: 'relative', overflow: 'hidden', minHeight: 220,
       }}>
-        {/* Hero character — right background */}
-        <img src="/support/hero-agent.png" alt="" aria-hidden style={{ position: 'absolute', right: 280, bottom: 0, height: 230, objectFit: 'contain', zIndex: 1, pointerEvents: 'none', opacity: 0.95 }} className="hidden xl:block" />
+        {/* Decorative circles */}
+        <div style={{ position: 'absolute', top: -40, right: -40, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -30, left: 60, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
 
-        <div style={{ display: 'flex', gap: 20, padding: '28px 28px 0', position: 'relative', zIndex: 2 }}>
+        {/* Hero character — right background */}
+        <img src="/support/hero-agent.png" alt="" aria-hidden style={{ position: 'absolute', right: 280, bottom: 0, height: 215, objectFit: 'contain', zIndex: 1, pointerEvents: 'none', opacity: 0.95 }} className="hidden xl:block" />
+
+        <div style={{ display: 'flex', gap: 20, padding: '22px 28px', position: 'relative', zIndex: 2 }}>
 
           {/* Left: heading + pills */}
           <div style={{ flex: 1 }}>
-            <h1 style={{ fontSize: 34, fontWeight: 900, color: '#FFFFFF', fontFamily: 'var(--font-jakarta)', margin: 0, lineHeight: 1.15 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 99, background: 'rgba(255,255,255,0.15)', color: '#fff', marginBottom: 10, border: '1px solid rgba(255,255,255,0.2)', letterSpacing: '0.04em' }}>
+              🎧 Support Center
+            </span>
+            <h1 style={{ fontSize: 30, fontWeight: 900, color: '#FFFFFF', fontFamily: 'var(--font-jakarta)', margin: 0, lineHeight: 1.15 }}>
               Support Workspace
             </h1>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.72)', margin: '6px 0 22px' }}>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: '6px 0 22px' }}>
               Manage, resolve, and track team support operations intelligently.
             </p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingBottom: 28 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {[
                 { key: 'all', label: 'All' },
                 { key: 'open', label: 'Open' },
@@ -331,10 +339,11 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
                 <button key={tab.key} onClick={() => { setFilter(tab.key); setSelectedId(null) }}
                   style={{
                     padding: '7px 18px', borderRadius: 99, fontSize: 13, fontWeight: 600,
-                    border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-                    background: filter === tab.key ? '#DE1A1A' : 'rgba(255,255,255,0.8)',
-                    color: filter === tab.key ? '#fff' : '#6B7280',
-                    boxShadow: filter === tab.key ? '0 4px 12px rgba(222,26,26,0.28)' : '0 1px 4px rgba(0,0,0,0.08)',
+                    cursor: 'pointer', transition: 'all 0.15s',
+                    background: filter === tab.key ? '#FFFFFF' : 'rgba(255,255,255,0.15)',
+                    color: filter === tab.key ? '#DE1A1A' : 'rgba(255,255,255,0.85)',
+                    border: filter === tab.key ? 'none' : '1px solid rgba(255,255,255,0.2)',
+                    boxShadow: filter === tab.key ? '0 4px 12px rgba(0,0,0,0.2)' : 'none',
                   }}>
                   {tab.label}
                 </button>
@@ -343,7 +352,7 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
           </div>
 
           {/* Right: 4 stat cards 2×2 */}
-          <div className="hidden lg:grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12, alignContent: 'start', paddingBottom: 28 }}>
+          <div className="hidden lg:grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12, alignContent: 'start' }}>
             {[
               { label: 'Pending',      value: stats.open,        img: '/support/icon-pending.png',  color: '#EF4444', bg: '#FEE2E2' },
               { label: 'Avg Response', value: '2h',              img: '/support/icon-clock.png',    color: '#8B5CF6', bg: '#F5F3FF' },
@@ -367,6 +376,7 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
             ))}
           </div>
         </div>
+      </div>
       </div>
 
       {/* ── MAIN 3-COLUMN ────────────────────────────────────────── */}

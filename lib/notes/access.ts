@@ -3,8 +3,8 @@ export type NoteAccess = { user_id: string; scope: 'private' | 'team' | 'sop'; s
 
 export function canEditNote(note: NoteAccess, v: Viewer): boolean {
   if (note.scope === 'sop') return v.role === 'ADMIN'
-  if (note.scope === 'team') return note.user_id === v.id || !!note.shareEdit
-  return note.user_id === v.id // private
+  // team & private: author, or anyone granted edit via a share
+  return note.user_id === v.id || !!note.shareEdit
 }
 
 export function canReadNote(note: NoteAccess & { shared?: boolean }, v: Viewer): boolean {

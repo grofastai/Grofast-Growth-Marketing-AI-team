@@ -171,7 +171,7 @@ export function computeDeliverables(
   updates: UpdateRow[],
   users: MemberUser[],
   pricingRates: PricingRate[],
-  clientName: string,
+  clientFilter: string | string[] | null,   // null = all clients; string[] = multiple; string = one
   dateFrom: string,
   dateTo: string,
 ): DeliverableResult {
@@ -188,7 +188,9 @@ export function computeDeliverables(
   const teamMap:        Record<string, TeamContribution> = {}
   const dayMap:         Record<string, DayLogEntry[]>    = {}
 
-  const nameLower = clientName.toLowerCase()
+  const clientNameSet: Set<string> | null = clientFilter === null
+    ? null
+    : new Set((Array.isArray(clientFilter) ? clientFilter : [clientFilter]).map(n => n.toLowerCase()))
 
   // KPI accumulators
   let mediaShootCount   = 0
@@ -214,7 +216,8 @@ export function computeDeliverables(
     let rowHasClientEntry = false
 
     for (const entry of row.work_entries ?? []) {
-      if ((entry.client_name ?? '').trim().toLowerCase() !== nameLower) continue
+      const entryClientLower = (entry.client_name ?? '').trim().toLowerCase()
+      if (clientNameSet !== null && !clientNameSet.has(entryClientLower)) continue
       rowHasClientEntry = true
 
       const hrs = entry.duration_hours ?? 0

@@ -140,14 +140,44 @@ export default async function ClientsUnifiedPage({
     pastClients   = ((dbRows ?? []) as ClientRow[]).filter(c => c.status !== 'active')
   }
 
+  // ── Virtual aggregate clients ─────────────────────────────────────────────
+  const regularActive = activeClients.filter(c => c.industry !== 'Internal Brand')
+  const internalBrands = activeClients.filter(c => c.industry === 'Internal Brand')
+
+  const VIRTUAL_CLIENTS: Record<string, { row: ClientRow; filter: string[] | null; isInternal: boolean }> = {
+    '__all_active__': {
+      row: { id: '__all_active__', name: 'All Active Clients', industry: '__virtual__', location: `${regularActive.length} clients`, service: null, package_name: null, status: 'active', contact_name: null },
+      filter: regularActive.map(c => c.name),
+      isInternal: false,
+    },
+    '__all_past__': {
+      row: { id: '__all_past__', name: 'All Past Clients', industry: '__virtual__', location: `${pastClients.length} clients`, service: null, package_name: null, status: 'past', contact_name: null },
+      filter: pastClients.map(c => c.name),
+      isInternal: false,
+    },
+    '__internal__': {
+      row: { id: '__internal__', name: 'All Internal Brands', industry: '__virtual_internal__', location: `${internalBrands.length} brands`, service: null, package_name: null, status: 'active', contact_name: null },
+      filter: internalBrands.map(c => c.name),
+      isInternal: true,
+    },
+  }
+
   // ── Conditionally: compute deliverables for selected client ───────────────
   let deliverables: DeliverableResult | null = null
   let selectedClientRow: ClientRow | null = null
 
   if (selectedClient) {
-    const nameLower = selectedClient.toLowerCase()
-    selectedClientRow =
-      [...activeClients, ...pastClients].find(c => c.name.toLowerCase() === nameLower) ?? null
+    const virtual = VIRTUAL_CLIENTS[selectedClient]
+    if (virtual) {
+      selectedClientRow = virtual.row
+    } else {
+      const nameLower = selectedClient.toLowerCase()
+      selectedClientRow =
+        [...activeClients, ...pastClients].find(c => c.name.toLowerCase() === nameLower) ?? null
+    }
+
+    const clientFilter: string | string[] | null = VIRTUAL_CLIENTS[selectedClient]?.filter
+      ?? selectedClient
 
     const [
       { data: updatesRaw },
@@ -175,7 +205,7 @@ export default async function ClientsUnifiedPage({
       (updatesRaw ?? []) as UpdateRow[],
       (usersRaw  ?? []) as MemberUser[],
       (pricingRaw ?? []) as PricingRate[],
-      selectedClient,
+      clientFilter,
       dateFrom,
       dateTo,
     )

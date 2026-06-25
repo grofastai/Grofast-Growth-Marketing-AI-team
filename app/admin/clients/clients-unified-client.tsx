@@ -304,10 +304,47 @@ export default function ClientsUnifiedClient({
           </div>
         </div>
 
-        {/* Client list — 3 sections */}
+        {/* Client list — virtual summary + 3 real sections */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {filteredInternal.length === 0 && filteredActive.length === 0 && filteredPast.length === 0 && (
             <p style={{ fontSize: 12, color: '#9CA3AF', textAlign: 'center', padding: '24px 0' }}>No clients found</p>
+          )}
+
+          {/* Summary aggregates */}
+          {!search && (
+            <>
+              <p style={{ fontSize: 9, fontWeight: 800, color: '#6366F1', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '6px 4px 4px' }}>
+                Summary
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 8 }}>
+                {[
+                  { id: '__all_active__', label: 'All Active Clients',  sub: `${regularActive.length} clients`,  emoji: '📊', color: '#22C55E' },
+                  { id: '__all_past__',   label: 'All Past Clients',    sub: `${filteredPast.length} clients`,   emoji: '📁', color: '#9CA3AF' },
+                  { id: '__internal__',   label: 'All Internal Brands', sub: `${internalClients.length} brands`, emoji: '🏢', color: '#6366F1' },
+                ].map(vc => {
+                  const isSel = selectedClientName === vc.id
+                  return (
+                    <button key={vc.id} onClick={() => selectClient(vc.id)} style={{
+                      display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
+                      background: isSel ? `${vc.color}08` : '#FAFAFA',
+                      border: '1px solid', borderColor: isSel ? `${vc.color}30` : '#F0F1F5',
+                      borderLeft: isSel ? `3px solid ${vc.color}` : '3px solid transparent',
+                      borderRadius: 12, padding: '10px 14px', transition: 'all 0.15s',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 18 }}>{vc.emoji}</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 12, fontWeight: 800, color: isSel ? vc.color : '#374151', margin: 0, fontFamily: 'var(--font-jakarta)' }}>
+                            {vc.label}
+                          </p>
+                          <p style={{ fontSize: 10, color: '#9CA3AF', margin: '1px 0 0' }}>{vc.sub}</p>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </>
           )}
 
           {/* Internal */}
@@ -392,14 +429,21 @@ export default function ClientsUnifiedClient({
                   {selectedClientRow.name}
                 </h2>
                 <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-                  {[
-                    selectedClientRow.industry,
-                    selectedClientRow.location ? `📍 ${selectedClientRow.location}` : null,
-                    selectedClientRow.package_name ? `📦 ${selectedClientRow.package_name}` : null,
-                    selectedClientRow.service,
-                  ].filter(Boolean).map((item, i) => (
-                    <span key={i} style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>{item}</span>
-                  ))}
+                  {selectedClientRow.industry?.startsWith('__virtual') ? (
+                    // Virtual aggregate client — show count subtitle
+                    <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>
+                      {selectedClientRow.location}
+                    </span>
+                  ) : (
+                    [
+                      selectedClientRow.industry,
+                      selectedClientRow.location ? `📍 ${selectedClientRow.location}` : null,
+                      selectedClientRow.package_name ? `📦 ${selectedClientRow.package_name}` : null,
+                      selectedClientRow.service,
+                    ].filter(Boolean).map((item, i) => (
+                      <span key={i} style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)', fontWeight: 500 }}>{item}</span>
+                    ))
+                  )}
                 </div>
               </div>
               <span style={{
@@ -452,7 +496,7 @@ export default function ClientsUnifiedClient({
 
             {/* ── Stat chips ───────────────────────────────────────────── */}
             {deliverables && (() => {
-              const isInternal = selectedClientRow?.industry === 'Internal Brand'
+              const isInternal = selectedClientRow?.industry === 'Internal Brand' || selectedClientRow?.industry === '__virtual_internal__'
               const d = deliverables
               if (isInternal) {
                 return (

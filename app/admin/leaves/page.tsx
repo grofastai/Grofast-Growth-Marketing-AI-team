@@ -81,7 +81,7 @@ export default async function LeavesPage({
       .select("*", { count: "exact", head: true })
       .eq("company_id", cid)
       .eq("status", "approved")
-      .neq("leave_type", "permission")
+      .in("leave_type", ["full_day", "half_day"])
       .lte("from_date", today)
       .gte("to_date", today),
     admin
@@ -89,7 +89,7 @@ export default async function LeavesPage({
       .select("from_date, to_date, users(id, name)")
       .eq("company_id", cid)
       .eq("status", "approved")
-      .neq("leave_type", "permission")
+      .in("leave_type", ["full_day", "half_day"])
       .lte("from_date", today)
       .gte("to_date", today),
     admin.from("leaves").select("*", { count: "exact", head: true }).eq("company_id", cid).eq("status", "pending"),

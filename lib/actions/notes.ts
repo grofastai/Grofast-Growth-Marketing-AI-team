@@ -6,6 +6,9 @@ import { revalidatePath } from 'next/cache'
 import { getEffectiveUserId } from './impersonate'
 import { extractPlainText } from '@/lib/notes/tiptap-text'
 import { canEditNote } from '@/lib/notes/access'
+import { extractMentionIds } from '@/lib/notes/mentions'
+import { indexShares, noteShareState } from '@/lib/notes/shares'
+import { insertManyNotifications } from '@/lib/actions/notifications'
 
 export type NoteScope = 'private' | 'team' | 'sop'
 
@@ -167,20 +170,79 @@ export async function getHubNotes(): Promise<HubNoteRow[]> {
   const v = await getViewer()
   if (!v) return []
   const admin = adminSupabase()
-  // All non-archived company notes that are team/sop, OR my own private notes.
+
+  const { data: shareRows } = await admin
+    .from('note_shares').select('note_id, permission').eq('shared_with', v.id)
+  const shareMap = indexShares((shareRows ?? []) as { note_id: string; permission: 'view' | 'edit' }[])
+  const sharedIds = [...shareMap.keys()]
+
+  const cols = 'id, title, content, color, pinned, reminder_at, reminded, reminder_recipients, reminder_message, note_type, items, labels, archived, scope, folder_id, body, created_by, user_id, created_at, updated_at'
+  // Visible: team/sop in my company, my own private notes, or notes shared with me.
+  const visibleFilter = `scope.in.(team,sop),and(scope.eq.private,user_id.eq.${v.id})`
+    + (sharedIds.length ? `,id.in.(${sharedIds.join(',')})` : '')
+
   const { data: rows } = await admin
-    .from('notes')
-    .select('id, title, content, color, pinned, reminder_at, reminded, reminder_recipients, reminder_message, note_type, items, labels, archived, scope, folder_id, body, created_by, user_id, created_at, updated_at')
+    .from('notes').select(cols)
     .eq('company_id', v.companyId)
     .eq('archived', false)
-    .or(`scope.in.(team,sop),and(scope.eq.private,user_id.eq.${v.id})`)
+    .or(visibleFilter)
     .order('pinned', { ascending: false })
     .order('updated_at', { ascending: false })
-  return (rows ?? []).map(r => ({
-    ...r,
-    shared: false, // Phase 2 fills this from note_shares
-    can_edit: canEditNote({ user_id: r.user_id, scope: r.scope }, { id: v.id, role: v.role }),
-  })) as HubNoteRow[]
+
+  return (rows ?? []).map(r => {
+    const state = noteShareState({ id: r.id, user_id: r.user_id, scope: r.scope }, shareMap, { id: v.id, role: v.role })
+    return { ...r, ...state }
+  }) as HubNoteRow[]
+}
+
+export async function getNoteShares(noteId: string): Promise<{ shared_with: string; permission: 'view' | 'edit' }[]> {
+  const v = await getViewer()
+  if (!v) return []
+  const admin = adminSupabase()
+  const { data } = await admin.from('note_shares')
+    .select('shared_with, permission').eq('note_id', noteId).eq('company_id', v.companyId)
+  return (data ?? []) as { shared_with: string; permission: 'view' | 'edit' }[]
+}
+
+export async function shareNote(
+  noteId: string, userIds: string[], permission: 'view' | 'edit',
+): Promise<{ success: boolean; error?: string }> {
+  const v = await getViewer()
+  if (!v) return { success: false, error: 'Not authenticated' }
+  if (!userIds.length) return { success: true }
+  const admin = adminSupabase()
+
+  const { data: note } = await admin.from('notes')
+    .select('user_id, scope, company_id, title').eq('id', noteId).single()
+  if (!note || note.company_id !== v.companyId) return { success: false, error: 'Note not found' }
+  if (!canEditNote({ user_id: note.user_id, scope: note.scope as NoteScope }, { id: v.id, role: v.role })) {
+    return { success: false, error: 'Only the owner can share this note' }
+  }
+
+  const { error } = await admin.from('note_shares').upsert(
+    userIds.map(uid => ({ company_id: v.companyId, note_id: noteId, shared_with: uid, permission, shared_by: v.id })),
+    { onConflict: 'note_id,shared_with' },
+  )
+  if (error) return { success: false, error: error.message }
+
+  await insertManyNotifications(userIds.filter(uid => uid !== v.id).map(uid => ({
+    companyId: v.companyId, userId: uid, type: 'note_share',
+    title: 'A note was shared with you', body: note.title ?? 'Untitled note',
+    link: '/member/notes',
+  })))
+  revalidatePath('/member/notes'); revalidatePath('/admin/notes')
+  return { success: true }
+}
+
+export async function unshareNote(noteId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+  const v = await getViewer()
+  if (!v) return { success: false, error: 'Not authenticated' }
+  const admin = adminSupabase()
+  const { error } = await admin.from('note_shares')
+    .delete().eq('note_id', noteId).eq('shared_with', userId).eq('company_id', v.companyId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/notes'); revalidatePath('/admin/notes')
+  return { success: true }
 }
 
 export async function createNote(
@@ -245,8 +307,13 @@ export async function updateNote(
     .select('user_id, scope, company_id, body').eq('id', id).single()
   if (!existing || existing.company_id !== v.companyId) return { success: false, error: 'Note not found' }
 
+  // A note shared with this viewer at 'edit' grants edit rights.
+  const { data: myShare } = await admin.from('note_shares')
+    .select('permission').eq('note_id', id).eq('shared_with', v.id).maybeSingle()
+  const shareEdit = myShare?.permission === 'edit'
+
   const targetScope = input.scope ?? (existing.scope as NoteScope)
-  if (!canEditNote({ user_id: existing.user_id, scope: existing.scope as NoteScope }, { id: v.id, role: v.role })) {
+  if (!canEditNote({ user_id: existing.user_id, scope: existing.scope as NoteScope, shareEdit }, { id: v.id, role: v.role })) {
     return { success: false, error: 'You do not have permission to edit this note' }
   }
   if (targetScope === 'sop' && v.role !== 'ADMIN') return { success: false, error: 'Only admins can edit SOP notes' }
@@ -273,6 +340,17 @@ export async function updateNote(
   }).eq('id', id)
 
   if (error) return { success: false, error: error.message }
+
+  // Notify newly-added mentions (diff against the previous body)
+  const prevIds = extractMentionIds(existing.body)
+  const newIds = extractMentionIds(bodyJson).filter(mid => !prevIds.includes(mid) && mid !== v.id)
+  if (newIds.length) {
+    await insertManyNotifications(newIds.map(uid => ({
+      companyId: v.companyId, userId: uid, type: 'note_mention',
+      title: 'You were mentioned in a note', body: input.title?.trim() || 'Untitled note',
+      link: '/member/notes',
+    })))
+  }
 
   revalidatePath('/member/notes'); revalidatePath('/admin/notes')
   return { success: true }

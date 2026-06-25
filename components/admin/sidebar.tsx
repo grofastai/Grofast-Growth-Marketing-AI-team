@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Users, Clock, Target,
   CalendarOff, Megaphone, Briefcase, LogOut,
   Receipt, IndianRupee, FolderOpen, LifeBuoy,
-  MoreHorizontal, X, Bell, UserCircle2, ClipboardList, Activity, TrendingUp, CalendarDays, Clapperboard, Shield, Film,
+  MoreHorizontal, X, Bell, UserCircle2, ClipboardList, Activity, TrendingUp, CalendarDays, Clapperboard, Shield, Film, StickyNote,
 } from "lucide-react"
 import { logoutAction } from "@/lib/actions/auth"
 
@@ -24,6 +24,7 @@ const navItems = [
   { label: "Leaves",        href: "/admin/leaves",           icon: CalendarOff },
   { label: "Content Cal",   href: "/admin/content-calendar", icon: CalendarDays },
   { label: "Announcements", href: "/admin/announcements",    icon: Megaphone },
+  { label: "Notes",         href: "/admin/notes",            icon: StickyNote },
   { label: "Expenses",      href: "/admin/expenses",         icon: Receipt },
   { label: "Payroll",       href: "/admin/payroll",          icon: IndianRupee },
   { label: "Documents",     href: "/admin/documents",        icon: FolderOpen },
@@ -45,6 +46,7 @@ const moreNavItems = [
   { label: "Freelancers",   href: "/admin/freelancers",      icon: Film },
   { label: "Content Cal",   href: "/admin/content-calendar", icon: CalendarDays },
   { label: "Announcements", href: "/admin/announcements",    icon: Megaphone },
+  { label: "Notes",         href: "/admin/notes",            icon: StickyNote },
   { label: "Expenses",      href: "/admin/expenses",         icon: Receipt },
   { label: "Payroll",       href: "/admin/payroll",          icon: IndianRupee },
   { label: "Documents",     href: "/admin/documents",        icon: FolderOpen },

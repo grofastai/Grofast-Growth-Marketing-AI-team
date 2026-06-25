@@ -8,10 +8,11 @@ import {
   Search, Plus, Shield, UserCheck,
   MoreVertical, Phone, CalendarDays, X, Pencil,
   Ban, RotateCcw, User, Loader2, Trash2, AlertTriangle, ChevronDown, KeyRound,
-  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen,
+  ClipboardList, CheckCircle2, Send, TrendingUp, Star, Clock, Camera, LogIn, Clapperboard, ArrowRight, FolderOpen, LifeBuoy,
 } from "lucide-react"
 import { createMember, updateMember, toggleMemberStatus, deleteMember, resetMemberPassword, assignTask, uploadPassportPhoto, resendOnboardingWhatsApp } from "@/lib/actions/team"
 import { startImpersonation } from "@/lib/actions/impersonate"
+import { setSupportHandler } from "@/lib/actions/support"
 import { createFreelancer, updateFreelancer, toggleFreelancerStatus, assignAllFreelancersToMembers, deleteFreelancer } from "@/lib/actions/freelancers"
 import { addManagerToAllFreelancers, removeManagerFromAllFreelancers } from "@/lib/actions/freelancer-manager"
 
@@ -94,6 +95,7 @@ interface Member {
   gender?: "male" | "female" | null
   passport_photo_url?: string | null
   drive_folder_id?: string | null
+  is_support_handler?: boolean | null
 }
 
 function getInitials(name: string) {
@@ -1340,6 +1342,11 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
     startTransition(async () => { await toggleMemberStatus(member.id, newStatus) })
   }
 
+  function handleToggleSupportHandler(member: Member) {
+    setOpenDropdown(null)
+    startTransition(async () => { await setSupportHandler(member.id, !member.is_support_handler) })
+  }
+
   function handleDeleteConfirm() {
     if (!confirmDelete) return
     setDeleteError("")
@@ -1741,6 +1748,18 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"}
                                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                                     <LogIn size={12} /> Login as {member.name.split(" ")[0]}
+                                  </button>
+                                  <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
+                                </>
+                              )}
+                              {member.status === "active" && member.role !== "ADMIN" && (
+                                <>
+                                  <button onClick={() => handleToggleSupportHandler(member)} disabled={isPending}
+                                    className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                    style={{ color: member.is_support_handler ? "#DE1A1A" : "#0EA5E9" }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F9FAFB"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                    <LifeBuoy size={12} /> {member.is_support_handler ? "Remove support role" : "Make support handler"}
                                   </button>
                                   <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
                                 </>

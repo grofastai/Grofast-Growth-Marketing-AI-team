@@ -1,18 +1,22 @@
+import type { ComponentProps } from 'react'
 import { getTickets, getCurrentUser } from '@/lib/actions/support'
-import MemberSupportClient from './support-client'
-import AdminSupportClient from '@/app/admin/support/support-client'
+import MemberSupportChat from './support-client'
+import SupportInbox from '@/app/admin/support/support-client'
 
 export const dynamic = 'force-dynamic'
 
 export default async function MemberSupportPage() {
   const user = await getCurrentUser()
 
-  // GF003 (Sajetah SK) is the designated support handler — show full admin workspace
-  if (user?.employee_id?.toUpperCase() === 'GF003') {
+  // Support handlers (admins or anyone toggled on in the Team tab) get the full
+  // Support Inbox workspace. Everyone else gets the member support chat.
+  const isHandler = user?.role === 'ADMIN' || user?.is_support_handler === true
+
+  if (isHandler) {
     const allTickets = await getTickets('ADMIN')
-    return <AdminSupportClient tickets={allTickets as any} currentUserId={user.id} />
+    return <SupportInbox tickets={allTickets as ComponentProps<typeof SupportInbox>['tickets']} currentUserId={user!.id} canAssign={user!.role === 'ADMIN'} />
   }
 
   const tickets = await getTickets('MEMBER')
-  return <AdminSupportClient tickets={tickets as any} currentUserId={user?.id ?? ''} />
+  return <MemberSupportChat tickets={tickets as ComponentProps<typeof MemberSupportChat>['tickets']} currentUserId={user?.id ?? ''} />
 }

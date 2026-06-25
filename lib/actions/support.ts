@@ -19,13 +19,25 @@ async function getProfile() {
   const uid = await getEffectiveUserId()
   if (!uid) return null
   const admin = adminSupabase()
-  const { data } = await admin.from('users').select('id, company_id, name, role, employee_id').eq('id', uid).single()
+  const { data } = await admin.from('users').select('id, company_id, name, role, employee_id, is_support_handler').eq('id', uid).single()
   return data
 }
 
-function isSupportHandler(profile: { role: string; employee_id: string } | null) {
+function isSupportHandler(profile: { role: string; is_support_handler?: boolean } | null) {
   if (!profile) return false
-  return profile.role === 'ADMIN' || profile.employee_id?.toUpperCase() === 'GF003'
+  return profile.role === 'ADMIN' || profile.is_support_handler === true
+}
+
+// All users who should receive support notifications for a company:
+// admins plus anyone toggled on as a support handler.
+async function getHandlerIds(companyId: string): Promise<string[]> {
+  const admin = adminSupabase()
+  const { data } = await admin
+    .from('users')
+    .select('id')
+    .eq('company_id', companyId)
+    .or('role.eq.ADMIN,is_support_handler.eq.true')
+  return (data ?? []).map(u => u.id)
 }
 
 export async function createTicket(input: {
@@ -58,18 +70,18 @@ export async function createTicket(input: {
 
   await cacheDel(`tickets:ADMIN:${profile.company_id}`, `tickets:MEMBER:${profile.id}`)
 
-  // Notify Sajetah SK (gf003) — designated support handler
-  const { data: handler } = await admin.from('users').select('id').eq('company_id', profile.company_id).eq('employee_id', 'GF003').single()
-  if (handler) {
-    await insertNotification({
+  // Notify every assigned support handler (admins + toggled handlers)
+  const handlerIds = await getHandlerIds(profile.company_id)
+  await Promise.all(handlerIds
+    .filter(id => id !== profile.id)
+    .map(id => insertNotification({
       companyId: profile.company_id,
-      userId:    handler.id,
+      userId:    id,
       type:      'support_ticket',
       title:     `New support ticket from ${profile.name}`,
       body:      input.title,
-      link:      '/admin/support',
-    })
-  }
+      link:      '/member/support',
+    })))
 
   revalidatePath('/member/support')
   revalidatePath('/admin/support')
@@ -124,18 +136,18 @@ export async function addResponse(input: {
         link:      '/member/support',
       })
     } else {
-      // Member replied → notify GF003 (designated support handler)
-      const { data: handler } = await admin.from('users').select('id').eq('company_id', ticket.company_id).eq('employee_id', 'GF003').single()
-      if (handler) {
-        await insertNotification({
+      // Member replied → notify every assigned support handler
+      const handlerIds = await getHandlerIds(ticket.company_id)
+      await Promise.all(handlerIds
+        .filter(id => id !== profile.id)
+        .map(id => insertNotification({
           companyId: ticket.company_id,
-          userId:    handler.id,
+          userId:    id,
           type:      'support_reply',
           title:     `${profile.name} replied on their support ticket`,
           body:      ticket.title,
           link:      '/member/support',
-        })
-      }
+        })))
     }
   }
 
@@ -204,6 +216,47 @@ export async function getMemberName(user_id: string): Promise<string> {
 
 export async function getCurrentUser() {
   return getProfile()
+}
+
+// Admin-only: members who can be made support handlers, with their current flag.
+export async function getSupportHandlerCandidates(): Promise<
+  { id: string; name: string; employee_id: string | null; is_support_handler: boolean }[]
+> {
+  const profile = await getProfile()
+  if (!profile || profile.role !== 'ADMIN') return []
+  const admin = adminSupabase()
+  const { data } = await admin
+    .from('users')
+    .select('id, name, employee_id, is_support_handler')
+    .eq('company_id', profile.company_id)
+    .neq('role', 'ADMIN')
+    .neq('role', 'FREELANCER')
+    .eq('status', 'active')
+    .is('deleted_at', null)
+    .order('name')
+  return (data ?? []).map(u => ({ ...u, is_support_handler: !!u.is_support_handler }))
+}
+
+// Admin-only: toggle whether a member is a support handler. A handler sees the
+// Support Inbox workspace; everyone else sees the member Support chat.
+export async function setSupportHandler(
+  user_id: string,
+  enabled: boolean
+): Promise<{ success: boolean; error?: string }> {
+  const profile = await getProfile()
+  if (!profile || profile.role !== 'ADMIN') return { success: false, error: 'Unauthorized' }
+
+  const admin = adminSupabase()
+  const { error } = await admin
+    .from('users')
+    .update({ is_support_handler: enabled })
+    .eq('id', user_id)
+    .eq('company_id', profile.company_id)
+
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/admin/team')
+  revalidatePath('/member/support')
+  return { success: true }
 }
 
 export async function closeTicket(ticket_id: string): Promise<{ success: boolean; error?: string }> {

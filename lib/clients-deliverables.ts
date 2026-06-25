@@ -1,7 +1,7 @@
 // Shared types and computation logic for the unified clients+deliverables page.
 
 export type PricingRate = { video_type: string; rate_per_video: number }
-export type MemberUser  = { id: string; name: string; employee_id: string; hourly_rate: number | null; monthly_salary: number | null }
+export type MemberUser  = { id: string; name: string; employee_id: string; hourly_rate: number | null; monthly_salary: number | null; team: string | null }
 
 export type EditingVideo = {
   id?: string
@@ -28,6 +28,7 @@ export type UpdateRow = {
   user_id: string
   date: string
   work_entries: WorkEntry[] | null
+  learning_hours: number | null
 }
 
 // ── Output types ─────────────────────────────────────────────────────────────
@@ -98,6 +99,17 @@ export type DeliverableResult = {
   totalShootSessions: number
   totalShootHours: number
   totalCost: number
+  // KPI breakdowns
+  mediaShootCount: number     // shoots logged by media team members
+  mediaShootHours: number     // shoot hours by media team members
+  mediaEditCount: number      // videos edited by media team members
+  mediaEditHours: number      // edit hours by media team members
+  nonMediaWorkHours: number   // all hours logged by non-media team members
+  voiceoverCount: number      // voiceover video count
+  voiceoverHours: number      // voiceover edit hours
+  posterHours: number         // poster edit hours
+  totalLearningHours: number  // sum of learning_hours on days this client was worked on
+  activeMemberCount: number   // unique team members who contributed
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -147,6 +159,11 @@ function calcVideoCost(
 
 // ── Main computation (pure — no side effects, no DB calls) ────────────────────
 
+function isMediaTeam(team: string | null): boolean {
+  const t = (team ?? '').toLowerCase()
+  return t === 'media team' || t === 'media production team'
+}
+
 export function computeDeliverables(
   updates: UpdateRow[],
   users: MemberUser[],
@@ -167,14 +184,28 @@ export function computeDeliverables(
 
   const nameLower = clientName.toLowerCase()
 
+  // KPI accumulators
+  let mediaShootCount   = 0
+  let mediaShootHours   = 0
+  let mediaEditCount    = 0
+  let mediaEditHours    = 0
+  let nonMediaWorkHours = 0
+  let totalLearningHours = 0
+  // Track rows that contributed to this client (for learning hours)
+  const contributingRows = new Set<string>()
+
   for (const row of updates) {
     if (row.date < dateFrom || row.date > dateTo) continue
     const user = userMap.get(row.user_id)
     if (!user) continue
-    const hourly = derivePerHour(user)
+    const hourly  = derivePerHour(user)
+    const isMedia = isMediaTeam(user.team)
+
+    let rowHasClientEntry = false
 
     for (const entry of row.work_entries ?? []) {
       if ((entry.client_name ?? '').trim().toLowerCase() !== nameLower) continue
+      rowHasClientEntry = true
 
       const hrs = entry.duration_hours ?? 0
       const tt  = entry.task_type ?? 'other'
@@ -189,6 +220,9 @@ export function computeDeliverables(
       const tm = teamMap[user.id]
       tm.totalHours += hrs
 
+      // Non-media: accumulate all hours regardless of task type
+      if (!isMedia) nonMediaWorkHours += hrs
+
       if (!dayMap[row.date]) dayMap[row.date] = []
 
       if (tt === 'shoot') {
@@ -196,6 +230,7 @@ export function computeDeliverables(
         shoots.push({ date: row.date, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Shoot'), hours: hrs, cost })
         tm.shootHours += hrs
         tm.cost       += cost
+        if (isMedia) { mediaShootCount++; mediaShootHours += hrs }
         dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'shoot', itemCount: 1, hours: hrs, cost, label: entry.title ?? 'Shoot' })
 
       } else if (tt === 'edit') {
@@ -209,6 +244,7 @@ export function computeDeliverables(
             const vCost = calcVideoCost(v, hourly, rateMap)
             editCost += vCost
             tm.videoCount++
+            if (isMedia) { mediaEditCount++; mediaEditHours += v.time_taken ?? 0 }
             if (!videoMap[vType]) videoMap[vType] = { videoType: vType, count: 0, totalTimeTaken: 0, totalCost: 0, videos: [] }
             videoMap[vType].count++
             videoMap[vType].totalTimeTaken += v.time_taken ?? 0
@@ -220,8 +256,7 @@ export function computeDeliverables(
             })
           }
         } else {
-          // Current format: the entry itself IS one video (editing_videos always saved as [])
-          // Infer video type from the title and any flat fields stored on the entry
+          // Current format: the entry itself IS one video
           const anyEntry = entry as Record<string, unknown>
           const vType = ((anyEntry.video_type as string | undefined) ?? '').trim()
             || inferVideoType(entry.title)
@@ -231,6 +266,7 @@ export function computeDeliverables(
           const vCost     = typeRate + laborCost
           editCost = vCost
           tm.videoCount++
+          if (isMedia) { mediaEditCount++; mediaEditHours += timeTaken }
           if (!videoMap[vType]) videoMap[vType] = { videoType: vType, count: 0, totalTimeTaken: 0, totalCost: 0, videos: [] }
           videoMap[vType].count++
           videoMap[vType].totalTimeTaken += timeTaken
@@ -252,6 +288,12 @@ export function computeDeliverables(
         dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: tt, itemCount: 0, hours: hrs, cost, label: entry.title ?? 'Work' })
       }
     }
+
+    // Accumulate learning hours from daily_updates for days this member worked on this client
+    if (rowHasClientEntry && !contributingRows.has(row.id)) {
+      contributingRows.add(row.id)
+      totalLearningHours += row.learning_hours ?? 0
+    }
   }
 
   const dayLog: DayLogEntry[] = Object.keys(dayMap)
@@ -263,9 +305,14 @@ export function computeDeliverables(
 
   const totalVideos        = videoTypeGroups.reduce((s, g) => s + g.count, 0)
   const posterKey          = Object.keys(videoMap).find(k => k.toLowerCase() === 'poster')
-  const totalPosters       = posterKey ? videoMap[posterKey].count : 0
+  const voiceoverKey       = Object.keys(videoMap).find(k => k.toLowerCase() === 'voice over')
+  const totalPosters       = posterKey   ? videoMap[posterKey].count           : 0
+  const posterHours        = posterKey   ? videoMap[posterKey].totalTimeTaken  : 0
+  const voiceoverCount     = voiceoverKey ? videoMap[voiceoverKey].count        : 0
+  const voiceoverHours     = voiceoverKey ? videoMap[voiceoverKey].totalTimeTaken : 0
   const totalShootSessions = shoots.length
   const totalShootHours    = shoots.reduce((s, e) => s + e.hours, 0)
+  const activeMemberCount  = Object.keys(teamMap).length
 
   const videoTotalCost = videoTypeGroups.reduce((s, g) => s + g.totalCost, 0)
   const shootTotalCost = shoots.reduce((s, e) => s + e.cost, 0)
@@ -283,5 +330,15 @@ export function computeDeliverables(
     totalShootSessions,
     totalShootHours,
     totalCost,
+    mediaShootCount,
+    mediaShootHours,
+    mediaEditCount,
+    mediaEditHours,
+    nonMediaWorkHours,
+    voiceoverCount,
+    voiceoverHours,
+    posterHours,
+    totalLearningHours,
+    activeMemberCount,
   }
 }

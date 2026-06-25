@@ -80,18 +80,19 @@ function ClientCard({ c, isSelected, onClick }: { c: ClientRow; isSelected: bool
 
 // ── Stat chip ─────────────────────────────────────────────────────────────────
 
-function StatChip({ label, value, color, bg, emoji }: {
-  label: string; value: string | number; color: string; bg: string; emoji: string
+function StatChip({ label, value, sub, color, bg, emoji }: {
+  label: string; value: string | number; sub?: string; color: string; bg: string; emoji: string
 }) {
   return (
     <div style={{
       background: bg, borderRadius: 14, padding: '14px 16px', border: `1px solid ${color}22`,
-      display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 110,
+      display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 110,
     }}>
       <div style={{ fontSize: 20 }}>{emoji}</div>
       <p style={{ fontSize: 22, fontWeight: 900, color, margin: 0, fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>
         {value}
       </p>
+      {sub && <p style={{ fontSize: 11, color, margin: 0, fontWeight: 700, opacity: 0.65 }}>{sub}</p>}
       <p style={{ fontSize: 10, color: '#6B7280', margin: 0, fontWeight: 500 }}>{label}</p>
     </div>
   )
@@ -382,15 +383,32 @@ export default function ClientsUnifiedClient({
             </div>
 
             {/* ── Stat chips ───────────────────────────────────────────── */}
-            {deliverables && (
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <StatChip label="Videos Edited"   value={deliverables.totalVideos}                        emoji="🎬" color="#E53935" bg="rgba(229,57,53,0.06)"   />
-                <StatChip label="Shoot Sessions"  value={deliverables.totalShootSessions}                 emoji="📸" color="#F97316" bg="rgba(249,115,22,0.06)"  />
-                <StatChip label="Shoot Hours"     value={`${deliverables.totalShootHours.toFixed(1)}h`}   emoji="⏱️" color="#3B82F6" bg="rgba(59,130,246,0.06)"  />
-                <StatChip label="Posters"         value={deliverables.totalPosters}                       emoji="🖼️" color="#10B981" bg="rgba(16,185,129,0.06)"  />
-                <StatChip label="Total Cost"      value={fmtRupee(deliverables.totalCost)}                emoji="💰" color="#DE1A1A" bg="rgba(222,26,26,0.06)"   />
-              </div>
-            )}
+            {deliverables && (() => {
+              const isInternal = selectedClientRow?.industry === 'Internal Brand'
+              const d = deliverables
+              if (isInternal) {
+                return (
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <StatChip label="Shoots"         value={d.mediaShootCount}                                   sub={`${d.mediaShootHours.toFixed(1)}h`}  emoji="📸" color="#F97316" bg="rgba(249,115,22,0.06)"  />
+                    <StatChip label="Videos Edited"  value={d.mediaEditCount}                                    sub={`${d.mediaEditHours.toFixed(1)}h`}   emoji="🎬" color="#E53935" bg="rgba(229,57,53,0.06)"   />
+                    <StatChip label="Work Logs"      value={`${d.nonMediaWorkHours.toFixed(1)}h`}                                                           emoji="💼" color="#6366F1" bg="rgba(99,102,241,0.06)" />
+                    <StatChip label="Learning Hrs"   value={`${d.totalLearningHours.toFixed(1)}h`}                                                          emoji="📚" color="#0EA5E9" bg="rgba(14,165,233,0.06)"  />
+                    <StatChip label="Active Members" value={d.activeMemberCount}                                                                            emoji="👥" color="#8B5CF6" bg="rgba(139,92,246,0.06)"  />
+                    <StatChip label="Total Cost"     value={fmtRupee(d.totalCost)}                                                                          emoji="💰" color="#DE1A1A" bg="rgba(222,26,26,0.06)"   />
+                  </div>
+                )
+              }
+              return (
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <StatChip label="Shoots"        value={d.mediaShootCount}                                                          sub={`${d.mediaShootHours.toFixed(1)}h`}  emoji="📸" color="#F97316" bg="rgba(249,115,22,0.06)"  />
+                  <StatChip label="Videos Edited" value={d.mediaEditCount}                                                        sub={`${d.mediaEditHours.toFixed(1)}h`}   emoji="🎬" color="#E53935" bg="rgba(229,57,53,0.06)"   />
+                  <StatChip label="Work Logs"     value={`${d.nonMediaWorkHours.toFixed(1)}h`}                                                                               emoji="💼" color="#6366F1" bg="rgba(99,102,241,0.06)" />
+                  <StatChip label="Voiceover"     value={d.voiceoverCount}                                                        sub={`${d.voiceoverHours.toFixed(1)}h`}   emoji="🎙️" color="#8B5CF6" bg="rgba(139,92,246,0.06)"  />
+                  <StatChip label="Posters"       value={d.totalPosters}                                                          sub={`${d.posterHours.toFixed(1)}h`}      emoji="🖼️" color="#10B981" bg="rgba(16,185,129,0.06)"  />
+                  <StatChip label="Total Cost"    value={fmtRupee(d.totalCost)}                                                                                              emoji="💰" color="#DE1A1A" bg="rgba(222,26,26,0.06)"   />
+                </div>
+              )
+            })()}
 
             {/* ── No data ──────────────────────────────────────────────── */}
             {deliverables && !hasData && (

@@ -156,14 +156,14 @@ export default async function ClientsUnifiedPage({
     ] = await Promise.all([
       admin
         .from('daily_updates')
-        .select('id, user_id, date, work_entries')
+        .select('id, user_id, date, work_entries, learning_hours')
         .eq('company_id', cid)
         .gte('date', dateFrom)
         .lte('date', dateTo)
         .order('date', { ascending: false }),
       admin
         .from('users')
-        .select('id, name, employee_id, hourly_rate, monthly_salary')
+        .select('id, name, employee_id, hourly_rate, monthly_salary, team')
         .eq('company_id', cid),
       admin
         .from('pricing_rates')

@@ -67,7 +67,7 @@ export function NoteEditor({ note, folders, canEdit, isAdmin, teamMembers, onSav
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: '#fff' }}>
-      <input value={title} onChange={e => setTitle(e.target.value)} onBlur={save} disabled={!canEdit}
+      <input value={title} onChange={e => setTitle(e.target.value)} disabled={!canEdit}
         placeholder="Untitled Note"
         style={{ fontSize: 22, fontWeight: 800, border: 'none', outline: 'none', padding: '16px 20px 8px', fontFamily: 'var(--font-jakarta)', background: 'transparent' }} />
       <div style={{ display: 'flex', gap: 10, padding: '0 20px 10px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -91,7 +91,7 @@ export function NoteEditor({ note, folders, canEdit, isAdmin, teamMembers, onSav
       </div>
       <div style={{ border: '1px solid #F1F1F4', borderRadius: 14, margin: '0 16px 16px', display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
         {canEdit && <TiptapToolbar editor={editor} />}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }} onBlur={save}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
           <EditorContent editor={editor} />
         </div>
       </div>

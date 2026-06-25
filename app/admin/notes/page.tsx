@@ -11,7 +11,7 @@ function adminSupabase() {
     { auth: { autoRefreshToken: false, persistSession: false } })
 }
 
-export default async function MemberNotesPage() {
+export default async function AdminNotesPage() {
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')

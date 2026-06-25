@@ -80,25 +80,51 @@ function ClientCard({ c, isSelected, onClick }: { c: ClientRow; isSelected: bool
 
 // ── Stat chip ─────────────────────────────────────────────────────────────────
 
-function StatChip({ label, hours, count, color, isCost }: {
-  label: string; hours: string; count?: number | string; color: string; isCost?: boolean
+function StatChip({ label, emoji, hours, count, color, isCost }: {
+  label: string; emoji: string; hours: string; count?: number | string; color: string; isCost?: boolean
 }) {
+  const hasHours = hours && hours !== '0.0h' && hours !== '₹0'
   return (
     <div style={{
-      background: '#fff', borderRadius: 14, border: '1px solid #EBEDF2',
+      background: '#fff', borderRadius: 16,
+      border: `1.5px solid ${color}22`,
       borderTop: `3px solid ${color}`,
-      padding: '14px 16px', flex: 1, minWidth: 110,
-      boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+      padding: '14px 16px 16px', flex: 1, minWidth: 120,
+      boxShadow: `0 4px 16px ${color}12, 0 1px 4px rgba(0,0,0,0.05)`,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+      textAlign: 'center',
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</span>
-        {count != null && (
-          <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 99, background: `${color}15`, color }}>{count}</span>
+      {/* Line 1 — emoji + colored label */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <span style={{ fontSize: 15, lineHeight: 1 }}>{emoji}</span>
+        <span style={{
+          fontSize: 10, fontWeight: 800, color,
+          textTransform: 'uppercase', letterSpacing: '0.08em',
+        }}>{label}</span>
+      </div>
+
+      {/* Line 2 — value + 3D count badge */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <p style={{
+          fontSize: 22, fontWeight: 900, margin: 0, lineHeight: 1,
+          fontFamily: 'var(--font-jakarta)',
+          color: isCost ? color : '#111827',
+        }}>
+          {hasHours ? hours : (count != null ? String(count) : hours)}
+        </p>
+        {/* 3D badge — only when we have both a real value and a count */}
+        {count != null && hasHours && (
+          <div style={{
+            width: 26, height: 26, borderRadius: '50%', flexShrink: 0,
+            background: `linear-gradient(145deg, ${color}EE 0%, ${color} 100%)`,
+            boxShadow: `0 4px 10px ${color}55, 0 1px 3px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.3)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 10, fontWeight: 900, color: '#fff',
+          }}>
+            {count}
+          </div>
         )}
       </div>
-      <p style={{ fontSize: 22, fontWeight: 900, color: isCost ? color : '#111827', margin: 0, fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>
-        {hours}
-      </p>
     </div>
   )
 }
@@ -144,6 +170,19 @@ function TH({ children }: { children: string }) {
     <th style={{ padding: '8px 14px', fontSize: 10, fontWeight: 700, color: '#9CA3AF', textAlign: 'left', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
       {children}
     </th>
+  )
+}
+
+// Shared colgroup for all 5-column tables — locks widths so every section aligns identically
+function TableCols() {
+  return (
+    <colgroup>
+      <col style={{ width: '13%' }} />  {/* Date */}
+      <col style={{ width: '14%' }} />  {/* Member */}
+      <col />                           {/* Title — takes remaining space */}
+      <col style={{ width: '9%' }} />   {/* Hours */}
+      <col style={{ width: '10%' }} />  {/* Cost */}
+    </colgroup>
   )
 }
 
@@ -418,22 +457,22 @@ export default function ClientsUnifiedClient({
               if (isInternal) {
                 return (
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <StatChip label="Shooting" hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
-                    <StatChip label="Editing"  hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
-                    <StatChip label="Working"  hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
-                    <StatChip label="Learning" hours={`${d.totalLearningHours.toFixed(1)}h`}                           color="#0EA5E9" />
-                    <StatChip label="Total"    hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
+                    <StatChip label="Shooting" emoji="📸" hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
+                    <StatChip label="Editing"  emoji="🎬" hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
+                    <StatChip label="Working"  emoji="💼" hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
+                    <StatChip label="Learning" emoji="📚" hours={`${d.totalLearningHours.toFixed(1)}h`}                           color="#0EA5E9" />
+                    <StatChip label="Total"    emoji="💰" hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
                   </div>
                 )
               }
               return (
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <StatChip label="Shooting"  hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
-                  <StatChip label="Editing"   hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
-                  <StatChip label="Working"   hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
-                  <StatChip label="Voiceover" hours={`${d.voiceoverHours.toFixed(1)}h`}    count={d.voiceoverCount}   color="#8B5CF6" />
-                  <StatChip label="Posters"   hours={`${d.posterHours.toFixed(1)}h`}       count={d.totalPosters}     color="#10B981" />
-                  <StatChip label="Total"     hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
+                  <StatChip label="Shooting"  emoji="📸" hours={`${d.mediaShootHours.toFixed(1)}h`}   count={d.mediaShootCount}  color="#F97316" />
+                  <StatChip label="Editing"   emoji="🎬" hours={`${d.mediaEditHours.toFixed(1)}h`}    count={d.mediaEditCount}   color="#E53935" />
+                  <StatChip label="Working"   emoji="💼" hours={`${d.nonMediaWorkHours.toFixed(1)}h`}                            color="#6366F1" />
+                  <StatChip label="Voiceover" emoji="🎙️" hours={`${d.voiceoverHours.toFixed(1)}h`}    count={d.voiceoverCount}   color="#8B5CF6" />
+                  <StatChip label="Posters"   emoji="🖼️" hours={`${d.posterHours.toFixed(1)}h`}       count={d.totalPosters}     color="#10B981" />
+                  <StatChip label="Total"     emoji="💰" hours={fmtRupee(d.totalCost)}                                           color="#DE1A1A" isCost />
                 </div>
               )
             })()}
@@ -466,6 +505,7 @@ export default function ClientsUnifiedClient({
             {deliverables && deliverables.shoots.length > 0 && (
               <Section title="Shooting" emoji="📸" count={deliverables.shoots.length} totalCost={deliverables.shoots.reduce((s, e) => s + e.cost, 0)}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <TableCols />
                   <thead><tr style={{ background: '#F9FAFB' }}>
                     {['Date', 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
                   </tr></thead>
@@ -492,6 +532,7 @@ export default function ClientsUnifiedClient({
               return (
                 <Section title="Editing" emoji="🎬" count={deliverables.totalVideos} totalCost={totalEditCost}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <TableCols />
                     <thead><tr style={{ background: '#F9FAFB' }}>
                       {['Date', 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
                     </tr></thead>
@@ -517,6 +558,7 @@ export default function ClientsUnifiedClient({
               function EntryTable({ entries }: { entries: FlatEntry[] }) {
                 return (
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <TableCols />
                     <thead><tr style={{ background: '#F9FAFB' }}>
                       {['Date', 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
                     </tr></thead>

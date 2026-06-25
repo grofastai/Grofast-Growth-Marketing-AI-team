@@ -447,3 +447,40 @@ export async function convertNoteToTask(
   revalidatePath('/member/tasks')
   return { success: true }
 }
+
+export async function getAttachments(noteId: string): Promise<{ id: string; type: 'audio' | 'file'; url: string; filename: string | null; duration: number | null }[]> {
+  const v = await getViewer()
+  if (!v) return []
+  const admin = adminSupabase()
+  const { data } = await admin.from('note_attachments')
+    .select('id, type, url, filename, duration').eq('note_id', noteId).eq('company_id', v.companyId)
+    .order('created_at')
+  return (data ?? []) as { id: string; type: 'audio' | 'file'; url: string; filename: string | null; duration: number | null }[]
+}
+
+export async function addAudioAttachment(noteId: string, url: string, duration: number, filename: string): Promise<{ success: boolean; error?: string }> {
+  const v = await getViewer()
+  if (!v) return { success: false, error: 'Not authenticated' }
+  const admin = adminSupabase()
+  const { data: note } = await admin.from('notes').select('user_id, scope, company_id').eq('id', noteId).single()
+  if (!note || note.company_id !== v.companyId) return { success: false, error: 'Note not found' }
+  if (!canEditNote({ user_id: note.user_id, scope: note.scope as NoteScope }, { id: v.id, role: v.role })) {
+    return { success: false, error: 'You cannot attach to this note' }
+  }
+  const { error } = await admin.from('note_attachments').insert({
+    company_id: v.companyId, note_id: noteId, type: 'audio', url, duration, filename,
+  })
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/notes'); revalidatePath('/admin/notes')
+  return { success: true }
+}
+
+export async function deleteAttachment(id: string): Promise<{ success: boolean; error?: string }> {
+  const v = await getViewer()
+  if (!v) return { success: false, error: 'Not authenticated' }
+  const admin = adminSupabase()
+  const { error } = await admin.from('note_attachments').delete().eq('id', id).eq('company_id', v.companyId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/notes'); revalidatePath('/admin/notes')
+  return { success: true }
+}

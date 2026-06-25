@@ -1,11 +1,12 @@
 'use client'
 import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, CalendarDays } from 'lucide-react'
 import { FolderSidebar } from './folder-sidebar'
 import { NotesList } from './notes-list'
 import { NoteEditor } from './note-editor'
 import { SharePopup } from './share-popup'
+import { CalendarView } from './calendar-view'
 import { filterNotes, type HubView, type FilterNote } from '@/lib/notes/filter'
 import { canEditNote } from '@/lib/notes/access'
 import { createNote, updateNote, createFolder } from '@/lib/actions/notes'
@@ -24,6 +25,7 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
   const [sort, setSort] = useState<'newest' | 'oldest' | 'edited'>('newest')
   const [activeId, setActiveId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  const [calendar, setCalendar] = useState(false)
   const [saving, startSave] = useTransition()
 
   const visible = useMemo(() => {
@@ -70,6 +72,10 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search notes..."
             style={{ padding: '8px 12px 8px 30px', borderRadius: 10, border: '1px solid #E5E7EB', fontSize: 13, width: 240 }} />
         </div>
+        <button onClick={() => setCalendar(c => !c)} title="Calendar"
+          style={{ background: calendar ? '#DE1A1A' : '#F3F4F6', color: calendar ? '#fff' : '#374151', border: 'none', borderRadius: 10, padding: '9px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+          <CalendarDays size={15}/> Calendar
+        </button>
         <button onClick={handleNew}
           style={{ background: '#DE1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
           <Plus size={15}/> New Note
@@ -79,10 +85,16 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
         <FolderSidebar folders={folders} view={view} activeFolderId={folderId}
           onView={v => { setView(v); setFolderId(null) }} onFolder={id => { setFolderId(id); setView('all') }}
           onNewFolder={handleNewFolder} isAdmin={isAdmin} />
-        <NotesList notes={visible} folders={folders} activeId={creating ? null : activeId} sort={sort} onSort={setSort} onSelect={handleSelect} />
-        <NoteEditor key={active?.id ?? (creating ? 'new' : 'none')}
-          note={active ?? (creating ? EMPTY_NOTE : null)} folders={folders} canEdit={canEdit} isAdmin={isAdmin}
-          teamMembers={teamMembers} onSave={handleSave} onShare={() => active && setSharing(active.id)} saving={saving} />
+        {calendar ? (
+          <CalendarView notes={visible} onSelect={id => { setCalendar(false); handleSelect(id) }} />
+        ) : (
+          <>
+            <NotesList notes={visible} folders={folders} activeId={creating ? null : activeId} sort={sort} onSort={setSort} onSelect={handleSelect} />
+            <NoteEditor key={active?.id ?? (creating ? 'new' : 'none')}
+              note={active ?? (creating ? EMPTY_NOTE : null)} folders={folders} canEdit={canEdit} isAdmin={isAdmin}
+              teamMembers={teamMembers} onSave={handleSave} onShare={() => active && setSharing(active.id)} saving={saving} />
+          </>
+        )}
       </div>
       {sharing && <SharePopup noteId={sharing} teamMembers={teamMembers} onClose={() => setSharing(null)} />}
     </div>

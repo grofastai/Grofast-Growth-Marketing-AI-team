@@ -476,3 +476,4 @@ aside::-webkit-scrollbar-thumb:hover { background: rgba(222,26,26,0.6); }
 .ProseMirror a { color: #DE1A1A; text-decoration: underline; }
 .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #9CA3AF; float: left; height: 0; pointer-events: none; }
 .ProseMirror .note-mention { background: rgba(222,26,26,0.1); color: #DE1A1A; border-radius: 6px; padding: 0 4px; font-weight: 600; }
+@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.3 } }

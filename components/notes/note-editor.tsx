@@ -12,6 +12,8 @@ import { useEffect, useState } from 'react'
 import { AtSign, Share2 } from 'lucide-react'
 import { TiptapToolbar } from './tiptap-toolbar'
 import { MentionPicker } from './mention-picker'
+import { VoiceRecorder } from './voice-recorder'
+import { ExportMenu } from './export-menu'
 import type { HubNote, Folder, NoteScope, TeamMember } from './types'
 
 // StarterKit v3 already bundles Underline + Link; configure (don't re-register) them.
@@ -93,6 +95,7 @@ export function NoteEditor({ note, folders, canEdit, isAdmin, teamMembers, onSav
           <EditorContent editor={editor} />
         </div>
       </div>
+      {canEdit && note.id && <div style={{ padding: '0 16px 12px' }}><VoiceRecorder noteId={note.id} /></div>}
       {canEdit && (
         <div style={{ position: 'relative', padding: '10px 16px', borderTop: '1px solid #F1F1F4', display: 'flex', alignItems: 'center', gap: 8 }}>
           <button type="button" onClick={() => setShowMention(s => !s)} title="Mention"
@@ -105,6 +108,7 @@ export function NoteEditor({ note, folders, canEdit, isAdmin, teamMembers, onSav
               <Share2 size={14} /> Share
             </button>
           )}
+          {note.id && <ExportMenu title={title} getHtml={() => editor?.getHTML() ?? ''} />}
           <div style={{ flex: 1 }} />
           <button onClick={save} disabled={saving}
             style={{ background: '#DE1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 20px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>

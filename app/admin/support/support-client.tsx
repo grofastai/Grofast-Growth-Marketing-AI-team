@@ -3,10 +3,10 @@
 import { useState, useRef, useMemo, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase/client'
-import { addResponse, updateTicketStatus, createTicket, closeTicket } from '@/lib/actions/support'
+import { addResponse, updateTicketStatus, createTicket, closeTicket, getSupportHandlerCandidates, setSupportHandler } from '@/lib/actions/support'
 import {
   Plus, Search, Send, Loader2, X, Paperclip, ChevronLeft,
-  Inbox, CheckCircle2, XCircle, AlertCircle, Clock,
+  Inbox, CheckCircle2, XCircle, AlertCircle, Clock, UserPlus, LifeBuoy, Check,
 } from 'lucide-react'
 import {
   statusOf, categoryOf, CATEGORIES, priorityOf, PRIORITY_OPTIONS,
@@ -34,7 +34,7 @@ function requesterName(t: Ticket): string {
   return own?.responder_name ?? 'Member'
 }
 
-export default function AdminSupportClient({ tickets, currentUserId }: { tickets: Ticket[]; currentUserId: string }) {
+export default function AdminSupportClient({ tickets, currentUserId, canAssign = false }: { tickets: Ticket[]; currentUserId: string; canAssign?: boolean }) {
   void currentUserId
   const router = useRouter()
   const supabase = useMemo(() => createBrowserClient(), [])
@@ -44,6 +44,7 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showThreadMobile, setShowThreadMobile] = useState(false)
   const [showNew, setShowNew]       = useState(false)
+  const [showAssign, setShowAssign] = useState(false)
   const [closeConfirm, setCloseConfirm] = useState<string | null>(null)
 
   const [reply, setReply]           = useState('')
@@ -162,10 +163,18 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
                   {stats.open + stats.in_progress} need attention · {tickets.length} total
                 </p>
               </div>
-              <button onClick={() => setShowNew(true)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 18px', borderRadius: 13, fontSize: 13.5, fontWeight: 800, color: '#B91212', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 6px 18px rgba(0,0,0,0.22)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                <Plus size={16} /> New ticket
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+                {canAssign && (
+                  <button onClick={() => setShowAssign(true)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 16px', borderRadius: 13, fontSize: 13.5, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.28)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                    <UserPlus size={16} /> Assign handler
+                  </button>
+                )}
+                <button onClick={() => setShowNew(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 18px', borderRadius: 13, fontSize: 13.5, fontWeight: 800, color: '#B91212', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 6px 18px rgba(0,0,0,0.22)', whiteSpace: 'nowrap' }}>
+                  <Plus size={16} /> New ticket
+                </button>
+              </div>
             </div>
             {/* status filter pills with real counts */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
@@ -348,6 +357,8 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
 
       {showNew && <NewTicketModal onClose={() => setShowNew(false)} onCreated={id => { setShowNew(false); setSelectedId(id); setShowThreadMobile(true); router.refresh() }} />}
 
+      {showAssign && <AssignHandlerModal onClose={() => setShowAssign(false)} onChanged={() => router.refresh()} />}
+
       {closeConfirm && (
         <>
           <div onClick={() => setCloseConfirm(null)} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(13,8,8,0.5)' }} />
@@ -454,6 +465,98 @@ function NewTicketModal({ onClose, onCreated }: { onClose: () => void; onCreated
               style={{ flex: 1.4, padding: 12, borderRadius: 13, fontSize: 13.5, fontWeight: 800, color: '#fff', background: 'linear-gradient(135deg,#DE1A1A,#9B0F0F)', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7, opacity: pending ? 0.7 : 1 }}>
               {pending ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Create
             </button>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── Assign support handler modal ──────────────────────────────────────────────
+function AssignHandlerModal({ onClose, onChanged }: { onClose: () => void; onChanged: () => void }) {
+  const [people, setPeople] = useState<{ id: string; name: string; employee_id: string | null; is_support_handler: boolean }[]>([])
+  const [loading, setLoading] = useState(true)
+  const [savingId, setSavingId] = useState<string | null>(null)
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    getSupportHandlerCandidates().then(rows => { setPeople(rows); setLoading(false) })
+  }, [])
+
+  async function toggle(id: string, next: boolean) {
+    setSavingId(id)
+    setPeople(prev => prev.map(p => p.id === id ? { ...p, is_support_handler: next } : p))
+    const res = await setSupportHandler(id, next)
+    if (!res.success) setPeople(prev => prev.map(p => p.id === id ? { ...p, is_support_handler: !next } : p))
+    else onChanged()
+    setSavingId(null)
+  }
+
+  const filtered = people.filter(p =>
+    !query.trim() || p.name.toLowerCase().includes(query.toLowerCase()) || (p.employee_id ?? '').toLowerCase().includes(query.toLowerCase())
+  )
+  const activeCount = people.filter(p => p.is_support_handler).length
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(13,8,8,0.5)', backdropFilter: 'blur(3px)' }} />
+      <div style={{ position: 'fixed', zIndex: 70, inset: 0, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} className="sm:!items-center">
+        <div style={{ width: '100%', maxWidth: 460, maxHeight: '92vh', display: 'flex', flexDirection: 'column', background: '#FFFFFF', borderRadius: '22px 22px 0 0', boxShadow: '0 -8px 40px rgba(0,0,0,0.25)' }} className="sm:!rounded-[22px]">
+          <div style={{ padding: '18px 20px 14px', borderBottom: '1px solid #F1F2F5', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+            <div>
+              <h2 style={{ fontSize: 17, fontWeight: 800, color: '#1F2430', margin: 0, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                <LifeBuoy size={16} color="#DE1A1A" /> Support handlers
+              </h2>
+              <p style={{ fontSize: 12, color: '#9CA3AF', margin: '3px 0 0' }}>
+                Anyone you turn on sees this Support Inbox and gets ticket alerts. {activeCount} active.
+              </p>
+            </div>
+            <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: '50%', border: '1px solid #EDEFF3', background: '#F6F7F9', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              <X size={15} color="#6B7280" />
+            </button>
+          </div>
+
+          <div style={{ padding: '12px 16px 0' }}>
+            <div style={{ position: 'relative' }}>
+              <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#A6AAB3' }} />
+              <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search members…"
+                style={{ width: '100%', padding: '10px 12px 10px 34px', borderRadius: 11, fontSize: 13, background: '#F6F7F9', border: '1px solid #EDEFF3', color: '#1F2430', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+
+          <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px 16px', minHeight: 120 }}>
+            {loading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '32px 0', color: '#9CA3AF', fontSize: 13 }}>
+                <Loader2 size={15} className="animate-spin" /> Loading members…
+              </div>
+            ) : filtered.length === 0 ? (
+              <p style={{ textAlign: 'center', fontSize: 12.5, color: '#A6AAB3', padding: '28px 0' }}>No members found.</p>
+            ) : filtered.map(p => {
+              const initials = p.name.split(' ').map(s => s[0]).join('').slice(0, 2).toUpperCase()
+              const on = p.is_support_handler
+              return (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 8px', borderRadius: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff', background: on ? 'linear-gradient(135deg,#DE1A1A,#9B0F0F)' : '#C4C8D0' }}>
+                    {initials}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: '#1F2430', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</p>
+                    <p style={{ margin: '1px 0 0', fontSize: 11, color: '#9CA3AF' }}>{p.employee_id ?? '—'}{on ? ' · Support handler' : ''}</p>
+                  </div>
+                  <button onClick={() => toggle(p.id, !on)} disabled={savingId === p.id} aria-pressed={on}
+                    style={{ width: 46, height: 26, borderRadius: 99, border: 'none', cursor: 'pointer', flexShrink: 0, position: 'relative', transition: 'background .15s',
+                      background: on ? '#DE1A1A' : '#D7DAE0', opacity: savingId === p.id ? 0.6 : 1 }}>
+                    <span style={{ position: 'absolute', top: 3, left: on ? 23 : 3, width: 20, height: 20, borderRadius: '50%', background: '#fff', transition: 'left .15s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {savingId === p.id ? <Loader2 size={11} className="animate-spin" color="#9CA3AF" /> : on ? <Check size={12} color="#DE1A1A" /> : null}
+                    </span>
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+
+          <div style={{ padding: '12px 20px 20px', borderTop: '1px solid #F1F2F5' }}>
+            <button onClick={onClose} style={{ width: '100%', padding: 12, borderRadius: 13, fontSize: 13.5, fontWeight: 800, color: '#fff', background: 'linear-gradient(135deg,#DE1A1A,#9B0F0F)', border: 'none', cursor: 'pointer' }}>Done</button>
           </div>
         </div>
       </div>

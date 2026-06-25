@@ -218,6 +218,25 @@ export async function getCurrentUser() {
   return getProfile()
 }
 
+// Admin-only: members who can be made support handlers, with their current flag.
+export async function getSupportHandlerCandidates(): Promise<
+  { id: string; name: string; employee_id: string | null; is_support_handler: boolean }[]
+> {
+  const profile = await getProfile()
+  if (!profile || profile.role !== 'ADMIN') return []
+  const admin = adminSupabase()
+  const { data } = await admin
+    .from('users')
+    .select('id, name, employee_id, is_support_handler')
+    .eq('company_id', profile.company_id)
+    .neq('role', 'ADMIN')
+    .neq('role', 'FREELANCER')
+    .eq('status', 'active')
+    .is('deleted_at', null)
+    .order('name')
+  return (data ?? []).map(u => ({ ...u, is_support_handler: !!u.is_support_handler }))
+}
+
 // Admin-only: toggle whether a member is a support handler. A handler sees the
 // Support Inbox workspace; everyone else sees the member Support chat.
 export async function setSupportHandler(

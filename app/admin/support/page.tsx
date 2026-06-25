@@ -9,5 +9,5 @@ export default async function AdminSupportPage() {
     getTickets('ADMIN'),
     getCurrentUser(),
   ])
-  return <AdminSupportClient tickets={tickets as ComponentProps<typeof AdminSupportClient>['tickets']} currentUserId={user?.id ?? ''} />
+  return <AdminSupportClient tickets={tickets as ComponentProps<typeof AdminSupportClient>['tickets']} currentUserId={user?.id ?? ''} canAssign={user?.role === 'ADMIN'} />
 }

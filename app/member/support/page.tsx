@@ -14,7 +14,7 @@ export default async function MemberSupportPage() {
 
   if (isHandler) {
     const allTickets = await getTickets('ADMIN')
-    return <SupportInbox tickets={allTickets as ComponentProps<typeof SupportInbox>['tickets']} currentUserId={user!.id} />
+    return <SupportInbox tickets={allTickets as ComponentProps<typeof SupportInbox>['tickets']} currentUserId={user!.id} canAssign={user!.role === 'ADMIN'} />
   }
 
   const tickets = await getTickets('MEMBER')

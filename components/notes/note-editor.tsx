@@ -42,6 +42,7 @@ export function NoteEditor({ note, folders, canEdit, isAdmin, teamMembers, onSav
   const [scope, setScope] = useState<NoteScope>(note?.scope ?? 'private')
   const [folderId, setFolderId] = useState<string | null>(note?.folder_id ?? null)
   const [showMention, setShowMention] = useState(false)
+  const [saved, setSaved] = useState(false)
   const editor = useEditor({
     extensions: EXT, editable: canEdit, immediatelyRender: false,
     content: (note?.body && typeof note.body === 'object' && Object.keys(note.body as object).length
@@ -59,7 +60,11 @@ export function NoteEditor({ note, folders, canEdit, isAdmin, teamMembers, onSav
     </div>
   )
 
-  const save = () => onSave({ title, body: editor?.getJSON() ?? { type: 'doc', content: [] }, scope, folder_id: folderId })
+  const save = async () => {
+    await onSave({ title, body: editor?.getJSON() ?? { type: 'doc', content: [] }, scope, folder_id: folderId })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
   const insertMention = (m: TeamMember) => {
     editor?.chain().focus().insertContent({ type: 'mention', attrs: { id: m.id, label: m.name } }).insertContent(' ').run()
     setShowMention(false)
@@ -111,8 +116,8 @@ export function NoteEditor({ note, folders, canEdit, isAdmin, teamMembers, onSav
           {note.id && <ExportMenu title={title} getHtml={() => editor?.getHTML() ?? ''} />}
           <div style={{ flex: 1 }} />
           <button onClick={save} disabled={saving}
-            style={{ background: '#DE1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 20px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
-            {saving ? 'Saving…' : 'Save'}
+            style={{ background: saved ? '#16A34A' : '#DE1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 20px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.6 : 1, transition: 'background 0.2s' }}>
+            {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save'}
           </button>
           {showMention && <MentionPicker teamMembers={teamMembers} onPick={insertMention} onClose={() => setShowMention(false)} />}
         </div>

@@ -4,6 +4,10 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { getEffectiveUserId } from './impersonate'
+import { extractPlainText } from '@/lib/notes/tiptap-text'
+import { canEditNote } from '@/lib/notes/access'
+
+export type NoteScope = 'private' | 'team' | 'sop'
 
 function adminSupabase() {
   return createClient(
@@ -33,6 +37,11 @@ export interface NoteRow {
   items:                ChecklistItem[]
   labels:               string[]
   archived:             boolean
+  scope:                NoteScope
+  folder_id:            string | null
+  body:                 unknown
+  created_by:           string | null
+  user_id:              string
   created_at:           string
   updated_at:           string
 }
@@ -48,6 +57,36 @@ export interface NoteInput {
   note_type:             'text' | 'checklist'
   items:                 ChecklistItem[]
   labels:                string[]
+  scope?:                NoteScope
+  folder_id?:            string | null
+  body?:                 unknown
+}
+
+export interface FolderRow {
+  id:         string
+  company_id: string
+  name:       string
+  icon:       string | null
+  parent_id:  string | null
+  scope:      NoteScope
+  owner_id:   string | null
+  position:   number
+  count:      number
+}
+
+export interface HubNoteRow extends NoteRow {
+  shared:   boolean
+  can_edit: boolean
+}
+
+async function getViewer() {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const admin = adminSupabase()
+  const { data: profile } = await admin.from('users').select('company_id, role').eq('id', user.id).single()
+  if (!profile?.company_id) return null
+  return { id: user.id, companyId: profile.company_id as string, role: profile.role as 'ADMIN' | 'MEMBER' }
 }
 
 export async function getNotes(archived = false): Promise<NoteRow[]> {
@@ -57,7 +96,7 @@ export async function getNotes(archived = false): Promise<NoteRow[]> {
   const admin = adminSupabase()
   const { data } = await admin
     .from('notes')
-    .select('id, title, content, color, pinned, reminder_at, reminded, reminder_recipients, reminder_message, note_type, items, labels, archived, created_at, updated_at')
+    .select('id, title, content, color, pinned, reminder_at, reminded, reminder_recipients, reminder_message, note_type, items, labels, archived, scope, folder_id, body, created_by, user_id, created_at, updated_at')
     .eq('user_id', uid)
     .eq('archived', archived)
     .order('pinned', { ascending: false })
@@ -66,11 +105,87 @@ export async function getNotes(archived = false): Promise<NoteRow[]> {
   return (data ?? []) as NoteRow[]
 }
 
+export async function getFolders(): Promise<FolderRow[]> {
+  const v = await getViewer()
+  if (!v) return []
+  const admin = adminSupabase()
+  const { data: folders } = await admin
+    .from('note_folders')
+    .select('id, company_id, name, icon, parent_id, scope, owner_id, position')
+    .eq('company_id', v.companyId)
+    .or(`owner_id.is.null,owner_id.eq.${v.id}`)
+    .order('position')
+  const { data: notes } = await admin
+    .from('notes').select('folder_id').eq('company_id', v.companyId).eq('archived', false)
+  const counts = new Map<string, number>()
+  for (const n of notes ?? []) if (n.folder_id) counts.set(n.folder_id, (counts.get(n.folder_id) ?? 0) + 1)
+  return (folders ?? []).map(f => ({ ...f, count: counts.get(f.id) ?? 0 })) as FolderRow[]
+}
+
+export async function createFolder(
+  input: { name: string; icon?: string; parentId?: string | null; scope: NoteScope },
+): Promise<{ success: boolean; id?: string; error?: string }> {
+  const v = await getViewer()
+  if (!v) return { success: false, error: 'Not authenticated' }
+  if (input.scope === 'sop' && v.role !== 'ADMIN') return { success: false, error: 'Only admins can create SOP folders' }
+  if (!input.name.trim()) return { success: false, error: 'Folder name required' }
+  const admin = adminSupabase()
+  const { data, error } = await admin.from('note_folders').insert({
+    company_id: v.companyId, name: input.name.trim(), icon: input.icon ?? '📁',
+    parent_id: input.parentId ?? null, scope: input.scope,
+    owner_id: input.scope === 'private' ? v.id : null,
+  }).select('id').single()
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/notes'); revalidatePath('/admin/notes')
+  return { success: true, id: data.id }
+}
+
+export async function renameFolder(id: string, name: string): Promise<{ success: boolean; error?: string }> {
+  const v = await getViewer()
+  if (!v) return { success: false, error: 'Not authenticated' }
+  if (!name.trim()) return { success: false, error: 'Name required' }
+  const admin = adminSupabase()
+  const { error } = await admin.from('note_folders').update({ name: name.trim() })
+    .eq('id', id).eq('company_id', v.companyId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/notes'); revalidatePath('/admin/notes')
+  return { success: true }
+}
+
+export async function deleteFolder(id: string): Promise<{ success: boolean; error?: string }> {
+  const v = await getViewer()
+  if (!v) return { success: false, error: 'Not authenticated' }
+  const admin = adminSupabase()
+  // notes.folder_id ON DELETE SET NULL handles detachment
+  const { error } = await admin.from('note_folders').delete().eq('id', id).eq('company_id', v.companyId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath('/member/notes'); revalidatePath('/admin/notes')
+  return { success: true }
+}
+
+export async function getHubNotes(): Promise<HubNoteRow[]> {
+  const v = await getViewer()
+  if (!v) return []
+  const admin = adminSupabase()
+  // All non-archived company notes that are team/sop, OR my own private notes.
+  const { data: rows } = await admin
+    .from('notes')
+    .select('id, title, content, color, pinned, reminder_at, reminded, reminder_recipients, reminder_message, note_type, items, labels, archived, scope, folder_id, body, created_by, user_id, created_at, updated_at')
+    .eq('company_id', v.companyId)
+    .eq('archived', false)
+    .or(`scope.in.(team,sop),and(scope.eq.private,user_id.eq.${v.id})`)
+    .order('pinned', { ascending: false })
+    .order('updated_at', { ascending: false })
+  return (rows ?? []).map(r => ({
+    ...r,
+    shared: false, // Phase 2 fills this from note_shares
+    can_edit: canEditNote({ user_id: r.user_id, scope: r.scope }, { id: v.id, role: v.role }),
+  })) as HubNoteRow[]
+}
+
 export async function createNote(
   input: NoteInput
 ): Promise<{ success: boolean; id?: string; error?: string }> {
-  if (!input.content?.trim() && input.note_type === 'text') return { success: false, error: 'Note content is required' }
-
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { success: false, error: 'Not authenticated' }
@@ -78,16 +193,29 @@ export async function createNote(
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users')
-    .select('company_id')
+    .select('company_id, role')
     .eq('id', user.id)
     .single()
   if (!profile?.company_id) return { success: false, error: 'Profile not found' }
 
+  const scope = input.scope ?? 'private'
+  if (scope === 'sop' && profile.role !== 'ADMIN') return { success: false, error: 'Only admins can create SOP notes' }
+
+  const bodyJson = input.body ?? { type: 'doc', content: [] }
+  const derivedContent = input.content?.trim() || extractPlainText(bodyJson as never)
+  if (!derivedContent && !input.title?.trim() && input.note_type === 'text') {
+    return { success: false, error: 'Note content is required' }
+  }
+
   const { data, error } = await admin.from('notes').insert({
     company_id:           profile.company_id,
     user_id:              user.id,
+    created_by:           user.id,
     title:                input.title?.trim() || null,
-    content:              input.content.trim(),
+    content:              derivedContent,
+    body:                 bodyJson,
+    scope,
+    folder_id:            input.folder_id ?? null,
     color:                input.color ?? '#FFFFFF',
     pinned:               input.pinned ?? false,
     reminder_at:          input.reminder_at ?? null,
@@ -109,14 +237,29 @@ export async function updateNote(
   id: string,
   input: NoteInput
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  const v = await getViewer()
+  if (!v) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
+  const { data: existing } = await admin.from('notes')
+    .select('user_id, scope, company_id, body').eq('id', id).single()
+  if (!existing || existing.company_id !== v.companyId) return { success: false, error: 'Note not found' }
+
+  const targetScope = input.scope ?? (existing.scope as NoteScope)
+  if (!canEditNote({ user_id: existing.user_id, scope: existing.scope as NoteScope }, { id: v.id, role: v.role })) {
+    return { success: false, error: 'You do not have permission to edit this note' }
+  }
+  if (targetScope === 'sop' && v.role !== 'ADMIN') return { success: false, error: 'Only admins can edit SOP notes' }
+
+  const bodyJson = input.body ?? existing.body ?? { type: 'doc', content: [] }
+  const derivedContent = input.content?.trim() || extractPlainText(bodyJson as never)
+
   const { error } = await admin.from('notes').update({
     title:               input.title?.trim() || null,
-    content:             input.content.trim(),
+    content:             derivedContent,
+    body:                bodyJson,
+    scope:               targetScope,
+    folder_id:           input.folder_id ?? null,
     color:               input.color ?? '#FFFFFF',
     pinned:              input.pinned ?? false,
     reminder_at:         input.reminder_at ?? null,
@@ -127,11 +270,11 @@ export async function updateNote(
     items:               input.items ?? [],
     labels:              input.labels ?? [],
     updated_at:          new Date().toISOString(),
-  }).eq('id', id).eq('user_id', user.id)
+  }).eq('id', id)
 
   if (error) return { success: false, error: error.message }
 
-  revalidatePath('/member/notes')
+  revalidatePath('/member/notes'); revalidatePath('/admin/notes')
   return { success: true }
 }
 

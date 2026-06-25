@@ -54,7 +54,7 @@ export default async function ClientsUnifiedPage({
     return d.toISOString().slice(0, 7)
   }
 
-  let period = rawPeriod ?? prevMonthStr()
+  let period = rawPeriod ?? todayStr.slice(0, 7)
   if (period.length > 7) period = period.slice(0, 7)
 
   let dateFrom: string

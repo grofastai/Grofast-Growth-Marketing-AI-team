@@ -1,5 +1,5 @@
 'use client'
-import { useState, useTransition, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Search, CalendarDays } from 'lucide-react'
 import { FolderSidebar } from './folder-sidebar'
@@ -26,12 +26,7 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
   const [activeId, setActiveId] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [calendar, setCalendar] = useState(false)
-  const [saving, startSave] = useTransition()
-  const wasSaving = useRef(false)
-  useEffect(() => {
-    if (wasSaving.current && !saving) router.refresh()
-    wasSaving.current = saving
-  }, [saving, router])
+  const [saving, setSaving] = useState(false)
 
   const visible = useMemo(() => {
     const fn = (id: string | null) => folders.find(f => f.id === id)?.name ?? ''
@@ -45,28 +40,49 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
     ? canEditNote({ user_id: active.user_id, scope: active.scope }, viewer)
     : true
 
-  const handleSave = (p: { title: string; body: unknown; scope: NoteScope; folder_id: string | null }) => {
-    startSave(async () => {
+  const handleSave = useCallback(async (p: { title: string; body: unknown; scope: NoteScope; folder_id: string | null }) => {
+    setSaving(true)
+    try {
       const input = {
         title: p.title, content: '', body: p.body, scope: p.scope, folder_id: p.folder_id,
         note_type: 'text' as const, items: [], labels: [],
       }
       if (active) {
-        await updateNote(active.id, input)
+        const r = await updateNote(active.id, input)
+        if (!r.success) { alert(r.error ?? 'Save failed'); return }
       } else {
         const r = await createNote(input)
-        if (r.success && r.id) { setActiveId(r.id); setCreating(false) }
+        if (r.success && r.id) {
+          setActiveId(r.id)
+          setCreating(false)
+        } else {
+          alert(r.error ?? 'Could not create note')
+          return
+        }
       }
-    })
-  }
+      router.refresh()
+    } finally {
+      setSaving(false)
+    }
+  }, [active, router])
+
   const handleNew = () => { setCreating(true); setActiveId(null) }
   const handleSelect = (id: string) => { setCreating(false); setActiveId(id) }
-  const handleNewFolder = (name: string, scope: NoteScope) =>
-    startSave(async () => { await createFolder({ name, scope }) })
-  const handleDeleteNote = (id: string) =>
-    startSave(async () => { await deleteNote(id); if (activeId === id) { setActiveId(null); setCreating(false) } })
-  const handleDeleteFolder = (id: string) =>
-    startSave(async () => { await deleteFolder(id); if (folderId === id) setFolderId(null) })
+
+  const handleNewFolder = async (name: string, scope: NoteScope) => {
+    await createFolder({ name, scope })
+    router.refresh()
+  }
+  const handleDeleteNote = async (id: string) => {
+    await deleteNote(id)
+    if (activeId === id) { setActiveId(null); setCreating(false) }
+    router.refresh()
+  }
+  const handleDeleteFolder = async (id: string) => {
+    await deleteFolder(id)
+    if (folderId === id) setFolderId(null)
+    router.refresh()
+  }
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#F8F9FC' }}>

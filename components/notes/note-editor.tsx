@@ -34,7 +34,7 @@ const EXT = [
 export function NoteEditor({ note, folders, canEdit, isAdmin, teamMembers, onSave, onShare, saving }: {
   note: HubNote | null; folders: Folder[]; canEdit: boolean; isAdmin: boolean
   teamMembers: TeamMember[]
-  onSave: (p: { title: string; body: unknown; scope: NoteScope; folder_id: string | null }) => void
+  onSave: (p: { title: string; body: unknown; scope: NoteScope; folder_id: string | null }) => void | Promise<void>
   onShare: () => void
   saving: boolean
 }) {

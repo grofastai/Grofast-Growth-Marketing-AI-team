@@ -566,8 +566,11 @@ export async function updateLeaveStatus(
   // Rule: if applied before 9 AM → use 9:30 AM (shift start) as clock-in; after 9 AM → use actual apply time
   } else if (status === 'approved' && leave && (leave.leave_type === 'wfh' || leave.leave_type === 'shoot_day')) {
     const todayIst = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
-    // Only auto-clock-in for same-day single-day requests (from attendance button, not multi-day pre-planned)
-    if (leave.from_date === todayIst && leave.to_date === todayIst) {
+    // Only auto-clock-in when the leave was SUBMITTED on the same day (attendance-page button flow).
+    // Pre-planned leaves applied in advance have created_at from a different date — skip auto clock-in
+    // so the employee can manually clock in at the actual start time.
+    const createdIst = new Date(leave.created_at).toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
+    if (leave.from_date === todayIst && leave.to_date === todayIst && createdIst === leave.from_date) {
       const { data: existing } = await admin
         .from('attendance_logs')
         .select('id, clock_in')

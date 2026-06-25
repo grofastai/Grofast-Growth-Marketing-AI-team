@@ -5,17 +5,19 @@ import { Plus, Search } from 'lucide-react'
 import { FolderSidebar } from './folder-sidebar'
 import { NotesList } from './notes-list'
 import { NoteEditor } from './note-editor'
+import { SharePopup } from './share-popup'
 import { filterNotes, type HubView, type FilterNote } from '@/lib/notes/filter'
 import { canEditNote } from '@/lib/notes/access'
 import { createNote, updateNote, createFolder } from '@/lib/actions/notes'
 import type { HubNote, Folder, TeamMember, NoteScope } from './types'
 
-export default function NotesHub({ initialNotes, folders, viewer }: {
+export default function NotesHub({ initialNotes, folders, teamMembers, viewer }: {
   initialNotes: HubNote[]; folders: Folder[]; teamMembers: TeamMember[]
   viewer: { id: string; role: 'ADMIN' | 'MEMBER' }
 }) {
   const router = useRouter()
   const isAdmin = viewer.role === 'ADMIN'
+  const [sharing, setSharing] = useState<string | null>(null)
   const [view, setView] = useState<HubView>('all')
   const [folderId, setFolderId] = useState<string | null>(null)
   const [q, setQ] = useState('')
@@ -79,8 +81,10 @@ export default function NotesHub({ initialNotes, folders, viewer }: {
           onNewFolder={handleNewFolder} isAdmin={isAdmin} />
         <NotesList notes={visible} folders={folders} activeId={creating ? null : activeId} sort={sort} onSort={setSort} onSelect={handleSelect} />
         <NoteEditor key={active?.id ?? (creating ? 'new' : 'none')}
-          note={active ?? (creating ? EMPTY_NOTE : null)} folders={folders} canEdit={canEdit} isAdmin={isAdmin} onSave={handleSave} saving={saving} />
+          note={active ?? (creating ? EMPTY_NOTE : null)} folders={folders} canEdit={canEdit} isAdmin={isAdmin}
+          teamMembers={teamMembers} onSave={handleSave} onShare={() => active && setSharing(active.id)} saving={saving} />
       </div>
+      {sharing && <SharePopup noteId={sharing} teamMembers={teamMembers} onClose={() => setSharing(null)} />}
     </div>
   )
 }

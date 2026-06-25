@@ -7,9 +7,12 @@ import { Table } from '@tiptap/extension-table'
 import TableRow from '@tiptap/extension-table-row'
 import TableCell from '@tiptap/extension-table-cell'
 import TableHeader from '@tiptap/extension-table-header'
+import Mention from '@tiptap/extension-mention'
 import { useEffect, useState } from 'react'
+import { AtSign, Share2 } from 'lucide-react'
 import { TiptapToolbar } from './tiptap-toolbar'
-import type { HubNote, Folder, NoteScope } from './types'
+import { MentionPicker } from './mention-picker'
+import type { HubNote, Folder, NoteScope, TeamMember } from './types'
 
 // StarterKit v3 already bundles Underline + Link; configure (don't re-register) them.
 const EXT = [
@@ -20,16 +23,23 @@ const EXT = [
   TableRow,
   TableCell,
   TableHeader,
+  Mention.configure({
+    HTMLAttributes: { class: 'note-mention' },
+    renderText: ({ node }) => `@${node.attrs.label ?? node.attrs.id}`,
+  }),
 ]
 
-export function NoteEditor({ note, folders, canEdit, isAdmin, onSave, saving }: {
+export function NoteEditor({ note, folders, canEdit, isAdmin, teamMembers, onSave, onShare, saving }: {
   note: HubNote | null; folders: Folder[]; canEdit: boolean; isAdmin: boolean
+  teamMembers: TeamMember[]
   onSave: (p: { title: string; body: unknown; scope: NoteScope; folder_id: string | null }) => void
+  onShare: () => void
   saving: boolean
 }) {
   const [title, setTitle] = useState(note?.title ?? '')
   const [scope, setScope] = useState<NoteScope>(note?.scope ?? 'private')
   const [folderId, setFolderId] = useState<string | null>(note?.folder_id ?? null)
+  const [showMention, setShowMention] = useState(false)
   const editor = useEditor({
     extensions: EXT, editable: canEdit, immediatelyRender: false,
     content: (note?.body && typeof note.body === 'object' && Object.keys(note.body as object).length
@@ -48,6 +58,10 @@ export function NoteEditor({ note, folders, canEdit, isAdmin, onSave, saving }: 
   )
 
   const save = () => onSave({ title, body: editor?.getJSON() ?? { type: 'doc', content: [] }, scope, folder_id: folderId })
+  const insertMention = (m: TeamMember) => {
+    editor?.chain().focus().insertContent({ type: 'mention', attrs: { id: m.id, label: m.name } }).insertContent(' ').run()
+    setShowMention(false)
+  }
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, background: '#fff' }}>
@@ -80,11 +94,23 @@ export function NoteEditor({ note, folders, canEdit, isAdmin, onSave, saving }: 
         </div>
       </div>
       {canEdit && (
-        <div style={{ padding: '10px 16px', borderTop: '1px solid #F1F1F4', display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ position: 'relative', padding: '10px 16px', borderTop: '1px solid #F1F1F4', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button type="button" onClick={() => setShowMention(s => !s)} title="Mention"
+            style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#F3F4F6', border: 'none', borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
+            <AtSign size={14} /> Mention
+          </button>
+          {note.id && (
+            <button type="button" onClick={onShare} title="Share"
+              style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#F3F4F6', border: 'none', borderRadius: 8, padding: '7px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', color: '#374151' }}>
+              <Share2 size={14} /> Share
+            </button>
+          )}
+          <div style={{ flex: 1 }} />
           <button onClick={save} disabled={saving}
             style={{ background: '#DE1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 20px', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.6 : 1 }}>
             {saving ? 'Saving…' : 'Save'}
           </button>
+          {showMention && <MentionPicker teamMembers={teamMembers} onPick={insertMention} onClose={() => setShowMention(false)} />}
         </div>
       )}
     </div>

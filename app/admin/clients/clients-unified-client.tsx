@@ -85,15 +85,20 @@ function StatChip({ label, value, sub, color, bg, emoji }: {
 }) {
   return (
     <div style={{
-      background: bg, borderRadius: 14, padding: '14px 16px', border: `1px solid ${color}22`,
-      display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 110,
+      background: bg, borderRadius: 14, padding: '12px 14px', border: `1px solid ${color}22`,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      flex: 1, minWidth: 120, gap: 10,
     }}>
-      <div style={{ fontSize: 20 }}>{emoji}</div>
-      <p style={{ fontSize: 22, fontWeight: 900, color, margin: 0, fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>
-        {value}
-      </p>
-      {sub && <p style={{ fontSize: 11, color, margin: 0, fontWeight: 700, opacity: 0.65 }}>{sub}</p>}
-      <p style={{ fontSize: 10, color: '#6B7280', margin: 0, fontWeight: 500 }}>{label}</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <span style={{ fontSize: 16, lineHeight: 1 }}>{emoji}</span>
+        <p style={{ fontSize: 10, color: '#9CA3AF', margin: 0, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</p>
+      </div>
+      <div style={{ textAlign: 'right' }}>
+        <p style={{ fontSize: 22, fontWeight: 900, color, margin: 0, fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>
+          {value}
+        </p>
+        {sub && <p style={{ fontSize: 11, color: '#9CA3AF', margin: '3px 0 0', fontWeight: 600 }}>{sub}</p>}
+      </div>
     </div>
   )
 }
@@ -389,12 +394,11 @@ export default function ClientsUnifiedClient({
               if (isInternal) {
                 return (
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <StatChip label="Shoots"         value={d.mediaShootCount}                                   sub={`${d.mediaShootHours.toFixed(1)}h`}  emoji="📸" color="#F97316" bg="rgba(249,115,22,0.06)"  />
-                    <StatChip label="Videos Edited"  value={d.mediaEditCount}                                    sub={`${d.mediaEditHours.toFixed(1)}h`}   emoji="🎬" color="#E53935" bg="rgba(229,57,53,0.06)"   />
-                    <StatChip label="Work Logs"      value={`${d.nonMediaWorkHours.toFixed(1)}h`}                                                           emoji="💼" color="#6366F1" bg="rgba(99,102,241,0.06)" />
-                    <StatChip label="Learning Hrs"   value={`${d.totalLearningHours.toFixed(1)}h`}                                                          emoji="📚" color="#0EA5E9" bg="rgba(14,165,233,0.06)"  />
-                    <StatChip label="Active Members" value={d.activeMemberCount}                                                                            emoji="👥" color="#8B5CF6" bg="rgba(139,92,246,0.06)"  />
-                    <StatChip label="Total Cost"     value={fmtRupee(d.totalCost)}                                                                          emoji="💰" color="#DE1A1A" bg="rgba(222,26,26,0.06)"   />
+                    <StatChip label="Shoots"        value={d.mediaShootCount}                    sub={`${d.mediaShootHours.toFixed(1)}h`}  emoji="📸" color="#F97316" bg="rgba(249,115,22,0.06)"  />
+                    <StatChip label="Videos Edited" value={d.mediaEditCount}                     sub={`${d.mediaEditHours.toFixed(1)}h`}   emoji="🎬" color="#E53935" bg="rgba(229,57,53,0.06)"   />
+                    <StatChip label="Work Logs"     value={`${d.nonMediaWorkHours.toFixed(1)}h`}                                           emoji="💼" color="#6366F1" bg="rgba(99,102,241,0.06)" />
+                    <StatChip label="Learning Hrs"  value={`${d.totalLearningHours.toFixed(1)}h`}                                          emoji="📚" color="#0EA5E9" bg="rgba(14,165,233,0.06)"  />
+                    <StatChip label="Total Cost"    value={fmtRupee(d.totalCost)}                                                          emoji="💰" color="#DE1A1A" bg="rgba(222,26,26,0.06)"   />
                   </div>
                 )
               }

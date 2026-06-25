@@ -15,7 +15,7 @@ export type EditingVideo = {
 
 export type WorkEntry = {
   client_name?: string
-  task_type?: 'shoot' | 'edit' | 'upload' | 'other'
+  task_type?: 'shoot' | 'edit' | 'upload' | 'other' | 'voiceover' | 'poster'
   title?: string
   start_time?: string
   end_time?: string
@@ -191,6 +191,10 @@ export function computeDeliverables(
   let mediaEditHours    = 0
   let nonMediaWorkHours = 0
   let totalLearningHours = 0
+  let voiceoverCountAcc = 0
+  let voiceoverHoursAcc = 0
+  let posterCountAcc    = 0
+  let posterHoursAcc    = 0
   // Track rows that contributed to this client (for learning hours)
   const contributingRows = new Set<string>()
 
@@ -220,8 +224,8 @@ export function computeDeliverables(
       const tm = teamMap[user.id]
       tm.totalHours += hrs
 
-      // Non-media: accumulate all hours regardless of task type
-      if (!isMedia) nonMediaWorkHours += hrs
+      // Non-media work logs: only 'other'/'upload' task types (not shoot/edit/voiceover/poster)
+      if (!isMedia && (tt === 'other' || tt === 'upload')) nonMediaWorkHours += hrs
 
       if (!dayMap[row.date]) dayMap[row.date] = []
 
@@ -280,6 +284,24 @@ export function computeDeliverables(
         tm.cost += editCost
         dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'edit', itemCount: Math.max(storedVideos.length, 1), hours: hrs, cost: editCost, label: 'Editing' })
 
+      } else if (tt === 'voiceover') {
+        const cost = hourly * hrs
+        voiceoverCountAcc++
+        voiceoverHoursAcc += hrs
+        otherWork.push({ date: row.date, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Voiceover'), hours: hrs, cost })
+        tm.otherHours += hrs
+        tm.cost       += cost
+        dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'voiceover', itemCount: 1, hours: hrs, cost, label: entry.title ?? 'Voiceover' })
+
+      } else if (tt === 'poster') {
+        const cost = hourly * hrs
+        posterCountAcc++
+        posterHoursAcc += hrs
+        otherWork.push({ date: row.date, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Poster'), hours: hrs, cost })
+        tm.otherHours += hrs
+        tm.cost       += cost
+        dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'poster', itemCount: 1, hours: hrs, cost, label: entry.title ?? 'Poster' })
+
       } else {
         const cost = hourly * hrs
         otherWork.push({ date: row.date, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Work'), hours: hrs, cost })
@@ -304,12 +326,10 @@ export function computeDeliverables(
   const teamContributions  = Object.values(teamMap).sort((a, b) => b.totalHours - a.totalHours)
 
   const totalVideos        = videoTypeGroups.reduce((s, g) => s + g.count, 0)
-  const posterKey          = Object.keys(videoMap).find(k => k.toLowerCase() === 'poster')
-  const voiceoverKey       = Object.keys(videoMap).find(k => k.toLowerCase() === 'voice over')
-  const totalPosters       = posterKey   ? videoMap[posterKey].count           : 0
-  const posterHours        = posterKey   ? videoMap[posterKey].totalTimeTaken  : 0
-  const voiceoverCount     = voiceoverKey ? videoMap[voiceoverKey].count        : 0
-  const voiceoverHours     = voiceoverKey ? videoMap[voiceoverKey].totalTimeTaken : 0
+  const totalPosters       = posterCountAcc
+  const posterHours        = posterHoursAcc
+  const voiceoverCount     = voiceoverCountAcc
+  const voiceoverHours     = voiceoverHoursAcc
   const totalShootSessions = shoots.length
   const totalShootHours    = shoots.reduce((s, e) => s + e.hours, 0)
   const activeMemberCount  = Object.keys(teamMap).length

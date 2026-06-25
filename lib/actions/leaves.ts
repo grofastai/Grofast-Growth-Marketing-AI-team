@@ -578,13 +578,8 @@ export async function updateLeaveStatus(
         .eq('user_id', leave.user_id)
         .eq('date', todayIst)
         .maybeSingle()
-      const appliedHourIst = parseInt(
-        new Date(leave.created_at).toLocaleString('en-US', { timeZone: 'Asia/Kolkata', hour: '2-digit', hour12: false })
-      )
-      // Before 9 AM → shift start 9:30 AM IST (= 04:00 UTC); after 9 AM → actual apply time
-      const clockInTime = appliedHourIst < 9
-        ? new Date(todayIst + 'T04:00:00.000Z').toISOString()
-        : leave.created_at
+      // Always use actual apply time — shoots and WFH can legitimately start at 6 AM, 7 AM, etc.
+      const clockInTime = leave.created_at
       const workType = leave.leave_type === 'shoot_day' ? 'shoot' : 'wfh'
       if (!existing) {
         // No record yet — plain insert (avoids onConflict key mismatch issues)

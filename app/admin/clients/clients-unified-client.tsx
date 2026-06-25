@@ -173,15 +173,16 @@ function TH({ children }: { children: string }) {
   )
 }
 
-// Shared colgroup for all 5-column tables — locks widths so every section aligns identically
-function TableCols() {
+// Shared colgroup — 5 cols normally, 6 cols when showClient=true (aggregate view)
+function TableCols({ showClient }: { showClient?: boolean }) {
   return (
     <colgroup>
-      <col style={{ width: '13%' }} />  {/* Date */}
-      <col style={{ width: '14%' }} />  {/* Member */}
-      <col />                           {/* Title — takes remaining space */}
-      <col style={{ width: '9%' }} />   {/* Hours */}
-      <col style={{ width: '10%' }} />  {/* Cost */}
+      <col style={{ width: '12%' }} />                          {/* Date */}
+      {showClient && <col style={{ width: '14%' }} />}          {/* Client (aggregate only) */}
+      <col style={{ width: showClient ? '12%' : '14%' }} />     {/* Member */}
+      <col />                                                   {/* Title */}
+      <col style={{ width: '8%' }} />                           {/* Hours */}
+      <col style={{ width: '10%' }} />                          {/* Cost */}
     </colgroup>
   )
 }
@@ -259,6 +260,9 @@ export default function ClientsUnifiedClient({
     deliverables.totalShootSessions > 0 ||
     deliverables.otherWork.length > 0
   )
+
+  // Show a Client column in all tables when viewing an aggregate virtual client
+  const showClient = selectedClientRow?.industry?.startsWith('__virtual') ?? false
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F8F9FB' }}>
@@ -549,14 +553,15 @@ export default function ClientsUnifiedClient({
             {deliverables && deliverables.shoots.length > 0 && (
               <Section title="Shooting" emoji="📸" count={deliverables.shoots.length} totalCost={deliverables.shoots.reduce((s, e) => s + e.cost, 0)}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <TableCols />
+                  <TableCols showClient={showClient} />
                   <thead><tr style={{ background: '#F9FAFB' }}>
-                    {['Date', 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
+                    {['Date', ...(showClient ? ['Client'] : []), 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
                   </tr></thead>
                   <tbody>
                     {deliverables.shoots.map((s, i) => (
                       <tr key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
                         <td style={{ padding: '10px 14px', fontSize: 12, color: '#6B7280' }}>{fmtDate(s.date)}</td>
+                        {showClient && <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: '#6366F1' }}>{s.clientName}</td>}
                         <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151' }}>{s.memberName}</td>
                         <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>{s.title}</td>
                         <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>{s.hours.toFixed(1)}h</td>
@@ -576,14 +581,15 @@ export default function ClientsUnifiedClient({
               return (
                 <Section title="Editing" emoji="🎬" count={deliverables.totalVideos} totalCost={totalEditCost}>
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <TableCols />
+                    <TableCols showClient={showClient} />
                     <thead><tr style={{ background: '#F9FAFB' }}>
-                      {['Date', 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
+                      {['Date', ...(showClient ? ['Client'] : []), 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
                     </tr></thead>
                     <tbody>
                       {allVideos.map((v, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
                           <td style={{ padding: '10px 14px', fontSize: 12, color: '#6B7280' }}>{fmtDate(v.date)}</td>
+                          {showClient && <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: '#6366F1' }}>{v.clientName}</td>}
                           <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151' }}>{v.memberName}</td>
                           <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>{v.videoName}</td>
                           <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>{v.timeTaken > 0 ? `${v.timeTaken}h` : '—'}</td>
@@ -598,18 +604,19 @@ export default function ClientsUnifiedClient({
 
             {/* ── Shared row table helper ───────────────────────────────── */}
             {deliverables && (() => {
-              type FlatEntry = { date: string; memberName: string; title: string; hours: number; cost: number }
+              type FlatEntry = { date: string; clientName: string; memberName: string; title: string; hours: number; cost: number }
               function EntryTable({ entries }: { entries: FlatEntry[] }) {
                 return (
                   <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                    <TableCols />
+                    <TableCols showClient={showClient} />
                     <thead><tr style={{ background: '#F9FAFB' }}>
-                      {['Date', 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
+                      {['Date', ...(showClient ? ['Client'] : []), 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
                     </tr></thead>
                     <tbody>
                       {entries.map((o, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
                           <td style={{ padding: '10px 14px', fontSize: 12, color: '#6B7280' }}>{fmtDate(o.date)}</td>
+                          {showClient && <td style={{ padding: '10px 14px', fontSize: 11, fontWeight: 700, color: '#6366F1' }}>{o.clientName}</td>}
                           <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151' }}>{o.memberName}</td>
                           <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>{o.title}</td>
                           <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>{o.hours.toFixed(1)}h</td>

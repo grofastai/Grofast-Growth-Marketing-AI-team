@@ -136,29 +136,34 @@ export default function MemberSupportChat({ tickets, currentUserId = '' }: { tic
     <div style={{ background: '#EDEEF2', minHeight: '100vh' }}>
       <style>{SUPPORT_ANIM_CSS}</style>
 
-      {/* ── Hero strip ───────────────────────────────────────────── */}
-      <div style={{ background: HERO_GRADIENT, padding: '22px 20px 20px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '50%', right: -30, transform: 'translateY(-50%)', width: 230, height: 230, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,90,90,0.22) 0%, transparent 68%)', pointerEvents: 'none' }} />
-        <div style={{ maxWidth: 1180, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, position: 'relative' }}>
-          <div>
-            <h1 style={{ fontSize: 26, fontWeight: 900, color: '#FFFFFF', margin: 0, letterSpacing: '-0.01em', fontFamily: 'var(--font-jakarta)' }}>Support</h1>
-            <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.74)', margin: '4px 0 0' }}>
-              {sorted.length === 0 ? 'Start a request — the team will reply here.' : `${stOpen} active · ${sorted.length} total request${sorted.length === 1 ? '' : 's'}`}
-            </p>
-          </div>
-          <button onClick={() => setShowCompose(true)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 18px', borderRadius: 13, fontSize: 13.5, fontWeight: 800, color: '#B91212', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 6px 18px rgba(0,0,0,0.22)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            <Plus size={16} /> New request
-          </button>
-        </div>
-      </div>
+      {/* ── Page wrap: hero card + two-pane shell ─────────────────── */}
+      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '16px' }}>
 
-      {/* ── Two-pane shell ───────────────────────────────────────── */}
-      <div style={{ maxWidth: 1180, margin: '0 auto', padding: '18px 16px 28px' }}>
+        {/* Hero — rounded card matching the Profile banner */}
+        <div style={{ background: HERO_GRADIENT, borderRadius: 20, position: 'relative', overflow: 'hidden', padding: '22px 24px', boxShadow: '0 8px 32px rgba(180,0,0,0.4)', marginBottom: 16 }}>
+          <div style={{ position: 'absolute', top: -40, right: -40, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: -30, left: 60, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+          <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 99, background: 'rgba(255,255,255,0.15)', color: '#fff', marginBottom: 10, border: '1px solid rgba(255,255,255,0.2)', letterSpacing: '0.04em' }}>
+                💬 Support
+              </span>
+              <h1 style={{ fontSize: 26, fontWeight: 900, margin: '0 0 4px', fontFamily: 'var(--font-jakarta)', color: '#fff' }}>How can we help?</h1>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: 0 }}>
+                {sorted.length === 0 ? 'Raise a request and the team will reply right here.' : `${stOpen} active · ${sorted.length} total request${sorted.length === 1 ? '' : 's'}`}
+              </p>
+            </div>
+            <button onClick={() => setShowCompose(true)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 18px', borderRadius: 13, fontSize: 13.5, fontWeight: 800, color: '#B91212', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 6px 18px rgba(0,0,0,0.22)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+              <Plus size={16} /> New request
+            </button>
+          </div>
+        </div>
+
         {sorted.length === 0 ? (
           <EmptyState onStart={() => setShowCompose(true)} />
         ) : (
-          <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', height: 'calc(100vh - 150px)', minHeight: 480 }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', height: 'calc(100vh - 210px)', minHeight: 460 }}>
 
             {/* LEFT: request list */}
             <aside

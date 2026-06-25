@@ -57,8 +57,8 @@ export function categoryOf(key: string): Category {
 
 export const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent'] as const
 
-// Brand gradient used across the app's hero banners.
-export const HERO_GRADIENT = 'linear-gradient(110deg, #DE1A1A 0%, #8B0000 32%, #1A0000 64%, #0D0D0D 100%)'
+// Brand gradient used across the app's hero banners (matches the Profile banner).
+export const HERO_GRADIENT = 'linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)'
 
 // Relative time helper shared by both surfaces.
 export function timeAgo(iso: string): string {

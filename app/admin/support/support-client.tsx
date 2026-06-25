@@ -144,43 +144,48 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
     <div style={{ background: '#EDEEF2', minHeight: '100vh' }}>
       <style>{SUPPORT_ANIM_CSS}</style>
 
-      {/* ── Hero ─────────────────────────────────────────────────── */}
-      <div style={{ background: HERO_GRADIENT, padding: '22px 20px 18px', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', top: '50%', right: -30, transform: 'translateY(-50%)', width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,90,90,0.22) 0%, transparent 68%)', pointerEvents: 'none' }} />
-        <div style={{ maxWidth: 1240, margin: '0 auto', position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
-            <div>
-              <h1 style={{ fontSize: 26, fontWeight: 900, color: '#FFFFFF', margin: 0, letterSpacing: '-0.01em', fontFamily: 'var(--font-jakarta)' }}>Support Inbox</h1>
-              <p style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.74)', margin: '4px 0 0' }}>
-                {stats.open + stats.in_progress} need attention · {tickets.length} total
-              </p>
+      {/* ── Page wrap: hero card + two-pane shell ─────────────────── */}
+      <div style={{ maxWidth: 1240, margin: '0 auto', padding: '16px' }}>
+
+        {/* Hero — rounded card matching the Profile banner */}
+        <div style={{ background: HERO_GRADIENT, borderRadius: 20, position: 'relative', overflow: 'hidden', padding: '22px 24px', boxShadow: '0 8px 32px rgba(180,0,0,0.4)', marginBottom: 16 }}>
+          <div style={{ position: 'absolute', top: -40, right: -40, width: 220, height: 220, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: -30, left: 60, width: 150, height: 150, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, padding: '4px 12px', borderRadius: 99, background: 'rgba(255,255,255,0.15)', color: '#fff', marginBottom: 10, border: '1px solid rgba(255,255,255,0.2)', letterSpacing: '0.04em' }}>
+                  💬 Support Inbox
+                </span>
+                <h1 style={{ fontSize: 26, fontWeight: 900, margin: '0 0 4px', fontFamily: 'var(--font-jakarta)', color: '#fff' }}>Help the team</h1>
+                <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', margin: 0 }}>
+                  {stats.open + stats.in_progress} need attention · {tickets.length} total
+                </p>
+              </div>
+              <button onClick={() => setShowNew(true)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 18px', borderRadius: 13, fontSize: 13.5, fontWeight: 800, color: '#B91212', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 6px 18px rgba(0,0,0,0.22)', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                <Plus size={16} /> New ticket
+              </button>
             </div>
-            <button onClick={() => setShowNew(true)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '11px 18px', borderRadius: 13, fontSize: 13.5, fontWeight: 800, color: '#B91212', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 6px 18px rgba(0,0,0,0.22)', whiteSpace: 'nowrap', flexShrink: 0 }}>
-              <Plus size={16} /> New ticket
-            </button>
-          </div>
-          {/* status filter pills with real counts */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
-            {FILTERS.map(f => {
-              const on = filter === f.key
-              const count = f.key === 'all' ? tickets.length : (stats as Record<string, number>)[f.key] ?? 0
-              return (
-                <button key={f.key} onClick={() => { setFilter(f.key); setSelectedId(null) }}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 99, fontSize: 12.5, fontWeight: 700, border: 'none', cursor: 'pointer',
-                    background: on ? '#FFFFFF' : 'rgba(255,255,255,0.14)',
-                    color: on ? '#B91212' : 'rgba(255,255,255,0.9)' }}>
-                  {f.label}
-                  <span style={{ fontSize: 11, fontWeight: 800, padding: '1px 7px', borderRadius: 99, background: on ? 'rgba(222,26,26,0.1)' : 'rgba(255,255,255,0.18)', color: on ? '#B91212' : '#fff' }}>{count}</span>
-                </button>
-              )
-            })}
+            {/* status filter pills with real counts */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 16 }}>
+              {FILTERS.map(f => {
+                const on = filter === f.key
+                const count = f.key === 'all' ? tickets.length : (stats as Record<string, number>)[f.key] ?? 0
+                return (
+                  <button key={f.key} onClick={() => { setFilter(f.key); setSelectedId(null) }}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 99, fontSize: 12.5, fontWeight: 700, border: 'none', cursor: 'pointer',
+                      background: on ? '#FFFFFF' : 'rgba(255,255,255,0.14)',
+                      color: on ? '#B91212' : 'rgba(255,255,255,0.9)' }}>
+                    {f.label}
+                    <span style={{ fontSize: 11, fontWeight: 800, padding: '1px 7px', borderRadius: 99, background: on ? 'rgba(222,26,26,0.1)' : 'rgba(255,255,255,0.18)', color: on ? '#B91212' : '#fff' }}>{count}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ── Two-pane shell ───────────────────────────────────────── */}
-      <div style={{ maxWidth: 1240, margin: '0 auto', padding: '18px 16px 28px' }}>
         {tickets.length === 0 ? (
           <div style={{ background: '#FFFFFF', borderRadius: 20, border: '1px solid rgba(10,16,13,0.06)', boxShadow: '0 2px 14px rgba(0,0,0,0.05)', padding: '60px 24px', textAlign: 'center' }}>
             <div style={{ width: 72, height: 72, borderRadius: 20, margin: '0 auto 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(222,26,26,0.07)' }}>
@@ -190,7 +195,7 @@ export default function AdminSupportClient({ tickets, currentUserId }: { tickets
             <p style={{ fontSize: 13, color: '#8A8F99', margin: '6px 0 0' }}>No support requests yet. New ones land here.</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', height: 'calc(100vh - 196px)', minHeight: 480 }}>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'stretch', height: 'calc(100vh - 260px)', minHeight: 440 }}>
 
             {/* LEFT: queue */}
             <aside className={showThreadMobile ? 'hidden lg:flex' : 'flex'}

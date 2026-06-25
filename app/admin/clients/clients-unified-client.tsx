@@ -484,42 +484,32 @@ export default function ClientsUnifiedClient({
               </Section>
             )}
 
-            {/* ── Edited videos by type ────────────────────────────────── */}
-            {deliverables && deliverables.videoTypeGroups.length > 0 && (
-              <Section title="Editing" emoji="🎬" count={deliverables.totalVideos} totalCost={deliverables.videoTypeGroups.reduce((s, g) => s + g.totalCost, 0)}>
-                {deliverables.videoTypeGroups.map((group, gi) => {
-                  const cfg = getTypeCfg(group.videoType)
-                  return (
-                    <div key={group.videoType}>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 10,
-                        padding: '12px 14px', background: cfg.bg,
-                        borderBottom: '1px solid rgba(0,0,0,0.04)',
-                      }}>
-                        <span style={{ fontSize: 16 }}>{cfg.emoji}</span>
-                        <span style={{ fontSize: 13, fontWeight: 800, color: cfg.color, flex: 1, fontFamily: 'var(--font-jakarta)' }}>{group.videoType}</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color }}>{group.count} videos</span>
-                        <span style={{ fontSize: 13, fontWeight: 900, color: '#111827', minWidth: 80, textAlign: 'right', fontFamily: 'var(--font-jakarta)' }}>{fmtRupee(group.totalCost)}</span>
-                      </div>
-                      {group.videos.map((v, vi) => (
-                        <div key={vi} style={{
-                          display: 'grid', gridTemplateColumns: '1fr 100px 60px 60px 80px',
-                          padding: '8px 14px 8px 40px', borderBottom: '1px solid #F9FAFB',
-                          alignItems: 'center', gap: 8,
-                        }}>
-                          <span style={{ fontSize: 12, color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.videoName}</span>
-                          <span style={{ fontSize: 11, color: '#9CA3AF' }}>{v.memberName.split(' ')[0]}</span>
-                          <span style={{ fontSize: 11, color: '#6B7280' }}>{v.timeTaken > 0 ? `${v.timeTaken}h` : '—'}</span>
-                          <span style={{ fontSize: 11, color: '#9CA3AF' }}>{v.revisions > 0 ? `${v.revisions}r` : '—'}</span>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: '#374151', textAlign: 'right' }}>{fmtRupee(v.cost)}</span>
-                        </div>
+            {/* ── Editing (flat table) ─────────────────────────────────── */}
+            {deliverables && deliverables.videoTypeGroups.length > 0 && (() => {
+              const allVideos = deliverables.videoTypeGroups.flatMap(g => g.videos)
+                .sort((a, b) => b.date.localeCompare(a.date))
+              const totalEditCost = deliverables.videoTypeGroups.reduce((s, g) => s + g.totalCost, 0)
+              return (
+                <Section title="Editing" emoji="🎬" count={deliverables.totalVideos} totalCost={totalEditCost}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead><tr style={{ background: '#F9FAFB' }}>
+                      {['Date', 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
+                    </tr></thead>
+                    <tbody>
+                      {allVideos.map((v, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid #F9FAFB' }}>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#6B7280' }}>{fmtDate(v.date)}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#374151' }}>{v.memberName}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: '#374151' }}>{v.videoName}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 600, color: '#3B82F6' }}>{v.timeTaken > 0 ? `${v.timeTaken}h` : '—'}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: '#111827' }}>{fmtRupee(v.cost)}</td>
+                        </tr>
                       ))}
-                      {gi < deliverables.videoTypeGroups.length - 1 && <div style={{ height: 1, background: '#F0F1F5' }} />}
-                    </div>
-                  )
-                })}
-              </Section>
-            )}
+                    </tbody>
+                  </table>
+                </Section>
+              )
+            })()}
 
             {/* ── Shared row table helper ───────────────────────────────── */}
             {deliverables && (() => {

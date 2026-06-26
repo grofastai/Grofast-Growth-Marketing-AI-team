@@ -133,6 +133,7 @@ export default async function InsightsPage({
     { data: membersRaw },
     { data: attRaw },
     { data: clientsRaw },
+    { data: salaryHistoryRaw },
   ] = await Promise.all([
     admin.from('daily_updates')
       .select('user_id, date, work_entries, learning_hours')
@@ -154,11 +155,35 @@ export default async function InsightsPage({
     admin.from('clients')
       .select('name, industry, status')
       .eq('company_id', cid),
+    admin.from('salary_history')
+      .select('user_id, monthly_salary, effective_from')
+      .eq('company_id', cid)
+      .lte('effective_from', dateFrom)
+      .order('effective_from', { ascending: false }),
   ])
 
   const updates = (updatesRaw ?? []) as UpdateRow[]
   const members = (membersRaw ?? []) as MemberRow[]
+
+  // Build salary map: for each user, pick the most recent history entry effective on/before dateFrom
+  type SalaryRow = { user_id: string; monthly_salary: number; effective_from: string }
+  const salaryHistory = (salaryHistoryRaw ?? []) as SalaryRow[]
+  const salaryForMonth: Record<string, number> = {}
+  for (const row of salaryHistory) {
+    if (!(row.user_id in salaryForMonth)) {
+      salaryForMonth[row.user_id] = row.monthly_salary
+    }
+  }
   const memberMap = new Map(members.map(m => [m.id, m]))
+
+  // Use history-adjusted salary for hourly rate; fall back to current salary if no history
+  function hourlyForMember(userId: string): number {
+    const m = memberMap.get(userId)
+    if (!m) return 0
+    if (m.hourly_rate && m.hourly_rate > 0) return m.hourly_rate
+    const salary = salaryForMonth[userId] ?? m.monthly_salary ?? 0
+    return salary > 0 ? salary / 212.5 : 0
+  }
 
   // ── Working days from attendance ──────────────────────────────────────────
   const workingDaysMap: Record<string, number> = {}
@@ -178,7 +203,7 @@ export default async function InsightsPage({
   for (const du of updates) {
     const member = memberMap.get(du.user_id)
     if (!member) continue
-    const hourly  = deriveHourly(member)
+    const hourly  = hourlyForMember(du.user_id)
     const isMedia = member.work_layout === 'media' || member.work_layout === 'freelance_media'
 
     if (!accMap[du.user_id]) {
@@ -234,7 +259,7 @@ export default async function InsightsPage({
   const memberUtilization: MemberUtilization[] = members
     .map(m => {
       const acc          = accMap[m.id]
-      const hourly       = deriveHourly(m)
+      const hourly       = hourlyForMember(m.id)
       const workingDays  = workingDaysMap[m.id] ?? 0
       const expectedHours = workingDays * 8.5
       const trackedHours  = acc?.trackedHours ?? 0
@@ -266,7 +291,7 @@ export default async function InsightsPage({
   // ── Client hours ──────────────────────────────────────────────────────────
   const clientMap: Record<string, { hours: number; cost: number }> = {}
   for (const du of updates) {
-    const hourly = deriveHourly(memberMap.get(du.user_id) ?? { id: '', name: '', employee_id: '', monthly_salary: null, hourly_rate: null, team: null })
+    const hourly = hourlyForMember(du.user_id)
     for (const e of du.work_entries ?? []) {
       const hrs = e.duration_hours ?? 0
       if (hrs <= 0 || !e.client_name) continue
@@ -314,7 +339,7 @@ export default async function InsightsPage({
   const spendCats = { internal: { hours: 0, cost: 0 }, active: { hours: 0, cost: 0 }, past: { hours: 0, cost: 0 }, unassigned: { hours: 0, cost: 0 } }
 
   for (const du of updates) {
-    const hourly = deriveHourly(memberMap.get(du.user_id) ?? { id: '', name: '', employee_id: '', monthly_salary: null, hourly_rate: null, team: null })
+    const hourly = hourlyForMember(du.user_id)
     for (const e of du.work_entries ?? []) {
       const hrs = e.duration_hours ?? 0
       if (hrs <= 0) continue

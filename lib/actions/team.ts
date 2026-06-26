@@ -365,6 +365,21 @@ export async function updateMember(input: {
     if (dup) return { success: false, error: `This phone number is already used by "${dup.name}".` }
   }
 
+  // If salary is changing, log to salary_history before updating
+  if (input.monthly_salary != null && editorProfile?.company_id) {
+    const { data: currentUser } = await admin
+      .from('users').select('monthly_salary').eq('id', input.id).single()
+    const oldSalary = (currentUser as { monthly_salary?: number | null } | null)?.monthly_salary
+    if (oldSalary != null && oldSalary !== input.monthly_salary) {
+      await admin.from('salary_history').insert({
+        company_id:     editorProfile.company_id,
+        user_id:        input.id,
+        monthly_salary: input.monthly_salary,
+        effective_from: new Date().toISOString().split('T')[0],
+      })
+    }
+  }
+
   const { error } = await admin
     .from('users')
     .update({

@@ -364,9 +364,10 @@ type PastUpdate = {
 }
 
 export default function DailyUpdateForm({
-  projects, sheetClientNames = [], pastClientNames = [], userName, team, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
+  projects, sheetClientNames = [], pastClientNames = [], userName, team, workLayout, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
 }: {
   projects: Project[]; sheetClientNames?: string[]; pastClientNames?: string[]; userName: string; team?: string | null
+  workLayout?: 'media' | 'non_media' | 'freelance_media'
   existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
   teamMembers?: TeamMember[]; approvedLeaveDates?: string[]
 }) {
@@ -380,7 +381,11 @@ export default function DailyUpdateForm({
   const h         = now.getHours()
   const greeting  = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"
 
-  const isMediaTeam = team === "Media Team" || team === "Media Production Team" || team === "Freelance Media Production"
+  // Use workLayout if provided (new); fall back to team name for backward compat
+  const isMediaTeam = workLayout
+    ? workLayout !== 'non_media'
+    : (team === "Media Team" || team === "Media Production Team" || team === "Freelance Media Production")
+  const isFreelancerLayout = workLayout ? workLayout === 'freelance_media' : team === "Freelance Media Production"
 
   const todayStr = new Date().toISOString().split("T")[0]
 
@@ -1185,7 +1190,7 @@ export default function DailyUpdateForm({
   // Media team: all three tabs (media + learning + break) must be submitted.
   // Non-media: working is enough; learning is optional.
   // Past dates always show the form (never the "done" screen) — user adds new entries, History handles editing
-  const allDone = !isPastDate && (isMediaTeam ? (mediaDone && learningDone && breaksDone) : workingDone)
+  const allDone = !isPastDate && (isMediaTeam ? (mediaDone && learningDone && (isFreelancerLayout ? true : breaksDone)) : workingDone)
 
   // Past 14 days with no submission and no approved leave — shown in the submitted screen
   const unsubmittedDates = useMemo(() => {
@@ -1412,9 +1417,8 @@ export default function DailyUpdateForm({
     { id: "learning"as const, label: "📚  Learning", desc: "Skills & growth" },
     { id: "break"   as const, label: "☕  Break",     desc: "Break in / break out" },
   ]
-  const isFreelancerMedia = team === "Freelance Media Production"
   const TABS = isMediaTeam
-    ? isFreelancerMedia
+    ? isFreelancerLayout
       ? ALL_TABS.filter(t => t.id === "media" || t.id === "learning")
       : ALL_TABS.filter(t => t.id === "media" || t.id === "learning" || t.id === "break")
     : ALL_TABS.filter(t => t.id === "working" || t.id === "learning" || t.id === "break")

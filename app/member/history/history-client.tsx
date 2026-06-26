@@ -299,12 +299,13 @@ type CollaborationConfirmation = {
 }
 
 export default function HistoryClient({
-  updates, userName, userId = "", team = "", clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [], companyLeaves = [], defaultDate = "", collaborationConfirmations = [],
+  updates, userName, userId = "", team = "", workLayout, clients = [], pastClients = [], participatedUpdates = [], members = [], attendanceDates = [], approvedLeaves = [], companyLeaves = [], defaultDate = "", collaborationConfirmations = [],
 }: {
   updates: UpdateRow[]
   userName: string
   userId?: string
   team?: string
+  workLayout?: 'media' | 'non_media' | 'freelance_media'
   clients?: string[]
   pastClients?: string[]
   participatedUpdates?: ParticipatedUpdate[]
@@ -315,7 +316,7 @@ export default function HistoryClient({
   defaultDate?: string
   collaborationConfirmations?: CollaborationConfirmation[]
 }) {
-  const isFreelancerMedia = team === "Freelance Media Production"
+  const isFreelancerMedia = workLayout ? workLayout === 'freelance_media' : team === "Freelance Media Production"
 
   const months = useMemo(() => {
     const seen = new Set<string>(), result: string[] = []
@@ -643,7 +644,10 @@ export default function HistoryClient({
     let totalHours = 0, totalTasks = 0, presentDays = 0, totalLearning = 0, totalBreak = 0
     let shootH = 0, editH = 0, otherH = 0, shootCount = 0, editCount = 0
     let travelH = 0, worklogCount = 0, voiceoverCount = 0, voiceoverH = 0, posterCount = 0, posterH = 0
-    let isMedia = false
+    // workLayout drives media/non-media formula; fall back to detecting from entries
+    const isMedia = workLayout
+      ? workLayout !== 'non_media'
+      : (isFreelancerMedia || monthFiltered.some(u => (u.work_entries ?? []).some((e: { task_type?: string }) => e.task_type === "shoot" || e.task_type === "edit")))
     const hoursPerDay: number[] = []
     const dailyData: { day: string; hours: number }[] = []
     for (const u of monthFiltered) {
@@ -656,8 +660,6 @@ export default function HistoryClient({
       totalHours += h
       totalLearning += learnH
       totalBreak += breakH
-      if (entries.some(e => e.task_type === "shoot" || e.task_type === "edit")) isMedia = true
-      if (isFreelancerMedia) isMedia = true
       if (u.attendance_status === "present" || u.attendance_status === "wfh") presentDays++
       hoursPerDay.push(h)
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })

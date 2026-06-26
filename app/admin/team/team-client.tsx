@@ -96,6 +96,7 @@ interface Member {
   passport_photo_url?: string | null
   drive_folder_id?: string | null
   is_support_handler?: boolean | null
+  work_layout?: 'media' | 'non_media' | 'freelance_media' | null
 }
 
 function getInitials(name: string) {
@@ -228,6 +229,7 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
     date_of_birth: member?.date_of_birth ?? "",
     joined_at: member?.joined_at ?? new Date().toISOString().split("T")[0],
     gender: (member?.gender ?? "male") as "male" | "female",
+    work_layout: (member?.work_layout ?? "non_media") as "media" | "non_media" | "freelance_media",
   })
   const [error, setError] = useState("")
   const [whatsappWarning, setWhatsappWarning] = useState("")
@@ -291,13 +293,13 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
       }
 
       if (isEdit) {
-        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, ...salaryFields, ...dateFields })
+        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, work_layout: form.work_layout, ...salaryFields, ...dateFields })
         if (result.success) { router.refresh(); onClose() }
         else setError(result.error ?? "Something went wrong")
       } else {
         const isAdminCreate = form.role === "ADMIN" || form.role === "FOUNDER" || form.role === "CEO" || form.role === "FREELANCER_MGR"
         const nameForCreate = form.name.trim() || (isAdminCreate ? form.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) : "")
-        const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, ...salaryFields, ...dateFields })
+        const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, work_layout: form.work_layout, ...salaryFields, ...dateFields })
         if (result.success) {
           if (form.phone && result.whatsappSent === false && !result.whatsappSkipped) {
             setWhatsappWarning(result.whatsappError ?? "Member created, but WhatsApp notification failed. Check the phone number or Meta template status.")
@@ -481,7 +483,14 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                     <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Team *</label>
                     <div className="relative">
                       <select className="sheet-input" value={form.team}
-                        onChange={e => setForm(prev => ({ ...prev, team: e.target.value }))}
+                        onChange={e => {
+                          const t = e.target.value
+                          const autoLayout: "media" | "non_media" | "freelance_media" =
+                            t === "Media Production Team" || t === "Media Team" ? "media"
+                            : t === "Freelance Media Production" ? "freelance_media"
+                            : "non_media"
+                          setForm(prev => ({ ...prev, team: t, work_layout: autoLayout }))
+                        }}
                         style={{ ...FIELD, appearance: "none", paddingRight: "36px" }}>
                         <option value="">Select a team…</option>
                         {form.employment_type === "regular" ? (
@@ -505,6 +514,33 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                       </p>
                     )}
                   </div>
+
+                  {/* Work Layout — shown for members with login */}
+                  {!isNoLoginTeam && form.team && (
+                    <div>
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Work Layout *</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          { value: "media",           label: "🎬 Media",     desc: "Shoot + Edit" },
+                          { value: "non_media",        label: "⏰ Non-Media",  desc: "Work + VO + Poster" },
+                          { value: "freelance_media",  label: "🎥 Freelance", desc: "Shoot + Edit (no break)" },
+                        ] as const).map(({ value, label, desc }) => (
+                          <button key={value} type="button"
+                            onClick={() => setForm(prev => ({ ...prev, work_layout: value }))}
+                            style={{
+                              padding: "8px 6px", borderRadius: 10, fontSize: 11, fontWeight: 700,
+                              border: "1.5px solid", cursor: "pointer", transition: "all 0.15s", textAlign: "center",
+                              background: form.work_layout === value ? "rgba(222,26,26,0.08)" : "rgba(0,0,0,0.03)",
+                              borderColor: form.work_layout === value ? "#DE1A1A" : "#E5E7EB",
+                              color: form.work_layout === value ? "#DE1A1A" : "#6B7280",
+                            }}>
+                            <div>{label}</div>
+                            <div style={{ fontSize: 10, fontWeight: 500, marginTop: 2, opacity: 0.8 }}>{desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Full Name — always shown */}
                   <div>

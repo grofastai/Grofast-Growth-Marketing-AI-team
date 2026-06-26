@@ -22,6 +22,7 @@ type MemberRow = {
   monthly_salary: number | null
   hourly_rate: number | null
   team: string | null
+  work_layout?: string | null
 }
 
 type UpdateRow = {
@@ -139,7 +140,7 @@ export default async function InsightsPage({
       .gte('date', dateFrom)
       .lte('date', dateTo),
     admin.from('users')
-      .select('id, name, employee_id, monthly_salary, hourly_rate, team')
+      .select('id, name, employee_id, monthly_salary, hourly_rate, team, work_layout')
       .eq('company_id', cid)
       .eq('role', 'MEMBER')
       .eq('status', 'active')
@@ -178,7 +179,7 @@ export default async function InsightsPage({
     const member = memberMap.get(du.user_id)
     if (!member) continue
     const hourly  = deriveHourly(member)
-    const isMedia = isMediaTeam(member.team)
+    const isMedia = member.work_layout === 'media' || member.work_layout === 'freelance_media'
 
     if (!accMap[du.user_id]) {
       accMap[du.user_id] = {
@@ -246,7 +247,7 @@ export default async function InsightsPage({
 
       return {
         id: m.id, name: m.name, employeeId: m.employee_id,
-        team: m.team, isMedia: isMediaTeam(m.team), monthlySalary: m.monthly_salary ?? 0,
+        team: m.team, isMedia: m.work_layout === 'media' || m.work_layout === 'freelance_media', monthlySalary: m.monthly_salary ?? 0,
         workingDays, expectedHours,
         trackedHours, learningHours, untrackedHours,
         wastedCost, efficiency, overworked: efficiency > 105,

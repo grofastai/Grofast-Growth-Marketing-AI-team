@@ -118,6 +118,8 @@ type EntryItem = {
   travel_time: string
   location: string
   video_uploaded: string   // "yes" | "no"
+  // IT & Media multi-category
+  it_category: string      // "voiceover" | "poster" | "technical" | ""
 }
 
 function calcDurationFromTimes(from: string, to: string): string {
@@ -143,6 +145,7 @@ function blankEntry(today: string): EntryItem {
     duration_mins: "", language: "", task_description: "", payment_status: "unpaid",
     video_type: "", revisions: "0", hooks_completed: "0", edit_start_time: "", edit_end_time: "", drive_updated: "no",
     time_from: "", time_to: "", travel_time: "", location: "", video_uploaded: "no",
+    it_category: "",
   }
 }
 
@@ -175,11 +178,28 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
     !!entry.client_name && !activeClients.includes(entry.client_name) && !pastClients.includes(entry.client_name)
   )
   const cfg = TEAM_CFG[team]
-  const isDevType = team === "Freelance Development & Automation" || team === "Freelance Marketing & Operations" || team === "Freelance IT Technology & Media"
-  const isVoiceover = team === "Freelance RJ Voiceover"
+  const isITMedia = team === "Freelance IT Technology & Media"
+  const itCat = isITMedia ? (entry.it_category || "") : ""
+
+  // For IT & Media, effective form type is driven by the chosen sub-category
+  const isVoiceover = team === "Freelance RJ Voiceover" || (isITMedia && itCat === "voiceover")
+  const isDevType = team === "Freelance Development & Automation" || team === "Freelance Marketing & Operations" || (isITMedia && itCat === "technical")
   const isVideoEditing = team === "Freelance Video Editing"
   const isVideography = team === "Freelance Videography"
-  const showNotes = team !== "Freelance Development & Automation" && team !== "Freelance IT Technology & Media"
+  const showNotes = isITMedia
+    ? (itCat === "voiceover" || itCat === "poster")
+    : (team !== "Freelance Development & Automation")
+
+  // For IT & Media, use sub-category-specific display config
+  const IT_CAT_CFG = {
+    voiceover: { emoji: "🎙️", entryLabel: "Voice",  costLabel: "Prize (INR)" },
+    poster:    { emoji: "🎨", entryLabel: "Design", costLabel: "Prize (INR)" },
+    technical: { emoji: "💻", entryLabel: "Task",   costLabel: "Project Price (INR)" },
+  } as const
+  const itCatCfg = isITMedia && itCat ? IT_CAT_CFG[itCat as keyof typeof IT_CAT_CFG] : null
+  const effectiveEmoji      = itCatCfg?.emoji      ?? cfg.emoji
+  const effectiveEntryLabel = itCatCfg?.entryLabel ?? cfg.entryLabel
+  const effectiveCostLabel  = itCatCfg?.costLabel  ?? cfg.costLabel
 
   function handleEditTimeChange(field: "edit_start_time" | "edit_end_time", val: string) {
     onChange(field, val)
@@ -199,13 +219,13 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
   const titleLabel =
     isVoiceover ? "Script / Content Name *"
     : isDevType ? "Task Title *"
-    : team === "Freelance Graphics Designer" ? "Design Title *"
+    : (team === "Freelance Graphics Designer" || (isITMedia && itCat === "poster")) ? "Design Title *"
     : "Content Title *"
 
   const titlePlaceholder =
     isVoiceover ? "e.g. Brand Intro Script — SKB Silks"
     : isDevType ? "e.g. Website Landing Page Build"
-    : team === "Freelance Graphics Designer" ? "e.g. Summer Sale Banner — SKB Silks"
+    : (team === "Freelance Graphics Designer" || (isITMedia && itCat === "poster")) ? "e.g. Summer Sale Banner — SKB Silks"
     : "e.g. Product Description — SKB Silks"
 
   return (
@@ -213,7 +233,7 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
       {/* Card header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
         <span style={{ fontSize: 13, fontWeight: 800, color: cfg.color }}>
-          {cfg.emoji} {cfg.entryLabel} #{idx + 1}
+          {effectiveEmoji} {effectiveEntryLabel} #{idx + 1}
         </span>
         {canRemove && (
           <button type="button" onClick={onRemove}
@@ -223,7 +243,33 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
         )}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+      {/* IT & Media: category picker shown until user selects a type */}
+      {isITMedia && !itCat && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <label style={LABEL}>Select Work Type</label>
+          {[
+            { cat: "voiceover", label: "VOICEOVER",  emoji: "🎙️", color: "#A855F7" },
+            { cat: "poster",    label: "POSTERS",     emoji: "🎨", color: "#F97316" },
+            { cat: "technical", label: "TECHNICAL",   emoji: "💻", color: "#6366F1" },
+          ].map(opt => (
+            <button key={opt.cat} type="button" onClick={() => onChange("it_category", opt.cat)}
+              style={{ padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${opt.color}44`, background: `${opt.color}08`, color: opt.color, fontSize: 14, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 10, textAlign: "left", width: "100%" }}>
+              <span style={{ fontSize: 20 }}>{opt.emoji}</span>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: isITMedia && !itCat ? "none" : "flex", flexDirection: "column", gap: 11 }}>
+
+        {/* IT & Media: show back button to change work type */}
+        {isITMedia && itCat && (
+          <button type="button" onClick={() => onChange("it_category", "")}
+            style={{ alignSelf: "flex-start", fontSize: 11, fontWeight: 700, color: "#6B7280", background: "none", border: "1px solid #E5E7EB", borderRadius: 8, padding: "4px 10px", cursor: "pointer" }}>
+            ← Change Work Type
+          </button>
+        )}
 
         {/* Date */}
         <div>
@@ -439,7 +485,7 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
 
         {/* Cost / Prize / Project Price */}
         <div>
-          <label style={LABEL}>{cfg.costLabel} *</label>
+          <label style={LABEL}>{effectiveCostLabel} *</label>
           <div style={{ position: "relative" }}>
             <span style={{ position: "absolute", left: 13, top: "50%", transform: "translateY(-50%)", fontSize: 13, color: "#6B7280", fontWeight: 700 }}>₹</span>
             <input type="number" min="0" step="1" value={entry.amount} onChange={e => onChange("amount", e.target.value)}
@@ -544,6 +590,9 @@ function WorkEntrySheet({ freelancer, activeClients, pastClients, onClose, onSav
   function handleSave() {
     setError("")
     for (const [i, e] of entries.entries()) {
+      if (freelancer.team === "Freelance IT Technology & Media" && !e.it_category) {
+        setError(`Entry #${i + 1}: Please select a work type (Voiceover, Posters, or Technical)`); return
+      }
       if (!e.date_given) { setError(`Entry #${i + 1}: Date is required`); return }
       if (!e.client_name) { setError(`Entry #${i + 1}: Client name is required`); return }
       if (!e.title.trim()) { setError(`Entry #${i + 1}: Title is required`); return }
@@ -569,6 +618,8 @@ function WorkEntrySheet({ freelancer, activeClients, pastClients, onClose, onSav
             ? JSON.stringify({ video_type: e.video_type, revisions: e.revisions, hooks: e.hooks_completed, start: e.edit_start_time, end: e.edit_end_time, drive_updated: e.drive_updated })
             : freelancer.team === "Freelance Videography"
             ? JSON.stringify({ travel_time: e.travel_time, location: e.location, video_uploaded: e.video_uploaded })
+            : freelancer.team === "Freelance IT Technology & Media"
+            ? JSON.stringify({ category: e.it_category, ...(e.task_description ? { description: e.task_description } : {}) })
             : e.task_description || null,
           payment_status: e.payment_status,
         })),
@@ -774,6 +825,10 @@ function EditEntrySheet({ entry, activeClients, pastClients, onClose, onSaved }:
     payment_status: entry.payment_status,
     video_type: "", revisions: "0", hooks_completed: "0", edit_start_time: "", edit_end_time: "", drive_updated: "no",
     time_from: "", time_to: "", travel_time: "", location: "", video_uploaded: "no",
+    it_category: (() => {
+      if (entry.team !== "Freelance IT Technology & Media") return ""
+      try { return JSON.parse(entry.task_description ?? "{}").category ?? "" } catch { return "" }
+    })(),
   })
   const [error, setError] = useState("")
   const [isPending, startTransition] = useTransition()

@@ -49,7 +49,7 @@ export default async function ActivitiesPage({
   ] = await Promise.all([
     admin
       .from("users")
-      .select("id, name, employee_id, role, team")
+      .select("id, name, employee_id, role, team, monthly_salary, hourly_rate")
       .eq("company_id", companyId)
       .eq("role", "MEMBER")
       .eq("status", "active")

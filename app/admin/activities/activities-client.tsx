@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Search, Filter, Clock, Users, AlertCircle, TrendingUp, Bell, Star, X, ChevronRight } from "lucide-react"
+import { Search, Filter, Clock, Users, AlertCircle, TrendingUp, Bell, Star, X, ChevronRight, BarChart3 } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 
 type WorkEntry = Record<string, unknown>
@@ -26,7 +26,7 @@ interface Update {
   tasks_total: number
 }
 
-interface Member { id: string; name: string; employee_id: string; team?: string | null; role?: string }
+interface Member { id: string; name: string; employee_id: string; team?: string | null; role?: string; monthly_salary?: number | null; hourly_rate?: number | null }
 interface PendingLeave { id: string; user_id: string; from_date: string; to_date: string; reason: string | null }
 interface PendingCollab { collaborator_id: string; date: string; status: string }
 
@@ -103,6 +103,32 @@ const AVATAR_COLORS = [
 function avatarColor(name: string) {
   let h = 0; for (const c of name) h += c.charCodeAt(0)
   return AVATAR_COLORS[h % AVATAR_COLORS.length]
+}
+
+function fmtRupee(n: number) { return `₹${Math.round(n).toLocaleString("en-IN")}` }
+
+// ── Score ring ────────────────────────────────────────────────────────────────
+function ScoreRing({ score, size = 40 }: { score: number; size?: number }) {
+  const r = size * 0.38, cx = size / 2, cy = size / 2
+  const circ = 2 * Math.PI * r
+  const filled = (Math.min(score, 100) / 100) * circ
+  const [c1, c2] = score >= 70 ? ["#10B981","#34D399"] : score >= 40 ? ["#F59E0B","#FCD34D"] : ["#EF4444","#F87171"]
+  const gid = `sg${score}`
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <defs>
+        <linearGradient id={gid} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={c1} /><stop offset="100%" stopColor={c2} />
+        </linearGradient>
+      </defs>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F0F0F0" strokeWidth={size * 0.11} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={`url(#${gid})`} strokeWidth={size * 0.11}
+        strokeDasharray={`${filled} ${circ - filled}`} strokeLinecap="round"
+        transform={`rotate(-90 ${cx} ${cy})`} />
+      <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle"
+        fontSize={size * 0.22} fontWeight="900" fill="#111">{score}</text>
+    </svg>
+  )
 }
 
 // ── Person Detail Drawer ──────────────────────────────────────────────────────
@@ -250,6 +276,163 @@ function PersonDetailDrawer({ updates, onClose }: { updates: Update[]; onClose: 
   )
 }
 
+// ── Team Insights View ────────────────────────────────────────────────────────
+function TeamInsightsView({
+  members,
+  groupedByUser,
+}: {
+  members: Member[]
+  groupedByUser: Map<string, Update[]>
+}) {
+  const rows = useMemo(() => {
+    const maxHours = Math.max(
+      ...members.map(m => {
+        const userUpdates = groupedByUser.get(m.id) ?? []
+        return userUpdates.reduce((s, u) => s + (u.working_hours ?? 0), 0)
+      }),
+      1
+    )
+
+    return members.map(m => {
+      const userUpdates = groupedByUser.get(m.id) ?? []
+      const hours = userUpdates.reduce((s, u) => s + (u.working_hours ?? 0), 0)
+      const allEntries = userUpdates.flatMap(u => Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
+      const entryCount = allEntries.filter(e => e.task_type !== "break").length
+      const workTypes = [...new Set(allEntries.filter(e => e.task_type && e.task_type !== "break").map(e => getEntryTypeLabel(e.task_type).emoji))]
+
+      const effectiveRate = (m.hourly_rate && m.hourly_rate > 0)
+        ? m.hourly_rate
+        : (m.monthly_salary ? Math.round(m.monthly_salary / 176) : 0)
+      const workValue = hours * effectiveRate
+      const salary = m.monthly_salary ?? 0
+      const ratio = salary > 0 ? Math.round((workValue / salary) * 100) : null
+
+      // Score: 50pts value/salary, 20pts hours vs team max, 30pts entries (max 10 entries)
+      const valuePts = salary > 0 ? Math.min(50, (workValue / salary) * 50) : 0
+      const hoursPts = Math.min(20, (hours / maxHours) * 20)
+      const entryPts = Math.min(30, entryCount * 3)
+      const score = Math.round(valuePts + hoursPts + entryPts)
+
+      return { member: m, hours, workValue, salary, effectiveRate, ratio, score, entryCount, workTypes, hasUpdate: userUpdates.length > 0 }
+    }).sort((a, b) => b.score - a.score || b.hours - a.hours)
+  }, [members, groupedByUser])
+
+  const totalHours = rows.reduce((s, r) => s + r.hours, 0)
+  const totalValue = rows.reduce((s, r) => s + r.workValue, 0)
+  const totalSalary = rows.reduce((s, r) => s + r.salary, 0)
+
+  return (
+    <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.04)", overflow: "hidden" }}>
+      {/* Header */}
+      <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(227,30,36,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <BarChart3 size={16} color="#E31E24" />
+          </div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>Team Insights</div>
+            <div style={{ fontSize: 11, color: "#9CA3AF" }}>Work value vs salary · sorted by score</div>
+          </div>
+        </div>
+        {/* Summary chips */}
+        <div style={{ display: "flex", gap: 8 }}>
+          {[
+            { label: "Total Hours", value: `${totalHours.toFixed(1)}h`, color: "#6366F1" },
+            { label: "Work Value", value: fmtRupee(totalValue), color: "#10B981" },
+            { label: "Salary Cost", value: fmtRupee(totalSalary), color: "#F59E0B" },
+          ].map(chip => (
+            <div key={chip.label} style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: chip.color }}>{chip.value}</div>
+              <div style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>{chip.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Column headers */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 80px 110px 100px 90px 60px", gap: 0, padding: "8px 24px", background: "#FAFAFA", borderBottom: "1px solid #F3F4F6" }}>
+        {["Employee", "Hours", "Work Value", "Salary", "Value vs Pay", "Score"].map(h => (
+          <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em" }}>{h}</div>
+        ))}
+      </div>
+
+      {/* Rows */}
+      <div>
+        {rows.map(({ member: m, hours, workValue, salary, effectiveRate, ratio, score, entryCount, workTypes, hasUpdate }, i) => {
+          const [bg, fg] = avatarColor(m.name)
+          const badge = getTeamBadge(m.team)
+          const noRate = effectiveRate === 0
+          const [rg1] = ratio == null ? ["#9CA3AF"] : ratio >= 100 ? ["#10B981"] : ratio >= 60 ? ["#F59E0B"] : ["#EF4444"]
+          const [ag] = avatarColor(m.name)
+
+          return (
+            <div key={m.id} style={{
+              display: "grid", gridTemplateColumns: "2fr 80px 110px 100px 90px 60px",
+              gap: 0, padding: "14px 24px", alignItems: "center",
+              borderBottom: "1px solid #F9FAFB",
+              background: i % 2 === 0 ? "#fff" : "#FAFBFF",
+              opacity: hasUpdate ? 1 : 0.5,
+            }}>
+              {/* Employee */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 38, height: 38, borderRadius: "50%", background: bg, color: fg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                  {getInitials(m.name)}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#111827" }}>{m.name}</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 3 }}>
+                    <span style={{ padding: "1px 7px", borderRadius: 5, background: badge.bg, color: badge.color, fontSize: 9, fontWeight: 700 }}>{badge.label}</span>
+                    {workTypes.length > 0 && <span style={{ fontSize: 11 }}>{workTypes.join(" ")}</span>}
+                    {entryCount > 0 && <span style={{ fontSize: 10, color: "#9CA3AF" }}>{entryCount} entries</span>}
+                    {!hasUpdate && <span style={{ fontSize: 10, color: "#EF4444", fontWeight: 700 }}>No update</span>}
+                  </div>
+                </div>
+              </div>
+
+              {/* Hours */}
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 900, color: ag }}>{hours > 0 ? `${hours.toFixed(1)}h` : "—"}</div>
+                {!noRate && hours > 0 && <div style={{ fontSize: 9, color: "#9CA3AF" }}>{fmtRupee(effectiveRate)}/hr</div>}
+              </div>
+
+              {/* Work Value */}
+              <div style={{ fontSize: 13, fontWeight: 800, color: workValue > 0 ? "#10B981" : "#D1D5DB" }}>
+                {workValue > 0 ? fmtRupee(workValue) : "—"}
+              </div>
+
+              {/* Salary */}
+              <div style={{ fontSize: 12, fontWeight: 700, color: salary > 0 ? "#374151" : "#D1D5DB" }}>
+                {salary > 0 ? fmtRupee(salary) : "Not set"}
+              </div>
+
+              {/* Value vs Pay */}
+              <div>
+                {ratio != null
+                  ? <span style={{ fontSize: 12, fontWeight: 800, padding: "3px 10px", borderRadius: 7, background: `${rg1}18`, color: rg1, border: `1px solid ${rg1}30` }}>{ratio}%</span>
+                  : <span style={{ fontSize: 11, color: "#D1D5DB" }}>—</span>}
+              </div>
+
+              {/* Score */}
+              <ScoreRing score={score} size={40} />
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Legend */}
+      <div style={{ padding: "12px 24px", background: "#FAFAFA", borderTop: "1px solid #F3F4F6", display: "flex", gap: 20, flexWrap: "wrap" }}>
+        {[["#10B981","≥100% · generating more value than salary"],["#F59E0B","60–99% · moderate"],["#EF4444","<60% · below expected"]].map(([c, l]) => (
+          <div key={l} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: c }} />
+            <span style={{ fontSize: 10, color: "#6B7280" }}>{l}</span>
+          </div>
+        ))}
+        <div style={{ marginLeft: "auto", fontSize: 10, color: "#9CA3AF" }}>Score = Value (50pts) + Hours (20pts) + Entries (30pts)</div>
+      </div>
+    </div>
+  )
+}
+
 export default function ActivitiesClient({
   updates,
   members,
@@ -281,6 +464,7 @@ export default function ActivitiesClient({
   const [customTo, setCustomTo]     = useState(to)
   const [showCustom, setShowCustom] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<"updates" | "insights">("updates")
 
   void onLeaveIds; void leaveDays; void clockInDays; void pendingLeaves; void pendingCollabs
 
@@ -557,10 +741,37 @@ export default function ActivitiesClient({
         )}
       </div>
 
+      {/* ── View Toggle ── */}
+      <div style={{ display: "flex", gap: 0, marginBottom: 20, background: "#F3F4F6", borderRadius: 12, padding: 4, width: "fit-content" }}>
+        {([
+          { key: "updates",  label: "Updates",      icon: <TrendingUp size={14} /> },
+          { key: "insights", label: "Team Insights", icon: <BarChart3 size={14} /> },
+        ] as const).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => { setActiveTab(tab.key); setSelectedUserId(null) }}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              padding: "8px 20px", borderRadius: 9, fontSize: 13, fontWeight: 700,
+              cursor: "pointer", border: "none", transition: "all 0.18s",
+              background: activeTab === tab.key ? "#fff" : "transparent",
+              color: activeTab === tab.key ? "#E31E24" : "#6B7280",
+              boxShadow: activeTab === tab.key ? "0 1px 6px rgba(0,0,0,0.1)" : "none",
+            }}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* ── Main content ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20 }}>
 
-        {/* ── Left: People who updated ── */}
+        {/* ── Left: People who updated OR Team Insights ── */}
+        {activeTab === "insights" ? (
+          <TeamInsightsView members={members} groupedByUser={groupedByUser} />
+        ) : (
         <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.04)", overflow: "hidden" }}>
           {/* Header */}
           <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", gap: 10 }}>
@@ -653,6 +864,7 @@ export default function ActivitiesClient({
             })}
           </div>
         </div>
+        )} {/* end updates/insights conditional */}
 
         {/* ── Right Sidebar ── */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

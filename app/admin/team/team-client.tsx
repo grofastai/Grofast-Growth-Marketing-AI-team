@@ -516,31 +516,35 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                   </div>
 
                   {/* Work Layout — shown for members with login */}
-                  {!isNoLoginTeam && form.team && (
+                  {!isNoLoginTeam && form.team && (() => {
+                    const isFreelanceTeam = form.team === "Freelance Media Production"
+                    const layoutOptions = isFreelanceTeam
+                      ? [{ value: "freelance_media" as const, label: "FREELANCE MEDIA" }]
+                      : [
+                          { value: "media"    as const, label: "MEDIA" },
+                          { value: "non_media" as const, label: "NON MEDIA" },
+                        ]
+                    return (
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Work Layout *</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {([
-                          { value: "media",           label: "🎬 Media",     desc: "Shoot + Edit" },
-                          { value: "non_media",        label: "⏰ Non-Media",  desc: "Work + VO + Poster" },
-                          { value: "freelance_media",  label: "🎥 Freelance", desc: "Shoot + Edit (no break)" },
-                        ] as const).map(({ value, label, desc }) => (
+                      <label className="block text-[10px] font-bold uppercase tracking-[0.18em] mb-2" style={{ color: "#6B7280" }}>Layout *</label>
+                      <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${layoutOptions.length}, 1fr)` }}>
+                        {layoutOptions.map(({ value, label }) => (
                           <button key={value} type="button"
                             onClick={() => setForm(prev => ({ ...prev, work_layout: value }))}
                             style={{
-                              padding: "8px 6px", borderRadius: 10, fontSize: 11, fontWeight: 700,
+                              padding: "10px 8px", borderRadius: 10, fontSize: 12, fontWeight: 800,
                               border: "1.5px solid", cursor: "pointer", transition: "all 0.15s", textAlign: "center",
                               background: form.work_layout === value ? "rgba(222,26,26,0.08)" : "rgba(0,0,0,0.03)",
                               borderColor: form.work_layout === value ? "#DE1A1A" : "#E5E7EB",
                               color: form.work_layout === value ? "#DE1A1A" : "#6B7280",
                             }}>
-                            <div>{label}</div>
-                            <div style={{ fontSize: 10, fontWeight: 500, marginTop: 2, opacity: 0.8 }}>{desc}</div>
+                            {label}
                           </button>
                         ))}
                       </div>
                     </div>
-                  )}
+                    )
+                  })()}
 
                   {/* Full Name — always shown */}
                   <div>

@@ -88,8 +88,10 @@ function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h *
 
 // Calculates net work hours by merging work intervals then subtracting any break
 // intervals that overlap — so a break taken inside a work window doesn't count as work.
-function calcNetWorkHours(entries: WorkEntry[]): number {
-  const workEntries  = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning")
+function calcNetWorkHours(entries: WorkEntry[], layout?: string): number {
+  const workEntries  = layout === "freelance_media"
+    ? entries.filter(e => e.task_type === "shoot" || e.task_type === "edit")
+    : entries.filter(e => e.task_type !== "break" && e.task_type !== "learning")
   const breakEntries = entries.filter(e => e.task_type === "break")
 
   // Build and merge work intervals
@@ -1534,7 +1536,7 @@ export default function HistoryClient({
                     </div>
                     <div style={{ display:"flex", alignItems:"center", gap:8 }}>
                       {(() => {
-                        const workH   = calcNetWorkHours(entries)
+                        const workH   = calcNetWorkHours(entries, workLayout ?? undefined)
                         const travelH = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + (e._travel_hours ?? 0), 0)
                         const learnEntryH = entries.filter(e => e.task_type === "learning").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
                         const learnH  = learnEntryH > 0 ? learnEntryH : (u.learning_hours ?? 0)

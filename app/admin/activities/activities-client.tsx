@@ -295,10 +295,11 @@ function TeamInsightsView({
 
     return members.map(m => {
       const userUpdates = groupedByUser.get(m.id) ?? []
-      const hours = userUpdates.reduce((s, u) => s + (u.working_hours ?? 0), 0)
       const allEntries = userUpdates.flatMap(u => Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
-      const entryCount = allEntries.filter(e => e.task_type !== "break").length
-      const workTypes = [...new Set(allEntries.filter(e => e.task_type && e.task_type !== "break").map(e => getEntryTypeLabel(e.task_type).emoji))]
+      const nonBreakEntries = allEntries.filter(e => e.task_type !== "break")
+      const hours = nonBreakEntries.reduce((s, e) => s + ((e.duration_minutes as number ?? 0) / 60), 0)
+      const entryCount = nonBreakEntries.length
+      const workTypes = [...new Set(nonBreakEntries.filter(e => e.task_type).map(e => getEntryTypeLabel(e.task_type).emoji))]
 
       const effectiveRate = (m.hourly_rate && m.hourly_rate > 0)
         ? m.hourly_rate

@@ -280,25 +280,24 @@ function PersonDetailDrawer({ updates, onClose }: { updates: Update[]; onClose: 
 function TeamInsightsView({
   members,
   groupedByUser,
-  workedHoursMap,
 }: {
   members: Member[]
   groupedByUser: Map<string, Update[]>
-  workedHoursMap: Record<string, number>
 }) {
   const rows = useMemo(() => {
-    const getWorkedHours = (userId: string) =>
-      Object.entries(workedHoursMap)
-        .filter(([key]) => key.startsWith(`${userId}:`))
-        .reduce((s, [, v]) => s + v, 0)
+    const getTotalHours = (userId: string) => {
+      const userUpdates = groupedByUser.get(userId) ?? []
+      const allEntries = userUpdates.flatMap(u => Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
+      return allEntries.reduce((s, e) => s + ((e.duration_minutes as number ?? 0) / 60), 0)
+    }
 
-    const maxHours = Math.max(...members.map(m => getWorkedHours(m.id)), 1)
+    const maxHours = Math.max(...members.map(m => getTotalHours(m.id)), 1)
 
     return members.map(m => {
       const userUpdates = groupedByUser.get(m.id) ?? []
       const allEntries = userUpdates.flatMap(u => Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
       const nonBreakEntries = allEntries.filter(e => e.task_type !== "break")
-      const hours = getWorkedHours(m.id)
+      const hours = getTotalHours(m.id)
       const entryCount = nonBreakEntries.length
       const workTypes = [...new Set(nonBreakEntries.filter(e => e.task_type).map(e => getEntryTypeLabel(e.task_type).emoji))]
 
@@ -317,7 +316,7 @@ function TeamInsightsView({
 
       return { member: m, hours, workValue, salary, effectiveRate, ratio, score, entryCount, workTypes, hasUpdate: userUpdates.length > 0 }
     }).sort((a, b) => b.score - a.score || b.hours - a.hours)
-  }, [members, groupedByUser, workedHoursMap])
+  }, [members, groupedByUser])
 
   const totalHours = rows.reduce((s, r) => s + r.hours, 0)
   const totalValue = rows.reduce((s, r) => s + r.workValue, 0)
@@ -444,7 +443,6 @@ export default function ActivitiesClient({
   leaveDays,
   clockInDays,
   collabHoursMap = {},
-  workedHoursMap = {},
   pendingLeaves = [],
   pendingCollabs = [],
 }: {
@@ -457,7 +455,6 @@ export default function ActivitiesClient({
   leaveDays?: Set<string>
   clockInDays?: Set<string>
   collabHoursMap?: Record<string, number>
-  workedHoursMap?: Record<string, number>
   pendingLeaves?: PendingLeave[]
   pendingCollabs?: PendingCollab[]
 }) {
@@ -774,7 +771,7 @@ export default function ActivitiesClient({
 
         {/* ── Left: People who updated OR Team Insights ── */}
         {activeTab === "insights" ? (
-          <TeamInsightsView members={members} groupedByUser={groupedByUser} workedHoursMap={workedHoursMap} />
+          <TeamInsightsView members={members} groupedByUser={groupedByUser} />
         ) : (
         <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.04)", overflow: "hidden" }}>
           {/* Header */}

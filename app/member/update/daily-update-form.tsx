@@ -460,7 +460,7 @@ export default function DailyUpdateForm({
   const [tab, setTab] = useState<"working" | "media" | "learning" | "break">(isMediaTeam ? "media" : "working")
 
   const { activeOptions: activeClientOptions, pastOptions: pastClientOptions } = buildClientOptions(
-    sheetClientNames, pastClientNames, projects.map(p => p.business_name)
+    sheetClientNames, pastClientNames
   )
   const allClientOptions = activeClientOptions
 

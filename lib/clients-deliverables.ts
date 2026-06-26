@@ -27,7 +27,7 @@ export type EditingVideo = {
 
 export type WorkEntry = {
   client_name?: string
-  task_type?: 'shoot' | 'edit' | 'upload' | 'other' | 'voiceover' | 'poster'
+  task_type?: 'shoot' | 'edit' | 'other' | 'voiceover' | 'poster' | 'break' | 'learning'
   title?: string
   start_time?: string
   end_time?: string
@@ -267,8 +267,8 @@ export function computeDeliverables(
       const tm = teamMap[user.id]
       tm.totalHours += hrs
 
-      // Non-media work logs: only 'other'/'upload' task types (not shoot/edit/voiceover/poster)
-      if (!isMedia && (tt === 'other' || tt === 'upload')) nonMediaWorkHours += hrs
+      // Non-media working = all types except break (other+voiceover+poster+edit+learning)
+      if (!isMedia && tt !== 'break') nonMediaWorkHours += hrs
 
       if (!dayMap[row.date]) dayMap[row.date] = []
 

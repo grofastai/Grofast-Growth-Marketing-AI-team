@@ -189,9 +189,7 @@ export default async function PayrollPage({
     // Date-keyed lookups
     const updateByDate: Record<string, number> = {}
     for (const u of myUpdates) {
-      const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      const entryH = entries.reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-      updateByDate[u.date] = entryH > 0 ? entryH : (u.working_hours ?? 0)
+      updateByDate[u.date] = u.working_hours ?? 0
     }
     const clockedInDates = new Set(myLogs.filter(l => l.clock_in !== null || l.status === "present").map(l => l.date))
     const leaveDatesForMember = getMemberLeaveDates(m.id)

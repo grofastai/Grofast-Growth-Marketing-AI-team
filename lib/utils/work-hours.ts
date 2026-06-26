@@ -11,10 +11,12 @@ type WorkEntryForCalc = {
 // 2. Carve out break intervals that overlap work
 // 3. Add duration_hours for entries with no start/end time
 // NOTE: _travel_hours is NOT added here — travel is already inside the shoot window the employee entered
-export function calcNetWorkHours(entries: WorkEntryForCalc[]): number {
+export function calcNetWorkHours(entries: WorkEntryForCalc[], workLayout?: 'media' | 'non_media' | 'freelance_media'): number {
   function toMins(t: string) { const [h, m] = t.split(':').map(Number); return h * 60 + m }
 
-  const workEntries  = entries.filter(e => e.task_type !== 'break' && e.task_type !== 'learning')
+  const workEntries = workLayout === 'freelance_media'
+    ? entries.filter(e => e.task_type === 'shoot' || e.task_type === 'edit')
+    : entries.filter(e => e.task_type !== 'break')
   const breakEntries = entries.filter(e => e.task_type === 'break')
 
   const workIntervals = workEntries

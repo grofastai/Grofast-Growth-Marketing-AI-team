@@ -21,7 +21,7 @@ export const workEntrySchema = z.object({
   id:              z.string(),
   client_id:       z.string().nullable().optional(),
   client_name:     z.string().min(1, 'Client name required'),
-  task_type:       z.enum(['shoot', 'edit', 'upload', 'other', 'break', 'learning', 'voiceover', 'poster']),
+  task_type:       z.enum(['shoot', 'edit', 'other', 'break', 'learning', 'voiceover', 'poster']),
   title:           z.string().min(1, 'Entry title required'),
   start_time:      z.string().optional().default(''),
   end_time:        z.string().optional().default(''),

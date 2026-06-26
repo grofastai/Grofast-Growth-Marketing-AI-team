@@ -438,8 +438,8 @@ export default function ActivitiesClient({
           src="/brand/activities-hero.png"
           alt=""
           style={{
-            position: "absolute", bottom: -85, left: "50%", transform: "translateX(-50%)",
-            height: 300, width: "auto", objectFit: "contain",
+            position: "absolute", bottom: -85, left: "54%", transform: "translateX(-50%)",
+            height: 360, width: "auto", objectFit: "contain",
             pointerEvents: "none", userSelect: "none", zIndex: 1,
           }}
         />

@@ -27,6 +27,8 @@ export type EditingVideo = {
 
 export type WorkEntry = {
   client_name?: string
+  is_multi_client?: boolean
+  client_names?: string[]
   task_type?: 'shoot' | 'edit' | 'other' | 'voiceover' | 'poster' | 'break' | 'learning'
   title?: string
   start_time?: string
@@ -249,12 +251,21 @@ export function computeDeliverables(
     let rowHasClientEntry = false
 
     for (const entry of row.work_entries ?? []) {
-      const entryClientLower = (entry.client_name ?? '').trim().toLowerCase()
-      if (clientNameSet !== null && !clientNameSet.has(entryClientLower)) continue
-      const entryClientName = (entry.client_name ?? '').trim()
+      const isMulti   = entry.is_multi_client === true && (entry.client_names?.length ?? 0) > 1
+      const splitCount = isMulti ? (entry.client_names?.length ?? 1) : 1
+
+      let entryClientName: string
+      if (clientNameSet === null) {
+        entryClientName = (entry.client_name ?? '').trim()
+      } else {
+        const names = isMulti ? (entry.client_names ?? []) : [entry.client_name ?? '']
+        const matched = names.find(cn => clientNameSet.has(cn.trim().toLowerCase()))
+        if (!matched) continue
+        entryClientName = matched.trim()
+      }
       rowHasClientEntry = true
 
-      const hrs = entry.duration_hours ?? 0
+      const hrs = (entry.duration_hours ?? 0) / splitCount
       const tt  = entry.task_type ?? 'other'
 
       // ── team accumulator ──────────────────────────────────────────────────

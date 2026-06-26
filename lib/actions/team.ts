@@ -390,6 +390,7 @@ export async function updateMember(input: {
   revalidatePath('/admin/team')
   revalidatePath('/admin/expenses')
   revalidatePath('/admin/payroll')
+  revalidatePath('/admin/insights')
   return { success: true }
 }
 

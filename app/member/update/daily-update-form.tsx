@@ -420,6 +420,7 @@ export default function DailyUpdateForm({
     setPosters(isPast ? [] : (found ? parseExistingPosters(found) : []))
     setTimeBlocks(isPast ? [] : (found ? parseExistingBlocks(found) : []))
     setMediaBreaks(isPast ? [] : (found ? parseExistingMediaBreaks(found) : []))
+    setNonMediaBreaks(isPast ? [] : (found ? parseExistingNonMediaBreaks(found) : []))
     setLearningBlocks(isPast ? [newLearningBlock()] : (found ? parseExistingLearningBlocks(found) : [newLearningBlock()]))
     setLearningParticipantIds(isPast ? [] : (found?.active_tab === "learning" ? ((found?.participant_ids as string[]) ?? []) : []))
     // Past date: never mark as done — always show fresh form regardless of existing data
@@ -570,7 +571,8 @@ export default function DailyUpdateForm({
       ((u as Record<string,unknown>).work_entries as Record<string,unknown>[])
         .some(e => e.task_type === 'break' && Number(e.duration_hours) > 0))
 
-  const [submitted,     setSubmitted]     = useState(false)
+  const [submitted,       setSubmitted]       = useState(false)
+  const [breakSubmitting, setBreakSubmitting] = useState(false)
   const [successPopup,  setSuccessPopup]  = useState<string | null>(null)
   useEffect(() => {
     if (!successPopup) return
@@ -1148,16 +1150,21 @@ export default function DailyUpdateForm({
     const allParticipantIds = !isMediaTeam ? [...new Set(filledBlocks.flatMap(b => b.participantIds))] : []
     const work_entries = [...workingEntries, ...breakEntries]
 
-    startTransition(async () => {
-      const res = await submitDailyUpdate({
-        active_tab: "break", date: selectedDate, work_entries, links: [],
-        shoot_count: 0, editing_count: 0,
-        shoot_time_hours: 0, editing_time_hours: 0, learning_hours: 0,
-        participant_ids: allParticipantIds,
-      })
-      if (!res.success) setError(res.error ?? "Submission failed.")
-      else { setSuccessPopup("break"); if (isMediaTeam) { setBreaksDone(true); setEditMode(false) } else setWorkingDone(true); router.refresh() }
-    })
+    setBreakSubmitting(true)
+    ;(async () => {
+      try {
+        const res = await submitDailyUpdate({
+          active_tab: "break", date: selectedDate, work_entries, links: [],
+          shoot_count: 0, editing_count: 0,
+          shoot_time_hours: 0, editing_time_hours: 0, learning_hours: 0,
+          participant_ids: allParticipantIds,
+        })
+        if (!res.success) setError(res.error ?? "Submission failed.")
+        else { setSuccessPopup("break"); if (isMediaTeam) { setBreaksDone(true); setEditMode(false) } else setWorkingDone(true); router.refresh() }
+      } finally {
+        setBreakSubmitting(false)
+      }
+    })()
   }
 
   function handleSubmit() {
@@ -2693,12 +2700,12 @@ export default function DailyUpdateForm({
                   {isMediaTeam ? `${mediaBreaks.length} break${mediaBreaks.length !== 1 ? "s" : ""} · ${mediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h` : `${nonMediaBreaks.length} break${nonMediaBreaks.length !== 1 ? "s" : ""} · ${nonMediaBreaks.reduce((s,b) => s+b.durationHours,0).toFixed(1)}h`}
                 </p>}
               </div>
-              <button onClick={handleSubmit} disabled={isPending || submitted}
-                style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor: isPending || submitted ? "not-allowed" : "pointer", transition:"all 0.2s", opacity: isPending ? 0.7 : 1,
+              <button onClick={handleSubmit} disabled={isPending || submitted || breakSubmitting}
+                style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 24px", borderRadius:14, fontSize:13, fontWeight:700, border:"none", cursor: isPending || submitted || breakSubmitting ? "not-allowed" : "pointer", transition:"all 0.2s", opacity: isPending || breakSubmitting ? 0.7 : 1,
                   background: submitted ? "#22C55E" : "#DE1A1A",
                   color:"#fff", boxShadow: submitted ? "0 4px 14px rgba(34,197,94,0.4)" : "0 4px 14px rgba(222,26,26,0.4)" }}>
-                {isPending ? <Loader2 size={14} className="animate-spin" /> : submitted ? <CheckCircle2 size={14} /> : <SendHorizonal size={14} />}
-                {isPending ? "Submitting…" : submitted ? "Submitted! ✓" : "Submit Daily Update"}
+                {isPending || breakSubmitting ? <Loader2 size={14} className="animate-spin" /> : submitted ? <CheckCircle2 size={14} /> : <SendHorizonal size={14} />}
+                {isPending || breakSubmitting ? "Submitting…" : submitted ? "Submitted! ✓" : "Submit Daily Update"}
               </button>
             </div>
           )}

@@ -81,7 +81,7 @@ export default async function ActivitiesPage({
       .gte("to_date", from),
     admin
       .from("attendance_logs")
-      .select("user_id, date, clock_in, clock_out, break_total_mins")
+      .select("user_id, date")
       .eq("company_id", companyId)
       .gte("date", from)
       .lte("date", to)
@@ -146,15 +146,8 @@ export default async function ActivitiesPage({
   }
 
   const clockInDaySet = new Set<string>()
-  const workedHoursMap: Record<string, number> = {}
-  for (const log of (clockIns ?? []) as { user_id: string; date: string; clock_in: string | null; clock_out: string | null; break_total_mins: number | null }[]) {
+  for (const log of (clockIns ?? []) as { user_id: string; date: string }[]) {
     clockInDaySet.add(`${log.user_id}:${log.date}`)
-    if (log.clock_in && log.clock_out) {
-      const spanMins = (new Date(log.clock_out).getTime() - new Date(log.clock_in).getTime()) / 60000
-      const workedMins = Math.max(0, spanMins - (log.break_total_mins ?? 0))
-      const key = `${log.user_id}:${log.date}`
-      workedHoursMap[key] = (workedHoursMap[key] ?? 0) + workedMins / 60
-    }
   }
 
   return (
@@ -168,7 +161,6 @@ export default async function ActivitiesPage({
       leaveDays={leaveDaySet}
       clockInDays={clockInDaySet}
       collabHoursMap={collabHoursMap}
-      workedHoursMap={workedHoursMap}
       pendingLeaves={pendingLeavesRaw ?? []}
       pendingCollabs={pendingCollabsRaw ?? []}
     />

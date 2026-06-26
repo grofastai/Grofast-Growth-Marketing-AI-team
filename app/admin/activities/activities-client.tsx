@@ -297,7 +297,7 @@ function TeamInsightsView({
       const userUpdates = groupedByUser.get(m.id) ?? []
       const allEntries = userUpdates.flatMap(u => Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
       const nonBreakEntries = allEntries.filter(e => e.task_type !== "break")
-      const hours = nonBreakEntries.reduce((s, e) => s + ((e.duration_minutes as number ?? 0) / 60), 0)
+      const hours = allEntries.reduce((s, e) => s + ((e.duration_minutes as number ?? 0) / 60), 0)
       const entryCount = nonBreakEntries.length
       const workTypes = [...new Set(nonBreakEntries.filter(e => e.task_type).map(e => getEntryTypeLabel(e.task_type).emoji))]
 

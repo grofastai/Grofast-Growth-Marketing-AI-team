@@ -17,26 +17,43 @@ export async function GET() {
   const admin = adminDb()
   const log: string[] = []
 
-  // ── 1. Find any "PN CONST..." entry that is NOT the correct spelling ──
+  // ── 1a. Check clients table for any wrong "PN CONST..." spelling ──
   const { data: pnClients } = await admin
     .from('clients')
     .select('id, name')
-    .ilike('name', '%pn const%')
-    .neq('name', 'PN CONSTRUCTION')
+    .ilike('name', '%pn%')
 
-  log.push(`clients: found PN variants = ${JSON.stringify(pnClients?.map((r: {name:string}) => r.name) ?? [])}`)
+  log.push(`clients: all PN-containing names = ${JSON.stringify(pnClients?.map((r: {name:string}) => r.name) ?? [])}`)
 
-  if (pnClients && pnClients.length > 0) {
-    for (const c of pnClients) {
-      const { error: e1 } = await admin
-        .from('clients')
-        .update({ name: 'PN CONSTRUCTION' })
-        .eq('id', (c as {id:string}).id)
-      if (e1) log.push(`clients PN fix error for "${(c as {name:string}).name}": ${e1.message}`)
-      else log.push(`clients: renamed "${(c as {name:string}).name}" → PN CONSTRUCTION`)
+  if (pnClients) {
+    for (const c of pnClients as {id:string; name:string}[]) {
+      if (c.name !== 'PN CONSTRUCTION') {
+        const { error: e1 } = await admin.from('clients').update({ name: 'PN CONSTRUCTION' }).eq('id', c.id)
+        if (e1) log.push(`clients PN fix error: ${e1.message}`)
+        else log.push(`clients: renamed "${c.name}" → PN CONSTRUCTION`)
+      }
     }
-  } else {
-    log.push('clients: no wrong PN CONSTRUCTION spelling found')
+  }
+
+  // ── 1b. Check projects table (business_name + client_name) ──
+  const { data: pnProjects } = await admin
+    .from('projects')
+    .select('id, business_name, client_name')
+    .or('business_name.ilike.%pn const%,client_name.ilike.%pn const%')
+
+  log.push(`projects: found PN variants = ${JSON.stringify(pnProjects?.map((r: {business_name:string; client_name:string}) => ({ b: r.business_name, c: r.client_name })) ?? [])}`)
+
+  if (pnProjects) {
+    for (const p of pnProjects as {id:string; business_name:string; client_name:string}[]) {
+      const patch: Record<string, string> = {}
+      if (p.business_name && p.business_name !== 'PN CONSTRUCTION' && p.business_name.toLowerCase().includes('pn const')) patch.business_name = 'PN CONSTRUCTION'
+      if (p.client_name   && p.client_name   !== 'PN CONSTRUCTION' && p.client_name.toLowerCase().includes('pn const'))   patch.client_name   = 'PN CONSTRUCTION'
+      if (Object.keys(patch).length > 0) {
+        const { error: ep } = await admin.from('projects').update(patch).eq('id', p.id)
+        if (ep) log.push(`projects PN fix error: ${ep.message}`)
+        else log.push(`projects: fixed row ${p.id} → ${JSON.stringify(patch)}`)
+      }
+    }
   }
 
   // ── 2. Delete duplicate SWEGAS entries (keep SWEGASS BEAUTY PARLOUR) ──
@@ -60,7 +77,7 @@ export async function GET() {
   const { data: pnRows } = await admin
     .from('daily_updates')
     .select('id, work_entries')
-    .ilike('work_entries::text', '%pn const%')
+    .ilike('work_entries::text', '%pn%')
 
   let pnFixed = 0
   if (pnRows) {

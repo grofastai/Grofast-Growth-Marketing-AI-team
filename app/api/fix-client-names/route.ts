@@ -17,13 +17,27 @@ export async function GET() {
   const admin = adminDb()
   const log: string[] = []
 
-  // ── 1. Fix "PN CONSTRCUTION" → "PN CONSTRUCTION" in clients ──
-  const { error: e1, count: c1 } = await admin
+  // ── 1. Find any "PN CONST..." entry that is NOT the correct spelling ──
+  const { data: pnClients } = await admin
     .from('clients')
-    .update({ name: 'PN CONSTRUCTION' })
-    .eq('name', 'PN CONSTRCUTION')
-  if (e1) log.push(`clients PN fix error: ${e1.message}`)
-  else log.push(`clients: renamed PN CONSTRCUTION → PN CONSTRUCTION (${c1 ?? 0} rows)`)
+    .select('id, name')
+    .ilike('name', '%pn const%')
+    .neq('name', 'PN CONSTRUCTION')
+
+  log.push(`clients: found PN variants = ${JSON.stringify(pnClients?.map((r: {name:string}) => r.name) ?? [])}`)
+
+  if (pnClients && pnClients.length > 0) {
+    for (const c of pnClients) {
+      const { error: e1 } = await admin
+        .from('clients')
+        .update({ name: 'PN CONSTRUCTION' })
+        .eq('id', (c as {id:string}).id)
+      if (e1) log.push(`clients PN fix error for "${(c as {name:string}).name}": ${e1.message}`)
+      else log.push(`clients: renamed "${(c as {name:string}).name}" → PN CONSTRUCTION`)
+    }
+  } else {
+    log.push('clients: no wrong PN CONSTRUCTION spelling found')
+  }
 
   // ── 2. Delete duplicate SWEGAS entries (keep SWEGASS BEAUTY PARLOUR) ──
   const { data: swegas } = await admin
@@ -42,26 +56,32 @@ export async function GET() {
     log.push('clients: no duplicate SWEGAS entries found')
   }
 
-  // ── 3. Fix work_entries: "PN CONSTRCUTION" → "PN CONSTRUCTION" ──
+  // ── 3. Fix work_entries: any "PN CONST..." variant → "PN CONSTRUCTION" ──
   const { data: pnRows } = await admin
     .from('daily_updates')
     .select('id, work_entries')
-    .like('work_entries::text', '%PN CONSTRCUTION%')
+    .ilike('work_entries::text', '%pn const%')
 
   let pnFixed = 0
   if (pnRows) {
     for (const row of pnRows) {
       if (!Array.isArray(row.work_entries)) continue
-      const updated = (row.work_entries as Record<string, unknown>[]).map(e =>
-        (e.client_name as string) === 'PN CONSTRCUTION'
-          ? { ...e, client_name: 'PN CONSTRUCTION' }
-          : e
-      )
-      await admin.from('daily_updates').update({ work_entries: updated }).eq('id', row.id)
-      pnFixed++
+      let changed = false
+      const updated = (row.work_entries as Record<string, unknown>[]).map(e => {
+        const cn = ((e.client_name as string) ?? '').toLowerCase()
+        if (cn.includes('pn const') && (e.client_name as string) !== 'PN CONSTRUCTION') {
+          changed = true
+          return { ...e, client_name: 'PN CONSTRUCTION' }
+        }
+        return e
+      })
+      if (changed) {
+        await admin.from('daily_updates').update({ work_entries: updated }).eq('id', row.id)
+        pnFixed++
+      }
     }
   }
-  log.push(`daily_updates: fixed PN CONSTRCUTION in ${pnFixed} record(s)`)
+  log.push(`daily_updates: fixed PN CONST variant in ${pnFixed} record(s)`)
 
   // ── 4. Fix work_entries: wrong SWEGAS variants → SWEGASS BEAUTY PARLOUR ──
   const { data: swRows } = await admin

@@ -108,7 +108,7 @@ export default async function ClientsUnifiedPage({
 
     const toRow = (c: (typeof stripped)[0], status: string): ClientRow => ({
       id:           (c.company_name || c.customer_name).toLowerCase().replace(/\s+/g, '-'),
-      name:         (c.company_name || c.customer_name).trim(),
+      name:         (c.company_name || c.customer_name).trim().replace(/\s+/g, ' '),
       industry:     c.industry     || null,
       location:     c.place        || null,
       service:      c.service      || null,

@@ -3,7 +3,7 @@
 
 export const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
 
-function norm(s: string) { return s.trim().toLowerCase() }
+function norm(s: string) { return s.trim().replace(/\s+/g, ' ').toLowerCase() }
 
 /**
  * Builds the active + past client option lists with deduplication.

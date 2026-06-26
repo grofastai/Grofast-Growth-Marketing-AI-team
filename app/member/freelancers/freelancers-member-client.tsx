@@ -272,6 +272,9 @@ function EntryCard({ team, entry, idx, activeClients, pastClients, onChange, onR
                 style={{ ...FIELD, appearance: "none", paddingRight: 34 }}>
                 <option value="">Select client…</option>
                 {activeClients.map(c => <option key={c} value={c}>{c}</option>)}
+                {entry.client_name && !activeClients.includes(entry.client_name) && pastClients.includes(entry.client_name) && (
+                  <option key={entry.client_name} value={entry.client_name}>{entry.client_name}</option>
+                )}
                 {pastClients.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
                 <option value="__custom__">✏️ Other (type manually)</option>
               </select>

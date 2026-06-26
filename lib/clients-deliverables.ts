@@ -223,9 +223,10 @@ export function computeDeliverables(
   const teamMap:        Record<string, TeamContribution> = {}
   const dayMap:         Record<string, DayLogEntry[]>    = {}
 
+  const normalizeClient = (s: string) => s.trim().replace(/\s+/g, ' ').toLowerCase()
   const clientNameSet: Set<string> | null = clientFilter === null
     ? null
-    : new Set((Array.isArray(clientFilter) ? clientFilter : [clientFilter]).map(n => n.toLowerCase()))
+    : new Set((Array.isArray(clientFilter) ? clientFilter : [clientFilter]).map(normalizeClient))
 
   // KPI accumulators
   let mediaShootCount   = 0
@@ -259,7 +260,7 @@ export function computeDeliverables(
         entryClientName = (entry.client_name ?? '').trim()
       } else {
         const names = isMulti ? (entry.client_names ?? []) : [entry.client_name ?? '']
-        const matched = names.find(cn => clientNameSet.has(cn.trim().toLowerCase()))
+        const matched = names.find(cn => clientNameSet.has(normalizeClient(cn)))
         if (!matched) continue
         entryClientName = matched.trim()
       }

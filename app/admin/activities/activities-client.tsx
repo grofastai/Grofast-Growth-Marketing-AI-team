@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Search, Filter, Clock, Users, AlertCircle, TrendingUp, Bell, Star } from "lucide-react"
+import { Search, Filter, Clock, Users, AlertCircle, TrendingUp, Bell, Star, X, ChevronRight } from "lucide-react"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
 
 type WorkEntry = Record<string, unknown>
@@ -82,6 +82,18 @@ function fmtTime(isoOrDate: string | undefined): string {
   } catch { return "" }
 }
 
+function getEntryTypeLabel(type: unknown): { label: string; color: string; bg: string; emoji: string } {
+  const t = String(type ?? "").toLowerCase()
+  if (t === "shoot")     return { label: "Shoot",      color: "#0EA5E9", bg: "rgba(14,165,233,0.1)",  emoji: "📹" }
+  if (t === "edit")      return { label: "Edit",        color: "#6366F1", bg: "rgba(99,102,241,0.1)",  emoji: "🎬" }
+  if (t === "voiceover") return { label: "Voiceover",  color: "#A855F7", bg: "rgba(168,85,247,0.1)", emoji: "🎙️" }
+  if (t === "poster")    return { label: "Poster",     color: "#F97316", bg: "rgba(249,115,22,0.1)",  emoji: "🎨" }
+  if (t === "log")       return { label: "Log",         color: "#10B981", bg: "rgba(16,185,129,0.1)", emoji: "📋" }
+  if (t === "learning")  return { label: "Learning",   color: "#F59E0B", bg: "rgba(245,158,11,0.1)",  emoji: "📚" }
+  if (t === "break")     return { label: "Break",      color: "#9CA3AF", bg: "rgba(156,163,175,0.1)", emoji: "☕" }
+  return { label: "Work", color: "#374151", bg: "rgba(55,65,81,0.08)", emoji: "💼" }
+}
+
 const AVATAR_COLORS = [
   ["#E31E24","#fff"], ["#7C3AED","#fff"], ["#0EA5E9","#fff"],
   ["#16A34A","#fff"], ["#D97706","#fff"], ["#EC4899","#fff"],
@@ -91,6 +103,151 @@ const AVATAR_COLORS = [
 function avatarColor(name: string) {
   let h = 0; for (const c of name) h += c.charCodeAt(0)
   return AVATAR_COLORS[h % AVATAR_COLORS.length]
+}
+
+// ── Person Detail Drawer ──────────────────────────────────────────────────────
+function PersonDetailDrawer({ updates, onClose }: { updates: Update[]; onClose: () => void }) {
+  const firstUpdate = updates[0]
+  const user = Array.isArray(firstUpdate?.users) ? firstUpdate.users[0] : firstUpdate?.users
+  if (!user) return null
+
+  const [bg, fg] = avatarColor(user.name)
+  const badge = getTeamBadge(user.team)
+
+  const totalHours = updates.reduce((s, u) => s + (u.working_hours ?? 0), 0)
+  const allEntries = updates.flatMap(u => (Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[])
+  const workEntries = allEntries.filter(e => e.task_type !== "break")
+  const notes = updates.map(u => u.notes).filter(Boolean).join(" | ")
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(3px)", zIndex: 40 }}
+      />
+      {/* Drawer */}
+      <div style={{
+        position: "fixed", top: 0, right: 0, height: "100vh", width: 480, zIndex: 50,
+        background: "#fff", boxShadow: "-8px 0 48px rgba(0,0,0,0.14)",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+      }}>
+        {/* Header */}
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid #F3F4F6", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em" }}>Update Details</span>
+            <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <X size={13} color="#6B7280" />
+            </button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 52, height: 52, borderRadius: "50%", background: bg, color: fg, fontSize: 16, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              {getInitials(user.name)}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 17, fontWeight: 800, color: "#111827" }}>{user.name}</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                <span style={{ padding: "2px 10px", borderRadius: 6, background: badge.bg, color: badge.color, fontSize: 11, fontWeight: 700 }}>{badge.label}</span>
+                {totalHours > 0 && (
+                  <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, display: "flex", alignItems: "center", gap: 3 }}>
+                    <Clock size={11} /> {fmtHours(totalHours)}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div style={{ textAlign: "right", flexShrink: 0 }}>
+              <div style={{ fontSize: 22, fontWeight: 900, color: "#111827" }}>{workEntries.length}</div>
+              <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, textTransform: "uppercase" }}>entries</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable body */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "16px 24px 32px" }}>
+
+          {/* Work entries */}
+          {workEntries.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "48px 0", color: "#9CA3AF", fontSize: 13 }}>No work entries recorded</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {workEntries.map((e, i) => {
+                const typeInfo = getEntryTypeLabel(e.task_type)
+                const title = (e.title || e.task_name || e.description || "") as string
+                const client = (e.client_name || e._brand || e._custom_client || e.client || "") as string
+                const clientNames = Array.isArray(e.client_names) ? (e.client_names as string[]).join(", ") : client
+                const durationH = (e.duration_hours || e.working_hours || 0) as number
+                const startTime = e.start_time as string | undefined
+                const endTime = e.end_time as string | undefined
+                const videoType = e.video_type as string | undefined
+                const entryNotes = e.notes as string | undefined
+
+                return (
+                  <div key={i} style={{
+                    background: "#FAFAFA", borderRadius: 14, padding: "14px 16px",
+                    border: "1.5px solid #F0F0F5",
+                  }}>
+                    {/* Entry header */}
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
+                      <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{typeInfo.emoji}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 800, color: "#111827", lineHeight: 1.3 }}>
+                          {title || typeInfo.label}
+                        </div>
+                        {clientNames && (
+                          <div style={{ fontSize: 11, fontWeight: 700, color: typeInfo.color, marginTop: 3,
+                            background: typeInfo.bg, display: "inline-block", padding: "1px 8px", borderRadius: 6 }}>
+                            {clientNames}
+                          </div>
+                        )}
+                      </div>
+                      <span style={{ padding: "3px 8px", borderRadius: 6, background: typeInfo.bg, color: typeInfo.color, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {typeInfo.label}
+                      </span>
+                    </div>
+
+                    {/* Meta row */}
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", paddingLeft: 28 }}>
+                      {durationH > 0 && (
+                        <span style={{ fontSize: 11, color: "#6B7280", display: "flex", alignItems: "center", gap: 3 }}>
+                          <Clock size={10} /> {fmtHours(durationH)}
+                        </span>
+                      )}
+                      {startTime && endTime && (
+                        <span style={{ fontSize: 11, color: "#6B7280" }}>{startTime} – {endTime}</span>
+                      )}
+                      {videoType && videoType !== "__other__" && (
+                        <span style={{ fontSize: 11, color: "#6B7280" }}>{videoType}</span>
+                      )}
+                      {entryNotes && (
+                        <div style={{ width: "100%", fontSize: 11, color: "#9CA3AF", fontStyle: "italic", marginTop: 4, lineHeight: 1.5 }}>
+                          {entryNotes}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Notes */}
+          {notes && (
+            <div style={{ marginTop: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 5 }}>Notes</div>
+              <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.6 }}>{notes}</div>
+            </div>
+          )}
+
+          {/* Submission time */}
+          {firstUpdate.created_at && (
+            <div style={{ marginTop: 14, fontSize: 11, color: "#D1D5DB", textAlign: "center" }}>
+              Submitted at {fmtTime(firstUpdate.created_at)}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
 }
 
 export default function ActivitiesClient({
@@ -123,8 +280,8 @@ export default function ActivitiesClient({
   const [customFrom, setCustomFrom] = useState(from)
   const [customTo, setCustomTo]     = useState(to)
   const [showCustom, setShowCustom] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
 
-  // suppress unused-var lint for these required props
   void onLeaveIds; void leaveDays; void clockInDays; void pendingLeaves; void pendingCollabs
 
   const todayDate        = new Date()
@@ -155,6 +312,18 @@ export default function ActivitiesClient({
     else { p.set("from", f); p.set("to", t) }
     router.push(`${pathname}?${p.toString()}`)
   }
+
+  // ── Group updates by user ──────────────────────────────────────────────────
+  const groupedByUser = useMemo(() => {
+    const map = new Map<string, Update[]>()
+    for (const u of updates) {
+      const user = Array.isArray(u.users) ? u.users[0] : u.users
+      if (!user) continue
+      if (!map.has(user.id)) map.set(user.id, [])
+      map.get(user.id)!.push(u)
+    }
+    return map
+  }, [updates])
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -192,7 +361,6 @@ export default function ActivitiesClient({
     }
   }, [updates, members, collabHoursMap])
 
-  // ── Donut chart data ────────────────────────────────────────────────────────
   const donutData = useMemo(() => {
     const total = members.filter(m => m.role !== "ADMIN").length || 1
     const completed = stats.present
@@ -208,7 +376,6 @@ export default function ActivitiesClient({
 
   const completionPct = donutData[0].pct
 
-  // ── Top contributor ─────────────────────────────────────────────────────────
   const topContributor = useMemo(() => {
     const map: Record<string, { name: string; count: number; hours: number }> = {}
     for (const u of updates) {
@@ -223,19 +390,25 @@ export default function ActivitiesClient({
     return sorted[0] ?? null
   }, [updates])
 
-  // ── Filtered activities for timeline ────────────────────────────────────────
-  const filteredActivities = useMemo(() => {
+  // ── Filtered people list (grouped) ────────────────────────────────────────
+  const filteredPeople = useMemo(() => {
     const q = search.toLowerCase()
-    return updates
-      .filter(u => {
-        if (!q) return true
-        const user = Array.isArray(u.users) ? u.users[0] : u.users
-        return user?.name.toLowerCase().includes(q) || getDescription(u).toLowerCase().includes(q)
-      })
-      .slice(0, 20)
-  }, [updates, search])
+    const people: Array<{ userId: string; user: NonNullable<Update["users"]>; userUpdates: Update[]; totalHours: number; entryCount: number; time: string }> = []
 
-  // ── Format display date ──────────────────────────────────────────────────────
+    for (const [userId, userUpdates] of groupedByUser) {
+      const user = Array.isArray(userUpdates[0]?.users) ? userUpdates[0].users[0] : userUpdates[0]?.users
+      if (!user) continue
+      if (q && !user.name.toLowerCase().includes(q) && !userUpdates.some(u => getDescription(u).toLowerCase().includes(q))) continue
+      const totalHours = userUpdates.reduce((s, u) => s + (u.working_hours ?? 0), 0)
+      const allEntries = userUpdates.flatMap(u => Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
+      const entryCount = allEntries.filter(e => e.task_type !== "break").length
+      const time = fmtTime(userUpdates[0]?.created_at ?? userUpdates[0]?.date)
+      people.push({ userId, user, userUpdates, totalHours, entryCount, time })
+    }
+
+    return people.sort((a, b) => (b.userUpdates[0]?.created_at ?? "") .localeCompare(a.userUpdates[0]?.created_at ?? ""))
+  }, [groupedByUser, search])
+
   const displayDate = useMemo(() => {
     try {
       const d = new Date(to + "T12:00:00")
@@ -245,7 +418,9 @@ export default function ActivitiesClient({
 
   const curPreset = activePreset()
 
-  // ─────────────────────────────────────────────────────────────────────────
+  // Selected person's updates
+  const selectedUserUpdates = selectedUserId ? groupedByUser.get(selectedUserId) ?? null : null
+
   return (
     <div style={{ padding: "24px 24px 64px", maxWidth: 1400, margin: "0 auto", fontFamily: "var(--font-jakarta, Inter, sans-serif)" }}>
 
@@ -255,42 +430,25 @@ export default function ActivitiesClient({
         background: "linear-gradient(100deg, #080808 0%, #1A0000 25%, #420000 55%, #C10000 100%)",
         height: 260,
       }}>
-        {/* Radial glow behind characters */}
         <div style={{
           position: "absolute", inset: 0, pointerEvents: "none",
           background: "radial-gradient(ellipse 38% 70% at 55% 100%, rgba(220,0,0,0.45) 0%, transparent 70%)",
         }} />
-
-        {/* 3D characters — negative bottom hides transparent PNG padding below hero edge */}
         <img
           src="/brand/activities-hero.png"
           alt=""
           style={{
-            position: "absolute",
-            bottom: -85,
-            left: "50%",
-            transform: "translateX(-50%)",
-            height: 300,
-            width: "auto",
-            objectFit: "contain",
-            pointerEvents: "none",
-            userSelect: "none",
-            zIndex: 1,
+            position: "absolute", bottom: -85, left: "50%", transform: "translateX(-50%)",
+            height: 300, width: "auto", objectFit: "contain",
+            pointerEvents: "none", userSelect: "none", zIndex: 1,
           }}
         />
-
-        {/* 40 / 40 / 20 grid */}
         <div style={{ display: "grid", gridTemplateColumns: "40% 40% 20%", height: "100%", position: "relative", zIndex: 2 }}>
-
-          {/* ── Left 40%: title + subtitle + search ── */}
           <div style={{ padding: "0 24px 0 32px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", lineHeight: 1.1, margin: "0 0 8px" }}>
-              Activities
-            </h1>
+            <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", lineHeight: 1.1, margin: "0 0 8px" }}>Activities</h1>
             <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: "0 0 20px", lineHeight: 1.5 }}>
               Track real-time updates and progress from your amazing team.
             </p>
-            {/* Search bar — 280px wide, 52px tall, glassmorphism */}
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <div style={{ position: "relative", width: 280 }}>
                 <Search size={14} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.45)", pointerEvents: "none" }} />
@@ -315,19 +473,12 @@ export default function ActivitiesClient({
               </button>
             </div>
           </div>
-
-          {/* ── Center 40%: empty spacer — image positioned absolutely on hero ── */}
           <div />
-
-          {/* ── Right 20%: date chip + motivation card ── */}
           <div style={{ padding: "20px 20px 20px 0", display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end", justifyContent: "flex-start" }}>
-            {/* Date selector */}
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", cursor: "pointer", whiteSpace: "nowrap" }}>
               <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{displayDate}</span>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
-
-            {/* Motivation card */}
             <div style={{ padding: "10px 14px", borderRadius: 12, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", width: "100%" }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 2 }}>Keep it up! 🚀</div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>Team updates are on track today.</div>
@@ -409,81 +560,98 @@ export default function ActivitiesClient({
       {/* ── Main content ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20 }}>
 
-        {/* ── Left: Recent Activities Timeline ── */}
+        {/* ── Left: People who updated ── */}
         <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.04)", overflow: "hidden" }}>
           {/* Header */}
-          <div style={{ padding: "20px 24px 0", borderBottom: "1px solid #F3F4F6", paddingBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ padding: "20px 24px 16px", borderBottom: "1px solid #F3F4F6", display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(227,30,36,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <TrendingUp size={16} color="#E31E24" />
             </div>
             <div>
               <div style={{ fontSize: 15, fontWeight: 700, color: "#111827" }}>Recent Activities</div>
-              <div style={{ fontSize: 11, color: "#9CA3AF" }}>{filteredActivities.length} updates</div>
+              <div style={{ fontSize: 11, color: "#9CA3AF" }}>{filteredPeople.length} member{filteredPeople.length !== 1 ? "s" : ""} updated · click to view details</div>
             </div>
           </div>
 
-          {/* Timeline */}
+          {/* People list */}
           <div style={{ padding: "8px 0 16px" }}>
-            {filteredActivities.length === 0 && (
+            {filteredPeople.length === 0 && (
               <div style={{ textAlign: "center", padding: "48px 24px", color: "#9CA3AF", fontSize: 13 }}>
                 No activities found
               </div>
             )}
-            {filteredActivities.map((u, idx) => {
-              const user    = Array.isArray(u.users) ? u.users[0] : u.users
-              if (!user) return null
-              const desc    = getDescription(u)
-              const badge   = getTeamBadge(user.team)
+            {filteredPeople.map(({ userId, user, userUpdates, totalHours, entryCount, time }, idx) => {
+              const badge    = getTeamBadge(user.team)
               const [bg, fg] = avatarColor(user.name)
-              const initials = getInitials(user.name)
-              const time    = fmtTime(u.created_at ?? u.date)
-              const isLast  = idx === filteredActivities.length - 1
+              const isLast   = idx === filteredPeople.length - 1
+              const isSelected = selectedUserId === userId
+              const allEntries = userUpdates.flatMap(u => Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
+              const workTypes = [...new Set(allEntries.filter(e => e.task_type && e.task_type !== "break").map(e => getEntryTypeLabel(e.task_type).emoji))]
 
               return (
-                <div key={u.id} style={{ display: "flex", padding: "0 24px", gap: 16 }}>
+                <div
+                  key={userId}
+                  onClick={() => setSelectedUserId(isSelected ? null : userId)}
+                  style={{
+                    display: "flex", padding: "0 24px", gap: 16, cursor: "pointer",
+                    background: isSelected ? "rgba(227,30,36,0.03)" : "transparent",
+                    transition: "background 0.15s",
+                  }}
+                  onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "#FAFAFA" }}
+                  onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "transparent" }}
+                >
                   {/* Timeline line */}
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#E31E24", marginTop: 18, flexShrink: 0, boxShadow: "0 0 0 3px rgba(227,30,36,0.15)" }} />
+                    <div style={{
+                      width: 10, height: 10, borderRadius: "50%",
+                      background: isSelected ? "#E31E24" : "#E31E24",
+                      marginTop: 22, flexShrink: 0,
+                      boxShadow: isSelected ? "0 0 0 4px rgba(227,30,36,0.2)" : "0 0 0 3px rgba(227,30,36,0.15)",
+                    }} />
                     {!isLast && <div style={{ width: 1.5, flex: 1, background: "rgba(227,30,36,0.15)", minHeight: 20 }} />}
                   </div>
 
-                  {/* Content */}
-                  <div style={{ flex: 1, padding: "10px 0", borderBottom: isLast ? "none" : "1px solid #F9FAFB", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                  {/* Content row */}
+                  <div style={{
+                    flex: 1, padding: "12px 0",
+                    borderBottom: isLast ? "none" : "1px solid #F9FAFB",
+                    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+                  }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
                       {/* Avatar */}
-                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: bg, color: fg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
-                        {initials}
+                      <div style={{ width: 40, height: 40, borderRadius: "50%", background: bg, color: fg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0, boxShadow: isSelected ? `0 0 0 2.5px ${bg}` : "none" }}>
+                        {getInitials(user.name)}
                       </div>
-                      {/* Text */}
+                      {/* Info */}
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: "#111827" }}>{user.name}</div>
-                        <div style={{ fontSize: 12, color: "#6B7280", marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{desc}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
+                          <span style={{ padding: "1px 8px", borderRadius: 6, background: badge.bg, color: badge.color, fontSize: 10, fontWeight: 700 }}>{badge.label}</span>
+                          {workTypes.length > 0 && (
+                            <span style={{ fontSize: 12, letterSpacing: "0.05em" }}>{workTypes.join(" ")}</span>
+                          )}
+                          {entryCount > 0 && (
+                            <span style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600 }}>{entryCount} {entryCount === 1 ? "entry" : "entries"}</span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Right: badge + time */}
+                    {/* Right: hours + time + arrow */}
                     <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                      <span style={{ padding: "3px 10px", borderRadius: 8, background: badge.bg, color: badge.color, fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }}>
-                        {badge.label}
-                      </span>
+                      {totalHours > 0 && (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#374151", display: "flex", alignItems: "center", gap: 3 }}>
+                          <Clock size={11} color="#9CA3AF" /> {fmtHours(totalHours)}
+                        </span>
+                      )}
                       <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap" }}>{time}</span>
-                      <button style={{ width: 24, height: 24, border: "none", background: "transparent", cursor: "pointer", color: "#D1D5DB", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3" r="1.5"/><circle cx="8" cy="8" r="1.5"/><circle cx="8" cy="13" r="1.5"/></svg>
-                      </button>
+                      <ChevronRight size={15} color={isSelected ? "#E31E24" : "#D1D5DB"} style={{ transition: "color 0.15s" }} />
                     </div>
                   </div>
                 </div>
               )
             })}
           </div>
-
-          {updates.length > 20 && (
-            <div style={{ padding: "0 24px 20px", textAlign: "center" }}>
-              <button style={{ padding: "8px 20px", borderRadius: 10, background: "transparent", border: "1px solid #E5E7EB", color: "#E31E24", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-                View all updates →
-              </button>
-            </div>
-          )}
         </div>
 
         {/* ── Right Sidebar ── */}
@@ -501,13 +669,11 @@ export default function ActivitiesClient({
                   <Tooltip />
                 </PieChart>
               </ResponsiveContainer>
-              {/* Center text */}
               <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", textAlign: "center", pointerEvents: "none" }}>
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#111827" }}>{completionPct}%</div>
                 <div style={{ fontSize: 10, color: "#9CA3AF", lineHeight: 1.2 }}>Update<br/>Completion</div>
               </div>
             </div>
-            {/* Legend */}
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
               {donutData.map(d => (
                 <div key={d.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -525,8 +691,6 @@ export default function ActivitiesClient({
           <div style={{ background: "#fff", borderRadius: 20, padding: "20px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 20px rgba(0,0,0,0.04)", position: "relative", overflow: "hidden" }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: "#111827", marginBottom: 4 }}>Members Awaiting Update</div>
             <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 16 }}>{stats.notUpdated} member{stats.notUpdated !== 1 ? "s" : ""} haven&apos;t updated yet</div>
-
-            {/* Avatar group */}
             {stats.notUpdatedMembers.length > 0 ? (
               <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 16 }}>
                 {stats.notUpdatedMembers.slice(0, 5).map((m, i) => {
@@ -554,7 +718,6 @@ export default function ActivitiesClient({
             ) : (
               <div style={{ fontSize: 12, color: "#16A34A", fontWeight: 600, marginBottom: 16 }}>All members updated ✓</div>
             )}
-
             <button style={{
               width: "100%", padding: "10px", borderRadius: 10, background: "#E31E24", color: "#fff",
               border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
@@ -562,8 +725,6 @@ export default function ActivitiesClient({
               <Bell size={14} />
               Send Reminder
             </button>
-
-            {/* Notification bell illustration */}
             <div style={{ position: "absolute", right: -8, bottom: -8, opacity: 0.06 }}>
               <Bell size={100} color="#E31E24" />
             </div>
@@ -597,6 +758,14 @@ export default function ActivitiesClient({
 
         </div>
       </div>
+
+      {/* ── Person Detail Drawer ── */}
+      {selectedUserUpdates && (
+        <PersonDetailDrawer
+          updates={selectedUserUpdates}
+          onClose={() => setSelectedUserId(null)}
+        />
+      )}
     </div>
   )
 }

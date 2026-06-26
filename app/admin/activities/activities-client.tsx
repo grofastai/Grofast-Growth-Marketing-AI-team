@@ -288,7 +288,7 @@ function TeamInsightsView({
     const getTotalHours = (userId: string) => {
       const userUpdates = groupedByUser.get(userId) ?? []
       const allEntries = userUpdates.flatMap(u => Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
-      return allEntries.reduce((s, e) => s + ((e.duration_minutes as number ?? 0) / 60), 0)
+      return allEntries.filter(e => e.task_type !== "break").reduce((s, e) => s + ((e.duration_minutes as number ?? 0) / 60), 0)
     }
 
     const maxHours = Math.max(...members.map(m => getTotalHours(m.id)), 1)
@@ -297,28 +297,31 @@ function TeamInsightsView({
       const userUpdates = groupedByUser.get(m.id) ?? []
       const allEntries = userUpdates.flatMap(u => Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
       const nonBreakEntries = allEntries.filter(e => e.task_type !== "break")
-      const hours = getTotalHours(m.id)
+      const breakEntries = allEntries.filter(e => e.task_type === "break")
+      const workedHours = getTotalHours(m.id)
+      const breakHours = breakEntries.reduce((s, e) => s + ((e.duration_minutes as number ?? 0) / 60), 0)
       const entryCount = nonBreakEntries.length
       const workTypes = [...new Set(nonBreakEntries.filter(e => e.task_type).map(e => getEntryTypeLabel(e.task_type).emoji))]
 
       const effectiveRate = (m.hourly_rate && m.hourly_rate > 0)
         ? m.hourly_rate
         : (m.monthly_salary ? Math.round(m.monthly_salary / 176) : 0)
-      const workValue = hours * effectiveRate
+      const workValue = workedHours * effectiveRate
+      const breakCost = breakHours * effectiveRate
       const salary = m.monthly_salary ?? 0
       const ratio = salary > 0 ? Math.round((workValue / salary) * 100) : null
 
-      // Score: 50pts value/salary, 20pts hours vs team max, 30pts entries (max 10 entries)
+      // Score: 50pts value/salary, 20pts hours vs team max, 30pts entries
       const valuePts = salary > 0 ? Math.min(50, (workValue / salary) * 50) : 0
-      const hoursPts = Math.min(20, (hours / maxHours) * 20)
+      const hoursPts = Math.min(20, (workedHours / maxHours) * 20)
       const entryPts = Math.min(30, entryCount * 3)
       const score = Math.round(valuePts + hoursPts + entryPts)
 
-      return { member: m, hours, workValue, salary, effectiveRate, ratio, score, entryCount, workTypes, hasUpdate: userUpdates.length > 0 }
-    }).sort((a, b) => b.score - a.score || b.hours - a.hours)
+      return { member: m, workedHours, breakHours, breakCost, workValue, salary, effectiveRate, ratio, score, entryCount, workTypes, hasUpdate: userUpdates.length > 0 }
+    }).sort((a, b) => b.score - a.score || b.workedHours - a.workedHours)
   }, [members, groupedByUser])
 
-  const totalHours = rows.reduce((s, r) => s + r.hours, 0)
+  const totalHours = rows.reduce((s, r) => s + r.workedHours, 0)
   const totalValue = rows.reduce((s, r) => s + r.workValue, 0)
   const totalSalary = rows.reduce((s, r) => s + r.salary, 0)
 
@@ -351,15 +354,15 @@ function TeamInsightsView({
       </div>
 
       {/* Column headers */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 80px 110px 100px 90px 60px", gap: 0, padding: "8px 24px", background: "#FAFAFA", borderBottom: "1px solid #F3F4F6" }}>
-        {["Employee", "Hours", "Work Value", "Salary", "Value vs Pay", "Score"].map(h => (
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 120px 120px 100px 90px 60px", gap: 0, padding: "8px 24px", background: "#FAFAFA", borderBottom: "1px solid #F3F4F6" }}>
+        {["Employee", "Worked / Free Time", "Work Value", "Salary", "Value vs Pay", "Score"].map(h => (
           <div key={h} style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em" }}>{h}</div>
         ))}
       </div>
 
       {/* Rows */}
       <div>
-        {rows.map(({ member: m, hours, workValue, salary, effectiveRate, ratio, score, entryCount, workTypes, hasUpdate }, i) => {
+        {rows.map(({ member: m, workedHours, breakHours, breakCost, workValue, salary, effectiveRate, ratio, score, entryCount, workTypes, hasUpdate }, i) => {
           const [bg, fg] = avatarColor(m.name)
           const badge = getTeamBadge(m.team)
           const noRate = effectiveRate === 0
@@ -368,7 +371,7 @@ function TeamInsightsView({
 
           return (
             <div key={m.id} style={{
-              display: "grid", gridTemplateColumns: "2fr 80px 110px 100px 90px 60px",
+              display: "grid", gridTemplateColumns: "2fr 120px 120px 100px 90px 60px",
               gap: 0, padding: "14px 24px", alignItems: "center",
               borderBottom: "1px solid #F9FAFB",
               background: i % 2 === 0 ? "#fff" : "#FAFBFF",
@@ -390,10 +393,20 @@ function TeamInsightsView({
                 </div>
               </div>
 
-              {/* Hours */}
+              {/* Worked / Free Time */}
               <div>
-                <div style={{ fontSize: 14, fontWeight: 900, color: ag }}>{hours > 0 ? `${hours.toFixed(1)}h` : "—"}</div>
-                {!noRate && hours > 0 && <div style={{ fontSize: 9, color: "#9CA3AF" }}>{fmtRupee(effectiveRate)}/hr</div>}
+                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: workedHours > 0 ? ag : "#D1D5DB" }}>
+                    {workedHours > 0 ? `${workedHours.toFixed(1)}h` : "—"}
+                  </span>
+                  {breakHours > 0 && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: "#F97316", background: "rgba(249,115,22,0.08)", padding: "1px 5px", borderRadius: 4 }}>
+                      ☕ {breakHours.toFixed(1)}h
+                    </span>
+                  )}
+                </div>
+                {!noRate && workedHours > 0 && <div style={{ fontSize: 9, color: "#9CA3AF", marginTop: 2 }}>{fmtRupee(effectiveRate)}/hr</div>}
+                {!noRate && breakHours > 0 && <div style={{ fontSize: 9, color: "#F97316", marginTop: 1 }}>free {fmtRupee(breakCost)} wasted</div>}
               </div>
 
               {/* Work Value */}

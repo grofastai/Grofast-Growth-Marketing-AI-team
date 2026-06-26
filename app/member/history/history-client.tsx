@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react"
 import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts"
 import { useRouter } from "next/navigation"
 import { deleteDailyUpdate, updatePastDailyUpdate, updateDailyUpdateLearning, addEntryToDate } from "@/lib/actions/daily-updates"
+import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
 import { confirmCollaboration, editCollaborationTime, rejectCollaboration, deleteCollaborationsByEntry } from "@/lib/actions/collaboration"
 
 const INTERNAL_BRANDS = ["GROFAST DIGITAL", "KARTHICK BRANDS", "GROFAST AI"]
@@ -2123,24 +2124,15 @@ export default function HistoryClient({
                                         <div style={{ position:"relative" }}>
                                           <select value={editDraft.video_type??""} onChange={ev=>setEditDraft(d=>({...d,video_type:ev.target.value}))} style={{ ...HF, paddingRight:28, appearance:"none" }}>
                                             <option value="">Select type…</option>
-                                            {["Instagram Reels","Hook","Personal Branding","Ads and Hooks","Long Videos","Cinematic","YouTube Shorts"].map(t=><option key={t} value={t}>{t}</option>)}
+                                            {["ADVERTISEMENT","ADVERTISEMENT WITH HOOKS","LONG FORMAT VIDEO","CINEMATIC","PROMOTION VIDEOS","INSTAGRAM REELS","YOUTUBE SHORTS","GREEN SCREEN EDITING","PERSONAL BRANDING"].map(t=><option key={t} value={t}>{t}</option>)}
                                             <option value="__other__">✏️ Other</option>
                                           </select>
                                           <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
                                         </div>
                                       </div>
                                       <div>
-                                        <label style={HL}>Duration (mins)</label>
-                                        <div style={{ position:"relative" }}>
-                                          <select value={editDraft.video_duration??""} onChange={ev=>setEditDraft(d=>({...d,video_duration:ev.target.value}))} style={{ ...HF, paddingRight:28, appearance:"none" }}>
-                                            <option value="">Select…</option>
-                                            <option value="15 sec">15 sec</option>
-                                            <option value="30 sec">30 sec</option>
-                                            <option value="45 sec">45 sec</option>
-                                            {[1,1.5,2,2.5,3,3.5,4,4.5,5,10].map(m=><option key={m} value={`${m} min`}>{m} min</option>)}
-                                          </select>
-                                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                                        </div>
+                                        <label style={HL}>Duration</label>
+                                        <VideoDurationPicker value={editDraft.video_duration??""} onChange={v=>setEditDraft(d=>({...d,video_duration:v}))} inputStyle={{ background:"#F9FAFB", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"9px 10px", fontSize:13 }} />
                                       </div>
                                       <div><label style={HL}>Revisions</label><input type="number" min="0" max="99" value={editDraft.revisions??0} onChange={ev=>setEditDraft(d=>({...d,revisions:parseInt(ev.target.value)||0}))} placeholder="0" style={HF} /></div>
                                     </div>

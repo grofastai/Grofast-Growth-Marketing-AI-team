@@ -1536,7 +1536,8 @@ export default function HistoryClient({
                       {(() => {
                         const workH   = calcNetWorkHours(entries)
                         const travelH = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + (e._travel_hours ?? 0), 0)
-                        const learnH  = entries.filter(e => e.task_type === "learning").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+                        const learnEntryH = entries.filter(e => e.task_type === "learning").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+                        const learnH  = learnEntryH > 0 ? learnEntryH : (u.learning_hours ?? 0)
                         const breakH  = entries.filter(e => e.task_type === "break").reduce((s, e) => s + (e.duration_hours ?? 0), 0)
                         const collabH = collabHoursByDate.get(u.date) ?? 0
                         const displayH = workH + collabH || (u.working_hours ?? 0)

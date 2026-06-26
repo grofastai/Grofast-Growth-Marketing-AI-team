@@ -8,12 +8,11 @@ import {
   Loader2, LogOut, KeyRound, Clock, Target, AlertCircle, TrendingUp,
   Zap, Camera, HeartPulse, MapPin, UserPlus, Landmark, CreditCard,
   FileText, Upload, CheckCircle2, AlertTriangle, ChevronDown,
-  ChevronRight, Bell, Settings, Lock, FolderOpen, User, Download,
+  ChevronRight, Bell, Settings, Lock, User, Download,
 } from "lucide-react"
 import { updateOwnProfile } from "@/lib/actions/team"
 import { updatePersonalDetails, updateKYC, deleteKYCDocument, type KYCDocField } from "@/lib/actions/profile"
 import { logoutAction } from "@/lib/actions/auth"
-import { uploadMemberDoc } from "@/lib/actions/member-documents"
 import { createBrowserClient } from "@/lib/supabase/client"
 
 interface ProfileData {
@@ -124,13 +123,11 @@ function WeekChart({ data }: { data: ChartDay[] }) {
 const DOT_COLORS = ["#DE1A1A", "#F59E0B", "#3B82F6", "#22C55E", "#8B5CF6"]
 
 export default function ProfileClient({
-  profile, kyc, stats, chartData, recentUpdates, authEmail, payslipHistory, documents = [], companyId = "", userId = "",
+  profile, kyc, stats, chartData, recentUpdates, authEmail, payslipHistory,
 }: {
   profile: ProfileData | null; kyc: KYCData | null; stats: Stats
   chartData: ChartDay[]; recentUpdates: RecentUpdate[]; authEmail: string
   payslipHistory: { month: string; is_paid: boolean; paid_at: string | null }[]
-  documents?: { id: string; name: string; file_type: string; drive_url: string; uploaded_at: string }[]
-  companyId?: string; userId?: string
 }) {
   const router = useRouter()
 
@@ -163,10 +160,6 @@ export default function ProfileClient({
   const [kycError, setKYCError]     = useState<string | null>(null)
   const [kycSuccess, setKycSuccess] = useState(false)
   const [uploadingField, setUploadingField] = useState<string | null>(null)
-  const [docUploading, setDocUploading]     = useState(false)
-  const [docError, setDocError]             = useState<string | null>(null)
-  const [localDocs, setLocalDocs]           = useState(documents)
-  const docFileRef = useRef<HTMLInputElement>(null)
 
   const photoRef    = useRef<HTMLInputElement>(null)
   const profPhotoRef = useRef<HTMLInputElement>(null)
@@ -990,58 +983,32 @@ export default function ProfileClient({
         </div>
       )}
 
-      {/* ── My Documents ───────────────────────────────────────── */}
-      <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", margin: "0 16px 16px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <FolderOpen size={16} style={{ color: "#374151" }}/>
-            <span style={{ fontSize: 14, fontWeight: 800, color: "#111111" }}>My Documents</span>
-          </div>
-          <button onClick={() => docFileRef.current?.click()} disabled={docUploading}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 10, border: "none", background: "linear-gradient(135deg,#DE1A1A,#7F1D1D)", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: docUploading ? 0.7 : 1 }}>
-            {docUploading ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }}/> : <Upload size={12}/>}
-            {docUploading ? "Uploading…" : "Upload"}
-          </button>
-          <input ref={docFileRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style={{ display: "none" }}
-            onChange={async e => {
-              const file = e.target.files?.[0]
-              if (!file || !userId || !companyId) return
-              setDocUploading(true); setDocError(null)
-              const fd = new FormData()
-              fd.set("user_id", userId)
-              fd.set("company_id", companyId)
-              fd.set("file", file)
-              const res = await uploadMemberDoc(fd)
-              setDocUploading(false)
-              if (res.error) { setDocError(res.error) }
-              else { setLocalDocs(d => [...d, { id: Date.now().toString(), name: file.name, file_type: file.type, drive_url: "", uploaded_at: new Date().toISOString() }]); router.refresh() }
-              e.target.value = ""
-            }}
-          />
+      {/* ── Quick Actions ───────────────────────────────────────── */}
+      <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", padding: "20px 22px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", marginTop: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <Zap size={16} style={{ color: "#374151" }}/>
+          <span style={{ fontSize: 14, fontWeight: 800, color: "#111111" }}>Quick Actions</span>
         </div>
-        {docError && <p style={{ fontSize: 12, color: "#DE1A1A", marginBottom: 10 }}>{docError}</p>}
-        {localDocs.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "24px 0" }}>
-            <FolderOpen size={32} style={{ color: "#D1D5DB", marginBottom: 8 }}/>
-            <p style={{ fontSize: 13, color: "#9CA3AF", margin: 0 }}>No documents uploaded yet</p>
-          </div>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {localDocs.map(doc => (
-              <a key={doc.id} href={doc.drive_url || "#"} target="_blank" rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", borderRadius: 10, border: "1px solid #EBEDF2", textDecoration: "none", background: "#FAFBFC" }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(222,26,26,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <FileText size={14} style={{ color: "#DE1A1A" }}/>
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 12, fontWeight: 700, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{doc.name}</p>
-                  <p style={{ fontSize: 10, color: "#9CA3AF", margin: 0 }}>{new Date(doc.uploaded_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
-                </div>
-                <ChevronRight size={14} style={{ color: "#D1D5DB", flexShrink: 0 }}/>
-              </a>
-            ))}
-          </div>
-        )}
+        <p style={{ fontSize: 12, color: "#9CA3AF", margin: "0 0 16px" }}>Jump to the things you do every day</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {([
+            { icon: "📝", title: "Submit Update",  desc: "Log today's work",       href: "/member/update",        accent: "#DE1A1A", bg: "rgba(222,26,26,0.06)",  border: "rgba(222,26,26,0.15)" },
+            { icon: "✅", title: "My Tasks",        desc: "View assigned tasks",    href: "/member/tasks",         accent: "#6366F1", bg: "rgba(99,102,241,0.06)", border: "rgba(99,102,241,0.15)" },
+            { icon: "🏖️", title: "Apply Leave",    desc: "Request time off",       href: "/member/leaves",        accent: "#F59E0B", bg: "rgba(245,158,11,0.06)", border: "rgba(245,158,11,0.15)" },
+            { icon: "📢", title: "Announcements",  desc: "Company updates",         href: "/member/announcements", accent: "#22C55E", bg: "rgba(34,197,94,0.06)",  border: "rgba(34,197,94,0.15)" },
+          ] as const).map(({ icon, title, desc, href, accent, bg, border }) => (
+            <button key={title} onClick={() => router.push(href)}
+              style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10, padding: "16px", borderRadius: 16, border: `1.5px solid ${border}`, background: bg, cursor: "pointer", textAlign: "left", transition: "transform 0.1s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "translateY(0)" }}>
+              <span style={{ fontSize: 26, lineHeight: 1 }}>{icon}</span>
+              <div>
+                <p style={{ fontSize: 13, fontWeight: 800, color: accent, margin: "0 0 3px", fontFamily: "var(--font-jakarta)" }}>{title}</p>
+                <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>{desc}</p>
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Coming Soon Modal ──────────────────────────────────────────────── */}

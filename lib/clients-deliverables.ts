@@ -3,6 +3,18 @@
 export type PricingRate = { video_type: string; rate_per_video: number }
 export type MemberUser  = { id: string; name: string; employee_id: string; hourly_rate: number | null; monthly_salary: number | null; team: string | null }
 
+export type FreelancerWorkEntry = {
+  id: string
+  date_finished: string
+  client_name: string
+  title: string
+  amount: number
+  duration_mins: number | null
+  team: string
+  task_description: string | null
+  freelancer_name: string
+}
+
 export type EditingVideo = {
   id?: string
   video_name?: string
@@ -170,6 +182,23 @@ function isMediaTeam(team: string | null): boolean {
   return t === 'media team' || t === 'media production team'
 }
 
+function freelancerTaskType(team: string, taskDescription: string | null): 'shoot' | 'edit' | 'voiceover' | 'poster' | 'other' {
+  if (team === 'Freelance Videography')        return 'shoot'
+  if (team === 'Freelance Video Editing')      return 'edit'
+  if (team === 'Freelance RJ Voiceover')       return 'voiceover'
+  if (team === 'Freelance Graphics Designer')  return 'poster'
+  if (team === 'Freelance IT Technology & Media') {
+    try {
+      const cat = JSON.parse(taskDescription ?? '{}').category ?? ''
+      if (cat === 'voiceover') return 'voiceover'
+      if (cat === 'poster')    return 'poster'
+    } catch { /* fallthrough */ }
+    return 'other'
+  }
+  // Content Writer, Dev & Automation, Marketing & Ops → technical/other
+  return 'other'
+}
+
 export function computeDeliverables(
   updates: UpdateRow[],
   users: MemberUser[],
@@ -177,6 +206,7 @@ export function computeDeliverables(
   clientFilter: string | string[] | null,   // null = all clients; string[] = multiple; string = one
   dateFrom: string,
   dateTo: string,
+  freelancerEntries: FreelancerWorkEntry[] = [],
 ): DeliverableResult {
   const userMap  = new Map(users.map(u => [u.id, u]))
   const rateMap: Record<string, number> = {}
@@ -328,6 +358,61 @@ export function computeDeliverables(
     if (rowHasClientEntry && !contributingRows.has(row.id)) {
       contributingRows.add(row.id)
       totalLearningHours += row.learning_hours ?? 0
+    }
+  }
+
+  // ── Freelancer entries (no-login teams from freelancer_work_entries_v2) ─────
+  for (const fe of freelancerEntries) {
+    if (fe.date_finished < dateFrom || fe.date_finished > dateTo) continue
+    const clientLower = (fe.client_name ?? '').trim().toLowerCase()
+    if (clientNameSet !== null && !clientNameSet.has(clientLower)) continue
+
+    const tt    = freelancerTaskType(fe.team, fe.task_description)
+    const cost  = fe.amount
+    const hrs   = fe.duration_mins ? fe.duration_mins / 60 : 0
+    const date  = fe.date_finished
+    const name  = fe.freelancer_name
+    const title = fe.title
+
+    if (!dayMap[date]) dayMap[date] = []
+
+    if (tt === 'shoot') {
+      shoots.push({ date, clientName: fe.client_name, memberName: name, title, hours: hrs, cost })
+      mediaShootCount++
+      mediaShootHours += hrs
+      dayMap[date].push({ date, memberName: name, taskType: 'shoot', itemCount: 1, hours: hrs, cost, label: title })
+
+    } else if (tt === 'edit') {
+      const tdRaw = (() => { try { return JSON.parse(fe.task_description ?? '{}') } catch { return {} } })()
+      const vType = (tdRaw.video_type as string | undefined) || inferVideoType(title)
+      if (!videoMap[vType]) videoMap[vType] = { videoType: vType, count: 0, totalTimeTaken: 0, totalCost: 0, videos: [] }
+      videoMap[vType].count++
+      videoMap[vType].totalTimeTaken += hrs
+      videoMap[vType].totalCost      += cost
+      videoMap[vType].videos.push({ date, clientName: fe.client_name, memberName: name, videoName: title, videoType: vType, timeTaken: hrs, revisions: (tdRaw.revisions as number | undefined) ?? 0, cost })
+      mediaEditCount++
+      mediaEditHours += hrs
+      dayMap[date].push({ date, memberName: name, taskType: 'edit', itemCount: 1, hours: hrs, cost, label: title })
+
+    } else if (tt === 'voiceover') {
+      voiceoverCountAcc++
+      voiceoverHoursAcc += hrs
+      const ve = { date, clientName: fe.client_name, memberName: name, title, hours: hrs, cost }
+      otherWork.push(ve); voiceoverWork.push(ve)
+      dayMap[date].push({ date, memberName: name, taskType: 'voiceover', itemCount: 1, hours: hrs, cost, label: title })
+
+    } else if (tt === 'poster') {
+      posterCountAcc++
+      posterHoursAcc += hrs
+      const pe = { date, clientName: fe.client_name, memberName: name, title, hours: hrs, cost }
+      otherWork.push(pe); posterWork.push(pe)
+      dayMap[date].push({ date, memberName: name, taskType: 'poster', itemCount: 1, hours: hrs, cost, label: title })
+
+    } else {
+      const te = { date, clientName: fe.client_name, memberName: name, title, hours: hrs, cost }
+      otherWork.push(te); technicalWork.push(te)
+      nonMediaWorkHours += hrs
+      dayMap[date].push({ date, memberName: name, taskType: 'other', itemCount: 0, hours: hrs, cost, label: title })
     }
   }
 

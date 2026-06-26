@@ -35,8 +35,9 @@ export async function GET() {
 
   for (const c of (allClients ?? []) as {id:string; name:string}[]) {
     if (isWrongPn(c.name)) {
-      const { error } = await admin.from('clients').update({ name: CORRECT_PN }).eq('id', c.id)
-      log.push(error ? `clients error: ${error.message}` : `clients: "${c.name}" → "${CORRECT_PN}"`)
+      // Correct spelling already exists — delete the typo entry instead of renaming
+      const { error } = await admin.from('clients').delete().eq('id', c.id)
+      log.push(error ? `clients delete error: ${error.message}` : `clients: deleted typo "${c.name}" (correct entry already exists)`)
     }
   }
 

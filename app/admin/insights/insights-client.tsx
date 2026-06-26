@@ -87,8 +87,16 @@ function SectionCard({ title, emoji, children, action }: {
 
 // ── Main component ─────────────────────────────────────────────────────────────
 
+export type AllMember = {
+  name: string
+  employeeId: string
+  team: string | null
+  monthlySalary: number
+  hourlyRate: number
+}
+
 export default function InsightsClient({
-  month, today, kpis, memberUtilization, clientHours, dailyTrend, spendByCategory,
+  month, today, kpis, memberUtilization, clientHours, dailyTrend, spendByCategory, allMembers,
 }: {
   month: string
   today: string
@@ -97,6 +105,7 @@ export default function InsightsClient({
   clientHours: ClientHour[]
   dailyTrend: DailyTrend[]
   spendByCategory: SpendCategory[]
+  allMembers: AllMember[]
 }) {
   const router  = useRouter()
   const [expandedMember, setExpandedMember] = useState<string | null>(null)
@@ -545,6 +554,52 @@ export default function InsightsClient({
           </div>
         </SectionCard>
       )}
+
+      {/* ── Per-Hour Rate Reference Table ───────────────────────────────── */}
+      <SectionCard title="Employee Per-Hour Rate Reference" emoji="💰">
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: '#F9FAFB' }}>
+                {['Employee', 'ID', 'Team', 'Monthly Salary', 'Per Hour Rate'].map(h => (
+                  <th key={h} style={{
+                    padding: '10px 16px', textAlign: 'left', fontSize: 10,
+                    fontWeight: 800, color: '#6B7280', textTransform: 'uppercase',
+                    letterSpacing: '0.06em', borderBottom: '1px solid #F3F4F6',
+                    whiteSpace: 'nowrap',
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {allMembers.map((m, i) => (
+                <tr key={m.employeeId} style={{ background: i % 2 === 0 ? '#fff' : '#FAFAFA' }}>
+                  <td style={{ padding: '10px 16px', fontWeight: 700, color: '#111827' }}>{m.name.trim()}</td>
+                  <td style={{ padding: '10px 16px', color: '#6B7280', fontWeight: 600, fontFamily: 'monospace' }}>{m.employeeId}</td>
+                  <td style={{ padding: '10px 16px', color: '#6B7280', fontSize: 12 }}>{m.team ?? '—'}</td>
+                  <td style={{ padding: '10px 16px', fontWeight: 700, color: '#374151' }}>
+                    {m.monthlySalary > 0 ? `₹${m.monthlySalary.toLocaleString('en-IN')}` : '—'}
+                  </td>
+                  <td style={{ padding: '10px 16px' }}>
+                    {m.hourlyRate > 0 ? (
+                      <span style={{
+                        background: 'rgba(222,26,26,0.08)', color: '#DE1A1A',
+                        fontWeight: 800, fontSize: 13, padding: '3px 10px',
+                        borderRadius: 8, whiteSpace: 'nowrap',
+                      }}>
+                        ₹{m.hourlyRate.toFixed(2)}/hr
+                      </span>
+                    ) : <span style={{ color: '#9CA3AF' }}>—</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p style={{ fontSize: 10, color: '#9CA3AF', padding: '10px 16px', margin: 0 }}>
+          Formula: Monthly Salary ÷ 212.5 hrs (25 days × 8.5 hrs)
+        </p>
+      </SectionCard>
 
     </div>
   )

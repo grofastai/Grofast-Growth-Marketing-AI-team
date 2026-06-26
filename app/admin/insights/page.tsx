@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
-import InsightsClient from './insights-client'
+import InsightsClient, { type AllMember } from './insights-client'
 
 function adminClient() {
   return createClient(
@@ -338,6 +338,14 @@ export default async function InsightsPage({
     { label: 'Unassigned',       emoji: '❓', ...spendCats.unassigned, color: '#F59E0B' },
   ].filter(c => c.hours > 0)
 
+  const allMembers: AllMember[] = members.map(m => ({
+    name: m.name,
+    employeeId: m.employee_id,
+    team: m.team,
+    monthlySalary: m.monthly_salary ?? 0,
+    hourlyRate: deriveHourly(m),
+  }))
+
   return (
     <InsightsClient
       month={month}
@@ -347,6 +355,7 @@ export default async function InsightsPage({
       clientHours={clientHours}
       dailyTrend={dailyTrend}
       spendByCategory={spendByCategory}
+      allMembers={allMembers}
     />
   )
 }

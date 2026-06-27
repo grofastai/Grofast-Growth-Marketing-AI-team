@@ -13,23 +13,23 @@ import {
 import { logoutAction } from "@/lib/actions/auth"
 
 const navItems = [
-  { label: "Dashboard",     href: "/admin/dashboard",     icon: LayoutDashboard },
-  { label: "Team",          href: "/admin/team",          icon: Users },
-  { label: "Activities",    href: "/admin/activities",    icon: Activity },
-  { label: "Attendance",    href: "/admin/attendance",    icon: Clock },
-  { label: "Tasks",         href: "/admin/goals",         icon: Target },
-  { label: "Clients",       href: "/admin/clients",       icon: Briefcase },
-  { label: "Freelancers",   href: "/admin/freelancers",   icon: Film },
-  { label: "Team Insights", href: "/admin/insights",      icon: TrendingUp },
-  { label: "Leaves",        href: "/admin/leaves",           icon: CalendarOff },
-  { label: "Content Cal",   href: "/admin/content-calendar", icon: CalendarDays },
-  { label: "Announcements", href: "/admin/announcements",    icon: Megaphone },
-  { label: "Notes",         href: "/admin/notes",            icon: StickyNote },
-  { label: "Expenses",      href: "/admin/expenses",         icon: Receipt },
-  { label: "Payroll",       href: "/admin/payroll",          icon: IndianRupee },
-  { label: "Documents",     href: "/admin/documents",        icon: FolderOpen },
-  { label: "Support",       href: "/admin/support",          icon: LifeBuoy },
-  { label: "Profile",       href: "/admin/profile",          icon: UserCircle2 },
+  { label: "Dashboard",     href: "/admin/dashboard",        icon: LayoutDashboard },
+  { label: "Attendance",    href: "/admin/attendance",        icon: Clock },
+  { label: "Clients",       href: "/admin/clients",           icon: Briefcase },
+  { label: "Team",          href: "/admin/team",              icon: Users },
+  { label: "Leaves",        href: "/admin/leaves",            icon: CalendarOff },
+  { label: "Activities",    href: "/admin/activities",        icon: Activity },
+  { label: "Expenses",      href: "/admin/expenses",          icon: Receipt },
+  { label: "Freelancers",   href: "/admin/freelancers",       icon: Film },
+  { label: "Team Insights", href: "/admin/insights",          icon: TrendingUp },
+  { label: "Tasks",         href: "/admin/goals",             icon: Target },
+  { label: "Content Cal",   href: "/admin/content-calendar",  icon: CalendarDays },
+  { label: "Announcements", href: "/admin/announcements",     icon: Megaphone },
+  { label: "Notes",         href: "/admin/notes",             icon: StickyNote },
+  { label: "Payroll",       href: "/admin/payroll",           icon: IndianRupee },
+  { label: "Documents",     href: "/admin/documents",         icon: FolderOpen },
+  { label: "Support",       href: "/admin/support",           icon: LifeBuoy },
+  { label: "Profile",       href: "/admin/profile",           icon: UserCircle2 },
 ]
 
 const bottomNavItems = [
@@ -40,17 +40,18 @@ const bottomNavItems = [
 ]
 
 const moreNavItems = [
-  { label: "Activities",    href: "/admin/activities",       icon: Activity },
-  { label: "Attendance",    href: "/admin/attendance",       icon: Clock },
-  { label: "Clients",       href: "/admin/clients",          icon: Briefcase },
-  { label: "Freelancers",   href: "/admin/freelancers",      icon: Film },
-  { label: "Content Cal",   href: "/admin/content-calendar", icon: CalendarDays },
-  { label: "Announcements", href: "/admin/announcements",    icon: Megaphone },
-  { label: "Notes",         href: "/admin/notes",            icon: StickyNote },
-  { label: "Expenses",      href: "/admin/expenses",         icon: Receipt },
-  { label: "Payroll",       href: "/admin/payroll",          icon: IndianRupee },
-  { label: "Documents",     href: "/admin/documents",        icon: FolderOpen },
-  { label: "Support",       href: "/admin/support",          icon: LifeBuoy },
+  { label: "Attendance",    href: "/admin/attendance",        icon: Clock },
+  { label: "Clients",       href: "/admin/clients",           icon: Briefcase },
+  { label: "Activities",    href: "/admin/activities",        icon: Activity },
+  { label: "Expenses",      href: "/admin/expenses",          icon: Receipt },
+  { label: "Freelancers",   href: "/admin/freelancers",       icon: Film },
+  { label: "Team Insights", href: "/admin/insights",          icon: TrendingUp },
+  { label: "Content Cal",   href: "/admin/content-calendar",  icon: CalendarDays },
+  { label: "Announcements", href: "/admin/announcements",     icon: Megaphone },
+  { label: "Notes",         href: "/admin/notes",             icon: StickyNote },
+  { label: "Payroll",       href: "/admin/payroll",           icon: IndianRupee },
+  { label: "Documents",     href: "/admin/documents",         icon: FolderOpen },
+  { label: "Support",       href: "/admin/support",           icon: LifeBuoy },
 ]
 
 const SIDEBAR_BG = "linear-gradient(160deg, #0a100d 0%, #520000 55%, #de1a1a 100%)"

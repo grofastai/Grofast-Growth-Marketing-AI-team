@@ -35,6 +35,7 @@ export type WorkEntry = {
   end_time?: string
   duration_hours?: number
   editing_videos?: EditingVideo[]
+  price?: number | null  // admin-set per-work price (Freelance Media Production members)
 }
 
 export type UpdateRow = {
@@ -286,7 +287,7 @@ export function computeDeliverables(
       if (!dayMap[row.date]) dayMap[row.date] = []
 
       if (tt === 'shoot') {
-        const cost = hourly * hrs
+        const cost = entry.price != null ? entry.price : hourly * hrs
         shoots.push({ date: row.date, clientName: entryClientName, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Shoot'), hours: hrs, cost })
         tm.shootHours += hrs
         tm.cost       += cost
@@ -315,6 +316,8 @@ export function computeDeliverables(
               timeTaken: v.time_taken ?? 0, revisions: v.revisions ?? 0, cost: vCost,
             })
           }
+          // Admin-set price overrides the sum of per-video costs
+          if (entry.price != null) editCost = entry.price
         } else {
           // Current format: the entry itself IS one video
           const anyEntry = entry as Record<string, unknown>
@@ -323,7 +326,8 @@ export function computeDeliverables(
           const timeTaken = (anyEntry.time_taken as number | undefined) ?? hrs
           const typeRate  = rateMap[vType.toLowerCase()] ?? 0
           const laborCost = hourly * timeTaken
-          const vCost     = typeRate + laborCost
+          // Admin-set price (Freelance Media Production) takes priority over hourly calc
+          const vCost = entry.price != null ? entry.price : (typeRate + laborCost)
           editCost = vCost
           tm.videoCount++
           if (isMedia) { mediaEditCount++; mediaEditHours += timeTaken }
@@ -341,7 +345,7 @@ export function computeDeliverables(
         dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'edit', itemCount: Math.max(storedVideos.length, 1), hours: hrs, cost: editCost, label: 'Editing' })
 
       } else if (tt === 'voiceover') {
-        const cost = hourly * hrs
+        const cost = entry.price != null ? entry.price : hourly * hrs
         voiceoverCountAcc++
         voiceoverHoursAcc += hrs
         const ve = { date: row.date, clientName: entryClientName, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Voiceover'), hours: hrs, cost }
@@ -350,7 +354,7 @@ export function computeDeliverables(
         dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'voiceover', itemCount: 1, hours: hrs, cost, label: entry.title ?? 'Voiceover' })
 
       } else if (tt === 'poster') {
-        const cost = hourly * hrs
+        const cost = entry.price != null ? entry.price : hourly * hrs
         posterCountAcc++
         posterHoursAcc += hrs
         const pe = { date: row.date, clientName: entryClientName, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Poster'), hours: hrs, cost }
@@ -359,7 +363,7 @@ export function computeDeliverables(
         dayMap[row.date].push({ date: row.date, memberName: user.name, taskType: 'poster', itemCount: 1, hours: hrs, cost, label: entry.title ?? 'Poster' })
 
       } else {
-        const cost = hourly * hrs
+        const cost = entry.price != null ? entry.price : hourly * hrs
         const te = { date: row.date, clientName: entryClientName, memberName: user.name, title: stripBracketPrefix(entry.title ?? 'Work'), hours: hrs, cost }
         otherWork.push(te); technicalWork.push(te)
         tm.otherHours += hrs; tm.cost += cost

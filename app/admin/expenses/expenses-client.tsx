@@ -60,11 +60,6 @@ type ActiveClient = {
   name: string
 }
 
-type ContentPostRow = {
-  client_name: string
-  content_type: string
-  scheduled_date: string
-}
 
 type ShootRow = {
   key: string
@@ -420,14 +415,13 @@ function TravelTableModal({ shoots, savedTravel, onClose }: {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function ExpensesClient({
-  updates, users, clientExpenses, commonExpenses, activeClients, contentPosts, selectedMonth,
+  updates, users, clientExpenses, commonExpenses, activeClients, selectedMonth,
 }: {
   updates: UpdateRow[]
   users: MemberUser[]
   clientExpenses: ClientExpense[]
   commonExpenses: CommonExpense[]
   activeClients: ActiveClient[]
-  contentPosts: ContentPostRow[]
   selectedMonth: string
 }) {
   const router = useRouter()
@@ -495,27 +489,6 @@ export default function ExpensesClient({
   const perClientOverhead = overheadDivisor > 0 ? totalCommon / overheadDivisor : 0
   const grandTotal        = totalClientDirect + totalCommon
 
-  const contentCounts = useMemo(() => {
-    const TYPE_MAP: Record<string, string> = {
-      video: "Videos", reel: "Reels", post: "Posters", story: "Stories",
-    }
-    const map: Record<string, Record<string, number>> = {}
-    for (const p of contentPosts) {
-      const client = p.client_name || "Unknown"
-      const type   = TYPE_MAP[p.content_type] ?? "Other"
-      if (!map[client]) map[client] = {}
-      map[client][type] = (map[client][type] ?? 0) + 1
-    }
-    return Object.entries(map).map(([client, counts]) => ({
-      client,
-      videos:  counts["Videos"]  ?? 0,
-      reels:   counts["Reels"]   ?? 0,
-      posters: counts["Posters"] ?? 0,
-      stories: counts["Stories"] ?? 0,
-      other:   counts["Other"]   ?? 0,
-      total:   Object.values(counts).reduce((a, b) => a + b, 0),
-    })).sort((a, b) => b.total - a.total)
-  }, [contentPosts])
 
   function handleDeleteClient(id: string) {
     start(async () => { await deleteClientExpense(id); router.refresh() })
@@ -563,39 +536,6 @@ export default function ExpensesClient({
             </div>
           ))}
         </div>
-
-        {/* Content Posted */}
-        {contentCounts.length > 0 && (
-          <div className="rounded-2xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-            <div className="px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
-              <h2 className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>
-                Content Posted — {MONTHS_SHORT[mo - 1]} {yr}
-              </h2>
-            </div>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: "#F9FAFB" }}>
-                    {["Client", "Videos", "Reels", "Posters", "Stories", "Other", "Total"].map(h => (
-                      <th key={h} style={{ padding: "8px 12px", textAlign: h === "Client" ? "left" : "center", fontSize: 10, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "1px solid #E5E7EB" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {contentCounts.map((row, i) => (
-                    <tr key={row.client} style={{ background: i % 2 === 0 ? "#FFFFFF" : "#FAFAFA" }}>
-                      <td style={{ padding: "10px 12px", fontWeight: 600, color: "#111111", borderBottom: "1px solid #F3F4F6" }}>{row.client}</td>
-                      {[row.videos, row.reels, row.posters, row.stories, row.other].map((v, j) => (
-                        <td key={j} style={{ padding: "10px 12px", textAlign: "center", color: v > 0 ? "#111111" : "#D1D5DB", fontWeight: v > 0 ? 700 : 400, borderBottom: "1px solid #F3F4F6" }}>{v > 0 ? v : "—"}</td>
-                      ))}
-                      <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: 800, color: "#de1a1a", borderBottom: "1px solid #F3F4F6" }}>{row.total}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
 
         {/* 3 Action Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

@@ -46,9 +46,7 @@ export default async function AdminExpensesPage({
     { data: clientExpensesRaw },
     { data: commonExpensesRaw },
     { data: activeClientsRaw },
-    { data: contentPostsRaw },
   ] = await Promise.all([
-    // shoot work entries for travel table
     admin
       .from("daily_updates")
       .select("id, user_id, date, work_entries")
@@ -61,7 +59,6 @@ export default async function AdminExpensesPage({
       .select("id, name, employee_id")
       .eq("company_id", cid)
       .eq("status", "active"),
-    // client-specific expenses this month
     admin
       .from("client_expenses")
       .select("*")
@@ -69,27 +66,17 @@ export default async function AdminExpensesPage({
       .gte("date", monthStart)
       .lte("date", monthEnd)
       .order("date", { ascending: false }),
-    // common/shared expenses this month
     admin
       .from("common_expenses")
       .select("*")
       .eq("company_id", cid)
       .eq("month", monthParam)
       .order("created_at", { ascending: false }),
-    // active clients count for overhead split
     admin
       .from("clients")
       .select("name")
       .eq("company_id", cid)
       .eq("status", "active"),
-    // content posted — kept from original
-    admin
-      .from("content_posts")
-      .select("client_name, content_type, scheduled_date")
-      .eq("company_id", cid)
-      .eq("status", "posted")
-      .gte("scheduled_date", monthStart)
-      .lte("scheduled_date", monthEnd),
   ])
 
   return (
@@ -99,7 +86,6 @@ export default async function AdminExpensesPage({
       clientExpenses={clientExpensesRaw ?? []}
       commonExpenses={commonExpensesRaw ?? []}
       activeClients={activeClientsRaw ?? []}
-      contentPosts={contentPostsRaw ?? []}
       selectedMonth={monthParam}
     />
   )

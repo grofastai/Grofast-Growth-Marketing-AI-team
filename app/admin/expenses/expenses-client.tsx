@@ -564,6 +564,39 @@ export default function ExpensesClient({
           ))}
         </div>
 
+        {/* Content Posted */}
+        {contentCounts.length > 0 && (
+          <div className="rounded-2xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+            <div className="px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
+              <h2 className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>
+                Content Posted — {MONTHS_SHORT[mo - 1]} {yr}
+              </h2>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "#F9FAFB" }}>
+                    {["Client", "Videos", "Reels", "Posters", "Stories", "Other", "Total"].map(h => (
+                      <th key={h} style={{ padding: "8px 12px", textAlign: h === "Client" ? "left" : "center", fontSize: 10, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "1px solid #E5E7EB" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {contentCounts.map((row, i) => (
+                    <tr key={row.client} style={{ background: i % 2 === 0 ? "#FFFFFF" : "#FAFAFA" }}>
+                      <td style={{ padding: "10px 12px", fontWeight: 600, color: "#111111", borderBottom: "1px solid #F3F4F6" }}>{row.client}</td>
+                      {[row.videos, row.reels, row.posters, row.stories, row.other].map((v, j) => (
+                        <td key={j} style={{ padding: "10px 12px", textAlign: "center", color: v > 0 ? "#111111" : "#D1D5DB", fontWeight: v > 0 ? 700 : 400, borderBottom: "1px solid #F3F4F6" }}>{v > 0 ? v : "—"}</td>
+                      ))}
+                      <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: 800, color: "#de1a1a", borderBottom: "1px solid #F3F4F6" }}>{row.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* 3 Action Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <button onClick={() => setModal("travel")}
@@ -692,38 +725,6 @@ export default function ExpensesClient({
           </div>
         </div>
 
-        {/* Content Posted */}
-        {contentCounts.length > 0 && (
-          <div className="rounded-2xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-            <div className="px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
-              <h2 className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>
-                Content Posted — {MONTHS_SHORT[mo - 1]} {yr}
-              </h2>
-            </div>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: "#F9FAFB" }}>
-                    {["Client", "Videos", "Reels", "Posters", "Stories", "Other", "Total"].map(h => (
-                      <th key={h} style={{ padding: "8px 12px", textAlign: h === "Client" ? "left" : "center", fontSize: 10, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", borderBottom: "1px solid #E5E7EB" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {contentCounts.map((row, i) => (
-                    <tr key={row.client} style={{ background: i % 2 === 0 ? "#FFFFFF" : "#FAFAFA" }}>
-                      <td style={{ padding: "10px 12px", fontWeight: 600, color: "#111111", borderBottom: "1px solid #F3F4F6" }}>{row.client}</td>
-                      {[row.videos, row.reels, row.posters, row.stories, row.other].map((v, j) => (
-                        <td key={j} style={{ padding: "10px 12px", textAlign: "center", color: v > 0 ? "#111111" : "#D1D5DB", fontWeight: v > 0 ? 700 : 400, borderBottom: "1px solid #F3F4F6" }}>{v > 0 ? v : "—"}</td>
-                      ))}
-                      <td style={{ padding: "10px 12px", textAlign: "center", fontWeight: 800, color: "#de1a1a", borderBottom: "1px solid #F3F4F6" }}>{row.total}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
 
       </div>
 

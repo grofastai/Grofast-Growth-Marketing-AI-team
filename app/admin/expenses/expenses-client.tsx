@@ -227,7 +227,6 @@ function CommonExpenseModal({ selectedMonth, overheadDivisor, onClose }: {
   onClose: () => void
 }) {
   const [name, setName]     = useState("")
-  const [type, setType]     = useState<"rent" | "software" | "other">("rent")
   const [amount, setAmount] = useState("")
   const [notes, setNotes]   = useState("")
   const [isPending, start]  = useTransition()
@@ -240,7 +239,7 @@ function CommonExpenseModal({ selectedMonth, overheadDivisor, onClose }: {
   function save() {
     if (!name.trim() || amt <= 0) return
     start(async () => {
-      await upsertCommonExpense({ name: name.trim(), type, month: selectedMonth, amount: amt, notes: notes || undefined })
+      await upsertCommonExpense({ name: name.trim(), type: "other", month: selectedMonth, amount: amt, notes: notes || undefined })
       router.refresh()
       setDone(true)
       setTimeout(() => { setDone(false); setName(""); setAmount(""); setNotes("") }, 1400)
@@ -256,20 +255,6 @@ function CommonExpenseModal({ selectedMonth, overheadDivisor, onClose }: {
             placeholder="e.g. Office Rent, Adobe CC"
             className="mt-1 w-full rounded-xl px-3 py-2.5 text-[13px] outline-none"
             style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", color: "#111111" }} />
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {(["rent", "software", "other"] as const).map(t => (
-            <button key={t} onClick={() => setType(t)}
-              className="flex flex-col items-center gap-1.5 py-3 rounded-xl text-[11px] font-bold capitalize transition-all"
-              style={{
-                background: type === t ? TYPE_BG[t] : "#F9FAFB",
-                border: `1.5px solid ${type === t ? TYPE_COLOR[t] : "#E5E7EB"}`,
-                color: type === t ? TYPE_COLOR[t] : "#6B7280",
-              }}>
-              {TYPE_ICON[t]}
-              {t}
-            </button>
-          ))}
         </div>
         <div>
           <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6B7280" }}>Amount (₹)</label>

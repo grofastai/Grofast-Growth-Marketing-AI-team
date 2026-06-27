@@ -248,6 +248,7 @@ export default async function ClientsUnifiedPage({
       selectedClientName={selectedClient ?? null}
       selectedClientRow={selectedClientRow}
       deliverables={deliverables}
+
       mode={mode}
       period={period}
       today={todayStr}

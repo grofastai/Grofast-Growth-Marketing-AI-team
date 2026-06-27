@@ -897,11 +897,11 @@ function EditEntrySheet({ entry, activeClients, pastClients, onClose, onSaved }:
 export default function FreelancersMemberClient({
   freelancers, workEntries: initialEntries, clientNames, pastClientNames = [],
   hideLeftPanel = false, initialSelectedId, isEmbedded = false,
-  loginMembersCount, loginMembersTotal,
+  loginMemberEntries,
 }: {
   freelancers: Freelancer[]; workEntries: WorkEntry[]; clientNames: string[]; pastClientNames?: string[]
   hideLeftPanel?: boolean; initialSelectedId?: string; isEmbedded?: boolean
-  loginMembersCount?: number; loginMembersTotal?: number
+  loginMemberEntries?: Array<{ id: string; user_id: string; user_name: string; date: string; title: string; client_name: string; price: number | null }>
 }) {
   const { activeOptions: activeClients, pastOptions: pastClients } = useMemo(
     () => buildClientOptions(clientNames, pastClientNames), [clientNames, pastClientNames]
@@ -926,6 +926,11 @@ export default function FreelancersMemberClient({
   )
 
   const globalMonthEntries = useMemo(() => globalAllTime ? workEntries : workEntries.filter(e => e.date_finished.startsWith(globalMonth)), [workEntries, globalMonth, globalAllTime])
+
+  const loginMonthEntries = useMemo(() => {
+    if (!loginMemberEntries) return []
+    return globalAllTime ? loginMemberEntries : loginMemberEntries.filter(e => e.date.startsWith(globalMonth))
+  }, [loginMemberEntries, globalMonth, globalAllTime])
   const detailEntries = useMemo(() => {
     if (!selectedId) return []
     const base = workEntries.filter(e => e.freelancer_id === selectedId)
@@ -939,13 +944,18 @@ export default function FreelancersMemberClient({
     return map
   }, [globalMonthEntries])
 
-  const globalStats = useMemo(() => ({
-    total: activeFreelancers.length + (loginMembersCount ?? 0),
-    totalWorks: globalMonthEntries.length,
-    totalCost: globalMonthEntries.reduce((s, e) => s + (e.amount ?? 0), 0) + (loginMembersTotal ?? 0),
-    paidCost: globalMonthEntries.filter(e => e.payment_status === "paid").reduce((s, e) => s + (e.amount ?? 0), 0),
-    unpaidCost: globalMonthEntries.filter(e => e.payment_status === "unpaid").reduce((s, e) => s + (e.amount ?? 0), 0),
-  }), [activeFreelancers, globalMonthEntries, loginMembersCount, loginMembersTotal])
+  const globalStats = useMemo(() => {
+    const uniqueFl = new Set(globalMonthEntries.map(e => e.freelancer_id)).size
+    const uniqueLogin = new Set(loginMonthEntries.map(e => e.user_id)).size
+    const loginTotal = loginMonthEntries.reduce((s, e) => s + (e.price ?? 0), 0)
+    return {
+      total: uniqueFl + uniqueLogin,
+      totalWorks: globalMonthEntries.length,
+      totalCost: globalMonthEntries.reduce((s, e) => s + (e.amount ?? 0), 0) + loginTotal,
+      paidCost: globalMonthEntries.filter(e => e.payment_status === "paid").reduce((s, e) => s + (e.amount ?? 0), 0),
+      unpaidCost: globalMonthEntries.filter(e => e.payment_status === "unpaid").reduce((s, e) => s + (e.amount ?? 0), 0),
+    }
+  }, [globalMonthEntries, loginMonthEntries])
 
   const detailStats = useMemo(() => {
     const total = detailEntries.reduce((s, e) => s + (e.amount ?? 0), 0)
@@ -1075,9 +1085,11 @@ export default function FreelancersMemberClient({
           {!selectedFreelancer ? (() => {
             // ── All Freelancers combined view ──────────────────────────
             const allEntries = [...globalMonthEntries].sort((a, b) => b.date_finished.localeCompare(a.date_finished))
-            const allTotal = allEntries.reduce((s, e) => s + (e.amount ?? 0), 0)
+            const allLoginEntries = [...loginMonthEntries].sort((a, b) => b.date.localeCompare(a.date))
+            const allTotal = allEntries.reduce((s, e) => s + (e.amount ?? 0), 0) + allLoginEntries.reduce((s, e) => s + (e.price ?? 0), 0)
             const allPaid = allEntries.filter(e => e.payment_status === "paid").reduce((s, e) => s + (e.amount ?? 0), 0)
-            const allUnpaid = allTotal - allPaid
+            const allUnpaid = allEntries.filter(e => e.payment_status === "unpaid").reduce((s, e) => s + (e.amount ?? 0), 0)
+            const totalCount = allEntries.length + allLoginEntries.length
             return (
               <div>
                 {/* Combined hero banner */}
@@ -1110,11 +1122,11 @@ export default function FreelancersMemberClient({
                     </div>
                     <div style={{ display: "flex", gap: 10, marginTop: 18, paddingBottom: 24, flexWrap: "wrap" }}>
                       {[
-                        { label: "Works", value: String(allEntries.length) },
+                        { label: "Works", value: String(totalCount) },
                         { label: "Total Cost", value: allTotal > 0 ? fmt(allTotal) : "—" },
                         { label: "Paid", value: allPaid > 0 ? fmt(allPaid) : "—" },
                         { label: "Unpaid", value: allUnpaid > 0 ? fmt(allUnpaid) : "—" },
-                        { label: "Freelancers", value: String(activeFreelancers.length) },
+                        { label: "Members", value: String(globalStats.total) },
                       ].map(k => (
                         <div key={k.label} style={{ background: "rgba(255,255,255,0.12)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.2)", padding: "10px 16px", backdropFilter: "blur(8px)", minWidth: 85 }}>
                           <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: 0, fontFamily: "var(--font-jakarta)" }}>{k.value}</p>
@@ -1129,13 +1141,13 @@ export default function FreelancersMemberClient({
                 <div style={{ margin: "14px 16px 0", background: "#FFFFFF", borderRadius: 20, border: "1px solid #F0F0F5", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
                   <div style={{ padding: "16px 20px", borderBottom: "1px solid #F5F5F7" }}>
                     <p style={{ fontSize: 14, fontWeight: 900, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>All Work Entries</p>
-                    <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{allEntries.length} {allEntries.length === 1 ? "entry" : "entries"} across all freelancers</p>
+                    <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{totalCount} {totalCount === 1 ? "entry" : "entries"} across all members</p>
                   </div>
-                  {allEntries.length === 0 ? (
+                  {totalCount === 0 ? (
                     <div style={{ padding: "48px 20px", textAlign: "center" }}>
                       <p style={{ fontSize: 36, margin: "0 0 12px" }}>📋</p>
                       <p style={{ fontSize: 14, fontWeight: 800, color: "#374151", margin: 0 }}>No entries {globalAllTime ? "yet" : `for ${new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long" })}`}</p>
-                      <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 6 }}>Select a freelancer from the left panel to add work entries.</p>
+                      <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 6 }}>Select a member from the left panel to add work entries.</p>
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px" }}>
@@ -1176,6 +1188,32 @@ export default function FreelancersMemberClient({
                                 <button onClick={() => setEditEntry(e)} style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid #EEF0FF", background: "#F8F9FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Pencil size={11} color="#6366F1" /></button>
                                 <button onClick={() => handleDelete(e.id)} style={{ width: 28, height: 28, borderRadius: 8, border: "1.5px solid #FEE2E2", background: "#FFF8F8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Trash2 size={11} color="#EF4444" /></button>
                               </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                      {/* Login member entries (ARUN etc.) */}
+                      {allLoginEntries.map(e => {
+                        const day = new Date(e.date + "T12:00:00")
+                        const dateStr = day.toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+                        return (
+                          <div key={e.id} style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #FEE2E2", padding: "14px 18px", boxShadow: "0 2px 12px rgba(220,20,60,0.06)", display: "flex", alignItems: "center", gap: 14 }}>
+                            <div style={{ width: 44, height: 44, borderRadius: 14, flexShrink: 0, background: "rgba(220,20,60,0.1)", border: "1.5px solid rgba(220,20,60,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <span style={{ fontSize: 13, fontWeight: 900, color: "#DC143C" }}>{e.user_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}</span>
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                                <span style={{ fontSize: 9, fontWeight: 800, color: "#DC143C", background: "rgba(220,20,60,0.09)", padding: "1px 6px", borderRadius: 4, letterSpacing: "0.05em" }}>LOGIN</span>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: "#6B7280" }}>{e.user_name}</span>
+                              </div>
+                              <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</p>
+                              <div style={{ display: "flex", gap: 8, marginTop: 3 }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: "#DC143C", background: "rgba(220,20,60,0.07)", padding: "1px 8px", borderRadius: 6 }}>{e.client_name}</span>
+                                <span style={{ fontSize: 11, color: "#9CA3AF" }}>{dateStr}</span>
+                              </div>
+                            </div>
+                            <div style={{ flexShrink: 0 }}>
+                              <p style={{ fontSize: 17, fontWeight: 900, color: e.price ? "#111827" : "#9CA3AF", margin: 0 }}>{e.price ? fmt(e.price) : "—"}</p>
                             </div>
                           </div>
                         )

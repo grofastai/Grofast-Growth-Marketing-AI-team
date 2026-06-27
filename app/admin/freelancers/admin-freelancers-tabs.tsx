@@ -84,10 +84,15 @@ export default function AdminFreelancersTabs({
   const activeFreelancers = useMemo(() => freelancers.filter(f => f.status === "active"), [freelancers])
   const totalCount = flMembers.length + activeFreelancers.length
 
-  const loginMembersTotal = useMemo(() =>
-    Object.values(flMediaTotals).reduce((s, v) => s + v, 0),
-    [flMediaTotals]
-  )
+  const loginMemberEntries = useMemo(() => flEntries.map(e => ({
+    id: e.entry_id,
+    user_id: e.user_id,
+    user_name: e.user_name,
+    date: e.date,
+    title: e.title,
+    client_name: e.client_name,
+    price: e.price ?? null,
+  })), [flEntries])
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 80px)", marginTop: -1, borderTop: "1px solid #F0F1F5" }}>
@@ -95,10 +100,10 @@ export default function AdminFreelancersTabs({
       {/* ── Unified left panel ───────────────────────────────────────────────── */}
       <div style={{ width: 220, flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", overflowY: "auto", display: "flex", flexDirection: "column" }}>
 
-        <div style={{ padding: "10px 14px 6px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em" }}>All Members</span>
+        <button onClick={() => setSelected(null)} style={{ width: "100%", padding: "10px 14px 6px", display: "flex", alignItems: "center", justifyContent: "space-between", background: !selected ? "rgba(99,102,241,0.06)" : "transparent", border: "none", borderLeft: `3px solid ${!selected ? "#6366F1" : "transparent"}`, cursor: "pointer", textAlign: "left" }}>
+          <span style={{ fontSize: 9, fontWeight: 700, color: !selected ? "#6366F1" : "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em" }}>All Members</span>
           <span style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", background: "#F0F0F5", borderRadius: 99, padding: "1px 7px" }}>{totalCount}</span>
-        </div>
+        </button>
 
         {/* FL Media Production members (login-based) */}
         {flMembers.length > 0 && (
@@ -110,7 +115,7 @@ export default function AdminFreelancersTabs({
               const isActive = selected?.type === "media" && selected.id === m.id
               const total = flMediaTotals[m.id] ?? 0
               return (
-                <button key={m.id} onClick={() => setSelected({ type: "media", id: m.id })}
+                <button key={m.id} onClick={() => setSelected(s => s?.id === m.id ? null : { type: "media", id: m.id })}
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", background: isActive ? "rgba(222,26,26,0.07)" : "transparent", border: "none", borderLeft: `3px solid ${isActive ? "#DE1A1A" : "transparent"}`, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
                   <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, background: isActive ? "#DE1A1A" : "#F3F4F6", border: `1.5px solid ${isActive ? "transparent" : "#E5E7EB"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: isActive ? "#fff" : "#374151", boxShadow: isActive ? "0 4px 10px rgba(222,26,26,0.3)" : "none" }}>
                     {getInitials(m.name)}
@@ -142,7 +147,7 @@ export default function AdminFreelancersTabs({
               const emoji = TEAM_EMOJI[f.team] ?? "👤"
               const short = TEAM_SHORT[f.team] ?? f.team
               return (
-                <button key={f.id} onClick={() => setSelected({ type: "fl", id: f.id })}
+                <button key={f.id} onClick={() => setSelected(s => s?.id === f.id ? null : { type: "fl", id: f.id })}
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", background: isActive ? `${color}12` : "transparent", border: "none", borderLeft: `3px solid ${isActive ? color : "transparent"}`, cursor: "pointer", textAlign: "left", transition: "all 0.15s" }}>
                   <div style={{ width: 34, height: 34, borderRadius: "50%", flexShrink: 0, background: isActive ? `linear-gradient(135deg, ${color}, ${color}CC)` : `${color}15`, border: `1.5px solid ${isActive ? "transparent" : `${color}30`}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: isActive ? "#fff" : color, boxShadow: isActive ? `0 4px 10px ${color}40` : "none" }}>
                     {getInitials(f.name)}
@@ -190,8 +195,7 @@ export default function AdminFreelancersTabs({
             hideLeftPanel
             initialSelectedId={selected?.id}
             isEmbedded
-            loginMembersCount={flMembers.length}
-            loginMembersTotal={loginMembersTotal}
+            loginMemberEntries={loginMemberEntries}
           />
         )}
       </div>

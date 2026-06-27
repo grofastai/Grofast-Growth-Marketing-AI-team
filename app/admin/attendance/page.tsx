@@ -65,7 +65,8 @@ export default async function AttendancePage({
 
   const [{ data: members }, { data: logs }, { data: lateLogs }, { data: weeklyRaw }, { data: dayPermissions }, { data: fullDayLeaves }] = await Promise.all([
     admin.from("users").select("id, name, employee_id")
-      .eq("company_id", cid).eq("role", "MEMBER").eq("status", "active").order("name"),
+      .eq("company_id", cid).eq("role", "MEMBER").eq("status", "active")
+      .eq("is_management", false).eq("is_freelancer_login", false).order("name"),
     admin.from("attendance_logs")
       .select("user_id, clock_in, clock_out, status, break_total_mins")
       .eq("company_id", cid).eq("date", selectedDate),

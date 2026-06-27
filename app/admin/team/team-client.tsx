@@ -97,6 +97,8 @@ interface Member {
   drive_folder_id?: string | null
   is_support_handler?: boolean | null
   work_layout?: 'media' | 'non_media' | 'freelance_media' | null
+  is_management?: boolean | null
+  is_freelancer_login?: boolean | null
 }
 
 function getInitials(name: string) {
@@ -230,6 +232,7 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
     joined_at: member?.joined_at ?? new Date().toISOString().split("T")[0],
     gender: (member?.gender ?? "male") as "male" | "female",
     work_layout: (member?.work_layout ?? "non_media") as "media" | "non_media" | "freelance_media",
+    is_management: member?.is_management ?? false,
   })
   const [error, setError] = useState("")
   const [whatsappWarning, setWhatsappWarning] = useState("")
@@ -293,13 +296,13 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
       }
 
       if (isEdit) {
-        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, work_layout: form.work_layout, ...salaryFields, ...dateFields })
+        const result = await updateMember({ id: member!.id, name: form.name, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, ...salaryFields, ...dateFields })
         if (result.success) { router.refresh(); onClose() }
         else setError(result.error ?? "Something went wrong")
       } else {
         const isAdminCreate = form.role === "ADMIN" || form.role === "FOUNDER" || form.role === "CEO" || form.role === "FREELANCER_MGR"
         const nameForCreate = form.name.trim() || (isAdminCreate ? form.email.split("@")[0].replace(/[._-]/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase()) : "")
-        const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, work_layout: form.work_layout, ...salaryFields, ...dateFields })
+        const result = await createMember({ name: nameForCreate, employee_id: form.employee_id, email: form.email, phone: form.phone, role: form.role, team: form.team, position: form.position || null, password: form.password, gender: form.gender, work_layout: form.work_layout, is_management: form.is_management, ...salaryFields, ...dateFields })
         if (result.success) {
           if (form.phone && result.whatsappSent === false && !result.whatsappSkipped) {
             setWhatsappWarning(result.whatsappError ?? "Member created, but WhatsApp notification failed. Check the phone number or Meta template status.")
@@ -644,6 +647,39 @@ function MemberSheet({ open, onClose, member, nextId, initialRole }: SheetProps)
                     </div>
                   )}
                 </>
+              )}
+
+              {/* Management Member toggle — shown for regular team members only */}
+              {!isNoLoginTeam && form.role === "MEMBER" && (
+                <div
+                  onClick={() => setForm(p => ({ ...p, is_management: !p.is_management }))}
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "space-between",
+                    padding: "12px 14px", borderRadius: 12, cursor: "pointer",
+                    background: form.is_management ? "rgba(99,102,241,0.06)" : "rgba(0,0,0,0.02)",
+                    border: `1.5px solid ${form.is_management ? "rgba(99,102,241,0.3)" : "#E5E7EB"}`,
+                    transition: "all 0.15s",
+                  }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: form.is_management ? "#6366F1" : "#374151", margin: 0 }}>
+                      Management Member
+                    </p>
+                    <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>
+                      No attendance or daily update required
+                    </p>
+                  </div>
+                  <div style={{
+                    width: 36, height: 20, borderRadius: 10, position: "relative", flexShrink: 0,
+                    background: form.is_management ? "#6366F1" : "#D1D5DB",
+                    transition: "background 0.2s",
+                  }}>
+                    <div style={{
+                      position: "absolute", top: 2, left: form.is_management ? 18 : 2,
+                      width: 16, height: 16, borderRadius: "50%", background: "#FFFFFF",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.2)", transition: "left 0.2s",
+                    }} />
+                  </div>
+                </div>
               )}
 
               {whatsappWarning && (
@@ -1312,10 +1348,13 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
   const [resendWAResult, setResendWAResult] = useState<{ id: string; ok: boolean; msg: string } | null>(null)
   const [isPending, startTransition] = useTransition()
 
+  const loginFreelancerMembers = useMemo(() => members.filter(m => m.is_freelancer_login === true), [members])
+  const regularMembers = useMemo(() => members.filter(m => !m.is_freelancer_login), [members])
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     const idNum = (id: string) => { const m = id.match(/\d+/); return m ? parseInt(m[0]) : 99999 }
-    return members.filter((m) => {
+    return regularMembers.filter((m) => {
       const matchSearch = !q || m.name.toLowerCase().includes(q) || m.employee_id.toLowerCase().includes(q) || (m.team ?? "").toLowerCase().includes(q)
       const matchStatus = tabFilter === "ALL" || m.status === tabFilter
       const matchRole = roleFilter === "ALL"
@@ -1323,13 +1362,13 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
         || (roleFilter === "MEMBER" && m.role === "MEMBER")
       return matchSearch && matchStatus && matchRole
     }).sort((a, b) => idNum(a.employee_id) - idNum(b.employee_id))
-  }, [search, tabFilter, roleFilter, members])
+  }, [search, tabFilter, roleFilter, regularMembers])
 
   const stats = {
-    total: members.length,
-    admins: members.filter((m) => ["ADMIN","FOUNDER","CEO"].includes(m.role)).length,
-    teamMembers: members.filter((m) => m.role === "MEMBER").length,
-    freelancers: freelancers.length,
+    total: regularMembers.length,
+    admins: regularMembers.filter((m) => ["ADMIN","FOUNDER","CEO"].includes(m.role)).length,
+    teamMembers: regularMembers.filter((m) => m.role === "MEMBER").length,
+    freelancers: freelancers.length + loginFreelancerMembers.length,
   }
 
   const filteredFreelancers = freelancers
@@ -1529,7 +1568,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
               <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
                 <div>
                   <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Freelancers</h3>
-                  <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{freelancers.length} freelancer{freelancers.length !== 1 ? "s" : ""}</p>
+                  <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{freelancers.length + loginFreelancerMembers.length} freelancer{freelancers.length + loginFreelancerMembers.length !== 1 ? "s" : ""}</p>
                 </div>
                 <button
                   onClick={() => setAssignSheetOpen(true)}
@@ -1538,6 +1577,68 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                   <UserCheck size={13} /> Assign Manager
                 </button>
               </div>
+              {/* Login Freelancer Members (e.g. ARUN) */}
+              {loginFreelancerMembers.length > 0 && (
+                <div style={{ borderBottom: "1px solid #F3F4F6" }}>
+                  <div className="px-5 py-2.5" style={{ background: "#FFFBF5" }}>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: "#F97316" }}>Login Members</p>
+                  </div>
+                  <table className="w-full" style={{ minWidth: 560 }}>
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid #F9FAFB", background: "#FAFAFA" }}>
+                        {["Member", "Team", "Phone", "Status", "Actions"].map(h => (
+                          <th key={h} className="text-left px-5 py-2.5 text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#9CA3AF" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loginFreelancerMembers.map((m, i) => {
+                        const initials = m.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
+                        return (
+                          <tr key={m.id} style={{ borderBottom: i < loginFreelancerMembers.length - 1 ? "1px solid #F9FAFB" : "none" }}>
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-3">
+                                <div style={{ width: 34, height: 34, borderRadius: 10, background: "rgba(249,115,22,0.1)", border: "1.5px solid rgba(249,115,22,0.25)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <span style={{ fontSize: 11, fontWeight: 800, color: "#F97316" }}>{initials}</span>
+                                </div>
+                                <div>
+                                  <p className="text-[13px] font-semibold" style={{ color: "#111111" }}>{m.name}</p>
+                                  <p className="text-[11px]" style={{ color: "#9CA3AF" }}>{m.employee_id}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3 text-[12px]" style={{ color: "#6B7280" }}>{m.team ?? "—"}</td>
+                            <td className="px-5 py-3 text-[13px]" style={{ color: "#374151" }}>{m.phone ?? "—"}</td>
+                            <td className="px-5 py-3">
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                                style={m.status === "active" ? { background: "rgba(34,197,94,0.1)", color: "#16A34A" } : { background: "rgba(107,114,128,0.1)", color: "#6B7280" }}>
+                                <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: m.status === "active" ? "#16A34A" : "#9CA3AF" }} />
+                                {m.status === "active" ? "Active" : "Inactive"}
+                              </span>
+                            </td>
+                            <td className="px-5 py-3">
+                              <button
+                                onClick={() => { setEditMember(m); setSheetOpen(true) }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold"
+                                style={{ background: "rgba(99,102,241,0.07)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.2)" }}>
+                                <Pencil size={11} />
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Sub-header for no-login freelancers */}
+              {loginFreelancerMembers.length > 0 && freelancers.length > 0 && (
+                <div className="px-5 py-2.5" style={{ background: "#FAFAFA", borderBottom: "1px solid #F3F4F6" }}>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: "#9CA3AF" }}>No-Login Freelancers</p>
+                </div>
+              )}
+
               <div style={{ overflowX: "auto" }}>
                 <table className="w-full" style={{ minWidth: 560 }}>
                   <thead>
@@ -1623,7 +1724,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
           <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
             <div>
               <h3 className="text-[15px] font-bold" style={{ color: "#111111", fontFamily: "var(--font-jakarta)" }}>Employee Directory</h3>
-              <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{filtered.length} of {members.length} members</p>
+              <p className="text-[12px]" style={{ color: "#9CA3AF" }}>{filtered.length} of {regularMembers.length} members</p>
             </div>
             <div className="flex items-center gap-2">
             {/* Tab filters */}

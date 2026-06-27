@@ -32,7 +32,9 @@ export async function getAlerts(companyId: string): Promise<AlertSummary> {
       .select('id, name')
       .eq('company_id', companyId)
       .eq('role', 'MEMBER')
-      .eq('status', 'active'),
+      .eq('status', 'active')
+      .eq('is_management', false)
+      .eq('is_freelancer_login', false),
     admin
       .from('daily_updates')
       .select('user_id')

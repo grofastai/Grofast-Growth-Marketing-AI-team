@@ -26,7 +26,7 @@ export default async function MemberLayout({ children }: { children: React.React
   const impersonateId = cookieStore.get("gf_impersonate")?.value
 
   const [{ data: profile }, unreadCount, gate] = await Promise.all([
-    admin.from("users").select("name, employee_id, role, must_change_password, photo_url, company_id, can_manage_freelancers, team").eq("id", user.id).single(),
+    admin.from("users").select("name, employee_id, role, must_change_password, photo_url, company_id, can_manage_freelancers, team, is_management").eq("id", user.id).single(),
     getNotificationCount(),
     getYesterdayGateStatus(),
   ])
@@ -34,6 +34,7 @@ export default async function MemberLayout({ children }: { children: React.React
   // Login freelancers on the "Freelance Media Production" team get a trimmed media
   // portal — no Attendance/Content Calendar/Leaves, no clock-in gate.
   const isFreelancerMedia = profile?.team === "Freelance Media Production"
+  const isManagement = profile?.is_management === true
 
   // Check if this user has any freelancers assigned
   const elevatedRoles = ["ADMIN", "FOUNDER", "CEO", "FREELANCER_MGR"]
@@ -118,7 +119,7 @@ export default async function MemberLayout({ children }: { children: React.React
 
   return (
     <div className="flex min-h-screen" style={{ background: "#EDEEF2" }}>
-      {!isFreelancerMedia && (
+      {!isFreelancerMedia && !isManagement && (
         <MemberGate
           forgotLogout={gate.forgotLogout}
           missingUpdate={gate.missingUpdate}

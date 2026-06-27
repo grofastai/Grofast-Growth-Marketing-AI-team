@@ -145,6 +145,7 @@ export default async function InsightsPage({
       .eq('company_id', cid)
       .eq('role', 'MEMBER')
       .eq('status', 'active')
+      .eq('is_management', false)
       .order('name'),
     admin.from('attendance_logs')
       .select('user_id, clock_in')

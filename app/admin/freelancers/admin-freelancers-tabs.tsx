@@ -164,14 +164,6 @@ export default function AdminFreelancersTabs({
       {/* ── Right panel ──────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflow: "hidden", height: "100%" }}>
 
-        {/* Nothing selected */}
-        {!selected && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "#9CA3AF", gap: 8 }}>
-            <span style={{ fontSize: 28, opacity: 0.3 }}>👆</span>
-            <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>Select a member from the list</p>
-          </div>
-        )}
-
         {/* FL Media Production member → price-entry table */}
         {selected?.type === "media" && (
           <FlMediaClient
@@ -183,16 +175,16 @@ export default function AdminFreelancersTabs({
           />
         )}
 
-        {/* Regular freelancer → work entries + add form */}
-        {selected?.type === "fl" && (
+        {/* Combined view (default) OR individual freelancer */}
+        {selected?.type !== "media" && (
           <FreelancersMemberClient
-            key={selected.id}
+            key={selected?.id ?? "combined"}
             freelancers={freelancers}
             workEntries={workEntries}
             clientNames={clientNames}
             pastClientNames={pastClientNames}
             hideLeftPanel
-            initialSelectedId={selected.id}
+            initialSelectedId={selected?.id}
             isEmbedded
           />
         )}

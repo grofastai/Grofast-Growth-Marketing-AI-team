@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useTransition } from "react"
-import { IndianRupee, Loader2, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react"
+import { Loader2, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react"
 import { updateWorkEntryPrice } from "@/lib/actions/daily-updates"
 
 export type FlMediaMember = {
@@ -35,7 +35,7 @@ function fmt(n: number) {
 function fmtH(h: number) {
   const hrs = Math.floor(h)
   const mins = Math.round((h - hrs) * 60)
-  if (hrs === 0 && mins === 0) return "—"
+  if (hrs === 0 && mins === 0) return ""
   if (hrs === 0) return `${mins}m`
   if (mins === 0) return `${hrs}h`
   return `${hrs}h ${mins}m`
@@ -81,7 +81,7 @@ export default function FlMediaClient({
   const [selectedMonth, setSelectedMonth] = useState(currentYM())
   const [prices, setPrices] = useState<Record<string, string>>({})
   const [saved, setSaved] = useState<Set<string>>(new Set())
-  const [isPending, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
   const [saving, setSaving] = useState<Set<string>>(new Set())
 
   const filteredEntries = useMemo(() => {
@@ -92,7 +92,6 @@ export default function FlMediaClient({
     })
   }, [entries, selectedMemberId, selectedMonth])
 
-  // Totals per member for left panel
   const memberTotals = useMemo(() => {
     const map: Record<string, number> = {}
     for (const e of entries) {
@@ -109,7 +108,11 @@ export default function FlMediaClient({
     [filteredEntries, prices]
   )
 
-  function entryKey(e: FlMediaEntry) { return e.entry_id }
+  const allMonths = useMemo(() => {
+    const seen = new Set<string>()
+    for (const e of entries) seen.add(e.date.slice(0, 7))
+    return Array.from(seen).sort().reverse()
+  }, [entries])
 
   async function handleSavePrice(entry: FlMediaEntry) {
     const raw = prices[entry.entry_id]
@@ -129,149 +132,160 @@ export default function FlMediaClient({
     })
   }
 
-  const allMonths = useMemo(() => {
-    const seen = new Set<string>()
-    for (const e of entries) seen.add(e.date.slice(0, 7))
-    return Array.from(seen).sort().reverse()
-  }, [entries])
+  const selectedMember = members.find(m => m.id === selectedMemberId)
 
   return (
     <div style={{ display: "flex", gap: 0, height: "100%" }}>
+
       {/* ── Left panel ──────────────────────────────────────────────────────── */}
-      {!hideLeftPanel && <div style={{ width: 220, flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", padding: "16px 0", overflowY: "auto" }}>
-        <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 16px 8px" }}>Members</p>
-        {members.map(m => {
-          const active = selectedMemberId === m.id
-          const total = memberTotals[m.id] ?? 0
-          return (
-            <button
-              key={m.id}
-              onClick={() => setSelectedMemberId(active ? null : m.id)}
-              style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: active ? "rgba(220,40,40,0.07)" : "transparent", border: "none", borderLeft: `3px solid ${active ? "#DE1A1A" : "transparent"}`, cursor: "pointer", textAlign: "left" }}
-            >
-              <div style={{ width: 34, height: 34, borderRadius: "50%", background: active ? "#DE1A1A" : "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: "#fff", flexShrink: 0 }}>{getInitials(m.name)}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ fontSize: 12, fontWeight: 700, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</p>
-                {total > 0 && <p style={{ fontSize: 10, color: "#22C55E", fontWeight: 700, margin: 0 }}>{fmt(total)}</p>}
-              </div>
-            </button>
-          )
-        })}
-        {members.length === 0 && (
-          <p style={{ fontSize: 12, color: "#9CA3AF", padding: "0 16px" }}>No members yet</p>
-        )}
-      </div>}
+      {!hideLeftPanel && (
+        <div style={{ width: 220, flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", padding: "16px 0", overflowY: "auto" }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 16px 8px" }}>Members</p>
+          {members.map(m => {
+            const active = selectedMemberId === m.id
+            const total = memberTotals[m.id] ?? 0
+            return (
+              <button key={m.id} onClick={() => setSelectedMemberId(active ? null : m.id)}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 16px", background: active ? "rgba(220,20,60,0.07)" : "transparent", border: "none", borderLeft: `3px solid ${active ? "#DC143C" : "transparent"}`, cursor: "pointer", textAlign: "left" }}>
+                <div style={{ width: 34, height: 34, borderRadius: "50%", background: active ? "#DC143C" : "#6366F1", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: "#fff", flexShrink: 0 }}>{getInitials(m.name)}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</p>
+                  {total > 0 && <p style={{ fontSize: 10, color: "#22C55E", fontWeight: 700, margin: 0 }}>{fmt(total)}</p>}
+                </div>
+              </button>
+            )
+          })}
+          {members.length === 0 && <p style={{ fontSize: 12, color: "#9CA3AF", padding: "0 16px" }}>No members yet</p>}
+        </div>
+      )}
 
       {/* ── Right panel ─────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-        {/* Header */}
-        <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #F0F1F5", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <div>
-            <p style={{ fontSize: 14, fontWeight: 800, color: "#111", margin: 0 }}>
-              {selectedMemberId ? members.find(m => m.id === selectedMemberId)?.name : "All Members"}
-            </p>
-            <p style={{ fontSize: 11, color: "#6B7280", margin: 0 }}>
-              {filteredEntries.length} entries · Total: <strong style={{ color: "#22C55E" }}>{fmt(monthTotal)}</strong>
-            </p>
-          </div>
-          {/* Month nav */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <button onClick={() => setSelectedMonth(prevMonth(selectedMonth))} disabled={!allMonths.includes(prevMonth(selectedMonth))} style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #E5E7EB", background: "#fff", cursor: "pointer", opacity: allMonths.includes(prevMonth(selectedMonth)) ? 1 : 0.3 }}><ChevronLeft size={13} /></button>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#374151", minWidth: 100, textAlign: "center" }}>{monthLabel(selectedMonth)}</span>
-            <button onClick={() => setSelectedMonth(nextMonth(selectedMonth))} disabled={!allMonths.includes(nextMonth(selectedMonth))} style={{ padding: "5px 8px", borderRadius: 6, border: "1px solid #E5E7EB", background: "#fff", cursor: "pointer", opacity: allMonths.includes(nextMonth(selectedMonth)) ? 1 : 0.3 }}><ChevronRight size={13} /></button>
+
+        {/* Premium reddish header */}
+        <div style={{ padding: "20px 24px 18px", background: "linear-gradient(135deg, #7F0000 0%, #B01230 50%, #DC143C 100%)", boxShadow: "0 4px 24px rgba(176,18,48,0.3)", position: "relative", overflow: "hidden", flexShrink: 0 }}>
+          {/* Decorative circles */}
+          <div style={{ position: "absolute", top: -40, right: -40, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
+          <div style={{ position: "absolute", bottom: -30, left: 120, width: 100, height: 100, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
+          <div style={{ position: "relative", zIndex: 2, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              {selectedMember && (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 900, color: "#fff", backdropFilter: "blur(8px)" }}>
+                    {getInitials(selectedMember.name)}
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 18, fontWeight: 900, color: "#fff", margin: 0, letterSpacing: "-0.01em" }}>{selectedMember.name}</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: "#DC143C", background: "#fff", padding: "2px 7px", borderRadius: 4, letterSpacing: "0.06em" }}>LOGIN</span>
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.75)" }}>Freelance Media Production</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {!selectedMember && (
+                <p style={{ fontSize: 18, fontWeight: 900, color: "#fff", margin: "0 0 2px" }}>All Members</p>
+              )}
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", margin: 0 }}>
+                {filteredEntries.length} {filteredEntries.length === 1 ? "entry" : "entries"}
+                {" · "}Total: <strong style={{ color: monthTotal > 0 ? "#86EFAC" : "rgba(255,255,255,0.6)" }}>{fmt(monthTotal)}</strong>
+              </p>
+            </div>
+            {/* Month nav */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.12)", borderRadius: 12, padding: "7px 10px", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(8px)" }}>
+              <button onClick={() => setSelectedMonth(prevMonth(selectedMonth))} disabled={!allMonths.includes(prevMonth(selectedMonth))}
+                style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "transparent", cursor: allMonths.includes(prevMonth(selectedMonth)) ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", opacity: allMonths.includes(prevMonth(selectedMonth)) ? 1 : 0.3 }}>
+                <ChevronLeft size={13} color="#fff" />
+              </button>
+              <span style={{ fontSize: 12, fontWeight: 800, color: "#fff", minWidth: 96, textAlign: "center", letterSpacing: "0.01em" }}>{monthLabel(selectedMonth)}</span>
+              <button onClick={() => setSelectedMonth(nextMonth(selectedMonth))} disabled={!allMonths.includes(nextMonth(selectedMonth))}
+                style={{ width: 26, height: 26, borderRadius: 7, border: "none", background: "transparent", cursor: allMonths.includes(nextMonth(selectedMonth)) ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", opacity: allMonths.includes(nextMonth(selectedMonth)) ? 1 : 0.3 }}>
+                <ChevronRight size={13} color="#fff" />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Table */}
-        <div style={{ flex: 1, overflowY: "auto" }}>
+        {/* Entry cards */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
           {filteredEntries.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>No entries for this period</div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "#9CA3AF", gap: 8 }}>
+              <span style={{ fontSize: 32, opacity: 0.3 }}>📋</span>
+              <p style={{ fontSize: 13, fontWeight: 600, margin: 0 }}>No entries for {monthLabel(selectedMonth)}</p>
+            </div>
           ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #F0F1F5" }}>
-                  {!selectedMemberId && <th style={TH}>Member</th>}
-                  <th style={TH}>Date</th>
-                  <th style={TH}>Client</th>
-                  <th style={TH}>Video Name</th>
-                  <th style={TH}>Type</th>
-                  <th style={TH}>Duration</th>
-                  <th style={TH}>Hours</th>
-                  <th style={TH}>Hooks</th>
-                  <th style={{ ...TH, color: "#22C55E" }}>Price ₹</th>
-                  <th style={TH}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredEntries.map(e => {
-                  const key = entryKey(e)
-                  const isSaving = saving.has(key)
-                  const isSaved = saved.has(key)
-                  const priceVal = prices[key] !== undefined ? prices[key] : (e.price != null ? String(e.price) : "")
-                  return (
-                    <tr key={key} style={{ borderBottom: "1px solid #F9FAFB" }}>
-                      {!selectedMemberId && (
-                        <td style={TD}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "#374151" }}>{e.user_name.split(" ")[0]}</span>
-                        </td>
+            filteredEntries.map(e => {
+              const key = e.entry_id
+              const isSaving = saving.has(key)
+              const isSaved = saved.has(key)
+              const priceVal = prices[key] !== undefined ? prices[key] : (e.price != null ? String(e.price) : "")
+              const hasPendingChange = prices[key] !== undefined
+              const hasPrice = e.price != null && e.price > 0
+
+              const dateObj = new Date(e.date + "T12:00:00")
+              const day = dateObj.getDate()
+              const mon = dateObj.toLocaleDateString("en-IN", { month: "short" })
+
+              return (
+                <div key={key}
+                  style={{ background: "#fff", borderRadius: 16, border: "1px solid #F5E6E8", borderLeft: "4px solid #DC143C", boxShadow: "0 2px 16px rgba(220,20,60,0.06), 0 1px 4px rgba(0,0,0,0.04)", padding: "14px 18px", display: "flex", alignItems: "center", gap: 14, transition: "box-shadow 0.15s" }}
+                  onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.boxShadow = "0 6px 28px rgba(220,20,60,0.12), 0 2px 8px rgba(0,0,0,0.06)"}
+                  onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.boxShadow = "0 2px 16px rgba(220,20,60,0.06), 0 1px 4px rgba(0,0,0,0.04)"}>
+
+                  {/* Date badge */}
+                  <div style={{ textAlign: "center", minWidth: 40, flexShrink: 0 }}>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: "#DC143C", lineHeight: 1 }}>{day}</div>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: "#DC143C", textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.75, marginTop: 1 }}>{mon}</div>
+                  </div>
+
+                  <div style={{ width: 1, height: 44, background: "#FCE8EC", flexShrink: 0 }} />
+
+                  {/* Content */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title || "—"}</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 11, color: "#374151", fontWeight: 600 }}>{e.client_name || "—"}</span>
+                      {e.video_type && (
+                        <span style={{ fontSize: 9, fontWeight: 700, color: "#6366F1", background: "rgba(99,102,241,0.09)", padding: "2px 7px", borderRadius: 5 }}>{e.video_type}</span>
                       )}
-                      <td style={TD}>
-                        <span style={{ fontSize: 11, color: "#6B7280" }}>{new Date(e.date + "T12:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
-                        <div style={{ fontSize: 9, color: "#9CA3AF", textTransform: "uppercase", marginTop: 1 }}>{e.task_type}</div>
-                      </td>
-                      <td style={TD}><span style={{ fontSize: 11, color: "#374151" }}>{e.client_name || "—"}</span></td>
-                      <td style={{ ...TD, maxWidth: 150 }}><span style={{ fontSize: 11, color: "#111", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>{e.title || "—"}</span></td>
-                      <td style={TD}><span style={{ fontSize: 10, color: "#6366F1", background: "rgba(99,102,241,0.08)", padding: "2px 6px", borderRadius: 4, fontWeight: 600 }}>{e.video_type || "—"}</span></td>
-                      <td style={TD}><span style={{ fontSize: 11, color: "#6B7280" }}>{e.video_duration || "—"}</span></td>
-                      <td style={TD}><span style={{ fontSize: 11, color: "#374151", fontWeight: 600 }}>{e.duration_hours ? fmtH(e.duration_hours) : "—"}</span></td>
-                      <td style={TD}><span style={{ fontSize: 11, color: "#374151" }}>{e.hooks_completed ?? "—"}</span></td>
-                      <td style={TD}>
-                        <input
-                          type="number"
-                          min="0"
-                          placeholder="0"
-                          value={priceVal}
-                          onChange={ev => setPrices(p => ({ ...p, [key]: ev.target.value }))}
-                          onKeyDown={ev => ev.key === "Enter" && handleSavePrice(e)}
-                          style={{ width: 80, padding: "4px 8px", borderRadius: 6, border: "1.5px solid #D1FAE5", fontSize: 12, fontWeight: 700, color: "#065F46", background: "#F0FDF4", outline: "none" }}
-                        />
-                      </td>
-                      <td style={TD}>
-                        {isSaved ? (
-                          <CheckCircle2 size={14} style={{ color: "#22C55E" }} />
-                        ) : (
-                          <button
-                            onClick={() => handleSavePrice(e)}
-                            disabled={isSaving || prices[key] === undefined}
-                            style={{ padding: "4px 10px", borderRadius: 6, border: "none", background: prices[key] !== undefined ? "#22C55E" : "#E5E7EB", color: prices[key] !== undefined ? "#fff" : "#9CA3AF", fontSize: 10, fontWeight: 700, cursor: prices[key] !== undefined ? "pointer" : "default" }}
-                          >
-                            {isSaving ? <Loader2 size={10} className="animate-spin" /> : "Save"}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                      {e.video_duration && <span style={{ fontSize: 10, color: "#9CA3AF" }}>· {e.video_duration}</span>}
+                      {e.duration_hours ? <span style={{ fontSize: 10, color: "#9CA3AF" }}>· {fmtH(e.duration_hours)}</span> : null}
+                    </div>
+                  </div>
+
+                  {/* Price input + save */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    <div style={{ position: "relative" }}>
+                      <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 12, fontWeight: 800, color: hasPendingChange ? "#DC143C" : "#9CA3AF", pointerEvents: "none" }}>₹</span>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="0"
+                        value={priceVal}
+                        onChange={ev => setPrices(p => ({ ...p, [key]: ev.target.value }))}
+                        onKeyDown={ev => ev.key === "Enter" && handleSavePrice(e)}
+                        style={{ width: 90, padding: "8px 10px 8px 22px", borderRadius: 10, border: `1.5px solid ${hasPendingChange ? "#DC143C" : (hasPrice ? "#FECACA" : "#E5E7EB")}`, fontSize: 13, fontWeight: 800, color: "#111", background: hasPendingChange ? "#FFF5F5" : "#FAFAFA", outline: "none", transition: "all 0.15s" }}
+                      />
+                    </div>
+                    {isSaved ? (
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(34,197,94,0.1)", border: "1.5px solid rgba(34,197,94,0.25)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <CheckCircle2 size={17} style={{ color: "#22C55E" }} />
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => handleSavePrice(e)}
+                        disabled={isSaving || !hasPendingChange}
+                        style={{ width: 36, height: 36, borderRadius: 10, border: "none", background: hasPendingChange ? "linear-gradient(135deg, #C41230, #DC143C)" : "#F3F4F6", color: hasPendingChange ? "#fff" : "#9CA3AF", fontSize: 14, fontWeight: 800, cursor: hasPendingChange ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: hasPendingChange ? "0 4px 14px rgba(220,20,60,0.4)" : "none", transition: "all 0.15s" }}>
+                        {isSaving ? <Loader2 size={13} className="animate-spin" /> : "✓"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )
+            })
           )}
         </div>
       </div>
     </div>
   )
-}
-
-const TH: React.CSSProperties = {
-  padding: "8px 12px",
-  fontSize: 10,
-  fontWeight: 700,
-  color: "#6B7280",
-  textAlign: "left",
-  textTransform: "uppercase",
-  letterSpacing: "0.07em",
-  whiteSpace: "nowrap",
-}
-const TD: React.CSSProperties = {
-  padding: "10px 12px",
-  verticalAlign: "middle",
 }

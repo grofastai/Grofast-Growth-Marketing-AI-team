@@ -67,12 +67,16 @@ function getInitials(name: string) {
 export default function FlMediaClient({
   members,
   entries,
+  hideLeftPanel = false,
+  forceMemberId,
 }: {
   members: FlMediaMember[]
   entries: FlMediaEntry[]
+  hideLeftPanel?: boolean
+  forceMemberId?: string
 }) {
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(
-    members.length === 1 ? members[0].id : null
+    forceMemberId ?? (members.length === 1 ? members[0].id : null)
   )
   const [selectedMonth, setSelectedMonth] = useState(currentYM())
   const [prices, setPrices] = useState<Record<string, string>>({})
@@ -132,9 +136,9 @@ export default function FlMediaClient({
   }, [entries])
 
   return (
-    <div style={{ display: "flex", gap: 0, height: "100%", minHeight: "calc(100vh - 80px)" }}>
+    <div style={{ display: "flex", gap: 0, height: "100%" }}>
       {/* ── Left panel ──────────────────────────────────────────────────────── */}
-      <div style={{ width: 220, flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", padding: "16px 0", overflowY: "auto" }}>
+      {!hideLeftPanel && <div style={{ width: 220, flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", padding: "16px 0", overflowY: "auto" }}>
         <p style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.08em", padding: "0 16px 8px" }}>Members</p>
         {members.map(m => {
           const active = selectedMemberId === m.id
@@ -156,7 +160,7 @@ export default function FlMediaClient({
         {members.length === 0 && (
           <p style={{ fontSize: 12, color: "#9CA3AF", padding: "0 16px" }}>No members yet</p>
         )}
-      </div>
+      </div>}
 
       {/* ── Right panel ─────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>

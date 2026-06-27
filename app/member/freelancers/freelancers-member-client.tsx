@@ -896,14 +896,16 @@ function EditEntrySheet({ entry, activeClients, pastClients, onClose, onSaved }:
 
 export default function FreelancersMemberClient({
   freelancers, workEntries: initialEntries, clientNames, pastClientNames = [],
+  hideLeftPanel = false, initialSelectedId, isEmbedded = false,
 }: {
   freelancers: Freelancer[]; workEntries: WorkEntry[]; clientNames: string[]; pastClientNames?: string[]
+  hideLeftPanel?: boolean; initialSelectedId?: string; isEmbedded?: boolean
 }) {
   const { activeOptions: activeClients, pastOptions: pastClients } = useMemo(
     () => buildClientOptions(clientNames, pastClientNames), [clientNames, pastClientNames]
   )
   const [workEntries, setWorkEntries] = useState(initialEntries)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null)
   const [globalMonth, setGlobalMonth] = useState(currentYM())
   const [globalAllTime, setGlobalAllTime] = useState(false)
   const [detailMonth, setDetailMonth] = useState(currentYM())
@@ -995,7 +997,7 @@ export default function FreelancersMemberClient({
   }
 
   return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column", background: "#F5F6FA", overflow: "hidden" }}>
+    <div style={{ height: isEmbedded ? "100%" : "100vh", display: "flex", flexDirection: "column", background: "#F5F6FA", overflow: "hidden" }}>
 
       {/* Top header */}
       <div style={{ background: "#FFFFFF", borderBottom: "1px solid #EBEBEB", padding: "12px 20px", flexShrink: 0 }}>
@@ -1033,7 +1035,7 @@ export default function FreelancersMemberClient({
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
         {/* LEFT panel */}
-        <div style={{ width: 276, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {!hideLeftPanel && <div style={{ width: 276, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", display: "flex", flexDirection: "column", overflow: "hidden" }}>
           <div style={{ borderBottom: "1px solid #F5F5F7", padding: "8px 10px", display: "flex", gap: 4, flexWrap: "wrap", flexShrink: 0, alignItems: "center" }}>
             <button onClick={() => { setTeamFilter("all"); setSelectedId(null) }} style={{ padding: "6px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", background: teamFilter === "all" && !selectedId ? "#111" : "#F5F5F7", color: teamFilter === "all" && !selectedId ? "#fff" : "#6B7280", transition: "all 0.15s", flexShrink: 0 }}>
               All {activeFreelancers.length}
@@ -1063,7 +1065,7 @@ export default function FreelancersMemberClient({
               )
             })}
           </div>
-        </div>
+        </div>}
 
         {/* RIGHT panel */}
         <div style={{ flex: 1, overflowY: "auto" }}>

@@ -23,6 +23,7 @@ function adminClient() {
 const INTERNAL_BRAND_NAMES = ["GROFAST DIGITAL", "GROFAST AI", "KARTHICK BRANDS"]
 
 const NO_LOGIN_TEAMS = [
+  "Freelance Media Production",
   "Freelance Video Editing", "Freelance Videography", "Freelance RJ Voiceover",
   "Freelance Graphics Designer", "Freelance Content Writer",
   "Freelance Development & Automation", "Freelance Marketing & Operations",

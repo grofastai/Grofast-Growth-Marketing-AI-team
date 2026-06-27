@@ -180,8 +180,10 @@ export default async function ClientsUnifiedPage({
     const clientFilter: string | string[] | null = VIRTUAL_CLIENTS[selectedClient]?.filter
       ?? selectedClient
 
-    // No-login freelancer teams (Freelance Media Production has app login → counted via daily_updates)
+    // All freelancer teams with per-work cost in freelancer_work_entries_v2
+    // Freelance Media Production has app login but cost entered per-work by admin (not hourly)
     const NO_LOGIN_TEAMS = [
+      'Freelance Media Production',
       'Freelance Video Editing', 'Freelance Videography', 'Freelance RJ Voiceover',
       'Freelance Graphics Designer', 'Freelance Content Writer',
       'Freelance Development & Automation', 'Freelance Marketing & Operations',

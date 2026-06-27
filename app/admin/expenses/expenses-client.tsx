@@ -705,7 +705,7 @@ export default function ExpensesClient({
             {commonExpenses.length > 0 && (
               <div className="flex items-center justify-between px-5 py-3 flex-shrink-0 mt-auto"
                 style={{ borderTop: "2px solid #F0F0F2", background: "#F8F9FB" }}>
-                <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{commonExpenses.length} · ÷{overheadDivisor}</span>
+                <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{commonExpenses.length}</span>
                 <span className="text-[14px] font-black" style={{ color: "#8B5CF6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalCommon)}</span>
               </div>
             )}

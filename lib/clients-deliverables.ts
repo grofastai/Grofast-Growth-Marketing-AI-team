@@ -187,6 +187,7 @@ function isMediaTeam(team: string | null): boolean {
 function freelancerTaskType(team: string, taskDescription: string | null): 'shoot' | 'edit' | 'voiceover' | 'poster' | 'other' {
   if (team === 'Freelance Videography')        return 'shoot'
   if (team === 'Freelance Video Editing')      return 'edit'
+  if (team === 'Freelance Media Production')   return 'edit'
   if (team === 'Freelance RJ Voiceover')       return 'voiceover'
   if (team === 'Freelance Graphics Designer')  return 'poster'
   if (team === 'Freelance IT Technology & Media') {

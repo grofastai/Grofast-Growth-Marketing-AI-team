@@ -285,7 +285,7 @@ export default async function InsightsPage({
         totalCost: acc?.totalCost ?? 0,
       }
     })
-    .filter(m => m.workingDays > 0 || m.trackedHours > 0)
+    .filter(m => m.workingDays > 0)
     .sort((a, b) => b.trackedHours - a.trackedHours)
 
   // ── Client hours ──────────────────────────────────────────────────────────
@@ -363,13 +363,15 @@ export default async function InsightsPage({
     { label: 'Unassigned',       emoji: '❓', ...spendCats.unassigned, color: '#F59E0B' },
   ].filter(c => c.hours > 0)
 
-  const allMembers: AllMember[] = members.map(m => ({
-    name: m.name,
-    employeeId: m.employee_id,
-    team: m.team,
-    monthlySalary: m.monthly_salary ?? 0,
-    hourlyRate: deriveHourly(m),
-  }))
+  const allMembers: AllMember[] = [...members]
+    .sort((a, b) => a.employee_id.localeCompare(b.employee_id))
+    .map(m => ({
+      name: m.name,
+      employeeId: m.employee_id,
+      team: m.team,
+      monthlySalary: m.monthly_salary ?? 0,
+      hourlyRate: deriveHourly(m),
+    }))
 
   return (
     <InsightsClient

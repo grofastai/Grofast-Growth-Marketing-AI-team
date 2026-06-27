@@ -25,6 +25,7 @@ export async function getAlerts(companyId: string): Promise<AlertSummary> {
     { data: todayUpdates },
     { data: overdueTasks },
     { data: overdueProjects },
+    { data: todayFullLeaves },
   ] = await Promise.all([
     admin
       .from('users')
@@ -51,10 +52,20 @@ export async function getAlerts(companyId: string): Promise<AlertSummary> {
       .eq('status', 'active')
       .not('deadline', 'is', null)
       .lt('deadline', today),
+    // Only exclude full_day/half_day leave — WFH and shoot_day still need to submit
+    admin
+      .from('leaves')
+      .select('user_id')
+      .eq('company_id', companyId)
+      .eq('status', 'approved')
+      .in('leave_type', ['full_day', 'half_day'])
+      .lte('from_date', today)
+      .gte('to_date', today),
   ])
 
-  const submittedIds = new Set((todayUpdates ?? []).map((u: any) => u.user_id))
-  const notUpdated = (members ?? []).filter((m: any) => !submittedIds.has(m.id))
+  const submittedIds  = new Set((todayUpdates    ?? []).map((u: any) => u.user_id))
+  const onLeaveIds    = new Set((todayFullLeaves ?? []).map((l: any) => l.user_id))
+  const notUpdated = (members ?? []).filter((m: any) => !submittedIds.has(m.id) && !onLeaveIds.has(m.id))
 
   const overdueTaskCount = (overdueTasks ?? []).length
   const overdueProjectCount = (overdueProjects ?? []).length

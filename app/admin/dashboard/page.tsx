@@ -84,6 +84,7 @@ export default async function DashboardPage() {
         .eq("company_id", cid).eq("status", "active"),
       admin.from("leaves").select("*", { count: "exact", head: true })
         .eq("company_id", cid).eq("status", "approved")
+        .in("leave_type", ["full_day", "half_day"])
         .lte("from_date", today).gte("to_date", today),
       admin.from("tasks").select("*", { count: "exact", head: true })
         .eq("company_id", cid).eq("status", "completed"),
@@ -138,6 +139,7 @@ export default async function DashboardPage() {
     admin.from("leaves")
       .select("id, leave_type, reason, users(name, employee_id)")
       .eq("company_id", cid).eq("status", "approved")
+      .in("leave_type", ["full_day", "half_day"])
       .lte("from_date", today).gte("to_date", today),
   ])
 

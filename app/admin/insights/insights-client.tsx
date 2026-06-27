@@ -145,7 +145,7 @@ export default function InsightsClient({
             Team Insights
           </h1>
           <p style={{ fontSize: 12, color: '#9CA3AF', margin: '3px 0 0' }}>
-            Salary utilization, tracked hours, wasted cost — {monthLabel}
+            Salary utilization, tracked hours, productivity gap — {monthLabel}
           </p>
         </div>
         {/* Month nav */}
@@ -178,7 +178,7 @@ export default function InsightsClient({
         <KpiTile label="Salary Spent"      emoji="💰"  value={fmtRupee(kpis.totalCost)}       sub="on logged work"                            color="#DE1A1A" isCost />
         <KpiTile label="Productivity Gap"  emoji="⚠️"  value={fmtRupee(kpis.totalWastedCost)} sub="below-target hours × rate"                 color="#EF4444" isCost />
         <KpiTile label="Avg Efficiency"    emoji="📊"  value={`${kpis.avgEfficiency}%`}        sub={kpis.avgEfficiency >= 80 ? 'On track' : 'Needs attention'} color={kpis.avgEfficiency >= 80 ? '#22C55E' : '#F59E0B'} />
-        <KpiTile label="Clients Served"    emoji="🏢"  value={String(kpis.clientsServedCount)} sub="this month"                               color="#8B5CF6" />
+        <KpiTile label="Clients Served"    emoji="🏢"  value={String(kpis.clientsServedCount)} sub="unique names in work logs"                color="#8B5CF6" />
         <KpiTile label="Learning"          emoji="📚"  value={fmtH(kpis.totalLearningHours)}  sub="team total"                               color="#0EA5E9" />
       </div>
 
@@ -222,7 +222,7 @@ export default function InsightsClient({
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
             <thead>
               <tr style={{ background: '#F9FAFB' }}>
-                {['Member', 'Team', 'Days In', 'Expected', 'Tracked', 'Avg/Day', 'Learning', 'Untracked', 'Gap ₹', 'Efficiency'].map(h => (
+                {['Member', 'Team', 'Days In', 'Expected', 'Tracked', 'Avg/Day', 'Learning', 'Gap Hrs', 'Prod. Gap', 'Efficiency'].map(h => (
                   <th key={h} style={{ padding: '10px 14px', fontSize: 10, fontWeight: 700, color: '#9CA3AF', textAlign: h === 'Member' || h === 'Team' ? 'left' : 'right', borderBottom: '1px solid #F3F4F6', textTransform: 'uppercase', letterSpacing: '0.06em', whiteSpace: 'nowrap' }}>
                     {h}
                   </th>

@@ -82,6 +82,26 @@ export async function addClientExpense(data: {
   revalidatePath("/admin/clients")
 }
 
+export async function updateClientExpense(id: string, data: {
+  clientName: string
+  date: string
+  type: "ad" | "software" | "other"
+  amount: number
+  notes?: string
+}) {
+  const { companyId } = await getCompanyId()
+  const admin = adminClient()
+  await admin.from("client_expenses").update({
+    client_name: data.clientName,
+    date: data.date,
+    type: data.type,
+    amount: data.amount,
+    notes: data.notes ?? null,
+  }).match({ id, company_id: companyId })
+  revalidatePath("/admin/expenses")
+  revalidatePath("/admin/clients")
+}
+
 export async function deleteClientExpense(id: string) {
   const { companyId } = await getCompanyId()
   const admin = adminClient()

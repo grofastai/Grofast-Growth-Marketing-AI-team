@@ -3,13 +3,14 @@
 import { useState, useMemo, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
-  IndianRupee, Plus, Trash2, X,
+  IndianRupee, Plus, Trash2, X, Pencil,
   Car, Megaphone, Monitor, MoreHorizontal, Building2,
   Receipt, Layers, CheckCircle2, AlertCircle,
 } from "lucide-react"
 import {
   upsertTravelCost,
   addClientExpense,
+  updateClientExpense,
   deleteClientExpense,
   upsertCommonExpense,
   deleteCommonExpense,
@@ -137,16 +138,17 @@ function Modal({ title, onClose, children }: {
 
 // ── Client Expense Modal ──────────────────────────────────────────────────────
 
-function ClientExpenseModal({ clients, selectedMonth, onClose }: {
+function ClientExpenseModal({ clients, selectedMonth, editing, onClose }: {
   clients: string[]
   selectedMonth: string
+  editing?: ClientExpense
   onClose: () => void
 }) {
-  const [clientName, setClientName] = useState(clients[0] ?? "")
-  const [type, setType]             = useState<"ad" | "software" | "other">("ad")
-  const [date, setDate]             = useState(selectedMonth + "-01")
-  const [amount, setAmount]         = useState("")
-  const [notes, setNotes]           = useState("")
+  const [clientName, setClientName] = useState(editing?.client_name ?? clients[0] ?? "")
+  const [type, setType]             = useState<"ad" | "software" | "other">((editing?.type as "ad" | "software" | "other") ?? "ad")
+  const [date, setDate]             = useState(editing?.date ?? selectedMonth + "-01")
+  const [amount, setAmount]         = useState(editing ? String(editing.amount) : "")
+  const [notes, setNotes]           = useState(editing?.notes ?? "")
   const [isPending, start]          = useTransition()
   const [done, setDone]             = useState(false)
   const router                      = useRouter()
@@ -155,15 +157,20 @@ function ClientExpenseModal({ clients, selectedMonth, onClose }: {
     const amt = parseFloat(amount)
     if (!clientName || isNaN(amt) || amt <= 0) return
     start(async () => {
-      await addClientExpense({ clientName, date, type, amount: amt, notes: notes || undefined })
+      if (editing) {
+        await updateClientExpense(editing.id, { clientName, date, type, amount: amt, notes: notes || undefined })
+      } else {
+        await addClientExpense({ clientName, date, type, amount: amt, notes: notes || undefined })
+      }
       router.refresh()
       setDone(true)
-      setTimeout(() => { setDone(false); setAmount(""); setNotes("") }, 1400)
+      setTimeout(() => { setDone(false); if (!editing) { setAmount(""); setNotes("") } }, 1400)
+      if (editing) setTimeout(onClose, 1400)
     })
   }
 
   return (
-    <Modal title="Add Client Expense" onClose={onClose}>
+    <Modal title={editing ? "Edit Client Expense" : "Add Client Expense"} onClose={onClose}>
       <div className="space-y-4">
         <div>
           <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6B7280" }}>Client</label>
@@ -221,14 +228,15 @@ function ClientExpenseModal({ clients, selectedMonth, onClose }: {
 
 // ── Common Expense Modal ──────────────────────────────────────────────────────
 
-function CommonExpenseModal({ selectedMonth, overheadDivisor, onClose }: {
+function CommonExpenseModal({ selectedMonth, overheadDivisor, editing, onClose }: {
   selectedMonth: string
   overheadDivisor: number
+  editing?: CommonExpense
   onClose: () => void
 }) {
-  const [name, setName]     = useState("")
-  const [amount, setAmount] = useState("")
-  const [notes, setNotes]   = useState("")
+  const [name, setName]     = useState(editing?.name ?? "")
+  const [amount, setAmount] = useState(editing ? String(editing.amount) : "")
+  const [notes, setNotes]   = useState(editing?.notes ?? "")
   const [isPending, start]  = useTransition()
   const [done, setDone]     = useState(false)
   const router               = useRouter()
@@ -239,15 +247,16 @@ function CommonExpenseModal({ selectedMonth, overheadDivisor, onClose }: {
   function save() {
     if (!name.trim() || amt <= 0) return
     start(async () => {
-      await upsertCommonExpense({ name: name.trim(), type: "other", month: selectedMonth, amount: amt, notes: notes || undefined })
+      await upsertCommonExpense({ id: editing?.id, name: name.trim(), type: "other", month: selectedMonth, amount: amt, notes: notes || undefined })
       router.refresh()
       setDone(true)
-      setTimeout(() => { setDone(false); setName(""); setAmount(""); setNotes("") }, 1400)
+      setTimeout(() => { setDone(false); if (!editing) { setName(""); setAmount(""); setNotes("") } }, 1400)
+      if (editing) setTimeout(onClose, 1400)
     })
   }
 
   return (
-    <Modal title="Add Common Expense" onClose={onClose}>
+    <Modal title={editing ? "Edit Common Expense" : "Add Common Expense"} onClose={onClose}>
       <div className="space-y-4">
         <div>
           <label className="text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6B7280" }}>Expense Name</label>
@@ -410,8 +419,10 @@ export default function ExpensesClient({
   selectedMonth: string
 }) {
   const router = useRouter()
-  const [modal, setModal] = useState<"travel" | "client" | "common" | null>(null)
-  const [isPending, start] = useTransition()
+  const [modal, setModal]             = useState<"travel" | "client" | "common" | null>(null)
+  const [editingClient, setEditClient] = useState<ClientExpense | null>(null)
+  const [editingCommon, setEditCommon] = useState<CommonExpense | null>(null)
+  const [isPending, start]             = useTransition()
 
   const [yr, mo] = selectedMonth.split("-").map(Number)
 
@@ -595,6 +606,10 @@ export default function ExpensesClient({
                     <span className="text-[13px] font-black flex-shrink-0" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
                       ₹{Math.round(e.amount).toLocaleString("en-IN")}
                     </span>
+                    <button onClick={() => { setEditClient(e); setModal("client") }}
+                      className="opacity-40 hover:opacity-90 transition-opacity flex-shrink-0">
+                      <Pencil size={13} style={{ color: "#6B7280" }} />
+                    </button>
                     <button onClick={() => handleDeleteClient(e.id)} disabled={isPending}
                       className="opacity-30 hover:opacity-80 transition-opacity flex-shrink-0">
                       <Trash2 size={13} style={{ color: "#DC2626" }} />
@@ -638,6 +653,10 @@ export default function ExpensesClient({
                       <span className="text-[13px] font-black flex-shrink-0" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
                         ₹{Math.round(e.amount).toLocaleString("en-IN")}
                       </span>
+                      <button onClick={() => { setEditCommon(e); setModal("common") }}
+                        className="opacity-40 hover:opacity-90 transition-opacity flex-shrink-0">
+                        <Pencil size={13} style={{ color: "#6B7280" }} />
+                      </button>
                       <button onClick={() => handleDeleteCommon(e.id)} disabled={isPending}
                         className="opacity-30 hover:opacity-80 transition-opacity flex-shrink-0">
                         <Trash2 size={13} style={{ color: "#DC2626" }} />
@@ -658,10 +677,20 @@ export default function ExpensesClient({
         <TravelTableModal shoots={shootRows} savedTravel={savedTravel} onClose={() => setModal(null)} />
       )}
       {modal === "client" && (
-        <ClientExpenseModal clients={clientNames} selectedMonth={selectedMonth} onClose={() => setModal(null)} />
+        <ClientExpenseModal
+          clients={clientNames}
+          selectedMonth={selectedMonth}
+          editing={editingClient ?? undefined}
+          onClose={() => { setModal(null); setEditClient(null) }}
+        />
       )}
       {modal === "common" && (
-        <CommonExpenseModal selectedMonth={selectedMonth} overheadDivisor={overheadDivisor} onClose={() => setModal(null)} />
+        <CommonExpenseModal
+          selectedMonth={selectedMonth}
+          overheadDivisor={overheadDivisor}
+          editing={editingCommon ?? undefined}
+          onClose={() => { setModal(null); setEditCommon(null) }}
+        />
       )}
     </div>
   )

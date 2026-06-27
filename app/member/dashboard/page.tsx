@@ -4,7 +4,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import type React from "react"
-import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap, Camera, Film, Coffee, BookOpen } from "lucide-react"
+import { Target, CalendarOff, Clock, CheckCircle2, AlertCircle, AlertTriangle, Calendar, ChevronRight, Zap, Camera, Film, Coffee, BookOpen, Mic, Monitor, Layers } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
 import DashboardHeaderControls from "@/components/member/DashboardHeaderControls"
@@ -225,6 +225,35 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const flAvgShoot    = flShootCount > 0 ? Math.round((flShootHrs / flShootCount) * 10) / 10 : 0
   const flAvgVideo    = flTotalVideos > 0 ? Math.round(((flEditHrs + flShootHrs) / flTotalVideos) * 10) / 10 : 0
 
+  // Media team right-panel: shooting hrs + editing hrs from work_entries
+  let mediaShootHrs = 0, mediaEditHrs = 0
+  if (isMedia) {
+    for (const u of monthlyUpdates) {
+      const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
+      for (const e of entries) {
+        if (e.task_type === "shoot") mediaShootHrs += e.duration_hours ?? 0
+        else if (e.task_type === "edit") mediaEditHrs += e.duration_hours ?? 0
+      }
+    }
+    mediaShootHrs = Math.round(mediaShootHrs * 10) / 10
+    mediaEditHrs  = Math.round(mediaEditHrs  * 10) / 10
+  }
+
+  // Non-media right-panel: poster/edit/voiceover counts + technical (work_log) hrs
+  let nmPosterCount = 0, nmEditCount = 0, nmVoiceoverCount = 0, nmTechHrs = 0
+  if (!isMedia && !isFreelancerMedia) {
+    for (const u of monthlyUpdates) {
+      const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
+      for (const e of entries) {
+        if      (e.task_type === "poster")    nmPosterCount++
+        else if (e.task_type === "edit")      nmEditCount++
+        else if (e.task_type === "voiceover") nmVoiceoverCount++
+        else if (e.task_type === "log")       nmTechHrs += e.duration_hours ?? 0
+      }
+    }
+    nmTechHrs = Math.round(nmTechHrs * 10) / 10
+  }
+
   const hour      = now.getHours()
   const greeting  = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening"
   const dateStr   = now.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })
@@ -297,13 +326,14 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: flShootCount, label: "Videos Shot",   href: "/member/history" },
     { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
   ] : isMedia ? [
-    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: totalShoots,                                          label: "Total Shoots", href: "/member/history" },
-    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: totalEdited,                                          label: "Total Edited", href: "/member/history" },
-    { icon: Coffee,   iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", value: totalBreakHrs > 0 ? `${totalBreakHrs}h` : "—",       label: "Break Hours",  href: "/member/attendance" },
+    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: mediaShootHrs > 0 ? `${mediaShootHrs}h` : "—",      label: "Shooting Hrs", href: "/member/history" },
+    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: mediaEditHrs > 0 ? `${mediaEditHrs}h` : "—",        label: "Editing Hrs",  href: "/member/history" },
+    { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
   ] : [
-    { icon: BookOpen, iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
-    { icon: Clock,    iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : "—",       label: "Working Hrs",  href: "/member/attendance" },
-    { icon: Coffee,   iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", value: totalBreakHrs > 0 ? `${totalBreakHrs}h` : "—",       label: "Break Hours",  href: "/member/attendance" },
+    { icon: Layers,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: nmPosterCount,                                       label: "Poster",       href: "/member/history" },
+    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: nmEditCount,                                         label: "Editing",      href: "/member/history" },
+    { icon: Mic,      iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: nmVoiceoverCount,                                    label: "Voiceover",    href: "/member/history" },
+    { icon: Monitor,  iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", value: nmTechHrs > 0 ? `${nmTechHrs}h` : "—",              label: "Technical",    href: "/member/history" },
   ]
 
   return (

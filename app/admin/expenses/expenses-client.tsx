@@ -596,99 +596,141 @@ export default function ExpensesClient({
         </div>
 
         {/* Expense Lists */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
 
           {/* Client Direct */}
-          <div className="rounded-2xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-            <div className="flex items-center gap-2.5 px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
+          <div className="rounded-2xl overflow-hidden flex flex-col" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", minHeight: "200px" }}>
+            {/* Title bar */}
+            <div className="flex items-center gap-2.5 px-5 py-3.5 flex-shrink-0" style={{ borderBottom: "1px solid #F0F0F2", background: "#FAFAFA" }}>
               <Receipt size={14} style={{ color: "#3B82F6" }} />
-              <h2 className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Client Direct</h2>
-              <span className="ml-auto text-[13px] font-black" style={{ color: "#3B82F6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalClientDirect)}</span>
+              <h2 className="text-[12px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Client Direct</h2>
+              <span className="ml-auto text-[14px] font-black" style={{ color: "#3B82F6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalClientDirect)}</span>
             </div>
-            {clientExpenses.length === 0 ? (
-              <div className="flex flex-col items-center py-12">
-                <AlertCircle size={28} style={{ color: "#E5E7EB" }} className="mb-2" />
-                <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No client expenses this month</p>
+            {/* Sticky column headers */}
+            {clientExpenses.length > 0 && (
+              <div className="grid flex-shrink-0 px-4 py-2.5" style={{ gridTemplateColumns: "28px 1fr 80px 48px", background: "#F8F9FB", borderBottom: "1px solid #F0F0F2", position: "sticky", top: 0 }}>
+                <div />
+                <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Client · Notes</div>
+                <div className="text-[10px] font-black uppercase tracking-wider text-right" style={{ color: "#9CA3AF" }}>Amount</div>
+                <div />
               </div>
-            ) : (
-              <div className="divide-y" style={{ borderColor: "#F3F4F6" }}>
-                {clientExpenses.map(e => (
-                  <div key={e.id} className="flex items-center gap-3 px-5 py-3.5">
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+            )}
+            {/* Scrollable body */}
+            <div className="overflow-y-auto" style={{ maxHeight: "360px" }}>
+              {clientExpenses.length === 0 ? (
+                <div className="flex flex-col items-center py-12">
+                  <AlertCircle size={28} style={{ color: "#E5E7EB" }} className="mb-2" />
+                  <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No client expenses this month</p>
+                </div>
+              ) : (
+                clientExpenses.map((e, i) => (
+                  <div key={e.id} className="grid items-center gap-3 px-4 py-3"
+                    style={{ gridTemplateColumns: "28px 1fr 80px 48px", borderBottom: "1px solid #F3F4F6", background: i % 2 === 0 ? "#FFFFFF" : "#FAFCFF" }}>
+                    <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
                       style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>
                       {TYPE_ICON[e.type] ?? TYPE_ICON.other}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-[12px] font-semibold truncate" style={{ color: "#111111" }}>{e.client_name}</p>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold capitalize flex-shrink-0"
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-[12px] font-bold truncate" style={{ color: "#111111" }}>{e.client_name}</p>
+                        <span className="text-[9px] px-1.5 py-0.5 rounded font-black capitalize flex-shrink-0"
                           style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>{e.type}</span>
                       </div>
-                      <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
+                      <p className="text-[10px] truncate" style={{ color: "#9CA3AF" }}>
                         {fmtDate(e.date)}{e.shoot_title ? ` · ${e.shoot_title}` : ""}{e.notes ? ` · ${e.notes}` : ""}
                       </p>
                     </div>
-                    <span className="text-[13px] font-black flex-shrink-0" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+                    <span className="text-[12px] font-black text-right" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
                       ₹{Math.round(e.amount).toLocaleString("en-IN")}
                     </span>
-                    <button onClick={() => { setEditClient(e); setModal("client") }}
-                      className="opacity-40 hover:opacity-90 transition-opacity flex-shrink-0">
-                      <Pencil size={13} style={{ color: "#6B7280" }} />
-                    </button>
-                    <button onClick={() => handleDeleteClient(e.id)} disabled={isPending}
-                      className="opacity-30 hover:opacity-80 transition-opacity flex-shrink-0">
-                      <Trash2 size={13} style={{ color: "#DC2626" }} />
-                    </button>
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button onClick={() => { setEditClient(e); setModal("client") }}
+                        className="opacity-40 hover:opacity-90 transition-opacity">
+                        <Pencil size={12} style={{ color: "#6B7280" }} />
+                      </button>
+                      <button onClick={() => handleDeleteClient(e.id)} disabled={isPending}
+                        className="opacity-30 hover:opacity-80 transition-opacity">
+                        <Trash2 size={12} style={{ color: "#DC2626" }} />
+                      </button>
+                    </div>
                   </div>
-                ))}
+                ))
+              )}
+            </div>
+            {/* Footer total */}
+            {clientExpenses.length > 0 && (
+              <div className="flex items-center justify-between px-5 py-3 flex-shrink-0 mt-auto"
+                style={{ borderTop: "2px solid #F0F0F2", background: "#F8F9FB" }}>
+                <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{clientExpenses.length} entries</span>
+                <span className="text-[14px] font-black" style={{ color: "#3B82F6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalClientDirect)}</span>
               </div>
             )}
           </div>
 
           {/* Common / Shared */}
-          <div className="rounded-2xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
-            <div className="flex items-center gap-2.5 px-5 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
+          <div className="rounded-2xl overflow-hidden flex flex-col" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", minHeight: "200px" }}>
+            {/* Title bar */}
+            <div className="flex items-center gap-2.5 px-5 py-3.5 flex-shrink-0" style={{ borderBottom: "1px solid #F0F0F2", background: "#FAFAFA" }}>
               <Layers size={14} style={{ color: "#8B5CF6" }} />
-              <h2 className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Common / Shared</h2>
-              <span className="ml-auto text-[13px] font-black" style={{ color: "#8B5CF6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalCommon)}</span>
+              <h2 className="text-[12px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Common / Shared</h2>
+              <span className="ml-auto text-[14px] font-black" style={{ color: "#8B5CF6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalCommon)}</span>
             </div>
-            {commonExpenses.length === 0 ? (
-              <div className="flex flex-col items-center py-12">
-                <AlertCircle size={28} style={{ color: "#E5E7EB" }} className="mb-2" />
-                <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No common expenses this month</p>
+            {/* Sticky column headers */}
+            {commonExpenses.length > 0 && (
+              <div className="grid flex-shrink-0 px-4 py-2.5" style={{ gridTemplateColumns: "28px 1fr 80px 48px", background: "#F8F9FB", borderBottom: "1px solid #F0F0F2", position: "sticky", top: 0 }}>
+                <div />
+                <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Name · Notes</div>
+                <div className="text-[10px] font-black uppercase tracking-wider text-right" style={{ color: "#9CA3AF" }}>Amount</div>
+                <div />
               </div>
-            ) : (
-              <div className="divide-y" style={{ borderColor: "#F3F4F6" }}>
-                {commonExpenses.map(e => {
+            )}
+            {/* Scrollable body */}
+            <div className="overflow-y-auto" style={{ maxHeight: "360px" }}>
+              {commonExpenses.length === 0 ? (
+                <div className="flex flex-col items-center py-12">
+                  <AlertCircle size={28} style={{ color: "#E5E7EB" }} className="mb-2" />
+                  <p className="text-[13px]" style={{ color: "#9CA3AF" }}>No common expenses this month</p>
+                </div>
+              ) : (
+                commonExpenses.map((e, i) => {
                   const share = overheadDivisor > 0 ? e.amount / overheadDivisor : 0
                   return (
-                    <div key={e.id} className="flex items-center gap-3 px-5 py-3.5">
-                      <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                    <div key={e.id} className="grid items-center gap-3 px-4 py-3"
+                      style={{ gridTemplateColumns: "28px 1fr 80px 48px", borderBottom: "1px solid #F3F4F6", background: i % 2 === 0 ? "#FFFFFF" : "#FDFAFF" }}>
+                      <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
                         style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>
                         {TYPE_ICON[e.type] ?? TYPE_ICON.other}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[12px] font-semibold truncate" style={{ color: "#111111" }}>{e.name}</p>
-                        <p className="text-[11px]" style={{ color: "#9CA3AF" }}>
-                          <span className="capitalize">{e.type}</span>
-                          {e.notes ? ` · ${e.notes}` : ""}
-                          {share > 0 ? ` · ${fmtRupee(share)}/client` : ""}
+                      <div className="min-w-0">
+                        <p className="text-[12px] font-bold truncate" style={{ color: "#111111" }}>{e.name}</p>
+                        <p className="text-[10px] truncate" style={{ color: "#9CA3AF" }}>
+                          {e.notes ? `${e.notes} · ` : ""}{share > 0 ? `${fmtRupee(share)}/client` : ""}
                         </p>
                       </div>
-                      <span className="text-[13px] font-black flex-shrink-0" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
+                      <span className="text-[12px] font-black text-right" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
                         ₹{Math.round(e.amount).toLocaleString("en-IN")}
                       </span>
-                      <button onClick={() => { setEditCommon(e); setModal("common") }}
-                        className="opacity-40 hover:opacity-90 transition-opacity flex-shrink-0">
-                        <Pencil size={13} style={{ color: "#6B7280" }} />
-                      </button>
-                      <button onClick={() => handleDeleteCommon(e.id)} disabled={isPending}
-                        className="opacity-30 hover:opacity-80 transition-opacity flex-shrink-0">
-                        <Trash2 size={13} style={{ color: "#DC2626" }} />
-                      </button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button onClick={() => { setEditCommon(e); setModal("common") }}
+                          className="opacity-40 hover:opacity-90 transition-opacity">
+                          <Pencil size={12} style={{ color: "#6B7280" }} />
+                        </button>
+                        <button onClick={() => handleDeleteCommon(e.id)} disabled={isPending}
+                          className="opacity-30 hover:opacity-80 transition-opacity">
+                          <Trash2 size={12} style={{ color: "#DC2626" }} />
+                        </button>
+                      </div>
                     </div>
                   )
-                })}
+                })
+              )}
+            </div>
+            {/* Footer total */}
+            {commonExpenses.length > 0 && (
+              <div className="flex items-center justify-between px-5 py-3 flex-shrink-0 mt-auto"
+                style={{ borderTop: "2px solid #F0F0F2", background: "#F8F9FB" }}>
+                <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{commonExpenses.length} entries · ÷{overheadDivisor}</span>
+                <span className="text-[14px] font-black" style={{ color: "#8B5CF6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalCommon)}</span>
               </div>
             )}
           </div>

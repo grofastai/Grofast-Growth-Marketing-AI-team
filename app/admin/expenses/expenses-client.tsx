@@ -36,8 +36,6 @@ type MemberUser = {
   id: string
   name: string
   employee_id: string
-  hourly_rate: number | null
-  monthly_salary: number | null
 }
 
 type ClientExpense = {
@@ -412,7 +410,7 @@ function TravelTableModal({ shoots, savedTravel, onClose }: {
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function ExpensesClient({
-  updates, users, clientExpenses, commonExpenses, activeClients, selectedMonth,
+  updates, users, clientExpenses, commonExpenses, activeClients, selectedMonth, employeeCostByClient,
 }: {
   updates: UpdateRow[]
   users: MemberUser[]
@@ -420,6 +418,7 @@ export default function ExpensesClient({
   commonExpenses: CommonExpense[]
   activeClients: ActiveClient[]
   selectedMonth: string
+  employeeCostByClient: Record<string, number>
 }) {
   const router = useRouter()
   const [modal, setModal]             = useState<"travel" | "client" | "common" | null>(null)
@@ -489,37 +488,17 @@ export default function ExpensesClient({
   const perClientOverhead = overheadDivisor > 0 ? totalCommon / overheadDivisor : 0
   const grandTotal        = totalClientDirect + totalCommon
 
-  const employeeCostMap = useMemo(() => {
-    const rateMap: Record<string, number> = {}
-    for (const u of users) {
-      const rate = u.monthly_salary && u.monthly_salary > 0
-        ? u.monthly_salary / 25 / 8.5
-        : (u.hourly_rate ?? 0)
-      rateMap[u.id] = rate
-    }
-    const costByClient: Record<string, number> = {}
-    for (const u of updates) {
-      if (!Array.isArray(u.work_entries)) continue
-      const rate = rateMap[u.user_id] ?? 0
-      for (const e of u.work_entries as WorkEntry[]) {
-        const client = e.client_name?.toUpperCase().trim()
-        if (!client || !e.duration_hours) continue
-        costByClient[client] = (costByClient[client] ?? 0) + e.duration_hours * rate
-      }
-    }
-    return costByClient
-  }, [updates, users])
-
   const clientSummaryRows = useMemo(() => {
     const directMap: Record<string, number> = {}
     for (const e of clientExpenses) {
       directMap[e.client_name] = (directMap[e.client_name] ?? 0) + e.amount
     }
     const allNames = new Set<string>()
+    for (const name of Object.keys(employeeCostByClient)) allNames.add(name)
     for (const c of activeClients) if (c.name) allNames.add(c.name)
     for (const n of Object.keys(directMap)) allNames.add(n)
     return Array.from(allNames).map(name => {
-      const empCost = employeeCostMap[name.toUpperCase().trim()] ?? 0
+      const empCost = employeeCostByClient[name] ?? 0
       const direct  = directMap[name] ?? 0
       return {
         name,
@@ -529,7 +508,7 @@ export default function ExpensesClient({
         total: direct + perClientOverhead + empCost,
       }
     }).sort((a, b) => b.total - a.total)
-  }, [clientExpenses, activeClients, perClientOverhead, employeeCostMap])
+  }, [clientExpenses, activeClients, perClientOverhead, employeeCostByClient])
 
 
   function handleDeleteClient(id: string) {

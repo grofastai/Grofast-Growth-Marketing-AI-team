@@ -80,7 +80,7 @@ function fmtDate(s: string) {
 }
 
 function fmtRupee(n: number) {
-  if (n === 0) return "—"
+  if (n === 0) return "₹0"
   return `₹${Math.round(n).toLocaleString("en-IN")}`
 }
 
@@ -88,7 +88,7 @@ const TYPE_ICON: Record<string, React.ReactNode> = {
   travel:   <Car size={13} />,
   ad:       <Megaphone size={13} />,
   software: <Monitor size={13} />,
-  other:    <MoreHorizontal size={13} />,
+  other:    <Receipt size={13} />,
   rent:     <Building2 size={13} />,
 }
 
@@ -525,10 +525,7 @@ export default function ExpensesClient({
         {/* Header */}
         <div className="flex items-center justify-between gap-4 flex-wrap"
           style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius: 20, padding: "22px 24px", boxShadow: "0 8px 32px rgba(180,0,0,0.35)" }}>
-          <div>
-            <h1 className="text-[28px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>Expenses</h1>
-            <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.7)" }}>Client direct + common overhead</p>
-          </div>
+          <h1 className="text-[28px] font-black" style={{ fontFamily: "var(--font-jakarta)", color: "#FFFFFF" }}>Expenses</h1>
           <div className="flex items-center gap-2 px-4 py-2 rounded-xl" style={{ background: "rgba(255,255,255,0.12)" }}>
             <button onClick={() => goMonth(-1)} className="w-7 h-7 rounded-lg flex items-center justify-center text-white font-bold text-lg hover:bg-white/10 transition-colors">‹</button>
             <span className="text-[14px] font-black text-white px-2">{MONTHS_SHORT[mo - 1]} {yr}</span>
@@ -539,60 +536,46 @@ export default function ExpensesClient({
         {/* 4 Summary Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: "Total Expenses",   value: fmtRupee(grandTotal),        color: "#de1a1a", bg: "rgba(222,26,26,0.06)",   icon: <IndianRupee size={16} style={{ color: "#de1a1a" }} /> },
-            { label: "Client Direct",    value: fmtRupee(totalClientDirect), color: "#3B82F6", bg: "rgba(59,130,246,0.06)",  icon: <Receipt size={16} style={{ color: "#3B82F6" }} /> },
-            { label: "Common Shared",    value: fmtRupee(totalCommon),       color: "#8B5CF6", bg: "rgba(139,92,246,0.06)",  icon: <Layers size={16} style={{ color: "#8B5CF6" }} /> },
-            { label: "Per Client/Brand", value: fmtRupee(perClientOverhead), color: "#10B981", bg: "rgba(16,185,129,0.06)",  icon: <Building2 size={16} style={{ color: "#10B981" }} />, sub: `÷ ${overheadDivisor} (${activeClients.length} clients + 3 brands)` },
+            { label: "Total Expenses",   value: fmtRupee(grandTotal),        color: "#de1a1a", bg: "rgba(222,26,26,0.06)",  icon: <IndianRupee size={15} style={{ color: "#de1a1a" }} /> },
+            { label: "Client Direct",    value: fmtRupee(totalClientDirect), color: "#3B82F6", bg: "rgba(59,130,246,0.06)", icon: <Receipt size={15} style={{ color: "#3B82F6" }} /> },
+            { label: "Common Shared",    value: fmtRupee(totalCommon),       color: "#8B5CF6", bg: "rgba(139,92,246,0.06)", icon: <Layers size={15} style={{ color: "#8B5CF6" }} /> },
+            { label: "Per Client/Brand", value: fmtRupee(perClientOverhead), color: "#10B981", bg: "rgba(16,185,129,0.06)", icon: <Building2 size={15} style={{ color: "#10B981" }} />, sub: `÷ ${overheadDivisor} (${activeClients.length} clients + 3 brands)` },
           ].map(k => (
-            <div key={k.label} className="rounded-2xl p-5 flex flex-col justify-between"
-              style={{ background: "#FFFFFF", border: `1.5px solid ${k.color}20`, boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: k.bg }}>
-                {k.icon}
+            <div key={k.label} className="rounded-2xl py-5 px-4 flex flex-col items-center justify-center text-center gap-2"
+              style={{ background: "#FFFFFF", border: `1.5px solid ${k.color}20`, boxShadow: "0 2px 12px rgba(0,0,0,0.04)", minHeight: "120px" }}>
+              <div className="flex items-center gap-1.5">
+                <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: k.bg }}>{k.icon}</div>
+                <p className="text-[11px] font-black uppercase tracking-wider" style={{ color: "#6B7280" }}>{k.label}</p>
               </div>
-              <div>
-                <p className="text-[22px] font-black leading-none mb-1" style={{ fontFamily: "var(--font-jakarta)", color: k.color }}>{k.value}</p>
-                <p className="text-[12px] font-semibold" style={{ color: "#374151" }}>{k.label}</p>
-                {"sub" in k && k.sub && <p className="text-[10px] mt-0.5" style={{ color: "#9CA3AF" }}>{k.sub}</p>}
-              </div>
+              <p className="text-[24px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: k.color }}>{k.value}</p>
+              {"sub" in k && k.sub && <p className="text-[10px] font-semibold" style={{ color: "#9CA3AF" }}>{k.sub}</p>}
             </div>
           ))}
         </div>
 
         {/* 3 Action Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <button onClick={() => setModal("travel")}
-            className="flex items-center gap-3 px-5 py-4 rounded-2xl transition-all hover:shadow-md text-left"
-            style={{ background: "#FFFFFF", border: "1.5px solid rgba(59,130,246,0.25)" }}>
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(59,130,246,0.08)" }}>
-              <Car size={18} style={{ color: "#3B82F6" }} />
-            </div>
-            <div>
-              <p className="text-[13px] font-black" style={{ color: "#111111" }}>Travel Costs</p>
-              <p className="text-[11px]" style={{ color: "#6B7280" }}>Petrol / travel per shoot</p>
-            </div>
-          </button>
-          <button onClick={() => setModal("client")}
-            className="flex items-center gap-3 px-5 py-4 rounded-2xl transition-all hover:shadow-md text-left"
-            style={{ background: "#FFFFFF", border: "1.5px solid rgba(222,26,26,0.2)" }}>
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(222,26,26,0.06)" }}>
-              <Megaphone size={18} style={{ color: "#de1a1a" }} />
-            </div>
-            <div>
-              <p className="text-[13px] font-black" style={{ color: "#111111" }}>Client Expense</p>
-              <p className="text-[11px]" style={{ color: "#6B7280" }}>Ad spend · software · other</p>
-            </div>
-          </button>
-          <button onClick={() => setModal("common")}
-            className="flex items-center gap-3 px-5 py-4 rounded-2xl transition-all hover:shadow-md text-left"
-            style={{ background: "#FFFFFF", border: "1.5px solid rgba(139,92,246,0.2)" }}>
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "rgba(139,92,246,0.06)" }}>
-              <Building2 size={18} style={{ color: "#8B5CF6" }} />
-            </div>
-            <div>
-              <p className="text-[13px] font-black" style={{ color: "#111111" }}>Common Expense</p>
-              <p className="text-[11px]" style={{ color: "#6B7280" }}>Rent · shared software — split by clients</p>
-            </div>
-          </button>
+          {[
+            { key: "travel", label: "ADD TRAVEL COST",     icon: <Car size={16} />,      color: "#3B82F6", shadow: "rgba(59,130,246,0.4)",   grad: "linear-gradient(135deg,#3B82F6,#1D4ED8)" },
+            { key: "client", label: "ADD CLIENT EXPENSE",  icon: <Megaphone size={16} />, color: "#DE1A1A", shadow: "rgba(222,26,26,0.4)",    grad: "linear-gradient(135deg,#DE1A1A,#991111)" },
+            { key: "common", label: "ADD COMMON EXPENSE",  icon: <Building2 size={16} />, color: "#8B5CF6", shadow: "rgba(139,92,246,0.4)",   grad: "linear-gradient(135deg,#8B5CF6,#6D28D9)" },
+          ].map(b => (
+            <button key={b.key} onClick={() => setModal(b.key as "travel" | "client" | "common")}
+              className="flex items-center justify-center gap-2.5 py-4 px-6 rounded-2xl font-black text-[13px] tracking-widest text-white transition-all active:translate-y-[3px]"
+              style={{
+                background: b.grad,
+                boxShadow: `0 6px 0 ${b.shadow}, 0 8px 20px ${b.shadow}`,
+                letterSpacing: "0.08em",
+              }}
+              onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-2px)")}
+              onMouseLeave={e => (e.currentTarget.style.transform = "translateY(0)")}
+              onMouseDown={e => (e.currentTarget.style.transform = "translateY(4px)")}
+              onMouseUp={e => (e.currentTarget.style.transform = "translateY(-2px)")}
+            >
+              {b.icon}
+              {b.label}
+            </button>
+          ))}
         </div>
 
         {/* Expense Lists */}
@@ -600,22 +583,19 @@ export default function ExpensesClient({
 
           {/* Client Direct */}
           <div className="rounded-2xl overflow-hidden flex flex-col" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", minHeight: "200px" }}>
-            {/* Title bar */}
             <div className="flex items-center gap-2.5 px-5 py-3.5 flex-shrink-0" style={{ borderBottom: "1px solid #F0F0F2", background: "#FAFAFA" }}>
               <Receipt size={14} style={{ color: "#3B82F6" }} />
-              <h2 className="text-[12px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Client Direct</h2>
-              <span className="ml-auto text-[14px] font-black" style={{ color: "#3B82F6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalClientDirect)}</span>
+              <h2 className="text-[12px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Client Direct</h2>
             </div>
-            {/* Sticky column headers */}
             {clientExpenses.length > 0 && (
-              <div className="grid flex-shrink-0 px-4 py-2.5" style={{ gridTemplateColumns: "28px 1fr 80px 48px", background: "#F8F9FB", borderBottom: "1px solid #F0F0F2", position: "sticky", top: 0 }}>
+              <div className="grid flex-shrink-0 px-4 py-2" style={{ gridTemplateColumns: "56px 28px 1fr 84px 48px", background: "#F8F9FB", borderBottom: "1px solid #F0F0F2" }}>
+                <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Date</div>
                 <div />
-                <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Client · Notes</div>
-                <div className="text-[10px] font-black uppercase tracking-wider text-right" style={{ color: "#9CA3AF" }}>Amount</div>
+                <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#3B82F6" }}>Client</div>
+                <div className="text-[10px] font-black uppercase tracking-wider text-right" style={{ color: "#3B82F6" }}>Amount</div>
                 <div />
               </div>
             )}
-            {/* Scrollable body */}
             <div className="overflow-y-auto" style={{ maxHeight: "360px" }}>
               {clientExpenses.length === 0 ? (
                 <div className="flex flex-col items-center py-12">
@@ -624,8 +604,9 @@ export default function ExpensesClient({
                 </div>
               ) : (
                 clientExpenses.map((e, i) => (
-                  <div key={e.id} className="grid items-center gap-3 px-4 py-3"
-                    style={{ gridTemplateColumns: "28px 1fr 80px 48px", borderBottom: "1px solid #F3F4F6", background: i % 2 === 0 ? "#FFFFFF" : "#FAFCFF" }}>
+                  <div key={e.id} className="grid items-center gap-2 px-4 py-2.5"
+                    style={{ gridTemplateColumns: "56px 28px 1fr 84px 48px", borderBottom: "1px solid #F3F4F6", background: i % 2 === 0 ? "#FFFFFF" : "#FAFCFF" }}>
+                    <span className="text-[10px] font-bold" style={{ color: "#9CA3AF" }}>{fmtDate(e.date)}</span>
                     <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
                       style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>
                       {TYPE_ICON[e.type] ?? TYPE_ICON.other}
@@ -636,20 +617,20 @@ export default function ExpensesClient({
                         <span className="text-[9px] px-1.5 py-0.5 rounded font-black capitalize flex-shrink-0"
                           style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>{e.type}</span>
                       </div>
-                      <p className="text-[10px] truncate" style={{ color: "#9CA3AF" }}>
-                        {fmtDate(e.date)}{e.shoot_title ? ` · ${e.shoot_title}` : ""}{e.notes ? ` · ${e.notes}` : ""}
-                      </p>
+                      {(e.shoot_title || e.notes) && (
+                        <p className="text-[10px] truncate" style={{ color: "#9CA3AF" }}>
+                          {e.shoot_title ? e.shoot_title : ""}{e.notes ? (e.shoot_title ? ` · ${e.notes}` : e.notes) : ""}
+                        </p>
+                      )}
                     </div>
                     <span className="text-[12px] font-black text-right" style={{ fontFamily: "var(--font-jakarta)", color: "#111111" }}>
                       ₹{Math.round(e.amount).toLocaleString("en-IN")}
                     </span>
                     <div className="flex items-center justify-end gap-1.5">
-                      <button onClick={() => { setEditClient(e); setModal("client") }}
-                        className="opacity-40 hover:opacity-90 transition-opacity">
+                      <button onClick={() => { setEditClient(e); setModal("client") }} className="opacity-40 hover:opacity-90 transition-opacity">
                         <Pencil size={12} style={{ color: "#6B7280" }} />
                       </button>
-                      <button onClick={() => handleDeleteClient(e.id)} disabled={isPending}
-                        className="opacity-30 hover:opacity-80 transition-opacity">
+                      <button onClick={() => handleDeleteClient(e.id)} disabled={isPending} className="opacity-30 hover:opacity-80 transition-opacity">
                         <Trash2 size={12} style={{ color: "#DC2626" }} />
                       </button>
                     </div>
@@ -657,11 +638,10 @@ export default function ExpensesClient({
                 ))
               )}
             </div>
-            {/* Footer total */}
             {clientExpenses.length > 0 && (
               <div className="flex items-center justify-between px-5 py-3 flex-shrink-0 mt-auto"
                 style={{ borderTop: "2px solid #F0F0F2", background: "#F8F9FB" }}>
-                <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{clientExpenses.length} entries</span>
+                <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{clientExpenses.length}</span>
                 <span className="text-[14px] font-black" style={{ color: "#3B82F6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalClientDirect)}</span>
               </div>
             )}
@@ -669,18 +649,15 @@ export default function ExpensesClient({
 
           {/* Common / Shared */}
           <div className="rounded-2xl overflow-hidden flex flex-col" style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", minHeight: "200px" }}>
-            {/* Title bar */}
             <div className="flex items-center gap-2.5 px-5 py-3.5 flex-shrink-0" style={{ borderBottom: "1px solid #F0F0F2", background: "#FAFAFA" }}>
               <Layers size={14} style={{ color: "#8B5CF6" }} />
-              <h2 className="text-[12px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Common / Shared</h2>
-              <span className="ml-auto text-[14px] font-black" style={{ color: "#8B5CF6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalCommon)}</span>
+              <h2 className="text-[12px] font-black uppercase tracking-wider" style={{ color: "#8B5CF6" }}>Common / Shared</h2>
             </div>
-            {/* Sticky column headers */}
             {commonExpenses.length > 0 && (
-              <div className="grid flex-shrink-0 px-4 py-2.5" style={{ gridTemplateColumns: "28px 1fr 80px 48px", background: "#F8F9FB", borderBottom: "1px solid #F0F0F2", position: "sticky", top: 0 }}>
+              <div className="grid flex-shrink-0 px-4 py-2" style={{ gridTemplateColumns: "28px 1fr 84px 48px", background: "#F8F9FB", borderBottom: "1px solid #F0F0F2" }}>
                 <div />
-                <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Name · Notes</div>
-                <div className="text-[10px] font-black uppercase tracking-wider text-right" style={{ color: "#9CA3AF" }}>Amount</div>
+                <div className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#8B5CF6" }}>Name</div>
+                <div className="text-[10px] font-black uppercase tracking-wider text-right" style={{ color: "#8B5CF6" }}>Amount</div>
                 <div />
               </div>
             )}
@@ -695,11 +672,11 @@ export default function ExpensesClient({
                 commonExpenses.map((e, i) => {
                   const share = overheadDivisor > 0 ? e.amount / overheadDivisor : 0
                   return (
-                    <div key={e.id} className="grid items-center gap-3 px-4 py-3"
-                      style={{ gridTemplateColumns: "28px 1fr 80px 48px", borderBottom: "1px solid #F3F4F6", background: i % 2 === 0 ? "#FFFFFF" : "#FDFAFF" }}>
+                    <div key={e.id} className="grid items-center gap-2 px-4 py-2.5"
+                      style={{ gridTemplateColumns: "28px 1fr 84px 48px", borderBottom: "1px solid #F3F4F6", background: i % 2 === 0 ? "#FFFFFF" : "#FDFAFF" }}>
                       <div className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
-                        style={{ background: TYPE_BG[e.type] ?? TYPE_BG.other, color: TYPE_COLOR[e.type] ?? TYPE_COLOR.other }}>
-                        {TYPE_ICON[e.type] ?? TYPE_ICON.other}
+                        style={{ background: "rgba(139,92,246,0.08)", color: "#8B5CF6" }}>
+                        <Layers size={12} />
                       </div>
                       <div className="min-w-0">
                         <p className="text-[12px] font-bold truncate" style={{ color: "#111111" }}>{e.name}</p>
@@ -725,11 +702,10 @@ export default function ExpensesClient({
                 })
               )}
             </div>
-            {/* Footer total */}
             {commonExpenses.length > 0 && (
               <div className="flex items-center justify-between px-5 py-3 flex-shrink-0 mt-auto"
                 style={{ borderTop: "2px solid #F0F0F2", background: "#F8F9FB" }}>
-                <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{commonExpenses.length} entries · ÷{overheadDivisor}</span>
+                <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{commonExpenses.length} · ÷{overheadDivisor}</span>
                 <span className="text-[14px] font-black" style={{ color: "#8B5CF6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalCommon)}</span>
               </div>
             )}
@@ -738,14 +714,9 @@ export default function ExpensesClient({
 
         {/* Per-Client Summary Table */}
         <div className="rounded-2xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #F0F0F2", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
-          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
-            <div className="flex items-center gap-2">
-              <IndianRupee size={15} style={{ color: "#DE1A1A" }} />
-              <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Client & Brand Cost Summary</span>
-            </div>
-            <span className="text-[12px] font-bold px-3 py-1 rounded-full" style={{ background: "rgba(222,26,26,0.08)", color: "#DE1A1A" }}>
-              Direct + Common share per client
-            </span>
+          <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
+            <IndianRupee size={15} style={{ color: "#DE1A1A" }} />
+            <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Client & Brand Cost Summary</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -765,11 +736,11 @@ export default function ExpensesClient({
                     <td className="px-6 py-3">
                       <span className="text-[13px] font-bold" style={{ color: "#111111" }}>{row.name}</span>
                     </td>
-                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: row.empCost > 0 ? "#059669" : "#D1D5DB" }}>
-                      {row.empCost > 0 ? fmtRupee(row.empCost) : "—"}
+                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: row.empCost > 0 ? "#059669" : "#9CA3AF" }}>
+                      {row.empCost > 0 ? fmtRupee(row.empCost) : "₹0"}
                     </td>
-                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: row.direct > 0 ? "#6366F1" : "#D1D5DB" }}>
-                      {row.direct > 0 ? fmtRupee(row.direct) : "—"}
+                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: row.direct > 0 ? "#6366F1" : "#9CA3AF" }}>
+                      {row.direct > 0 ? fmtRupee(row.direct) : "₹0"}
                     </td>
                     <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: "#8B5CF6" }}>
                       {fmtRupee(row.overhead)}

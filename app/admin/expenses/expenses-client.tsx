@@ -110,6 +110,7 @@ const TYPE_BG: Record<string, string> = {
 
 const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 const INTERNAL_BRANDS = 3
+const INTERNAL_BRAND_NAMES = new Set(["GROFAST DIGITAL", "GROFAST AI", "KARTHICK BRANDS"])
 
 // ── Modal wrapper ─────────────────────────────────────────────────────────────
 
@@ -447,6 +448,7 @@ export default function ExpensesClient({
       if (!Array.isArray(u.work_entries)) continue
       for (const e of u.work_entries as WorkEntry[]) {
         if (e.task_type !== "shoot") continue
+        if (INTERNAL_BRAND_NAMES.has((e.client_name ?? "").toUpperCase())) continue
         rows.push({
           key: `${u.date}__${u.user_id}__${e.client_name ?? ""}__${e.title ?? ""}`,
           date: u.date,

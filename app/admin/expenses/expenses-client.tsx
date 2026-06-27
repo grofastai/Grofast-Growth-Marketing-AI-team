@@ -485,6 +485,22 @@ export default function ExpensesClient({
   const perClientOverhead = overheadDivisor > 0 ? totalCommon / overheadDivisor : 0
   const grandTotal        = totalClientDirect + totalCommon
 
+  const clientSummaryRows = useMemo(() => {
+    const directMap: Record<string, number> = {}
+    for (const e of clientExpenses) {
+      directMap[e.client_name] = (directMap[e.client_name] ?? 0) + e.amount
+    }
+    const allNames = new Set<string>()
+    for (const c of activeClients) if (c.name) allNames.add(c.name)
+    for (const n of Object.keys(directMap)) allNames.add(n)
+    return Array.from(allNames).map(name => ({
+      name,
+      direct: directMap[name] ?? 0,
+      overhead: perClientOverhead,
+      total: (directMap[name] ?? 0) + perClientOverhead,
+    })).sort((a, b) => b.total - a.total)
+  }, [clientExpenses, activeClients, perClientOverhead])
+
 
   function handleDeleteClient(id: string) {
     start(async () => { await deleteClientExpense(id); router.refresh() })
@@ -669,6 +685,57 @@ export default function ExpensesClient({
           </div>
         </div>
 
+        {/* Per-Client Summary Table */}
+        <div className="rounded-2xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #F0F0F2", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
+          <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
+            <div className="flex items-center gap-2">
+              <IndianRupee size={15} style={{ color: "#DE1A1A" }} />
+              <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Client & Brand Cost Summary</span>
+            </div>
+            <span className="text-[12px] font-bold px-3 py-1 rounded-full" style={{ background: "rgba(222,26,26,0.08)", color: "#DE1A1A" }}>
+              Direct + Common share per client
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr style={{ background: "#FAFAFA", borderBottom: "1px solid #F0F0F2" }}>
+                  <th className="px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Client / Brand</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6366F1" }}>Direct Exp</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider" style={{ color: "#8B5CF6" }}>Common Share</th>
+                  <th className="px-6 py-3 text-right text-[11px] font-bold uppercase tracking-wider" style={{ color: "#DE1A1A" }}>Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {clientSummaryRows.map((row, i) => (
+                  <tr key={row.name} style={{ borderBottom: i < clientSummaryRows.length - 1 ? "1px solid #F9FAFB" : "none" }}
+                    className="hover:bg-gray-50/60 transition-colors">
+                    <td className="px-6 py-3">
+                      <span className="text-[13px] font-bold" style={{ color: "#111111" }}>{row.name}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: row.direct > 0 ? "#6366F1" : "#D1D5DB" }}>
+                      {row.direct > 0 ? fmtRupee(row.direct) : "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: "#8B5CF6" }}>
+                      {fmtRupee(row.overhead)}
+                    </td>
+                    <td className="px-6 py-3 text-right">
+                      <span className="text-[14px] font-black" style={{ color: "#DE1A1A" }}>{fmtRupee(row.total)}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr style={{ background: "#FAFAFA", borderTop: "2px solid #F0F0F2" }}>
+                  <td className="px-6 py-3 text-[12px] font-black uppercase tracking-wider" style={{ color: "#374151" }}>TOTAL</td>
+                  <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#6366F1" }}>{fmtRupee(totalClientDirect)}</td>
+                  <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#8B5CF6" }}>{fmtRupee(totalCommon)}</td>
+                  <td className="px-6 py-3 text-right text-[15px] font-black" style={{ color: "#DE1A1A" }}>{fmtRupee(grandTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
 
       </div>
 

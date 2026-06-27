@@ -897,9 +897,11 @@ function EditEntrySheet({ entry, activeClients, pastClients, onClose, onSaved }:
 export default function FreelancersMemberClient({
   freelancers, workEntries: initialEntries, clientNames, pastClientNames = [],
   hideLeftPanel = false, initialSelectedId, isEmbedded = false,
+  loginMembersCount, loginMembersTotal,
 }: {
   freelancers: Freelancer[]; workEntries: WorkEntry[]; clientNames: string[]; pastClientNames?: string[]
   hideLeftPanel?: boolean; initialSelectedId?: string; isEmbedded?: boolean
+  loginMembersCount?: number; loginMembersTotal?: number
 }) {
   const { activeOptions: activeClients, pastOptions: pastClients } = useMemo(
     () => buildClientOptions(clientNames, pastClientNames), [clientNames, pastClientNames]
@@ -927,8 +929,9 @@ export default function FreelancersMemberClient({
   const detailEntries = useMemo(() => {
     if (!selectedId) return []
     const base = workEntries.filter(e => e.freelancer_id === selectedId)
+    if (isEmbedded) return globalAllTime ? base : base.filter(e => e.date_finished.startsWith(globalMonth))
     return detailAllTime ? base : base.filter(e => e.date_finished.startsWith(detailMonth))
-  }, [workEntries, selectedId, detailMonth, detailAllTime])
+  }, [workEntries, selectedId, detailMonth, globalMonth, detailAllTime, globalAllTime, isEmbedded])
 
   const entriesByFreelancer = useMemo(() => {
     const map: Record<string, WorkEntry[]> = {}
@@ -937,12 +940,12 @@ export default function FreelancersMemberClient({
   }, [globalMonthEntries])
 
   const globalStats = useMemo(() => ({
-    total: activeFreelancers.length,
+    total: activeFreelancers.length + (loginMembersCount ?? 0),
     totalWorks: globalMonthEntries.length,
-    totalCost: globalMonthEntries.reduce((s, e) => s + (e.amount ?? 0), 0),
+    totalCost: globalMonthEntries.reduce((s, e) => s + (e.amount ?? 0), 0) + (loginMembersTotal ?? 0),
     paidCost: globalMonthEntries.filter(e => e.payment_status === "paid").reduce((s, e) => s + (e.amount ?? 0), 0),
     unpaidCost: globalMonthEntries.filter(e => e.payment_status === "unpaid").reduce((s, e) => s + (e.amount ?? 0), 0),
-  }), [activeFreelancers, globalMonthEntries])
+  }), [activeFreelancers, globalMonthEntries, loginMembersCount, loginMembersTotal])
 
   const detailStats = useMemo(() => {
     const total = detailEntries.reduce((s, e) => s + (e.amount ?? 0), 0)
@@ -1244,16 +1247,23 @@ export default function FreelancersMemberClient({
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #F5F5F7" }}>
                     <div>
                       <p style={{ fontSize: 14, fontWeight: 900, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>Work History</p>
-                      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{new Date(detailMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })} · {detailEntries.length} {detailEntries.length === 1 ? "entry" : "entries"}</p>
+                      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>
+                        {isEmbedded
+                          ? (globalAllTime ? "All time" : new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" }))
+                          : (detailAllTime ? "All time" : new Date(detailMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" }))
+                        } · {detailEntries.length} {detailEntries.length === 1 ? "entry" : "entries"}
+                      </p>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <button onClick={() => setDetailAllTime(v => !v)} style={{ padding: "3px 10px", borderRadius: 99, fontSize: 10, fontWeight: 700, border: "1px solid #EBEBEB", cursor: "pointer", background: detailAllTime ? "#111" : "#F9FAFB", color: detailAllTime ? "#fff" : "#6B7280", transition: "all 0.15s" }}>All Time</button>
-                      <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#F9FAFB", border: "1px solid #EBEBEB", borderRadius: 10, padding: "4px 7px", opacity: detailAllTime ? 0.4 : 1, pointerEvents: detailAllTime ? "none" : "auto" }}>
-                        <button onClick={() => setDetailMonth(prevMonth(detailMonth))} style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ChevronLeft size={12} color="#6B7280" /></button>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "#374151", minWidth: 80, textAlign: "center" }}>{new Date(detailMonth + "-01").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</span>
-                        <button onClick={() => setDetailMonth(nextMonth(detailMonth))} disabled={detailMonth >= currentYM()} style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "transparent", cursor: detailMonth >= currentYM() ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: detailMonth >= currentYM() ? 0.3 : 1 }}><ChevronRight size={12} color="#6B7280" /></button>
+                    {!isEmbedded && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <button onClick={() => setDetailAllTime(v => !v)} style={{ padding: "3px 10px", borderRadius: 99, fontSize: 10, fontWeight: 700, border: "1px solid #EBEBEB", cursor: "pointer", background: detailAllTime ? "#111" : "#F9FAFB", color: detailAllTime ? "#fff" : "#6B7280", transition: "all 0.15s" }}>All Time</button>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#F9FAFB", border: "1px solid #EBEBEB", borderRadius: 10, padding: "4px 7px" }}>
+                          <button onClick={() => { setDetailAllTime(false); setDetailMonth(prevMonth(detailMonth)) }} style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ChevronLeft size={12} color="#6B7280" /></button>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#374151", minWidth: 80, textAlign: "center" }}>{new Date(detailMonth + "-01").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</span>
+                          <button onClick={() => { setDetailAllTime(false); setDetailMonth(nextMonth(detailMonth)) }} disabled={detailMonth >= currentYM()} style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "transparent", cursor: detailMonth >= currentYM() ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: detailMonth >= currentYM() ? 0.3 : 1 }}><ChevronRight size={12} color="#6B7280" /></button>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                   {detailEntries.length === 0 ? (
                     <div style={{ padding: "48px 20px", textAlign: "center" }}>

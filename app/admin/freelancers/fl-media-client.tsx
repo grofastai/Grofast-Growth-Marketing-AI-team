@@ -240,17 +240,12 @@ export default function FlMediaClient({
 
                   <div style={{ width: 1, height: 44, background: "#FCE8EC", flexShrink: 0 }} />
 
-                  {/* Content */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: "0 0 3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title || "—"}</p>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 11, color: "#374151", fontWeight: 600 }}>{e.client_name || "—"}</span>
-                      {e.video_type && (
-                        <span style={{ fontSize: 9, fontWeight: 700, color: "#6366F1", background: "rgba(99,102,241,0.09)", padding: "2px 7px", borderRadius: 5 }}>{e.video_type}</span>
-                      )}
-                      {e.video_duration && <span style={{ fontSize: 10, color: "#9CA3AF" }}>· {e.video_duration}</span>}
-                      {e.duration_hours ? <span style={{ fontSize: 10, color: "#9CA3AF" }}>· {fmtH(e.duration_hours)}</span> : null}
-                    </div>
+                  {/* Content — all on one line */}
+                  <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 10, overflow: "hidden" }}>
+                    <p style={{ fontSize: 13, fontWeight: 800, color: "#111", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: "1 1 0", minWidth: 0 }}>{e.title || "—"}</p>
+                    {e.client_name && <span style={{ fontSize: 11, color: "#DC143C", fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>{e.client_name}</span>}
+                    {e.video_duration && <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap", flexShrink: 0 }}>· {e.video_duration}</span>}
+                    {e.duration_hours ? <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap", flexShrink: 0 }}>· {fmtH(e.duration_hours)}</span> : null}
                   </div>
 
                   {/* Price input + save */}

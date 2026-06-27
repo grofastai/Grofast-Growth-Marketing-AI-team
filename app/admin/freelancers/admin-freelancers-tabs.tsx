@@ -82,8 +82,12 @@ export default function AdminFreelancersTabs({
   }, [workEntries])
 
   const activeFreelancers = useMemo(() => freelancers.filter(f => f.status === "active"), [freelancers])
-
   const totalCount = flMembers.length + activeFreelancers.length
+
+  const loginMembersTotal = useMemo(() =>
+    Object.values(flMediaTotals).reduce((s, v) => s + v, 0),
+    [flMediaTotals]
+  )
 
   return (
     <div style={{ display: "flex", height: "calc(100vh - 80px)", marginTop: -1, borderTop: "1px solid #F0F1F5" }}>
@@ -186,6 +190,8 @@ export default function AdminFreelancersTabs({
             hideLeftPanel
             initialSelectedId={selected?.id}
             isEmbedded
+            loginMembersCount={flMembers.length}
+            loginMembersTotal={loginMembersTotal}
           />
         )}
       </div>

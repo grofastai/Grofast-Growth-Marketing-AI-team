@@ -36,6 +36,8 @@ type MemberUser = {
   id: string
   name: string
   employee_id: string
+  hourly_rate: number | null
+  monthly_salary: number | null
 }
 
 type ClientExpense = {
@@ -487,6 +489,27 @@ export default function ExpensesClient({
   const perClientOverhead = overheadDivisor > 0 ? totalCommon / overheadDivisor : 0
   const grandTotal        = totalClientDirect + totalCommon
 
+  const employeeCostMap = useMemo(() => {
+    const rateMap: Record<string, number> = {}
+    for (const u of users) {
+      const rate = u.monthly_salary && u.monthly_salary > 0
+        ? u.monthly_salary / 25 / 8.5
+        : (u.hourly_rate ?? 0)
+      rateMap[u.id] = rate
+    }
+    const costByClient: Record<string, number> = {}
+    for (const u of updates) {
+      if (!Array.isArray(u.work_entries)) continue
+      const rate = rateMap[u.user_id] ?? 0
+      for (const e of u.work_entries as WorkEntry[]) {
+        const client = e.client_name?.toUpperCase().trim()
+        if (!client || !e.duration_hours) continue
+        costByClient[client] = (costByClient[client] ?? 0) + e.duration_hours * rate
+      }
+    }
+    return costByClient
+  }, [updates, users])
+
   const clientSummaryRows = useMemo(() => {
     const directMap: Record<string, number> = {}
     for (const e of clientExpenses) {
@@ -495,13 +518,18 @@ export default function ExpensesClient({
     const allNames = new Set<string>()
     for (const c of activeClients) if (c.name) allNames.add(c.name)
     for (const n of Object.keys(directMap)) allNames.add(n)
-    return Array.from(allNames).map(name => ({
-      name,
-      direct: directMap[name] ?? 0,
-      overhead: perClientOverhead,
-      total: (directMap[name] ?? 0) + perClientOverhead,
-    })).sort((a, b) => b.total - a.total)
-  }, [clientExpenses, activeClients, perClientOverhead])
+    return Array.from(allNames).map(name => {
+      const empCost = employeeCostMap[name.toUpperCase().trim()] ?? 0
+      const direct  = directMap[name] ?? 0
+      return {
+        name,
+        empCost,
+        direct,
+        overhead: perClientOverhead,
+        total: direct + perClientOverhead + empCost,
+      }
+    }).sort((a, b) => b.total - a.total)
+  }, [clientExpenses, activeClients, perClientOverhead, employeeCostMap])
 
 
   function handleDeleteClient(id: string) {
@@ -703,6 +731,7 @@ export default function ExpensesClient({
               <thead>
                 <tr style={{ background: "#FAFAFA", borderBottom: "1px solid #F0F0F2" }}>
                   <th className="px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Client / Brand</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider" style={{ color: "#059669" }}>Employee Cost</th>
                   <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider" style={{ color: "#6366F1" }}>Direct Exp</th>
                   <th className="px-4 py-3 text-right text-[11px] font-bold uppercase tracking-wider" style={{ color: "#8B5CF6" }}>Common Share</th>
                   <th className="px-6 py-3 text-right text-[11px] font-bold uppercase tracking-wider" style={{ color: "#DE1A1A" }}>Total</th>
@@ -714,6 +743,9 @@ export default function ExpensesClient({
                     className="hover:bg-gray-50/60 transition-colors">
                     <td className="px-6 py-3">
                       <span className="text-[13px] font-bold" style={{ color: "#111111" }}>{row.name}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: row.empCost > 0 ? "#059669" : "#D1D5DB" }}>
+                      {row.empCost > 0 ? fmtRupee(row.empCost) : "—"}
                     </td>
                     <td className="px-4 py-3 text-right text-[13px] font-semibold" style={{ color: row.direct > 0 ? "#6366F1" : "#D1D5DB" }}>
                       {row.direct > 0 ? fmtRupee(row.direct) : "—"}
@@ -730,9 +762,10 @@ export default function ExpensesClient({
               <tfoot>
                 <tr style={{ background: "#FAFAFA", borderTop: "2px solid #F0F0F2" }}>
                   <td className="px-6 py-3 text-[12px] font-black uppercase tracking-wider" style={{ color: "#374151" }}>TOTAL</td>
+                  <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#059669" }}>{fmtRupee(clientSummaryRows.reduce((s, r) => s + r.empCost, 0))}</td>
                   <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#6366F1" }}>{fmtRupee(totalClientDirect)}</td>
                   <td className="px-4 py-3 text-right text-[13px] font-black" style={{ color: "#8B5CF6" }}>{fmtRupee(totalCommon)}</td>
-                  <td className="px-6 py-3 text-right text-[15px] font-black" style={{ color: "#DE1A1A" }}>{fmtRupee(grandTotal)}</td>
+                  <td className="px-6 py-3 text-right text-[15px] font-black" style={{ color: "#DE1A1A" }}>{fmtRupee(clientSummaryRows.reduce((s, r) => s + r.total, 0))}</td>
                 </tr>
               </tfoot>
             </table>

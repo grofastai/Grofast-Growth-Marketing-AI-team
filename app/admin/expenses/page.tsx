@@ -56,7 +56,7 @@ export default async function AdminExpensesPage({
       .order("date", { ascending: false }),
     admin
       .from("users")
-      .select("id, name, employee_id")
+      .select("id, name, employee_id, hourly_rate, monthly_salary")
       .eq("company_id", cid)
       .eq("status", "active"),
     admin

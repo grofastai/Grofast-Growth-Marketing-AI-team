@@ -624,7 +624,7 @@ export async function getTodayCoverageReport(): Promise<{
   shiftMinutes: number
   totalWorkMinutes: number
   gapMinutes: number
-  entries: Array<{ task_type: string; title: string; client_name: string; duration_hours: number }>
+  entries: Array<{ task_type: string; start_time?: string | null; end_time?: string | null; duration_hours: number; _travel_hours?: number | null }>
 }> {
   const ctxResult = await getUserContext()
   const empty = { clockIn: null, clockOut: null, shiftMinutes: 0, totalWorkMinutes: 0, gapMinutes: 0, entries: [] }

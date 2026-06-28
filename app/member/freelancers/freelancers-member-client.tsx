@@ -771,14 +771,14 @@ function DetailHistoryRow({ entry, onEdit, onDelete, onTogglePaid }: {
   const durDisplay = durMins > 0 ? `${Math.floor(durMins)}m ${Math.round((durMins % 1) * 60)}s` : null
 
   return (
-    <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F0F5", padding: "16px 18px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)", display: "flex", alignItems: "flex-start", gap: 14, transition: "box-shadow 0.15s" }}
+    <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F0F5", padding: "16px 18px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)", display: "flex", alignItems: "flex-start", gap: 14, transition: "box-shadow 0.15s", minWidth: 420 }}
       onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 24px rgba(0,0,0,0.09)"}
       onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.04)"}>
       <div style={{ width: 46, height: 46, borderRadius: 14, flexShrink: 0, background: `linear-gradient(135deg, ${cfg.color}18 0%, ${cfg.color}08 100%)`, border: `1.5px solid ${cfg.color}25`, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}>
         <span style={{ fontSize: 22 }}>{cfg.emoji}</span>
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, lineHeight: 1.3 }}>{entry.title}</p>
+        <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.title}</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 10px", marginTop: 5 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color, background: `${cfg.color}12`, padding: "1px 8px", borderRadius: 6 }}>{entry.client_name}</span>
           <span style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 500 }}>{date}</span>
@@ -1150,6 +1150,7 @@ export default function FreelancersMemberClient({
                       <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 6 }}>Select a member from the left panel to add work entries.</p>
                     </div>
                   ) : (
+                    <div style={{ overflowX: "auto" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px" }}>
                       {allEntries.map(e => {
                         const fl = activeFreelancers.find(f => f.id === e.freelancer_id)
@@ -1218,6 +1219,7 @@ export default function FreelancersMemberClient({
                           </div>
                         )
                       })}
+                    </div>
                     </div>
                   )}
                 </div>
@@ -1310,6 +1312,7 @@ export default function FreelancersMemberClient({
                       <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 6 }}>Click &quot;Add Work Entry&quot; to log work for {selectedFreelancer.name}.</p>
                     </div>
                   ) : (
+                    <div style={{ overflowX: "auto" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px" }}>
                       {detailEntries.map(e => (
                         <DetailHistoryRow key={e.id} entry={e}
@@ -1318,6 +1321,7 @@ export default function FreelancersMemberClient({
                           onTogglePaid={() => handleTogglePaid(e)}
                         />
                       ))}
+                    </div>
                     </div>
                   )}
                 </div>

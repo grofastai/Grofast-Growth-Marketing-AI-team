@@ -1618,12 +1618,54 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                               </span>
                             </td>
                             <td className="px-5 py-3">
-                              <button
-                                onClick={() => { setEditMember(m); setSheetOpen(true) }}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold"
-                                style={{ background: "rgba(99,102,241,0.07)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.2)" }}>
-                                <Pencil size={11} />
-                              </button>
+                              <div className="flex items-center gap-1.5 relative">
+                                <button
+                                  onClick={() => { setEditMember(m); setSheetOpen(true) }}
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+                                  style={{ color: "#9CA3AF" }}
+                                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F3F4F6"}
+                                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                  <Pencil size={12} />
+                                </button>
+                                <button onClick={() => setOpenDropdown(openDropdown === m.id ? null : m.id)}
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+                                  style={{ color: "#9CA3AF" }}
+                                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F3F4F6"}
+                                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                  <MoreVertical size={12} />
+                                </button>
+                                {openDropdown === m.id && (
+                                  <div className="absolute right-0 top-8 w-44 rounded-xl shadow-2xl z-50 overflow-hidden py-1"
+                                    style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+                                    {m.status === "active" && (
+                                      <>
+                                        <button onClick={() => { setOpenDropdown(null); startImpersonation(m.id) }}
+                                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                          style={{ color: "#6366F1" }}
+                                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"}
+                                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                          <LogIn size={12} /> Login as {m.name.split(" ")[0]}
+                                        </button>
+                                        <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
+                                      </>
+                                    )}
+                                    <button onClick={() => { handleToggleStatus(m); setOpenDropdown(null) }} disabled={isPending}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
+                                      style={{ color: m.status === "active" ? "#F59E0B" : "#22C55E" }}
+                                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F9FAFB"}
+                                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                      {m.status === "active" ? <><Ban size={12} /> Deactivate</> : <><RotateCcw size={12} /> Reactivate</>}
+                                    </button>
+                                    <button onClick={() => { setResetTarget(m); setResetPassword(""); setResetError(""); setResetSuccess(false); setOpenDropdown(null) }}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
+                                      style={{ color: "#6366F1" }}
+                                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F9FAFB"}
+                                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                      <KeyRound size={12} /> Reset Password
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         )

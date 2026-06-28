@@ -27,6 +27,8 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
   const [creating, setCreating] = useState(false)
   const [calendar, setCalendar] = useState(false)
   const [saving, setSaving] = useState(false)
+  // Mobile navigation: 'folders' | 'notes' | 'editor'
+  const [mobileStep, setMobileStep] = useState<'folders' | 'notes' | 'editor'>('folders')
 
   const visible = useMemo(() => {
     const fn = (id: string | null) => folders.find(f => f.id === id)?.name ?? ''
@@ -66,8 +68,8 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
     }
   }, [active, router])
 
-  const handleNew = () => { setCreating(true); setActiveId(null) }
-  const handleSelect = (id: string) => { setCreating(false); setActiveId(id) }
+  const handleNew = () => { setCreating(true); setActiveId(null); setMobileStep('editor') }
+  const handleSelect = (id: string) => { setCreating(false); setActiveId(id); setMobileStep('editor') }
 
   const handleNewFolder = async (name: string, scope: NoteScope) => {
     await createFolder({ name, scope })
@@ -108,17 +110,37 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
         </div>
       </div>
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
-        <FolderSidebar folders={folders} view={view} activeFolderId={folderId}
-          onView={v => { setView(v); setFolderId(null) }} onFolder={id => { setFolderId(id); setView('all') }}
-          onNewFolder={handleNewFolder} onDeleteFolder={handleDeleteFolder} isAdmin={isAdmin} />
+        {/* Folder sidebar — full width on mobile step 1, fixed width on desktop */}
+        <div className={mobileStep !== 'folders' ? 'hidden md:flex md:flex-col' : 'flex flex-col w-full md:w-auto'}>
+          <FolderSidebar folders={folders} view={view} activeFolderId={folderId}
+            onView={v => { setView(v); setFolderId(null); setMobileStep('notes') }}
+            onFolder={id => { setFolderId(id); setView('all'); setMobileStep('notes') }}
+            onNewFolder={handleNewFolder} onDeleteFolder={handleDeleteFolder} isAdmin={isAdmin} />
+        </div>
         {calendar ? (
           <CalendarView notes={visible} onSelect={id => { setCalendar(false); handleSelect(id) }} />
         ) : (
           <>
-            <NotesList notes={visible} folders={folders} activeId={creating ? null : activeId} sort={sort} onSort={setSort} onSelect={handleSelect} onDelete={handleDeleteNote} />
-            <NoteEditor key={active?.id ?? (creating ? 'new' : 'none')}
-              note={active ?? (creating ? EMPTY_NOTE : null)} folders={folders} canEdit={canEdit} isAdmin={isAdmin}
-              teamMembers={teamMembers} onSave={handleSave} onShare={() => active && setSharing(active.id)} saving={saving} />
+            {/* Notes list — full width on mobile step 2, fixed width on desktop */}
+            <div className={mobileStep === 'editor' ? 'hidden md:flex md:flex-col' : mobileStep === 'notes' ? 'flex flex-col w-full md:w-auto' : 'hidden md:flex md:flex-col'}>
+              {mobileStep === 'notes' && (
+                <button className="md:hidden flex items-center gap-2 px-4 py-3 text-[13px] font-bold text-gray-600 border-b border-gray-100 bg-white flex-shrink-0"
+                  onClick={() => setMobileStep('folders')}>← Folders</button>
+              )}
+              <NotesList notes={visible} folders={folders} activeId={creating ? null : activeId} sort={sort} onSort={setSort}
+                onSelect={id => { handleSelect(id); setMobileStep('editor') }}
+                onDelete={handleDeleteNote} />
+            </div>
+            {/* Note editor — full width on mobile step 3, flex-1 on desktop */}
+            <div className={mobileStep !== 'editor' ? 'hidden md:flex md:flex-col md:flex-1' : 'flex flex-col w-full'}>
+              {mobileStep === 'editor' && (
+                <button className="md:hidden flex items-center gap-2 px-4 py-3 text-[13px] font-bold text-gray-600 border-b border-gray-100 bg-white flex-shrink-0"
+                  onClick={() => setMobileStep('notes')}>← Notes</button>
+              )}
+              <NoteEditor key={active?.id ?? (creating ? 'new' : 'none')}
+                note={active ?? (creating ? EMPTY_NOTE : null)} folders={folders} canEdit={canEdit} isAdmin={isAdmin}
+                teamMembers={teamMembers} onSave={handleSave} onShare={() => active && setSharing(active.id)} saving={saving} />
+            </div>
           </>
         )}
       </div>

@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { submitDailyUpdate, deleteDailyUpdate, updatePastDailyUpdate } from "@/lib/actions/daily-updates"
 import { buildClientOptions } from "@/lib/utils/client-options"
+import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
 
 interface Project { id: string; business_name: string }
 interface TeamMember { id: string; name: string; employee_id: string; role: string; team?: string | null }
@@ -355,6 +356,25 @@ function parseExistingPosters(existingUpdate: Record<string, unknown>): EditEntr
     }))
 }
 
+function parseExistingNmEdits(existingUpdate: Record<string, unknown>): EditEntry[] {
+  const entries = existingUpdate?.work_entries as SavedEntry[] | null
+  if (!Array.isArray(entries)) return []
+  return entries
+    .filter(e => e.task_type === 'edit')
+    .map(e => ({
+      id: e.id ?? crypto.randomUUID(),
+      clientName: e._client_type ?? e.client_name ?? "",
+      brand: "", customClient: e._custom_client ?? "",
+      title: e.title ?? "", videoType: e.video_type ?? "", customVideoType: "", videoDuration: "",
+      startTime: e.start_time ?? "", endTime: e.end_time ?? "",
+      dateGiven: "", dateFinished: "",
+      timeTaken: e.duration_hours ?? 0,
+      driveUpdated: false, revisions: 0, hooksCompleted: 0,
+      videoLink: e.video_link ?? "", notes: e.notes ?? "",
+      participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+    }))
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 type PastUpdate = {
   id: string; date: string; working_hours: number | null; learning_hours: number | null
@@ -364,9 +384,10 @@ type PastUpdate = {
 }
 
 export default function DailyUpdateForm({
-  projects, sheetClientNames = [], pastClientNames = [], userName, team, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
+  projects, sheetClientNames = [], pastClientNames = [], userName, team, workLayout, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
 }: {
   projects: Project[]; sheetClientNames?: string[]; pastClientNames?: string[]; userName: string; team?: string | null
+  workLayout?: 'media' | 'non_media' | 'freelance_media'
   existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
   teamMembers?: TeamMember[]; approvedLeaveDates?: string[]
 }) {
@@ -380,7 +401,11 @@ export default function DailyUpdateForm({
   const h         = now.getHours()
   const greeting  = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"
 
-  const isMediaTeam = team === "Media Team" || team === "Media Production Team" || team === "Freelance Media Production"
+  // Use workLayout if provided (new); fall back to team name for backward compat
+  const isMediaTeam = workLayout
+    ? workLayout !== 'non_media'
+    : (team === "Media Team" || team === "Media Production Team" || team === "Freelance Media Production")
+  const isFreelancerLayout = workLayout ? workLayout === 'freelance_media' : team === "Freelance Media Production"
 
   const todayStr = new Date().toISOString().split("T")[0]
 
@@ -412,6 +437,7 @@ export default function DailyUpdateForm({
     setEdits(isPast ? [] : (found ? parseExistingEdits(found) : []))
     setVoiceovers(isPast ? [] : (found ? parseExistingVoiceovers(found) : []))
     setPosters(isPast ? [] : (found ? parseExistingPosters(found) : []))
+    setNmEdits(isPast ? [] : (!isMediaTeam && found ? parseExistingNmEdits(found) : []))
     setTimeBlocks(isPast ? [] : (found ? parseExistingBlocks(found) : []))
     setMediaBreaks(isPast ? [] : (found ? parseExistingMediaBreaks(found) : []))
     setNonMediaBreaks(isPast ? [] : (found ? parseExistingNonMediaBreaks(found) : []))
@@ -480,6 +506,12 @@ export default function DailyUpdateForm({
   const addPoster    = () => setPosters(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[] }])
   const patchPoster  = (id: string, patch: Partial<EditEntry>) => setPosters(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
   const removePoster = (id: string) => setPosters(p => p.filter(e => e.id !== id))
+
+  // ── Non-media editing ─────────────────────────────────────────────────────
+  const [nmEdits, setNmEdits] = useState<EditEntry[]>(() => (!isMediaTeam && existingUpdate) ? parseExistingNmEdits(existingUpdate) : [])
+  const addNmEdit    = () => setNmEdits(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[] }])
+  const patchNmEdit  = (id: string, patch: Partial<EditEntry>) => setNmEdits(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
+  const removeNmEdit = (id: string) => setNmEdits(p => p.filter(e => e.id !== id))
 
   // ── Time blocks (working) ────────────────────────────────────────────────
   const [timeBlocks, setTimeBlocks] = useState<TimeBlock[]>(() =>
@@ -676,7 +708,7 @@ export default function DailyUpdateForm({
   // ── Submit: working (time blocks) ────────────────────────────────────────
   function handleWorkingSubmit() {
     setWorkingError(null)
-    if (filledBlocks.length === 0 && posters.length === 0 && voiceovers.length === 0) { setWorkingError("Add at least one time block, poster, or voiceover."); return }
+    if (filledBlocks.length === 0 && posters.length === 0 && voiceovers.length === 0 && nmEdits.length === 0) { setWorkingError("Add at least one time block, poster, voiceover, or editing entry."); return }
 
     // Per-block validation: timings + description + client are all mandatory
     for (let i = 0; i < filledBlocks.length; i++) {
@@ -729,6 +761,18 @@ export default function DailyUpdateForm({
       if (!p.startTime) { setWorkingError(`${label}Enter start time.`); return }
       if (!p.endTime)   { setWorkingError(`${label}Enter end time.`); return }
       if (toMins(p.endTime) <= toMins(p.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
+    }
+
+    // Editing (non-media) mandatory: client, video name, start/end time
+    for (let i = 0; i < nmEdits.length; i++) {
+      const n = nmEdits[i]
+      const label = nmEdits.length > 1 ? `Edit ${i + 1}: ` : "Edit: "
+      const client = n.clientName === "__custom__" ? n.customClient.trim() : n.clientName
+      if (!client) { setWorkingError(`${label}Select a client.`); return }
+      if (!n.title.trim()) { setWorkingError(`${label}Enter a video name.`); return }
+      if (!n.startTime) { setWorkingError(`${label}Enter start time.`); return }
+      if (!n.endTime)   { setWorkingError(`${label}Enter end time.`); return }
+      if (toMins(n.endTime) <= toMins(n.startTime)) { setWorkingError(`${label}End time must be after start time.`); return }
     }
 
     const work_entries = [
@@ -788,6 +832,20 @@ export default function DailyUpdateForm({
         _client_type: e.clientName, _custom_client: e.customClient,
         participant_ids: e.participantIds,
       })),
+      ...nmEdits.map(e => ({
+        id: e.id,
+        client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
+        client_name: e.clientName === "__custom__" ? (e.customClient || "Custom") : e.clientName || "Internal",
+        client_names: [] as string[],
+        is_multi_client: false,
+        task_type: "edit" as const,
+        title: e.title || "Editing", start_time: e.startTime, end_time: e.endTime,
+        duration_hours: calcDuration(e.startTime, e.endTime) || e.timeTaken,
+        notes: e.notes || undefined, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
+        video_type: e.videoType,
+        _client_type: e.clientName, _custom_client: e.customClient,
+        participant_ids: e.participantIds,
+      })),
     ]
     const allParticipantIds = [...new Set(filledBlocks.flatMap(b => b.participantIds))]
     startTransition(async () => {
@@ -807,6 +865,7 @@ export default function DailyUpdateForm({
           setTimeBlocks([])
           setVoiceovers([])
           setPosters([])
+          setNmEdits([])
           router.refresh()
         } else {
           setSuccessPopup("working")
@@ -1192,7 +1251,7 @@ export default function DailyUpdateForm({
   // Media team: all three tabs (media + learning + break) must be submitted.
   // Non-media: working is enough; learning is optional.
   // Past dates always show the form (never the "done" screen) — user adds new entries, History handles editing
-  const allDone = !isPastDate && (isMediaTeam ? (mediaDone && learningDone && breaksDone) : workingDone)
+  const allDone = !isPastDate && (isMediaTeam ? (mediaDone && learningDone && (isFreelancerLayout ? true : breaksDone)) : workingDone)
 
   // Past 14 days with no submission and no approved leave — shown in the submitted screen
   const unsubmittedDates = useMemo(() => {
@@ -1419,9 +1478,8 @@ export default function DailyUpdateForm({
     { id: "learning"as const, label: "📚  Learning", desc: "Skills & growth" },
     { id: "break"   as const, label: "☕  Break",     desc: "Break in / break out" },
   ]
-  const isFreelancerMedia = team === "Freelance Media Production"
   const TABS = isMediaTeam
-    ? isFreelancerMedia
+    ? isFreelancerLayout
       ? ALL_TABS.filter(t => t.id === "media" || t.id === "learning")
       : ALL_TABS.filter(t => t.id === "media" || t.id === "learning" || t.id === "break")
     : ALL_TABS.filter(t => t.id === "working" || t.id === "learning" || t.id === "break")
@@ -1899,7 +1957,7 @@ export default function DailyUpdateForm({
                         </div>
                         {dur > 0 && <span style={{ fontSize:11, fontWeight:800, color:"#EC4899", padding:"8px 10px", borderRadius:8, background:"rgba(236,72,153,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
                         <div>
                           <label style={L}>Drive / File Link</label>
                           <input value={e.videoLink} onChange={ev => patchPoster(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
@@ -1909,6 +1967,39 @@ export default function DailyUpdateForm({
                           <input value={e.notes} onChange={ev => patchPoster(e.id, { notes: ev.target.value })} placeholder="Design details, revisions…" style={F} />
                         </div>
                       </div>
+                      {teamMembers.length > 0 && (
+                        <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
+                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                          <div style={{ position:"relative" }}>
+                            <select value="" onChange={ev => { const id = ev.target.value; if (id && !e.participantIds.includes(id)) patchPoster(e.id, { participantIds: [...e.participantIds, id] }) }}
+                              style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                              <option value="">Add teammate…</option>
+                              {teamMembers.filter(m => !e.participantIds.includes(m.id)).map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                          {e.participantIds.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                              {e.participantIds.map(pid => {
+                                const m = teamMembers.find(t => t.id === pid)
+                                if (!m) return null
+                                const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                return (
+                                  <button key={pid} type="button"
+                                    onClick={() => patchPoster(e.id, { participantIds: e.participantIds.filter(p => p !== pid) })}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(236,72,153,0.1)", border:"1.5px solid rgba(236,72,153,0.3)", cursor:"pointer" }}>
+                                    <div style={{ width:16, height:16, borderRadius:"50%", background:"#EC4899", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#BE185D" }}>{m.name.split(" ")[0]}</span>
+                                    <span style={{ fontSize:8, color:"#F472B6" }}>✕</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -1917,6 +2008,143 @@ export default function DailyUpdateForm({
                 {posters.length > 0 && (
                   <button onClick={addPoster} style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, padding:"9px 18px", borderRadius:10, border:"1.5px dashed rgba(236,72,153,0.4)", background:"rgba(236,72,153,0.04)", color:"#EC4899", fontSize:12, fontWeight:700, cursor:"pointer", width:"100%" }}>
                     <Plus size={13} /> Add Another Poster
+                  </button>
+                )}
+              </div>}
+
+              {/* ── Editing Today section (non-media only) ──────────────── */}
+              {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+                <SectionHead icon={<span style={{ fontSize:16 }}>🎬</span>} label="Editing Today" count={nmEdits.length} color="#0D9488" />
+                {nmEdits.length === 0 ? (
+                  <div onClick={addNmEdit} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(13,148,136,0.35)", background:"rgba(13,148,136,0.02)", cursor:"pointer" }}>
+                    <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No editing logged yet</p>
+                    <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#0D9488", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(13,148,136,0.35)" }}>+ Add Editing</span>
+                  </div>
+                ) : (
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {nmEdits.map((e, ni) => {
+                  const F: React.CSSProperties = { width:"100%", boxSizing:"border-box" as const, fontSize:12, padding:"8px 10px", borderRadius:8, border:"1.5px solid #EBEDF2", background:"#F9FAFB", color:"#111827", outline:"none" }
+                  const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
+                  const dur = calcDuration(e.startTime, e.endTime)
+                  return (
+                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                        <span style={{ fontSize:11, fontWeight:800, color:"#0D9488", textTransform:"uppercase", letterSpacing:"0.1em" }}>Edit #{ni+1}</span>
+                        <button onClick={() => removeNmEdit(e.id)} style={{ width:26, height:26, borderRadius:8, background:"rgba(13,148,136,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <Trash2 size={12} style={{ color:"#0D9488" }} />
+                        </button>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Client</label>
+                          <div style={{ position:"relative" }}>
+                            {(showPastFor.has(e.id) || pastClientOptions.includes(e.clientName)) ? (
+                              <div>
+                                <button type="button" onClick={() => { exitPastMode(e.id); patchNmEdit(e.id, { clientName:"", customClient:"" }) }}
+                                  style={{ fontSize:11, fontWeight:700, color:"#6366F1", background:"none", border:"none", cursor:"pointer", padding:"0 0 6px", display:"block" }}>
+                                  ← Back to Active Clients
+                                </button>
+                                <div style={{ position:"relative" }}>
+                                  <select value={e.clientName}
+                                    onChange={ev => { patchNmEdit(e.id, { clientName: ev.target.value, customClient:"" }); exitPastMode(e.id) }}
+                                    style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                    <option value="">Select past client…</option>
+                                    {pastClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                  </select>
+                                  <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                                </div>
+                              </div>
+                            ) : (
+                              <select value={e.clientName} onChange={ev => { const v = ev.target.value; if (v === "__past_clients__") { enterPastMode(e.id) } else { patchNmEdit(e.id, { clientName: v, customClient:"" }) } }} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                                <option value="">Select client…</option>
+                                {activeClientOptions.map(n => <option key={n} value={n}>{n}</option>)}
+                                {pastClientOptions.length > 0 && <option value="__past_clients__">📁 Past Clients →</option>}
+                                <option value="__custom__">✏️ Other (type manually)</option>
+                              </select>
+                            )}
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                          {e.clientName === "__custom__" && <input value={e.customClient} onChange={ev => patchNmEdit(e.id, { customClient: ev.target.value })} placeholder="Client name…" style={{ ...F, marginTop:6 }} />}
+                        </div>
+                        <div>
+                          <label style={L}>Video Name</label>
+                          <input value={e.title} onChange={ev => patchNmEdit(e.id, { title: ev.target.value })} placeholder="Video or project name" style={F} />
+                        </div>
+                      </div>
+                      <div style={{ marginBottom:8 }}>
+                        <label style={L}>Video Type</label>
+                        <div style={{ position:"relative" }}>
+                          <select value={e.videoType} onChange={ev => patchNmEdit(e.id, { videoType: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
+                            <option value="">Select type…</option>
+                            <option value="AI GENERATED">AI Generated</option>
+                            <option value="SIMPLE EDIT">Simple Edit</option>
+                            <option value="EDIT + AI">Edit + AI</option>
+                          </select>
+                          <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                        </div>
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr auto", gap:8, alignItems:"end", marginBottom:8 }}>
+                        <div>
+                          <label style={L}>Start Time</label>
+                          <input type="time" value={e.startTime} onChange={ev => patchNmEdit(e.id, { startTime: ev.target.value })} style={F} />
+                        </div>
+                        <div>
+                          <label style={L}>End Time</label>
+                          <input type="time" value={e.endTime} onChange={ev => patchNmEdit(e.id, { endTime: ev.target.value })} style={F} />
+                        </div>
+                        {dur > 0 && <span style={{ fontSize:11, fontWeight:800, color:"#0D9488", padding:"8px 10px", borderRadius:8, background:"rgba(13,148,136,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
+                      </div>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
+                        <div>
+                          <label style={L}>Drive / File Link</label>
+                          <input value={e.videoLink} onChange={ev => patchNmEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
+                        </div>
+                        <div>
+                          <label style={L}>Notes</label>
+                          <input value={e.notes} onChange={ev => patchNmEdit(e.id, { notes: ev.target.value })} placeholder="Edit details…" style={F} />
+                        </div>
+                      </div>
+                      {teamMembers.length > 0 && (
+                        <div style={{ paddingTop:8, borderTop:"1px dashed #EBEDF2" }}>
+                          <p style={{ fontSize:10, fontWeight:700, color:"#9CA3AF", textTransform:"uppercase", letterSpacing:"0.07em", margin:"0 0 7px" }}>👥 Worked With</p>
+                          <div style={{ position:"relative" }}>
+                            <select value="" onChange={ev => { const id = ev.target.value; if (id && !e.participantIds.includes(id)) patchNmEdit(e.id, { participantIds: [...e.participantIds, id] }) }}
+                              style={{ width:"100%", fontSize:12, fontWeight:600, color:"#374151", background:"#fff", border:"1.5px solid #EBEDF2", borderRadius:10, padding:"8px 28px 8px 10px", cursor:"pointer", outline:"none", appearance:"none" }}>
+                              <option value="">Add teammate…</option>
+                              {teamMembers.filter(m => !e.participantIds.includes(m.id)).map(m => (
+                                <option key={m.id} value={m.id}>{m.name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
+                          </div>
+                          {e.participantIds.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:4, marginTop:6 }}>
+                              {e.participantIds.map(pid => {
+                                const m = teamMembers.find(t => t.id === pid)
+                                if (!m) return null
+                                const initials = m.name.split(" ").map((n:string) => n[0]).join("").slice(0,2).toUpperCase()
+                                return (
+                                  <button key={pid} type="button"
+                                    onClick={() => patchNmEdit(e.id, { participantIds: e.participantIds.filter(p => p !== pid) })}
+                                    style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 8px 3px 5px", borderRadius:99, background:"rgba(13,148,136,0.1)", border:"1.5px solid rgba(13,148,136,0.3)", cursor:"pointer" }}>
+                                    <div style={{ width:16, height:16, borderRadius:"50%", background:"#0D9488", display:"flex", alignItems:"center", justifyContent:"center", fontSize:7, fontWeight:900, color:"#fff" }}>{initials}</div>
+                                    <span style={{ fontSize:10, fontWeight:700, color:"#0F766E" }}>{m.name.split(" ")[0]}</span>
+                                    <span style={{ fontSize:8, color:"#5EEAD4" }}>✕</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                  </div>
+                )}
+                {nmEdits.length > 0 && (
+                  <button onClick={addNmEdit} style={{ marginTop:12, display:"flex", alignItems:"center", gap:6, padding:"9px 18px", borderRadius:10, border:"1.5px dashed rgba(13,148,136,0.4)", background:"rgba(13,148,136,0.04)", color:"#0D9488", fontSize:12, fontWeight:700, cursor:"pointer", width:"100%" }}>
+                    <Plus size={13} /> Add Another Editing
                   </button>
                 )}
               </div>}
@@ -2316,7 +2544,7 @@ export default function DailyUpdateForm({
                           <div style={{ position:"relative" }}>
                             <select value={e.videoType} onChange={ev => patchEdit(e.id, { videoType: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
                               <option value="">Select type…</option>
-                              {["Instagram Reels","Hook","Personal Branding","Ads and Hooks","Long Videos","Cinematic","YouTube Shorts"].map(t => <option key={t} value={t}>{t}</option>)}
+                              {["ADVERTISEMENT","ADVERTISEMENT WITH HOOKS","LONG FORMAT VIDEO","CINEMATIC","PROMOTION VIDEOS","INSTAGRAM REELS","YOUTUBE SHORTS","GREEN SCREEN EDITING","PERSONAL BRANDING"].map(t => <option key={t} value={t}>{t}</option>)}
                               <option value="__other__">✏️ Other (type…)</option>
                             </select>
                             <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
@@ -2326,17 +2554,8 @@ export default function DailyUpdateForm({
                           )}
                         </div>
                         <div>
-                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration (mins)</label>
-                          <div style={{ position:"relative" }}>
-                            <select value={e.videoDuration} onChange={ev => patchEdit(e.id, { videoDuration: ev.target.value })} style={{ ...F, paddingRight:28, appearance:"none" }}>
-                              <option value="">Select…</option>
-                              <option value="15 sec">15 sec</option>
-                              <option value="30 sec">30 sec</option>
-                              <option value="45 sec">45 sec</option>
-                              {[1,1.5,2,2.5,3,3.5,4,4.5,5,10].map(m => <option key={m} value={`${m} min`}>{m} min</option>)}
-                            </select>
-                            <ChevronDown size={11} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", color:"#9CA3AF", pointerEvents:"none" }} />
-                          </div>
+                          <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Duration</label>
+                          <VideoDurationPicker value={e.videoDuration} onChange={v => patchEdit(e.id, { videoDuration: v })} />
                         </div>
                         <div>
                           <label style={{ display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase", letterSpacing:"0.1em", marginBottom:5 }}>Revisions</label>

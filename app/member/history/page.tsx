@@ -89,7 +89,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   // Profile first — needed for company_id to query participated updates
   const profileResult = await admin
     .from("users")
-    .select("name, company_id, team")
+    .select("name, company_id, team, work_layout")
     .eq("id", effectiveUserId)
     .single()
 
@@ -186,6 +186,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
   }))
   const name = (profileResult.data?.name ?? "").split(" ")[0] || "there"
   const team = profileResult.data?.team ?? ""
+  const workLayout = (profileResult.data as { work_layout?: string } | null)?.work_layout as 'media' | 'non_media' | 'freelance_media' | undefined
   const clients = ((clientsResult.data ?? []) as { name: string }[]).map(c => c.name)
   const pastClients = ((pastClientsResult.data ?? []) as { name: string }[]).map(c => c.name)
   const participatedUpdates = (participatedResult.data ?? []) as unknown as ParticipatedUpdate[]
@@ -208,6 +209,7 @@ export default async function HistoryPage({ searchParams }: { searchParams: Prom
       userName={name}
       userId={effectiveUserId}
       team={team}
+      workLayout={workLayout}
       clients={clients}
       pastClients={pastClients}
       participatedUpdates={participatedUpdates}

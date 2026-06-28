@@ -88,7 +88,7 @@ export async function submitDailyUpdate(
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users')
-    .select('company_id, name, employee_id, phone')
+    .select('company_id, name, employee_id, phone, work_layout')
     .eq('id', user.id)
     .single()
 
@@ -116,7 +116,8 @@ export async function submitDailyUpdate(
     }
   }
 
-  const roundedHours = calcNetWorkHours(d.work_entries)
+  const workLayout = (profile?.work_layout ?? undefined) as 'media' | 'non_media' | 'freelance_media' | undefined
+  const roundedHours = calcNetWorkHours(d.work_entries, workLayout)
   // Learning hours from entries (new approach — stored in work_entries)
   const newLearnHours = d.work_entries
     .filter(e => e.task_type === 'learning')
@@ -159,7 +160,7 @@ export async function submitDailyUpdate(
     // Always sync duration_hours to time span before saving
     combinedEntries = fixEntryDurations(combinedEntries)
     // Recalculate all aggregates from combined entries — never use incremental addition
-    const calcWorkHours  = calcNetWorkHours(combinedEntries as Parameters<typeof calcNetWorkHours>[0])
+    const calcWorkHours  = calcNetWorkHours(combinedEntries as Parameters<typeof calcNetWorkHours>[0], workLayout)
     const calcShootCount = combinedEntries.filter(e => e.task_type === 'shoot').length
     const calcEditCount  = combinedEntries.filter(e => e.task_type === 'edit').length
     const calcLearnHours = Math.round(combinedEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
@@ -206,7 +207,7 @@ export async function submitDailyUpdate(
         date:                today,
         attendance_status:   'present',
         work_type:           workType,
-        working_hours:       d.active_tab !== 'learning' ? calcNetWorkHours(fixedNewEntries as Parameters<typeof calcNetWorkHours>[0]) : null,
+        working_hours:       d.active_tab !== 'learning' ? calcNetWorkHours(fixedNewEntries as Parameters<typeof calcNetWorkHours>[0], workLayout) : null,
         learning_hours:      newLearnHours > 0 ? newLearnHours : d.learning_hours,
         shoot_count:         d.shoot_count,
         notes:               null,
@@ -353,12 +354,11 @@ export async function updatePastDailyUpdate(
   if (!user) return { success: false, error: 'Not authenticated' }
 
   const admin = adminSupabase()
-  const { data: record } = await admin
-    .from('daily_updates')
-    .select('date, company_id, work_entries')
-    .eq('id', id)
-    .eq('user_id', user.id)
-    .single()
+  const [{ data: record }, { data: uProfile }] = await Promise.all([
+    admin.from('daily_updates').select('date, company_id, work_entries').eq('id', id).eq('user_id', user.id).single(),
+    admin.from('users').select('work_layout').eq('id', user.id).single(),
+  ])
+  const updateLayout = (uProfile?.work_layout ?? undefined) as 'media' | 'non_media' | 'freelance_media' | undefined
 
   // Always preserve auto-inserted leave entries (_is_leave: true) — member cannot delete them
   const existingLeaveEntries = (Array.isArray(record?.work_entries) ? record.work_entries as Record<string, unknown>[] : [])
@@ -370,7 +370,7 @@ export async function updatePastDailyUpdate(
     .from('daily_updates')
     .update({
       work_entries: finalEntries,
-      working_hours: calcNetWorkHours(finalEntries as Parameters<typeof calcNetWorkHours>[0]) || null,
+      working_hours: calcNetWorkHours(finalEntries as Parameters<typeof calcNetWorkHours>[0], updateLayout) || null,
       shoot_count: finalEntries.filter(e => e.task_type === 'shoot').length,
       editing_count: finalEntries.filter(e => e.task_type === 'edit').length,
     })
@@ -445,10 +445,11 @@ export async function addEntryToDate(
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users')
-    .select('company_id')
+    .select('company_id, work_layout')
     .eq('id', user.id)
     .single()
   if (!profile) return { success: false, error: 'Profile not found' }
+  const addLayout = (profile.work_layout ?? undefined) as 'media' | 'non_media' | 'freelance_media' | undefined
 
   const { data: existing } = await admin
     .from('daily_updates')
@@ -466,7 +467,7 @@ export async function addEntryToDate(
 
   const aggregates = {
     work_entries: allEntries,
-    working_hours: calcNetWorkHours(allEntries as Parameters<typeof calcNetWorkHours>[0]) || null,
+    working_hours: calcNetWorkHours(allEntries as Parameters<typeof calcNetWorkHours>[0], addLayout) || null,
     shoot_count: allEntries.filter(e => e.task_type === 'shoot').length,
     editing_count: allEntries.filter(e => e.task_type === 'edit').length,
   }

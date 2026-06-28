@@ -609,8 +609,11 @@ export async function updateLeaveStatus(
   }
 
   if (leave && leave.users?.phone) {
+    const leaveType = leave.leave_type ?? 'full_day'
+    const approvedEvent = leaveType === 'wfh' ? 'wfh.approved' : leaveType === 'shoot_day' ? 'shoot.approved' : 'leave.approved'
+    const rejectedEvent = leaveType === 'wfh' ? 'wfh.rejected' : leaveType === 'shoot_day' ? 'shoot.rejected' : 'leave.rejected'
     sendNotification({
-      event:          status === 'approved' ? 'leave.approved' : 'leave.rejected',
+      event:          status === 'approved' ? approvedEvent : rejectedEvent,
       employee_name:  leave.users.name,
       employee_phone: leave.users.phone,
       from_date:      leave.from_date,
@@ -620,7 +623,7 @@ export async function updateLeaveStatus(
   }
 
   if (leave) {
-    const leaveLabel = leave.leave_type === 'permission' ? 'Permission' : leave.leave_type === 'half_day' ? 'Half Day Leave' : 'Full Day Leave'
+    const leaveLabel = leave.leave_type === 'permission' ? 'Permission' : leave.leave_type === 'half_day' ? 'Half Day Leave' : leave.leave_type === 'wfh' ? 'Work From Home' : leave.leave_type === 'shoot_day' ? 'Shoot Day' : 'Full Day Leave'
     insertNotification({
       companyId: leave.company_id,
       userId: leave.user_id,

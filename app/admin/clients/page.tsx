@@ -11,6 +11,7 @@ import {
   type PricingRate,
   type UpdateRow,
   type DeliverableResult,
+  type FreelancerWorkEntry,
 } from '@/lib/clients-deliverables'
 import ClientsUnifiedClient from './clients-unified-client'
 
@@ -179,10 +180,19 @@ export default async function ClientsUnifiedPage({
     const clientFilter: string | string[] | null = VIRTUAL_CLIENTS[selectedClient]?.filter
       ?? selectedClient
 
+    // No-login freelancer teams (Freelance Media Production has app login → counted via daily_updates)
+    const NO_LOGIN_TEAMS = [
+      'Freelance Video Editing', 'Freelance Videography', 'Freelance RJ Voiceover',
+      'Freelance Graphics Designer', 'Freelance Content Writer',
+      'Freelance Development & Automation', 'Freelance Marketing & Operations',
+      'Freelance IT Technology & Media',
+    ]
+
     const [
       { data: updatesRaw },
       { data: usersRaw },
       { data: pricingRaw },
+      { data: freelancerRaw },
     ] = await Promise.all([
       admin
         .from('daily_updates')
@@ -199,7 +209,26 @@ export default async function ClientsUnifiedPage({
         .from('pricing_rates')
         .select('video_type, rate_per_video')
         .eq('company_id', cid),
+      admin
+        .from('freelancer_work_entries_v2')
+        .select('id, date_finished, client_name, title, amount, duration_mins, team, task_description, freelancers(name)')
+        .eq('company_id', cid)
+        .in('team', NO_LOGIN_TEAMS)
+        .gte('date_finished', dateFrom)
+        .lte('date_finished', dateTo),
     ])
+
+    const freelancerEntries: FreelancerWorkEntry[] = (freelancerRaw ?? []).map((r: Record<string, unknown>) => ({
+      id:              r.id as string,
+      date_finished:   r.date_finished as string,
+      client_name:     r.client_name as string,
+      title:           r.title as string,
+      amount:          r.amount as number,
+      duration_mins:   r.duration_mins as number | null,
+      team:            r.team as string,
+      task_description: r.task_description as string | null,
+      freelancer_name: (r.freelancers as { name: string } | null)?.name ?? 'Freelancer',
+    }))
 
     deliverables = computeDeliverables(
       (updatesRaw ?? []) as UpdateRow[],
@@ -208,6 +237,7 @@ export default async function ClientsUnifiedPage({
       clientFilter,
       dateFrom,
       dateTo,
+      freelancerEntries,
     )
   }
 

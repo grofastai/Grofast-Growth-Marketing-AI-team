@@ -15,6 +15,7 @@ import {
   updateWorkEntryStatus,
 } from "@/lib/actions/freelancers"
 import type { Freelancer, WorkEntry, FreelancerStats, FreelancerType } from "./types"
+import { VideoDurationPicker } from "@/components/ui/VideoDurationPicker"
 
 type TeamMemberOption = { id: string; name: string; employee_id: string }
 
@@ -28,7 +29,7 @@ const TYPE_CFG: Record<FreelancerType, { label: string; color: string; bg: strin
 }
 
 const SOFTWARE_OPTS = ["Adobe Premiere Pro", "Final Cut Pro", "DaVinci Resolve", "After Effects", "Adobe Rush", "CapCut", "Vegas Pro"]
-const VIDEO_TYPES   = ["Reels", "YouTube", "Corporate", "Wedding", "Product", "Documentary", "Social Media", "Ad Film", "Testimonial"]
+const VIDEO_TYPES   = ["ADVERTISEMENT","ADVERTISEMENT WITH HOOKS","LONG FORMAT VIDEO","CINEMATIC","PROMOTION VIDEOS","INSTAGRAM REELS","YOUTUBE SHORTS","GREEN SCREEN EDITING","PERSONAL BRANDING"]
 const VOICE_TYPES   = ["Commercial Tone", "Emotional Tone", "High Pitch", "Base Voice", "Warm & Friendly", "Deep & Authoritative", "Neutral", "Energetic", "Soft & Calm"]
 const WK_STATUSES   = ["pending", "in_progress", "completed", "cancelled"]
 
@@ -758,7 +759,7 @@ function WorkSheet({
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <Field label="Video Duration">
-                      <input className={inputCls} placeholder="e.g. 5 min" value={form.video_duration} onChange={e => setF("video_duration", e.target.value)} />
+                      <VideoDurationPicker value={form.video_duration} onChange={v => setF("video_duration", v)} />
                     </Field>
                     <Field label="Time Taken (hrs)">
                       <input type="number" min="0" step="0.5" className={inputCls} placeholder="e.g. 4" value={form.time_taken_hours} onChange={e => setF("time_taken_hours", e.target.value)} />

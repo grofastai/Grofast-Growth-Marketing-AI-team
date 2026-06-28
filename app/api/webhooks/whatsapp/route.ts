@@ -255,7 +255,10 @@ async function handleLeaveAction(leaveId: string, action: 'approve' | 'reject') 
   const employeePhone = leave.users?.phone
   const employeeName  = leave.users?.name ?? 'Employee'
   if (employeePhone) {
-    const templateName = status === 'approved' ? 'grofast_leave_approved' : 'grofast_leave_rejected'
+    const leaveType = leave.leave_type ?? 'full_day'
+    const templateName = status === 'approved'
+      ? leaveType === 'wfh' ? 'grofast_wfh_approved' : leaveType === 'shoot_day' ? 'grofast_shoot_approved' : 'grofast_leave_approved'
+      : leaveType === 'wfh' ? 'grofast_wfh_rejected' : leaveType === 'shoot_day' ? 'grofast_shoot_rejected' : 'grofast_leave_rejected'
     await sendWhatsAppTemplate(
       formatPhone(employeePhone),
       templateName,

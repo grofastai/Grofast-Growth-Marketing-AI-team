@@ -244,7 +244,7 @@ export default async function AttendancePage({
           <div key={s.label} style={{
             background: "#FFFFFF", borderRadius: 20,
             border: `1px solid ${s.accent}22`,
-            padding: "20px 20px 14px",
+            padding: "clamp(12px,3vw,20px) clamp(12px,3vw,20px) 14px",
             boxShadow: `0 4px 20px ${s.accent}18`,
             position: "relative", overflow: "hidden",
           }}>
@@ -261,7 +261,7 @@ export default async function AttendancePage({
                 </div>
                 <p style={{ fontSize: 11, color: "#9CA3AF", fontWeight: 700, margin: 0, textTransform: "uppercase", letterSpacing: "0.07em" }}>{s.label}</p>
               </div>
-              <p style={{ fontSize: 52, fontWeight: 900, color: s.numColor, margin: "0 0 2px", lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
+              <p style={{ fontSize: "clamp(32px,7vw,52px)", fontWeight: 900, color: s.numColor, margin: "0 0 2px", lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
             </div>
             {/* Progress bar */}
             <div style={{ marginTop: 20, height: 4, background: "#F3F4F6", borderRadius: 4, overflow: "hidden", position: "relative" }}>

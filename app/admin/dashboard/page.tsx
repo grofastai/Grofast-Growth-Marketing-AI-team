@@ -287,8 +287,8 @@ export default async function DashboardPage() {
         ].map(s => {
           const Icon = s.icon
           return (
-            <Link key={s.label} href={s.href} style={{ textDecoration: "none" }}>
-              <div style={{ ...CARD, padding: "18px 20px" }} className="hover:shadow-md transition-shadow">
+            <Link key={s.label} href={s.href} style={{ textDecoration: "none", display: "block", height: "100%" }}>
+              <div style={{ ...CARD, padding: "18px 20px", height: "100%", boxSizing: "border-box" }} className="hover:shadow-md transition-shadow">
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                   <div style={{ width: 38, height: 38, borderRadius: 11, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Icon size={17} style={{ color: s.color }} />

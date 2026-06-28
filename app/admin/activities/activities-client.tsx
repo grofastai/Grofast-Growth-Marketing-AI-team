@@ -146,7 +146,7 @@ function PersonDetailDrawer({ updates, onClose }: { updates: Update[]; onClose: 
       />
       {/* Drawer */}
       <div style={{
-        position: "fixed", top: 0, right: 0, height: "100vh", width: 480, zIndex: 50,
+        position: "fixed", top: 0, right: 0, height: "100vh", width: "min(480px, 100vw)", zIndex: 50,
         background: "#fff", boxShadow: "-8px 0 48px rgba(0,0,0,0.14)",
         display: "flex", flexDirection: "column", overflow: "hidden",
       }}>

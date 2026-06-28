@@ -556,7 +556,7 @@ export default function ClientsUnifiedClient({
             {/* ── Shoots ───────────────────────────────────────────────── */}
             {deliverables && deliverables.shoots.length > 0 && (
               <Section title="Shooting" emoji="📸" count={deliverables.shoots.length} totalCost={deliverables.shoots.reduce((s, e) => s + e.cost, 0)}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', minWidth: 400, borderCollapse: 'collapse' }}>
                   <TableCols showClient={showClient} />
                   <thead><tr style={{ background: '#F9FAFB' }}>
                     {['Date', ...(showClient ? ['Client'] : []), 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
@@ -573,7 +573,7 @@ export default function ClientsUnifiedClient({
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               </Section>
             )}
 
@@ -584,7 +584,7 @@ export default function ClientsUnifiedClient({
               const totalEditCost = deliverables.videoTypeGroups.reduce((s, g) => s + g.totalCost, 0)
               return (
                 <Section title="Editing" emoji="🎬" count={deliverables.totalVideos} totalCost={totalEditCost}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', minWidth: 400, borderCollapse: 'collapse' }}>
                     <TableCols showClient={showClient} />
                     <thead><tr style={{ background: '#F9FAFB' }}>
                       {['Date', ...(showClient ? ['Client'] : []), 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
@@ -601,7 +601,7 @@ export default function ClientsUnifiedClient({
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </Section>
               )
             })()}
@@ -611,7 +611,7 @@ export default function ClientsUnifiedClient({
               type FlatEntry = { date: string; clientName: string; memberName: string; title: string; hours: number; cost: number }
               function EntryTable({ entries }: { entries: FlatEntry[] }) {
                 return (
-                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <div style={{ overflowX: 'auto' }}><table style={{ width: '100%', minWidth: 400, borderCollapse: 'collapse' }}>
                     <TableCols showClient={showClient} />
                     <thead><tr style={{ background: '#F9FAFB' }}>
                       {['Date', ...(showClient ? ['Client'] : []), 'Member', 'Title', 'Hours', 'Cost'].map(h => <TH key={h}>{h}</TH>)}
@@ -628,7 +628,7 @@ export default function ClientsUnifiedClient({
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 )
               }
               const d = deliverables

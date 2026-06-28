@@ -655,10 +655,12 @@ export async function getTodayCoverageReport(): Promise<{
   const breakMs = (log.break_total_mins ?? 0) * 60 * 1000
   const shiftMinutes = Math.max(0, Math.round((shiftMs - breakMs) / 60000))
 
-  const rawEntries = Array.isArray(update?.work_entries) ? update!.work_entries as Array<{ task_type: string; title: string; client_name: string; duration_hours: number }> : []
-  const entries = rawEntries.filter((e) => e.task_type !== 'break')
-  const learnH = update?.learning_hours ?? 0
-  const totalWorkMinutes = Math.round(entries.reduce((s, e) => s + (e.duration_hours ?? 0), 0) * 60 + learnH * 60)
+  const rawEntries = Array.isArray(update?.work_entries) ? update!.work_entries as Array<{ task_type: string; start_time?: string | null; end_time?: string | null; duration_hours: number; _travel_hours?: number | null }> : []
+  // calcNetWorkHours includes learning (task_type !== 'break'). Use it directly to avoid double-counting.
+  const totalWorkH = rawEntries.length > 0
+    ? calcNetWorkHours(rawEntries)
+    : (update?.learning_hours ?? 0)
+  const totalWorkMinutes = Math.round(totalWorkH * 60)
   const gapMinutes = Math.max(0, shiftMinutes - totalWorkMinutes)
 
   return {

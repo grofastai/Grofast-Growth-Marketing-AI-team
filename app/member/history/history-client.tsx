@@ -659,14 +659,14 @@ export default function HistoryClient({
     const dailyData: { day: string; hours: number }[] = []
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      // calcNetWorkHours includes learning. Only add learning separately when falling back to stored fields.
-      const workH = entries.length > 0
-        ? calcNetWorkHours(entries)
-        : (u.working_hours ?? 0) + (u.learning_hours ?? 0)
+      // Local calcNetWorkHours excludes learning (pure work intervals only).
+      // Always add learnH separately so total = work + learning.
+      // Fallback for old records (no entries): working_hours was stored as pure work.
+      const workH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
       const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
       const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-      const h = workH
+      const h = workH + learnH
       totalHours += h
       totalLearning += learnH
       totalBreak += breakH

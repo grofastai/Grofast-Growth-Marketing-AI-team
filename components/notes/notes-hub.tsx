@@ -86,24 +86,26 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#F8F9FC' }}>
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #F1F1F4', display: 'flex', alignItems: 'center', gap: 16, background: '#fff' }}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3" style={{ padding: '16px 20px', borderBottom: '1px solid #F1F1F4', background: '#fff' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0, fontFamily: 'var(--font-jakarta)' }}>📒 Notes</h1>
           <p style={{ fontSize: 12, color: '#9CA3AF', margin: '2px 0 0' }}>Create, organize and collaborate on company knowledge.</p>
         </div>
-        <div style={{ position: 'relative' }}>
+        <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+        <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search notes..."
-            style={{ padding: '8px 12px 8px 30px', borderRadius: 10, border: '1px solid #E5E7EB', fontSize: 13, width: 240 }} />
+            style={{ padding: '8px 12px 8px 30px', borderRadius: 10, border: '1px solid #E5E7EB', fontSize: 13, width: '100%', minWidth: 150 }} />
         </div>
         <button onClick={() => setCalendar(c => !c)} title="Calendar"
           style={{ background: calendar ? '#DE1A1A' : '#F3F4F6', color: calendar ? '#fff' : '#374151', border: 'none', borderRadius: 10, padding: '9px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
           <CalendarDays size={15}/> Calendar
         </button>
         <button onClick={handleNew}
-          style={{ background: '#DE1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+          style={{ background: '#DE1A1A', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
           <Plus size={15}/> New Note
         </button>
+        </div>
       </div>
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         <FolderSidebar folders={folders} view={view} activeFolderId={folderId}

@@ -428,36 +428,33 @@ export default function ActivitiesClient({
       <div style={{
         position: "relative", borderRadius: 20, overflow: "hidden", marginBottom: 24,
         background: "linear-gradient(100deg, #080808 0%, #1A0000 25%, #420000 55%, #C10000 100%)",
-        height: 260,
       }}>
         <div style={{
           position: "absolute", inset: 0, pointerEvents: "none",
           background: "radial-gradient(ellipse 38% 70% at 55% 100%, rgba(220,0,0,0.45) 0%, transparent 70%)",
         }} />
-        <img
-          src="/brand/activities-hero.png"
-          alt=""
-          style={{
-            position: "absolute", bottom: -85, left: "54%", transform: "translateX(-50%)",
-            height: 360, width: "auto", objectFit: "contain",
-            pointerEvents: "none", userSelect: "none", zIndex: 1,
-          }}
-        />
-        <div style={{ display: "grid", gridTemplateColumns: "40% 40% 20%", height: "100%", position: "relative", zIndex: 2 }}>
-          <div style={{ padding: "0 24px 0 32px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-            <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", lineHeight: 1.1, margin: "0 0 8px" }}>Activities</h1>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: "0 0 20px", lineHeight: 1.5 }}>
+        <div className="hidden sm:block" style={{ position: "absolute", bottom: -85, left: "54%", transform: "translateX(-50%)", zIndex: 1, pointerEvents: "none" }}>
+          <img
+            src="/brand/activities-hero.png"
+            alt=""
+            style={{ height: 360, width: "auto", objectFit: "contain", userSelect: "none" }}
+          />
+        </div>
+        <div className="flex flex-col sm:flex-row" style={{ padding: "20px 20px", position: "relative", zIndex: 2, gap: 16, minHeight: 160 }}>
+          <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", flex: 1 }}>
+            <h1 style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", lineHeight: 1.1, margin: "0 0 6px" }}>Activities</h1>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: "0 0 16px", lineHeight: 1.5 }}>
               Track real-time updates and progress from your amazing team.
             </p>
             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <div style={{ position: "relative", width: 280 }}>
+              <div style={{ position: "relative", flex: 1, maxWidth: 280 }}>
                 <Search size={14} style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.45)", pointerEvents: "none" }} />
                 <input
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   placeholder="Search members, updates..."
                   style={{
-                    width: "100%", boxSizing: "border-box", height: 52,
+                    width: "100%", boxSizing: "border-box", height: 48,
                     padding: "0 14px 0 38px", border: "1px solid rgba(255,255,255,0.18)",
                     borderRadius: 14, background: "rgba(255,255,255,0.09)", backdropFilter: "blur(10px)",
                     color: "#fff", fontSize: 13, outline: "none",
@@ -465,7 +462,7 @@ export default function ActivitiesClient({
                 />
               </div>
               <button style={{
-                width: 52, height: 52, borderRadius: 14, background: "rgba(255,255,255,0.12)",
+                width: 48, height: 48, borderRadius: 14, background: "rgba(255,255,255,0.12)",
                 border: "1px solid rgba(255,255,255,0.18)", cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
               }}>
@@ -473,8 +470,7 @@ export default function ActivitiesClient({
               </button>
             </div>
           </div>
-          <div />
-          <div style={{ padding: "20px 20px 20px 0", display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end", justifyContent: "flex-start" }}>
+          <div className="hidden sm:flex" style={{ flexDirection: "column", gap: 8, alignItems: "flex-end", justifyContent: "flex-start", paddingTop: 4 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", cursor: "pointer", whiteSpace: "nowrap" }}>
               <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{displayDate}</span>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -491,7 +487,7 @@ export default function ActivitiesClient({
       </div>
 
       {/* ── 5 KPI Cards ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 14, marginBottom: 20 }}>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5" style={{ gap: 14, marginBottom: 20 }}>
         {[
           { label: "Total Updates", value: stats.totalUpdates, sub: "Today", icon: <TrendingUp size={18} color="#E31E24" />, iconBg: "rgba(227,30,36,0.1)" },
           { label: "Present",       value: stats.present,      sub: "Members", icon: <Users size={18} color="#16A34A" />, iconBg: "rgba(22,163,74,0.1)" },
@@ -517,7 +513,7 @@ export default function ActivitiesClient({
       </div>
 
       {/* ── Filter Tabs ── */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, overflowX: "auto", flexWrap: "nowrap", alignItems: "center", paddingBottom: 4 }}>
         {DATE_PRESETS.map(p => (
           <button
             key={p.label}
@@ -526,7 +522,7 @@ export default function ActivitiesClient({
               padding: "8px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
               background: curPreset === p.label ? "#E31E24" : "#F3F4F6",
               color: curPreset === p.label ? "#fff" : "#374151",
-              transition: "all 0.15s",
+              transition: "all 0.15s", flexShrink: 0, whiteSpace: "nowrap",
             }}
           >
             {p.label}
@@ -538,6 +534,7 @@ export default function ActivitiesClient({
             padding: "8px 18px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "none",
             background: curPreset === "Custom" ? "#E31E24" : "#F3F4F6",
             color: curPreset === "Custom" ? "#fff" : "#374151",
+            flexShrink: 0, whiteSpace: "nowrap",
           }}
         >
           Custom

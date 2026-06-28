@@ -212,7 +212,7 @@ export default async function DashboardPage() {
     <div style={{ background: "#F5F6FA", minHeight: "100vh" }} className="p-4 lg:p-6 space-y-4">
 
       {/* ── Header ─────────────────────────────────────── */}
-      <div style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #9B1C1C 50%, #450A0A 100%)", borderRadius: 20, padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, position: "relative", overflow: "hidden" }}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between" style={{ background: "linear-gradient(135deg, #DE1A1A 0%, #9B1C1C 50%, #450A0A 100%)", borderRadius: 20, padding: "18px 24px", gap: 12, position: "relative", overflow: "hidden" }}>
         {/* Decorative circles */}
         <div style={{ position: "absolute", top: -30, right: 120, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -40, right: -20, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />

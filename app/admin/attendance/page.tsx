@@ -198,41 +198,41 @@ export default async function AttendancePage({
         <div style={{ position: "absolute", bottom: -30, right: 200, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", top: 10, right: 360, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
 
-        <div style={{ padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, position: "relative", zIndex: 1 }}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{ padding: "20px 20px 22px", gap: 16, position: "relative", zIndex: 1 }}>
           {/* Left */}
-          <div>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
               <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
                 <Sparkles size={16} style={{ color: "#FFD700" }} />
               </div>
               <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
             </div>
-            <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", margin: "0 0 6px", fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>
+            <h1 style={{ fontSize: 32, fontWeight: 900, color: "#FFFFFF", margin: "0 0 4px", fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>
               Attendance
             </h1>
-            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", margin: 0 }}>{displayDate}</p>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.65)", margin: 0 }}>{displayDate}</p>
             {/* Mini stat chips */}
-            <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
+            <div style={{ display: "flex", gap: 8, marginTop: 14, overflowX: "auto", flexWrap: "nowrap" }}>
               {[
                 { icon: <CheckCircle2 size={12} />, label: `${presentCount} Present` },
                 { icon: <Clock size={12} />, label: `${lateEntries.length} Late` },
                 { icon: <Users size={12} />, label: `${totalMembers} Total` },
               ].map(s => (
-                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 12px" }}>
+                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 10px", flexShrink: 0 }}>
                   <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF" }}>{s.label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF", whiteSpace: "nowrap" }}>{s.label}</span>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Right: date nav + avatar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+          <div className="flex items-center gap-3 mt-3 sm:mt-0" style={{ flexShrink: 0 }}>
             <div style={{ background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: "4px 6px" }}>
               <AttendanceDateNav selectedDate={selectedDate} today={today} />
             </div>
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <span style={{ fontSize: 16, fontWeight: 900, color: "#FFFFFF" }}>{(adminName[0] ?? "A").toUpperCase()}</span>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <span style={{ fontSize: 15, fontWeight: 900, color: "#FFFFFF" }}>{(adminName[0] ?? "A").toUpperCase()}</span>
             </div>
           </div>
         </div>
@@ -251,7 +251,7 @@ export default async function AttendancePage({
             {/* Soft bg circle */}
             <div style={{ position: "absolute", top: -20, right: -20, width: 90, height: 90, borderRadius: "50%", background: s.accentBg }} />
             {/* Character image */}
-            <div style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 130, pointerEvents: "none" }}>
+            <div className="hidden sm:block" style={{ position: "absolute", top: 0, bottom: 0, right: 0, width: 130, pointerEvents: "none" }}>
               <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right center" }} />
             </div>
             <div style={{ position: "relative" }}>

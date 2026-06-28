@@ -154,9 +154,9 @@ export default function AnnouncementsClient({
   const pinnedCount = announcements.filter((a) => a.pinned).length
 
   return (
-    <div style={{ padding: "24px 28px", maxWidth: 1400, margin: "0 auto" }}>
+    <div className="px-4 py-5 sm:px-6 lg:px-7" style={{ maxWidth: 1400, margin: "0 auto" }}>
       {/* ── Header ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>
             Announcements
@@ -186,9 +186,9 @@ export default function AnnouncementsClient({
         {/* ─────────── LEFT: Main Content ─────────── */}
         <div>
           {/* Hero Banner — split card: left image | right CTA */}
-          <div style={{ display: "flex", borderRadius: 20, overflow: "hidden", border: "1.5px solid #E5E7EB", background: "#fff", marginBottom: 20, minHeight: 220 }}>
+          <div className="flex flex-col sm:flex-row" style={{ borderRadius: 20, overflow: "hidden", border: "1.5px solid #E5E7EB", background: "#fff", marginBottom: 20, minHeight: 180 }}>
             {/* Left: team illustration */}
-            <div style={{ position: "relative", flex: "0 0 62%", background: "linear-gradient(135deg, #FFF8F0 0%, #FFF3E8 50%, #FDEBD0 100%)" }}>
+            <div className="hidden sm:block" style={{ position: "relative", flex: "0 0 55%", background: "linear-gradient(135deg, #FFF8F0 0%, #FFF3E8 50%, #FDEBD0 100%)" }}>
               <Image
                 src="/brand/announcement/hero-team.png"
                 alt="Team announcements"
@@ -197,7 +197,7 @@ export default function AnnouncementsClient({
               />
             </div>
             {/* Right: content panel */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "28px 24px", textAlign: "center", gap: 12 }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px", textAlign: "center", gap: 12 }}>
               {/* Megaphone icon in pink circle */}
               <div style={{ width: 56, height: 56, borderRadius: "50%", background: "#FFF0F0", display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px solid #FFD6D6" }}>
                 <Megaphone size={24} style={{ color: "#E53935" }} />

@@ -265,12 +265,12 @@ export default function ClientsUnifiedClient({
   const showClient = selectedClientRow?.industry?.startsWith('__virtual') ?? false
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F8F9FB' }}>
+    <div className="flex flex-col md:flex-row" style={{ height: '100vh', overflow: 'hidden', background: '#F8F9FB' }}>
 
       {/* ── LEFT PANEL ──────────────────────────────────────────────────── */}
-      <div style={{
-        width: 300, flexShrink: 0, borderRight: '1px solid #EBEDF2',
-        background: '#FFFFFF', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+      <div className={selectedClientName ? "hidden md:flex flex-col w-full md:w-[300px]" : "flex flex-col w-full md:w-[300px]"} style={{
+        flexShrink: 0, borderRight: '1px solid #EBEDF2',
+        background: '#FFFFFF', overflow: 'hidden',
       }}>
         {/* Header */}
         <div style={{ padding: '18px 16px 12px', borderBottom: '1px solid #F0F1F5' }}>
@@ -396,7 +396,7 @@ export default function ClientsUnifiedClient({
       </div>
 
       {/* ── RIGHT PANEL ─────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <div className={!selectedClientName ? "hidden md:flex flex-col" : "flex flex-col"} style={{ flex: 1, overflowY: 'auto' }}>
 
         {/* No client selected */}
         {!selectedClientName && (
@@ -409,7 +409,11 @@ export default function ClientsUnifiedClient({
 
         {/* Client selected */}
         {selectedClientName && selectedClientRow && (
-          <div style={{ padding: '24px 28px 48px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div className="px-4 md:px-7" style={{ paddingTop: 24, paddingBottom: 48, display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+            <button className="md:hidden mb-3 flex items-center gap-2 text-sm font-bold text-gray-600" onClick={() => router.push('/admin/clients')}>
+              ← Back to Clients
+            </button>
 
             {/* ── Client header ────────────────────────────────────────── */}
             <div style={{

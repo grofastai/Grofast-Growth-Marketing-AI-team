@@ -1583,6 +1583,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                   <div className="px-5 py-2.5" style={{ background: "#FFFBF5" }}>
                     <p className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: "#F97316" }}>Login Members</p>
                   </div>
+                  <div className="overflow-x-auto">
                   <table className="w-full" style={{ minWidth: 560 }}>
                     <thead>
                       <tr style={{ borderBottom: "1px solid #F9FAFB", background: "#FAFAFA" }}>
@@ -1607,7 +1608,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                                 </div>
                               </div>
                             </td>
-                            <td className="px-5 py-3 text-[12px]" style={{ color: "#6B7280" }}>{m.team ?? "—"}</td>
+                            <td className="px-5 py-3 text-[12px]" style={{ color: "#6B7280", whiteSpace: "nowrap" }}>{m.team ?? "—"}</td>
                             <td className="px-5 py-3 text-[13px]" style={{ color: "#374151" }}>{m.phone ?? "—"}</td>
                             <td className="px-5 py-3">
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
@@ -1629,6 +1630,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
 
@@ -1673,7 +1675,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                               </div>
                             </div>
                           </td>
-                          <td className="px-5 py-3.5">
+                          <td className="px-5 py-3.5" style={{ whiteSpace: "nowrap" }}>
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold" style={{ background: teamCfg.bg, color: teamCfg.color }}>
                               {teamCfg.emoji} {teamCfg.label}
                             </span>

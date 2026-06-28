@@ -539,7 +539,7 @@ export default function ExpensesClient({
             { label: "Total Expenses",   value: fmtRupee(grandTotal),        color: "#de1a1a", bg: "rgba(222,26,26,0.06)",  icon: <IndianRupee size={15} style={{ color: "#de1a1a" }} /> },
             { label: "Client Direct",    value: fmtRupee(totalClientDirect), color: "#3B82F6", bg: "rgba(59,130,246,0.06)", icon: <Receipt size={15} style={{ color: "#3B82F6" }} /> },
             { label: "Common Shared",    value: fmtRupee(totalCommon),       color: "#8B5CF6", bg: "rgba(139,92,246,0.06)", icon: <Layers size={15} style={{ color: "#8B5CF6" }} /> },
-            { label: "Per Client/Brand", value: fmtRupee(perClientOverhead), color: "#10B981", bg: "rgba(16,185,129,0.06)", icon: <Building2 size={15} style={{ color: "#10B981" }} />, sub: `÷ ${overheadDivisor} (${activeClients.length} clients + 3 brands)` },
+            { label: "Per Client/Brand", value: fmtRupee(perClientOverhead), color: "#10B981", bg: "rgba(16,185,129,0.06)", icon: <Building2 size={15} style={{ color: "#10B981" }} /> },
           ].map(k => (
             <div key={k.label} className="rounded-2xl py-5 px-4 flex flex-col items-center justify-center text-center gap-2"
               style={{ background: "#FFFFFF", border: `1.5px solid ${k.color}20`, boxShadow: "0 2px 12px rgba(0,0,0,0.04)", minHeight: "120px" }}>
@@ -639,9 +639,8 @@ export default function ExpensesClient({
               )}
             </div>
             {clientExpenses.length > 0 && (
-              <div className="flex items-center justify-between px-5 py-3 flex-shrink-0 mt-auto"
+              <div className="flex items-center justify-end px-5 py-3 flex-shrink-0 mt-auto"
                 style={{ borderTop: "2px solid #F0F0F2", background: "#F8F9FB" }}>
-                <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{clientExpenses.length}</span>
                 <span className="text-[14px] font-black" style={{ color: "#3B82F6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalClientDirect)}</span>
               </div>
             )}
@@ -703,9 +702,8 @@ export default function ExpensesClient({
               )}
             </div>
             {commonExpenses.length > 0 && (
-              <div className="flex items-center justify-between px-5 py-3 flex-shrink-0 mt-auto"
+              <div className="flex items-center justify-end px-5 py-3 flex-shrink-0 mt-auto"
                 style={{ borderTop: "2px solid #F0F0F2", background: "#F8F9FB" }}>
-                <span className="text-[10px] font-black uppercase tracking-wider" style={{ color: "#9CA3AF" }}>{commonExpenses.length}</span>
                 <span className="text-[14px] font-black" style={{ color: "#8B5CF6", fontFamily: "var(--font-jakarta)" }}>{fmtRupee(totalCommon)}</span>
               </div>
             )}
@@ -716,10 +714,10 @@ export default function ExpensesClient({
         <div className="rounded-2xl overflow-hidden" style={{ background: "#FFFFFF", border: "1px solid #F0F0F2", boxShadow: "0 2px 12px rgba(0,0,0,0.05)" }}>
           <div className="flex items-center gap-2 px-6 py-4" style={{ borderBottom: "1px solid #F3F4F6" }}>
             <IndianRupee size={15} style={{ color: "#DE1A1A" }} />
-            <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#111111" }}>Client & Brand Cost Summary</span>
+            <span className="text-[13px] font-black uppercase tracking-wider" style={{ color: "#DE1A1A" }}>Client & Brand Cost Summary</span>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table style={{ minWidth: 500 }} className="w-full">
               <thead>
                 <tr style={{ background: "#FAFAFA", borderBottom: "1px solid #F0F0F2" }}>
                   <th className="px-6 py-3 text-left text-[11px] font-bold uppercase tracking-wider" style={{ color: "#9CA3AF" }}>Client / Brand</th>

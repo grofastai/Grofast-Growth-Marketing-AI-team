@@ -548,7 +548,6 @@ export default function ExpensesClient({
                 <p className="text-[11px] font-black uppercase tracking-wider" style={{ color: "#6B7280" }}>{k.label}</p>
               </div>
               <p className="text-[24px] font-black leading-none" style={{ fontFamily: "var(--font-jakarta)", color: k.color }}>{k.value}</p>
-              {"sub" in k && k.sub && <p className="text-[10px] font-semibold" style={{ color: "#9CA3AF" }}>{k.sub}</p>}
             </div>
           ))}
         </div>

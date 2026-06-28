@@ -1,7 +1,7 @@
 ﻿"use client"
 
 import { useState, useTransition } from "react"
-import { LogIn, LogOut, Loader2, Home, Building2, CheckCircle2 } from "lucide-react"
+import { LogIn, LogOut, Loader2, Home, Building2, XCircle, CheckCircle2 } from "lucide-react"
 import { clockIn, clockOut } from "@/lib/actions/attendance"
 
 interface Props {

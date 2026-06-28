@@ -50,15 +50,16 @@ export type WorkEntry = {
 const TEAM_CFG: Record<FreelancerTeam, {
   color: string; bg: string; border: string
   shortLabel: string; entryLabel: string; emoji: string; costLabel: string
+  heroBg: string
 }> = {
-  "Freelance RJ Voiceover":            { color: "#A855F7", bg: "rgba(168,85,247,0.07)", border: "rgba(168,85,247,0.2)", shortLabel: "RJ Voiceover",  entryLabel: "Voice",     emoji: "🎙️", costLabel: "Prize (INR)" },
-  "Freelance Graphics Designer":        { color: "#F97316", bg: "rgba(249,115,22,0.07)",  border: "rgba(249,115,22,0.2)",  shortLabel: "Graphics",      entryLabel: "Design",    emoji: "🎨", costLabel: "Prize (INR)" },
-  "Freelance Content Writer":           { color: "#14B8A6", bg: "rgba(20,184,166,0.07)",  border: "rgba(20,184,166,0.2)",  shortLabel: "Content",       entryLabel: "Content",   emoji: "✍️", costLabel: "Prize (INR)" },
-  "Freelance Development & Automation": { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Dev & Auto",    entryLabel: "Task",      emoji: "💻", costLabel: "Project Price (INR)" },
-  "Freelance Marketing & Operations":   { color: "#10B981", bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.2)",  shortLabel: "Marketing",     entryLabel: "Task",      emoji: "📊", costLabel: "Project Price (INR)" },
-  "Freelance IT Technology & Media":    { color: "#8B5CF6", bg: "rgba(139,92,246,0.07)",  border: "rgba(139,92,246,0.2)",  shortLabel: "IT & Media",    entryLabel: "Task",      emoji: "🖥️", costLabel: "Project Price (INR)" },
-  "Freelance Video Editing":            { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Video Editing", entryLabel: "Edit",      emoji: "🎬", costLabel: "Prize (INR)" },
-  "Freelance Videography":              { color: "#0EA5E9", bg: "rgba(14,165,233,0.07)",  border: "rgba(14,165,233,0.2)",  shortLabel: "Videography",   entryLabel: "Shoot",     emoji: "📹", costLabel: "Cost (INR)" },
+  "Freelance RJ Voiceover":            { color: "#A855F7", bg: "rgba(168,85,247,0.07)", border: "rgba(168,85,247,0.2)", shortLabel: "RJ Voiceover",  entryLabel: "Voice",     emoji: "🎙️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #2D1B69 0%, #6D28D9 45%, #1E1040 100%)" },
+  "Freelance Graphics Designer":        { color: "#F97316", bg: "rgba(249,115,22,0.07)",  border: "rgba(249,115,22,0.2)",  shortLabel: "Graphics",      entryLabel: "Design",    emoji: "🎨", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #431407 0%, #C2410C 45%, #1C0A00 100%)" },
+  "Freelance Content Writer":           { color: "#14B8A6", bg: "rgba(20,184,166,0.07)",  border: "rgba(20,184,166,0.2)",  shortLabel: "Content",       entryLabel: "Content",   emoji: "✍️", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #042F2E 0%, #0F766E 45%, #021B1A 100%)" },
+  "Freelance Development & Automation": { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Dev & Auto",    entryLabel: "Task",      emoji: "💻", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1E1B4B 0%, #3730A3 45%, #0F0D2E 100%)" },
+  "Freelance Marketing & Operations":   { color: "#10B981", bg: "rgba(16,185,129,0.07)",  border: "rgba(16,185,129,0.2)",  shortLabel: "Marketing",     entryLabel: "Task",      emoji: "📊", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #022C22 0%, #047857 45%, #011A14 100%)" },
+  "Freelance IT Technology & Media":    { color: "#8B5CF6", bg: "rgba(139,92,246,0.07)",  border: "rgba(139,92,246,0.2)",  shortLabel: "IT & Media",    entryLabel: "Task",      emoji: "🖥️", costLabel: "Project Price (INR)",   heroBg: "linear-gradient(135deg, #1A0533 0%, #7C3AED 45%, #0D0020 100%)" },
+  "Freelance Video Editing":            { color: "#6366F1", bg: "rgba(99,102,241,0.07)",  border: "rgba(99,102,241,0.2)",  shortLabel: "Video Editing", entryLabel: "Edit",      emoji: "🎬", costLabel: "Prize (INR)",           heroBg: "linear-gradient(135deg, #0F1547 0%, #1D4ED8 45%, #060B2A 100%)" },
+  "Freelance Videography":              { color: "#0EA5E9", bg: "rgba(14,165,233,0.07)",  border: "rgba(14,165,233,0.2)",  shortLabel: "Videography",   entryLabel: "Shoot",     emoji: "📹", costLabel: "Cost (INR)",            heroBg: "linear-gradient(135deg, #082F49 0%, #0369A1 45%, #041520 100%)" },
 }
 
 const NO_LOGIN_TEAMS = Object.keys(TEAM_CFG) as FreelancerTeam[]
@@ -1238,7 +1239,7 @@ export default function FreelancersMemberClient({
                     <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
                       style={{ position: "absolute", bottom: -48, right: 18, height: 290, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.45))", zIndex: 10 }} />
                   )}
-                <div style={{ borderRadius: 24, overflow: "hidden", background: `linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.82) 100%), linear-gradient(135deg, ${cfg.color} 0%, #060606 100%)`, boxShadow: `0 10px 38px rgba(0,0,0,0.4)`, position: "relative", minHeight: 210 }}>
+                <div style={{ borderRadius: 24, overflow: "hidden", background: cfg.heroBg, boxShadow: `0 10px 38px rgba(0,0,0,0.4)`, position: "relative", minHeight: 210 }}>
                   <div style={{ position: "absolute", top: -50, right: -50, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.07)", pointerEvents: "none" }} />
                   <div style={{ position: "absolute", bottom: -30, left: 140, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
                   <div style={{ position: "absolute", top: 20, left: 220, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />

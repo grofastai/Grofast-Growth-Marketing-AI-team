@@ -443,7 +443,7 @@ export default function ActivitiesClient({
             pointerEvents: "none", userSelect: "none", zIndex: 1,
           }}
         />
-        <div style={{ display: "grid", gridTemplateColumns: "40% 40% 20%", height: "100%", position: "relative", zIndex: 2 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "40% 1fr 240px", height: "100%", position: "relative", zIndex: 2 }}>
           <div style={{ padding: "0 24px 0 32px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
             <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", lineHeight: 1.1, margin: "0 0 8px" }}>Activities</h1>
             <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: "0 0 20px", lineHeight: 1.5 }}>
@@ -474,7 +474,7 @@ export default function ActivitiesClient({
             </div>
           </div>
           <div />
-          <div style={{ padding: "20px 20px 20px 0", display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end", justifyContent: "flex-start" }}>
+          <div style={{ padding: "20px 24px 20px 0", display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end", justifyContent: "flex-start" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)", backdropFilter: "blur(8px)", cursor: "pointer", whiteSpace: "nowrap" }}>
               <span style={{ fontSize: 12, color: "#fff", fontWeight: 600 }}>{displayDate}</span>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>

@@ -385,11 +385,13 @@ type PastUpdate = {
 
 export default function DailyUpdateForm({
   projects, sheetClientNames = [], pastClientNames = [], userName, team, workLayout, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
+  todayClockedIn = true, requiresClockIn = false, defaultDate,
 }: {
   projects: Project[]; sheetClientNames?: string[]; pastClientNames?: string[]; userName: string; team?: string | null
   workLayout?: 'media' | 'non_media' | 'freelance_media'
   existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
   teamMembers?: TeamMember[]; approvedLeaveDates?: string[]
+  todayClockedIn?: boolean; requiresClockIn?: boolean; defaultDate?: string
 }) {
   const router = useRouter()
   const existingUpdateRef = useRef(existingUpdate)
@@ -410,7 +412,7 @@ export default function DailyUpdateForm({
   const todayStr = new Date().toISOString().split("T")[0]
 
   // ── Date selector ────────────────────────────────────────────────────────
-  const [selectedDate, setSelectedDate] = useState(todayStr)
+  const [selectedDate, setSelectedDate] = useState(defaultDate ?? todayStr)
   const [activeUpdate, setActiveUpdate] = useState<Record<string, unknown> | null>(existingUpdate ?? null)
 
   const dateLabel = new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
@@ -708,6 +710,7 @@ export default function DailyUpdateForm({
   // ── Submit: working (time blocks) ────────────────────────────────────────
   function handleWorkingSubmit() {
     setWorkingError(null)
+    if (requiresClockIn && !todayClockedIn && selectedDate === todayStr) { setWorkingError("Please clock in on the Attendance page before submitting today's work log."); return }
     if (filledBlocks.length === 0 && posters.length === 0 && voiceovers.length === 0 && nmEdits.length === 0) { setWorkingError("Add at least one time block, poster, voiceover, or editing entry."); return }
 
     // Per-block validation: timings + description + client are all mandatory
@@ -878,6 +881,7 @@ export default function DailyUpdateForm({
   // ── Submit: media (shoots + edits + breaks) ──────────────────────────────
   function handleMediaSubmit() {
     setError(null)
+    if (requiresClockIn && !todayClockedIn && selectedDate === todayStr) { setError("Please clock in on the Attendance page before submitting today's work log."); return }
     if (tab !== "break" && shoots.length === 0 && edits.length === 0 && voiceovers.length === 0 && posters.length === 0) { setError("Add at least one shoot, edit, voiceover, or poster entry."); return }
 
     // Past date: check new entries don't overlap with already-saved entries (all types, >3 min threshold)
@@ -1535,6 +1539,24 @@ export default function DailyUpdateForm({
         </div>
       </div>
 
+
+      {/* ── 4A: Clock-in required block ── */}
+      {requiresClockIn && !todayClockedIn && (
+        <div style={{ background:"rgba(239,68,68,0.06)", border:"1.5px solid rgba(239,68,68,0.25)", borderRadius:14, padding:"16px 18px", marginBottom:16, display:"flex", alignItems:"flex-start", gap:12 }}>
+          <div style={{ width:36, height:36, borderRadius:10, background:"rgba(239,68,68,0.12)", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:2 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div>
+            <p style={{ fontSize:14, fontWeight:800, color:"#DC2626", margin:"0 0 4px", fontFamily:"var(--font-jakarta)" }}>Clock In Required</p>
+            <p style={{ fontSize:12, color:"#6B7280", margin:"0 0 10px" }}>
+              You must clock in on the Attendance page before submitting today&apos;s work log.
+            </p>
+            <a href="/member/attendance" style={{ fontSize:12, fontWeight:700, color:"#DC2626", textDecoration:"underline", textUnderlineOffset:2 }}>
+              Go to Attendance →
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* ── DATE SELECTOR ────────────────────────────────────────────────── */}
       <div style={{ background:"#FFFFFF", borderRadius:14, border: isPastDate ? "1.5px solid #F59E0B" : "1px solid #EBEDF2", padding:"10px 16px", display:"flex", alignItems:"center", gap:12, marginBottom:16, boxShadow:"0 1px 4px rgba(0,0,0,0.05)", flexWrap:"wrap" }}>

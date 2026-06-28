@@ -171,16 +171,16 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     while (cur <= end) { nonLeaveDates.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
   }
 
-  // Union: approved leave dates + attendance_logs marked leave/absent
+  // LEAVE-1: cap leave date ranges to current month [monthStart..today]
+  // LEAVE-2: only count approved leave records (not absence logs)
   const leaveDateSet = new Set<string>()
   for (const l of approvedLeaves) {
     if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") continue
-    const cur = new Date(l.from_date + "T12:00:00")
-    const end = new Date(l.to_date   + "T12:00:00")
-    while (cur <= end) { leaveDateSet.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
-  }
-  for (const l of monthlyAttLogs) {
-    if ((l.status === "leave" || l.status === "absent") && !nonLeaveDates.has(l.date)) leaveDateSet.add(l.date)
+    const start = l.from_date > monthStart ? l.from_date : monthStart
+    const end   = l.to_date   < today      ? l.to_date   : today
+    const cur = new Date(start + "T12:00:00")
+    const endDate = new Date(end + "T12:00:00")
+    while (cur <= endDate) { leaveDateSet.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
   }
   const leaveDays = leaveDateSet.size
 

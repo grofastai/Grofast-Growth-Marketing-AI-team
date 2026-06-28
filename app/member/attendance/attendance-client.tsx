@@ -41,6 +41,8 @@ interface Props {
   todayApprovedLeave?: { leave_type: string; reason: string | null } | null
   todayWfhLeave?: { leave_type: string; status: string; created_at: string } | null
   isMedia?: boolean
+  yesterdayStatus?: 'ok' | 'no_login' | 'no_logout'
+  yesterdayStr?: string
 }
 
 const SHIFT_HOURS = 8.5
@@ -123,7 +125,7 @@ function SegmentBar({ hoursWorked }: { hoursWorked: number }) {
   )
 }
 
-export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf, todayApprovedLeave, todayWfhLeave, isMedia = false }: Props) {
+export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, today, weekStart, todayPermissionHours = 0, permHoursByDate = {}, weekUpdatesByDate = {}, monthlyPerf, todayApprovedLeave, todayWfhLeave, isMedia = false, yesterdayStatus = 'ok', yesterdayStr = '' }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [selectedMode, setSelectedMode] = useState<"wfh" | "office" | "shoot">(
@@ -131,6 +133,13 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
   )
   const [error, setError] = useState<string | null>(null)
   const [geoLoading, setGeoLoading] = useState(false)
+  // Yesterday block state
+  const [yesLogoutTime, setYesLogoutTime] = useState("")
+  const [yesLogoutSaving, setYesLogoutSaving] = useState(false)
+  const [yesLogoutSaved, setYesLogoutSaved] = useState(false)
+  const [yesLogoutError, setYesLogoutError] = useState<string | null>(null)
+  // Clock-out 12h confirmation
+  const [showClockOutConfirm, setShowClockOutConfirm] = useState(false)
   const [historyDate, setHistoryDate] = useState("")
   const [historyLog, setHistoryLog] = useState<{
     clock_in: string | null; clock_out: string | null; work_type: string | null; status: string
@@ -427,7 +436,61 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
               {/* NOT LOGGED IN */}
               {notLogged && (
                 <div className="space-y-4">
-                  {todayApprovedLeave ? (
+                  {/* ── Yesterday absent block (2A) ── */}
+                  {yesterdayStatus === 'no_login' && (
+                    <div className="rounded-2xl p-5 text-center" style={{ background: "rgba(239,68,68,0.06)", border: "1.5px solid rgba(239,68,68,0.25)" }}>
+                      <AlertTriangle size={28} style={{ color: "#DC2626", margin: "0 auto 8px" }} />
+                      <p className="text-[14px] font-black mb-1" style={{ color: "#DC2626" }}>Yesterday No Login Recorded</p>
+                      <p className="text-[12px]" style={{ color: "#6B7280" }}>
+                        You did not clock in on {new Date(yesterdayStr + "T12:00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })}.
+                        Please contact admin to mark your attendance before logging in today.
+                      </p>
+                    </div>
+                  )}
+                  {/* ── Yesterday no logout block (2B) ── */}
+                  {yesterdayStatus === 'no_logout' && !yesLogoutSaved && (
+                    <div className="rounded-2xl p-5 space-y-3" style={{ background: "rgba(245,158,11,0.06)", border: "1.5px solid rgba(245,158,11,0.3)" }}>
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle size={16} style={{ color: "#D97706" }} />
+                        <p className="text-[13px] font-black" style={{ color: "#D97706" }}>
+                          Yesterday Logout Missing — {new Date(yesterdayStr + "T12:00:00").toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "short" })}
+                        </p>
+                      </div>
+                      <p className="text-[12px]" style={{ color: "#6B7280" }}>You were logged in but never logged out. Enter your actual logout time to continue.</p>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="time"
+                          value={yesLogoutTime}
+                          onChange={e => { setYesLogoutTime(e.target.value); setYesLogoutError(null) }}
+                          className="rounded-xl px-3 py-2 text-[13px] font-semibold outline-none"
+                          style={{ border: "1px solid #E5E7EB", background: "#fff", color: "#111" }}
+                        />
+                        <button
+                          disabled={!yesLogoutTime || yesLogoutSaving}
+                          onClick={async () => {
+                            if (!yesLogoutTime) return
+                            setYesLogoutSaving(true); setYesLogoutError(null)
+                            const res = await manualClockOut(yesterdayStr, yesLogoutTime)
+                            setYesLogoutSaving(false)
+                            if (!res.success) { setYesLogoutError(res.error ?? "Failed to save"); return }
+                            setYesLogoutSaved(true)
+                          }}
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-bold disabled:opacity-50"
+                          style={{ background: "#D97706", color: "#fff" }}>
+                          {yesLogoutSaving ? <Loader2 size={13} className="animate-spin" /> : "Save & Continue"}
+                        </button>
+                      </div>
+                      {yesLogoutError && <p className="text-[12px]" style={{ color: "#EF4444" }}>{yesLogoutError}</p>}
+                    </div>
+                  )}
+                  {yesterdayStatus === 'no_logout' && yesLogoutSaved && (
+                    <div className="rounded-xl p-3 flex items-center gap-2" style={{ background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)" }}>
+                      <CheckCircle2 size={14} style={{ color: "#16A34A" }} />
+                      <p className="text-[12px] font-semibold" style={{ color: "#16A34A" }}>Yesterday logout saved. You can now clock in.</p>
+                    </div>
+                  )}
+                  {/* Block clock-in entirely if yesterday has no login (2A) */}
+                  {yesterdayStatus === 'no_login' ? null : todayApprovedLeave ? (
                     <div className="rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(239,68,68,0.02) 100%)", border: "1.5px solid rgba(239,68,68,0.2)" }}>
                       <div className="text-3xl mb-2">🏖️</div>
                       <p className="text-[15px] font-black mb-2" style={{ color: "#DC2626" }}>
@@ -542,7 +605,7 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                             </div>
                           </div>
                           <div className="flex items-center gap-3 mt-2">
-                            <button onClick={handleLogIn} disabled={isPending || geoLoading || (selectedMode !== "office" && todayWfhLeave?.status !== "approved")}
+                            <button onClick={handleLogIn} disabled={isPending || geoLoading || (selectedMode !== "office" && todayWfhLeave?.status !== "approved") || (yesterdayStatus === 'no_logout' && !yesLogoutSaved)}
                               className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
                               style={{ background: "#de1a1a", color: "#FFFFFF" }}>
                               {geoLoading ? <><MapPin size={14} className="animate-pulse" />Verifying…</> : isPending ? <Loader2 size={14} className="animate-spin" /> : <><LogIn size={14} />Log In</>}
@@ -590,12 +653,49 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                         −{todayPermissionHours}h permission deducted
                       </p>
                     )}
-                    <button onClick={() => handle(clockOut)} disabled={isPending}
+                    <button
+                      onClick={() => {
+                        if (todayLog?.clock_in && calcHours(todayLog.clock_in, null) > 12) {
+                          setShowClockOutConfirm(true)
+                        } else {
+                          handle(clockOut)
+                        }
+                      }}
+                      disabled={isPending}
                       className="flex items-center gap-2 px-6 py-3 rounded-2xl text-[14px] font-bold disabled:opacity-50 transition-all"
                       style={{ background: "#de1a1a", color: "#FFFFFF" }}>
                       {isPending ? <Loader2 size={14} className="animate-spin" /> : <LogOut size={14} />}
                       Log Out
                     </button>
+                    {/* 12h overtime confirmation modal */}
+                    {showClockOutConfirm && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.45)" }}>
+                        <div className="rounded-2xl p-6 max-w-[340px] w-full mx-4 space-y-4" style={{ background: "#fff", boxShadow: "0 8px 48px rgba(0,0,0,0.18)" }}>
+                          <div className="flex items-center gap-3">
+                            <AlertTriangle size={22} style={{ color: "#D97706", flexShrink: 0 }} />
+                            <p className="text-[15px] font-black" style={{ color: "#111" }}>Login Hours Exceed 12h</p>
+                          </div>
+                          <p className="text-[13px]" style={{ color: "#6B7280" }}>
+                            Your login span is over 12 hours. Are you still working, or is your login time wrong?
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => { setShowClockOutConfirm(false); handle(clockOut) }}
+                              disabled={isPending}
+                              className="flex-1 py-2.5 rounded-xl text-[13px] font-bold"
+                              style={{ background: "#de1a1a", color: "#fff" }}>
+                              Yes, Log Out Now
+                            </button>
+                            <button
+                              onClick={() => setShowClockOutConfirm(false)}
+                              className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold"
+                              style={{ background: "#F3F4F6", color: "#6B7280" }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     {error && <p className="text-[12px] mt-2" style={{ color: "#EF4444" }}>{error}</p>}
                   </div>
                   {/* Large alarm clock illustration */}

@@ -317,18 +317,11 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { label: "Avg Time / Edit",   value: flAvgEdit > 0 ? `${flAvgEdit}h` : "—",        color: "#10B981", sub: undefined },
     { label: "Avg Time / Shoot",  value: flAvgShoot > 0 ? `${flAvgShoot}h` : "—",      color: "#F59E0B", sub: undefined },
     { label: "Learning Hrs",      value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", color: "#A78BFA", sub: undefined },
-  ] : isMedia ? [
-    { label: "Avg Working Hrs",      value: avgWorkingHrs > 0 ? `${avgWorkingHrs}h` : "—",   color: "#111111", sub: undefined },
-    { label: "Shoot Days",           value: shootDays,                                        color: "#6366F1",  sub: undefined },
-    { label: "Shooting Sessions",    value: mediaShootCount > 0 ? mediaShootCount : "—",     color: "#6366F1",  sub: undefined },
-    { label: "Edited Videos",        value: mediaEditCount  > 0 ? mediaEditCount  : "—",     color: "#de1a1a",  sub: undefined },
-    { label: "Leave Taken This Month", value: leaveDays,                                     color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: `${Math.max(0, 5 - leaveDays)} days left` },
-    { label: "Overtime Hrs",         value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",      color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeHrs > 0 ? `above 212.5h target` : undefined },
   ] : [
     { label: "Avg Login Hrs",        value: avgLoginHrs > 0 ? `${avgLoginHrs}h` : "—",       color: "#6366F1", sub: undefined },
     { label: "Avg Working Hrs",      value: avgWorkingHrs > 0 ? `${avgWorkingHrs}h` : "—",   color: "#111111", sub: undefined },
     { label: "Office Days",          value: officeDays,                                       color: "#de1a1a",  sub: undefined },
-    { label: "WFH Days",             value: wfhDays,                                          color: "#6366F1",  sub: undefined },
+    { label: isMedia ? "Shoot Days" : "WFH Days", value: isMedia ? shootDays : wfhDays,      color: "#6366F1",  sub: undefined },
     { label: "Leave Taken This Month", value: leaveDays,                                      color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: `${Math.max(0, 5 - leaveDays)} days left` },
     { label: "Overtime Hrs",         value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",       color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeHrs > 0 ? `above 212.5h target` : undefined },
   ]
@@ -354,9 +347,11 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: flShootCount, label: "Videos Shot",   href: "/member/history" },
     { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
   ] : isMedia ? [
-    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: mediaShootHrs > 0 ? `${mediaShootHrs}h` : "—",      label: "Shooting Hrs", href: "/member/history" },
-    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: mediaEditHrs > 0 ? `${mediaEditHrs}h` : "—",        label: "Editing Hrs",  href: "/member/history" },
-    { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
+    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: mediaShootHrs > 0 ? `${mediaShootHrs}h` : "—",      label: "Shooting Hrs",     href: "/member/history" },
+    { icon: Camera,   iconBg: "rgba(99,102,241,0.08)", iconColor: "#6366F1", value: mediaShootCount > 0 ? mediaShootCount : "—",         label: "Shooting Sessions", href: "/member/history" },
+    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: mediaEditHrs > 0 ? `${mediaEditHrs}h` : "—",        label: "Editing Hrs",      href: "/member/history" },
+    { icon: Film,     iconBg: "rgba(222,26,26,0.08)",  iconColor: "#de1a1a", value: mediaEditCount > 0 ? mediaEditCount : "—",           label: "Edited Videos",    href: "/member/history" },
+    { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs",     href: "/member/history" },
   ] : [
     { icon: Layers,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: nmPosterCount,                                       label: "Poster",       href: "/member/history" },
     { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: nmEditCount,                                         label: "Editing",      href: "/member/history" },

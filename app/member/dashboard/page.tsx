@@ -162,6 +162,15 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const monthlyAvgHrs = presentDays > 0 ? Math.round((totalMonthHrs / presentDays) * 10) / 10 : 0
   const overtimeHrs   = Math.round(Math.max(0, totalMonthHrs - MONTHLY_TARGET_HRS) * 10) / 10
 
+  // Dates that are WFH/shoot_day/permission — NOT actual leave days
+  const nonLeaveDates = new Set<string>()
+  for (const l of approvedLeaves) {
+    if (l.leave_type !== "permission" && l.leave_type !== "wfh" && l.leave_type !== "shoot_day") continue
+    const cur = new Date(l.from_date + "T12:00:00")
+    const end = new Date(l.to_date   + "T12:00:00")
+    while (cur <= end) { nonLeaveDates.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
+  }
+
   // Union: approved leave dates + attendance_logs marked leave/absent
   const leaveDateSet = new Set<string>()
   for (const l of approvedLeaves) {
@@ -171,7 +180,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     while (cur <= end) { leaveDateSet.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
   }
   for (const l of monthlyAttLogs) {
-    if (l.status === "leave" || l.status === "absent") leaveDateSet.add(l.date)
+    if ((l.status === "leave" || l.status === "absent") && !nonLeaveDates.has(l.date)) leaveDateSet.add(l.date)
   }
   const leaveDays = leaveDateSet.size
 

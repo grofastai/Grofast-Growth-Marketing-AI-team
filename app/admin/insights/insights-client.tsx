@@ -158,7 +158,7 @@ export default function InsightsClient({
               {[
                 { icon: <Users size={12} />, label: `${memberUtilization.length} Members` },
                 { icon: <TrendingUp size={12} />, label: monthLabel },
-                { icon: <BarChart3 size={12} />, label: `${kpis.trackedHours.toFixed(0)}h Tracked` },
+                { icon: <BarChart3 size={12} />, label: `${kpis.totalTrackedHours.toFixed(0)}h Tracked` },
               ].map(s => (
                 <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '4px 12px' }}>
                   <span style={{ color: 'rgba(255,255,255,0.8)' }}>{s.icon}</span>

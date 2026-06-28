@@ -968,7 +968,7 @@ export default function HistoryClient({
           <div className="order-2 lg:order-none" style={{ display:"flex", flexDirection:"column", gap:16 }}>
 
             {/* ── HERO BANNER ─────────────────────────────────────────────── */}
-            <div style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:22, overflow:"hidden", boxShadow:"0 8px 32px rgba(180,0,0,0.4)", position:"relative", minHeight:240 }}>
+            <div style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:22, overflow:"hidden", boxShadow:"0 8px 32px rgba(180,0,0,0.4)", position:"relative", minHeight:240, maxWidth:"100%" }}>
               {/* Decorative circles */}
               <div style={{ position:"absolute", top:-50, left:-50, width:220, height:220, borderRadius:"50%", background:"rgba(255,255,255,0.05)", pointerEvents:"none" }}/>
               <div style={{ position:"absolute", bottom:-30, right:200, width:150, height:150, borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }}/>
@@ -1534,7 +1534,7 @@ export default function HistoryClient({
                         </p>
                       </div>
                     </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", justifyContent:"flex-end" }}>
                       {(() => {
                         const workH   = calcNetWorkHours(entries, workLayout ?? undefined)
                         const travelH = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + (e._travel_hours ?? 0), 0)
@@ -1686,11 +1686,40 @@ export default function HistoryClient({
                       </div>
                       <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>Approved</span>
                     </div>
-                  ) : entries.length === 0 ? (
-                    <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>
-                      {(u.attendance_status === "leave" || u.attendance_status === "absent") ? "You were on leave this day." : "No work entries logged"}
-                    </p>
-                  ) : (
+                  ) : entries.length === 0 ? (() => {
+                    const leaveForDay = (u.attendance_status === "leave" || u.attendance_status === "absent")
+                      ? approvedLeaves.find(l => u.date >= l.from_date && u.date <= l.to_date)
+                      : undefined
+                    if (leaveForDay?.leave_type === "full_day") {
+                      return (
+                        <div style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 18px", background:"linear-gradient(135deg,rgba(16,185,129,0.06) 0%,rgba(16,185,129,0.02) 100%)", borderTop:"1px solid rgba(16,185,129,0.12)" }}>
+                          <div style={{ fontSize:40, lineHeight:1 }}>🌴</div>
+                          <div>
+                            <p style={{ fontSize:14, fontWeight:900, color:"#059669", margin:"0 0 3px" }}>Full Day Leave</p>
+                            <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leaveForDay.reason ?? "Approved Leave"}</p>
+                          </div>
+                          <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>Approved</span>
+                        </div>
+                      )
+                    }
+                    if (leaveForDay?.leave_type === "half_day") {
+                      return (
+                        <div style={{ display:"flex", alignItems:"center", gap:16, padding:"18px 18px", background:"rgba(99,102,241,0.03)", borderTop:"1px solid rgba(99,102,241,0.1)" }}>
+                          <div style={{ fontSize:32, lineHeight:1 }}>🌗</div>
+                          <div>
+                            <p style={{ fontSize:14, fontWeight:900, color:"#6366F1", margin:"0 0 3px" }}>Half Day Leave</p>
+                            <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leaveForDay.reason ?? "Approved Leave"}</p>
+                          </div>
+                          <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(99,102,241,0.12)", color:"#6366F1" }}>Approved</span>
+                        </div>
+                      )
+                    }
+                    return (
+                      <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>
+                        {leaveForDay ? "You were on leave this day." : "No work entries logged"}
+                      </p>
+                    )
+                  })() : (
                     <div>
                       {u.learning_topic && (
                         <div style={{ borderBottom:"1px solid #F5F6FA", background:"rgba(245,158,11,0.03)" }}>

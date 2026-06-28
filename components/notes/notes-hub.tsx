@@ -119,7 +119,7 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
       </div>
       {/* Search + action bar */}
       <div style={{ padding: '12px 20px', borderBottom: '1px solid #F1F1F4', display: 'flex', alignItems: 'center', gap: 16, background: '#fff', flexShrink: 0 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }} />
         <div style={{ position: 'relative' }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search notes..."

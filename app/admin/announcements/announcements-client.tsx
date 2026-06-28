@@ -153,8 +153,6 @@ export default function AnnouncementsClient({
   const engPct = announcements.length > 0 ? 94 : 0
   const pinnedCount = announcements.filter((a) => a.pinned).length
 
-  const pinnedCount = announcements.filter(a => a.pinned).length
-
   return (
     <div style={{ padding: "24px 28px", maxWidth: 1400, margin: "0 auto" }}>
       {/* ── HERO HEADER ─────────────────────────────────────────────────── */}

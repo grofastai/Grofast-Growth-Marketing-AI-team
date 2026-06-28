@@ -952,13 +952,13 @@ export default function MemberTasksClient({
           </div>
 
           {/* RIGHT: search + assign + stat pills */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end", position: "relative", zIndex: 3, paddingTop: 20, paddingBottom: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center", position: "relative", zIndex: 3, paddingTop: 20, paddingBottom: 20, width: "100%" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 12, background: "rgba(255,255,255,0.12)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.2)" }}>
                 <Search size={12} style={{ color: "rgba(255,255,255,0.6)" }} />
                 <input value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search tasks..."
-                  style={{ background: "transparent", outline: "none", fontSize: 12, color: "#FFFFFF", width: 160, border: "none" }}
+                  style={{ background: "transparent", outline: "none", fontSize: 12, color: "#FFFFFF", width: 140, border: "none" }}
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   onFocus={e => (e.target as any).placeholder = ""}
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -970,14 +970,14 @@ export default function MemberTasksClient({
               </button>
             </div>
             {/* Multi-color stat pills */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "nowrap", justifyContent: "center", overflowX: "auto", maxWidth: "100%" }}>
               {[
                 { icon: Clock,        color: "#FF6B6B", bg: "rgba(255,107,107,0.18)", val: todayHours > 0 ? `${todayHours}h` : "—", lbl: "Worked"  },
                 { icon: Zap,          color: "#6BCB77", bg: "rgba(107,203,119,0.18)", val: String(activeCount),                      lbl: "Active"  },
                 { icon: CheckCircle2, color: "#9B6BFF", bg: "rgba(155,107,255,0.18)", val: String(doneTasks.length),                 lbl: "Done"    },
                 { icon: TrendingUp,   color: "#FFD93D", bg: "rgba(255,217,61,0.18)",  val: `${productivity}%`,                       lbl: "Rate"    },
               ].map(s => (
-                <div key={s.lbl} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 11, background: s.bg, border: `1px solid ${s.color}40` }}>
+                <div key={s.lbl} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 11, background: s.bg, border: `1px solid ${s.color}40`, flexShrink: 0 }}>
                   <s.icon size={12} style={{ color: s.color }} />
                   <div>
                     <p style={{ fontSize: 13, fontWeight: 900, color: s.color, margin: 0, lineHeight: 1 }}>{s.val}</p>
@@ -1125,7 +1125,7 @@ export default function MemberTasksClient({
               <ChevronDown size={11} />
             </button>
             {showSort && (
-              <div className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-20"
+              <div className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-50"
                 style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.1)", minWidth: 140 }}>
                 {([
                   { key: "priority" as const, label: "By Priority" },

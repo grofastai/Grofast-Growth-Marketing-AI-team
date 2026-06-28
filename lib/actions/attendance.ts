@@ -529,13 +529,15 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
 
   for (const r of (updatesResult.data ?? [])) {
     const entries = (Array.isArray(r.work_entries) ? r.work_entries : []) as { task_type: string; start_time?: string | null; end_time?: string | null; duration_hours?: number; _travel_hours?: number | null }[]
-    // Learning: prefer from learning entries, fallback to stored learning_hours
+    // Learning hours for display (badge only — NOT added to worked, calcNetWorkHours already includes it)
     const learnFromEntries = entries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-    const learnH = learnFromEntries > 0 ? learnFromEntries : (r.learning_hours ?? 0)
+    const learnH = entries.length > 0 ? learnFromEntries : (r.learning_hours ?? 0)
     learnByDate[r.date] = learnH
-    // Worked: net work from entries; fallback to stored working_hours when no entries
-    const netWorkH = entries.length > 0 ? calcNetWorkHours(entries) : (r.working_hours ?? 0)
-    workedByDate[r.date] = netWorkH + learnH
+    // Worked: calcNetWorkHours includes all non-break entries (work + learning).
+    // Only add learning separately when falling back to stored fields (no entries).
+    workedByDate[r.date] = entries.length > 0
+      ? calcNetWorkHours(entries)
+      : (r.working_hours ?? 0) + (r.learning_hours ?? 0)
     // Break: sum of break entries' duration_hours
     breakByDate[r.date] = entries.filter(e => e.task_type === 'break').reduce((s, e) => s + (e.duration_hours ?? 0), 0)
   }
@@ -622,7 +624,7 @@ export async function getTodayCoverageReport(): Promise<{
   shiftMinutes: number
   totalWorkMinutes: number
   gapMinutes: number
-  entries: Array<{ task_type: string; title: string; client_name: string; duration_hours: number }>
+  entries: Array<{ task_type: string; start_time?: string | null; end_time?: string | null; duration_hours: number; _travel_hours?: number | null }>
 }> {
   const ctxResult = await getUserContext()
   const empty = { clockIn: null, clockOut: null, shiftMinutes: 0, totalWorkMinutes: 0, gapMinutes: 0, entries: [] }
@@ -653,10 +655,12 @@ export async function getTodayCoverageReport(): Promise<{
   const breakMs = (log.break_total_mins ?? 0) * 60 * 1000
   const shiftMinutes = Math.max(0, Math.round((shiftMs - breakMs) / 60000))
 
-  const rawEntries = Array.isArray(update?.work_entries) ? update!.work_entries as Array<{ task_type: string; title: string; client_name: string; duration_hours: number }> : []
-  const entries = rawEntries.filter((e) => e.task_type !== 'break')
-  const learnH = update?.learning_hours ?? 0
-  const totalWorkMinutes = Math.round(entries.reduce((s, e) => s + (e.duration_hours ?? 0), 0) * 60 + learnH * 60)
+  const rawEntries = Array.isArray(update?.work_entries) ? update!.work_entries as Array<{ task_type: string; start_time?: string | null; end_time?: string | null; duration_hours: number; _travel_hours?: number | null }> : []
+  // calcNetWorkHours includes learning (task_type !== 'break'). Use it directly to avoid double-counting.
+  const totalWorkH = rawEntries.length > 0
+    ? calcNetWorkHours(rawEntries)
+    : (update?.learning_hours ?? 0)
+  const totalWorkMinutes = Math.round(totalWorkH * 60)
   const gapMinutes = Math.max(0, shiftMinutes - totalWorkMinutes)
 
   return {

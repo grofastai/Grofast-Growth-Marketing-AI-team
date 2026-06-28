@@ -426,9 +426,9 @@ export default function ProfileClient({
                     </div>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                    <div>
-                      <h2 style={{ fontSize: 22, fontWeight: 900, color: "#111111", margin: "0 0 8px", fontFamily: "var(--font-jakarta)" }}>{displayName}</h2>
+                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <h2 style={{ fontSize: 22, fontWeight: 900, color: "#111111", margin: "0 0 8px", fontFamily: "var(--font-jakarta)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</h2>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                         <span style={{ fontSize: 11, fontWeight: 800, padding: "4px 12px", borderRadius: 99, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", border: "1px solid rgba(222,26,26,0.18)", letterSpacing: "0.04em" }}>
                           {profile?.role ?? "MEMBER"}

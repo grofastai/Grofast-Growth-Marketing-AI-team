@@ -95,10 +95,11 @@ export default function AdminFreelancersTabs({
   })), [flEntries])
 
   return (
-    <div style={{ display: "flex", height: "calc(100vh - 80px)", marginTop: -1, borderTop: "1px solid #F0F1F5" }}>
+    <div className="flex flex-col md:flex-row" style={{ height: "calc(100vh - 80px)", marginTop: -1, borderTop: "1px solid #F0F1F5" }}>
 
       {/* ── Unified left panel ───────────────────────────────────────────────── */}
-      <div style={{ width: 220, flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", overflowY: "auto", display: "flex", flexDirection: "column" }}>
+      <div className={selected ? "hidden md:flex md:flex-col md:w-[220px]" : "flex flex-col w-full md:w-[220px]"}
+        style={{ flexShrink: 0, borderRight: "1px solid #F0F1F5", background: "#FAFAFA", overflowY: "auto" }}>
 
         <button onClick={() => setSelected(null)} style={{ width: "100%", padding: "10px 14px 6px", display: "flex", alignItems: "center", justifyContent: "space-between", background: !selected ? "rgba(99,102,241,0.06)" : "transparent", border: "none", borderLeft: `3px solid ${!selected ? "#6366F1" : "transparent"}`, cursor: "pointer", textAlign: "left" }}>
           <span style={{ fontSize: 9, fontWeight: 700, color: !selected ? "#6366F1" : "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em" }}>All Members</span>
@@ -171,7 +172,14 @@ export default function AdminFreelancersTabs({
       </div>
 
       {/* ── Right panel ──────────────────────────────────────────────────────── */}
-      <div style={{ flex: 1, overflow: "hidden", height: "100%" }}>
+      <div className={!selected ? "hidden md:flex md:flex-col" : "flex flex-col"} style={{ flex: 1, overflow: "hidden", height: "100%" }}>
+        {/* Back button — mobile only */}
+        {selected && (
+          <button className="md:hidden flex items-center gap-2 px-4 py-3 text-[13px] font-bold text-gray-600 border-b border-gray-100 bg-white"
+            onClick={() => setSelected(null)}>
+            ← Back to All Members
+          </button>
+        )}
 
         {/* FL Media Production member → price-entry table */}
         {selected?.type === "media" && (

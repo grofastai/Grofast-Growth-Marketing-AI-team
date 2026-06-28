@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import ReportsClient from "./reports-client"
+import { calcNetWorkHours } from "@/lib/utils/work-hours"
 
 function adminClient() {
   return createClient(
@@ -51,7 +52,7 @@ export default async function ReportsPage({
   ] = await Promise.all([
     admin
       .from("daily_updates")
-      .select("id, user_id, working_hours, shoot_count, learning_hours, attendance_status, work_type, task_id, users(id, name, employee_id)")
+      .select("id, user_id, working_hours, learning_hours, shoot_count, work_entries, attendance_status, work_type, task_id, users(id, name, employee_id)")
       .eq("company_id", cid)
       .eq("date", dateFilter),
     admin
@@ -84,15 +85,27 @@ export default async function ReportsPage({
   const taskActivitySet = new Set((taskActivityRaw ?? []).map((r: any) => r.task_id))
 
 
+  function getUpdateHours(u: any): number {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+    if (entries.length > 0) return calcNetWorkHours(entries)
+    return (u.working_hours ?? 0) + (u.learning_hours ?? 0)
+  }
+  function getUpdateLearning(u: any): number {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+    if (entries.length > 0)
+      return entries.filter((e: any) => e.task_type === 'learning').reduce((s: number, e: any) => s + (e.duration_hours ?? 0), 0)
+    return u.learning_hours ?? 0
+  }
+
   // ── Summary numbers ─────────────────────────────────────────────────────────
   const presentUpdates = updates.filter((u: any) =>
     u.attendance_status === "present" ||
-    (u.attendance_status == null && (u.working_hours ?? 0) > 0)
+    (u.attendance_status == null && getUpdateHours(u) > 0)
   )
   const absentUpdates  = updates.filter((u: any) => u.attendance_status === "leave" || u.attendance_status === "absent")
 
-  const totalHours    = presentUpdates.reduce((s: number, u: any) => s + (u.working_hours  ?? 0), 0)
-  const totalLearning = updates.reduce((s: number, u: any) => s + (u.learning_hours ?? 0), 0)
+  const totalHours    = presentUpdates.reduce((s: number, u: any) => s + getUpdateHours(u), 0)
+  const totalLearning = updates.reduce((s: number, u: any) => s + getUpdateLearning(u), 0)
 
   // ── Not updated members ──────────────────────────────────────────────────────
   const submittedIds = new Set(updates.map((u: any) => u.user_id))
@@ -107,9 +120,9 @@ export default async function ReportsPage({
       return {
         name:        usr?.name        ?? "Unknown",
         employee_id: usr?.employee_id ?? "",
-        hours:       u.working_hours  ?? 0,
+        hours:       getUpdateHours(u),
         shoots:      u.shoot_count    ?? 0,
-        learning:    u.learning_hours ?? 0,
+        learning:    getUpdateLearning(u),
       }
     })
     .sort((a: any, b: any) => b.hours - a.hours)

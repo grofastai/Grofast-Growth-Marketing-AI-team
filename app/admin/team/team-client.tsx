@@ -1336,6 +1336,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
   const [editMember, setEditMember] = useState<Member | null>(null)
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
+  const [dropdownAnchor, setDropdownAnchor] = useState<{ top: number; right: number } | null>(null)
   const [showPast, setShowPast] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<Member | null>(null)
   const [deleteError, setDeleteError] = useState("")
@@ -1583,6 +1584,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                   <div className="px-5 py-2.5" style={{ background: "#FFFBF5" }}>
                     <p className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: "#F97316" }}>Login Members</p>
                   </div>
+                  <div style={{ overflowX: "auto" }}>
                   <table className="w-full" style={{ minWidth: 560 }}>
                     <thead>
                       <tr style={{ borderBottom: "1px solid #F9FAFB", background: "#FAFAFA" }}>
@@ -1607,7 +1609,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                                 </div>
                               </div>
                             </td>
-                            <td className="px-5 py-3 text-[12px]" style={{ color: "#6B7280" }}>{m.team ?? "—"}</td>
+                            <td className="px-5 py-3 text-[12px]" style={{ color: "#6B7280", whiteSpace: "nowrap" }}>{m.team ?? "—"}</td>
                             <td className="px-5 py-3 text-[13px]" style={{ color: "#374151" }}>{m.phone ?? "—"}</td>
                             <td className="px-5 py-3">
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
@@ -1617,18 +1619,61 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                               </span>
                             </td>
                             <td className="px-5 py-3">
-                              <button
-                                onClick={() => { setEditMember(m); setSheetOpen(true) }}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold"
-                                style={{ background: "rgba(99,102,241,0.07)", color: "#6366F1", border: "1px solid rgba(99,102,241,0.2)" }}>
-                                <Pencil size={11} />
-                              </button>
+                              <div className="flex items-center gap-1.5 relative">
+                                <button
+                                  onClick={() => { setEditMember(m); setSheetOpen(true) }}
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+                                  style={{ color: "#9CA3AF" }}
+                                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F3F4F6"}
+                                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                  <Pencil size={12} />
+                                </button>
+                                <button onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); if (openDropdown === m.id) { setOpenDropdown(null); setDropdownAnchor(null) } else { setOpenDropdown(m.id); setDropdownAnchor({ top: r.bottom + 4, right: window.innerWidth - r.right }) } }}
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+                                  style={{ color: "#9CA3AF" }}
+                                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F3F4F6"}
+                                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                  <MoreVertical size={12} />
+                                </button>
+                                {openDropdown === m.id && dropdownAnchor && (
+                                  <div className="w-44 rounded-xl shadow-2xl overflow-hidden py-1"
+                                    style={{ position: "fixed", top: dropdownAnchor.top, right: dropdownAnchor.right, background: "#FFFFFF", border: "1px solid #E5E7EB", zIndex: 9999 }}>
+                                    {m.status === "active" && (
+                                      <>
+                                        <button onClick={() => { setOpenDropdown(null); startImpersonation(m.id) }}
+                                          className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] font-semibold transition-all"
+                                          style={{ color: "#6366F1" }}
+                                          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.06)"}
+                                          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                          <LogIn size={12} /> Login as {m.name.split(" ")[0]}
+                                        </button>
+                                        <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
+                                      </>
+                                    )}
+                                    <button onClick={() => { handleToggleStatus(m); setOpenDropdown(null) }} disabled={isPending}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
+                                      style={{ color: m.status === "active" ? "#F59E0B" : "#22C55E" }}
+                                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F9FAFB"}
+                                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                      {m.status === "active" ? <><Ban size={12} /> Deactivate</> : <><RotateCcw size={12} /> Reactivate</>}
+                                    </button>
+                                    <button onClick={() => { setResetTarget(m); setResetPassword(""); setResetError(""); setResetSuccess(false); setOpenDropdown(null) }}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
+                                      style={{ color: "#6366F1" }}
+                                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F9FAFB"}
+                                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                      <KeyRound size={12} /> Reset Password
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
                             </td>
                           </tr>
                         )
                       })}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               )}
 
@@ -1673,7 +1718,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                               </div>
                             </div>
                           </td>
-                          <td className="px-5 py-3.5">
+                          <td className="px-5 py-3.5" style={{ whiteSpace: "nowrap" }}>
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold" style={{ background: teamCfg.bg, color: teamCfg.color }}>
                               {teamCfg.emoji} {teamCfg.label}
                             </span>
@@ -1869,7 +1914,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                             <Trash2 size={14} />
                           </button>
 
-                          <button onClick={() => setOpenDropdown(openDropdown === member.id ? null : member.id)}
+                          <button onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); if (openDropdown === member.id) { setOpenDropdown(null); setDropdownAnchor(null) } else { setOpenDropdown(member.id); setDropdownAnchor({ top: r.bottom + 4, right: window.innerWidth - r.right }) } }}
                             className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
                             style={{ color: "#9CA3AF" }}
                             onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F3F4F6"}
@@ -1877,9 +1922,9 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                             <MoreVertical size={14} />
                           </button>
 
-                          {openDropdown === member.id && (
-                            <div className="absolute right-0 top-9 w-44 rounded-xl shadow-2xl z-50 overflow-hidden py-1"
-                              style={{ background: "#FFFFFF", border: "1px solid #E5E7EB" }}>
+                          {openDropdown === member.id && dropdownAnchor && (
+                            <div className="w-44 rounded-xl shadow-2xl overflow-hidden py-1"
+                              style={{ position: "fixed", top: dropdownAnchor.top, right: dropdownAnchor.right, background: "#FFFFFF", border: "1px solid #E5E7EB", zIndex: 9999 }}>
                               {member.status === "active" && member.role === "MEMBER" && (
                                 <>
                                   <button
@@ -2234,7 +2279,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
         </div>
       </div>
 
-      {openDropdown && <div className="fixed inset-0 z-10" onClick={() => setOpenDropdown(null)} />}
+      {openDropdown && <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenDropdown(null); setDropdownAnchor(null) }} />}
 
       {/* ── Delete confirmation modal ── */}
       {confirmDelete && (

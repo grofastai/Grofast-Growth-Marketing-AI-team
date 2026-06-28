@@ -341,7 +341,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
         <div style={{ position: "absolute", bottom: -30, right: 120, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", top: 10, right: 280, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
 
-        <div style={{ padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, position: "relative", zIndex: 1, flexWrap: "wrap" }}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between flex-wrap" style={{ padding: "20px 20px", gap: 16, position: "relative", zIndex: 1 }}>
           {/* Left */}
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -357,13 +357,13 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
               Assign, track & manage your team's work
             </p>
             {/* Mini stats row */}
-            <div style={{ display: "flex", gap: 16, marginTop: 16 }}>
+            <div style={{ display: "flex", gap: 10, marginTop: 16, overflowX: "auto", flexWrap: "nowrap" }}>
               {[
                 { icon: <CheckSquare size={12} />, label: `${done} Done` },
                 { icon: <Clock size={12} />, label: `${inprog} Active` },
                 { icon: <BarChart3 size={12} />, label: `${members.length} Members` },
               ].map(s => (
-                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 12px" }}>
+                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 12px", flexShrink: 0, whiteSpace: "nowrap" }}>
                   <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
                   <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF" }}>{s.label}</span>
                 </div>
@@ -372,7 +372,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
           </div>
 
           {/* Right: controls */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <div className="flex items-center flex-wrap justify-center sm:justify-end" style={{ gap: 10, flexShrink: 0 }}>
             <div style={{ display: "flex", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: 4, gap: 3 }}>
               {([["member", <Users size={13} key="u" />, "By Member"], ["status", <Columns size={13} key="c" />, "By Status"]] as const).map(([mode, icon, label]) => (
                 <button key={mode} onClick={() => setViewMode(mode as "member" | "status")}
@@ -437,7 +437,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
       </div>
 
       {/* ── STAT CARDS ──────────────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 22 }}>
+      <div className="grid grid-cols-2 sm:grid-cols-4" style={{ gap: 16, marginBottom: 22 }}>
         {STAT_CARDS.map(card => (
           <div key={card.label} style={{
             background: "#FFFFFF", borderRadius: 20,

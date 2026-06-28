@@ -72,6 +72,11 @@ export async function submitLeaveRequest(
     return { error: parsed.error.issues[0].message }
   }
 
+  const todayIST = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
+  if (parsed.data.from_date < todayIST) {
+    return { error: 'Cannot apply leave for past dates. You can apply for today or future dates only.' }
+  }
+
   const supabase = await createServerClient()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return { error: 'Not authenticated' }
@@ -319,6 +324,11 @@ export async function updateLeaveRequest(
 
   const parsed = leaveSchema.safeParse(raw)
   if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const todayIST = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
+  if (parsed.data.from_date < todayIST) {
+    return { error: 'Cannot apply leave for past dates. You can apply for today or future dates only.' }
+  }
 
   const supabase = await createServerClient()
   const { data: { user } } = await supabase.auth.getUser()

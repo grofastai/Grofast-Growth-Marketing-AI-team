@@ -36,6 +36,10 @@ interface LeavesClientProps {
   approvedCount: number
   rejectedCount: number
   companyLeaves: CompanyLeave[]
+  fullDayCount: number
+  wfhCount: number
+  shootCount: number
+  halfDayCount: number
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -277,6 +281,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 export default function LeavesClient({
   leaves, statusFilter, upcomingLeaves, availabilityPct, onLeaveToday,
   pendingCount, approvedCount, rejectedCount, companyLeaves,
+  fullDayCount, wfhCount, shootCount, halfDayCount,
 }: LeavesClientProps) {
   const router   = useRouter()
   const pathname = usePathname()
@@ -365,32 +370,33 @@ export default function LeavesClient({
       )}
 
       {/* ── Header Banner ─────────────────────────────────────────────────── */}
-      <div style={{
-        background: gradBg, borderRadius: 22, padding: "24px 28px", marginBottom: 22,
-        boxShadow: "0 10px 40px rgba(180,0,0,0.38)", position: "relative", overflow: "hidden",
-        display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{
+        background: gradBg, borderRadius: 22, padding: "20px 20px", marginBottom: 22,
+        boxShadow: "0 10px 40px rgba(180,0,0,0.38)", position: "relative", overflow: "hidden", gap: 16,
       }}>
         <div style={{ position: "absolute", top: -50, right: 80, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -40, left: -20, width: 160, height: 160, borderRadius: "50%", background: "rgba(255,255,255,0.04)", pointerEvents: "none" }} />
         <div style={{ position: "relative", zIndex: 1 }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 20, padding: "5px 14px", marginBottom: 12 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.22)", borderRadius: 20, padding: "5px 14px", marginBottom: 10 }}>
             <span style={{ fontSize: 13 }}>⭐</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: "#FFF" }}>Leave Management</span>
           </div>
-          <h1 style={{ fontSize: 26, fontWeight: 900, color: "#FFFFFF", fontFamily: "var(--font-jakarta)", margin: "0 0 4px" }}>Leave Requests</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 900, color: "#FFFFFF", fontFamily: "var(--font-jakarta)", margin: "0 0 4px" }}>Leave Requests</h1>
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: 0 }}>Review and manage team leave applications</p>
         </div>
-        {/* Stat pills in header */}
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", position: "relative", zIndex: 1 }}>
+        {/* 6 KPI boxes in 3×2 grid */}
+        <div className="grid grid-cols-3 lg:grid-cols-6 w-full lg:w-auto" style={{ gap: 8, position: "relative", zIndex: 1 }}>
           {[
-            { label: "Pending",  value: pendingCount,        color: "#FACC15" },
-            { label: "Approved", value: approvedCount,       color: "#6EE7B7" },
-            { label: "Rejected", value: rejectedCount,       color: "#FCA5A5" },
-            { label: "On Leave", value: onLeaveToday.length, color: "#C4B5FD" },
+            { label: "Full Day",  value: fullDayCount,  color: "#FCA5A5" },
+            { label: "WFH",       value: wfhCount,       color: "#6EE7B7" },
+            { label: "Shoot",     value: shootCount,     color: "#93C5FD" },
+            { label: "Half Day",  value: halfDayCount,   color: "#FDE68A" },
+            { label: "Approved",  value: approvedCount,  color: "#6EE7B7" },
+            { label: "Rejected",  value: rejectedCount,  color: "#FCA5A5" },
           ].map(s => (
-            <div key={s.label} style={{ textAlign: "center", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: "10px 18px", minWidth: 72 }}>
-              <div style={{ fontSize: 24, fontWeight: 900, color: s.color, fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>{s.value}</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.72)", fontWeight: 600, marginTop: 3 }}>{s.label}</div>
+            <div key={s.label} style={{ textAlign: "center", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, padding: "8px 10px" }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: s.color, fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.72)", fontWeight: 600, marginTop: 3, whiteSpace: "nowrap" }}>{s.label}</div>
             </div>
           ))}
         </div>

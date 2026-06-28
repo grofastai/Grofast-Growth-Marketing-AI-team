@@ -149,29 +149,38 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   // Per-day working hours computed from work_entries + confirmed collab hours
   const monthlyDayHours = monthlyUpdates.map(u => {
     const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
-    const workH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
-    const learnFromEntries = entries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-    const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
+    // calcNetWorkHours already includes learning entries (filters task_type !== 'break').
+    // Only add learning separately when falling back to stored fields (no entries).
+    const workH = entries.length > 0
+      ? calcNetWorkHours(entries)
+      : (u.working_hours ?? 0) + (u.learning_hours ?? 0)
     const dayCollabH = collabByDate[u.date] ?? 0
-    return { totalH: workH + learnH + dayCollabH, attendanceStatus: u.attendance_status }
+    return { totalH: workH + dayCollabH, attendanceStatus: u.attendance_status }
   })
   const totalMonthHrs  = Math.round(monthlyDayHours.reduce((s, d) => s + d.totalH, 0) * 10) / 10
-  const OVERTIME_THRESHOLD = 8.5
-  const monthlyAvgHrs    = presentDays > 0 ? totalMonthHrs / presentDays : 0
-  const overtimeEligible = monthlyAvgHrs >= OVERTIME_THRESHOLD
-  const overtimeDays     = overtimeEligible ? monthlyDayHours.filter(d => d.totalH > OVERTIME_THRESHOLD).length : 0
-  const overtimeHrs      = overtimeEligible ? Math.round(monthlyDayHours.reduce((sum, d) => d.totalH > OVERTIME_THRESHOLD ? sum + (d.totalH - OVERTIME_THRESHOLD) : sum, 0) * 10) / 10 : 0
+  const MONTHLY_TARGET_HRS = 25 * 8.5  // 212.5h — fixed for all months
+  const monthlyAvgHrs = presentDays > 0 ? Math.round((totalMonthHrs / presentDays) * 10) / 10 : 0
+  const overtimeHrs   = Math.round(Math.max(0, totalMonthHrs - MONTHLY_TARGET_HRS) * 10) / 10
 
-  // Union: approved leave dates + attendance_logs marked leave/absent
-  const leaveDateSet = new Set<string>()
+  // Dates that are WFH/shoot_day/permission — NOT actual leave days
+  const nonLeaveDates = new Set<string>()
   for (const l of approvedLeaves) {
-    if (l.leave_type === "permission") continue
+    if (l.leave_type !== "permission" && l.leave_type !== "wfh" && l.leave_type !== "shoot_day") continue
     const cur = new Date(l.from_date + "T12:00:00")
     const end = new Date(l.to_date   + "T12:00:00")
-    while (cur <= end) { leaveDateSet.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
+    while (cur <= end) { nonLeaveDates.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
   }
-  for (const l of monthlyAttLogs) {
-    if (l.status === "leave" || l.status === "absent") leaveDateSet.add(l.date)
+
+  // LEAVE-1: cap leave date ranges to current month [monthStart..today]
+  // LEAVE-2: only count approved leave records (not absence logs)
+  const leaveDateSet = new Set<string>()
+  for (const l of approvedLeaves) {
+    if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") continue
+    const start = l.from_date > monthStart ? l.from_date : monthStart
+    const end   = l.to_date   < today      ? l.to_date   : today
+    const cur = new Date(start + "T12:00:00")
+    const endDate = new Date(end + "T12:00:00")
+    while (cur <= endDate) { leaveDateSet.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
   }
   const leaveDays = leaveDateSet.size
 
@@ -186,9 +195,21 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
   // Right-panel stats — media vs non-media
   const isMedia        = profile?.team === "Media Team" || profile?.team === "Media Production Team"
-  const totalShoots    = monthlyUpdates.reduce((s, u) => s + (u.shoot_count ?? 0), 0)
-  const totalEdited    = monthlyUpdates.reduce((s, u) => s + (u.editing_count ?? 0), 0)
-  const totalLearningHrs = Math.round(monthlyUpdates.reduce((s, u) => s + (u.learning_hours ?? 0), 0) * 10) / 10
+  const totalShoots    = monthlyUpdates.reduce((s, u) => {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
+    if (entries.length > 0) return s + entries.filter(e => e.task_type === 'shoot').length
+    return s + (u.shoot_count ?? 0)
+  }, 0)
+  const totalEdited    = monthlyUpdates.reduce((s, u) => {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
+    if (entries.length > 0) return s + entries.filter(e => e.task_type === 'edit').length
+    return s + (u.editing_count ?? 0)
+  }, 0)
+  const totalLearningHrs = Math.round(monthlyUpdates.reduce((s, u) => {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
+    if (entries.length > 0) return s + entries.filter(e => e.task_type === 'learning').reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+    return s + (u.learning_hours ?? 0)
+  }, 0) * 10) / 10
   const totalBreakHrs  = Math.round(monthlyUpdates.reduce((s, u) => {
     const entries = Array.isArray(u.work_entries) ? u.work_entries : []
     return s + (entries as WorkEntryLike[]).filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
@@ -225,14 +246,14 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   const flAvgShoot    = flShootCount > 0 ? Math.round((flShootHrs / flShootCount) * 10) / 10 : 0
   const flAvgVideo    = flTotalVideos > 0 ? Math.round(((flEditHrs + flShootHrs) / flTotalVideos) * 10) / 10 : 0
 
-  // Media team right-panel: shooting hrs + editing hrs from work_entries
-  let mediaShootHrs = 0, mediaEditHrs = 0
+  // Media team right-panel: shooting hrs + editing hrs + counts from work_entries
+  let mediaShootHrs = 0, mediaEditHrs = 0, mediaShootCount = 0, mediaEditCount = 0
   if (isMedia) {
     for (const u of monthlyUpdates) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
       for (const e of entries) {
-        if (e.task_type === "shoot") mediaShootHrs += e.duration_hours ?? 0
-        else if (e.task_type === "edit") mediaEditHrs += e.duration_hours ?? 0
+        if (e.task_type === "shoot") { mediaShootHrs += e.duration_hours ?? 0; mediaShootCount++ }
+        else if (e.task_type === "edit") { mediaEditHrs += e.duration_hours ?? 0; mediaEditCount++ }
       }
     }
     mediaShootHrs = Math.round(mediaShootHrs * 10) / 10
@@ -248,7 +269,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
         if      (e.task_type === "poster")    nmPosterCount++
         else if (e.task_type === "edit")      nmEditCount++
         else if (e.task_type === "voiceover") nmVoiceoverCount++
-        else if (e.task_type === "log")       nmTechHrs += e.duration_hours ?? 0
+        else if (e.task_type === "other")     nmTechHrs += e.duration_hours ?? 0
       }
     }
     nmTechHrs = Math.round(nmTechHrs * 10) / 10
@@ -300,9 +321,9 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { label: "Avg Login Hrs",        value: avgLoginHrs > 0 ? `${avgLoginHrs}h` : "—",       color: "#6366F1", sub: undefined },
     { label: "Avg Working Hrs",      value: avgWorkingHrs > 0 ? `${avgWorkingHrs}h` : "—",   color: "#111111", sub: undefined },
     { label: "Office Days",          value: officeDays,                                       color: "#de1a1a",  sub: undefined },
-    { label: isMedia ? "Shoot Days" : "WFH Days", value: isMedia ? shootDays : wfhDays,       color: "#6366F1",  sub: undefined },
-    { label: "Leave Taken This Month", value: leaveDays,                                       color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: `${Math.max(0, 5 - leaveDays)} days left` },
-    { label: "Overtime Hrs",         value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",       color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeDays > 0 ? `${overtimeDays} day${overtimeDays !== 1 ? "s" : ""}` : undefined },
+    { label: isMedia ? "Shoot Days" : "WFH Days", value: isMedia ? shootDays : wfhDays,      color: "#6366F1",  sub: undefined },
+    { label: "Leave Taken This Month", value: leaveDays,                                      color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: `${Math.max(0, 5 - leaveDays)} days left` },
+    { label: "Overtime Hrs",         value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",       color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeHrs > 0 ? `above 212.5h target` : undefined },
   ]
 
   // Top 5 stat cards — work-entry based for freelancer-media
@@ -314,9 +335,9 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks, label: "Active Tasks" },
   ] : [
     { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: presentDays || 0,   label: "Present Days"  },
-    { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Monthly Working Hrs"  },
-    { icon: Target,       iconBg: "rgba(16,185,129,0.12)", iconColor: "#10B981", value: totalLoginHrs > 0 ? `${totalLoginHrs}h` : "—", label: "Monthly Login Hrs" },
-    { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: Math.max(0, 5 - leaveDays), label: "Leave Left This Month" },
+    { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Working Hrs"  },
+    { icon: Target,       iconBg: "rgba(16,185,129,0.12)", iconColor: "#10B981", value: totalLoginHrs > 0 ? `${totalLoginHrs}h` : "—", label: "Login Hrs" },
+    { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: Math.max(0, 5 - leaveDays), label: "Leave Left" },
     { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks"  },
   ]
 
@@ -326,14 +347,17 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: flShootCount, label: "Videos Shot",   href: "/member/history" },
     { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
   ] : isMedia ? [
-    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: mediaShootHrs > 0 ? `${mediaShootHrs}h` : "—",      label: "Shooting Hrs", href: "/member/history" },
-    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: mediaEditHrs > 0 ? `${mediaEditHrs}h` : "—",        label: "Editing Hrs",  href: "/member/history" },
-    { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
+    { icon: Camera,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: mediaShootHrs > 0 ? `${mediaShootHrs}h` : "—",      label: "Shooting Hrs",     href: "/member/history" },
+    { icon: Camera,   iconBg: "rgba(99,102,241,0.08)", iconColor: "#6366F1", value: mediaShootCount > 0 ? mediaShootCount : "—",         label: "Shooting Sessions", href: "/member/history" },
+    { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: mediaEditHrs > 0 ? `${mediaEditHrs}h` : "—",        label: "Editing Hrs",      href: "/member/history" },
+    { icon: Film,     iconBg: "rgba(222,26,26,0.08)",  iconColor: "#de1a1a", value: mediaEditCount > 0 ? mediaEditCount : "—",           label: "Edited Videos",    href: "/member/history" },
+    { icon: BookOpen, iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs",     href: "/member/history" },
   ] : [
     { icon: Layers,   iconBg: "rgba(99,102,241,0.1)",  iconColor: "#6366F1", value: nmPosterCount,                                       label: "Poster",       href: "/member/history" },
     { icon: Film,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: nmEditCount,                                         label: "Editing",      href: "/member/history" },
     { icon: Mic,      iconBg: "rgba(16,185,129,0.1)",  iconColor: "#10B981", value: nmVoiceoverCount,                                    label: "Voiceover",    href: "/member/history" },
     { icon: Monitor,  iconBg: "rgba(245,158,11,0.1)",  iconColor: "#F59E0B", value: nmTechHrs > 0 ? `${nmTechHrs}h` : "—",              label: "Technical",    href: "/member/history" },
+    { icon: BookOpen, iconBg: "rgba(167,139,250,0.1)", iconColor: "#A78BFA", value: totalLearningHrs > 0 ? `${totalLearningHrs}h` : "—", label: "Learning Hrs", href: "/member/history" },
   ]
 
   return (
@@ -380,6 +404,49 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
           )
         })}
       </div>
+
+      {/* ── Monthly Target Progress Bar ──────────────────────── */}
+      {!isFreelancerMedia && (
+        <div className="rounded-2xl px-5 py-4 mb-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", overflowX: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8, flexWrap: "nowrap", minWidth: 290 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#111111", whiteSpace: "nowrap" }}>Monthly Target</span>
+              <span style={{ fontSize: 9, fontWeight: 600, padding: "2px 7px", borderRadius: 99, background: "rgba(99,102,241,0.08)", color: "#6366F1", whiteSpace: "nowrap" }}>
+                25d × 8.5h = 212.5h
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              {overtimeHrs > 0 ? (
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#EA580C", whiteSpace: "nowrap" }}>+{overtimeHrs}h OT</span>
+              ) : (
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", whiteSpace: "nowrap" }}>
+                  {Math.max(0, Math.round((212.5 - totalMonthHrs) * 10) / 10)}h left
+                </span>
+              )}
+              <span style={{ fontSize: 13, fontWeight: 900, color: overtimeHrs > 0 ? "#EA580C" : "#111111", whiteSpace: "nowrap" }}>
+                {Math.min(100, Math.round((totalMonthHrs / 212.5) * 100))}%
+              </span>
+            </div>
+          </div>
+          <div style={{ height: 10, borderRadius: 99, background: "#F3F4F6", overflow: "hidden", minWidth: 290 }}>
+            <div style={{
+              height: "100%",
+              width: `${Math.min(100, (totalMonthHrs / 212.5) * 100)}%`,
+              borderRadius: 99,
+              background: overtimeHrs > 0
+                ? "linear-gradient(90deg, #10B981 0%, #EA580C 100%)"
+                : totalMonthHrs >= 170
+                  ? "linear-gradient(90deg, #6366F1 0%, #10B981 100%)"
+                  : "linear-gradient(90deg, #6366F1 0%, #818CF8 100%)",
+              transition: "width 0.6s ease",
+            }} />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, minWidth: 290 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "#9CA3AF", whiteSpace: "nowrap" }}>{totalMonthHrs}h worked</span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "#9CA3AF", whiteSpace: "nowrap" }}>212.5h</span>
+          </div>
+        </div>
+      )}
 
       {/* ── This Month ────────────────────────────────────────── */}
       <div className="rounded-2xl p-5 mb-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>

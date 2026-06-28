@@ -659,9 +659,12 @@ export default function HistoryClient({
     const dailyData: { day: string; hours: number }[] = []
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      const workH = calcNetWorkHours(entries)
+      // Local calcNetWorkHours excludes learning (pure work intervals only).
+      // Always add learnH separately so total = work + learning.
+      // Fallback for old records (no entries): working_hours was stored as pure work.
+      const workH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
       const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-      const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
+      const learnH = entries.length > 0 ? learnFromEntries : (u.learning_hours ?? 0)
       const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const h = workH + learnH
       totalHours += h
@@ -693,8 +696,10 @@ export default function HistoryClient({
     }
 
     // Leave days: count full approved leave range (incl. future dates within an approved leave)
+    // WFH, shoot_day, permission are NOT leaves — they don't count against quota
     let leaveDays = 0
     for (const leave of approvedLeaves) {
+      if (leave.leave_type === "permission" || leave.leave_type === "wfh" || leave.leave_type === "shoot_day") continue
       const start = new Date(leave.from_date + "T12:00:00")
       const end = new Date(leave.to_date + "T12:00:00")
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
@@ -717,8 +722,8 @@ export default function HistoryClient({
     const elapsedDays = Math.floor((new Date(todayStr + "T12:00:00").getTime() - new Date(firstDate + "T12:00:00").getTime()) / 86400000) + 1
     const absentDays = Math.max(0, elapsedDays - presentDays)
 
-    // Overtime = total monthly hours above (8.5h × presentDays). Zero if avg < 8.5h.
-    const totalOT = Math.round(Math.max(0, totalHours - 8.5 * presentDays) * 10) / 10
+    // Overtime = total hours above fixed monthly target (25 days × 8.5h = 212.5h)
+    const totalOT = Math.round(Math.max(0, totalHours - 212.5) * 10) / 10
 
     const productivity = filtered.length > 0
       ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9.5)) * 40) : 0)))
@@ -968,7 +973,7 @@ export default function HistoryClient({
           <div className="order-2 lg:order-none" style={{ display:"flex", flexDirection:"column", gap:16 }}>
 
             {/* ── HERO BANNER ─────────────────────────────────────────────── */}
-            <div style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:22, overflow:"hidden", boxShadow:"0 8px 32px rgba(180,0,0,0.4)", position:"relative", minHeight:240 }}>
+            <div style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:22, overflow:"hidden", boxShadow:"0 8px 32px rgba(180,0,0,0.4)", position:"relative", minHeight:240, maxWidth:"100%" }}>
               {/* Decorative circles */}
               <div style={{ position:"absolute", top:-50, left:-50, width:220, height:220, borderRadius:"50%", background:"rgba(255,255,255,0.05)", pointerEvents:"none" }}/>
               <div style={{ position:"absolute", bottom:-30, right:200, width:150, height:150, borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }}/>
@@ -1508,8 +1513,8 @@ export default function HistoryClient({
                     </div>
                   )}
                   {/* Day header */}
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid #F5F6FA", flexWrap:"wrap", gap:8 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid #F5F6FA", gap:8, flexWrap:"nowrap", overflowX:"auto" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
                       <div style={{ width:38, height:38, borderRadius:10, background:"rgba(222,26,26,0.08)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                         <span style={{ fontSize:14, fontWeight:900, color:"#DE1A1A", lineHeight:1 }}>
                           {new Date(u.date + "T12:00:00").getDate()}
@@ -1518,9 +1523,9 @@ export default function HistoryClient({
                           {new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { month:"short" })}
                         </span>
                       </div>
-                      <div>
-                        <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{dateLabel}</p>
-                        <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
+                      <div style={{ minWidth:0 }}>
+                        <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0, whiteSpace:"nowrap" }}>{dateLabel}</p>
+                        <p style={{ fontSize:10, color:"#9CA3AF", margin:0, whiteSpace:"nowrap" }}>
                           {(() => {
                             const workCount  = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
                             const learnCount = entries.filter(e => e.task_type === "learning").length + (u.learning_topic && !entries.some(e => e.task_type === "learning") ? 1 : 0)
@@ -1534,7 +1539,7 @@ export default function HistoryClient({
                         </p>
                       </div>
                     </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"nowrap", flexShrink:0 }}>
                       {(() => {
                         const workH   = calcNetWorkHours(entries, workLayout ?? undefined)
                         const travelH = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + (e._travel_hours ?? 0), 0)
@@ -1546,31 +1551,31 @@ export default function HistoryClient({
                         return (
                           <>
                             {displayH > 0 && (
-                              <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
+                              <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap" }}>
                                 <Clock size={11} style={{ color:"#9CA3AF" }}/>
                                 {fmtH(displayH)}
-                                {collabH > 0 && <span style={{ fontSize:9, fontWeight:600, color:"#6366F1" }}>(+{fmtH(collabH)} collab)</span>}
+                                {collabH > 0 && <span style={{ fontSize:9, fontWeight:600, color:"#6366F1", whiteSpace:"nowrap" }}>(+{fmtH(collabH)})</span>}
                               </span>
                             )}
                             {travelH > 0 && (
-                              <span style={{ fontSize:10, fontWeight:700, color:"#D97706", display:"flex", alignItems:"center", gap:3, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:99, padding:"2px 8px" }}>
-                                🚗 {fmtH(travelH)} travel
+                              <span style={{ fontSize:10, fontWeight:700, color:"#D97706", display:"flex", alignItems:"center", gap:3, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:99, padding:"2px 7px", whiteSpace:"nowrap" }}>
+                                🚗 {fmtH(travelH)}
                               </span>
                             )}
                             {learnH > 0 && (
-                              <span style={{ fontSize:10, fontWeight:700, color:"#6366F1", display:"flex", alignItems:"center", gap:3, background:"rgba(99,102,241,0.08)", border:"1px solid rgba(99,102,241,0.2)", borderRadius:99, padding:"2px 8px" }}>
-                                📚 {fmtH(learnH)} learn
+                              <span style={{ fontSize:10, fontWeight:700, color:"#6366F1", display:"flex", alignItems:"center", gap:3, background:"rgba(99,102,241,0.08)", border:"1px solid rgba(99,102,241,0.2)", borderRadius:99, padding:"2px 7px", whiteSpace:"nowrap" }}>
+                                📚 {fmtH(learnH)}
                               </span>
                             )}
                             {breakH > 0 && (
-                              <span style={{ fontSize:10, fontWeight:700, color:"#78716C", display:"flex", alignItems:"center", gap:3, background:"rgba(120,113,108,0.08)", border:"1px solid rgba(120,113,108,0.18)", borderRadius:99, padding:"2px 8px" }}>
-                                ☕ {fmtH(breakH)} break
+                              <span style={{ fontSize:10, fontWeight:700, color:"#78716C", display:"flex", alignItems:"center", gap:3, background:"rgba(120,113,108,0.08)", border:"1px solid rgba(120,113,108,0.18)", borderRadius:99, padding:"2px 7px", whiteSpace:"nowrap" }}>
+                                ☕ {fmtH(breakH)}
                               </span>
                             )}
                           </>
                         )
                       })()}
-                      <span style={{ fontSize:11, fontWeight:700, color:st.color, background:st.bg, padding:"3px 10px", borderRadius:99 }}>
+                      <span style={{ fontSize:11, fontWeight:700, color:st.color, background:st.bg, padding:"3px 10px", borderRadius:99, whiteSpace:"nowrap", flexShrink:0 }}>
                         {st.label}
                       </span>
                       <button
@@ -1686,11 +1691,40 @@ export default function HistoryClient({
                       </div>
                       <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>Approved</span>
                     </div>
-                  ) : entries.length === 0 ? (
-                    <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>
-                      {(u.attendance_status === "leave" || u.attendance_status === "absent") ? "You were on leave this day." : "No work entries logged"}
-                    </p>
-                  ) : (
+                  ) : entries.length === 0 ? (() => {
+                    const leaveForDay = (u.attendance_status === "leave" || u.attendance_status === "absent")
+                      ? approvedLeaves.find(l => u.date >= l.from_date && u.date <= l.to_date)
+                      : undefined
+                    if (leaveForDay?.leave_type === "full_day") {
+                      return (
+                        <div style={{ display:"flex", alignItems:"center", gap:16, padding:"20px 18px", background:"linear-gradient(135deg,rgba(16,185,129,0.06) 0%,rgba(16,185,129,0.02) 100%)", borderTop:"1px solid rgba(16,185,129,0.12)" }}>
+                          <div style={{ fontSize:40, lineHeight:1 }}>🌴</div>
+                          <div>
+                            <p style={{ fontSize:14, fontWeight:900, color:"#059669", margin:"0 0 3px" }}>Full Day Leave</p>
+                            <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leaveForDay.reason ?? "Approved Leave"}</p>
+                          </div>
+                          <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(16,185,129,0.12)", color:"#10B981" }}>Approved</span>
+                        </div>
+                      )
+                    }
+                    if (leaveForDay?.leave_type === "half_day") {
+                      return (
+                        <div style={{ display:"flex", alignItems:"center", gap:16, padding:"18px 18px", background:"rgba(99,102,241,0.03)", borderTop:"1px solid rgba(99,102,241,0.1)" }}>
+                          <div style={{ fontSize:32, lineHeight:1 }}>🌗</div>
+                          <div>
+                            <p style={{ fontSize:14, fontWeight:900, color:"#6366F1", margin:"0 0 3px" }}>Half Day Leave</p>
+                            <p style={{ fontSize:12, color:"#6B7280", margin:0 }}>{leaveForDay.reason ?? "Approved Leave"}</p>
+                          </div>
+                          <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:99, background:"rgba(99,102,241,0.12)", color:"#6366F1" }}>Approved</span>
+                        </div>
+                      )
+                    }
+                    return (
+                      <p style={{ fontSize:12, color:"#9CA3AF", padding:"16px 18px", margin:0 }}>
+                        {leaveForDay ? "You were on leave this day." : "No work entries logged"}
+                      </p>
+                    )
+                  })() : (
                     <div>
                       {u.learning_topic && (
                         <div style={{ borderBottom:"1px solid #F5F6FA", background:"rgba(245,158,11,0.03)" }}>

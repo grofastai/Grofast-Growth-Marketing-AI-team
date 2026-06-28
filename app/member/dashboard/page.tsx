@@ -269,7 +269,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
         if      (e.task_type === "poster")    nmPosterCount++
         else if (e.task_type === "edit")      nmEditCount++
         else if (e.task_type === "voiceover") nmVoiceoverCount++
-        else if (e.task_type === "log")       nmTechHrs += e.duration_hours ?? 0
+        else if (e.task_type === "other")     nmTechHrs += e.duration_hours ?? 0
       }
     }
     nmTechHrs = Math.round(nmTechHrs * 10) / 10

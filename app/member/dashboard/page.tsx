@@ -156,11 +156,9 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     return { totalH: workH + learnH + dayCollabH, attendanceStatus: u.attendance_status }
   })
   const totalMonthHrs  = Math.round(monthlyDayHours.reduce((s, d) => s + d.totalH, 0) * 10) / 10
-  const OVERTIME_THRESHOLD = 8.5
-  const monthlyAvgHrs    = presentDays > 0 ? totalMonthHrs / presentDays : 0
-  const overtimeEligible = monthlyAvgHrs >= OVERTIME_THRESHOLD
-  const overtimeDays     = overtimeEligible ? monthlyDayHours.filter(d => d.totalH > OVERTIME_THRESHOLD).length : 0
-  const overtimeHrs      = overtimeEligible ? Math.round(monthlyDayHours.reduce((sum, d) => d.totalH > OVERTIME_THRESHOLD ? sum + (d.totalH - OVERTIME_THRESHOLD) : sum, 0) * 10) / 10 : 0
+  const MONTHLY_TARGET_HRS = 25 * 8.5  // 212.5h — fixed for all months
+  const monthlyAvgHrs = presentDays > 0 ? Math.round((totalMonthHrs / presentDays) * 10) / 10 : 0
+  const overtimeHrs   = Math.round(Math.max(0, totalMonthHrs - MONTHLY_TARGET_HRS) * 10) / 10
 
   // Union: approved leave dates + attendance_logs marked leave/absent
   const leaveDateSet = new Set<string>()
@@ -302,7 +300,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { label: "Office Days",          value: officeDays,                                       color: "#de1a1a",  sub: undefined },
     { label: isMedia ? "Shoot Days" : "WFH Days", value: isMedia ? shootDays : wfhDays,       color: "#6366F1",  sub: undefined },
     { label: "Leave Taken This Month", value: leaveDays,                                       color: leaveDays > 0 ? "#D97706" : "#D1D5DB", sub: `${Math.max(0, 5 - leaveDays)} days left` },
-    { label: "Overtime Hrs",         value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",       color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeDays > 0 ? `${overtimeDays} day${overtimeDays !== 1 ? "s" : ""}` : undefined },
+    { label: "Overtime Hrs",         value: overtimeHrs > 0 ? `${overtimeHrs}h` : "—",       color: overtimeHrs > 0 ? "#EA580C" : "#D1D5DB", sub: overtimeHrs > 0 ? `above 212.5h target` : undefined },
   ]
 
   // Top 5 stat cards — work-entry based for freelancer-media
@@ -380,6 +378,51 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
           )
         })}
       </div>
+
+      {/* ── Monthly Target Progress Bar ──────────────────────── */}
+      {!isFreelancerMedia && (
+        <div className="rounded-2xl px-5 py-4 mb-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] font-bold" style={{ color: "#111111" }}>Monthly Target</span>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>
+                25 days × 8.5h = 212.5h
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              {overtimeHrs > 0 ? (
+                <span className="text-[11px] font-bold" style={{ color: "#EA580C" }}>+{overtimeHrs}h overtime</span>
+              ) : (
+                <span className="text-[11px] font-semibold" style={{ color: "#9CA3AF" }}>
+                  {Math.max(0, Math.round((212.5 - totalMonthHrs) * 10) / 10)}h remaining
+                </span>
+              )}
+              <span className="text-[13px] font-black" style={{ color: overtimeHrs > 0 ? "#EA580C" : "#111111" }}>
+                {Math.min(100, Math.round((totalMonthHrs / 212.5) * 100))}%
+              </span>
+            </div>
+          </div>
+          <div style={{ height: 10, borderRadius: 99, background: "#F3F4F6", overflow: "hidden" }}>
+            <div style={{
+              height: "100%",
+              width: `${Math.min(100, (totalMonthHrs / 212.5) * 100)}%`,
+              borderRadius: 99,
+              background: overtimeHrs > 0
+                ? "linear-gradient(90deg, #10B981 0%, #EA580C 100%)"
+                : totalMonthHrs >= 170
+                  ? "linear-gradient(90deg, #6366F1 0%, #10B981 100%)"
+                  : "linear-gradient(90deg, #6366F1 0%, #818CF8 100%)",
+              transition: "width 0.6s ease",
+            }} />
+          </div>
+          <div className="flex justify-between mt-1.5">
+            <span className="text-[10px] font-semibold" style={{ color: "#9CA3AF" }}>
+              {totalMonthHrs}h worked
+            </span>
+            <span className="text-[10px] font-semibold" style={{ color: "#9CA3AF" }}>212.5h</span>
+          </div>
+        </div>
+      )}
 
       {/* ── This Month ────────────────────────────────────────── */}
       <div className="rounded-2xl p-5 mb-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>

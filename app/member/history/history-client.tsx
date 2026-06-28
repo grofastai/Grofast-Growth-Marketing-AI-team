@@ -717,8 +717,8 @@ export default function HistoryClient({
     const elapsedDays = Math.floor((new Date(todayStr + "T12:00:00").getTime() - new Date(firstDate + "T12:00:00").getTime()) / 86400000) + 1
     const absentDays = Math.max(0, elapsedDays - presentDays)
 
-    // Overtime = total monthly hours above (8.5h × presentDays). Zero if avg < 8.5h.
-    const totalOT = Math.round(Math.max(0, totalHours - 8.5 * presentDays) * 10) / 10
+    // Overtime = total hours above fixed monthly target (25 days × 8.5h = 212.5h)
+    const totalOT = Math.round(Math.max(0, totalHours - 212.5) * 10) / 10
 
     const productivity = filtered.length > 0
       ? Math.min(100, Math.round((presentDays / filtered.length) * 100 * 0.6 + (totalHours > 0 ? Math.min(40, (totalHours / (filtered.length * 9.5)) * 40) : 0)))

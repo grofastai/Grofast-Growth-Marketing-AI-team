@@ -158,7 +158,7 @@ export default function AnnouncementsClient({
   return (
     <div style={{ padding: "24px 28px", maxWidth: 1400, margin: "0 auto" }}>
       {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
-      <div style={{ borderRadius: 24, marginBottom: 22, overflow: "hidden", background: "linear-gradient(135deg, #EA580C 0%, #C2410C 50%, #7C2D12 100%)", boxShadow: "0 8px 32px rgba(234,88,12,0.35)", position: "relative" }}>
+      <div style={{ borderRadius: 24, marginBottom: 22, overflow: "hidden", background: "linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)", boxShadow: "0 8px 32px rgba(222,26,26,0.35)", position: "relative" }}>
         <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
         <div style={{ position: "absolute", bottom: -30, right: 200, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", top: 10, right: 360, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />

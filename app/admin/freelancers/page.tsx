@@ -98,7 +98,7 @@ export default async function AdminFreelancersPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#F8F9FB" }}>
       {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
-      <div style={{ margin: "24px 24px 0", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg, #7C3AED 0%, #5B21B6 50%, #3B0764 100%)", boxShadow: "0 8px 32px rgba(124,58,237,0.35)", position: "relative", marginBottom: 0 }}>
+      <div style={{ margin: "24px 24px 0", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)", boxShadow: "0 8px 32px rgba(222,26,26,0.35)", position: "relative", marginBottom: 0 }}>
         <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
         <div style={{ position: "absolute", bottom: -30, right: 200, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", top: 10, right: 360, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />

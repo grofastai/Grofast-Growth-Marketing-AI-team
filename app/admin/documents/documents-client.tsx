@@ -496,7 +496,7 @@ export default function DocumentsClient({
       )}
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <div style={{ margin: "20px 20px 0", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 50%, #1E3A8A 100%)", boxShadow: "0 8px 32px rgba(37,99,235,0.35)", position: "relative" }}>
+      <div style={{ margin: "20px 20px 0", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)", boxShadow: "0 8px 32px rgba(222,26,26,0.35)", position: "relative" }}>
         <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
         <div style={{ position: "absolute", bottom: -30, right: 200, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", top: 10, right: 360, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />

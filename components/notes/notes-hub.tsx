@@ -87,7 +87,7 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#F8F9FC' }}>
       {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
-      <div style={{ flexShrink: 0, margin: '16px 16px 0', borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(135deg, #0D9488 0%, #0F766E 50%, #042F2E 100%)', boxShadow: '0 8px 32px rgba(13,148,136,0.35)', position: 'relative' }}>
+      <div style={{ flexShrink: 0, margin: '16px 16px 0', borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)', boxShadow: '0 8px 32px rgba(222,26,26,0.35)', position: 'relative' }}>
         <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
         <div style={{ position: 'absolute', bottom: -20, right: 160, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
         <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, position: 'relative', zIndex: 1 }}>

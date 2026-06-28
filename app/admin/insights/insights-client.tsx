@@ -140,7 +140,7 @@ export default function InsightsClient({
     <div style={{ padding: '24px 28px 60px', display: 'flex', flexDirection: 'column', gap: 24, background: '#F8F9FB', minHeight: '100vh' }}>
 
       {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
-      <div style={{ borderRadius: 24, overflow: 'hidden', background: 'linear-gradient(135deg, #4F46E5 0%, #3730A3 50%, #1E1B4B 100%)', boxShadow: '0 8px 32px rgba(79,70,229,0.35)', position: 'relative' }}>
+      <div style={{ borderRadius: 24, overflow: 'hidden', background: 'linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)', boxShadow: '0 8px 32px rgba(222,26,26,0.35)', position: 'relative' }}>
         <div style={{ position: 'absolute', top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
         <div style={{ position: 'absolute', bottom: -30, right: 200, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
         <div style={{ position: 'absolute', top: 10, right: 360, width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />

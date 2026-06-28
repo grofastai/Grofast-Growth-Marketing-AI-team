@@ -149,11 +149,13 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   // Per-day working hours computed from work_entries + confirmed collab hours
   const monthlyDayHours = monthlyUpdates.map(u => {
     const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
-    const workH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
-    const learnFromEntries = entries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-    const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
+    // calcNetWorkHours already includes learning entries (filters task_type !== 'break').
+    // Only add learning separately when falling back to stored fields (no entries).
+    const workH = entries.length > 0
+      ? calcNetWorkHours(entries)
+      : (u.working_hours ?? 0) + (u.learning_hours ?? 0)
     const dayCollabH = collabByDate[u.date] ?? 0
-    return { totalH: workH + learnH + dayCollabH, attendanceStatus: u.attendance_status }
+    return { totalH: workH + dayCollabH, attendanceStatus: u.attendance_status }
   })
   const totalMonthHrs  = Math.round(monthlyDayHours.reduce((s, d) => s + d.totalH, 0) * 10) / 10
   const MONTHLY_TARGET_HRS = 25 * 8.5  // 212.5h — fixed for all months

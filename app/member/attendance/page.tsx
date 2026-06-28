@@ -191,10 +191,11 @@ export default async function AttendancePage() {
   const monthTotalHrs = Math.round(
     monthUpdates.reduce((s, u) => {
       const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
-      const workH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
-      const learnFromEntries = entries.filter(e => e.task_type === 'learning').reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-      const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
-      return s + workH + learnH
+      // calcNetWorkHours includes learning. Only add learning separately when falling back to stored fields.
+      const workH = entries.length > 0
+        ? calcNetWorkHours(entries)
+        : (u.working_hours ?? 0) + (u.learning_hours ?? 0)
+      return s + workH
     }, 0) * 10
   ) / 10
 

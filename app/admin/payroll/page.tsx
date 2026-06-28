@@ -158,7 +158,7 @@ export default async function PayrollPage({
     const s = new Set<string>()
     for (const l of approvedLeaves) {
       if (l.user_id !== userId) continue
-      if (l.leave_type === "permission") continue  // permission doesn't count as a full leave day
+      if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") continue
       const cur = new Date(l.from_date + "T12:00:00")
       const end = new Date(l.to_date   + "T12:00:00")
       while (cur <= end) {

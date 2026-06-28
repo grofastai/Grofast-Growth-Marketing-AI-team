@@ -165,7 +165,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   // Union: approved leave dates + attendance_logs marked leave/absent
   const leaveDateSet = new Set<string>()
   for (const l of approvedLeaves) {
-    if (l.leave_type === "permission") continue
+    if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") continue
     const cur = new Date(l.from_date + "T12:00:00")
     const end = new Date(l.to_date   + "T12:00:00")
     while (cur <= end) { leaveDateSet.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }

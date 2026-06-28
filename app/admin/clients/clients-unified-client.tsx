@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, X } from 'lucide-react'
+import { Search, X, Sparkles, Building2, Users, TrendingUp } from 'lucide-react'
 import type { ClientRow } from './page'
 import type { DeliverableResult } from '@/lib/clients-deliverables'
 import { fmtRupee, fmtDate } from '@/lib/clients-deliverables'
@@ -265,7 +265,41 @@ export default function ClientsUnifiedClient({
   const showClient = selectedClientRow?.industry?.startsWith('__virtual') ?? false
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#F8F9FB' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: '#F8F9FB' }}>
+      {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
+      <div style={{ flexShrink: 0, margin: '16px 16px 0', borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(135deg, #059669 0%, #047857 50%, #022C22 100%)', boxShadow: '0 8px 32px rgba(5,150,105,0.35)', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+        <div style={{ position: 'absolute', bottom: -20, right: 180, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+        <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, position: 'relative', zIndex: 1 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '5px 7px', display: 'flex', alignItems: 'center' }}>
+                <Sparkles size={14} style={{ color: '#FFD700' }} />
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Admin Dashboard</span>
+            </div>
+            <h1 style={{ fontSize: 28, fontWeight: 900, color: '#FFFFFF', margin: '0 0 4px', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>Clients</h1>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', margin: 0 }}>Manage active clients, deliverables and financials</p>
+            <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+              {[
+                { icon: <Building2 size={11} />, label: `${activeClients.length} Active` },
+                { icon: <TrendingUp size={11} />, label: `${pastClients.length} Past Clients` },
+                { icon: <Users size={11} />, label: `${activeClients.length + pastClients.length} Total` },
+              ].map(s => (
+                <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '3px 10px' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.8)' }}>{s.icon}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#FFFFFF' }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Building2 size={18} style={{ color: '#FFFFFF' }} />
+          </div>
+        </div>
+      </div>
+      {/* ── SPLIT PANEL ───────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
       {/* ── LEFT PANEL ──────────────────────────────────────────────────── */}
       <div style={{
@@ -652,6 +686,7 @@ export default function ClientsUnifiedClient({
 
           </div>
         )}
+      </div>
       </div>
     </div>
   )

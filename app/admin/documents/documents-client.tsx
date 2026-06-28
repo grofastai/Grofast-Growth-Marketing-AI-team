@@ -9,7 +9,7 @@ import {
   Phone, Mail, Briefcase, Calendar, Shield, HeartPulse, MapPin,
   UserPlus, Landmark, CreditCard, ExternalLink, Search,
   List, CheckCircle2, Eye, MoreVertical, CloudUpload,
-  Building2, LayoutGrid, ArrowUpRight, Layers, ChevronRight,
+  Building2, LayoutGrid, ArrowUpRight, Layers, ChevronRight, Sparkles, Users,
 } from "lucide-react"
 
 const DOC_TYPES = ["Govt ID Proof", "Ration Card", "Photo", "Payslip", "Other"]
@@ -496,84 +496,40 @@ export default function DocumentsClient({
       )}
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <div className="min-h-[160px] md:min-h-[220px]" style={{
-        position: "relative", overflow: "hidden", margin: "0 0 0 0",
-        background: "linear-gradient(120deg, #fff 0%, #fff 45%, #FFF7ED 45%, #FEF3C7 100%)",
-      }}>
-        {/* Left text */}
-        <div style={{ position: "absolute", left: 20, right: 20, top: 0, bottom: 0, display: "flex", flexDirection: "column", justifyContent: "center", zIndex: 2, maxWidth: 420 }} className="md:!left-9 md:!right-auto">
-          <h1 style={{ fontSize: 36, fontWeight: 900, lineHeight: 1.1, fontFamily: "var(--font-jakarta)", color: "#111", marginBottom: 8 }}>
-            Documents{" "}
-            <span style={{ background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              Workspace
-            </span>
-          </h1>
-          <p style={{ fontSize: 14, color: "#6B7280", marginBottom: 20, lineHeight: 1.6 }}>
-            Manage employee documents securely<br />and efficiently in one place.
-          </p>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }} style={{
-              display: "flex", alignItems: "center", gap: 7, padding: "10px 18px",
-              borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "none",
-              background: "linear-gradient(135deg, #de1a1a, #7F1D1D)", color: "#fff",
-              boxShadow: "0 4px 16px rgba(222,26,26,0.35)",
-            }}>
+      <div style={{ margin: "20px 20px 0", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg, #2563EB 0%, #1D4ED8 50%, #1E3A8A 100%)", boxShadow: "0 8px 32px rgba(37,99,235,0.35)", position: "relative" }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
+        <div style={{ position: "absolute", bottom: -30, right: 200, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
+        <div style={{ position: "absolute", top: 10, right: 360, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
+        <div style={{ padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, position: "relative", zIndex: 1 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
+                <Sparkles size={16} style={{ color: "#FFD700" }} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
+            </div>
+            <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", margin: "0 0 6px", fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>Documents</h1>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", margin: 0 }}>Manage employee documents securely in one place</p>
+            <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
+              {[
+                { icon: <Users size={12} />, label: `${members.length} Members` },
+                { icon: <FileText size={12} />, label: `${totalFiles} Files` },
+                { icon: <Shield size={12} />, label: `${verifiedCount} Verified` },
+              ].map(s => (
+                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 12px" }}>
+                  <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF" }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end", flexShrink: 0 }}>
+            <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 18px", borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "none", background: "rgba(255,255,255,0.25)", color: "#fff", backdropFilter: "blur(10px)" }}>
               <Upload size={14} /> Upload Document
             </button>
-            <button style={{
-              display: "flex", alignItems: "center", gap: 7, padding: "10px 18px",
-              borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer",
-              background: "rgba(255,255,255,0.9)", color: "#374151",
-              border: "1px solid rgba(0,0,0,0.1)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-            }}>
-              <FolderOpen size={14} /> Generate Folder
-            </button>
-            <button style={{
-              display: "flex", alignItems: "center", gap: 7, padding: "10px 18px",
-              borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer",
-              background: "rgba(255,255,255,0.9)", color: "#374151",
-              border: "1px solid rgba(0,0,0,0.1)", boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-            }}>
-              <ExternalLink size={14} /> Share Access
-            </button>
-            <a
-              href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8"
-              target="_blank" rel="noopener noreferrer"
-              style={{
-                display: "flex", alignItems: "center", gap: 7, padding: "10px 18px",
-                borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer",
-                background: "rgba(66,133,244,0.08)", color: "#4285F4",
-                border: "1px solid rgba(66,133,244,0.2)", boxShadow: "0 2px 8px rgba(66,133,244,0.08)",
-                textDecoration: "none",
-              }}>
-              <svg width="14" height="14" viewBox="0 0 87.3 78" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M6.6 66.85l3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3L28 55H0c0 1.55.4 3.1 1.2 4.5z" fill="#0066DA"/>
-                <path d="M43.65 25L29.35 0c-1.35.8-2.5 1.9-3.3 3.3L1.2 50.5c-.8 1.4-1.2 2.95-1.2 4.5h28z" fill="#00AC47"/>
-                <path d="M73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5H59.3l5.9 11.5z" fill="#EA4335"/>
-                <path d="M43.65 25L58 0H29.35z" fill="#00832D"/>
-                <path d="M59.3 55H87.3c0-1.55-.4-3.1-1.2-4.5L61.65 8.3c-.8-1.4-1.95-2.5-3.3-3.3L43.65 25z" fill="#2684FC"/>
-                <path d="M43.65 55.25L28 55 13.75 76.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.4 4.5-1.2z" fill="#FFBA00"/>
-              </svg>
-              View Drive Backup
+            <a href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 12, fontSize: 12, fontWeight: 700, cursor: "pointer", background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.9)", border: "1px solid rgba(255,255,255,0.3)", textDecoration: "none" }}>
+              <ExternalLink size={13} /> Drive Backup
             </a>
-          </div>
-        </div>
-
-        {/* Right: image + stat cards */}
-        <div className="hidden md:flex" style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: "58%", alignItems: "flex-end" }}>
-          <Image
-            src="/brand/documents/hero-workspace.png"
-            alt="Document workspace"
-            width={500} height={220}
-            style={{ objectFit: "contain", objectPosition: "bottom left", height: "100%", width: "auto", maxWidth: 440 }}
-            priority
-          />
-          {/* Stat cards */}
-          <div style={{ position: "absolute", right: 20, top: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, width: 340 }}>
-            <HeroStatCard label="Total Files"          value={String(totalFiles)}    sub="16.4%" icon="📄" color="#6366F1" up />
-            <HeroStatCard label="Verified Documents"   value={String(verifiedCount)} sub="22.1%" icon="✅" color="#16A34A" up />
-            <HeroStatCard label="Pending KYC"          value={String(pendingKYC)}    sub="5.6%"  icon="⏳" color="#F59E0B" up={false} />
-            <HeroStatCard label="Cloud Storage"        value={`${storageGB} GB`}     sub="32.4 GB / 50 GB" icon="☁️" color="#0EA5E9" up={false} />
           </div>
         </div>
       </div>

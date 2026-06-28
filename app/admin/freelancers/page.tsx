@@ -97,12 +97,42 @@ export default async function AdminFreelancersPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#F8F9FB" }}>
-      {/* Page header */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #F0F1F5", padding: "16px 24px 0" }}>
-        <h1 style={{ fontSize: 20, fontWeight: 800, color: "#111", margin: "0 0 2px" }}>Freelancers</h1>
-        <p style={{ fontSize: 12, color: "#6B7280", margin: "0 0 14px" }}>Manage freelancer work entries and pricing</p>
+      {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
+      <div style={{ margin: "24px 24px 0", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg, #7C3AED 0%, #5B21B6 50%, #3B0764 100%)", boxShadow: "0 8px 32px rgba(124,58,237,0.35)", position: "relative", marginBottom: 0 }}>
+        <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
+        <div style={{ position: "absolute", bottom: -30, right: 200, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
+        <div style={{ position: "absolute", top: 10, right: 360, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
+        <div style={{ padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, position: "relative", zIndex: 1 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
+                <Sparkles size={16} style={{ color: "#FFD700" }} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
+            </div>
+            <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", margin: "0 0 6px", fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>Freelancers</h1>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", margin: 0 }}>Manage freelancer work entries and pricing</p>
+            <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
+              {[
+                { icon: <Users size={12} />, label: `${freelancers.length} Freelancers` },
+                { icon: <Briefcase size={12} />, label: `${workEntries.length} Work Entries` },
+                { icon: <FileText size={12} />, label: `${flMembers.length} Media Team` },
+              ].map(s => (
+                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 12px" }}>
+                  <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF" }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ width: 44, height: 44, borderRadius: 14, background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Briefcase size={20} style={{ color: "#FFFFFF" }} />
+          </div>
+        </div>
+      </div>
 
-        {/* Tabs */}
+      {/* Tabs */}
+      <div style={{ background: "#fff", borderBottom: "1px solid #F0F1F5", padding: "0 24px" }}>
         <AdminFreelancersTabs
           flMembers={flMembers}
           flEntries={flEntries}
@@ -118,3 +148,4 @@ export default async function AdminFreelancersPage() {
 
 // ── Tab shell (client component) ───────────────────────────────────────────────
 import AdminFreelancersTabs from "./admin-freelancers-tabs"
+import { Sparkles, Users, Briefcase, FileText } from "lucide-react"

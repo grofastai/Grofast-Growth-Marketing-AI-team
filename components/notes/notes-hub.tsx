@@ -1,7 +1,7 @@
 'use client'
 import { useState, useMemo, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search, CalendarDays } from 'lucide-react'
+import { Plus, Search, CalendarDays, Sparkles, BookOpen, FolderOpen } from 'lucide-react'
 import { FolderSidebar } from './folder-sidebar'
 import { NotesList } from './notes-list'
 import { NoteEditor } from './note-editor'
@@ -86,11 +86,40 @@ export default function NotesHub({ initialNotes, folders, teamMembers, viewer }:
 
   return (
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#F8F9FC' }}>
-      <div style={{ padding: '16px 20px', borderBottom: '1px solid #F1F1F4', display: 'flex', alignItems: 'center', gap: 16, background: '#fff' }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 900, margin: 0, fontFamily: 'var(--font-jakarta)' }}>📒 Notes</h1>
-          <p style={{ fontSize: 12, color: '#9CA3AF', margin: '2px 0 0' }}>Create, organize and collaborate on company knowledge.</p>
+      {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
+      <div style={{ flexShrink: 0, margin: '16px 16px 0', borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(135deg, #0D9488 0%, #0F766E 50%, #042F2E 100%)', boxShadow: '0 8px 32px rgba(13,148,136,0.35)', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: -40, right: -40, width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+        <div style={{ position: 'absolute', bottom: -20, right: 160, width: 100, height: 100, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+        <div style={{ padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, position: 'relative', zIndex: 1 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '5px 7px', display: 'flex', alignItems: 'center' }}>
+                <Sparkles size={14} style={{ color: '#FFD700' }} />
+              </div>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Admin Dashboard</span>
+            </div>
+            <h1 style={{ fontSize: 28, fontWeight: 900, color: '#FFFFFF', margin: '0 0 4px', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>Notes</h1>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', margin: 0 }}>Create, organize and collaborate on company knowledge</p>
+            <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+              {[
+                { icon: <BookOpen size={11} />, label: `${initialNotes.length} Notes` },
+                { icon: <FolderOpen size={11} />, label: `${folders.length} Folders` },
+              ].map(s => (
+                <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '3px 10px' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.8)' }}>{s.icon}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: '#FFFFFF' }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.2)', border: '2px solid rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <BookOpen size={18} style={{ color: '#FFFFFF' }} />
+          </div>
         </div>
+      </div>
+      {/* Search + action bar */}
+      <div style={{ padding: '12px 20px', borderBottom: '1px solid #F1F1F4', display: 'flex', alignItems: 'center', gap: 16, background: '#fff', flexShrink: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ position: 'relative' }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#9CA3AF' }} />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search notes..."

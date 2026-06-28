@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Sparkles, Users, TrendingUp, BarChart3 } from 'lucide-react'
 import type { MemberUtilization, ClientHour, InsightsKPIs, DailyTrend, SpendCategory } from './page'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -138,18 +139,36 @@ export default function InsightsClient({
   return (
     <div style={{ padding: '24px 28px 60px', display: 'flex', flexDirection: 'column', gap: 24, background: '#F8F9FB', minHeight: '100vh' }}>
 
-      {/* ── Page header ─────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 900, color: '#111827', margin: 0, fontFamily: 'var(--font-jakarta)' }}>
-            Team Insights
-          </h1>
-          <p style={{ fontSize: 12, color: '#9CA3AF', margin: '3px 0 0' }}>
-            Salary utilization, tracked hours, productivity gap — {monthLabel}
-          </p>
-        </div>
-        {/* Month nav */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      {/* ── HERO HEADER ─────────────────────────────────────────────────── */}
+      <div style={{ borderRadius: 24, overflow: 'hidden', background: 'linear-gradient(135deg, #4F46E5 0%, #3730A3 50%, #1E1B4B 100%)', boxShadow: '0 8px 32px rgba(79,70,229,0.35)', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: -40, right: -40, width: 200, height: 200, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+        <div style={{ position: 'absolute', bottom: -30, right: 200, width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.04)' }} />
+        <div style={{ position: 'absolute', top: 10, right: 360, width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
+        <div style={{ padding: '28px 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, position: 'relative', zIndex: 1 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 10, padding: '6px 8px', display: 'flex', alignItems: 'center' }}>
+                <Sparkles size={16} style={{ color: '#FFD700' }} />
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.15em' }}>Admin Dashboard</span>
+            </div>
+            <h1 style={{ fontSize: 36, fontWeight: 900, color: '#FFFFFF', margin: '0 0 6px', fontFamily: 'var(--font-jakarta)', lineHeight: 1 }}>Team Insights</h1>
+            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.65)', margin: 0 }}>Salary utilization, tracked hours & productivity gap</p>
+            <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
+              {[
+                { icon: <Users size={12} />, label: `${memberUtilization.length} Members` },
+                { icon: <TrendingUp size={12} />, label: monthLabel },
+                { icon: <BarChart3 size={12} />, label: `${kpis.trackedHours.toFixed(0)}h Tracked` },
+              ].map(s => (
+                <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(255,255,255,0.15)', borderRadius: 20, padding: '4px 12px' }}>
+                  <span style={{ color: 'rgba(255,255,255,0.8)' }}>{s.icon}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#FFFFFF' }}>{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Month nav moved into header right side */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <button onClick={prevMonth} style={{
             width: 32, height: 32, borderRadius: 9, border: '1.5px solid #E5E7EB',
             background: '#fff', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -167,8 +186,9 @@ export default function InsightsClient({
             opacity: isCurrentMonth ? 0.35 : 1,
           }}>›</button>
           <input type="month" value={month} max={today.slice(0, 7)} onChange={e => setMonth(e.target.value)}
-            style={{ padding: '7px 12px', borderRadius: 10, border: '1.5px solid #E5E7EB', fontSize: 12, color: '#374151', background: '#F9FAFB', outline: 'none' }}
+            style={{ padding: '7px 12px', borderRadius: 10, border: '1.5px solid rgba(255,255,255,0.3)', fontSize: 12, color: '#FFFFFF', background: 'rgba(255,255,255,0.15)', outline: 'none' }}
           />
+          </div>
         </div>
       </div>
 

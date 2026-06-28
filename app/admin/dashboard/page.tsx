@@ -147,11 +147,12 @@ export default async function DashboardPage() {
   // Yesterday not-updated members
   const [{ data: yesterdayUpdatesRaw }, { data: activeMembersRaw }] = await Promise.all([
     admin.from("daily_updates").select("user_id").eq("company_id", cid).eq("date", yesterday),
-    admin.from("users").select("id, name").eq("company_id", cid).eq("role", "MEMBER").eq("status", "active"),
+    admin.from("users").select("id, name, is_management, is_freelancer_login").eq("company_id", cid).eq("role", "MEMBER").eq("status", "active"),
   ])
   const yesterdayUpdatedIds = new Set((yesterdayUpdatesRaw ?? []).map((u: { user_id: string }) => u.user_id))
   const notUpdatedYesterdayNames = (activeMembersRaw ?? [])
-    .filter((m: { id: string }) => !yesterdayUpdatedIds.has(m.id))
+    .filter((m: { id: string; is_management?: boolean | null; is_freelancer_login?: boolean | null }) =>
+      !m.is_management && !m.is_freelancer_login && !yesterdayUpdatedIds.has(m.id))
     .map((m: { name: string }) => m.name)
 
   // Build leave calendar map

@@ -1232,20 +1232,24 @@ export default function FreelancersMemberClient({
             return (
               <div>
                 {/* HERO BANNER */}
-                <div style={{ margin: "16px 16px 0", borderRadius: 24, overflow: "hidden", background: `linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.82) 100%), linear-gradient(135deg, ${cfg.color} 0%, #060606 100%)`, boxShadow: `0 10px 38px rgba(0,0,0,0.4)`, position: "relative", minHeight: 210 }}>
+                <div style={{ margin: "16px 16px 0", position: "relative" }}>
+                  {/* Character image — outside overflow:hidden so it hangs below the card */}
+                  {selectedFreelancer.team === "Freelance RJ Voiceover" && (
+                    <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
+                      style={{ position: "absolute", bottom: -48, right: 18, height: 290, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.45))", zIndex: 10 }} />
+                  )}
+                <div style={{ borderRadius: 24, overflow: "hidden", background: `linear-gradient(135deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.82) 100%), linear-gradient(135deg, ${cfg.color} 0%, #060606 100%)`, boxShadow: `0 10px 38px rgba(0,0,0,0.4)`, position: "relative", minHeight: 210 }}>
                   <div style={{ position: "absolute", top: -50, right: -50, width: 220, height: 220, borderRadius: "50%", background: "rgba(255,255,255,0.07)", pointerEvents: "none" }} />
                   <div style={{ position: "absolute", bottom: -30, left: 140, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
                   <div style={{ position: "absolute", top: 20, left: 220, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
-                  {/* RJ Voiceover: soundwave + character image */}
-                  {selectedFreelancer.team === "Freelance RJ Voiceover" && (<>
-                    <svg viewBox="0 0 320 80" style={{ position: "absolute", bottom: 28, right: 180, width: 220, height: 56, opacity: 0.22, pointerEvents: "none" }} preserveAspectRatio="none">
+                  {/* RJ Voiceover: soundwave */}
+                  {selectedFreelancer.team === "Freelance RJ Voiceover" && (
+                    <svg viewBox="0 0 320 80" style={{ position: "absolute", bottom: 24, right: 160, width: 220, height: 56, opacity: 0.22, pointerEvents: "none" }} preserveAspectRatio="none">
                       {[4,12,28,8,20,36,14,42,10,26,38,6,30,16,44,22,32,8,18,40,12,34,24,10,46,20,8,30].map((h, i) => (
                         <rect key={i} x={i * 11 + 2} y={(80 - h) / 2} width={7} height={h} rx={3} fill="#A855F7" />
                       ))}
                     </svg>
-                    <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
-                      style={{ position: "absolute", bottom: 0, right: 12, height: 230, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 24px rgba(168,85,247,0.35))", zIndex: 1 }} />
-                  </>)}
+                  )}
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
@@ -1294,6 +1298,7 @@ export default function FreelancersMemberClient({
                       ))}
                     </div>
                   </div>
+                </div>
                 </div>
 
                 {/* WORK HISTORY */}

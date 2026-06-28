@@ -4,6 +4,10 @@ export type NotificationEvent =
   | 'shoot.submitted'
   | 'leave.approved'
   | 'leave.rejected'
+  | 'wfh.approved'
+  | 'wfh.rejected'
+  | 'shoot.approved'
+  | 'shoot.rejected'
   | 'daily_update.submitted'
   | 'daily_update.missing'
   | 'hours.underperformance'
@@ -23,7 +27,7 @@ export interface LeaveSubmittedPayload {
 }
 
 export interface LeaveStatusPayload {
-  event: 'leave.approved' | 'leave.rejected'
+  event: 'leave.approved' | 'leave.rejected' | 'wfh.approved' | 'wfh.rejected' | 'shoot.approved' | 'shoot.rejected'
   employee_name: string
   employee_phone: string
   from_date: string

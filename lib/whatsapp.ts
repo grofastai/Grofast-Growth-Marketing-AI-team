@@ -157,6 +157,42 @@ export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
     },
   },
 
+  'wfh.approved': {
+    name: 'grofast_wfh_approved',
+    resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveStatusPayload
+      return [lp.employee_name, lp.from_date, lp.to_date]
+    },
+  },
+
+  'wfh.rejected': {
+    name: 'grofast_wfh_rejected',
+    resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveStatusPayload
+      return [lp.employee_name, lp.from_date, lp.to_date]
+    },
+  },
+
+  'shoot.approved': {
+    name: 'grofast_shoot_approved',
+    resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveStatusPayload
+      return [lp.employee_name, lp.from_date, lp.to_date]
+    },
+  },
+
+  'shoot.rejected': {
+    name: 'grofast_shoot_rejected',
+    resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveStatusPayload
+      return [lp.employee_name, lp.from_date, lp.to_date]
+    },
+  },
+
   'attendance.late': {
     name: 'grofast_late_arrival',
     resolvePhone: (p) => (p as LateArrivalPayload).admin_phone ?? null,

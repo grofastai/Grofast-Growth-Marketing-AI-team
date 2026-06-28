@@ -1513,8 +1513,8 @@ export default function HistoryClient({
                     </div>
                   )}
                   {/* Day header */}
-                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid #F5F6FA", flexWrap:"wrap", gap:8 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:"1px solid #F5F6FA", gap:8, flexWrap:"nowrap", overflowX:"auto" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
                       <div style={{ width:38, height:38, borderRadius:10, background:"rgba(222,26,26,0.08)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                         <span style={{ fontSize:14, fontWeight:900, color:"#DE1A1A", lineHeight:1 }}>
                           {new Date(u.date + "T12:00:00").getDate()}
@@ -1523,9 +1523,9 @@ export default function HistoryClient({
                           {new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { month:"short" })}
                         </span>
                       </div>
-                      <div>
-                        <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0 }}>{dateLabel}</p>
-                        <p style={{ fontSize:10, color:"#9CA3AF", margin:0 }}>
+                      <div style={{ minWidth:0 }}>
+                        <p style={{ fontSize:13, fontWeight:800, color:"#111111", margin:0, whiteSpace:"nowrap" }}>{dateLabel}</p>
+                        <p style={{ fontSize:10, color:"#9CA3AF", margin:0, whiteSpace:"nowrap" }}>
                           {(() => {
                             const workCount  = entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
                             const learnCount = entries.filter(e => e.task_type === "learning").length + (u.learning_topic && !entries.some(e => e.task_type === "learning") ? 1 : 0)
@@ -1539,7 +1539,7 @@ export default function HistoryClient({
                         </p>
                       </div>
                     </div>
-                    <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", justifyContent:"flex-end" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"nowrap", flexShrink:0 }}>
                       {(() => {
                         const workH   = calcNetWorkHours(entries, workLayout ?? undefined)
                         const travelH = entries.filter(e => e.task_type === "shoot").reduce((s, e) => s + (e._travel_hours ?? 0), 0)
@@ -1551,31 +1551,31 @@ export default function HistoryClient({
                         return (
                           <>
                             {displayH > 0 && (
-                              <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4 }}>
+                              <span style={{ fontSize:11, fontWeight:700, color:"#374151", display:"flex", alignItems:"center", gap:4, whiteSpace:"nowrap" }}>
                                 <Clock size={11} style={{ color:"#9CA3AF" }}/>
                                 {fmtH(displayH)}
-                                {collabH > 0 && <span style={{ fontSize:9, fontWeight:600, color:"#6366F1" }}>(+{fmtH(collabH)} collab)</span>}
+                                {collabH > 0 && <span style={{ fontSize:9, fontWeight:600, color:"#6366F1", whiteSpace:"nowrap" }}>(+{fmtH(collabH)})</span>}
                               </span>
                             )}
                             {travelH > 0 && (
-                              <span style={{ fontSize:10, fontWeight:700, color:"#D97706", display:"flex", alignItems:"center", gap:3, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:99, padding:"2px 8px" }}>
-                                🚗 {fmtH(travelH)} travel
+                              <span style={{ fontSize:10, fontWeight:700, color:"#D97706", display:"flex", alignItems:"center", gap:3, background:"rgba(245,158,11,0.08)", border:"1px solid rgba(245,158,11,0.2)", borderRadius:99, padding:"2px 7px", whiteSpace:"nowrap" }}>
+                                🚗 {fmtH(travelH)}
                               </span>
                             )}
                             {learnH > 0 && (
-                              <span style={{ fontSize:10, fontWeight:700, color:"#6366F1", display:"flex", alignItems:"center", gap:3, background:"rgba(99,102,241,0.08)", border:"1px solid rgba(99,102,241,0.2)", borderRadius:99, padding:"2px 8px" }}>
-                                📚 {fmtH(learnH)} learn
+                              <span style={{ fontSize:10, fontWeight:700, color:"#6366F1", display:"flex", alignItems:"center", gap:3, background:"rgba(99,102,241,0.08)", border:"1px solid rgba(99,102,241,0.2)", borderRadius:99, padding:"2px 7px", whiteSpace:"nowrap" }}>
+                                📚 {fmtH(learnH)}
                               </span>
                             )}
                             {breakH > 0 && (
-                              <span style={{ fontSize:10, fontWeight:700, color:"#78716C", display:"flex", alignItems:"center", gap:3, background:"rgba(120,113,108,0.08)", border:"1px solid rgba(120,113,108,0.18)", borderRadius:99, padding:"2px 8px" }}>
-                                ☕ {fmtH(breakH)} break
+                              <span style={{ fontSize:10, fontWeight:700, color:"#78716C", display:"flex", alignItems:"center", gap:3, background:"rgba(120,113,108,0.08)", border:"1px solid rgba(120,113,108,0.18)", borderRadius:99, padding:"2px 7px", whiteSpace:"nowrap" }}>
+                                ☕ {fmtH(breakH)}
                               </span>
                             )}
                           </>
                         )
                       })()}
-                      <span style={{ fontSize:11, fontWeight:700, color:st.color, background:st.bg, padding:"3px 10px", borderRadius:99 }}>
+                      <span style={{ fontSize:11, fontWeight:700, color:st.color, background:st.bg, padding:"3px 10px", borderRadius:99, whiteSpace:"nowrap", flexShrink:0 }}>
                         {st.label}
                       </span>
                       <button

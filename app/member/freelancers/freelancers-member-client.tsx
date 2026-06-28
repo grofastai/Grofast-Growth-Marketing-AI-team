@@ -771,7 +771,7 @@ function DetailHistoryRow({ entry, onEdit, onDelete, onTogglePaid }: {
   const durDisplay = durMins > 0 ? `${Math.floor(durMins)}m ${Math.round((durMins % 1) * 60)}s` : null
 
   return (
-    <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F0F5", padding: "16px 18px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)", display: "flex", alignItems: "flex-start", gap: 14, transition: "box-shadow 0.15s", minWidth: 420 }}
+    <div style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #F0F0F5", padding: "14px 16px", boxShadow: "0 2px 12px rgba(0,0,0,0.04)", display: "flex", alignItems: "flex-start", gap: 12, transition: "box-shadow 0.15s" }}
       onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 24px rgba(0,0,0,0.09)"}
       onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 12px rgba(0,0,0,0.04)"}>
       <div style={{ width: 46, height: 46, borderRadius: 14, flexShrink: 0, background: `linear-gradient(135deg, ${cfg.color}18 0%, ${cfg.color}08 100%)`, border: `1.5px solid ${cfg.color}25`, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}>
@@ -908,6 +908,7 @@ export default function FreelancersMemberClient({
   )
   const [workEntries, setWorkEntries] = useState(initialEntries)
   const [selectedId, setSelectedId] = useState<string | null>(initialSelectedId ?? null)
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>(() => initialSelectedId ? 'detail' : 'list')
   const [globalMonth, setGlobalMonth] = useState(currentYM())
   const [globalAllTime, setGlobalAllTime] = useState(false)
   const [detailMonth, setDetailMonth] = useState(currentYM())
@@ -1019,7 +1020,7 @@ export default function FreelancersMemberClient({
             <h1 style={{ fontSize: 20, fontWeight: 900, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>Freelancers</h1>
             <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>{activeFreelancers.length} active · {new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" })}</p>
           </div>
-          <div style={{ display: "flex", background: "#F9FAFB", borderRadius: 14, border: "1px solid #EBEBEB", overflow: "hidden" }}>
+          <div style={{ display: "flex", background: "#F9FAFB", borderRadius: 14, border: "1px solid #EBEBEB", overflowX: "auto" }}>
             {([
               { label: "Freelancers", value: String(globalStats.total), color: "#6366F1" },
               { label: "Works", value: String(globalStats.totalWorks), color: "#0EA5E9" },
@@ -1027,7 +1028,7 @@ export default function FreelancersMemberClient({
               { label: "Paid", value: fmt(globalStats.paidCost), color: "#10B981" },
               { label: "Unpaid", value: fmt(globalStats.unpaidCost), color: "#EF4444" },
             ] as const).map((s, i) => (
-              <div key={s.label} style={{ padding: "8px 14px", borderRight: i < 4 ? "1px solid #EBEBEB" : "none", textAlign: "center" }}>
+              <div key={s.label} style={{ padding: "8px 14px", borderRight: i < 4 ? "1px solid #EBEBEB" : "none", textAlign: "center", flexShrink: 0 }}>
                 <p style={{ fontSize: 14, fontWeight: 900, color: s.color, margin: 0, fontFamily: "var(--font-jakarta)" }}>{s.value}</p>
                 <p style={{ fontSize: 9, color: "#9CA3AF", fontWeight: 700, margin: "1px 0 0", textTransform: "uppercase", letterSpacing: "0.07em", whiteSpace: "nowrap" }}>{s.label}</p>
               </div>
@@ -1048,7 +1049,7 @@ export default function FreelancersMemberClient({
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
         {/* LEFT panel */}
-        {!hideLeftPanel && <div style={{ width: 276, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {!hideLeftPanel && <div className={mobileView === 'detail' ? 'hidden md:flex md:flex-col' : 'flex flex-col'} style={{ width: "100%", maxWidth: 276, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", overflow: "hidden" }}>
           <div style={{ borderBottom: "1px solid #F5F5F7", padding: "8px 10px", display: "flex", gap: 4, flexWrap: "wrap", flexShrink: 0, alignItems: "center", overflowX: "auto" }}>
             <button onClick={() => { setTeamFilter("all"); setSelectedId(null) }} style={{ padding: "6px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", background: teamFilter === "all" && !selectedId ? "#111" : "#F5F5F7", color: teamFilter === "all" && !selectedId ? "#fff" : "#6B7280", transition: "all 0.15s", flexShrink: 0 }}>
               All {activeFreelancers.length}
@@ -1070,7 +1071,7 @@ export default function FreelancersMemberClient({
               return (
                 <div key={f.id}>
                   <FreelancerListItem freelancer={f} works={fEntries.length} total={fTotal} unpaid={fUnpaid}
-                    isSelected={f.id === selectedId} onClick={() => setSelectedId(f.id)} />
+                    isSelected={f.id === selectedId} onClick={() => { setSelectedId(f.id); setMobileView('detail') }} />
                   <div style={{ padding: "0 14px 6px", opacity: 0.45 }}>
                     <Sparkline data={sparkData[f.id] ?? []} color={TEAM_CFG[f.team].color} />
                   </div>
@@ -1081,7 +1082,15 @@ export default function FreelancersMemberClient({
         </div>}
 
         {/* RIGHT panel */}
-        <div style={{ flex: 1, overflowY: "auto" }}>
+        <div className={!hideLeftPanel && mobileView === 'list' ? 'hidden md:flex md:flex-col md:flex-1' : 'flex flex-col flex-1'} style={{ overflowY: "auto" }}>
+          {/* Mobile back button — only shown when in detail view on mobile */}
+          {!hideLeftPanel && mobileView === 'detail' && (
+            <button className="md:hidden flex items-center gap-2 px-4 py-3 border-b border-gray-100 bg-white flex-shrink-0"
+              style={{ fontSize: 13, fontWeight: 700, color: "#374151", cursor: "pointer", background: "#FFFFFF", border: "none", borderBottom: "1px solid #F0F0F5", textAlign: "left" }}
+              onClick={() => { setSelectedId(null); setMobileView('list') }}>
+              ← Back to All Freelancers
+            </button>
+          )}
           {!selectedFreelancer ? (() => {
             // ── All Freelancers combined view ──────────────────────────
             const allEntries = [...globalMonthEntries].sort((a, b) => b.date_finished.localeCompare(a.date_finished))
@@ -1120,7 +1129,7 @@ export default function FreelancersMemberClient({
                         )}
                       </div>
                     </div>
-                    <div style={{ display: "flex", gap: 10, marginTop: 18, paddingBottom: 24, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 10, marginTop: 18, paddingBottom: 24, overflowX: "auto" }}>
                       {[
                         { label: "Works", value: String(totalCount) },
                         { label: "Total Cost", value: allTotal > 0 ? fmt(allTotal) : "—" },
@@ -1128,7 +1137,7 @@ export default function FreelancersMemberClient({
                         { label: "Unpaid", value: allUnpaid > 0 ? fmt(allUnpaid) : "—" },
                         { label: "Members", value: String(globalStats.total) },
                       ].map(k => (
-                        <div key={k.label} style={{ background: "rgba(255,255,255,0.12)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.2)", padding: "10px 16px", backdropFilter: "blur(8px)", minWidth: 85 }}>
+                        <div key={k.label} style={{ background: "rgba(255,255,255,0.12)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.2)", padding: "10px 16px", backdropFilter: "blur(8px)", minWidth: 85, flexShrink: 0 }}>
                           <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: 0, fontFamily: "var(--font-jakarta)" }}>{k.value}</p>
                           <p style={{ fontSize: 9, color: "rgba(255,255,255,0.65)", margin: "3px 0 0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{k.label}</p>
                         </div>
@@ -1150,7 +1159,6 @@ export default function FreelancersMemberClient({
                       <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 6 }}>Select a member from the left panel to add work entries.</p>
                     </div>
                   ) : (
-                    <div style={{ overflowX: "auto" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px" }}>
                       {allEntries.map(e => {
                         const fl = activeFreelancers.find(f => f.id === e.freelancer_id)
@@ -1220,7 +1228,6 @@ export default function FreelancersMemberClient({
                         )
                       })}
                     </div>
-                    </div>
                   )}
                 </div>
                 <div style={{ height: 24 }} />
@@ -1239,16 +1246,16 @@ export default function FreelancersMemberClient({
                   <div style={{ position: "absolute", bottom: -30, left: 140, width: 150, height: 150, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
                   <div style={{ position: "absolute", top: 20, left: 220, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.06)", pointerEvents: "none" }} />
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                        <div style={{ width: 64, height: 64, borderRadius: 20, background: "rgba(255,255,255,0.25)", border: "2.5px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
-                          <span style={{ fontSize: 24, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)" }}>{getInitials(selectedFreelancer.name)}</span>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                        <div style={{ width: 56, height: 56, borderRadius: 18, background: "rgba(255,255,255,0.25)", border: "2.5px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 4px 20px rgba(0,0,0,0.15)" }}>
+                          <span style={{ fontSize: 20, fontWeight: 900, color: "#fff", fontFamily: "var(--font-jakarta)" }}>{getInitials(selectedFreelancer.name)}</span>
                         </div>
                         <div>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 99, background: "rgba(255,255,255,0.2)", color: "#fff", border: "1px solid rgba(255,255,255,0.3)", marginBottom: 6 }}>
                             {cfg.emoji} {cfg.shortLabel}
                           </span>
-                          <h2 style={{ fontSize: 24, fontWeight: 900, color: "#fff", margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{selectedFreelancer.name}</h2>
+                          <h2 style={{ fontSize: "clamp(18px,4vw,24px)", fontWeight: 900, color: "#fff", margin: 0, fontFamily: "var(--font-jakarta)", lineHeight: 1.2 }}>{selectedFreelancer.name}</h2>
                           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                               <Star size={12} fill="#FACC15" color="#FACC15" />
@@ -1258,14 +1265,14 @@ export default function FreelancersMemberClient({
                           </div>
                         </div>
                       </div>
-                      <button onClick={() => setAddWorkFor(selectedFreelancer)} style={{ padding: "10px 20px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 13, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0, transition: "all 0.15s" }}
+                      <button onClick={() => setAddWorkFor(selectedFreelancer)} style={{ padding: "9px 16px", borderRadius: 12, border: "2px solid rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.2)", color: "#fff", fontSize: 12, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", gap: 7, backdropFilter: "blur(10px)", flexShrink: 0, transition: "all 0.15s" }}
                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.3)"}
                         onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.2)"}>
-                        <Plus size={15} /> Add Work Entry
+                        <Plus size={14} /> Add Work
                       </button>
                     </div>
                     {/* KPI glass strip */}
-                    <div style={{ display: "flex", gap: 10, marginTop: 22, paddingBottom: 24, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 10, marginTop: 22, paddingBottom: 24, overflowX: "auto" }}>
                       {[
                         { label: "Works", value: String(detailStats.works) },
                         { label: "Total Cost", value: detailStats.total > 0 ? fmt(detailStats.total) : "—" },
@@ -1273,7 +1280,7 @@ export default function FreelancersMemberClient({
                         { label: "Unpaid", value: detailStats.unpaid > 0 ? fmt(detailStats.unpaid) : "—" },
                         { label: "Avg / Work", value: detailStats.avg > 0 ? fmt(detailStats.avg) : "—" },
                       ].map(k => (
-                        <div key={k.label} style={{ background: "rgba(255,255,255,0.92)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.6)", padding: "10px 16px", minWidth: 90 }}>
+                        <div key={k.label} style={{ background: "rgba(255,255,255,0.92)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.6)", padding: "10px 16px", minWidth: 90, flexShrink: 0 }}>
                           <p style={{ fontSize: 16, fontWeight: 900, color: cfg.color, margin: 0, fontFamily: "var(--font-jakarta)" }}>{k.value}</p>
                           <p style={{ fontSize: 9, color: "#6B7280", margin: "3px 0 0", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{k.label}</p>
                         </div>
@@ -1284,22 +1291,22 @@ export default function FreelancersMemberClient({
 
                 {/* WORK HISTORY */}
                 <div style={{ margin: "14px 16px 0", background: "#FFFFFF", borderRadius: 20, border: "1px solid #F0F0F5", overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,0.04)" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid #F5F5F7" }}>
-                    <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px", borderBottom: "1px solid #F5F5F7", gap: 8, flexWrap: "wrap" }}>
+                    <div style={{ flexShrink: 0 }}>
                       <p style={{ fontSize: 14, fontWeight: 900, color: "#111", margin: 0, fontFamily: "var(--font-jakarta)" }}>Work History</p>
-                      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0" }}>
+                      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "2px 0 0", whiteSpace: "nowrap" }}>
                         {isEmbedded
-                          ? (globalAllTime ? "All time" : new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" }))
-                          : (detailAllTime ? "All time" : new Date(detailMonth + "-01").toLocaleDateString("en-IN", { month: "long", year: "numeric" }))
+                          ? (globalAllTime ? "All time" : new Date(globalMonth + "-01").toLocaleDateString("en-IN", { month: "short", year: "numeric" }))
+                          : (detailAllTime ? "All time" : new Date(detailMonth + "-01").toLocaleDateString("en-IN", { month: "short", year: "numeric" }))
                         } · {detailEntries.length} {detailEntries.length === 1 ? "entry" : "entries"}
                       </p>
                     </div>
                     {!isEmbedded && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <button onClick={() => setDetailAllTime(v => !v)} style={{ padding: "3px 10px", borderRadius: 99, fontSize: 10, fontWeight: 700, border: "1px solid #EBEBEB", cursor: "pointer", background: detailAllTime ? "#111" : "#F9FAFB", color: detailAllTime ? "#fff" : "#6B7280", transition: "all 0.15s" }}>All Time</button>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                        <button onClick={() => setDetailAllTime(v => !v)} style={{ padding: "3px 10px", borderRadius: 99, fontSize: 10, fontWeight: 700, border: "1px solid #EBEBEB", cursor: "pointer", background: detailAllTime ? "#111" : "#F9FAFB", color: detailAllTime ? "#fff" : "#6B7280", transition: "all 0.15s", whiteSpace: "nowrap" }}>All Time</button>
                         <div style={{ display: "flex", alignItems: "center", gap: 4, background: "#F9FAFB", border: "1px solid #EBEBEB", borderRadius: 10, padding: "4px 7px" }}>
                           <button onClick={() => { setDetailAllTime(false); setDetailMonth(prevMonth(detailMonth)) }} style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ChevronLeft size={12} color="#6B7280" /></button>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "#374151", minWidth: 80, textAlign: "center" }}>{new Date(detailMonth + "-01").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#374151", minWidth: 72, textAlign: "center", whiteSpace: "nowrap" }}>{new Date(detailMonth + "-01").toLocaleDateString("en-IN", { month: "short", year: "numeric" })}</span>
                           <button onClick={() => { setDetailAllTime(false); setDetailMonth(nextMonth(detailMonth)) }} disabled={detailMonth >= currentYM()} style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "transparent", cursor: detailMonth >= currentYM() ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: detailMonth >= currentYM() ? 0.3 : 1 }}><ChevronRight size={12} color="#6B7280" /></button>
                         </div>
                       </div>
@@ -1312,7 +1319,6 @@ export default function FreelancersMemberClient({
                       <p style={{ fontSize: 12, color: "#9CA3AF", marginTop: 6 }}>Click &quot;Add Work Entry&quot; to log work for {selectedFreelancer.name}.</p>
                     </div>
                   ) : (
-                    <div style={{ overflowX: "auto" }}>
                     <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "14px" }}>
                       {detailEntries.map(e => (
                         <DetailHistoryRow key={e.id} entry={e}
@@ -1321,7 +1327,6 @@ export default function FreelancersMemberClient({
                           onTogglePaid={() => handleTogglePaid(e)}
                         />
                       ))}
-                    </div>
                     </div>
                   )}
                 </div>

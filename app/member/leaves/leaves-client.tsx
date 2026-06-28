@@ -358,10 +358,10 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
             </p>
           </div>
 
-          {/* Center: large illustration — anchored bottom */}
-          <div className="hidden sm:block" style={{ position: "absolute", left: "50%", transform: "translateX(-46%)", bottom: 0, zIndex: 1 }}>
+          {/* Center: large illustration — anchored bottom, visible on all screens */}
+          <div style={{ position: "absolute", left: "50%", transform: "translateX(-46%)", bottom: 0, zIndex: 1 }}>
             <Image src="/brand/leave-hero.png" alt="" width={500} height={260}
-              style={{ objectFit: "contain", objectPosition: "bottom center", display: "block" }} priority />
+              style={{ objectFit: "contain", objectPosition: "bottom center", display: "block", maxHeight: "clamp(120px,30vw,260px)" }} priority />
           </div>
 
           {/* Apply Leave CTA — desktop only (top-right corner) */}
@@ -427,43 +427,25 @@ export default function MemberLeavesClient({ leaves: initialLeaves, userName, pa
           <div style={{ background: "#fff", borderRadius: 20, border: "1px solid #EBEDF2", boxShadow: "0 1px 4px rgba(0,0,0,0.04),0 4px 16px rgba(0,0,0,0.04)", padding: "24px", marginBottom: 20 }}>
 
             {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, gap: 12, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
                 <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(222,26,26,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <CalendarDays size={16} style={{ color: "#DE1A1A" }} />
                 </div>
                 <div>
-                  <h2 style={{ fontSize: 15, fontWeight: 900, color: "#0A0A0B", margin: 0 }}>Your Leave Timeline</h2>
+                  <h2 style={{ fontSize: 15, fontWeight: 900, color: "#0A0A0B", margin: 0 }}>Leave Timeline</h2>
                   <p style={{ fontSize: 11, color: "#9CA3AF", margin: 0 }}>{filteredLeaves.length} request{filteredLeaves.length !== 1 ? "s" : ""}</p>
                 </div>
               </div>
 
-              {/* Filters */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                {/* Dropdown */}
-                <div style={{ position: "relative" }}>
-                  <button onClick={() => setFilterOpen(o => !o)}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", fontSize: 12, fontWeight: 600, color: "#374151", cursor: "pointer" }}>
-                    {filterStatus === "all" ? "All Status" : filterStatus}
-                    <ChevronDown size={13} style={{ transform: filterOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+              {/* Filters — horizontal scroll on mobile */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, overflowX: "auto", flexShrink: 0 }}>
+                {["all", "pending", "approved", "rejected"].map(s => (
+                  <button key={s} onClick={() => setFilter(s)}
+                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "7px 12px", borderRadius: 10, background: filterStatus === s ? "rgba(222,26,26,0.08)" : "#F5F6FA", border: filterStatus === s ? "1.5px solid rgba(222,26,26,0.3)" : "1px solid #EBEDF2", fontSize: 11, fontWeight: 700, color: filterStatus === s ? "#DE1A1A" : "#374151", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, textTransform: "capitalize" as const }}>
+                    {s === "all" ? "All" : s}
                   </button>
-                  {filterOpen && (
-                    <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", borderRadius: 12, border: "1px solid #EBEDF2", boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 20, minWidth: 140, overflow: "hidden" }}>
-                      {["all", "pending", "approved", "rejected", "absent"].map(s => ( // "absent" = system-marked leave days
-                        <button key={s} onClick={() => { setFilter(s); setFilterOpen(false) }}
-                          style={{ display: "block", width: "100%", textAlign: "left", padding: "10px 14px", fontSize: 12, fontWeight: 600, color: filterStatus === s ? "#DE1A1A" : "#374151", background: filterStatus === s ? "rgba(222,26,26,0.05)" : "none", border: "none", cursor: "pointer", textTransform: "capitalize" }}>
-                          {s === "all" ? "All Status" : s}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <button style={{ width: 36, height: 36, borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                  <SlidersHorizontal size={14} style={{ color: "#6B7280" }} />
-                </button>
-                <button style={{ width: 36, height: 36, borderRadius: 10, background: "#F5F6FA", border: "1px solid #EBEDF2", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-                  <Calendar size={14} style={{ color: "#6B7280" }} />
-                </button>
+                ))}
               </div>
             </div>
 

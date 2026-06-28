@@ -795,33 +795,35 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                 return (
                   <div style={{ borderTop: "1px solid #F3F4F6", paddingTop: 12, marginTop: 4 }}>
                     {/* Visual equation: span − break = worked */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", alignItems: "center", gap: 4, marginBottom: 10 }}>
-                      {/* Span */}
-                      <div style={{ textAlign: "center", background: "rgba(99,102,241,0.07)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(99,102,241,0.15)" }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px" }}>Logged</p>
-                        <p style={{ fontSize: 15, fontWeight: 900, color: "#6366F1", margin: 0, fontFamily: "var(--font-jakarta)" }}>{fmtHoursShort(spanH)}</p>
-                      </div>
-                      <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>−</span>
-                      {/* Break */}
-                      <div style={{ textAlign: "center", background: "rgba(245,158,11,0.06)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(245,158,11,0.15)" }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: "#D97706", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px" }}>Break</p>
-                        <p style={{ fontSize: 15, fontWeight: 900, color: "#D97706", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-                          {totalBreakMins > 0 ? fmtHoursShort(breakH) : "0h"}
-                        </p>
-                      </div>
-                      <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>=</span>
-                      {/* Worked */}
-                      <div style={{ textAlign: "center", background: "rgba(34,197,94,0.08)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(34,197,94,0.2)" }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px" }}>Worked</p>
-                        <p style={{ fontSize: 15, fontWeight: 900, color: "#16A34A", margin: 0, fontFamily: "var(--font-jakarta)" }}>
-                          {hoursWorked > 0 ? fmtHoursShort(hoursWorked) : "—"}
-                        </p>
+                    <div style={{ overflowX: "auto" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr auto 1fr", alignItems: "center", gap: 4, marginBottom: 10, minWidth: 260 }}>
+                        {/* Span */}
+                        <div style={{ textAlign: "center", background: "rgba(99,102,241,0.07)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(99,102,241,0.15)" }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: "#6366F1", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px", whiteSpace: "nowrap" }}>Logged</p>
+                          <p style={{ fontSize: 15, fontWeight: 900, color: "#6366F1", margin: 0, fontFamily: "var(--font-jakarta)" }}>{fmtHoursShort(spanH)}</p>
+                        </div>
+                        <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>−</span>
+                        {/* Break */}
+                        <div style={{ textAlign: "center", background: "rgba(245,158,11,0.06)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(245,158,11,0.15)" }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: "#D97706", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px", whiteSpace: "nowrap" }}>Break</p>
+                          <p style={{ fontSize: 15, fontWeight: 900, color: "#D97706", margin: 0, fontFamily: "var(--font-jakarta)" }}>
+                            {totalBreakMins > 0 ? fmtHoursShort(breakH) : "0h"}
+                          </p>
+                        </div>
+                        <span style={{ fontSize: 16, fontWeight: 900, color: "#D1D5DB" }}>=</span>
+                        {/* Worked */}
+                        <div style={{ textAlign: "center", background: "rgba(34,197,94,0.08)", borderRadius: 10, padding: "8px 4px", border: "1px solid rgba(34,197,94,0.2)" }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.08em", margin: "0 0 2px", whiteSpace: "nowrap" }}>Worked</p>
+                          <p style={{ fontSize: 15, fontWeight: 900, color: "#16A34A", margin: 0, fontFamily: "var(--font-jakarta)" }}>
+                            {hoursWorked > 0 ? fmtHoursShort(hoursWorked) : "—"}
+                          </p>
+                        </div>
                       </div>
                     </div>
                     {/* Target bar */}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <span style={{ fontSize: 11, color: "#9CA3AF" }}>Target: {fmtHoursShort(SHIFT_HOURS)} shift</span>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: hoursWorked >= SHIFT_HOURS ? "#16A34A" : "#de1a1a" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "nowrap", gap: 4 }}>
+                      <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap" }}>Target: {fmtHoursShort(SHIFT_HOURS)}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: hoursWorked >= SHIFT_HOURS ? "#16A34A" : "#de1a1a", whiteSpace: "nowrap" }}>
                         {hoursWorked >= SHIFT_HOURS ? "Target reached ✓" : `${fmtHoursShort(Math.max(0, SHIFT_HOURS - hoursWorked))} remaining`}
                       </span>
                     </div>

@@ -407,28 +407,28 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
       {/* ── Monthly Target Progress Bar ──────────────────────── */}
       {!isFreelancerMedia && (
-        <div className="rounded-2xl px-5 py-4 mb-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF" }}>
-          <div className="flex items-center justify-between mb-2.5">
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] font-bold" style={{ color: "#111111" }}>Monthly Target</span>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "rgba(99,102,241,0.08)", color: "#6366F1" }}>
-                25 days × 8.5h = 212.5h
+        <div className="rounded-2xl px-5 py-4 mb-5" style={{ background: "#FFFFFF", border: "1px solid #E8E9EF", overflowX: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 8, flexWrap: "nowrap", minWidth: 290 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#111111", whiteSpace: "nowrap" }}>Monthly Target</span>
+              <span style={{ fontSize: 9, fontWeight: 600, padding: "2px 7px", borderRadius: 99, background: "rgba(99,102,241,0.08)", color: "#6366F1", whiteSpace: "nowrap" }}>
+                25d × 8.5h = 212.5h
               </span>
             </div>
-            <div className="flex items-center gap-3">
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
               {overtimeHrs > 0 ? (
-                <span className="text-[11px] font-bold" style={{ color: "#EA580C" }}>+{overtimeHrs}h overtime</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#EA580C", whiteSpace: "nowrap" }}>+{overtimeHrs}h OT</span>
               ) : (
-                <span className="text-[11px] font-semibold" style={{ color: "#9CA3AF" }}>
-                  {Math.max(0, Math.round((212.5 - totalMonthHrs) * 10) / 10)}h remaining
+                <span style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", whiteSpace: "nowrap" }}>
+                  {Math.max(0, Math.round((212.5 - totalMonthHrs) * 10) / 10)}h left
                 </span>
               )}
-              <span className="text-[13px] font-black" style={{ color: overtimeHrs > 0 ? "#EA580C" : "#111111" }}>
+              <span style={{ fontSize: 13, fontWeight: 900, color: overtimeHrs > 0 ? "#EA580C" : "#111111", whiteSpace: "nowrap" }}>
                 {Math.min(100, Math.round((totalMonthHrs / 212.5) * 100))}%
               </span>
             </div>
           </div>
-          <div style={{ height: 10, borderRadius: 99, background: "#F3F4F6", overflow: "hidden" }}>
+          <div style={{ height: 10, borderRadius: 99, background: "#F3F4F6", overflow: "hidden", minWidth: 290 }}>
             <div style={{
               height: "100%",
               width: `${Math.min(100, (totalMonthHrs / 212.5) * 100)}%`,
@@ -441,11 +441,9 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
               transition: "width 0.6s ease",
             }} />
           </div>
-          <div className="flex justify-between mt-1.5">
-            <span className="text-[10px] font-semibold" style={{ color: "#9CA3AF" }}>
-              {totalMonthHrs}h worked
-            </span>
-            <span className="text-[10px] font-semibold" style={{ color: "#9CA3AF" }}>212.5h</span>
+          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6, minWidth: 290 }}>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "#9CA3AF", whiteSpace: "nowrap" }}>{totalMonthHrs}h worked</span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "#9CA3AF", whiteSpace: "nowrap" }}>212.5h</span>
           </div>
         </div>
       )}

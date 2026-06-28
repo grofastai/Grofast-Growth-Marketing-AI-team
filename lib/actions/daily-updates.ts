@@ -2,6 +2,7 @@
 
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { dailyUpdateSchema, type DailyUpdateInput } from '@/lib/validations/daily-update'
 import { sendNotification } from '@/lib/notifications/send'
@@ -13,6 +14,28 @@ function adminSupabase() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
+}
+
+async function getUserContext(): Promise<{ userId: string; companyId: string } | { error: string }> {
+  const supabase = await createServerClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const admin = adminSupabase()
+  const { data } = await admin.from('users').select('role, company_id').eq('id', user.id).single()
+  if (!data?.company_id) return { error: 'Profile not found — re-login required' }
+
+  if (data.role === 'ADMIN') {
+    const impersonateId = (await cookies()).get('gf_impersonate')?.value
+    if (impersonateId && impersonateId !== user.id) {
+      const { data: target } = await admin.from('users').select('company_id').eq('id', impersonateId).single()
+      if (target?.company_id && target.company_id === data.company_id) {
+        return { userId: impersonateId, companyId: target.company_id as string }
+      }
+    }
+  }
+
+  return { userId: user.id, companyId: data.company_id as string }
 }
 
 // Always recompute duration_hours from start_time→end_time so manual edits never drift
@@ -81,15 +104,15 @@ export async function submitDailyUpdate(
     return { success: false, error: parsed.error.issues[0].message }
   }
 
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  const ctx = await getUserContext()
+  if ('error' in ctx) return { success: false, error: ctx.error }
+  const { userId } = ctx
 
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users')
     .select('company_id, name, employee_id, phone, work_layout')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single()
 
   if (!profile?.company_id) return { success: false, error: 'Profile not found — re-login required' }
@@ -105,7 +128,7 @@ export async function submitDailyUpdate(
       .from('leaves')
       .select('id')
       .eq('company_id', profile.company_id)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('status', 'approved')
       .eq('leave_type', 'full_day')
       .lte('from_date', today)
@@ -128,13 +151,13 @@ export async function submitDailyUpdate(
     admin
       .from('daily_updates')
       .select('id, work_entries, working_hours, shoot_count, editing_count, learning_hours')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('date', today)
       .maybeSingle(),
     admin
       .from('attendance_logs')
       .select('work_type')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('date', today)
       .maybeSingle(),
   ])
@@ -195,7 +218,7 @@ export async function submitDailyUpdate(
     if (updateError) return { success: false, error: updateError.message }
 
     // Sync collaboration confirmations for updated record
-    await syncCollaborationConfirmations(admin, existingRecord.id, user.id, profile.company_id, today, d.work_entries as Record<string, unknown>[])
+    await syncCollaborationConfirmations(admin, existingRecord.id, userId, profile.company_id, today, d.work_entries as Record<string, unknown>[])
   } else {
     isFirstSubmission = true
     const fixedNewEntries = fixEntryDurations(d.work_entries as Record<string, unknown>[])
@@ -203,7 +226,7 @@ export async function submitDailyUpdate(
       .from('daily_updates')
       .insert({
         company_id:          profile.company_id,
-        user_id:             user.id,
+        user_id:             userId,
         date:                today,
         attendance_status:   'present',
         work_type:           workType,
@@ -229,7 +252,7 @@ export async function submitDailyUpdate(
 
     // Sync collaboration confirmations for newly inserted record
     if (inserted?.id) {
-      await syncCollaborationConfirmations(admin, inserted.id, user.id, profile.company_id, today, d.work_entries as Record<string, unknown>[])
+      await syncCollaborationConfirmations(admin, inserted.id, userId, profile.company_id, today, d.work_entries as Record<string, unknown>[])
     }
   }
 
@@ -253,7 +276,7 @@ export async function submitDailyUpdate(
     await admin
       .from('attendance_logs')
       .update({ break_sessions: breakSessions, break_total_mins: totalBreakMins })
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('date', today)
       .eq('company_id', profile.company_id)
   }
@@ -309,23 +332,23 @@ export async function submitDailyUpdate(
 }
 
 export async function deleteDailyUpdate(id: string): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  const ctx = await getUserContext()
+  if ('error' in ctx) return { success: false, error: ctx.error }
+  const { userId } = ctx
 
   const admin = adminSupabase()
   const { data: record } = await admin
     .from('daily_updates')
     .select('date, company_id')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .single()
 
   const { error } = await admin
     .from('daily_updates')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
 
   if (error) return { success: false, error: error.message }
 
@@ -334,7 +357,7 @@ export async function deleteDailyUpdate(id: string): Promise<{ success: boolean;
     await admin
       .from('attendance_logs')
       .update({ break_total_mins: 0, break_sessions: [] })
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('date', record.date)
       .eq('company_id', record.company_id)
   }
@@ -349,14 +372,14 @@ export async function updatePastDailyUpdate(
   id: string,
   entries: Record<string, unknown>[]
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  const ctx = await getUserContext()
+  if ('error' in ctx) return { success: false, error: ctx.error }
+  const { userId } = ctx
 
   const admin = adminSupabase()
   const [{ data: record }, { data: uProfile }] = await Promise.all([
-    admin.from('daily_updates').select('date, company_id, work_entries').eq('id', id).eq('user_id', user.id).single(),
-    admin.from('users').select('work_layout').eq('id', user.id).single(),
+    admin.from('daily_updates').select('date, company_id, work_entries').eq('id', id).eq('user_id', userId).single(),
+    admin.from('users').select('work_layout').eq('id', userId).single(),
   ])
   const updateLayout = (uProfile?.work_layout ?? undefined) as 'media' | 'non_media' | 'freelance_media' | undefined
 
@@ -375,7 +398,7 @@ export async function updatePastDailyUpdate(
       editing_count: finalEntries.filter(e => e.task_type === 'edit').length,
     })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
 
   if (error) return { success: false, error: error.message }
 
@@ -393,7 +416,7 @@ export async function updatePastDailyUpdate(
     await admin
       .from('attendance_logs')
       .update({ break_sessions: breakSessions, break_total_mins: totalBreakMins })
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('date', record.date)
       .eq('company_id', record.company_id)
   }
@@ -410,9 +433,9 @@ export async function updateDailyUpdateLearning(
   id: string,
   data: { learning_hours: number | null; learning_topic: string | null; learning_notes: string | null; learning_start_time?: string | null; learning_end_time?: string | null }
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  const ctx = await getUserContext()
+  if ('error' in ctx) return { success: false, error: ctx.error }
+  const { userId } = ctx
 
   const admin = adminSupabase()
   const { error } = await admin
@@ -425,7 +448,7 @@ export async function updateDailyUpdateLearning(
       learning_end_time:   data.learning_end_time   ?? null,
     })
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
 
   if (error) return { success: false, error: error.message }
 
@@ -438,15 +461,15 @@ export async function addEntryToDate(
   newDate: string,
   entry: Record<string, unknown>
 ): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: false, error: 'Not authenticated' }
+  const ctx = await getUserContext()
+  if ('error' in ctx) return { success: false, error: ctx.error }
+  const { userId } = ctx
 
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users')
     .select('company_id, work_layout')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single()
   if (!profile) return { success: false, error: 'Profile not found' }
   const addLayout = (profile.work_layout ?? undefined) as 'media' | 'non_media' | 'freelance_media' | undefined
@@ -454,7 +477,7 @@ export async function addEntryToDate(
   const { data: existing } = await admin
     .from('daily_updates')
     .select('id, work_entries')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .eq('date', newDate)
     .eq('company_id', profile.company_id)
     .maybeSingle()
@@ -482,7 +505,7 @@ export async function addEntryToDate(
     const { error } = await admin
       .from('daily_updates')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         company_id: profile.company_id,
         date: newDate,
         attendance_status: 'present',
@@ -505,7 +528,7 @@ export async function addEntryToDate(
   await admin
     .from('attendance_logs')
     .update({ break_sessions: breakSessions, break_total_mins: totalBreakMins })
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .eq('date', newDate)
     .eq('company_id', profile.company_id)
 
@@ -549,15 +572,16 @@ export async function updateWorkEntryPrice(
 }
 
 export async function getTodayUpdate() {
-  const supabase = await createServerClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  const ctx = await getUserContext()
+  if ('error' in ctx) return null
+  const { userId } = ctx
 
+  const admin = adminSupabase()
   const today = new Date().toISOString().split('T')[0]
-  const { data } = await supabase
+  const { data } = await admin
     .from('daily_updates')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .eq('date', today)
     .single()
 

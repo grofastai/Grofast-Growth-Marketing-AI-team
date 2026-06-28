@@ -2,6 +2,7 @@
 
 import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
+import { cookies } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { sendNotification } from '@/lib/notifications/send'
 import { insertNotification, insertManyNotifications } from './notifications'
@@ -75,27 +76,44 @@ export async function submitLeaveRequest(
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return { error: 'Not authenticated' }
 
-  let company_id = parseCompanyId(session.access_token)
+  const adminCl = createAdminClient()
+
+  // Resolve effective user — admin impersonation support
+  let effectiveUserId = session.user.id
+  const { data: selfProfile } = await adminCl.from('users').select('role, company_id').eq('id', session.user.id).single()
+  if (selfProfile?.role === 'ADMIN') {
+    const impersonateId = (await cookies()).get('gf_impersonate')?.value
+    if (impersonateId && impersonateId !== session.user.id) {
+      const { data: target } = await adminCl.from('users').select('company_id').eq('id', impersonateId).single()
+      if (target?.company_id && target.company_id === selfProfile.company_id) {
+        effectiveUserId = impersonateId
+      }
+    }
+  }
+
+  let company_id = selfProfile?.role === 'ADMIN' && effectiveUserId !== session.user.id
+    ? (await adminCl.from('users').select('company_id').eq('id', effectiveUserId).single()).data?.company_id ?? null
+    : parseCompanyId(session.access_token)
   if (!company_id) {
-    const { data: u } = await supabase.from('users').select('company_id').eq('id', session.user.id).single()
+    const { data: u } = await adminCl.from('users').select('company_id').eq('id', effectiveUserId).single()
     company_id = u?.company_id ?? null
   }
   if (!company_id) return { error: 'Could not resolve company. Please sign out and sign in again.' }
 
-  const { data: profile } = await supabase
+  const { data: profile } = await adminCl
     .from('users')
     .select('name, employee_id')
-    .eq('id', session.user.id)
+    .eq('id', effectiveUserId)
     .single()
 
   // Monthly limit check (full_day + half_day only; permission/wfh/shoot_day excluded)
   const isExceptional = formData.get('is_exceptional') === 'true'
   if (!isExceptional && (parsed.data.leave_type === 'full_day' || parsed.data.leave_type === 'half_day')) {
     const currentMonth = parsed.data.from_date.slice(0, 7)
-    const { data: monthLeaves } = await supabase
+    const { data: monthLeaves } = await adminCl
       .from('leaves')
       .select('from_date, to_date, leave_type')
-      .eq('user_id', session.user.id)
+      .eq('user_id', effectiveUserId)
       .gte('from_date', `${currentMonth}-01`)
       .lte('from_date', `${currentMonth}-31`)
       .in('status', ['approved', 'pending'])
@@ -108,10 +126,10 @@ export async function submitLeaveRequest(
     if (used >= 5) return { error: 'Monthly leave limit reached (5/5). Apply as Exceptional Leave if urgent.' }
   }
 
-  const { data: overlapping } = await supabase
+  const { data: overlapping } = await adminCl
     .from('leaves')
     .select('id, leave_type')
-    .eq('user_id', session.user.id)
+    .eq('user_id', effectiveUserId)
     .lte('from_date', parsed.data.to_date)
     .gte('to_date', parsed.data.from_date)
     .not('status', 'eq', 'rejected')
@@ -129,9 +147,9 @@ export async function submitLeaveRequest(
     }
   }
 
-  const { data: inserted, error: insertError } = await (supabase.from('leaves') as any).insert({
+  const { data: inserted, error: insertError } = await (adminCl.from('leaves') as any).insert({
     company_id,
-    user_id:             session.user.id,
+    user_id:             effectiveUserId,
     from_date:           parsed.data.from_date,
     to_date:             parsed.data.to_date,
     reason:              isExceptional ? `[EXCEPTIONAL] ${parsed.data.reason}` : parsed.data.reason,

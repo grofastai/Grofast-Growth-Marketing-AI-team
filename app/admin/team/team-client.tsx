@@ -1583,7 +1583,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                   <div className="px-5 py-2.5" style={{ background: "#FFFBF5" }}>
                     <p className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: "#F97316" }}>Login Members</p>
                   </div>
-                  <div className="overflow-x-auto">
+                  <div style={{ overflowX: "visible" }}>
                   <table className="w-full" style={{ minWidth: 560 }}>
                     <thead>
                       <tr style={{ borderBottom: "1px solid #F9FAFB", background: "#FAFAFA" }}>

@@ -44,7 +44,7 @@ export default async function LeavesPage({
     .from("leaves")
     .select("*, users(id, name, employee_id, phone, gender)")
     .eq("company_id", cid)
-    .order("created_at", { ascending: false })
+    .order("from_date", { ascending: false })
 
   if (statusFilter !== "all") {
     leavesQuery = leavesQuery.eq("status", statusFilter)

@@ -385,7 +385,7 @@ export default function LeavesClient({
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: 0 }}>Review and manage team leave applications</p>
         </div>
         {/* 6 KPI boxes in 3×2 grid */}
-        <div className="grid grid-cols-3 w-full sm:w-auto" style={{ gap: 8, position: "relative", zIndex: 1 }}>
+        <div className="grid grid-cols-3 lg:grid-cols-6 w-full lg:w-auto" style={{ gap: 8, position: "relative", zIndex: 1 }}>
           {[
             { label: "Full Day",  value: fullDayCount,  color: "#FCA5A5" },
             { label: "WFH",       value: wfhCount,       color: "#6EE7B7" },

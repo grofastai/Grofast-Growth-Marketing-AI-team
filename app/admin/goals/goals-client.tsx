@@ -372,7 +372,7 @@ export default function GoalsClient({ tasks: initialTasks, members, projects, cl
           </div>
 
           {/* Right: controls */}
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <div className="flex items-center flex-wrap justify-center sm:justify-end" style={{ gap: 10, flexShrink: 0 }}>
             <div style={{ display: "flex", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: 4, gap: 3 }}>
               {([["member", <Users size={13} key="u" />, "By Member"], ["status", <Columns size={13} key="c" />, "By Status"]] as const).map(([mode, icon, label]) => (
                 <button key={mode} onClick={() => setViewMode(mode as "member" | "status")}

@@ -36,6 +36,10 @@ interface LeavesClientProps {
   approvedCount: number
   rejectedCount: number
   companyLeaves: CompanyLeave[]
+  fullDayCount: number
+  wfhCount: number
+  shootCount: number
+  halfDayCount: number
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -277,6 +281,7 @@ function LeaveCard({ leave, idx, isPending, actionId, onApprove, onReject }: {
 export default function LeavesClient({
   leaves, statusFilter, upcomingLeaves, availabilityPct, onLeaveToday,
   pendingCount, approvedCount, rejectedCount, companyLeaves,
+  fullDayCount, wfhCount, shootCount, halfDayCount,
 }: LeavesClientProps) {
   const router   = useRouter()
   const pathname = usePathname()
@@ -379,17 +384,19 @@ export default function LeavesClient({
           <h1 style={{ fontSize: 24, fontWeight: 900, color: "#FFFFFF", fontFamily: "var(--font-jakarta)", margin: "0 0 4px" }}>Leave Requests</h1>
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: 0 }}>Review and manage team leave applications</p>
         </div>
-        {/* Stat pills in header */}
-        <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-0 flex-wrap" style={{ position: "relative", zIndex: 1 }}>
+        {/* 6 KPI boxes in 3×2 grid */}
+        <div className="grid grid-cols-3 w-full sm:w-auto" style={{ gap: 8, position: "relative", zIndex: 1 }}>
           {[
-            { label: "Pending",  value: pendingCount,        color: "#FACC15" },
-            { label: "Approved", value: approvedCount,       color: "#6EE7B7" },
-            { label: "Rejected", value: rejectedCount,       color: "#FCA5A5" },
-            { label: "On Leave", value: onLeaveToday.length, color: "#C4B5FD" },
+            { label: "Full Day",  value: fullDayCount,  color: "#FCA5A5" },
+            { label: "WFH",       value: wfhCount,       color: "#6EE7B7" },
+            { label: "Shoot",     value: shootCount,     color: "#93C5FD" },
+            { label: "Half Day",  value: halfDayCount,   color: "#FDE68A" },
+            { label: "Approved",  value: approvedCount,  color: "#6EE7B7" },
+            { label: "Rejected",  value: rejectedCount,  color: "#FCA5A5" },
           ].map(s => (
-            <div key={s.label} style={{ textAlign: "center", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 14, padding: "8px 14px", minWidth: 64 }}>
-              <div style={{ fontSize: 22, fontWeight: 900, color: s.color, fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>{s.value}</div>
-              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.72)", fontWeight: 600, marginTop: 3 }}>{s.label}</div>
+            <div key={s.label} style={{ textAlign: "center", background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 12, padding: "8px 10px" }}>
+              <div style={{ fontSize: 20, fontWeight: 900, color: s.color, fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>{s.value}</div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.72)", fontWeight: 600, marginTop: 3, whiteSpace: "nowrap" }}>{s.label}</div>
             </div>
           ))}
         </div>

@@ -58,6 +58,7 @@ export default async function DashboardPage() {
 
   const now        = new Date()
   const today      = now.toISOString().split("T")[0]
+  const yesterday  = new Date(now.getTime() - 86400000).toISOString().split("T")[0]
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
   const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0]
 
@@ -142,6 +143,16 @@ export default async function DashboardPage() {
       .in("leave_type", ["full_day", "half_day"])
       .lte("from_date", today).gte("to_date", today),
   ])
+
+  // Yesterday not-updated members
+  const [{ data: yesterdayUpdatesRaw }, { data: activeMembersRaw }] = await Promise.all([
+    admin.from("daily_updates").select("user_id").eq("company_id", cid).eq("date", yesterday),
+    admin.from("users").select("id, name").eq("company_id", cid).eq("role", "MEMBER").eq("status", "active"),
+  ])
+  const yesterdayUpdatedIds = new Set((yesterdayUpdatesRaw ?? []).map((u: { user_id: string }) => u.user_id))
+  const notUpdatedYesterdayNames = (activeMembersRaw ?? [])
+    .filter((m: { id: string }) => !yesterdayUpdatedIds.has(m.id))
+    .map((m: { name: string }) => m.name)
 
   // Build leave calendar map
   const leaveCalMap: Record<string, string[]> = {}
@@ -363,34 +374,34 @@ export default async function DashboardPage() {
         {/* Pending Approvals */}
         <PendingApprovalsCard leaves={pendingLeavesList} />
 
-        {/* Not Updated Today */}
+        {/* Not Updated Yesterday */}
         <div style={{ ...CARD, padding: 20 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
             <div style={{ width: 30, height: 30, borderRadius: 9, background: "rgba(217,119,6,0.08)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <UserX size={14} style={{ color: "#D97706" }} />
             </div>
-            <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Not Updated Today</h3>
-            {alerts.notUpdatedCount > 0 && (
+            <h3 style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0 }}>Not Updated Yesterday</h3>
+            {notUpdatedYesterdayNames.length > 0 && (
               <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "rgba(217,119,6,0.1)", color: "#D97706", marginLeft: "auto" }}>
-                {alerts.notUpdatedCount}
+                {notUpdatedYesterdayNames.length}
               </span>
             )}
           </div>
 
-          {alerts.notUpdatedCount === 0 ? (
+          {notUpdatedYesterdayNames.length === 0 ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "28px 0", gap: 8 }}>
               <CheckCircle2 size={28} style={{ color: "#E5E7EB" }} />
-              <p style={{ fontSize: 13, color: "#6B7280", margin: 0, fontWeight: 500 }}>Everyone has submitted today</p>
+              <p style={{ fontSize: 13, color: "#6B7280", margin: 0, fontWeight: 500 }}>Everyone submitted yesterday</p>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {alerts.notUpdatedNames.map((name, i) => (
+              {notUpdatedYesterdayNames.map((name, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, background: "rgba(217,119,6,0.05)", border: "1px solid rgba(217,119,6,0.15)" }}>
                   <div style={{ width: 32, height: 32, borderRadius: "50%", background: "rgba(217,119,6,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <span style={{ fontSize: 12, fontWeight: 800, color: "#D97706" }}>{name[0].toUpperCase()}</span>
                   </div>
                   <p style={{ fontSize: 13, fontWeight: 600, color: "#111827", flex: 1, margin: 0 }}>{name}</p>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 6, background: "rgba(217,119,6,0.1)", color: "#D97706" }}>Pending</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 6, background: "rgba(217,119,6,0.1)", color: "#D97706" }}>Missed</span>
                 </div>
               ))}
             </div>

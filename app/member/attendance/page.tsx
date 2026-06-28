@@ -117,7 +117,7 @@ export default async function AttendancePage() {
       .lte("from_date", today),
     // Weekly daily_updates — used to show accurate worked hours in weekly view
     admin.from("daily_updates")
-      .select("date, working_hours, work_entries")
+      .select("date, working_hours, learning_hours, work_entries")
       .eq("user_id", effectiveUserId)
       .gte("date", weekStart)
       .lte("date", weekEnd),
@@ -125,9 +125,11 @@ export default async function AttendancePage() {
 
   // Work hours per day from daily_updates (for accurate weekly display) — computed from work_entries
   const weekUpdatesByDate: Record<string, number> = {}
-  for (const u of (weekUpdatesRaw ?? []) as { date: string; working_hours: number | null; work_entries: WorkEntryLike[] | null }[]) {
+  for (const u of (weekUpdatesRaw ?? []) as { date: string; working_hours: number | null; learning_hours: number | null; work_entries: WorkEntryLike[] | null }[]) {
     const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-    const computedH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
+    const computedH = entries.length > 0
+      ? calcNetWorkHours(entries)
+      : (u.working_hours ?? 0) + (u.learning_hours ?? 0)
     if (computedH > 0) weekUpdatesByDate[u.date] = computedH
   }
 

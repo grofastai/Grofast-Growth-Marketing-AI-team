@@ -4,6 +4,7 @@ import { createServerClient } from '@/lib/supabase/server'
 import { createClient } from '@supabase/supabase-js'
 import { redirect } from 'next/navigation'
 import InsightsClient, { type AllMember } from './insights-client'
+import { calcNetWorkHours } from '@/lib/utils/work-hours'
 
 function adminClient() {
   return createClient(
@@ -35,6 +36,7 @@ type UpdateRow = {
     end_time?: string | null
     duration_hours?: number
   }[] | null
+  working_hours: number | null
   learning_hours: number | null
 }
 
@@ -136,7 +138,7 @@ export default async function InsightsPage({
     { data: salaryHistoryRaw },
   ] = await Promise.all([
     admin.from('daily_updates')
-      .select('user_id, date, work_entries, learning_hours')
+      .select('user_id, date, work_entries, working_hours, learning_hours')
       .eq('company_id', cid)
       .gte('date', dateFrom)
       .lte('date', dateTo),
@@ -216,37 +218,35 @@ export default async function InsightsPage({
     }
     const acc = accMap[du.user_id]
 
-    let dayShoot = 0, dayEdit = 0, dayOther = 0, dayVoiceover = 0, dayPoster = 0
-
+    // Per-type breakdown for display columns only (NOT used for total)
     for (const e of du.work_entries ?? []) {
       const hrs = e.duration_hours ?? 0
       if (hrs <= 0) continue
       const tt = (e.task_type ?? 'other').toLowerCase()
-      if (tt === 'break' || tt === 'learning') continue  // handled separately
+      if (tt === 'break' || tt === 'learning') continue
 
       if (e.client_name) acc.clients.add(e.client_name)
 
-      if      (tt === 'shoot')     { acc.shoot     += hrs; dayShoot     += hrs }
-      else if (tt === 'edit')      { acc.edit      += hrs; dayEdit      += hrs }
-      else if (tt === 'voiceover') { acc.voiceover += hrs; dayVoiceover += hrs }
-      else if (tt === 'poster')    { acc.poster    += hrs; dayPoster    += hrs }
-      else                         { acc.technical += hrs; dayOther     += hrs }
+      if      (tt === 'shoot')     acc.shoot     += hrs
+      else if (tt === 'edit')      acc.edit      += hrs
+      else if (tt === 'voiceover') acc.voiceover += hrs
+      else if (tt === 'poster')    acc.poster    += hrs
+      else                         acc.technical += hrs
     }
 
-    // History page formula: use learning entries from work_entries if they exist,
-    // otherwise fall back to the learning_hours field (older submissions)
+    // Learning hours for badge display
     const learnFromEntries = (du.work_entries ?? [])
       .filter(e => (e.task_type ?? '').toLowerCase() === 'learning')
       .reduce((s, e) => s + (e.duration_hours ?? 0), 0)
     const learnH = learnFromEntries > 0 ? learnFromEntries : (du.learning_hours ?? 0)
     acc.learningHours += learnH
 
-    // Exact formula from History page:
-    // Media (shoot/edit team): shoot + edit + learning
-    // Non-media: other + voiceover + poster + learning
-    const workH = isMedia
-      ? dayShoot + dayEdit + learnH
-      : dayOther + dayVoiceover + dayPoster + learnH
+    // Same formula as member dashboard: calcNetWorkHours (interval merge, includes learning).
+    // Fallback to stored fields for old records without work_entries.
+    const workEntries = Array.isArray(du.work_entries) ? du.work_entries : []
+    const workH = workEntries.length > 0
+      ? calcNetWorkHours(workEntries as Parameters<typeof calcNetWorkHours>[0])
+      : (du.working_hours ?? 0) + (du.learning_hours ?? 0)
 
     acc.trackedHours += workH
     acc.totalCost    += workH * hourly

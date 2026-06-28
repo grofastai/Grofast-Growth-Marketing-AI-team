@@ -2017,6 +2017,9 @@ export default function DailyUpdateForm({
                 <SectionHead icon={<span style={{ fontSize:16 }}>🎬</span>} label="Editing Today" count={nmEdits.length} color="#0D9488" />
                 {nmEdits.length === 0 ? (
                   <div onClick={addNmEdit} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(13,148,136,0.35)", background:"rgba(13,148,136,0.02)", cursor:"pointer" }}>
+                    <div style={{ position:"relative", width:180, height:140 }}>
+                      <Image src="/brand/video-editor-boy.png" alt="Editing" fill style={{ objectFit:"contain" }} />
+                    </div>
                     <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No editing logged yet</p>
                     <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#0D9488", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(13,148,136,0.35)" }}>+ Add Editing</span>
                   </div>
@@ -2474,7 +2477,7 @@ export default function DailyUpdateForm({
               {edits.length === 0 ? (
                 <div onClick={addEdit} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #C7D2FE", background:"rgba(99,102,241,0.02)", cursor:"pointer" }}>
                   <div style={{ position:"relative", width:180, height:140 }}>
-                    <Image src="/brand/edit-illustration.png" alt="Editing" fill style={{ objectFit:"contain" }} />
+                    <Image src="/brand/video-editor-boy.png" alt="Editing" fill style={{ objectFit:"contain" }} />
                   </div>
                   <p style={{ fontSize:13, fontWeight:600, color:"#9CA3AF", margin:0 }}>No editing logged yet</p>
                   <span style={{ fontSize:12, color:"#FFFFFF", fontWeight:700, background:"#6366F1", padding:"9px 22px", borderRadius:10, boxShadow:"0 4px 14px rgba(99,102,241,0.35)" }}>+ Add edit</span>

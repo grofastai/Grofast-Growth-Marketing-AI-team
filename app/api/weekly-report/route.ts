@@ -4,6 +4,7 @@ export const revalidate = 0
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { sendWhatsAppTemplate, formatPhone } from '@/lib/whatsapp'
+import { calcNetWorkHours } from '@/lib/utils/work-hours'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
   ] = await Promise.all([
     admin
       .from('daily_updates')
-      .select('user_id, working_hours, shoot_count, date, attendance_status, users(name, employee_id)')
+      .select('user_id, working_hours, learning_hours, shoot_count, work_entries, date, attendance_status, users(name, employee_id)')
       .eq('company_id', companyId)
       .gte('date', weekAgo)
       .lte('date', today),
@@ -103,9 +104,13 @@ export async function GET(request: NextRequest) {
     const usr = resolveUser(u.users)
     const name = usr?.name ?? 'Unknown'
     const prev = byUser.get(u.user_id) ?? { name, hours: 0, shoots: 0 }
+    const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+    const workH = entries.length > 0
+      ? calcNetWorkHours(entries as Parameters<typeof calcNetWorkHours>[0])
+      : (u.working_hours ?? 0) + (u.learning_hours ?? 0)
     byUser.set(u.user_id, {
       name,
-      hours: prev.hours + (u.working_hours ?? 0),
+      hours: prev.hours + workH,
       shoots: prev.shoots + (u.shoot_count ?? 0),
     })
   }

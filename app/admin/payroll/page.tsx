@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server"
 import { createClient } from "@supabase/supabase-js"
 import { redirect } from "next/navigation"
 import PayrollClient from "./payroll-client"
+import { calcNetWorkHours } from "@/lib/utils/work-hours"
 
 export default async function PayrollPage({
   searchParams,
@@ -52,7 +53,7 @@ export default async function PayrollPage({
       .order("name"),
     admin
       .from("daily_updates")
-      .select("user_id, date, working_hours, work_entries")
+      .select("user_id, date, working_hours, learning_hours, work_entries")
       .eq("company_id", cid)
       .gte("date", monthStart)
       .lte("date", monthEnd),
@@ -112,7 +113,7 @@ export default async function PayrollPage({
       .eq("month", month),
   ])
 
-  type UpdateRow = { user_id: string; date: string; working_hours: number | null; work_entries: { duration_hours?: number | null }[] | null }
+  type UpdateRow = { user_id: string; date: string; working_hours: number | null; learning_hours: number | null; work_entries: { task_type?: string; duration_hours?: number | null; start_time?: string | null; end_time?: string | null }[] | null }
   type LogRow    = { user_id: string; date: string; clock_in: string | null; clock_out: string | null; status: string | null }
   type RunRow    = { user_id: string; bonus: number; advance: number; incentive: number; is_paid: boolean; paid_at: string | null }
   type LeaveRow  = { user_id: string; from_date: string; to_date: string; leave_type: string }
@@ -186,10 +187,13 @@ export default async function PayrollPage({
     const myLogs    = logs.filter(l => l.user_id === m.id)
     const myUpdates = updates.filter(u => u.user_id === m.id)
 
-    // Date-keyed lookups
+    // Date-keyed lookups — use work_entries when available (stored working_hours may be stale)
     const updateByDate: Record<string, number> = {}
     for (const u of myUpdates) {
-      updateByDate[u.date] = u.working_hours ?? 0
+      const entries = Array.isArray(u.work_entries) ? u.work_entries : []
+      updateByDate[u.date] = entries.length > 0
+        ? calcNetWorkHours(entries as Parameters<typeof calcNetWorkHours>[0])
+        : (u.working_hours ?? 0) + (u.learning_hours ?? 0)
     }
     const clockedInDates = new Set(myLogs.filter(l => l.clock_in !== null || l.status === "present").map(l => l.date))
     const leaveDatesForMember = getMemberLeaveDates(m.id)

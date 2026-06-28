@@ -234,16 +234,17 @@ export default async function InsightsPage({
       else                         acc.technical += hrs
     }
 
+    const workEntries = Array.isArray(du.work_entries) ? du.work_entries : []
+
     // Learning hours for badge display
-    const learnFromEntries = (du.work_entries ?? [])
+    const learnFromEntries = workEntries
       .filter(e => (e.task_type ?? '').toLowerCase() === 'learning')
       .reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-    const learnH = learnFromEntries > 0 ? learnFromEntries : (du.learning_hours ?? 0)
+    const learnH = workEntries.length > 0 ? learnFromEntries : (du.learning_hours ?? 0)
     acc.learningHours += learnH
 
     // Same formula as member dashboard: calcNetWorkHours (interval merge, includes learning).
     // Fallback to stored fields for old records without work_entries.
-    const workEntries = Array.isArray(du.work_entries) ? du.work_entries : []
     const workH = workEntries.length > 0
       ? calcNetWorkHours(workEntries as Parameters<typeof calcNetWorkHours>[0])
       : (du.working_hours ?? 0) + (du.learning_hours ?? 0)

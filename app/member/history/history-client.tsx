@@ -664,7 +664,7 @@ export default function HistoryClient({
       // Fallback for old records (no entries): working_hours was stored as pure work.
       const workH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
       const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
-      const learnH = learnFromEntries > 0 ? learnFromEntries : (u.learning_hours ?? 0)
+      const learnH = entries.length > 0 ? learnFromEntries : (u.learning_hours ?? 0)
       const breakH = entries.filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const h = workH + learnH
       totalHours += h

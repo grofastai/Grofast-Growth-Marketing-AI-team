@@ -366,13 +366,18 @@ export async function updatePastDailyUpdate(
   const entriesWithoutLeave = entries.filter(e => !e._is_leave)
   const finalEntries = fixEntryDurations([...entriesWithoutLeave, ...existingLeaveEntries])
 
+  const finalLearnHours = Math.round(
+    finalEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10
+  ) / 10
+
   const { error } = await admin
     .from('daily_updates')
     .update({
-      work_entries: finalEntries,
-      working_hours: calcNetWorkHours(finalEntries as Parameters<typeof calcNetWorkHours>[0], updateLayout) || null,
-      shoot_count: finalEntries.filter(e => e.task_type === 'shoot').length,
-      editing_count: finalEntries.filter(e => e.task_type === 'edit').length,
+      work_entries:   finalEntries,
+      working_hours:  calcNetWorkHours(finalEntries as Parameters<typeof calcNetWorkHours>[0], updateLayout) || null,
+      shoot_count:    finalEntries.filter(e => e.task_type === 'shoot').length,
+      editing_count:  finalEntries.filter(e => e.task_type === 'edit').length,
+      learning_hours: finalLearnHours,
     })
     .eq('id', id)
     .eq('user_id', user.id)

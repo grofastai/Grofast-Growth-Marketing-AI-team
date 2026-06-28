@@ -531,7 +531,7 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
     const entries = (Array.isArray(r.work_entries) ? r.work_entries : []) as { task_type: string; start_time?: string | null; end_time?: string | null; duration_hours?: number; _travel_hours?: number | null }[]
     // Learning hours for display (badge only — NOT added to worked, calcNetWorkHours already includes it)
     const learnFromEntries = entries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (e.duration_hours ?? 0), 0)
-    const learnH = learnFromEntries > 0 ? learnFromEntries : (r.learning_hours ?? 0)
+    const learnH = entries.length > 0 ? learnFromEntries : (r.learning_hours ?? 0)
     learnByDate[r.date] = learnH
     // Worked: calcNetWorkHours includes all non-break entries (work + learning).
     // Only add learning separately when falling back to stored fields (no entries).

@@ -195,9 +195,21 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
   // Right-panel stats — media vs non-media
   const isMedia        = profile?.team === "Media Team" || profile?.team === "Media Production Team"
-  const totalShoots    = monthlyUpdates.reduce((s, u) => s + (u.shoot_count ?? 0), 0)
-  const totalEdited    = monthlyUpdates.reduce((s, u) => s + (u.editing_count ?? 0), 0)
-  const totalLearningHrs = Math.round(monthlyUpdates.reduce((s, u) => s + (u.learning_hours ?? 0), 0) * 10) / 10
+  const totalShoots    = monthlyUpdates.reduce((s, u) => {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
+    if (entries.length > 0) return s + entries.filter(e => e.task_type === 'shoot').length
+    return s + (u.shoot_count ?? 0)
+  }, 0)
+  const totalEdited    = monthlyUpdates.reduce((s, u) => {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
+    if (entries.length > 0) return s + entries.filter(e => e.task_type === 'edit').length
+    return s + (u.editing_count ?? 0)
+  }, 0)
+  const totalLearningHrs = Math.round(monthlyUpdates.reduce((s, u) => {
+    const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
+    if (entries.length > 0) return s + entries.filter(e => e.task_type === 'learning').reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+    return s + (u.learning_hours ?? 0)
+  }, 0) * 10) / 10
   const totalBreakHrs  = Math.round(monthlyUpdates.reduce((s, u) => {
     const entries = Array.isArray(u.work_entries) ? u.work_entries : []
     return s + (entries as WorkEntryLike[]).filter(e => e.task_type === "break").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)

@@ -314,9 +314,9 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks, label: "Active Tasks" },
   ] : [
     { icon: Calendar,     iconBg: "rgba(222,26,26,0.1)",   iconColor: "#de1a1a", value: presentDays || 0,   label: "Present Days"  },
-    { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Monthly Working Hrs"  },
-    { icon: Target,       iconBg: "rgba(16,185,129,0.12)", iconColor: "#10B981", value: totalLoginHrs > 0 ? `${totalLoginHrs}h` : "—", label: "Monthly Login Hrs" },
-    { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: Math.max(0, 5 - leaveDays), label: "Leave Left This Month" },
+    { icon: Clock,        iconBg: "rgba(99,102,241,0.12)", iconColor: "#6366F1", value: totalMonthHrs > 0 ? `${totalMonthHrs}h` : (todayHours > 0 ? `${Math.round(todayHours * 10) / 10}h` : "—"), label: "Working Hrs"  },
+    { icon: Target,       iconBg: "rgba(16,185,129,0.12)", iconColor: "#10B981", value: totalLoginHrs > 0 ? `${totalLoginHrs}h` : "—", label: "Login Hrs" },
+    { icon: AlertCircle,  iconBg: "rgba(245,158,11,0.12)", iconColor: "#F59E0B", value: Math.max(0, 5 - leaveDays), label: "Leave Left" },
     { icon: CheckCircle2, iconBg: "rgba(22,163,74,0.1)",   iconColor: "#16A34A", value: activeTasks,        label: "Active Tasks"  },
   ]
 

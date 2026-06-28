@@ -1488,7 +1488,7 @@ export default function DailyUpdateForm({
     <div className="p-4 md:p-6" style={{ background:"#F5F6FA", minHeight:"100vh" }}>
 
       {/* ── HEADER ────────────────────────────────────────────────────────── */}
-      <div style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:20, padding:"18px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:16, boxShadow:"0 8px 32px rgba(180,0,0,0.35)", flexWrap:"wrap", position:"relative", overflow:"hidden", marginBottom:20 }}>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between" style={{ background:"linear-gradient(135deg, #DE1A1A 0%, #8B1212 55%, #1A0808 100%)", borderRadius:20, padding:"16px 18px", gap:14, boxShadow:"0 8px 32px rgba(180,0,0,0.35)", position:"relative", overflow:"hidden", marginBottom:20 }}>
         <div style={{ position:"absolute", top:-50, right:-30, width:200, height:200, borderRadius:"50%", background:"rgba(255,255,255,0.05)", pointerEvents:"none" }} />
         <div style={{ position:"absolute", bottom:-40, left:60, width:150, height:150, borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }} />
 
@@ -1500,7 +1500,7 @@ export default function DailyUpdateForm({
           <p style={{ fontSize:11, color:"rgba(255,255,255,0.65)", margin:0 }}>{dateLabel}</p>
         </div>
 
-        <div style={{ display:"flex", alignItems:"center", borderRadius:16, overflow:"hidden", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", flex:1, maxWidth:340, position:"relative", zIndex:1 }}>
+        <div className="hidden sm:flex" style={{ alignItems:"center", borderRadius:16, overflow:"hidden", background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.2)", flex:1, maxWidth:340, position:"relative", zIndex:1 }}>
           <div style={{ position:"relative", width:70, height:80, flexShrink:0 }}>
             <Image src="/brand/assistant-girl.jpg" alt="" fill style={{ objectFit:"cover", objectPosition:"top center" }} />
           </div>
@@ -1601,12 +1601,12 @@ export default function DailyUpdateForm({
       )}
 
       {/* ── TABS (all teams) ─────────────────────────────────────────────── */}
-      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"wrap" }}>
+      <div style={{ display:"flex", gap:8, marginBottom:20, flexWrap:"nowrap", overflowX:"auto", WebkitOverflowScrolling:"touch", paddingBottom:2 }}>
         {TABS.map(t => {
           const isDone = t.id === "working" ? workingDone : t.id === "learning" ? learningDone : t.id === "media" ? mediaDone : t.id === "break" ? breaksDone : false
           return (
             <button key={t.id} onClick={() => { setTab(t.id); setError(null) }}
-              style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", padding:"12px 20px", borderRadius:14, cursor:"pointer", transition:"all 0.18s", flex:"1 1 120px",
+              style={{ display:"flex", flexDirection:"column", alignItems:"flex-start", padding:"12px 20px", borderRadius:14, cursor:"pointer", transition:"all 0.18s", flexShrink:0, whiteSpace:"nowrap",
                 background: tab === t.id ? "#DE1A1A" : isDone ? "rgba(34,197,94,0.07)" : "#FFFFFF",
                 color:      tab === t.id ? "#fff"    : isDone ? "#16A34A" : "#6B7280",
                 boxShadow:  tab === t.id ? "0 4px 18px rgba(222,26,26,0.4)" : "0 1px 4px rgba(0,0,0,0.06)",
@@ -1862,7 +1862,7 @@ export default function DailyUpdateForm({
                         </div>
                         {dur > 0 && <span style={{ fontSize:11, fontWeight:800, color:"#8B5CF6", padding:"8px 10px", borderRadius:8, background:"rgba(139,92,246,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:8 }}>
                         <div>
                           <label style={L}>Drive / Audio Link</label>
                           <input value={e.videoLink} onChange={ev => patchVoiceover(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
@@ -1957,7 +1957,7 @@ export default function DailyUpdateForm({
                         </div>
                         {dur > 0 && <span style={{ fontSize:11, fontWeight:800, color:"#EC4899", padding:"8px 10px", borderRadius:8, background:"rgba(236,72,153,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:8, marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
                         <div>
                           <label style={L}>Drive / File Link</label>
                           <input value={e.videoLink} onChange={ev => patchPoster(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
@@ -2094,7 +2094,7 @@ export default function DailyUpdateForm({
                         </div>
                         {dur > 0 && <span style={{ fontSize:11, fontWeight:800, color:"#0D9488", padding:"8px 10px", borderRadius:8, background:"rgba(13,148,136,0.1)", whiteSpace:"nowrap" }}>{dur}h</span>}
                       </div>
-                      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
+                      <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:8, marginBottom: teamMembers.length > 0 ? 8 : 0 }}>
                         <div>
                           <label style={L}>Drive / File Link</label>
                           <input value={e.videoLink} onChange={ev => patchNmEdit(e.id, { videoLink: ev.target.value })} placeholder="https://drive.google.com/…" style={F} />
@@ -2151,7 +2151,7 @@ export default function DailyUpdateForm({
 
               {/* Submit button for non-media team */}
               {!isMediaTeam && (
-                <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
                   <div>
                     {workingError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{workingError}</p>}
                     {!workingError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{filledBlocks.length} block{filledBlocks.length !== 1 ? "s" : ""} · {totalLoggedHours.toFixed(1)}h logged</p>}
@@ -2170,7 +2170,7 @@ export default function DailyUpdateForm({
                 </div>
               )}
               {!isMediaTeam && (
-                <p style={{ fontSize:11, marginTop:6, color:"#9CA3AF" }}>
+                <p style={{ fontSize:11, marginTop:16, color:"#9CA3AF", textAlign:"center" }}>
                   Saved entries appear in your{" "}
                   <a href="/member/history" style={{ color:"#6366F1", fontWeight:600 }}>History tab ↗</a>
                 </p>
@@ -2889,7 +2889,7 @@ export default function DailyUpdateForm({
 
               {/* Submit button for non-media team — only when form is open */}
               {!isMediaTeam && (learningStarted || learningDone) && (
-                <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                <div style={{ marginTop:16, paddingTop:14, borderTop:"1px solid #EBEDF2", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap" }}>
                   <div>
                     {learningError && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{learningError}</p>}
                     {!learningError && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>Learning: {learningSummaryTopic || "not set"}{filledLearningBlocks.length > 1 ? ` +${filledLearningBlocks.length - 1} more` : ""} · {learningHours}h</p>}
@@ -2908,7 +2908,7 @@ export default function DailyUpdateForm({
                 </div>
               )}
               {!isMediaTeam && (learningStarted || learningDone) && (
-                <p style={{ fontSize:11, marginTop:6, color:"#9CA3AF" }}>
+                <p style={{ fontSize:11, marginTop:16, color:"#9CA3AF", textAlign:"center" }}>
                   Saved entries appear in your{" "}
                   <a href="/member/history" style={{ color:"#6366F1", fontWeight:600 }}>History tab ↗</a>
                 </p>
@@ -2918,7 +2918,7 @@ export default function DailyUpdateForm({
 
           {/* ── Submit bar ─────────────────────────────────────────────────── */}
           {(isMediaTeam || tab === "break") && (
-            <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+            <div style={{ background:"#FFFFFF", borderRadius:16, border:"1px solid #EBEDF2", padding:"14px 18px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, boxShadow:"0 2px 10px rgba(0,0,0,0.05)", flexWrap:"wrap" }}>
               <div>
                 {error && <p style={{ fontSize:12, fontWeight:600, color:"#DE1A1A", margin:0 }}>{error}</p>}
                 {!error && tab === "media"   && <p style={{ fontSize:12, color:"#9CA3AF", margin:0 }}>{shoots.length} shoot{shoots.length !== 1 ? "s" : ""} · {edits.length} edit{edits.length !== 1 ? "s" : ""} · {totalMediaHours}h total</p>}

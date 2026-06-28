@@ -970,7 +970,7 @@ export default function MemberTasksClient({
               </button>
             </div>
             {/* Multi-color stat pills */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "nowrap", justifyContent: "flex-end", overflowX: "auto" }}>
               {[
                 { icon: Clock,        color: "#FF6B6B", bg: "rgba(255,107,107,0.18)", val: todayHours > 0 ? `${todayHours}h` : "—", lbl: "Worked"  },
                 { icon: Zap,          color: "#6BCB77", bg: "rgba(107,203,119,0.18)", val: String(activeCount),                      lbl: "Active"  },
@@ -1125,7 +1125,7 @@ export default function MemberTasksClient({
               <ChevronDown size={11} />
             </button>
             {showSort && (
-              <div className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-20"
+              <div className="absolute right-0 top-full mt-1 rounded-xl overflow-hidden z-50"
                 style={{ background: "#FFFFFF", border: "1px solid #E5E7EB", boxShadow: "0 8px 24px rgba(0,0,0,0.1)", minWidth: 140 }}>
                 {([
                   { key: "priority" as const, label: "By Priority" },

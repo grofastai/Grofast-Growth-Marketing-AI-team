@@ -1049,7 +1049,7 @@ export default function FreelancersMemberClient({
 
         {/* LEFT panel */}
         {!hideLeftPanel && <div style={{ width: 276, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          <div style={{ borderBottom: "1px solid #F5F5F7", padding: "8px 10px", display: "flex", gap: 4, flexWrap: "wrap", flexShrink: 0, alignItems: "center" }}>
+          <div style={{ borderBottom: "1px solid #F5F5F7", padding: "8px 10px", display: "flex", gap: 4, flexWrap: "wrap", flexShrink: 0, alignItems: "center", overflowX: "auto" }}>
             <button onClick={() => { setTeamFilter("all"); setSelectedId(null) }} style={{ padding: "6px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", background: teamFilter === "all" && !selectedId ? "#111" : "#F5F5F7", color: teamFilter === "all" && !selectedId ? "#fff" : "#6B7280", transition: "all 0.15s", flexShrink: 0 }}>
               All {activeFreelancers.length}
             </button>

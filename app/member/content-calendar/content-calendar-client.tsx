@@ -506,7 +506,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             }}>
               {/* Text side */}
               <div style={{ flex: 1, padding: isMobile ? "14px 12px 14px 16px" : "18px 12px 18px 22px", textAlign: "left", zIndex: 1 }}>
-                <p style={{ fontSize: isMobile ? 13 : 15, fontWeight: 900, margin: "0 0 4px", color: active ? "#FFF" : "#111827", letterSpacing: "-0.01em" }}>{label}</p>
+                <p style={{ fontSize: isMobile ? 13 : 15, fontWeight: 900, margin: "0 0 4px", color: active ? "#FFF" : "#111827", letterSpacing: "-0.01em", whiteSpace: "nowrap" }}>{label}</p>
                 <p style={{ fontSize: isMobile ? 10 : 11, margin: 0, fontWeight: 600, color: active ? "rgba(255,255,255,0.7)" : "#9CA3AF" }}>{desc}</p>
                 {active && <div style={{ marginTop: 8, display: "inline-flex", padding: "2px 10px", borderRadius: 20, background: "rgba(255,255,255,0.2)", fontSize: 9, fontWeight: 800, color: "#FFF", letterSpacing: "0.06em" }}>ACTIVE</div>}
               </div>
@@ -536,8 +536,17 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
             {/* Coloured header strip */}
             <div style={{ background: s.headerBg, padding: isMobile ? "12px 14px 10px" : "20px 22px 16px", position: "relative", overflow: "hidden" }}>
               <div style={{ position: "absolute", top: -20, right: -20, width: 80, height: 80, borderRadius: "50%", background: "rgba(255,255,255,0.12)", pointerEvents: "none" }} />
-              <span style={{ fontSize: isMobile ? 20 : 28, display: "block", marginBottom: isMobile ? 4 : 8 }}>{s.icon}</span>
-              <p style={{ fontSize: isMobile ? 11 : 13, fontWeight: 700, color: "rgba(255,255,255,0.85)", margin: 0 }}>{s.label}</p>
+              {isMobile ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 20 }}>{s.icon}</span>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.85)", margin: 0 }}>{s.label}</p>
+                </div>
+              ) : (
+                <>
+                  <span style={{ fontSize: 28, display: "block", marginBottom: 8 }}>{s.icon}</span>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.85)", margin: 0 }}>{s.label}</p>
+                </>
+              )}
             </div>
             {/* White body */}
             <div style={{ padding: isMobile ? "10px 14px 14px" : "18px 22px 22px" }}>
@@ -782,7 +791,7 @@ export default function MemberContentCalendarClient({ posts: initial, shoots, ta
                               {/* eslint-disable-next-line @next/next/no-img-element */}
                               <img src={p.platform === "other" ? "/shoot-illustration.png" : "/post-illustration.png"} alt={p.platform === "other" ? "Shoot" : "Post"} style={{ width: 44, height: 44, objectFit: "cover", objectPosition: p.platform === "other" ? "center top" : "center" }} />
                             </div>
-                            <div style={{ flex: 1, minWidth: 100 }}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
                                 <p style={{ fontSize: 13, fontWeight: 700, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</p>
                                 {isMine && <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 99, background: "rgba(222,26,26,0.1)", color: "#DE1A1A", flexShrink: 0 }}>MINE</span>}

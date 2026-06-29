@@ -4,6 +4,8 @@ export type NotificationEvent =
   | 'shoot.submitted'
   | 'leave.approved'
   | 'leave.rejected'
+  | 'half_day.approved'
+  | 'half_day.rejected'
   | 'wfh.approved'
   | 'wfh.rejected'
   | 'shoot.approved'
@@ -27,7 +29,7 @@ export interface LeaveSubmittedPayload {
 }
 
 export interface LeaveStatusPayload {
-  event: 'leave.approved' | 'leave.rejected' | 'wfh.approved' | 'wfh.rejected' | 'shoot.approved' | 'shoot.rejected'
+  event: 'leave.approved' | 'leave.rejected' | 'half_day.approved' | 'half_day.rejected' | 'wfh.approved' | 'wfh.rejected' | 'shoot.approved' | 'shoot.rejected'
   employee_name: string
   employee_phone: string
   from_date: string

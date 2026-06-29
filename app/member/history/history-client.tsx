@@ -659,9 +659,6 @@ export default function HistoryClient({
     const dailyData: { day: string; hours: number }[] = []
     for (const u of monthFiltered) {
       const entries = Array.isArray(u.work_entries) ? u.work_entries : []
-      // Local calcNetWorkHours excludes learning (pure work intervals only).
-      // Always add learnH separately so total = work + learning.
-      // Fallback for old records (no entries): working_hours was stored as pure work.
       const workH = entries.length > 0 ? calcNetWorkHours(entries) : (u.working_hours ?? 0)
       const learnFromEntries = entries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
       const learnH = entries.length > 0 ? learnFromEntries : (u.learning_hours ?? 0)
@@ -853,9 +850,9 @@ export default function HistoryClient({
   const greeting = now.getHours() < 12 ? "Good Morning" : now.getHours() < 17 ? "Good Afternoon" : "Good Evening"
   const fn = userName.split(" ")[0] || "there"
 
-  // Latest day stats — sum from work_entries only (not attendance-derived working_hours)
+  // Latest day stats — use stored working_hours (server interval-merge) with entry sum as fallback
   const latestEntries = Array.isArray(latest?.work_entries) ? latest!.work_entries! : []
-  const latestWorkH  = latestEntries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
+  const latestWorkH  = Number(latest?.working_hours) || latestEntries.filter(e => e.task_type !== "break" && e.task_type !== "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
   const latestLearnFromEntries = latestEntries.filter(e => e.task_type === "learning").reduce((sum, e) => sum + (e.duration_hours ?? 0), 0)
   const latestLearnH = latestLearnFromEntries > 0 ? latestLearnFromEntries : (latest?.learning_hours ?? 0)
   const latestH  = latestWorkH + latestLearnH

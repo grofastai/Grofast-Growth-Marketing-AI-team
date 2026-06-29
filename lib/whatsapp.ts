@@ -157,6 +157,24 @@ export const TEMPLATE_MAP: Partial<Record<NotificationEvent, TemplateEntry>> = {
     },
   },
 
+  'half_day.approved': {
+    name: 'grofast_half_day_approved',
+    resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveStatusPayload
+      return [lp.employee_name, lp.from_date]
+    },
+  },
+
+  'half_day.rejected': {
+    name: 'grofast_half_day_rejected',
+    resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,
+    buildParams: (p) => {
+      const lp = p as LeaveStatusPayload
+      return [lp.employee_name, lp.from_date]
+    },
+  },
+
   'wfh.approved': {
     name: 'grofast_wfh_approved',
     resolvePhone: (p) => (p as LeaveStatusPayload).employee_phone ?? null,

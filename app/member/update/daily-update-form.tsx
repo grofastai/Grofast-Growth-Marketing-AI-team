@@ -1277,8 +1277,8 @@ export default function DailyUpdateForm({
     const rawSubmittedH = submittedEntries.length > 0
       ? submittedEntries.filter(e => e.task_type !== "break").reduce((s, e) => s + (Number(e.duration_hours) || 0), 0)
       : 0
-    // fall back to working_hours when all entries are breaks (e.g. permission-only days)
-    const totalSubmittedH = rawSubmittedH > 0 ? rawSubmittedH : Number(subActUpd0?.working_hours) || 0
+    // Always prefer server-computed working_hours (interval-merge, overlap-safe) over simple sum
+    const totalSubmittedH = Number(subActUpd0?.working_hours) || rawSubmittedH || 0
 
     // Media team stats from work_entries — fall back to summary columns when work_entries is empty
     const subShoots   = submittedEntries.filter(e => e.task_type === "shoot")

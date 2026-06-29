@@ -638,8 +638,8 @@ export async function updateLeaveStatus(
 
   if (leave && leave.users?.phone) {
     const leaveType = leave.leave_type ?? 'full_day'
-    const approvedEvent = leaveType === 'wfh' ? 'wfh.approved' : leaveType === 'shoot_day' ? 'shoot.approved' : 'leave.approved'
-    const rejectedEvent = leaveType === 'wfh' ? 'wfh.rejected' : leaveType === 'shoot_day' ? 'shoot.rejected' : 'leave.rejected'
+    const approvedEvent = leaveType === 'wfh' ? 'wfh.approved' : leaveType === 'shoot_day' ? 'shoot.approved' : leaveType === 'half_day' ? 'half_day.approved' : 'leave.approved'
+    const rejectedEvent = leaveType === 'wfh' ? 'wfh.rejected' : leaveType === 'shoot_day' ? 'shoot.rejected' : leaveType === 'half_day' ? 'half_day.rejected' : 'leave.rejected'
     sendNotification({
       event:          status === 'approved' ? approvedEvent : rejectedEvent,
       employee_name:  leave.users.name,

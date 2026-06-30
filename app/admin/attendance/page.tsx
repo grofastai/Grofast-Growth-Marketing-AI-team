@@ -86,7 +86,7 @@ export default async function AttendancePage({
     admin.from("leaves")
       .select("user_id")
       .eq("company_id", cid)
-      .neq("leave_type", "permission")
+      .not("leave_type", "in", '("permission","wfh","shoot_day")')
       .eq("status", "approved")
       .lte("from_date", selectedDate)
       .gte("to_date", selectedDate),

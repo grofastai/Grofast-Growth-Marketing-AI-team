@@ -512,8 +512,6 @@ export default function DocumentsClient({
             style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 15%", display: "block" }} />
           {/* Fade left edge into red */}
           <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "60%", background: "linear-gradient(to right, #8B1212 0%, rgba(139,18,18,0.55) 50%, transparent 100%)", zIndex: 2, pointerEvents: "none" }} />
-          {/* Dark shade top-right corner — makes buttons readable */}
-          <div style={{ position: "absolute", right: 0, top: 0, width: "55%", height: "65%", background: "linear-gradient(135deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)", zIndex: 2, pointerEvents: "none" }} />
         </div>
 
         {/* ── Buttons — absolute top-right ── */}

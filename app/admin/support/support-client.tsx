@@ -158,68 +158,67 @@ export default function AdminSupportClient({ tickets, currentUserId, canAssign =
 
         {/* ── HERO ────────────────────────────────────────────────────── */}
         <div style={{
-          background: 'linear-gradient(130deg, #1a0000 0%, #8B0000 40%, #CC1111 70%, #E8251A 100%)',
-          borderRadius: 24, position: 'relative', overflow: 'hidden',
-          padding: '0', boxShadow: '0 12px 48px rgba(160,0,0,0.5)', marginBottom: 16, minHeight: 210,
+          background: 'linear-gradient(135deg, #DE1A1A 0%, #C41010 45%, #A50D0D 100%)',
+          borderRadius: 20, position: 'relative', overflow: 'hidden',
+          boxShadow: '0 8px 32px rgba(180,0,0,0.4)', marginBottom: 14, minHeight: 172,
           display: 'flex', alignItems: 'stretch',
         }}>
-          {/* Layered depth glows */}
-          <div style={{ position: 'absolute', top: -60, left: -60, width: 280, height: 280, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,80,80,0.18) 0%, transparent 70%)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', bottom: -40, right: 320, width: 200, height: 200, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%)', pointerEvents: 'none' }} />
-          {/* Top-right sparkle dots */}
-          <div style={{ position: 'absolute', top: 18, right: 380, width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', top: 40, right: 340, width: 4, height: 4, borderRadius: '50%', background: 'rgba(255,255,255,0.22)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', top: 14, right: 290, width: 5, height: 5, borderRadius: '50%', background: 'rgba(255,200,200,0.3)', pointerEvents: 'none' }} />
+          {/* Soft inner glow top-left */}
+          <div style={{ position: 'absolute', top: -50, left: -30, width: 240, height: 240, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,100,100,0.22) 0%, transparent 65%)', pointerEvents: 'none' }} />
+          {/* Sparkle dots */}
+          <div style={{ position: 'absolute', top: 22, left: '38%', width: 5, height: 5, borderRadius: '50%', background: 'rgba(255,255,255,0.4)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', top: 44, left: '35%', width: 3, height: 3, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', bottom: 28, left: '42%', width: 4, height: 4, borderRadius: '50%', background: 'rgba(255,200,200,0.3)', pointerEvents: 'none' }} />
 
-          {/* Girl character — full height right */}
-          <div className="hidden md:block" style={{ position: 'absolute', right: 0, bottom: 0, width: 320, height: '100%', pointerEvents: 'none', zIndex: 0 }}>
+          {/* Girl character — centered in right half, blends into red background */}
+          <div className="hidden md:block" style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', width: 360, height: '140%', pointerEvents: 'none', zIndex: 0 }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/support/hero-girl.png" alt=""
-              style={{ position: 'absolute', bottom: 0, right: 0, height: '115%', width: 'auto', maxWidth: 340, objectFit: 'contain', objectPosition: 'bottom right', filter: 'drop-shadow(0 8px 28px rgba(0,0,0,0.32))' }} />
+              style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center', mixBlendMode: 'luminosity', filter: 'brightness(1.08) saturate(1.1)' }} />
           </div>
 
           {/* Content area */}
-          <div style={{ position: 'relative', zIndex: 1, flex: 1, padding: '22px 28px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div style={{ position: 'relative', zIndex: 1, flex: 1, padding: '18px 22px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', maxWidth: 520 }}>
             {/* Top row: badge + buttons */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, padding: '5px 13px', borderRadius: 99, background: 'rgba(255,255,255,0.14)', color: '#fff', border: '1px solid rgba(255,255,255,0.22)', letterSpacing: '0.05em', backdropFilter: 'blur(4px)' }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 99, background: 'rgba(0,0,0,0.2)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)', letterSpacing: '0.04em' }}>
                 🎧 Support Inbox
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {canAssign && (
                   <button onClick={() => setShowAssign(true)}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 15px', borderRadius: 12, fontSize: 12.5, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', cursor: 'pointer', whiteSpace: 'nowrap', backdropFilter: 'blur(4px)' }}>
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px', borderRadius: 12, fontSize: 12.5, fontWeight: 700, color: '#fff', background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.28)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                     <UserPlus size={14} /> Assign handler
                   </button>
                 )}
                 <button onClick={() => setShowNew(true)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: '#B91212', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 4px 18px rgba(0,0,0,0.22)', whiteSpace: 'nowrap' }}>
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: '#B91212', background: '#FFFFFF', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.2)', whiteSpace: 'nowrap' }}>
                   <Plus size={14} /> New ticket
                 </button>
               </div>
             </div>
 
             {/* Title + subtitle */}
-            <div style={{ marginTop: 14 }}>
-              <h1 style={{ fontSize: 30, fontWeight: 900, margin: '0 0 6px', fontFamily: 'var(--font-jakarta)', color: '#fff', lineHeight: 1.15, maxWidth: 380, letterSpacing: '-0.02em' }}>
-                Help Your Team<br />Faster
+            <div style={{ marginTop: 12 }}>
+              <h1 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 5px', fontFamily: 'var(--font-jakarta)', color: '#fff', lineHeight: 1.2, letterSpacing: '-0.01em' }}>
+                Help Your Team Faster
               </h1>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', margin: '0 0 18px', maxWidth: 300, lineHeight: 1.55 }}>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.68)', margin: '0 0 14px', maxWidth: 320, lineHeight: 1.5 }}>
                 Manage tickets, reply instantly, and keep every client happy.
               </p>
 
               {/* Stat chips row */}
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {[
-                  { icon: '🎧', value: stats.open,        label: 'Open' },
-                  { icon: '✅', value: stats.resolved,    label: 'Resolved' },
-                  { icon: '⏱',  value: stats.in_progress, label: 'In Progress' },
+                  { emoji: '🎧', value: stats.open,        label: 'Open' },
+                  { emoji: '✅', value: stats.resolved,    label: 'Resolved Today' },
+                  { emoji: '⏱',  value: stats.in_progress, label: 'In Progress' },
                 ].map(chip => (
-                  <div key={chip.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 9, background: 'rgba(0,0,0,0.22)', borderRadius: 14, padding: '8px 14px', border: '1px solid rgba(255,255,255,0.14)', backdropFilter: 'blur(6px)' }}>
-                    <span style={{ fontSize: 18, lineHeight: 1 }}>{chip.icon}</span>
+                  <div key={chip.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.13)', borderRadius: 12, padding: '7px 13px', border: '1px solid rgba(255,255,255,0.18)' }}>
+                    <span style={{ fontSize: 16, lineHeight: 1 }}>{chip.emoji}</span>
                     <div>
-                      <p style={{ fontSize: 19, fontWeight: 900, color: '#fff', margin: 0, lineHeight: 1, fontFamily: 'var(--font-jakarta)' }}>{chip.value}</p>
-                      <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.55)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 1 }}>{chip.label}</p>
+                      <p style={{ fontSize: 17, fontWeight: 900, color: '#fff', margin: 0, lineHeight: 1, fontFamily: 'var(--font-jakarta)' }}>{chip.value}</p>
+                      <p style={{ fontSize: 9, color: 'rgba(255,255,255,0.62)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.07em' }}>{chip.label}</p>
                     </div>
                   </div>
                 ))}

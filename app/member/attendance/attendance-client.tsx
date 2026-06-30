@@ -490,12 +490,20 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     </div>
                   )}
                   {/* Block clock-in entirely if yesterday has no login (2A) */}
-                  {yesterdayStatus === 'no_login' ? null : todayApprovedLeave ? (
+                  {/* Half day leave: show info banner but still allow clock-in for the other half */}
+                  {todayApprovedLeave?.leave_type === "half_day" && (
+                    <div className="rounded-2xl p-4 flex items-center gap-3" style={{ background: "rgba(245,158,11,0.07)", border: "1.5px solid rgba(245,158,11,0.25)" }}>
+                      <div className="text-2xl">🌓</div>
+                      <div>
+                        <p className="text-[13px] font-black" style={{ color: "#D97706" }}>Half Day Leave Approved</p>
+                        <p className="text-[11px]" style={{ color: "#9CA3AF" }}>You can still clock in for the other half of the day.</p>
+                      </div>
+                    </div>
+                  )}
+                  {yesterdayStatus === 'no_login' ? null : (todayApprovedLeave && todayApprovedLeave.leave_type !== "half_day") ? (
                     <div className="rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(239,68,68,0.02) 100%)", border: "1.5px solid rgba(239,68,68,0.2)" }}>
                       <div className="text-3xl mb-2">🏖️</div>
-                      <p className="text-[15px] font-black mb-2" style={{ color: "#DC2626" }}>
-                        {todayApprovedLeave.leave_type === "half_day" ? "Half Day Leave" : "Full Day Leave"} Approved
-                      </p>
+                      <p className="text-[15px] font-black mb-2" style={{ color: "#DC2626" }}>Full Day Leave Approved</p>
                       <p className="text-[11px] font-black uppercase tracking-widest" style={{ color: "#9CA3AF" }}>NO LOGIN REQUIRED.</p>
                     </div>
                   ) : (

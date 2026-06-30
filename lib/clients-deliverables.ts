@@ -231,6 +231,9 @@ export function computeDeliverables(
     : new Set((Array.isArray(clientFilter) ? clientFilter : [clientFilter]).map(normalizeClient))
 
   // KPI accumulators
+  // UNIQUE COUNT RULE: for edit/voiceover/poster counts, always check !entry.is_rework
+  // is_rework=true means it is a revision of an existing deliverable — must NOT count as a new unique item.
+  // If you add any new count logic below for these types, you MUST add the is_rework guard.
   let mediaShootCount   = 0
   let mediaShootHours   = 0
   let mediaEditCount    = 0

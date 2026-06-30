@@ -231,6 +231,7 @@ export async function submitDailyUpdate(
     // Recalculate all aggregates from combined entries — never use incremental addition
     const calcWorkHours  = calcNetWorkHours(combinedEntries as Parameters<typeof calcNetWorkHours>[0], workLayout)
     const calcShootCount = combinedEntries.filter(e => e.task_type === 'shoot').length
+    // UNIQUE COUNT RULE: edit/voiceover/poster with is_rework=true are revisions — never count as new unique deliverables
     const calcEditCount  = combinedEntries.filter(e => e.task_type === 'edit' && !(e as Record<string,unknown>).is_rework).length
     const calcLearnHours = Math.round(combinedEntries.filter(e => e.task_type === 'learning').reduce((s, e) => s + (Number(e.duration_hours) || 0), 0) * 10) / 10
 
@@ -445,6 +446,7 @@ export async function updatePastDailyUpdate(
       work_entries:   finalEntries,
       working_hours:  calcNetWorkHours(finalEntries as Parameters<typeof calcNetWorkHours>[0], updateLayout) || null,
       shoot_count:    finalEntries.filter(e => e.task_type === 'shoot').length,
+      // UNIQUE COUNT RULE: skip is_rework=true — revisions are not new unique deliverables
       editing_count:  finalEntries.filter(e => e.task_type === 'edit' && !(e as Record<string,unknown>).is_rework).length,
       learning_hours: finalLearnHours,
     })
@@ -543,6 +545,7 @@ export async function addEntryToDate(
     work_entries: allEntries,
     working_hours: calcNetWorkHours(allEntries as Parameters<typeof calcNetWorkHours>[0], addLayout) || null,
     shoot_count: allEntries.filter(e => e.task_type === 'shoot').length,
+    // UNIQUE COUNT RULE: skip is_rework=true — revisions are not new unique deliverables
     editing_count: allEntries.filter(e => e.task_type === 'edit' && !(e as Record<string,unknown>).is_rework).length,
   }
 

@@ -200,6 +200,9 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
     if (entries.length > 0) return s + entries.filter(e => e.task_type === 'shoot').length
     return s + (u.shoot_count ?? 0)
   }, 0)
+  // UNIQUE COUNT RULE: skip is_rework=true for edit/voiceover/poster — revisions are not new unique deliverables.
+  // Dual-source for edit: new records use work_entries (filter is_rework); old records (work_entries=null) fall back
+  // to editing_count column — safe because revisions didn't exist when those old records were created.
   const totalEdited    = monthlyUpdates.reduce((s, u) => {
     const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
     if (entries.length > 0) return s + entries.filter(e => e.task_type === 'edit' && !(e as unknown as Record<string,unknown>).is_rework).length
@@ -261,6 +264,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   }
 
   // Non-media right-panel: poster/edit/voiceover counts + technical (work_log) hrs
+  // UNIQUE COUNT RULE: always guard with !is_rework — revisions must not increment these counts
   let nmPosterCount = 0, nmEditCount = 0, nmVoiceoverCount = 0, nmTechHrs = 0
   if (!isMedia && !isFreelancerMedia) {
     for (const u of monthlyUpdates) {

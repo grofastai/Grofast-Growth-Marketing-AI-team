@@ -678,6 +678,7 @@ export default function HistoryClient({
       dailyData.push({ day: new Date(u.date + "T12:00:00").getDate().toString(), hours: Math.round(h * 10) / 10 })
       totalTasks += entries.filter(e => e.task_type !== "break" && e.task_type !== "learning").length
       for (const e of entries) {
+        // UNIQUE COUNT RULE: edit/voiceover/poster with is_rework=true are revisions — hours still count, but NOT the unique item count
         if (e.task_type === "shoot") {
           shootH += (e.duration_hours ?? 0); shootCount++
           travelH += (e._travel_hours ?? 0)

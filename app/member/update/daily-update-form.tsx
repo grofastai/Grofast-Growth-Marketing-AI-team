@@ -88,6 +88,60 @@ function calcDuration(start: string, end: string) {
   return diff > 0 ? Math.round((diff / 60) * 10) / 10 : 0
 }
 function toMins(t: string) { const [h, m] = t.split(":").map(Number); return h * 60 + m }
+function timesOverlap(s1: string, e1: string, s2: string, e2: string, thresholdMins = 0): boolean {
+  if (!s1 || !e1 || !s2 || !e2) return false
+  const a = toMins(s1), b = toMins(e1), c = toMins(s2), d = toMins(e2)
+  if (b <= a || d <= c) return false
+  return Math.min(b, d) - Math.max(a, c) > thresholdMins
+}
+export type ActiveLeave = {
+  from_date: string; to_date: string; leave_type: string; status: string
+  half_day_from_time?: string | null; half_day_to_time?: string | null
+  permission_time?: string | null; permission_hours?: number | string | null
+}
+type OverlapEntry = { id?: string; start: string; end: string; title: string }
+function findOverlapError(
+  newEntries: OverlapEntry[],
+  savedEntries: Record<string, unknown>[],
+  activeLeaves: ActiveLeave[],
+  date: string
+): string | null {
+  const valid = newEntries.filter(n => n.start && n.end)
+  if (valid.length === 0) return null
+  // Build leave time windows for this date
+  const leaveWindows: { from: string; to: string; label: string }[] = []
+  for (const l of activeLeaves) {
+    if (l.from_date > date || l.to_date < date) continue
+    if (l.leave_type === 'half_day' && l.half_day_from_time && l.half_day_to_time) {
+      leaveWindows.push({ from: l.half_day_from_time, to: l.half_day_to_time, label: 'Half Day Leave' })
+    } else if (l.leave_type === 'permission' && l.permission_time && l.permission_hours) {
+      const [h, m] = (l.permission_time as string).split(':').map(Number)
+      const totalMins = h * 60 + m + Math.round(Number(l.permission_hours) * 60)
+      const endH = String(Math.floor(totalMins / 60)).padStart(2, '0')
+      const endM = String(totalMins % 60).padStart(2, '0')
+      leaveWindows.push({ from: l.permission_time as string, to: `${endH}:${endM}`, label: 'Permission Leave' })
+    }
+  }
+  const newIds = new Set(valid.map(n => n.id).filter(Boolean))
+  const saved = savedEntries.filter(e => e.start_time && e.end_time && !newIds.has(e.id as string))
+  for (const n of valid) {
+    for (const ex of saved) {
+      if (timesOverlap(n.start, n.end, ex.start_time as string, ex.end_time as string, 3))
+        return `Time ${n.start}–${n.end} overlaps with "${ex.title}" (${ex.start_time}–${ex.end_time}). Please fix the times.`
+    }
+    for (const w of leaveWindows) {
+      if (timesOverlap(n.start, n.end, w.from, w.to, 0))
+        return `"${n.title}" (${n.start}–${n.end}) overlaps with your ${w.label} (${w.from}–${w.to}). No entries allowed during leave time.`
+    }
+  }
+  for (let i = 0; i < valid.length; i++) {
+    for (let j = i + 1; j < valid.length; j++) {
+      if (timesOverlap(valid[i].start, valid[i].end, valid[j].start, valid[j].end, 3))
+        return `Time ${valid[i].start}–${valid[i].end} overlaps with "${valid[j].title}" (${valid[j].start}–${valid[j].end}). Please fix the times.`
+    }
+  }
+  return null
+}
 function calcOverlapHours(editStart: string, editEnd: string, shoots: { startTime: string; endTime: string }[]): number {
   if (!editStart || !editEnd) return 0
   const eS = toMins(editStart), eE = toMins(editEnd)
@@ -385,13 +439,14 @@ type PastUpdate = {
 
 export default function DailyUpdateForm({
   projects, sheetClientNames = [], pastClientNames = [], userName, team, workLayout, existingUpdate, pastUpdates = [], teamMembers = [], approvedLeaveDates = [],
-  todayClockedIn = true, requiresClockIn = false, defaultDate,
+  todayClockedIn = true, requiresClockIn = false, defaultDate, activeLeavesList = [],
 }: {
   projects: Project[]; sheetClientNames?: string[]; pastClientNames?: string[]; userName: string; team?: string | null
   workLayout?: 'media' | 'non_media' | 'freelance_media'
   existingUpdate?: Record<string, unknown> | null; pastUpdates?: PastUpdate[]
   teamMembers?: TeamMember[]; approvedLeaveDates?: string[]
   todayClockedIn?: boolean; requiresClockIn?: boolean; defaultDate?: string
+  activeLeavesList?: ActiveLeave[]
 }) {
   const router = useRouter()
   const existingUpdateRef = useRef(existingUpdate)
@@ -729,17 +784,18 @@ export default function DailyUpdateForm({
       }
     }
 
-    // Past date: check new blocks don't overlap with already-saved entries (all types, >3 min threshold)
-    if (isPastDate && activeUpdate) {
-      const existingEntries = (activeUpdate.work_entries as Record<string,unknown>[] | null) ?? []
-      const savedTimes = existingEntries.filter(e => e.start_time && e.end_time)
-      for (const b of filledBlocks) {
-        for (const ex of savedTimes) {
-          if (timesOverlap(b.startTime, b.endTime, ex.start_time as string, ex.end_time as string, 3)) {
-            setWorkingError(`Time ${b.startTime}–${b.endTime} overlaps with "${ex.title}" (${ex.start_time}–${ex.end_time}). Please fix the times.`); return
-          }
-        }
-      }
+    // Overlap check: all new entries vs saved + within batch + leave windows (today AND past dates)
+    {
+      const existingEntries = activeUpdate ? (activeUpdate.work_entries as Record<string,unknown>[] | null) ?? [] : []
+      const newEntries: OverlapEntry[] = [
+        ...filledBlocks.map(b => ({ id: b.id, start: b.startTime, end: b.endTime, title: b.description || 'Work' })),
+        ...nonMediaBreaks.filter(b => b.durationHours > 0).map(b => ({ id: b.id, start: b.startTime ?? '', end: b.endTime ?? '', title: 'Break' })),
+        ...voiceovers.map(v => ({ id: v.id, start: v.startTime, end: v.endTime, title: v.title || 'Voiceover' })),
+        ...posters.map(p => ({ id: p.id, start: p.startTime, end: p.endTime, title: p.title || 'Poster' })),
+        ...nmEdits.map(n => ({ id: n.id, start: n.startTime, end: n.endTime, title: n.title || 'Edit' })),
+      ]
+      const overlapErr = findOverlapError(newEntries, existingEntries, activeLeavesList, selectedDate)
+      if (overlapErr) { setWorkingError(overlapErr); return }
     }
 
     // Voiceover mandatory: client, title, start time, end time
@@ -884,23 +940,17 @@ export default function DailyUpdateForm({
     if (requiresClockIn && !todayClockedIn && selectedDate === todayStr) { setError("Please clock in on the Attendance page before submitting today's work log."); return }
     if (tab !== "break" && shoots.length === 0 && edits.length === 0 && voiceovers.length === 0 && posters.length === 0) { setError("Add at least one shoot, edit, voiceover, or poster entry."); return }
 
-    // Past date: check new entries don't overlap with already-saved entries (all types, >3 min threshold)
-    if (isPastDate && activeUpdate) {
-      const existingEntries = (activeUpdate.work_entries as Record<string,unknown>[] | null) ?? []
-      const savedTimes = existingEntries.filter(e => e.start_time && e.end_time)
-      const newEntries = [
-        ...shoots.map(s => ({ start: s.startTime, end: s.endTime, title: s.title || "Shoot" })),
-        ...edits.map(e => ({ start: e.startTime, end: e.endTime, title: e.title || "Edit" })),
-        ...voiceovers.map(e => ({ start: e.startTime, end: e.endTime, title: e.title || "Voiceover" })),
-        ...posters.map(e => ({ start: e.startTime, end: e.endTime, title: e.title || "Poster" })),
+    // Overlap check: all new entries vs saved + within batch + leave windows (today AND past dates)
+    {
+      const existingEntries = activeUpdate ? (activeUpdate.work_entries as Record<string,unknown>[] | null) ?? [] : []
+      const newEntries: OverlapEntry[] = [
+        ...shoots.map(s => ({ id: s.id, start: s.startTime, end: s.endTime, title: s.title || 'Shoot' })),
+        ...edits.map(e => ({ id: e.id, start: e.startTime, end: e.endTime, title: e.title || 'Edit' })),
+        ...voiceovers.map(v => ({ id: v.id, start: v.startTime, end: v.endTime, title: v.title || 'Voiceover' })),
+        ...posters.map(p => ({ id: p.id, start: p.startTime, end: p.endTime, title: p.title || 'Poster' })),
       ]
-      for (const n of newEntries) {
-        for (const ex of savedTimes) {
-          if (timesOverlap(n.start, n.end, ex.start_time as string, ex.end_time as string, 3)) {
-            setError(`Time ${n.start}–${n.end} overlaps with "${ex.title}" (${ex.start_time}–${ex.end_time}). Please fix the times.`); return
-          }
-        }
-      }
+      const overlapErr = findOverlapError(newEntries, existingEntries, activeLeavesList, selectedDate)
+      if (overlapErr) { setError(overlapErr); return }
     }
     const work_entries = [
       ...shoots.map(s => ({
@@ -989,14 +1039,6 @@ export default function DailyUpdateForm({
         }
       }
     })
-  }
-
-  // ── Time overlap check — returns overlap minutes; >3 min is a real conflict ─
-  function timesOverlap(s1: string, e1: string, s2: string, e2: string, thresholdMins = 0): boolean {
-    if (!s1 || !e1 || !s2 || !e2) return false
-    const a = toMins(s1), b = toMins(e1), c = toMins(s2), d = toMins(e2)
-    if (b <= a || d <= c) return false
-    return Math.min(b, d) - Math.max(a, c) > thresholdMins
   }
 
   // ── Per-entry save (media) ────────────────────────────────────────────────
@@ -1206,6 +1248,23 @@ export default function DailyUpdateForm({
       : []
     const allParticipantIds = !isMediaTeam ? [...new Set(filledBlocks.flatMap(b => b.participantIds))] : []
     const work_entries = [...workingEntries, ...breakEntries]
+
+    // Overlap check: break + working entries vs saved + each other + leave windows
+    {
+      const existingEntries = activeUpdate ? (activeUpdate.work_entries as Record<string,unknown>[] | null) ?? [] : []
+      const newEntries: OverlapEntry[] = [
+        ...breakEntries
+          .filter(b => b.start_time && b.end_time)
+          .map(b => ({ id: b.id, start: b.start_time as string, end: b.end_time as string, title: b.title as string || 'Break' })),
+        ...(!isMediaTeam
+          ? workingEntries
+              .filter(w => w.start_time && w.end_time)
+              .map(w => ({ id: w.id, start: w.start_time as string, end: w.end_time as string, title: w.title as string || 'Work' }))
+          : []),
+      ]
+      const overlapErr = findOverlapError(newEntries, existingEntries, activeLeavesList, selectedDate)
+      if (overlapErr) { setError(overlapErr); return }
+    }
 
     setBreakSubmitting(true)
     ;(async () => {

@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import { Suspense } from "react"
-import DailyUpdateForm from "./daily-update-form"
+import DailyUpdateForm, { type ActiveLeave } from "./daily-update-form"
 import { Loader2 } from "lucide-react"
 
 function adminSupabase() {
@@ -53,6 +53,7 @@ export default async function UpdatePage() {
     { data: pastUpdates },
     { data: teamMembersRaw },
     { data: approvedLeavesRaw },
+    { data: activeLeavesList },
     { data: todayClockLog },
     { data: yesterdayUpdate },
     { data: yesterdayLeave },
@@ -102,6 +103,14 @@ export default async function UpdatePage() {
       .select("from_date, to_date, leave_type")
       .eq("user_id", effectiveUserId)
       .eq("status", "approved")
+      .gte("to_date", thirtyDaysAgoStr),
+    // Overlap validation: half_day + permission leaves (pending OR approved) with time bounds
+    admin
+      .from("leaves")
+      .select("from_date, to_date, leave_type, status, half_day_from_time, half_day_to_time, permission_time, permission_hours")
+      .eq("user_id", effectiveUserId)
+      .in("status", ["approved", "pending"])
+      .in("leave_type", ["half_day", "permission"])
       .gte("to_date", thirtyDaysAgoStr),
     // 4A: did the member clock in today?
     admin
@@ -186,6 +195,7 @@ export default async function UpdatePage() {
         todayClockedIn={todayClockedIn}
         requiresClockIn={requiresClockIn}
         defaultDate={defaultDate}
+        activeLeavesList={(activeLeavesList ?? []) as ActiveLeave[]}
       />
     </Suspense>
   )

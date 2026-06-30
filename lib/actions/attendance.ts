@@ -489,7 +489,7 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
   const ctx = ctxResult
 
   const admin = adminSupabase()
-  const [attResult, updatesResult, leavesResult, holidaysResult] = await Promise.all([
+  const [attResult, updatesResult, leavesResult, holidaysResult, collabResult] = await Promise.all([
     admin
       .from('attendance_logs')
       .select('id, date, clock_in, clock_out, break_total_mins, break_in, break_out, work_type, status')
@@ -519,6 +519,13 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
       .eq('company_id', ctx.companyId)
       .gte('date', startDate)
       .lte('date', endDate),
+    admin
+      .from('collaboration_confirmations')
+      .select('date, confirmed_hours')
+      .eq('collaborator_id', ctx.userId)
+      .in('status', ['confirmed', 'edited_confirmed'])
+      .gte('date', startDate)
+      .lte('date', endDate),
   ])
 
   if (attResult.error) return { success: false, logs: [], leaveDates: [], holidayDates: [], error: attResult.error.message }
@@ -540,6 +547,12 @@ export async function getAttendanceRange(startDate: string, endDate: string): Pr
       : (r.working_hours ?? 0) + (r.learning_hours ?? 0)
     // Break: sum of break entries' duration_hours
     breakByDate[r.date] = entries.filter(e => e.task_type === 'break').reduce((s, e) => s + (e.duration_hours ?? 0), 0)
+  }
+
+  // Add confirmed collab hours per day to worked totals
+  for (const c of (collabResult.data ?? []) as { date: string; confirmed_hours: number | null }[]) {
+    if (c.confirmed_hours && c.confirmed_hours > 0)
+      workedByDate[c.date] = (workedByDate[c.date] ?? 0) + c.confirmed_hours
   }
 
   const logs = (attResult.data ?? []).map(l => ({

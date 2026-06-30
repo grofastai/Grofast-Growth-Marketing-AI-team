@@ -9,6 +9,16 @@ import { fmtRupee, fmtDate } from '@/lib/clients-deliverables'
 
 // ── Work type display config ──────────────────────────────────────────────────
 
+const INTERNAL_BRAND_ORDER = ['GROFAST DIGITAL', 'KARTHICK BRANDS', 'GROFAST AI']
+
+function sortInternalBrands(list: ClientRow[]) {
+  return [...list].sort((a, b) => {
+    const ai = INTERNAL_BRAND_ORDER.indexOf(a.name.toUpperCase())
+    const bi = INTERNAL_BRAND_ORDER.indexOf(b.name.toUpperCase())
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
+  })
+}
+
 const WORK_TYPE_CFG: Record<string, { emoji: string; color: string; bg: string }> = {
   reel:         { emoji: '🎬', color: '#E53935', bg: 'rgba(229,57,53,0.08)'   },
   short:        { emoji: '📱', color: '#F97316', bg: 'rgba(249,115,22,0.08)'  },
@@ -210,7 +220,7 @@ export default function ClientsUnifiedClient({
   const router = useRouter()
   const [search, setSearch] = useState('')
 
-  const internalClients = useMemo(() => activeClients.filter(c => c.industry === 'Internal Brand'), [activeClients])
+  const internalClients = useMemo(() => sortInternalBrands(activeClients.filter(c => c.industry === 'Internal Brand')), [activeClients])
   const regularActive   = useMemo(() => activeClients.filter(c => c.industry !== 'Internal Brand'), [activeClients])
 
   function filterList(list: ClientRow[]) {
@@ -291,7 +301,7 @@ export default function ClientsUnifiedClient({
             <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', margin: 0 }}>Manage active clients, deliverables and financials</p>
             <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
               {[
-                { icon: <Building2 size={11} />, label: `${activeClients.length} Active` },
+                { icon: <Building2 size={11} />, label: `${regularActive.length} Active` },
                 { icon: <TrendingUp size={11} />, label: `${pastClients.length} Past Clients` },
                 { icon: <Users size={11} />, label: `${activeClients.length + pastClients.length} Total` },
               ].map(s => (

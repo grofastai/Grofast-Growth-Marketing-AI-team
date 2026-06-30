@@ -496,40 +496,74 @@ export default function DocumentsClient({
       )}
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
-      <div style={{ margin: "20px 20px 0", borderRadius: 24, overflow: "hidden", background: "linear-gradient(135deg, #de1a1a 0%, #991B1B 50%, #7F1D1D 100%)", boxShadow: "0 8px 32px rgba(222,26,26,0.35)", position: "relative" }}>
-        <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
-        <div style={{ position: "absolute", bottom: -30, right: 200, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
-        <div style={{ position: "absolute", top: 10, right: 360, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
-        <div style={{ padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, position: "relative", zIndex: 1 }}>
+      <div style={{
+        margin: "16px 16px 0", borderRadius: 20, overflow: "hidden",
+        background: "linear-gradient(120deg, #C01010 0%, #D41515 35%, #C01010 65%, #9B0D0D 100%)",
+        boxShadow: "0 8px 32px rgba(180,0,0,0.45)", position: "relative", minHeight: 186,
+      }}>
+        {/* Depth glows */}
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 28% 50%, rgba(255,60,60,0.18) 0%, transparent 58%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 80% 40%, rgba(70,0,0,0.32) 0%, transparent 55%)", pointerEvents: "none" }} />
+        {/* Sparkle dots */}
+        <div style={{ position: "absolute", top: 20, left: "32%", width: 5, height: 5, borderRadius: "50%", background: "rgba(255,255,255,0.42)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: 42, left: "28%", width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.26)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: 26, left: "36%", width: 4, height: 4, borderRadius: "50%", background: "rgba(255,200,200,0.32)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: 30, right: "22%", width: 4, height: 4, borderRadius: "50%", background: "rgba(255,255,255,0.28)", pointerEvents: "none" }} />
+
+        {/* ── Girl character — center-right, large, with floating folder icons ── */}
+        <div className="hidden md:block" style={{
+          position: "absolute", left: "30%", top: "50%",
+          transform: "translateY(-50%)",
+          width: 500, height: "155%",
+          pointerEvents: "none", zIndex: 1,
+        }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/documents/hero-girl.png" alt=""
+            style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center bottom", filter: "drop-shadow(0 6px 24px rgba(0,0,0,0.22))" }} />
+        </div>
+
+        {/* ── Buttons — absolute top-right ── */}
+        <div style={{ position: "absolute", top: 18, right: 20, display: "flex", flexDirection: "column", gap: 8, zIndex: 3, alignItems: "flex-end" }}>
+          <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.15)", color: "#fff", backdropFilter: "blur(8px)", whiteSpace: "nowrap" }}>
+            <Upload size={13} /> Upload Document
+          </button>
+          <a href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8" target="_blank" rel="noopener noreferrer"
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: "#C01010", background: "#FFFFFF", textDecoration: "none", boxShadow: "0 4px 14px rgba(0,0,0,0.2)", whiteSpace: "nowrap" }}>
+            <ExternalLink size={13} /> Drive Backup
+          </a>
+        </div>
+
+        {/* ── Left content: badge top, title+chips bottom ── */}
+        <div style={{ position: "relative", zIndex: 2, padding: "18px 22px 20px", display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 186, maxWidth: 400 }}>
+          {/* Badge — top left */}
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 99, background: "rgba(0,0,0,0.22)", color: "#fff", border: "1px solid rgba(255,255,255,0.22)", letterSpacing: "0.04em", alignSelf: "flex-start" }}>
+            📄 Admin Dashboard
+          </span>
+
+          {/* Title + subtitle + stat chips — bottom */}
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
-                <Sparkles size={16} style={{ color: "#FFD700" }} />
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
-            </div>
-            <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", margin: "0 0 6px", fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>Documents</h1>
-            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", margin: 0 }}>Manage employee documents securely in one place</p>
-            <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
+            <h1 style={{ fontSize: 30, fontWeight: 900, color: "#FFFFFF", margin: "0 0 5px", fontFamily: "var(--font-jakarta)", lineHeight: 1.15, letterSpacing: "-0.01em" }}>
+              Documents
+            </h1>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.68)", margin: "0 0 14px", lineHeight: 1.55 }}>
+              Manage employee documents<br />securely in one place
+            </p>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               {[
-                { icon: <Users size={12} />, label: `${members.length} Members` },
-                { icon: <FileText size={12} />, label: `${totalFiles} Files` },
-                { icon: <Shield size={12} />, label: `${verifiedCount} Verified` },
-              ].map(s => (
-                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 12px" }}>
-                  <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF" }}>{s.label}</span>
+                { emoji: "👥", value: members.length,  label: "Members" },
+                { emoji: "📄", value: totalFiles,       label: "Files" },
+                { emoji: "✅", value: verifiedCount,   label: "Verified" },
+              ].map(chip => (
+                <div key={chip.label} style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.14)", borderRadius: 12, padding: "7px 13px", border: "1px solid rgba(255,255,255,0.2)", backdropFilter: "blur(4px)" }}>
+                  <span style={{ fontSize: 15, lineHeight: 1 }}>{chip.emoji}</span>
+                  <div>
+                    <p style={{ fontSize: 16, fontWeight: 900, color: "#fff", margin: 0, lineHeight: 1, fontFamily: "var(--font-jakarta)" }}>{chip.value}</p>
+                    <p style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", margin: 0, textTransform: "uppercase", letterSpacing: "0.07em" }}>{chip.label}</p>
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end", flexShrink: 0 }}>
-            <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 18px", borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "none", background: "rgba(255,255,255,0.25)", color: "#fff", backdropFilter: "blur(10px)" }}>
-              <Upload size={14} /> Upload Document
-            </button>
-            <a href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 12, fontSize: 12, fontWeight: 700, cursor: "pointer", background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.9)", border: "1px solid rgba(255,255,255,0.3)", textDecoration: "none" }}>
-              <ExternalLink size={13} /> Drive Backup
-            </a>
           </div>
         </div>
       </div>

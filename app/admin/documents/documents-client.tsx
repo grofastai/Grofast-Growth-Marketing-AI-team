@@ -510,16 +510,16 @@ export default function DocumentsClient({
         <div style={{ position: "absolute", bottom: 26, left: "36%", width: 4, height: 4, borderRadius: "50%", background: "rgba(255,200,200,0.32)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", top: 30, right: "22%", width: 4, height: 4, borderRadius: "50%", background: "rgba(255,255,255,0.28)", pointerEvents: "none" }} />
 
-        {/* ── Girl character — center-right, large, with floating folder icons ── */}
+        {/* ── Boy character — center-right, blends into red via multiply ── */}
         <div className="hidden md:block" style={{
-          position: "absolute", left: "30%", top: "50%",
+          position: "absolute", left: "28%", top: "50%",
           transform: "translateY(-50%)",
-          width: 500, height: "155%",
+          width: 540, height: "160%",
           pointerEvents: "none", zIndex: 1,
         }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/documents/hero-girl.png" alt=""
-            style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center bottom", filter: "drop-shadow(0 6px 24px rgba(0,0,0,0.22))" }} />
+          <img src="/brand/documents/hero-boy.png" alt=""
+            style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "center", mixBlendMode: "multiply", filter: "brightness(0.95) saturate(1.15)" }} />
         </div>
 
         {/* ── Buttons — absolute top-right ── */}

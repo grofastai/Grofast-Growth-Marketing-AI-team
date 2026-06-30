@@ -503,6 +503,23 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                       <p className="text-[12px] font-semibold" style={{ color: "#16A34A" }}>Yesterday logout saved. You can now clock in.</p>
                     </div>
                   )}
+                  {/* Half day leave info banner */}
+                  {todayApprovedLeave?.leave_type === "half_day" && (
+                    <div className="rounded-2xl p-4 flex items-center gap-3" style={{ background: "rgba(245,158,11,0.07)", border: "1.5px solid rgba(245,158,11,0.28)" }}>
+                      <div className="text-2xl flex-shrink-0">🌓</div>
+                      <div>
+                        <p className="text-[13px] font-black" style={{ color: "#D97706" }}>Half Day Leave Approved</p>
+                        {todayApprovedLeave.half_day_from_time && todayApprovedLeave.half_day_to_time && (
+                          <p className="text-[11px] font-semibold mt-0.5" style={{ color: "#9CA3AF" }}>
+                            {new Date(`2000-01-01T${todayApprovedLeave.half_day_from_time}`).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                            {" – "}
+                            {new Date(`2000-01-01T${todayApprovedLeave.half_day_to_time}`).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                            {" · Log in after leave ends"}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   {/* Block clock-in entirely if yesterday has no login (2A) */}
                   {yesterdayStatus === 'no_login' ? null : (todayApprovedLeave && todayApprovedLeave.leave_type !== "half_day") ? (
                     <div className="rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(239,68,68,0.02) 100%)", border: "1.5px solid rgba(239,68,68,0.2)" }}>

@@ -173,16 +173,16 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
 
   // LEAVE-1: cap leave date ranges to current month [monthStart..today]
   // LEAVE-2: only count approved leave records (not absence logs)
-  const leaveDateSet = new Set<string>()
+  // half_day counts as 0.5 not 1
+  let leaveDays = 0
   for (const l of approvedLeaves) {
     if (l.leave_type === "permission" || l.leave_type === "wfh" || l.leave_type === "shoot_day") continue
     const start = l.from_date > monthStart ? l.from_date : monthStart
     const end   = l.to_date   < today      ? l.to_date   : today
-    const cur = new Date(start + "T12:00:00")
-    const endDate = new Date(end + "T12:00:00")
-    while (cur <= endDate) { leaveDateSet.add(cur.toISOString().split("T")[0]); cur.setDate(cur.getDate() + 1) }
+    if (start > end) continue
+    const days = Math.ceil((new Date(end + "T12:00:00").getTime() - new Date(start + "T12:00:00").getTime()) / 86400000) + 1
+    leaveDays += l.leave_type === "half_day" ? days * 0.5 : days
   }
-  const leaveDays = leaveDateSet.size
 
   // Login hours — raw clock_in → clock_out span, no break deduction
   const logsWithClockData = presentAttLogs.filter(l => l.clock_in && l.clock_out)

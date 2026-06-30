@@ -219,14 +219,15 @@ export default async function AttendancePage() {
     ? Math.round((monthTotalHrs / monthPresentDays) * 10) / 10
     : 0
 
-  // LEAVE-1 fix: cap leave dates to current month boundaries
+  // LEAVE-1 fix: cap leave dates to current month boundaries; half_day = 0.5
   const monthLeaveDays = approvedLeaves
     .filter(l => l.leave_type !== "permission" && l.leave_type !== "wfh" && l.leave_type !== "shoot_day")
     .reduce((sum, l) => {
       const start = l.from_date > monthStart ? l.from_date : monthStart
       const end   = l.to_date   < today      ? l.to_date   : today
       if (start > end) return sum
-      return sum + Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 86400000) + 1
+      const days = Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 86400000) + 1
+      return sum + (l.leave_type === "half_day" ? days * 0.5 : days)
     }, 0)
 
   const elapsedDays     = Math.floor((new Date(today).getTime() - new Date(monthStart).getTime()) / 86400000) + 1

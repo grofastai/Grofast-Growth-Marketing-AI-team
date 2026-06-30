@@ -111,16 +111,62 @@ export async function submitDailyUpdate(
   const admin = adminSupabase()
   const { data: profile } = await admin
     .from('users')
-    .select('company_id, name, employee_id, phone, work_layout')
+    .select('company_id, name, employee_id, phone, work_layout, is_management, role')
     .eq('id', userId)
     .single()
 
   if (!profile?.company_id) return { success: false, error: 'Profile not found — re-login required' }
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).split(',')[0]
   const d = parsed.data
   const today = d.date ?? todayStr
   const isPastDate = today !== todayStr
+
+  const isManagement     = (profile as { is_management?: boolean | null }).is_management === true
+  const isFreelancerMedia = profile.work_layout === 'freelance_media'
+  const isAdmin           = (profile as { role?: string | null }).role === 'ADMIN'
+
+  // Fix 1: Block work entries that overlap with approved half-day leave time window
+  {
+    const { data: halfDayLeave } = await admin
+      .from('leaves')
+      .select('half_day_from_time, half_day_to_time')
+      .eq('user_id', userId)
+      .eq('status', 'approved')
+      .eq('leave_type', 'half_day')
+      .lte('from_date', today)
+      .gte('to_date', today)
+      .maybeSingle()
+    if (halfDayLeave?.half_day_from_time && halfDayLeave?.half_day_to_time) {
+      const leaveFrom = halfDayLeave.half_day_from_time
+      const leaveTo   = halfDayLeave.half_day_to_time
+      for (const entry of d.work_entries) {
+        if (!entry.start_time || !entry.end_time || entry.task_type === 'break') continue
+        if (entry.start_time < leaveTo && entry.end_time > leaveFrom) {
+          return {
+            success: false,
+            error: `"${(entry as { title?: string }).title || 'Work entry'}" (${entry.start_time}–${entry.end_time}) overlaps with your approved half day leave (${leaveFrom}–${leaveTo}). Please adjust the entry times.`,
+          }
+        }
+      }
+    }
+  }
+
+  // Fix 2: Block past-date submission if no clock-in record exists for that date
+  if (isPastDate && !isManagement && !isFreelancerMedia && !isAdmin) {
+    const { data: pastAttLog } = await admin
+      .from('attendance_logs')
+      .select('clock_in')
+      .eq('user_id', userId)
+      .eq('date', today)
+      .maybeSingle()
+    if (!pastAttLog?.clock_in) {
+      return {
+        success: false,
+        error: `No clock-in found for ${today}. Ask admin to add your attendance before submitting work entries for this date.`,
+      }
+    }
+  }
 
   // Block submission if on approved full-day leave (today only)
   if (!isPastDate) {

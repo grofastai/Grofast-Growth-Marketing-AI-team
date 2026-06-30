@@ -697,12 +697,13 @@ export default function HistoryClient({
     let leaveDays = 0
     for (const leave of approvedLeaves) {
       if (leave.leave_type === "permission" || leave.leave_type === "wfh" || leave.leave_type === "shoot_day") continue
+      const isHalfDay = leave.leave_type === "half_day"
       const start = new Date(leave.from_date + "T12:00:00")
       const end = new Date(leave.to_date + "T12:00:00")
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const ds = d.toISOString().split("T")[0]
         if (monthPrefix && !ds.startsWith(monthPrefix)) continue
-        leaveDays++
+        leaveDays += isHalfDay ? 0.5 : 1
       }
     }
 

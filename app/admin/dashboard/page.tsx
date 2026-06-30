@@ -145,14 +145,23 @@ export default async function DashboardPage() {
   ])
 
   // Yesterday not-updated members
-  const [{ data: yesterdayUpdatesRaw }, { data: activeMembersRaw }] = await Promise.all([
+  const [{ data: yesterdayUpdatesRaw }, { data: activeMembersRaw }, { data: yesterdayLeavesRaw }, { data: yesterdayHolidayRaw }] = await Promise.all([
     admin.from("daily_updates").select("user_id").eq("company_id", cid).eq("date", yesterday),
     admin.from("users").select("id, name, is_management, is_freelancer_login").eq("company_id", cid).eq("role", "MEMBER").eq("status", "active"),
+    // Members on approved full_day or half_day leave yesterday (exempt from update requirement)
+    admin.from("leaves").select("user_id")
+      .eq("company_id", cid).eq("status", "approved")
+      .in("leave_type", ["full_day", "half_day"])
+      .lte("from_date", yesterday).gte("to_date", yesterday),
+    // Company holiday yesterday — if so, nobody needs to update
+    admin.from("company_leaves").select("id").eq("company_id", cid).eq("date", yesterday).maybeSingle(),
   ])
-  const yesterdayUpdatedIds = new Set((yesterdayUpdatesRaw ?? []).map((u: { user_id: string }) => u.user_id))
-  const notUpdatedYesterdayNames = (activeMembersRaw ?? [])
+  const yesterdayUpdatedIds  = new Set((yesterdayUpdatesRaw  ?? []).map((u: { user_id: string }) => u.user_id))
+  const yesterdayOnLeaveIds  = new Set((yesterdayLeavesRaw   ?? []).map((l: { user_id: string }) => l.user_id))
+  const yesterdayWasHoliday  = !!yesterdayHolidayRaw
+  const notUpdatedYesterdayNames = yesterdayWasHoliday ? [] : (activeMembersRaw ?? [])
     .filter((m: { id: string; is_management?: boolean | null; is_freelancer_login?: boolean | null }) =>
-      !m.is_management && !m.is_freelancer_login && !yesterdayUpdatedIds.has(m.id))
+      !m.is_management && !m.is_freelancer_login && !yesterdayUpdatedIds.has(m.id) && !yesterdayOnLeaveIds.has(m.id))
     .map((m: { name: string }) => m.name)
 
   // Build leave calendar map

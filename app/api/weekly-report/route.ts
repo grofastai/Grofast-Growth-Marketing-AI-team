@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
     { data: overdueTasks },
     { data: overdueProjects },
     { data: membersRaw },
+    { data: collabRaw },
   ] = await Promise.all([
     admin
       .from('daily_updates')
@@ -92,6 +93,13 @@ export async function GET(request: NextRequest) {
       .eq('company_id', companyId)
       .eq('role', 'MEMBER')
       .eq('status', 'active'),
+    admin
+      .from('collaboration_confirmations')
+      .select('collaborator_id, confirmed_hours')
+      .eq('company_id', companyId)
+      .in('status', ['confirmed', 'edited_confirmed'])
+      .gte('date', weekAgo)
+      .lte('date', today),
   ])
 
   const updates = (updatesRaw ?? []) as any[]
@@ -113,6 +121,16 @@ export async function GET(request: NextRequest) {
       hours: prev.hours + workH,
       shoots: prev.shoots + (u.shoot_count ?? 0),
     })
+  }
+
+  // Add confirmed collab hours per user
+  for (const c of (collabRaw ?? []) as { collaborator_id: string; confirmed_hours: number | null }[]) {
+    const ch = c.confirmed_hours ?? 0
+    if (ch <= 0) continue
+    const existing = byUser.get(c.collaborator_id)
+    if (existing) {
+      byUser.set(c.collaborator_id, { ...existing, hours: existing.hours + ch })
+    }
   }
 
   const performers = [...byUser.values()].sort((a, b) => b.hours - a.hours)

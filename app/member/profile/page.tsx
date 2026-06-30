@@ -76,6 +76,7 @@ export default async function ProfilePage() {
     { count: weekCompleted },
     { count: weekLeaves },
     { data: kycRaw },
+    { data: collabRaw },
   ] = await Promise.all([
     db
       .from("users")
@@ -112,6 +113,12 @@ export default async function ProfilePage() {
       .select("bank_name, bank_account, bank_ifsc, aadhaar_number, pan_number, govt_id_url, aadhaar_back_url, pan_front_url, pan_back_url, ration_card_url, ration_card_url2")
       .eq("user_id", effectiveUserId)
       .maybeSingle(),
+    admin
+      .from("collaboration_confirmations")
+      .select("date, confirmed_hours")
+      .eq("collaborator_id", effectiveUserId)
+      .in("status", ["confirmed", "edited_confirmed"])
+      .gte("date", sevenDaysAgo),
   ])
 
   const payslipHistory = await getMyPayslipHistory()
@@ -124,6 +131,12 @@ export default async function ProfilePage() {
 
   // ── Derived stats ─────────────────────────────────────────────
 
+  // Build collab hours per date map
+  const collabByDate = new Map<string, number>()
+  for (const c of (collabRaw ?? []) as { date: string; confirmed_hours: number | null }[]) {
+    collabByDate.set(c.date, (collabByDate.get(c.date) ?? 0) + (c.confirmed_hours ?? 0))
+  }
+
   // 7-day chart data: build array for each of last 7 days
   const sevenDayChart = Array.from({ length: 7 }).map((_, i) => {
     const dt = new Date(day7Start)
@@ -131,12 +144,16 @@ export default async function ProfilePage() {
     const dateStr  = dt.toISOString().split("T")[0]
     const dayLabel = dt.toLocaleDateString("en-US", { weekday: "short" })
     const entry    = allUpdates.find(u => u.date === dateStr)
-    return { date: dateStr, label: dayLabel, hours: entry?.working_hours ?? 0, isFuture: dateStr > today }
+    const hours    = (entry?.working_hours ?? 0) + (collabByDate.get(dateStr) ?? 0)
+    return { date: dateStr, label: dayLabel, hours, isFuture: dateStr > today }
   })
 
   // This-week updates (weekStart … today)
   const weekUpdates = allUpdates.filter(u => u.date >= weekStart && u.date <= today)
   const weekHours   = weekUpdates.reduce((s, u) => s + (u.working_hours ?? 0), 0)
+    + Array.from(collabByDate.entries())
+        .filter(([d]) => d >= weekStart && d <= today)
+        .reduce((s, [, h]) => s + h, 0)
   const weekUpdatesDone = weekUpdates.length
 
   // Days from weekStart to today inclusive

@@ -113,7 +113,7 @@ function avatarColor(name: string) {
 }
 
 // ── Person Detail Drawer ──────────────────────────────────────────────────────
-function PersonDetailDrawer({ updates, onClose }: { updates: Update[]; onClose: () => void }) {
+function PersonDetailDrawer({ updates, onClose, collabHoursMap = {} }: { updates: Update[]; onClose: () => void; collabHoursMap?: Record<string, number> }) {
   const firstUpdate = updates[0]
   const user = Array.isArray(firstUpdate?.users) ? firstUpdate.users[0] : firstUpdate?.users
   if (!user) return null
@@ -121,7 +121,7 @@ function PersonDetailDrawer({ updates, onClose }: { updates: Update[]; onClose: 
   const [bg, fg] = avatarColor(user.name)
   const badge = getTeamBadge(user.team)
 
-  const totalHours = updates.reduce((s, u) => s + getUpdateHours(u), 0)
+  const totalHours = updates.reduce((s, u) => s + getUpdateHours(u) + (collabHoursMap[`${user.id}:${u.date}`] ?? 0), 0)
 
   // Group entries by date, latest first
   const byDate = new Map<string, WorkEntry[]>()
@@ -765,6 +765,7 @@ export default function ActivitiesClient({
         <PersonDetailDrawer
           updates={selectedUserUpdates}
           onClose={() => setSelectedUserId(null)}
+          collabHoursMap={collabHoursMap}
         />
       )}
     </div>

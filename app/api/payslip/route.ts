@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
   const monthEnd    = `${month}-${new Date(year, mon, 0).getDate()}`
   const workDays    = workingDaysInMonth(year, mon)
 
-  const [{ data: memberRaw }, { data: updatesRaw }, { data: logsRaw }, { data: companyRaw }, { data: runRaw }, { data: kycRaw }] = await Promise.all([
+  const [{ data: memberRaw }, { data: updatesRaw }, { data: logsRaw }, { data: companyRaw }, { data: runRaw }, { data: kycRaw }, { data: collabRaw }] = await Promise.all([
     admin.from('users')
       .select('id, name, employee_id, team, employment_type, monthly_salary, hourly_rate, created_at, phone, passport_photo_url')
       .eq('id', userId).eq('company_id', requester.company_id).single(),
@@ -69,6 +69,10 @@ export async function GET(request: NextRequest) {
       .eq('user_id', userId).eq('month', month).maybeSingle(),
     admin.from('member_kyc').select('bank_account, bank_name, bank_ifsc')
       .eq('user_id', userId).maybeSingle(),
+    admin.from('collaboration_confirmations').select('confirmed_hours')
+      .eq('collaborator_id', userId)
+      .in('status', ['confirmed', 'edited_confirmed'])
+      .gte('date', monthStart).lte('date', monthEnd),
   ])
 
   if (!memberRaw) return new NextResponse('Member not found', { status: 404 })
@@ -81,7 +85,8 @@ export async function GET(request: NextRequest) {
   const presentDays = logs.filter(l => l.clock_in !== null).length || updates.filter(u => (u.working_hours ?? 0) > 0).length
   const absentDays  = Math.max(workDays - presentDays, 0)
   const leaveDays   = absentDays
-  const totalHours  = Math.round(updates.reduce((s, u) => s + (u.working_hours ?? 0), 0) * 10) / 10
+  const collabHours = ((collabRaw ?? []) as { confirmed_hours: number | null }[]).reduce((s, c) => s + (c.confirmed_hours ?? 0), 0)
+  const totalHours  = Math.round((updates.reduce((s, u) => s + (u.working_hours ?? 0), 0) + collabHours) * 10) / 10
   const otHours     = Math.round(updates.reduce((s, u) => {
     const h = u.working_hours ?? 0; return h > 9.5 ? s + (h - 9.5) : s
   }, 0) * 10) / 10

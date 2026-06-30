@@ -124,13 +124,19 @@ export default async function ReportsPage({
     .map((m: any) => ({ name: m.name, employee_id: m.employee_id }))
 
   // ── Performers ───────────────────────────────────────────────────────────────
+  const collabByUser = new Map<string, number>()
+  for (const c of (collabRaw ?? []) as { collaborator_id: string; confirmed_hours: number | null }[]) {
+    collabByUser.set(c.collaborator_id, (collabByUser.get(c.collaborator_id) ?? 0) + (c.confirmed_hours ?? 0))
+  }
+
   const allPerformers = presentUpdates
     .map((u: any) => {
       const usr = resolveUser(u.users)
+      const collabH = collabByUser.get(u.user_id) ?? 0
       return {
         name:        usr?.name        ?? "Unknown",
         employee_id: usr?.employee_id ?? "",
-        hours:       getUpdateHours(u),
+        hours:       getUpdateHours(u) + collabH,
         shoots:      u.shoot_count    ?? 0,
         learning:    getUpdateLearning(u),
       }

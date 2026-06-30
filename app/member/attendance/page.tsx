@@ -140,6 +140,11 @@ export default async function AttendancePage() {
       : (u.working_hours ?? 0) + (u.learning_hours ?? 0)
     if (computedH > 0) weekUpdatesByDate[u.date] = computedH
   }
+  // Add confirmed collab hours to weekly per-day totals (reuse monthCollabRaw which covers this week)
+  for (const c of (monthCollabRaw ?? []) as { date: string; confirmed_hours: number | null }[]) {
+    if (c.confirmed_hours && c.confirmed_hours > 0)
+      weekUpdatesByDate[c.date] = (weekUpdatesByDate[c.date] ?? 0) + c.confirmed_hours
+  }
 
   // Sum approved permission hours per date
   const permHoursByDate: Record<string, number> = {}

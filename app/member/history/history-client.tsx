@@ -32,6 +32,7 @@ interface WorkEntry {
   date_given?: string | null; date_finished?: string | null
   drive_updated?: boolean | null; hooks_completed?: number | null
   _custom_label?: string | null
+  is_rework?: boolean | null; linked_to_title?: string | null; linked_to_client?: string | null; linked_to_date?: string | null
 }
 interface UpdateRow {
   id: string; date: string; attendance_status: string
@@ -479,6 +480,10 @@ export default function HistoryClient({
       date_finished: entry.date_finished ?? "",
       drive_updated: entry.drive_updated ?? false,
       hooks_completed: entry.hooks_completed ?? 0,
+      is_rework: entry.is_rework ?? false,
+      linked_to_title: entry.linked_to_title ?? null,
+      linked_to_client: entry.linked_to_client ?? null,
+      linked_to_date: entry.linked_to_date ?? null,
     })
   }
 
@@ -676,10 +681,10 @@ export default function HistoryClient({
         if (e.task_type === "shoot") {
           shootH += (e.duration_hours ?? 0); shootCount++
           travelH += (e._travel_hours ?? 0)
-        } else if (e.task_type === "edit") { editH += e.duration_hours ?? 0; editCount++ }
+        } else if (e.task_type === "edit") { editH += e.duration_hours ?? 0; if (!e.is_rework) editCount++ }
         else if (e.task_type === "other") { otherH += e.duration_hours ?? 0; worklogCount++ }
-        else if (e.task_type === "voiceover") { voiceoverH += e.duration_hours ?? 0; voiceoverCount++ }
-        else if (e.task_type === "poster") { posterH += e.duration_hours ?? 0; posterCount++ }
+        else if (e.task_type === "voiceover") { voiceoverH += e.duration_hours ?? 0; if (!e.is_rework) voiceoverCount++ }
+        else if (e.task_type === "poster") { posterH += e.duration_hours ?? 0; if (!e.is_rework) posterCount++ }
       }
     }
     // Also count clock-in dates in the selected month that have no daily_update record
@@ -1906,7 +1911,11 @@ export default function HistoryClient({
                                     <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:3, flexWrap:"wrap" }}>
                                       <span style={{ fontSize:13, fontWeight:800, color:"#111111" }}>{displayTitle}</span>
                                       <span style={{ fontSize:10, fontWeight:700, color:cfg.color, background:cfg.bg, padding:"2px 8px", borderRadius:99 }}>{cfg.label}</span>
+                                      {e.is_rework && <span style={{ fontSize:10, fontWeight:700, color:"#92400E", background:"rgba(245,158,11,0.12)", padding:"2px 8px", borderRadius:99, border:"1px solid rgba(245,158,11,0.3)" }}>Revision</span>}
                                     </div>
+                                    {e.is_rework && e.linked_to_title && (
+                                      <p style={{ fontSize:10, color:"#B45309", margin:"0 0 3px", fontWeight:600 }}>↩ of: {e.linked_to_client} – {e.linked_to_title}</p>
+                                    )}
                                     {displayClient && <p style={{ fontSize:11, color:"#6B7280", margin:"0 0 3px", fontWeight:600 }}>{displayClient}</p>}
                                     {!isLearning && (() => {
                                       if (e.task_type === "shoot") {
@@ -2124,6 +2133,16 @@ export default function HistoryClient({
                                   const dur = calcDur(editDraft.start_time, editDraft.end_time)
                                   return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                                     <p style={{ fontSize:11, fontWeight:800, color:"#6366F1", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Editing Entry</p>
+                                    {/* Revision toggle in edit modal */}
+                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 12px", borderRadius:10, background:editDraft.is_rework?"rgba(245,158,11,0.08)":"rgba(99,102,241,0.04)", border:editDraft.is_rework?"1px solid rgba(245,158,11,0.3)":"1px solid rgba(99,102,241,0.1)" }}>
+                                      <button type="button" onClick={()=>setEditDraft(d=>({...d, is_rework:!d.is_rework, linked_to_title:null, linked_to_client:null, linked_to_date:null}))}
+                                        style={{ padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.is_rework?"rgba(245,158,11,0.2)":"rgba(99,102,241,0.12)", color:editDraft.is_rework?"#92400E":"#4F46E5", whiteSpace:"nowrap", flexShrink:0 }}>
+                                        {editDraft.is_rework ? "✓ Revision" : "Revision of existing?"}
+                                      </button>
+                                      {editDraft.is_rework && editDraft.linked_to_title && (
+                                        <span style={{ fontSize:10, fontWeight:700, color:"#B45309" }}>↩ {editDraft.linked_to_client} – {editDraft.linked_to_title}</span>
+                                      )}
+                                    </div>
                                     <div>
                                       <label style={HL}>Date</label>
                                       <input type="date" value={editDraftDate} onChange={ev=>setEditDraftDate(ev.target.value)} style={{ ...HF, colorScheme:"light" }} />
@@ -2312,6 +2331,16 @@ export default function HistoryClient({
                                   const dur = calcDur(editDraft.start_time, editDraft.end_time)
                                   return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                                     <p style={{ fontSize:11, fontWeight:800, color:"#8B5CF6", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Voiceover</p>
+                                    {/* Revision toggle */}
+                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 12px", borderRadius:10, background:editDraft.is_rework?"rgba(245,158,11,0.08)":"rgba(139,92,246,0.04)", border:editDraft.is_rework?"1px solid rgba(245,158,11,0.3)":"1px solid rgba(139,92,246,0.1)" }}>
+                                      <button type="button" onClick={()=>setEditDraft(d=>({...d, is_rework:!d.is_rework, linked_to_title:null, linked_to_client:null, linked_to_date:null}))}
+                                        style={{ padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.is_rework?"rgba(245,158,11,0.2)":"rgba(139,92,246,0.12)", color:editDraft.is_rework?"#92400E":"#7C3AED", whiteSpace:"nowrap", flexShrink:0 }}>
+                                        {editDraft.is_rework ? "✓ Revision" : "Revision of existing?"}
+                                      </button>
+                                      {editDraft.is_rework && editDraft.linked_to_title && (
+                                        <span style={{ fontSize:10, fontWeight:700, color:"#B45309" }}>↩ {editDraft.linked_to_client} – {editDraft.linked_to_title}</span>
+                                      )}
+                                    </div>
                                     <div>
                                       <label style={HL}>Date</label>
                                       <input type="date" value={editDraftDate} onChange={ev=>setEditDraftDate(ev.target.value)} style={{ ...HF, colorScheme:"light" }} />
@@ -2368,6 +2397,16 @@ export default function HistoryClient({
                                   const dur = calcDur(editDraft.start_time, editDraft.end_time)
                                   return (<div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                                     <p style={{ fontSize:11, fontWeight:800, color:"#EC4899", margin:"0 0 2px", textTransform:"uppercase", letterSpacing:"0.1em" }}>✏️ Edit Poster</p>
+                                    {/* Revision toggle */}
+                                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"7px 12px", borderRadius:10, background:editDraft.is_rework?"rgba(245,158,11,0.08)":"rgba(236,72,153,0.04)", border:editDraft.is_rework?"1px solid rgba(245,158,11,0.3)":"1px solid rgba(236,72,153,0.1)" }}>
+                                      <button type="button" onClick={()=>setEditDraft(d=>({...d, is_rework:!d.is_rework, linked_to_title:null, linked_to_client:null, linked_to_date:null}))}
+                                        style={{ padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background:editDraft.is_rework?"rgba(245,158,11,0.2)":"rgba(236,72,153,0.12)", color:editDraft.is_rework?"#92400E":"#BE185D", whiteSpace:"nowrap", flexShrink:0 }}>
+                                        {editDraft.is_rework ? "✓ Revision" : "Revision of existing?"}
+                                      </button>
+                                      {editDraft.is_rework && editDraft.linked_to_title && (
+                                        <span style={{ fontSize:10, fontWeight:700, color:"#B45309" }}>↩ {editDraft.linked_to_client} – {editDraft.linked_to_title}</span>
+                                      )}
+                                    </div>
                                     <div>
                                       <label style={HL}>Date</label>
                                       <input type="date" value={editDraftDate} onChange={ev=>setEditDraftDate(ev.target.value)} style={{ ...HF, colorScheme:"light" }} />

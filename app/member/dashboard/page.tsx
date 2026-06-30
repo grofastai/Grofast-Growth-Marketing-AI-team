@@ -202,7 +202,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
   }, 0)
   const totalEdited    = monthlyUpdates.reduce((s, u) => {
     const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
-    if (entries.length > 0) return s + entries.filter(e => e.task_type === 'edit').length
+    if (entries.length > 0) return s + entries.filter(e => e.task_type === 'edit' && !(e as unknown as Record<string,unknown>).is_rework).length
     return s + (u.editing_count ?? 0)
   }, 0)
   const totalLearningHrs = Math.round(monthlyUpdates.reduce((s, u) => {
@@ -253,7 +253,7 @@ export default async function MemberDashboardPage({ searchParams }: { searchPara
       const entries = Array.isArray(u.work_entries) ? u.work_entries as WorkEntryLike[] : []
       for (const e of entries) {
         if (e.task_type === "shoot") { mediaShootHrs += e.duration_hours ?? 0; mediaShootCount++ }
-        else if (e.task_type === "edit") { mediaEditHrs += e.duration_hours ?? 0; mediaEditCount++ }
+        else if (e.task_type === "edit") { mediaEditHrs += e.duration_hours ?? 0; if (!(e as unknown as Record<string,unknown>).is_rework) mediaEditCount++ }
       }
     }
     mediaShootHrs = Math.round(mediaShootHrs * 10) / 10

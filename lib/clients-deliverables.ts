@@ -305,7 +305,7 @@ export function computeDeliverables(
             const vCost = calcVideoCost(v, hourly, rateMap)
             editCost += vCost
             tm.videoCount++
-            if (isMedia) { mediaEditCount++; mediaEditHours += v.time_taken ?? 0 }
+            if (isMedia && !(entry as Record<string,unknown>).is_rework) { mediaEditCount++; mediaEditHours += v.time_taken ?? 0 }
             if (!videoMap[vType]) videoMap[vType] = { videoType: vType, count: 0, totalTimeTaken: 0, totalCost: 0, videos: [] }
             videoMap[vType].count++
             videoMap[vType].totalTimeTaken += v.time_taken ?? 0
@@ -330,7 +330,7 @@ export function computeDeliverables(
           const vCost = entry.price != null ? entry.price : (typeRate + laborCost)
           editCost = vCost
           tm.videoCount++
-          if (isMedia) { mediaEditCount++; mediaEditHours += timeTaken }
+          if (isMedia && !(entry as Record<string,unknown>).is_rework) { mediaEditCount++; mediaEditHours += timeTaken }
           if (!videoMap[vType]) videoMap[vType] = { videoType: vType, count: 0, totalTimeTaken: 0, totalCost: 0, videos: [] }
           videoMap[vType].count++
           videoMap[vType].totalTimeTaken += timeTaken
@@ -407,8 +407,7 @@ export function computeDeliverables(
       videoMap[vType].totalTimeTaken += hrs
       videoMap[vType].totalCost      += cost
       videoMap[vType].videos.push({ date, clientName: fe.client_name, memberName: name, videoName: title, videoType: vType, timeTaken: hrs, revisions: (tdRaw.revisions as number | undefined) ?? 0, cost })
-      mediaEditCount++
-      mediaEditHours += hrs
+      if (!(fe as unknown as Record<string,unknown>).is_rework) { mediaEditCount++; mediaEditHours += hrs }
       dayMap[date].push({ date, memberName: name, taskType: 'edit', itemCount: 1, hours: hrs, cost, label: title })
 
     } else if (tt === 'voiceover') {

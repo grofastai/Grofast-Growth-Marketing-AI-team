@@ -33,6 +33,7 @@ interface EditEntry {
   timeTaken: number; driveUpdated: boolean
   revisions: number; hooksCompleted: number; videoLink: string; notes: string
   participantIds: string[]
+  isRework: boolean; linkedToTitle: string; linkedToClient: string; linkedToDate: string
 }
 interface TimeBlock {
   id: string; isBreak: boolean; breakLabel: string; breakCustom?: string
@@ -375,6 +376,10 @@ function parseExistingEdits(existingUpdate: Record<string, unknown>): EditEntry[
       videoLink: e.video_link ?? "",
       notes: e.notes ?? "",
       participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+      isRework: (e as Record<string, unknown>).is_rework as boolean ?? false,
+      linkedToTitle: (e as Record<string, unknown>).linked_to_title as string ?? "",
+      linkedToClient: (e as Record<string, unknown>).linked_to_client as string ?? "",
+      linkedToDate: (e as Record<string, unknown>).linked_to_date as string ?? "",
     }))
 }
 
@@ -394,6 +399,10 @@ function parseExistingVoiceovers(existingUpdate: Record<string, unknown>): EditE
       driveUpdated: false, revisions: 0, hooksCompleted: 0,
       videoLink: e.video_link ?? "", notes: e.notes ?? "",
       participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+      isRework: (e as Record<string, unknown>).is_rework as boolean ?? false,
+      linkedToTitle: (e as Record<string, unknown>).linked_to_title as string ?? "",
+      linkedToClient: (e as Record<string, unknown>).linked_to_client as string ?? "",
+      linkedToDate: (e as Record<string, unknown>).linked_to_date as string ?? "",
     }))
 }
 
@@ -413,6 +422,10 @@ function parseExistingPosters(existingUpdate: Record<string, unknown>): EditEntr
       driveUpdated: false, revisions: 0, hooksCompleted: 0,
       videoLink: e.video_link ?? "", notes: e.notes ?? "",
       participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+      isRework: (e as Record<string, unknown>).is_rework as boolean ?? false,
+      linkedToTitle: (e as Record<string, unknown>).linked_to_title as string ?? "",
+      linkedToClient: (e as Record<string, unknown>).linked_to_client as string ?? "",
+      linkedToDate: (e as Record<string, unknown>).linked_to_date as string ?? "",
     }))
 }
 
@@ -432,6 +445,10 @@ function parseExistingNmEdits(existingUpdate: Record<string, unknown>): EditEntr
       driveUpdated: false, revisions: 0, hooksCompleted: 0,
       videoLink: e.video_link ?? "", notes: e.notes ?? "",
       participantIds: (e as Record<string, unknown>).participant_ids as string[] ?? [],
+      isRework: (e as Record<string, unknown>).is_rework as boolean ?? false,
+      linkedToTitle: (e as Record<string, unknown>).linked_to_title as string ?? "",
+      linkedToClient: (e as Record<string, unknown>).linked_to_client as string ?? "",
+      linkedToDate: (e as Record<string, unknown>).linked_to_date as string ?? "",
     }))
 }
 
@@ -547,6 +564,7 @@ export default function DailyUpdateForm({
     startTime: "", endTime: "",
     dateGiven: todayStr, dateFinished: todayStr, timeTaken: 2,
     driveUpdated: false, revisions: 0, videoLink: "", notes: "", participantIds: [],
+    isRework: false, linkedToTitle: "", linkedToClient: "", linkedToDate: "",
   }])
   const patchEdit  = (id: string, patch: Partial<EditEntry>) => setEdits(p => p.map(e => {
     if (e.id !== id) return e
@@ -561,19 +579,19 @@ export default function DailyUpdateForm({
 
   // ── Voiceovers (media) ───────────────────────────────────────────────────
   const [voiceovers, setVoiceovers] = useState<EditEntry[]>(() => existingUpdate ? parseExistingVoiceovers(existingUpdate) : [])
-  const addVoiceover    = () => setVoiceovers(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[] }])
+  const addVoiceover    = () => setVoiceovers(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[], isRework:false, linkedToTitle:"", linkedToClient:"", linkedToDate:"" }])
   const patchVoiceover  = (id: string, patch: Partial<EditEntry>) => setVoiceovers(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
   const removeVoiceover = (id: string) => setVoiceovers(p => p.filter(e => e.id !== id))
 
   // ── Posters (media) ──────────────────────────────────────────────────────
   const [posters, setPosters] = useState<EditEntry[]>(() => existingUpdate ? parseExistingPosters(existingUpdate) : [])
-  const addPoster    = () => setPosters(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[] }])
+  const addPoster    = () => setPosters(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[], isRework:false, linkedToTitle:"", linkedToClient:"", linkedToDate:"" }])
   const patchPoster  = (id: string, patch: Partial<EditEntry>) => setPosters(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
   const removePoster = (id: string) => setPosters(p => p.filter(e => e.id !== id))
 
   // ── Non-media editing ─────────────────────────────────────────────────────
   const [nmEdits, setNmEdits] = useState<EditEntry[]>(() => (!isMediaTeam && existingUpdate) ? parseExistingNmEdits(existingUpdate) : [])
-  const addNmEdit    = () => setNmEdits(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[] }])
+  const addNmEdit    = () => setNmEdits(p => [...p, { id: crypto.randomUUID(), clientName:"", brand:"", customClient:"", title:"", videoType:"", customVideoType:"", videoDuration:"", startTime:"", endTime:"", dateGiven:"", dateFinished:"", timeTaken:1, driveUpdated:false, revisions:0, hooksCompleted:0, videoLink:"", notes:"", participantIds:[], isRework:false, linkedToTitle:"", linkedToClient:"", linkedToDate:"" }])
   const patchNmEdit  = (id: string, patch: Partial<EditEntry>) => setNmEdits(p => p.map(e => { if (e.id !== id) return e; const u = { ...e, ...patch }; if (patch.startTime !== undefined || patch.endTime !== undefined) { const d = calcDuration(u.startTime, u.endTime); if (d > 0) u.timeTaken = d } return u }))
   const removeNmEdit = (id: string) => setNmEdits(p => p.filter(e => e.id !== id))
 
@@ -755,6 +773,32 @@ export default function DailyUpdateForm({
     return () => document.removeEventListener("click", handler, true)
   }, [hasUnsaved])
 
+  // Past 15-day revision options per entry type
+  const past15Options = useMemo(() => {
+    const cutoff = new Date(selectedDate + "T12:00:00")
+    cutoff.setDate(cutoff.getDate() - 15)
+    const cutoffStr = cutoff.toISOString().split("T")[0]
+    type Opt = { key: string; label: string; title: string; client: string; date: string }
+    const editsOpts: Opt[] = [], voiceoversOpts: Opt[] = [], postersOpts: Opt[] = []
+    for (const u of pastUpdates) {
+      if (u.date >= selectedDate || u.date < cutoffStr) continue
+      const entries = Array.isArray(u.work_entries) ? u.work_entries as Record<string, unknown>[] : []
+      for (const e of entries) {
+        if (e.is_rework) continue
+        const title = (e.title as string) || ""
+        const client = (e.client_name as string) || ""
+        if (!title) continue
+        const dateLabel = new Date(u.date + "T12:00:00").toLocaleDateString("en-US", { weekday:"short", month:"short", day:"numeric" })
+        const key = `${u.date}||${client}||${title}`
+        const label = `${client} – ${title} (${dateLabel})`
+        if (e.task_type === "edit") editsOpts.push({ key, label, title, client, date: u.date })
+        else if (e.task_type === "voiceover") voiceoversOpts.push({ key, label, title, client, date: u.date })
+        else if (e.task_type === "poster") postersOpts.push({ key, label, title, client, date: u.date })
+      }
+    }
+    return { edits: editsOpts, voiceovers: voiceoversOpts, posters: postersOpts }
+  }, [pastUpdates, selectedDate])
+
   const totalShootHours     = useMemo(() => shoots.reduce((s, e) => s + e.durationHours, 0), [shoots])
   const totalTravelHours    = useMemo(() => shoots.reduce((s, e) => s + e.travelHours, 0), [shoots])
   const totalEditHours      = useMemo(() => edits.reduce((s, e) => s + calcDuration(e.startTime, e.endTime), 0), [edits])
@@ -884,6 +928,7 @@ export default function DailyUpdateForm({
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
         _client_type: e.clientName, _custom_client: e.customClient,
         participant_ids: e.participantIds,
+        is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
       })),
       ...posters.map(e => ({
         id: e.id,
@@ -897,6 +942,7 @@ export default function DailyUpdateForm({
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
         _client_type: e.clientName, _custom_client: e.customClient,
         participant_ids: e.participantIds,
+        is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
       })),
       ...nmEdits.map(e => ({
         id: e.id,
@@ -911,6 +957,7 @@ export default function DailyUpdateForm({
         video_type: e.videoType,
         _client_type: e.clientName, _custom_client: e.customClient,
         participant_ids: e.participantIds,
+        is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
       })),
     ]
     const allParticipantIds = [...new Set(filledBlocks.flatMap(b => b.participantIds))]
@@ -986,6 +1033,7 @@ export default function DailyUpdateForm({
           drive_updated: e.driveUpdated, revisions: e.revisions, hooks_completed: e.hooksCompleted || 0,
           _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient, _overlap_hours: overlapH,
           participant_ids: [...new Set([...participantIds, ...e.participantIds])],
+          is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
         }
       }),
       ...voiceovers.map(e => ({
@@ -997,6 +1045,7 @@ export default function DailyUpdateForm({
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
         _client_type: e.clientName, _custom_client: e.customClient,
         participant_ids: [...new Set([...participantIds, ...e.participantIds])],
+        is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
       })),
       ...posters.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
@@ -1007,6 +1056,7 @@ export default function DailyUpdateForm({
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
         _client_type: e.clientName, _custom_client: e.customClient,
         participant_ids: [...new Set([...participantIds, ...e.participantIds])],
+        is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
       })),
       ...mediaBreaks.filter(b => b.durationHours > 0).map(b => ({
         id: b.id, client_id: null, client_name: "Break", client_names: [], is_multi_client: false,
@@ -1132,6 +1182,7 @@ export default function DailyUpdateForm({
           drive_updated: e.driveUpdated, revisions: e.revisions, hooks_completed: e.hooksCompleted || 0,
           _client_type: e.clientName, _brand: e.brand, _custom_client: e.customClient, _overlap_hours: overlapH,
           participant_ids: [...new Set([...participantIds, ...e.participantIds])],
+          is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
         }
       }),
       ...voiceovers.map(e => ({
@@ -1143,6 +1194,7 @@ export default function DailyUpdateForm({
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
         _client_type: e.clientName, _custom_client: e.customClient,
         participant_ids: [...new Set([...participantIds, ...e.participantIds])],
+        is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
       })),
       ...posters.map(e => ({
         id: e.id, client_id: projects.find(p => p.business_name === e.clientName)?.id ?? null,
@@ -1153,6 +1205,7 @@ export default function DailyUpdateForm({
         notes: e.notes, video_uploaded: null, screenshot_url: "", video_link: e.videoLink, editing_videos: [],
         _client_type: e.clientName, _custom_client: e.customClient,
         participant_ids: [...new Set([...participantIds, ...e.participantIds])],
+        is_rework: e.isRework || false, linked_to_title: e.linkedToTitle || null, linked_to_client: e.linkedToClient || null, linked_to_date: e.linkedToDate || null,
       })),
     ]
     const saveOverlapHours = edits.reduce((acc, e) => acc + calcOverlapHours(e.startTime, e.endTime, shoots), 0)
@@ -1895,12 +1948,33 @@ export default function DailyUpdateForm({
                   const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
                   const dur = calcDuration(e.startTime, e.endTime)
                   return (
-                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border: e.isRework ? "1.5px solid rgba(245,158,11,0.4)" : "1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
                         <span style={{ fontSize:11, fontWeight:800, color:"#8B5CF6", textTransform:"uppercase", letterSpacing:"0.1em" }}>Voiceover #{vi+1}</span>
                         <button onClick={() => removeVoiceover(e.id)} style={{ width:26, height:26, borderRadius:8, background:"rgba(139,92,246,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
                           <Trash2 size={12} style={{ color:"#8B5CF6" }} />
                         </button>
+                      </div>
+                      {/* Revision toggle */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, padding:"7px 12px", borderRadius:10, background: e.isRework ? "rgba(245,158,11,0.08)" : "rgba(139,92,246,0.04)", border: e.isRework ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(139,92,246,0.1)" }}>
+                        <button onClick={() => patchVoiceover(e.id, { isRework: !e.isRework, linkedToTitle:"", linkedToClient:"", linkedToDate:"" })}
+                          style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background: e.isRework ? "rgba(245,158,11,0.2)" : "rgba(139,92,246,0.12)", color: e.isRework ? "#92400E" : "#7C3AED", whiteSpace:"nowrap", flexShrink:0 }}>
+                          {e.isRework ? "✓ Revision" : "Revision of existing?"}
+                        </button>
+                        {e.isRework && (
+                          past15Options.voiceovers.length > 0 ? (
+                            <select value={e.linkedToDate ? `${e.linkedToDate}||${e.linkedToClient}||${e.linkedToTitle}` : ""}
+                              onChange={ev => {
+                                const opt = past15Options.voiceovers.find(o => o.key === ev.target.value)
+                                if (opt) patchVoiceover(e.id, { linkedToTitle: opt.title, linkedToClient: opt.client, linkedToDate: opt.date })
+                              }}
+                              style={{ flex:1, fontSize:11, padding:"4px 8px", borderRadius:8, border:"1px solid rgba(245,158,11,0.4)", background:"#fff", color:"#374151", outline:"none" }}>
+                              <option value="">Select original voiceover (last 15 days)…</option>
+                              {past15Options.voiceovers.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                            </select>
+                          ) : <span style={{ fontSize:11, color:"#9CA3AF" }}>No voiceovers in last 15 days</span>
+                        )}
+                        {e.isRework && e.linkedToTitle && <span style={{ fontSize:10, fontWeight:700, color:"#B45309", whiteSpace:"nowrap" }}>→ {e.linkedToTitle}</span>}
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
@@ -1996,6 +2070,27 @@ export default function DailyUpdateForm({
                         <button onClick={() => removePoster(e.id)} style={{ width:26, height:26, borderRadius:8, border:"none", background:"rgba(236,72,153,0.08)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
                           <Trash2 size={12} style={{ color:"#EC4899" }} />
                         </button>
+                      </div>
+                      {/* Revision toggle */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, padding:"7px 12px", borderRadius:10, background: e.isRework ? "rgba(245,158,11,0.08)" : "rgba(236,72,153,0.04)", border: e.isRework ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(236,72,153,0.1)" }}>
+                        <button onClick={() => patchPoster(e.id, { isRework: !e.isRework, linkedToTitle:"", linkedToClient:"", linkedToDate:"" })}
+                          style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background: e.isRework ? "rgba(245,158,11,0.2)" : "rgba(236,72,153,0.12)", color: e.isRework ? "#92400E" : "#BE185D", whiteSpace:"nowrap", flexShrink:0 }}>
+                          {e.isRework ? "✓ Revision" : "Revision of existing?"}
+                        </button>
+                        {e.isRework && (
+                          past15Options.posters.length > 0 ? (
+                            <select value={e.linkedToDate ? `${e.linkedToDate}||${e.linkedToClient}||${e.linkedToTitle}` : ""}
+                              onChange={ev => {
+                                const opt = past15Options.posters.find(o => o.key === ev.target.value)
+                                if (opt) patchPoster(e.id, { linkedToTitle: opt.title, linkedToClient: opt.client, linkedToDate: opt.date })
+                              }}
+                              style={{ flex:1, fontSize:11, padding:"4px 8px", borderRadius:8, border:"1px solid rgba(245,158,11,0.4)", background:"#fff", color:"#374151", outline:"none" }}>
+                              <option value="">Select original poster (last 15 days)…</option>
+                              {past15Options.posters.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                            </select>
+                          ) : <span style={{ fontSize:11, color:"#9CA3AF" }}>No posters in last 15 days</span>
+                        )}
+                        {e.isRework && e.linkedToTitle && <span style={{ fontSize:10, fontWeight:700, color:"#B45309", whiteSpace:"nowrap" }}>→ {e.linkedToTitle}</span>}
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
@@ -2102,7 +2197,7 @@ export default function DailyUpdateForm({
 
               {/* ── Editing Today section (non-media only) ──────────────── */}
               {!isMediaTeam && <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-                <SectionHead icon={<span style={{ fontSize:16 }}>🎬</span>} label="Editing Today" count={nmEdits.length} color="#0D9488" />
+                <SectionHead icon={<span style={{ fontSize:16 }}>🎬</span>} label="Editing" count={nmEdits.length} color="#0D9488" />
                 {nmEdits.length === 0 ? (
                   <div onClick={addNmEdit} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed rgba(13,148,136,0.35)", background:"rgba(13,148,136,0.02)", cursor:"pointer" }}>
                     <div style={{ position:"relative", width:180, height:140 }}>
@@ -2118,12 +2213,33 @@ export default function DailyUpdateForm({
                   const L: React.CSSProperties = { display:"block", fontSize:10, fontWeight:700, color:"#374151", textTransform:"uppercase" as const, letterSpacing:"0.1em", marginBottom:5 }
                   const dur = calcDuration(e.startTime, e.endTime)
                   return (
-                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border: e.isRework ? "1.5px solid rgba(245,158,11,0.4)" : "1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
                         <span style={{ fontSize:11, fontWeight:800, color:"#0D9488", textTransform:"uppercase", letterSpacing:"0.1em" }}>Edit #{ni+1}</span>
                         <button onClick={() => removeNmEdit(e.id)} style={{ width:26, height:26, borderRadius:8, background:"rgba(13,148,136,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
                           <Trash2 size={12} style={{ color:"#0D9488" }} />
                         </button>
+                      </div>
+                      {/* Revision toggle */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10, padding:"7px 12px", borderRadius:10, background: e.isRework ? "rgba(245,158,11,0.08)" : "rgba(13,148,136,0.04)", border: e.isRework ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(13,148,136,0.1)" }}>
+                        <button onClick={() => patchNmEdit(e.id, { isRework: !e.isRework, linkedToTitle:"", linkedToClient:"", linkedToDate:"" })}
+                          style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 10px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background: e.isRework ? "rgba(245,158,11,0.2)" : "rgba(13,148,136,0.12)", color: e.isRework ? "#92400E" : "#0D9488", whiteSpace:"nowrap", flexShrink:0 }}>
+                          {e.isRework ? "✓ Revision" : "Revision of existing?"}
+                        </button>
+                        {e.isRework && (
+                          past15Options.edits.length > 0 ? (
+                            <select value={e.linkedToDate ? `${e.linkedToDate}||${e.linkedToClient}||${e.linkedToTitle}` : ""}
+                              onChange={ev => {
+                                const opt = past15Options.edits.find(o => o.key === ev.target.value)
+                                if (opt) patchNmEdit(e.id, { linkedToTitle: opt.title, linkedToClient: opt.client, linkedToDate: opt.date })
+                              }}
+                              style={{ flex:1, fontSize:11, padding:"4px 8px", borderRadius:8, border:"1px solid rgba(245,158,11,0.4)", background:"#fff", color:"#374151", outline:"none" }}>
+                              <option value="">Select original edit (last 15 days)…</option>
+                              {past15Options.edits.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                            </select>
+                          ) : <span style={{ fontSize:11, color:"#9CA3AF" }}>No edit entries in last 15 days</span>
+                        )}
+                        {e.isRework && e.linkedToTitle && <span style={{ fontSize:10, fontWeight:700, color:"#B45309", whiteSpace:"nowrap" }}>→ {e.linkedToTitle}</span>}
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                         <div>
@@ -2561,7 +2677,7 @@ export default function DailyUpdateForm({
 
             {/* Edits */}
             <div style={{ background:"#FFFFFF", borderRadius:20, border:"1px solid #EBEDF2", padding:"20px 22px", boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-              <SectionHead icon={<Film size={16} style={{ color:"#6366F1" }} />} label="Editing Today" count={edits.length} color="#6366F1" />
+              <SectionHead icon={<Film size={16} style={{ color:"#6366F1" }} />} label="Editing" count={edits.length} color="#6366F1" />
               {edits.length === 0 ? (
                 <div onClick={addEdit} style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:"32px 0", borderRadius:16, border:"2px dashed #C7D2FE", background:"rgba(99,102,241,0.02)", cursor:"pointer" }}>
                   <div style={{ position:"relative", width:180, height:140 }}>
@@ -2573,12 +2689,37 @@ export default function DailyUpdateForm({
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                   {edits.map((e, i) => (
-                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border:"1px solid #F0F1F5", padding:"14px 16px" }}>
-                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:14 }}>
+                    <div key={e.id} style={{ background:"#FAFBFC", borderRadius:14, border: e.isRework ? "1.5px solid rgba(245,158,11,0.4)" : "1px solid #F0F1F5", padding:"14px 16px" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
                         <span style={{ fontSize:11, fontWeight:800, color:"#6366F1", textTransform:"uppercase", letterSpacing:"0.1em" }}>Edit #{i + 1}</span>
                         <button onClick={() => removeEdit(e.id)} style={{ width:26, height:26, borderRadius:8, background:"rgba(99,102,241,0.08)", border:"none", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
                           <Trash2 size={12} style={{ color:"#6366F1" }} />
                         </button>
+                      </div>
+                      {/* Revision toggle */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:12, padding:"8px 12px", borderRadius:10, background: e.isRework ? "rgba(245,158,11,0.08)" : "rgba(99,102,241,0.04)", border: e.isRework ? "1px solid rgba(245,158,11,0.3)" : "1px solid rgba(99,102,241,0.1)" }}>
+                        <button onClick={() => patchEdit(e.id, { isRework: !e.isRework, linkedToTitle:"", linkedToClient:"", linkedToDate:"" })}
+                          style={{ display:"flex", alignItems:"center", gap:6, padding:"5px 12px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, background: e.isRework ? "rgba(245,158,11,0.2)" : "rgba(99,102,241,0.12)", color: e.isRework ? "#92400E" : "#4F46E5", whiteSpace:"nowrap", flexShrink:0 }}>
+                          {e.isRework ? "✓ Revision" : "Revision of existing?"}
+                        </button>
+                        {e.isRework && (
+                          past15Options.edits.length > 0 ? (
+                            <select value={e.linkedToDate ? `${e.linkedToDate}||${e.linkedToClient}||${e.linkedToTitle}` : ""}
+                              onChange={ev => {
+                                const opt = past15Options.edits.find(o => o.key === ev.target.value)
+                                if (opt) patchEdit(e.id, { linkedToTitle: opt.title, linkedToClient: opt.client, linkedToDate: opt.date })
+                              }}
+                              style={{ flex:1, fontSize:11, padding:"5px 8px", borderRadius:8, border:"1px solid rgba(245,158,11,0.4)", background:"#fff", color:"#374151", outline:"none" }}>
+                              <option value="">Select original video (last 15 days)…</option>
+                              {past15Options.edits.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                            </select>
+                          ) : (
+                            <span style={{ fontSize:11, color:"#9CA3AF" }}>No edit entries in last 15 days</span>
+                          )
+                        )}
+                        {e.isRework && e.linkedToTitle && (
+                          <span style={{ fontSize:10, fontWeight:700, color:"#B45309", whiteSpace:"nowrap" }}>→ {e.linkedToTitle}</span>
+                        )}
                       </div>
                       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:10 }}>
                         <div>

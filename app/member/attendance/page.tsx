@@ -150,14 +150,14 @@ export default async function AttendancePage() {
 
   // Check if today has an approved full-day or half-day leave (no login required)
   const { data: todayLeaveRaw } = await admin.from("leaves")
-    .select("leave_type, reason")
+    .select("leave_type, reason, half_day_from_time, half_day_to_time")
     .eq("user_id", effectiveUserId)
     .eq("status", "approved")
     .in("leave_type", ["full_day", "half_day"])
     .lte("from_date", today)
     .gte("to_date", today)
     .maybeSingle()
-  const todayApprovedLeave = todayLeaveRaw as { leave_type: string; reason: string | null } | null
+  const todayApprovedLeave = todayLeaveRaw as { leave_type: string; reason: string | null; half_day_from_time?: string | null; half_day_to_time?: string | null } | null
 
   // Check WFH / Shoot Day leave status for today (pending or approved)
   const { data: todayWfhLeaveRaw } = await admin.from("leaves")

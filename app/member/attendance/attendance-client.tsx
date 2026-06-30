@@ -38,7 +38,7 @@ interface Props {
   todayPermissionHours?: number; permHoursByDate?: Record<string, number>
   weekUpdatesByDate?: Record<string, number>
   monthlyPerf?: MonthlyPerf
-  todayApprovedLeave?: { leave_type: string; reason: string | null } | null
+  todayApprovedLeave?: { leave_type: string; reason: string | null; half_day_from_time?: string | null; half_day_to_time?: string | null } | null
   todayWfhLeave?: { leave_type: string; status: string; created_at: string } | null
   isMedia?: boolean
   yesterdayStatus?: 'ok' | 'no_login' | 'no_logout'
@@ -195,6 +195,20 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
 
   const handleLogIn = useCallback(() => {
     setError(null)
+    // Half day leave window check — block clock-in during the approved leave hours
+    if (todayApprovedLeave?.leave_type === "half_day" && todayApprovedLeave.half_day_from_time && todayApprovedLeave.half_day_to_time) {
+      const nowIST = new Date().toLocaleString("en-CA", { timeZone: "Asia/Kolkata" })
+      const nowDate = nowIST.split(",")[0]
+      const nowTimeStr = new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" })
+      const leaveEnd = new Date(`${nowDate}T${todayApprovedLeave.half_day_to_time}`)
+      const nowTime  = new Date(`${nowDate}T${nowTimeStr}`)
+      const leaveStart = new Date(`${nowDate}T${todayApprovedLeave.half_day_from_time}`)
+      if (nowTime >= leaveStart && nowTime < leaveEnd) {
+        const minsLeft = Math.ceil((leaveEnd.getTime() - nowTime.getTime()) / 60000)
+        setError(`You have an approved half day leave until ${new Date(leaveEnd).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}. You can log in in ${minsLeft} minute${minsLeft !== 1 ? "s" : ""}.`)
+        return
+      }
+    }
     if (selectedMode === "office" && OFFICE_CHECK_ENABLED) {
       if (!navigator.geolocation) { setError("Location not supported by this browser."); return }
       setGeoLoading(true)
@@ -490,16 +504,6 @@ export default function AttendanceClient({ todayLog, weekLogs, todayUpdate, toda
                     </div>
                   )}
                   {/* Block clock-in entirely if yesterday has no login (2A) */}
-                  {/* Half day leave: show info banner but still allow clock-in for the other half */}
-                  {todayApprovedLeave?.leave_type === "half_day" && (
-                    <div className="rounded-2xl p-4 flex items-center gap-3" style={{ background: "rgba(245,158,11,0.07)", border: "1.5px solid rgba(245,158,11,0.25)" }}>
-                      <div className="text-2xl">🌓</div>
-                      <div>
-                        <p className="text-[13px] font-black" style={{ color: "#D97706" }}>Half Day Leave Approved</p>
-                        <p className="text-[11px]" style={{ color: "#9CA3AF" }}>You can still clock in for the other half of the day.</p>
-                      </div>
-                    </div>
-                  )}
                   {yesterdayStatus === 'no_login' ? null : (todayApprovedLeave && todayApprovedLeave.leave_type !== "half_day") ? (
                     <div className="rounded-2xl p-5 text-center" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(239,68,68,0.02) 100%)", border: "1.5px solid rgba(239,68,68,0.2)" }}>
                       <div className="text-3xl mb-2">🏖️</div>

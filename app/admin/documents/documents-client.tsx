@@ -510,18 +510,20 @@ export default function DocumentsClient({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/documents/hero-boy.png" alt=""
             style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center center", display: "block" }} />
-          {/* Gradient fade — left edge blends into red */}
+          {/* Fade left edge into red */}
           <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "60%", background: "linear-gradient(to right, #8B1212 0%, rgba(139,18,18,0.55) 50%, transparent 100%)", zIndex: 2, pointerEvents: "none" }} />
+          {/* Dark shade top-right corner — makes buttons readable */}
+          <div style={{ position: "absolute", right: 0, top: 0, width: "55%", height: "65%", background: "linear-gradient(135deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)", zIndex: 2, pointerEvents: "none" }} />
         </div>
 
         {/* ── Buttons — absolute top-right ── */}
         <div style={{ position: "absolute", top: 18, right: 20, display: "flex", flexDirection: "column", gap: 8, zIndex: 4, alignItems: "flex-end" }}>
           <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }}
-            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: "1px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.18)", color: "#fff", backdropFilter: "blur(8px)", whiteSpace: "nowrap" }}>
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 700, cursor: "pointer", border: "1.5px solid rgba(255,255,255,0.5)", background: "rgba(255,255,255,0.22)", color: "#fff", backdropFilter: "blur(12px)", whiteSpace: "nowrap", boxShadow: "0 2px 12px rgba(0,0,0,0.3)" }}>
             <Upload size={13} /> Upload Document
           </button>
           <a href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8" target="_blank" rel="noopener noreferrer"
-            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: "#C01010", background: "#FFFFFF", textDecoration: "none", boxShadow: "0 4px 14px rgba(0,0,0,0.2)", whiteSpace: "nowrap" }}>
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 12.5, fontWeight: 800, color: "#C01010", background: "#FFFFFF", textDecoration: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.35)", whiteSpace: "nowrap", border: "none" }}>
             <ExternalLink size={13} /> Drive Backup
           </a>
         </div>

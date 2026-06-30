@@ -144,10 +144,12 @@ function AvailabilityDonut({ pct, size = 160 }: { pct: number; size?: number }) 
         strokeDasharray={`${onTrack} ${offTrack}`} strokeLinecap="round"
         transform={`rotate(-90 ${cx} ${cy})`}
         style={{ transition: "stroke-dasharray 0.6s", filter: "drop-shadow(0 2px 8px rgba(255,100,100,0.5))" }} />
-      <text x={cx} y={cy - size * 0.04} textAnchor="middle" dominantBaseline="middle"
+      <text x={cx} y={cy - size * 0.08} textAnchor="middle" dominantBaseline="middle"
         fontSize={size * 0.2} fontWeight="900" fill="#FFFFFF">{pct}%</text>
-      <text x={cx} y={cy + size * 0.15} textAnchor="middle" dominantBaseline="middle"
-        fontSize={size * 0.09} fill="rgba(255,255,255,0.7)">Team Available</text>
+      <text x={cx} y={cy + size * 0.08} textAnchor="middle" dominantBaseline="middle"
+        fontSize={size * 0.075} fill="rgba(255,255,255,0.7)">Team</text>
+      <text x={cx} y={cy + size * 0.19} textAnchor="middle" dominantBaseline="middle"
+        fontSize={size * 0.075} fill="rgba(255,255,255,0.7)">Available</text>
     </svg>
   )
 }
@@ -385,7 +387,7 @@ export default function LeavesClient({
           <p style={{ fontSize: 13, color: "rgba(255,255,255,0.72)", margin: 0 }}>Review and manage team leave applications</p>
         </div>
         {/* 6 KPI boxes in 3×2 grid */}
-        <div className="grid grid-cols-3 lg:grid-cols-6 w-full lg:w-auto" style={{ gap: 8, position: "relative", zIndex: 1 }}>
+        <div className="grid grid-cols-3 lg:grid-cols-6 w-fit mx-auto lg:mx-0" style={{ gap: 8, position: "relative", zIndex: 1 }}>
           {[
             { label: "Full Day",  value: fullDayCount,  color: "#FCA5A5" },
             { label: "WFH",       value: wfhCount,       color: "#6EE7B7" },

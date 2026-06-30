@@ -127,7 +127,7 @@ function PersonDetailDrawer({ updates, onClose }: { updates: Update[]; onClose: 
   const byDate = new Map<string, WorkEntry[]>()
   for (const u of [...updates].sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""))) {
     const entries = (Array.isArray(u.work_entries) ? u.work_entries : []) as WorkEntry[]
-    const work = entries.filter(e => e.task_type !== "break")
+    const work = entries.filter(e => e.task_type !== "break" && e.task_type !== "not_started")
     if (work.length > 0) {
       const d = u.date ?? u.created_at?.split("T")[0] ?? "Unknown"
       byDate.set(d, [...(byDate.get(d) ?? []), ...work])
@@ -151,32 +151,18 @@ function PersonDetailDrawer({ updates, onClose }: { updates: Update[]; onClose: 
         display: "flex", flexDirection: "column", overflow: "hidden",
       }}>
         {/* Header */}
-        <div style={{ padding: "20px 24px", borderBottom: "1px solid #F3F4F6", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.1em" }}>Update Details</span>
-            <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <X size={13} color="#6B7280" />
-            </button>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 52, height: 52, borderRadius: "50%", background: bg, color: fg, fontSize: 16, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid #F3F4F6", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 46, height: 46, borderRadius: "50%", background: bg, color: fg, fontSize: 15, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
               {getInitials(user.name)}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 17, fontWeight: 800, color: "#111827" }}>{user.name}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
-                <span style={{ padding: "2px 10px", borderRadius: 6, background: badge.bg, color: badge.color, fontSize: 11, fontWeight: 700 }}>{badge.label}</span>
-                {totalHours > 0 && (
-                  <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, display: "flex", alignItems: "center", gap: 3 }}>
-                    <Clock size={11} /> {fmtHours(totalHours)}
-                  </span>
-                )}
-              </div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: "#111827", lineHeight: 1.2 }}>{user.name}</div>
+              <span style={{ display: "inline-block", padding: "2px 9px", borderRadius: 6, background: badge.bg, color: badge.color, fontSize: 10, fontWeight: 700, marginTop: 4 }}>{badge.label}</span>
             </div>
-            <div style={{ textAlign: "right", flexShrink: 0 }}>
-              <div style={{ fontSize: 22, fontWeight: 900, color: "#111827" }}>{totalEntryCount}</div>
-              <div style={{ fontSize: 10, color: "#9CA3AF", fontWeight: 600, textTransform: "uppercase" }}>entries</div>
-            </div>
+            <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+              <X size={13} color="#6B7280" />
+            </button>
           </div>
         </div>
 
@@ -208,47 +194,37 @@ function PersonDetailDrawer({ updates, onClose }: { updates: Update[]; onClose: 
 
                 return (
                   <div key={i} style={{
-                    background: "#FAFAFA", borderRadius: 14, padding: "14px 16px",
-                    border: "1.5px solid #F0F0F5",
+                    background: "#FFFFFF", borderRadius: 10, padding: "10px 12px",
+                    border: "1px solid #F0F0F5", borderLeft: `3px solid ${typeInfo.color}`,
+                    display: "flex", alignItems: "center", gap: 10,
                   }}>
-                    {/* Entry header */}
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 8 }}>
-                      <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{typeInfo.emoji}</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 800, color: "#111827", lineHeight: 1.3 }}>
-                          {title || typeInfo.label}
-                        </div>
+                    {/* Type icon square */}
+                    <div style={{ width: 34, height: 34, borderRadius: 9, flexShrink: 0, background: typeInfo.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <span style={{ fontSize: 16 }}>{typeInfo.emoji}</span>
+                    </div>
+                    {/* Center info */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 12, fontWeight: 800, color: "#111827", margin: 0, lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {title || typeInfo.label}
+                      </p>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3, flexWrap: "wrap" }}>
                         {clientNames && (
-                          <div style={{ fontSize: 11, fontWeight: 700, color: typeInfo.color, marginTop: 3,
-                            background: typeInfo.bg, display: "inline-block", padding: "1px 8px", borderRadius: 6 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: typeInfo.color, background: typeInfo.bg, padding: "1px 7px", borderRadius: 5 }}>
                             {clientNames}
-                          </div>
+                          </span>
+                        )}
+                        {startTime && endTime && (
+                          <span style={{ fontSize: 10, color: "#9CA3AF" }}>{startTime} – {endTime}</span>
                         )}
                       </div>
-                      <span style={{ padding: "3px 8px", borderRadius: 6, background: typeInfo.bg, color: typeInfo.color, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap", flexShrink: 0 }}>
-                        {typeInfo.label}
-                      </span>
                     </div>
-
-                    {/* Meta row */}
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px", paddingLeft: 28 }}>
-                      {durationH > 0 && (
-                        <span style={{ fontSize: 11, color: "#6B7280", display: "flex", alignItems: "center", gap: 3 }}>
-                          <Clock size={10} /> {fmtHours(durationH)}
-                        </span>
-                      )}
-                      {startTime && endTime && (
-                        <span style={{ fontSize: 11, color: "#6B7280" }}>{startTime} – {endTime}</span>
-                      )}
-                      {videoType && videoType !== "__other__" && (
-                        <span style={{ fontSize: 11, color: "#6B7280" }}>{videoType}</span>
-                      )}
-                      {entryNotes && (
-                        <div style={{ width: "100%", fontSize: 11, color: "#9CA3AF", fontStyle: "italic", marginTop: 4, lineHeight: 1.5 }}>
-                          {entryNotes}
-                        </div>
-                      )}
-                    </div>
+                    {/* Duration */}
+                    {durationH > 0 && (
+                      <div style={{ flexShrink: 0, textAlign: "right" }}>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: typeInfo.color }}>{fmtHours(durationH)}</div>
+                        <div style={{ fontSize: 9, color: "#9CA3AF", textTransform: "uppercase", marginTop: 1 }}>⏱</div>
+                      </div>
+                    )}
                   </div>
                 )
               })}

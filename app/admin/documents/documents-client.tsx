@@ -500,36 +500,38 @@ export default function DocumentsClient({
         <div style={{ position: "absolute", top: -40, right: -40, width: 200, height: 200, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
         <div style={{ position: "absolute", bottom: -30, right: 200, width: 120, height: 120, borderRadius: "50%", background: "rgba(255,255,255,0.04)" }} />
         <div style={{ position: "absolute", top: 10, right: 360, width: 60, height: 60, borderRadius: "50%", background: "rgba(255,255,255,0.06)" }} />
-        <div style={{ padding: "28px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, position: "relative", zIndex: 1 }}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 10, padding: "6px 8px", display: "flex", alignItems: "center" }}>
-                <Sparkles size={16} style={{ color: "#FFD700" }} />
-              </div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.15em" }}>Admin Dashboard</span>
-            </div>
-            <h1 style={{ fontSize: 36, fontWeight: 900, color: "#FFFFFF", margin: "0 0 6px", fontFamily: "var(--font-jakarta)", lineHeight: 1 }}>Documents</h1>
-            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", margin: 0 }}>Manage employee documents securely in one place</p>
-            <div style={{ display: "flex", gap: 12, marginTop: 16, flexWrap: "wrap" }}>
-              {[
-                { icon: <Users size={12} />, label: `${members.length} Members` },
-                { icon: <FileText size={12} />, label: `${totalFiles} Files` },
-                { icon: <Shield size={12} />, label: `${verifiedCount} Verified` },
-              ].map(s => (
-                <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 12px" }}>
-                  <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF" }}>{s.label}</span>
+        <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 14, position: "relative", zIndex: 1 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                <div style={{ background: "rgba(255,255,255,0.2)", borderRadius: 8, padding: "5px 7px", display: "flex", alignItems: "center", flexShrink: 0 }}>
+                  <Sparkles size={14} style={{ color: "#FFD700" }} />
                 </div>
-              ))}
+                <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.12em" }}>Admin Dashboard</span>
+              </div>
+              <h1 style={{ fontSize: "clamp(22px,5vw,32px)", fontWeight: 900, color: "#FFFFFF", margin: "0 0 3px", fontFamily: "var(--font-jakarta)", lineHeight: 1.1 }}>Documents</h1>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.65)", margin: 0 }}>Manage employee documents securely</p>
+            </div>
+            <div style={{ display: "flex", flexDirection: "row", gap: 8, alignItems: "center", flexShrink: 0, flexWrap: "wrap" }}>
+              <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "none", background: "rgba(255,255,255,0.25)", color: "#fff", backdropFilter: "blur(10px)", whiteSpace: "nowrap" }}>
+                <Upload size={14} /> Upload
+              </button>
+              <a href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 14px", borderRadius: 12, fontSize: 12, fontWeight: 700, cursor: "pointer", background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.9)", border: "1px solid rgba(255,255,255,0.3)", textDecoration: "none", whiteSpace: "nowrap" }}>
+                <ExternalLink size={13} /> Drive
+              </a>
             </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end", flexShrink: 0 }}>
-            <button onClick={() => { setUploadFor(selectedId); setShowUpload(true) }} style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 18px", borderRadius: 12, fontSize: 13, fontWeight: 700, cursor: "pointer", border: "none", background: "rgba(255,255,255,0.25)", color: "#fff", backdropFilter: "blur(10px)" }}>
-              <Upload size={14} /> Upload Document
-            </button>
-            <a href="https://drive.google.com/drive/folders/16TBEl7wIxVEv43gYqqfp0NxXc8Z87dF8" target="_blank" rel="noopener noreferrer" style={{ display: "flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 12, fontSize: 12, fontWeight: 700, cursor: "pointer", background: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.9)", border: "1px solid rgba(255,255,255,0.3)", textDecoration: "none" }}>
-              <ExternalLink size={13} /> Drive Backup
-            </a>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {[
+              { icon: <Users size={11} />, label: `${members.length} Members` },
+              { icon: <FileText size={11} />, label: `${totalFiles} Files` },
+              { icon: <Shield size={11} />, label: `${verifiedCount} Verified` },
+            ].map(s => (
+              <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.15)", borderRadius: 20, padding: "4px 10px" }}>
+                <span style={{ color: "rgba(255,255,255,0.8)" }}>{s.icon}</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#FFFFFF" }}>{s.label}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>

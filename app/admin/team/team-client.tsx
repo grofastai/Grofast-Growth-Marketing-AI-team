@@ -1512,11 +1512,11 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                 </div>
               )}
               {/* Illustration */}
-              <div className="absolute right-0 bottom-0 w-24 h-24 sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
+              <div className="absolute right-0 bottom-0 w-[60px] h-[60px] sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
                 <Image src={s.img} alt={s.label} fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
               </div>
               {/* Text */}
-              <div style={{ position: "relative", zIndex: 1 }} className="max-w-[70%] sm:max-w-[60%] lg:max-w-[55%]">
+              <div style={{ position: "relative", zIndex: 1 }} className="max-w-[52%] sm:max-w-[60%] lg:max-w-[55%]">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em]" style={{ color: s.num, opacity: 0.85 }}>{s.label}</p>
                 <p className="text-[42px] font-black leading-none mt-1" style={{ fontFamily: "var(--font-jakarta)", color: s.num }}>{s.value}</p>
                 <p className="text-[11px] mt-1.5 font-medium" style={{ color: "#6B7280" }}>{s.sub}</p>
@@ -1544,7 +1544,7 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                   FILTERED
                 </div>
               )}
-              <div className="absolute right-0 bottom-0 w-24 h-24 sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
+              <div className="absolute right-0 bottom-0 w-[60px] h-[60px] sm:w-36 sm:h-32 lg:w-[200px] lg:h-[175px] pointer-events-none">
                 <Image src="/brand/team-freelancers.png" alt="Freelancers" fill style={{ objectFit: "contain", objectPosition: "right bottom" }} />
               </div>
               <div style={{ position: "relative", zIndex: 1 }}>
@@ -1663,6 +1663,14 @@ export default function TeamClient({ members, pastMembers, freelancers: initFree
                                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#F9FAFB"}
                                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
                                       <KeyRound size={12} /> Reset Password
+                                    </button>
+                                    <div style={{ borderTop: "1px solid #F3F4F6", margin: "2px 0" }} />
+                                    <button onClick={() => { setConfirmDelete(m); setOpenDropdown(null); setDropdownAnchor(null) }}
+                                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[12px] transition-all"
+                                      style={{ color: "#EF4444" }}
+                                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,0.06)"}
+                                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}>
+                                      <Trash2 size={12} /> Delete Member
                                     </button>
                                   </div>
                                 )}

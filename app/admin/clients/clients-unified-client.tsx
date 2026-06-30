@@ -302,9 +302,9 @@ export default function ClientsUnifiedClient({
       <div className="flex flex-col md:flex-row" style={{ flex: 1, overflow: 'hidden' }}>
 
       {/* ── LEFT PANEL ──────────────────────────────────────────────────── */}
-      <div className={selectedClientName ? "hidden md:flex flex-col w-full md:w-[300px]" : "flex flex-col w-full md:w-[300px]"} style={{
+      <div className={selectedClientName ? "hidden md:flex flex-col flex-1 md:flex-none w-full md:w-[300px]" : "flex flex-col flex-1 md:flex-none w-full md:w-[300px]"} style={{
         flexShrink: 0, borderRight: '1px solid #EBEDF2',
-        background: '#FFFFFF', overflow: 'hidden',
+        background: '#FFFFFF', overflow: 'hidden', minHeight: 0,
       }}>
         {/* Header */}
         <div style={{ padding: '18px 16px 12px', borderBottom: '1px solid #F0F1F5' }}>

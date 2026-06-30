@@ -1052,8 +1052,8 @@ export default function FreelancersMemberClient({
         {/* LEFT panel */}
         {!hideLeftPanel && <div className={mobileView === 'detail' ? 'hidden md:flex md:flex-col' : 'flex flex-col'} style={{ width: "100%", maxWidth: 276, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EBEBEB", overflow: "hidden" }}>
           <div style={{ borderBottom: "1px solid #F5F5F7", padding: "8px 10px", display: "flex", gap: 4, flexWrap: "wrap", flexShrink: 0, alignItems: "center", overflowX: "auto" }}>
-            <button onClick={() => { setTeamFilter("all"); setSelectedId(null) }} style={{ padding: "6px 12px", borderRadius: 99, fontSize: 12, fontWeight: 700, border: "none", cursor: "pointer", background: teamFilter === "all" && !selectedId ? "#111" : "#F5F5F7", color: teamFilter === "all" && !selectedId ? "#fff" : "#6B7280", transition: "all 0.15s", flexShrink: 0 }}>
-              All {activeFreelancers.length}
+            <button onClick={() => { setTeamFilter("all"); setSelectedId(null); setMobileView("detail") }} style={{ padding: "6px 12px", borderRadius: 10, fontSize: 12, fontWeight: 700, border: `1.5px solid ${teamFilter === "all" && !selectedId ? "#111" : "#E5E7EB"}`, cursor: "pointer", background: teamFilter === "all" && !selectedId ? "#111" : "#FFFFFF", color: teamFilter === "all" && !selectedId ? "#fff" : "#374151", transition: "all 0.15s", flexShrink: 0, boxShadow: teamFilter === "all" && !selectedId ? "0 2px 8px rgba(0,0,0,0.15)" : "none" }}>
+              All Members
             </button>
             {NO_LOGIN_TEAMS.filter(t => (teamCounts[t] ?? 0) > 0).map(t => {
               const c = TEAM_CFG[t]; const active = teamFilter === t
@@ -1207,24 +1207,22 @@ export default function FreelancersMemberClient({
                         const day = new Date(e.date + "T12:00:00")
                         const dateStr = day.toLocaleDateString("en-IN", { day: "numeric", month: "short" })
                         return (
-                          <div key={e.id} style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #FEE2E2", padding: "14px 18px", boxShadow: "0 2px 12px rgba(220,20,60,0.06)", display: "flex", alignItems: "center", gap: 14 }}>
-                            <div style={{ width: 44, height: 44, borderRadius: 14, flexShrink: 0, background: "rgba(220,20,60,0.1)", border: "1.5px solid rgba(220,20,60,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <span style={{ fontSize: 13, fontWeight: 900, color: "#DC143C" }}>{e.user_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}</span>
-                            </div>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-                                <span style={{ fontSize: 9, fontWeight: 800, color: "#DC143C", background: "rgba(220,20,60,0.09)", padding: "1px 6px", borderRadius: 4, letterSpacing: "0.05em" }}>LOGIN</span>
-                                <span style={{ fontSize: 11, fontWeight: 700, color: "#6B7280" }}>{e.user_name}</span>
+                          <div key={e.id} style={{ background: "#FFFFFF", borderRadius: 18, border: "1px solid #FEE2E2", padding: "12px 16px", boxShadow: "0 2px 12px rgba(220,20,60,0.06)" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+                              <div style={{ width: 36, height: 36, borderRadius: 11, flexShrink: 0, background: "rgba(220,20,60,0.1)", border: "1.5px solid rgba(220,20,60,0.2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <span style={{ fontSize: 11, fontWeight: 900, color: "#DC143C" }}>{e.user_name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}</span>
                               </div>
-                              <p style={{ fontSize: 14, fontWeight: 800, color: "#111827", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{e.title}</p>
-                              <div style={{ display: "flex", gap: 8, marginTop: 3 }}>
-                                <span style={{ fontSize: 11, fontWeight: 700, color: "#DC143C", background: "rgba(220,20,60,0.07)", padding: "1px 8px", borderRadius: 6 }}>{e.client_name}</span>
-                                <span style={{ fontSize: 11, color: "#9CA3AF" }}>{dateStr}</span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <span style={{ fontSize: 9, fontWeight: 800, color: "#DC143C", background: "rgba(220,20,60,0.09)", padding: "1px 6px", borderRadius: 4, letterSpacing: "0.05em" }}>LOGIN</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{e.user_name}</span>
+                                  <span style={{ fontSize: 11, color: "#9CA3AF", marginLeft: "auto" }}>{dateStr}</span>
+                                </div>
                               </div>
+                              <p style={{ fontSize: 16, fontWeight: 900, color: e.price ? "#111827" : "#9CA3AF", margin: 0, flexShrink: 0 }}>{e.price ? fmt(e.price) : "—"}</p>
                             </div>
-                            <div style={{ flexShrink: 0 }}>
-                              <p style={{ fontSize: 17, fontWeight: 900, color: e.price ? "#111827" : "#9CA3AF", margin: 0 }}>{e.price ? fmt(e.price) : "—"}</p>
-                            </div>
+                            <p style={{ fontSize: 13, fontWeight: 800, color: "#111827", margin: "0 0 5px", lineHeight: 1.4 }}>{e.title}</p>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: "#DC143C", background: "rgba(220,20,60,0.07)", padding: "2px 9px", borderRadius: 6 }}>{e.client_name}</span>
                           </div>
                         )
                       })}
@@ -1260,7 +1258,7 @@ export default function FreelancersMemberClient({
                   {/* Character image — on the outer container (overflow:visible), hangs below card */}
                   {selectedFreelancer.team === "Freelance RJ Voiceover" && (
                     <img src="/brand/voiceover-rj-character.png" alt="" aria-hidden="true"
-                      style={{ position: "absolute", bottom: -50, right: 16, height: 270, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 5 }} />
+                      style={{ position: "absolute", bottom: -50, right: 16, height: 270, width: "auto", objectFit: "contain", pointerEvents: "none", filter: "drop-shadow(0 8px 32px rgba(168,85,247,0.5))", zIndex: 1 }} />
                   )}
                   <div style={{ position: "relative", zIndex: 2, padding: "24px 24px 0" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
